@@ -2,15 +2,8 @@ using UnityEngine;
 
 public class FacingDirection4D : FacingDirectionBase
 {
-    private enum FacingDirection
-    {
-        NorthWest,
-        NorthEast,
-        SouthEast,
-        SouthWest
-    }
 
-    private FacingDirection currentDirection;
+    private Direction currentDirection = Direction.SouthWest;
 
     public override void UpdateFacing(Vector3 movementDirection)
     {
@@ -26,7 +19,7 @@ public class FacingDirection4D : FacingDirectionBase
 
         Vector2 dir = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
 
-        FacingDirection newDirection = Get4Direction(dir);
+        Direction newDirection = Get4Direction(dir);
 
         if (newDirection != currentDirection)
         {
@@ -35,14 +28,14 @@ public class FacingDirection4D : FacingDirectionBase
         }
     }
 
-    private FacingDirection Get4Direction(Vector2 dir)
+    private Direction Get4Direction(Vector2 dir)
     {
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         angle = (angle + 360f + 45f) % 360f;
 
-        if (angle < 90) return FacingDirection.NorthEast;
-        if (angle < 180) return FacingDirection.NorthWest;
-        if (angle < 270) return FacingDirection.SouthWest;
-        return FacingDirection.SouthEast;
+        if (angle < 90) return Direction.NorthEast;
+        if (angle < 180) return Direction.NorthWest;
+        if (angle < 270) return Direction.SouthWest;
+        return Direction.SouthEast;
     }
 }
