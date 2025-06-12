@@ -1,13 +1,20 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerInputHandler : CharacterInputBase
+public class PlayerDrivingInputHandler : IInputProvider
 {
+    // public abstract bool InteractionFired { get; }
+
+    // secondary action (leave vehicle)
+
+    // switch seat
+
+    // Menu toggle
     private Vector2 moveInput;
     private bool actionPressed;
 
     public override Vector2 MoveInput => moveInput;
-    public override bool ActionPressed => actionPressed;
+    public override bool ActionFired => actionPressed;
 
     public void OnMove(InputAction.CallbackContext context)
     {

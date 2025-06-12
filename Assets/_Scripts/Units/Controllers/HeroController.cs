@@ -9,7 +9,7 @@ public class HeroController : CharacterControllerBase
     {
         base.HandleAction();
 
-        if (input.ActionPressed)
+        if (input.ActionFired)
         {
             FireTriggerAnimation(attackAnimation);
         }
