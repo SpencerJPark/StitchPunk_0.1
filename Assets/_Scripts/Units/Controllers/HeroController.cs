@@ -16,7 +16,4 @@ public class HeroController : CharacterControllerBase
 
         // Add more player-specific actions here
     }
-
-    // You can override UpdateMovementAnimation or UpdateFacingDirection
-    // if heroes have custom animation logic.
 }

@@ -3,37 +3,42 @@ using UnityEngine.InputSystem;
 
 public class PlayerInputHandler : IInputProvider
 {
-    // public abstract bool InteractionFired { get; }
+    [SerializeField] private PlayerInput playerInput;
 
-    // secondary action (sneak toggle, aim, etc...)
+    // Values
+    Vector2 moveInput;
+    bool    actionPressed;
+    bool    interactionPressed;
 
-    // switch equipt quick
-
-    // switch equipt select
-
-    // Menu toggle
-    private Vector2 moveInput;
-    private bool actionPressed;
-
+    // Buttons
     public override Vector2 MoveInput => moveInput;
     public override bool ActionFired => actionPressed;
+    public bool InteractPressed => interactionPressed;
 
-    public void OnMove(InputAction.CallbackContext context)
+    public InputAction InteractAction => playerInput.actions["Interact"];
+
+    public void OnMove(InputAction.CallbackContext ctx)
+        => moveInput = ctx.ReadValue<Vector2>();
+
+    public void OnAction(InputAction.CallbackContext ctx)
     {
-        moveInput = context.ReadValue<Vector2>();
+        if (ctx.started)  actionPressed = true;
+        if (ctx.canceled) actionPressed = false;
     }
 
-    public void OnAction(InputAction.CallbackContext context)
+    public void OnInteract(InputAction.CallbackContext ctx)
     {
-        if (context.started)
-            actionPressed = true;
-        if (context.canceled)
-            actionPressed = false;
+        if (ctx.started)  interactionPressed = true;
+        if (ctx.canceled) interactionPressed = false;
     }
 
-    private void OnDisable()
+    public void SwitchActionMap(string mapName)
+        => playerInput.SwitchCurrentActionMap(mapName);
+
+    void OnDisable()
     {
-        actionPressed = false;
-        moveInput = Vector2.zero;
+        moveInput        = Vector2.zero;
+        actionPressed    = false;
+        interactionPressed = false;
     }
 }

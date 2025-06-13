@@ -4,6 +4,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 {
     [Header("Dependencies")]
     [SerializeField] protected IInputProvider input;
+    [SerializeField] protected CharacterController cc;
     [SerializeField] protected RiveAnimator animator;
     [SerializeField] private MonoBehaviour facingComponent;
     private IFacingController facingController;
@@ -62,29 +63,20 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         isMoving = moveDirection.sqrMagnitude > 0.01f;
 
         float speed = currentState != null ? currentState.MoveSpeed : 3f;
-        Vector3 movement = moveDirection * speed * Time.deltaTime;
+        Vector3 motion = moveDirection * speed;
 
-        if (movementProfile != null)
+        // apply gravity if needed
+        if (movementProfile != null &&
+            (movementProfile.movementType == MovementType.Grounded ||
+             movementProfile.movementType == MovementType.Floating))
         {
-            switch (movementProfile.movementType)
-            {
-                case MovementType.Grounded:
-                    HandleGravity();
-                    movement.y = -fallSpeed * Time.deltaTime;
-                    break;
-
-                case MovementType.Floating:
-                    HandleGravity();
-                    movement.y = -fallSpeed * Time.deltaTime;
-                    break;
-
-                case MovementType.Flying:
-                    fallSpeed = 0f;
-                    break;
-            }
+            HandleGravity();
+            motion.y = -fallSpeed;
         }
 
-        transform.position += movement;
+        // **CharacterController.Move expects units per second**
+        cc.Move(motion * Time.deltaTime);
+
         UpdateMovementAnimation(isMoving);
     }
 
