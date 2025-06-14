@@ -14,16 +14,30 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
 
     [Header("Vehicle Profile")]
-    [SerializeField] private float moveSpeed = 5f; // Forward movement speed
-    [SerializeField] private float turnSpeed = 50f; // Turning speed
+    [SerializeField] private float moveSpeed = 7f;        // Max forward m/s
+    [SerializeField] private float turnSpeed = 70f;       // Max turn deg/s
+
+
+    [Header("Acceleration / Deceleration")]
+    [SerializeField] private float forwardAcceleration = 10f;    // m/s²
+    [SerializeField] private float forwardDeceleration = 8f;     // m/s²
+    [SerializeField] private float turnAcceleration = 200f;      // deg/s²
+    [SerializeField] private float turnDeceleration = 150f;      // deg/s²
+    [Range(0f, 1f)]
+    [SerializeField] private float idleTurnSpeedFactor = 0.5f;    // % of turnSpeed when no forward
 
 
     [Header("Starting State")]
     [SerializeField] private bool active = true;
-    private float forward = 0;
-    private float steer = 0; 
+    private float forwardInput = 0f;
+    private float steerInput = 0f;
 
-     [Header("Wheels")]
+    // these track your “current” velocity instead of snapping
+    private float currentForwardSpeed = 0f;
+    private float currentTurnSpeed = 0f;
+
+
+    [Header("Wheels")]
     [SerializeField]
     private WheelData[] wheels;   // THIS is what you’ll see in the Inspector
 
@@ -36,14 +50,15 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     public struct WheelData
     {
         public Transform mesh;        // visible
-        public bool      isLeftSide;  // visible
-        public float     radius;      // visible
+        public bool isLeftSide;  // visible
+        public float radius;      // visible
 
         [HideInInspector]
         public float targetRPM;       // hidden
     }
 
-    void OnEnable()  => FixedUpdateManager.RegisterObserver(this);
+
+    void OnEnable() => FixedUpdateManager.RegisterObserver(this);
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
 
@@ -67,73 +82,54 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         UpdateHorseAnimation();
     }
 
-// Public Methods
-    // Called when driver enters
-    public virtual void ActivateVehicle()
-    {
-        active = true;
-    }
-
-    // Called when driver exits
-    public virtual void DeactivateVehicle()
-    {
-        active = false;
-    }
-
-// Private Methods
+    // Private Methods
     private void UpdateInputs()
     {
-        forward = input.MoveInput.y;
-        steer = input.MoveInput.x;
+        forwardInput = input.MoveInput.y;
+        steerInput = input.MoveInput.x;
     }
 
     // Updates the movement of the vehicle
     protected virtual void HandleMovement()
     {
-        // Forward movement (only when pressing forward input)
-        if (forward > 0)
-        {
-            Vector3 forwardMovement = transform.forward * forward * moveSpeed * Time.fixedDeltaTime;
-            rb.MovePosition(rb.position + forwardMovement);
-        }
+        float targetForward = CalculateTargetForwardSpeed();
+        float targetTurn    = CalculateTargetTurnSpeed();
 
-        // Turning (independent of forward input)
-        if (Mathf.Abs(steer) > 0)
-        {
-            float turnAmount = steer * turnSpeed * Time.fixedDeltaTime;
-            Quaternion turnRotation = Quaternion.Euler(0, turnAmount, 0);
-            rb.MoveRotation(rb.rotation * turnRotation);
-        }
+        UpdateForwardSpeed(targetForward);
+        UpdateTurnSpeed(targetTurn);
+
+        ApplyTranslation();
+        ApplyRotation();
     }
-    
+
     private void ComputeWheelSpinTargets()
     {
-        bool usingForward = Mathf.Abs(forward) > 0.01f;
-        bool usingSteer   = !usingForward && Mathf.Abs(steer) > 0.01f;
+        bool usingForward = Mathf.Abs(currentForwardSpeed) > 0.01f;
+        bool usingSteer = !usingForward && Mathf.Abs(currentTurnSpeed) > 0.01f;
 
         for (int i = 0; i < wheels.Length; i++)
         {
             float rpm = 0f;
-            var  w   = wheels[i];  // local copy for easy reading
+            var w = wheels[i];
 
             if (usingForward)
             {
-                // convert linear speed → RPM
-                float linearSpeed = forward * moveSpeed; // m/s
-                rpm = (linearSpeed / (2f * Mathf.PI * w.radius)) * 60f;
+                // use currentForwardSpeed (m/s) → RPM
+                rpm = (currentForwardSpeed / (2f * Mathf.PI * w.radius)) * 60f;
             }
             else if (usingSteer)
             {
                 float spinSign = w.isLeftSide ? +1f : -1f;
-                rpm = spinSign * turnSpeed; // you decide what “in-place RPM” is
+                // use currentTurnSpeed (deg/s) scaled to an RPM-like value
+                rpm = spinSign * currentTurnSpeed;
             }
 
-            wheels[i].targetRPM = rpm;  // write back into the array
+            wheels[i].targetRPM = rpm;
         }
     }
 
 
-// 2d Visual Updates
+    // 2d Visual Updates
     // Moves the horse plane depending on the direction
     protected virtual void UpdateHorsePosition()
     {
@@ -160,4 +156,55 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     {
         Debug.Log("Updated Horse");
     }
+
+
+    // Public enable/disable
+    public virtual void ActivateVehicle() => active = true;
+    public virtual void DeactivateVehicle() => active = false;
+
+    // Helper Methods
+    private float CalculateTargetForwardSpeed()
+    {
+        return forwardInput * moveSpeed;
+    }
+    private float CalculateTargetTurnSpeed()
+    {
+        float turnFactor = Mathf.Approximately(forwardInput, 0f)
+            ? idleTurnSpeedFactor
+            : 1f;
+        return steerInput * turnSpeed * turnFactor;
+    }
+
+    private void UpdateForwardSpeed(float targetSpeed)
+    {
+        float accel = (Mathf.Abs(targetSpeed) > Mathf.Abs(currentForwardSpeed))
+            ? forwardAcceleration : forwardDeceleration;
+        currentForwardSpeed = Mathf.MoveTowards(
+            currentForwardSpeed, targetSpeed, accel * Time.fixedDeltaTime
+        );
+    }
+
+    private void UpdateTurnSpeed(float targetSpeed)
+    {
+        float accel = (Mathf.Abs(targetSpeed) > Mathf.Abs(currentTurnSpeed))
+            ? turnAcceleration : turnDeceleration;
+        currentTurnSpeed = Mathf.MoveTowards(
+            currentTurnSpeed, targetSpeed, accel * Time.fixedDeltaTime
+        );
+    }
+
+    private void ApplyTranslation()
+    {
+        Vector3 delta = transform.forward * currentForwardSpeed * Time.fixedDeltaTime;
+        rb.MovePosition(rb.position + delta);
+    }
+
+    private void ApplyRotation()
+    {
+        float yDeg = currentTurnSpeed * Time.fixedDeltaTime;
+        rb.MoveRotation(rb.rotation * Quaternion.Euler(0, yDeg, 0));
+    }
+
+
+
 }

@@ -1,13 +1,16 @@
 using UnityEngine;
 
-public class WheelSpin : MonoBehaviour
+public class WheelSpin : MonoBehaviour, IUpdateObserver
 {
     [SerializeField] private VehicleControllerBase controller;
     [SerializeField] private int wheelIndex;
 
     float currentAngle;
 
-    void Update()
+    void OnEnable()  => UpdateManager.RegisterObserver(this);
+    void OnDisable() => UpdateManager.UnregisterObserver(this);
+
+    public void ObservedUpdate()
     {
         // 1) Bounds-check your index
         var wheels = controller.Wheels;
