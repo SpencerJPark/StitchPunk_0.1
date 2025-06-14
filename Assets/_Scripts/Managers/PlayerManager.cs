@@ -31,10 +31,10 @@ public class PlayerManager : MonoBehaviour
 
     // Convenience methods for your common zones:
     public void SwitchToHero()
-        => SwitchControlZone("OnFoot", CameraType.Player);
+        => SwitchControlZone("Player", CameraType.Player);
     
     public void SwitchToZoom()
-        => SwitchControlZone("OnFoot", CameraType.PlayerZoom);
+        => SwitchControlZone("Player", CameraType.PlayerZoom);
 
     public void SwitchToVehicle()
         => SwitchControlZone("Vehicle", CameraType.Vehicle);
