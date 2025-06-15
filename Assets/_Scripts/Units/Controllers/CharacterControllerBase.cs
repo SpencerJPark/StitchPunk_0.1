@@ -40,10 +40,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         fallSpeed = 0f;
     }
 
-    void OnDisable()
-    {
-        UpdateManager.UnregisterObserver(this);
-    }
+    void OnDisable() => UpdateManager.UnregisterObserver(this);
 
     public void ObservedUpdate()
     {

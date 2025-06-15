@@ -1,0 +1,20 @@
+public enum Actions
+{
+    Idle,
+    Run,
+    Sneak,
+    Interact,
+    Drive,
+    PlayFlute,
+    MailDelivery,
+    IdleCarryBody,
+    WalkCarryBody,
+    IdleAimRifle,
+    WalkAimRifle,
+    Death,
+    RapierIdol,
+    IdelAimPistol,
+    WalkAimPistol,
+    IdelAimBlunder,
+    WalkAimBlunder
+}

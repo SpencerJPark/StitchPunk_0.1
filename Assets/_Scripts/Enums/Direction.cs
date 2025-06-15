@@ -9,4 +9,3 @@ public enum Direction
     West,
     NorthWest
 }
-

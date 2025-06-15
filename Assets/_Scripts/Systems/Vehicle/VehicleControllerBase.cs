@@ -1,15 +1,17 @@
 using UnityEngine;
 using System;
 
+// Todo: Remove reverse direction, calculate move direction for facings(possible make it a utility), Add horse controlls, create on off
+
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 {
     [Header("Dependencies")]
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected Rigidbody rb;
-    //[SerializeField] protected RiveAnimator animator;
+    [SerializeField] protected RiveAnimator animator;
     //[SerializeField] private MonoBehaviour HorseFacingComponent;
-    //[SerializeField] private MonoBehaviour DriverFacingComponent;
+    [SerializeField] private MonoBehaviour DriverFacingComponent;
     //private IFacingController facingController;
 
 
@@ -48,7 +50,20 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     }
 
 
-    void OnEnable() => FixedUpdateManager.RegisterObserver(this);
+    void OnEnable()
+    {
+        FixedUpdateManager.RegisterObserver(this);
+
+        if (DriverFacingComponent is IFacingController controller)
+        {
+            DriverFacingComponent = controller;
+        }
+        else
+        {
+            Debug.LogWarning($"{name}: Driver Facing component doesn't implement IFacingController.");
+        }
+    }
+
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
 
@@ -135,11 +150,10 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     // Changes the Horse/driver plane Facing depending on the direction
     protected virtual void HandleFacing()
     {
-        // if (!isMoving || facingController == null)
-        //     return;
+        if (!isMoving || DriverFacingComponent == null)
+            return;
 
-        // facingController.UpdateFacing(moveDirection);
-        Debug.Log("Updated Facing");
+        DriverFacingComponent.UpdateFacing(moveDirection);
     }
 
     protected virtual void UpdateHorseAnimation()

@@ -7,7 +7,13 @@ using Cysharp.Threading.Tasks;
 
 public class RiveAnimator : MonoBehaviour
 {
+
     [SerializeField] private RiveWidget riveWidget;
+
+    [Header("Optional")]
+    [SerializeField] private string defaultEnum;
+    [SerializeField] private string defaultValue;
+
     private ViewModelInstance viewModel;
 
     private readonly Dictionary<string, ViewModelInstanceNumberProperty> numberProperties = new();
@@ -45,7 +51,18 @@ public class RiveAnimator : MonoBehaviour
             return;
 
         viewModel = riveWidget.StateMachine.ViewModelInstance;
+        SetDefaultAction();
     }
+
+    private void SetDefaultAction()
+    {
+        if (!string.IsNullOrWhiteSpace(defaultEnum)
+        && !string.IsNullOrWhiteSpace(defaultValue))
+        {
+            SetEnum(defaultEnum, defaultValue);
+        }
+    }
+
 
     // ================== Public Rive API Methods ==================
 
