@@ -14,25 +14,15 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
 
     [Header("Vehicle Profile")]
-    [SerializeField] private float moveSpeed = 7f;        // Max forward m/s
-    [SerializeField] private float turnSpeed = 70f;       // Max turn deg/s
-
-
-    [Header("Acceleration / Deceleration")]
-    [SerializeField] private float forwardAcceleration = 10f;    // m/s²
-    [SerializeField] private float forwardDeceleration = 8f;     // m/s²
-    [SerializeField] private float turnAcceleration = 200f;      // deg/s²
-    [SerializeField] private float turnDeceleration = 150f;      // deg/s²
-    [Range(0f, 1f)]
-    [SerializeField] private float idleTurnSpeedFactor = 0.5f;    // % of turnSpeed when no forward
+    [SerializeField] private VehicleProfiles vehicleProfiles;
 
 
     [Header("Starting State")]
     [SerializeField] private bool active = true;
+
+    // Internal
     private float forwardInput = 0f;
     private float steerInput = 0f;
-
-    // these track your “current” velocity instead of snapping
     private float currentForwardSpeed = 0f;
     private float currentTurnSpeed = 0f;
 
@@ -115,7 +105,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
             if (usingForward)
             {
                 // use currentForwardSpeed (m/s) → RPM
-                rpm = (currentForwardSpeed / (2f * Mathf.PI * w.radius)) * 60f;
+                rpm = currentForwardSpeed / (2f * Mathf.PI * w.radius) * 60f;
             }
             else if (usingSteer)
             {
@@ -165,20 +155,20 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     // Helper Methods
     private float CalculateTargetForwardSpeed()
     {
-        return forwardInput * moveSpeed;
+        return forwardInput * vehicleProfiles.moveSpeed;
     }
     private float CalculateTargetTurnSpeed()
     {
         float turnFactor = Mathf.Approximately(forwardInput, 0f)
-            ? idleTurnSpeedFactor
+            ? vehicleProfiles.idleTurnSpeedFactor
             : 1f;
-        return steerInput * turnSpeed * turnFactor;
+        return steerInput * vehicleProfiles.turnSpeed * turnFactor;
     }
 
     private void UpdateForwardSpeed(float targetSpeed)
     {
         float accel = (Mathf.Abs(targetSpeed) > Mathf.Abs(currentForwardSpeed))
-            ? forwardAcceleration : forwardDeceleration;
+            ? vehicleProfiles.forwardAcceleration : vehicleProfiles.forwardDeceleration;
         currentForwardSpeed = Mathf.MoveTowards(
             currentForwardSpeed, targetSpeed, accel * Time.fixedDeltaTime
         );
@@ -187,7 +177,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     private void UpdateTurnSpeed(float targetSpeed)
     {
         float accel = (Mathf.Abs(targetSpeed) > Mathf.Abs(currentTurnSpeed))
-            ? turnAcceleration : turnDeceleration;
+            ? vehicleProfiles.turnAcceleration : vehicleProfiles.turnDeceleration;
         currentTurnSpeed = Mathf.MoveTowards(
             currentTurnSpeed, targetSpeed, accel * Time.fixedDeltaTime
         );
@@ -204,7 +194,4 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         float yDeg = currentTurnSpeed * Time.fixedDeltaTime;
         rb.MoveRotation(rb.rotation * Quaternion.Euler(0, yDeg, 0));
     }
-
-
-
 }
