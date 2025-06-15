@@ -837,7 +837,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 30b5bc34e03734ee49f044caba90a384, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_rivePanel: {fileID: 0}
+  m_rivePanel: {fileID: 1981555558}
   m_asset: {fileID: -4516626237390682484, guid: 94968f793949fea449f211e24976650d, type: 3}
   m_artboardName: Main
   m_stateMachineName: State Machine 1
@@ -4398,7 +4398,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 6351b733fbd56274ca81329bf20575d5, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4667,6 +4667,7 @@ GameObject:
   - component: {fileID: 5633608149330006623}
   - component: {fileID: 7623027959562987159}
   - component: {fileID: 7623027959562987158}
+  - component: {fileID: 7623027959562987160}
   m_Layer: 0
   m_Name: Horse
   m_TagString: Untagged
@@ -4881,8 +4882,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0.01594162, y: 0, z: 5.890748}
-  m_LocalScale: {x: 100, y: 100, z: 100}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 133.37, y: 133.37, z: 133.37}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1981555557}
   m_Father: {fileID: 1339602950}
@@ -5141,12 +5142,25 @@ MonoBehaviour:
   m_pointerInputMode: 0
   m_initialRivePanel: {fileID: 1981555558}
   m_objectRenderer: {fileID: 5633608149330006623}
-  m_textureAssignmentMode: 0
+  m_textureAssignmentMode: 1
   m_visibilityOptimization: 1
   m_materialPropertyNameData:
     m_keys: 00000000
     m_values:
-    - m_propertyNames: []
+    - m_propertyNames:
+      - _BaseRive
+--- !u!114 &7623027959562987160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6137954065170051978}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 856beaa7dd6154640ad6d25707cbf07a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &7707937824315020394
 PrefabInstance:
   m_ObjectHideFlags: 0
