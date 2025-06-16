@@ -1,8 +1,6 @@
 using UnityEngine;
 using System;
 
-// Todo: Remove reverse direction, calculate move direction for facings(possible make it a utility), Add horse controlls, create on off
-
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 {
@@ -10,202 +8,146 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected Rigidbody rb;
     [SerializeField] protected RiveAnimator animator;
-    //[SerializeField] private MonoBehaviour HorseFacingComponent;
-    [SerializeField] private MonoBehaviour DriverFacingComponent;
-    //private IFacingController facingController;
-
+    [SerializeField] private IFacingController DriverFacingComponent;
 
     [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
 
-
     [Header("Starting State")]
     [SerializeField] private bool active = true;
 
-    // Internal
-    private float forwardInput = 0f;
-    private float steerInput = 0f;
-    private float currentForwardSpeed = 0f;
-    private float currentTurnSpeed = 0f;
-
+    // Movement state
+    private Vector2 moveInput;
+    private float   currentSpeed;
+    private Vector3 currentDirection = Vector3.forward;
+    private float   turnVelocity;
 
     [Header("Wheels")]
-    [SerializeField]
-    private WheelData[] wheels;   // THIS is what you’ll see in the Inspector
-
-    /// <summary>
-    /// Read-only access to wheel data for visuals.
-    /// </summary>
+    [SerializeField] private WheelData[] wheels;
     public WheelData[] Wheels => wheels;
 
     [Serializable]
     public struct WheelData
     {
-        public Transform mesh;        // visible
-        public bool isLeftSide;  // visible
-        public float radius;      // visible
-
+        public Transform mesh;
+        public bool      isLeftSide;
+        public float     radius;
         [HideInInspector]
-        public float targetRPM;       // hidden
+        public float     targetRPM;
     }
 
-
-    void OnEnable()
-    {
-        FixedUpdateManager.RegisterObserver(this);
-
-        if (DriverFacingComponent is IFacingController controller)
-        {
-            DriverFacingComponent = controller;
-        }
-        else
-        {
-            Debug.LogWarning($"{name}: Driver Facing component doesn't implement IFacingController.");
-        }
-    }
-
+    void OnEnable()  => FixedUpdateManager.RegisterObserver(this);
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
-
 
     public void ObservedFixedUpdate()
     {
-        if (active)
-        {
-            UpdateInputs();
-            HandleMovement();
-            ComputeWheelSpinTargets();
+        if (!active) return;
 
-            // Needed to make sure billboard aline correctly
-            UpdateHorsePosition(); // Horse
-            UpdateDriverPosition(); // Driver
-
-            // Changes which way they are facing animation wise
-            HandleFacing(); // Horse
-            HandleFacing(); // Driver
-        }
-
+        ReadInput();
+        HandleMovement();
+        ComputeWheelSpinTargets();
+        UpdateHorsePosition();
+        UpdateDriverPosition();
+        HandleFacing();
         UpdateHorseAnimation();
     }
 
-    // Private Methods
-    private void UpdateInputs()
+    private void ReadInput()
     {
-        forwardInput = input.MoveInput.y;
-        steerInput = input.MoveInput.x;
+        moveInput = input.MoveInput;
     }
 
-    // Updates the movement of the vehicle
     protected virtual void HandleMovement()
     {
-        float targetForward = CalculateTargetForwardSpeed();
-        float targetTurn    = CalculateTargetTurnSpeed();
+        Vector3 desiredVelocity = ComputeDesiredVelocity();
+        float   targetSpeed     = desiredVelocity.magnitude;
+        Vector3 targetDirection = GetTargetDirection(desiredVelocity);
 
-        UpdateForwardSpeed(targetForward);
-        UpdateTurnSpeed(targetTurn);
+        UpdateSpeed(targetSpeed);
+        UpdateDirection(targetDirection);
+        ApplyMovement();
+    }
 
-        ApplyTranslation();
-        ApplyRotation();
+    private Vector3 ComputeDesiredVelocity()
+    {
+        return new Vector3(moveInput.x, 0f, moveInput.y) * vehicleProfiles.moveSpeed;
+    }
+
+    private Vector3 GetTargetDirection(Vector3 desiredVelocity)
+    {
+        return desiredVelocity.sqrMagnitude > 0.0001f
+             ? desiredVelocity.normalized
+             : currentDirection;
+    }
+
+    private void UpdateSpeed(float targetSpeed)
+    {
+        float accel = (targetSpeed > currentSpeed)
+            ? vehicleProfiles.forwardAcceleration
+            : vehicleProfiles.forwardDeceleration;
+
+        currentSpeed = Mathf.MoveTowards(
+            currentSpeed,
+            targetSpeed,
+            accel * Time.fixedDeltaTime
+        );
+    }
+
+    private void UpdateDirection(Vector3 targetDirection)
+    {
+        float currentAngle = Mathf.Atan2(currentDirection.x, currentDirection.z) * Mathf.Rad2Deg;
+        float targetAngle  = Mathf.Atan2(targetDirection.x,  targetDirection.z)  * Mathf.Rad2Deg;
+
+        float smoothAngle = Mathf.SmoothDampAngle(
+            currentAngle,
+            targetAngle,
+            ref turnVelocity,
+            vehicleProfiles.turnSmoothTime,
+            vehicleProfiles.turnSpeed,
+            Time.fixedDeltaTime
+        );
+
+        currentDirection = (Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized;
+    }
+
+    private void ApplyMovement()
+    {
+        Vector3 velocity = currentDirection * currentSpeed;
+        rb.MovePosition(rb.position + velocity * Time.fixedDeltaTime);
+
+        if (velocity.sqrMagnitude > 0.001f)
+        {
+            Quaternion look = Quaternion.LookRotation(currentDirection, Vector3.up);
+            rb.MoveRotation(
+                Quaternion.RotateTowards(
+                    rb.rotation,
+                    look,
+                    vehicleProfiles.turnSpeed * Time.fixedDeltaTime
+                )
+            );
+        }
     }
 
     private void ComputeWheelSpinTargets()
     {
-        bool usingForward = Mathf.Abs(currentForwardSpeed) > 0.01f;
-        bool usingSteer = !usingForward && Mathf.Abs(currentTurnSpeed) > 0.01f;
-
+        float speed = currentSpeed;
         for (int i = 0; i < wheels.Length; i++)
         {
-            float rpm = 0f;
             var w = wheels[i];
-
-            if (usingForward)
-            {
-                // use currentForwardSpeed (m/s) → RPM
-                rpm = currentForwardSpeed / (2f * Mathf.PI * w.radius) * 60f;
-            }
-            else if (usingSteer)
-            {
-                float spinSign = w.isLeftSide ? +1f : -1f;
-                // use currentTurnSpeed (deg/s) scaled to an RPM-like value
-                rpm = spinSign * currentTurnSpeed;
-            }
-
+            float rpm = speed > 0.01f
+                ? (speed / (2f * Mathf.PI * w.radius)) * 60f
+                : 0f;
             wheels[i].targetRPM = rpm;
         }
     }
 
+    // Visual & facing stubs
+    protected virtual void UpdateHorsePosition()   { Debug.Log("Updated Horse Position"); }
+    protected virtual void UpdateDriverPosition()  { Debug.Log("Updated Driver Position"); }
+    protected virtual void HandleFacing()          { /* implement facing logic here */ }
+    protected virtual void UpdateHorseAnimation()  { Debug.Log("Updated Horse Animation"); }
 
-    // 2d Visual Updates
-    // Moves the horse plane depending on the direction
-    protected virtual void UpdateHorsePosition()
-    {
-        Debug.Log("Updated Driver Location");
-    }
-
-    // Moves the Driver plane depending on the direction
-    protected virtual void UpdateDriverPosition()
-    {
-        Debug.Log("Updated Driver Location");
-    }
-
-    // Changes the Horse/driver plane Facing depending on the direction
-    protected virtual void HandleFacing()
-    {
-        if (!isMoving || DriverFacingComponent == null)
-            return;
-
-        DriverFacingComponent.UpdateFacing(moveDirection);
-    }
-
-    protected virtual void UpdateHorseAnimation()
-    {
-        Debug.Log("Updated Horse");
-    }
-
-
-    // Public enable/disable
-    public virtual void ActivateVehicle() => active = true;
+    // Public controls
+    public virtual void ActivateVehicle()   => active = true;
     public virtual void DeactivateVehicle() => active = false;
-
-    // Helper Methods
-    private float CalculateTargetForwardSpeed()
-    {
-        return forwardInput * vehicleProfiles.moveSpeed;
-    }
-    private float CalculateTargetTurnSpeed()
-    {
-        float turnFactor = Mathf.Approximately(forwardInput, 0f)
-            ? vehicleProfiles.idleTurnSpeedFactor
-            : 1f;
-        return steerInput * vehicleProfiles.turnSpeed * turnFactor;
-    }
-
-    private void UpdateForwardSpeed(float targetSpeed)
-    {
-        float accel = (Mathf.Abs(targetSpeed) > Mathf.Abs(currentForwardSpeed))
-            ? vehicleProfiles.forwardAcceleration : vehicleProfiles.forwardDeceleration;
-        currentForwardSpeed = Mathf.MoveTowards(
-            currentForwardSpeed, targetSpeed, accel * Time.fixedDeltaTime
-        );
-    }
-
-    private void UpdateTurnSpeed(float targetSpeed)
-    {
-        float accel = (Mathf.Abs(targetSpeed) > Mathf.Abs(currentTurnSpeed))
-            ? vehicleProfiles.turnAcceleration : vehicleProfiles.turnDeceleration;
-        currentTurnSpeed = Mathf.MoveTowards(
-            currentTurnSpeed, targetSpeed, accel * Time.fixedDeltaTime
-        );
-    }
-
-    private void ApplyTranslation()
-    {
-        Vector3 delta = transform.forward * currentForwardSpeed * Time.fixedDeltaTime;
-        rb.MovePosition(rb.position + delta);
-    }
-
-    private void ApplyRotation()
-    {
-        float yDeg = currentTurnSpeed * Time.fixedDeltaTime;
-        rb.MoveRotation(rb.rotation * Quaternion.Euler(0, yDeg, 0));
-    }
 }

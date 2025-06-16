@@ -6,8 +6,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected CharacterController cc;
     [SerializeField] protected RiveAnimator animator;
-    [SerializeField] private MonoBehaviour facingComponent;
-    private IFacingController facingController;
+    [SerializeField] private IFacingController facingController;
 
 
     [Header("State Data")]
@@ -27,15 +26,6 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     void OnEnable()
     {
         UpdateManager.RegisterObserver(this);
-
-        if (facingComponent is IFacingController controller)
-        {
-            facingController = controller;
-        }
-        else
-        {
-            Debug.LogWarning($"{name}: Facing component doesn't implement IFacingController.");
-        }
 
         fallSpeed = 0f;
     }

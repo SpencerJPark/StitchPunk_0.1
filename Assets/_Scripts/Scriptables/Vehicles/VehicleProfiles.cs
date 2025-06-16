@@ -14,4 +14,8 @@ public class VehicleProfiles : ScriptableObject
     public float turnDeceleration = 150;
     public float idleTurnSpeedFactor = 0.4f;
 
+    [Tooltip("Time (in seconds) it takes to ease into new facing direction; lower = quicker snap")]
+    public float turnSmoothTime = 0.1f;
+
+
 }
