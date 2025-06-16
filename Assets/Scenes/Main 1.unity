@@ -3939,6 +3939,7 @@ MonoBehaviour:
   input: {fileID: 1088137767}
   rb: {fileID: 3237542533880177403}
   animator: {fileID: 1762616681}
+  driverFacingComponet: {fileID: 0}
   vehicleProfiles: {fileID: 11400000, guid: 27e2c50b467d82c449915ac41a02dbb7, type: 2}
   active: 1
   wheels:

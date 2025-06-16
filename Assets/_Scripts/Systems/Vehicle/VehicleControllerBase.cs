@@ -8,7 +8,8 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected Rigidbody rb;
     [SerializeField] protected RiveAnimator animator;
-    [SerializeField] private IFacingController DriverFacingComponent;
+    [SerializeField] private MonoBehaviour driverFacingComponet;
+    [SerializeField] private IFacingController driverFacingController;
 
     [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
@@ -36,7 +37,15 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         public float     targetRPM;
     }
 
-    void OnEnable()  => FixedUpdateManager.RegisterObserver(this);
+    void OnEnable()
+    {
+        FixedUpdateManager.RegisterObserver(this);
+
+        if (driverFacingComponet is IFacingController fc)
+        driverFacingController = fc;
+        else
+        Debug.LogWarning($"[{name}] driverFacingBehaviour doesn't implement IFacingController");
+    }
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
     public void ObservedFixedUpdate()
@@ -46,9 +55,13 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         ReadInput();
         HandleMovement();
         ComputeWheelSpinTargets();
+
         UpdateHorsePosition();
         UpdateDriverPosition();
-        HandleFacing();
+
+        if (driverFacingController != null && rb.linearVelocity.sqrMagnitude > 0.01f)
+        driverFacingController.UpdateFacing(currentDirection);
+
         UpdateHorseAnimation();
     }
 
@@ -144,7 +157,13 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     // Visual & facing stubs
     protected virtual void UpdateHorsePosition()   { Debug.Log("Updated Horse Position"); }
     protected virtual void UpdateDriverPosition()  { Debug.Log("Updated Driver Position"); }
-    protected virtual void HandleFacing()          { /* implement facing logic here */ }
+    protected virtual void HandleFacing(IFacingController controller)
+    {
+        if (currentSpeed == 0.0f || controller == null)
+            return;
+
+        controller.UpdateFacing(currentDirection);
+    }
     protected virtual void UpdateHorseAnimation()  { Debug.Log("Updated Horse Animation"); }
 
     // Public controls
