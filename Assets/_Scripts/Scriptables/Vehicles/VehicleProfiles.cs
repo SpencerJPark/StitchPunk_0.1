@@ -17,5 +17,10 @@ public class VehicleProfiles : ScriptableObject
     [Tooltip("Time (in seconds) it takes to ease into new facing direction; lower = quicker snap")]
     public float turnSmoothTime = 0.1f;
 
+    [Header("Animation Thresholds")]
+    // As a fraction of max speed: below walkThreshold → Idle; between walk/run → Walk; above runThreshold → Run
+    public float walkThreshold = 0.1f;
+    public float runThreshold  = 0.7f;
+
 
 }

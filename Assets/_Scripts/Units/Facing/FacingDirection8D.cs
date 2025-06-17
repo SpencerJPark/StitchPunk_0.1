@@ -42,6 +42,7 @@ public class FacingDirection8D : FacingDirectionBase
         if (angle < 225) return Direction.West;
         if (angle < 270) return Direction.SouthWest;
         if (angle < 315) return Direction.South;
+        
         return Direction.SouthEast;
     }
 }

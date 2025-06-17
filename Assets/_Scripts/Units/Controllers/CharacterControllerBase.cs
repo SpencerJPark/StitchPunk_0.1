@@ -7,10 +7,8 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     [SerializeField] protected CharacterController cc;
     [SerializeField] protected RiveAnimator animator;
     // Option B: serialize a generic MonoBehaviour and cast it in OnEnable
-    [SerializeField] private MonoBehaviour facingComponet;
-    private IFacingController facingController;
-
-
+    [SerializeField]
+    private FacingDirectionBase facingController;
 
     [Header("State Data")]
     [SerializeField] protected CharacterStateData currentState;
@@ -29,11 +27,6 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     void OnEnable()
     {
         UpdateManager.RegisterObserver(this);
-
-        if (facingComponet is IFacingController fc)
-        facingController = fc;
-        else
-        Debug.LogWarning($"[{name}] facingBehaviour doesn't implement IFacingController");
 
         fallSpeed = 0f;
     }

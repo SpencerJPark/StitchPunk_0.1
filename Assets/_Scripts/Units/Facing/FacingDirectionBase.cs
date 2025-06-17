@@ -2,7 +2,7 @@ using UnityEngine;
 using Rive;
 using Rive.Components;
 
-public abstract class FacingDirectionBase : MonoBehaviour, IFacingController
+public abstract class FacingDirectionBase : MonoBehaviour
 {
     [SerializeField] protected RiveAnimator animator;
     [SerializeField] protected Camera mainCamera;

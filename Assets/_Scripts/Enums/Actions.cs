@@ -1,6 +1,7 @@
 public enum Actions
 {
     Idle,
+    Walk,
     Run,
     Sneak,
     Interact,

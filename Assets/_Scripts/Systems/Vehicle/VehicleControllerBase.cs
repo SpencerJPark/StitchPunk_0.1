@@ -8,20 +8,23 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected Rigidbody rb;
     [SerializeField] protected RiveAnimator animator;
-    [SerializeField] private MonoBehaviour driverFacingComponet;
-    [SerializeField] private IFacingController driverFacingController;
+    [SerializeField] private FacingDirectionBase driverFacingController;
+    [SerializeField] private FacingDirectionBase horseFacingController;
 
     [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
 
+
     [Header("Starting State")]
     [SerializeField] private bool active = true;
+
 
     // Movement state
     private Vector2 moveInput;
     private float   currentSpeed;
     private Vector3 currentDirection = Vector3.forward;
     private float   turnVelocity;
+
 
     [Header("Wheels")]
     [SerializeField] private WheelData[] wheels;
@@ -37,14 +40,10 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         public float     targetRPM;
     }
 
+
     void OnEnable()
     {
         FixedUpdateManager.RegisterObserver(this);
-
-        if (driverFacingComponet is IFacingController fc)
-        driverFacingController = fc;
-        else
-        Debug.LogWarning($"[{name}] driverFacingBehaviour doesn't implement IFacingController");
     }
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
@@ -56,13 +55,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         HandleMovement();
         ComputeWheelSpinTargets();
 
-        UpdateHorsePosition();
-        UpdateDriverPosition();
-
-        if (driverFacingController != null && rb.linearVelocity.sqrMagnitude > 0.01f)
-        driverFacingController.UpdateFacing(currentDirection);
-
-        UpdateHorseAnimation();
+        Handle2D();
     }
 
     private void ReadInput()
@@ -154,19 +147,42 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         }
     }
 
-    // Visual & facing stubs
-    protected virtual void UpdateHorsePosition()   { Debug.Log("Updated Horse Position"); }
-    protected virtual void UpdateDriverPosition()  { Debug.Log("Updated Driver Position"); }
-    protected virtual void HandleFacing(IFacingController controller)
+
+    // 2D Visuals
+   protected virtual void Handle2D()
     {
-        if (currentSpeed == 0.0f || controller == null)
+        UpdateHorsePosition();
+        UpdateDriverPosition();
+
+        driverFacingController.UpdateFacing(currentDirection);
+        horseFacingController.UpdateFacing(currentDirection);
+        
+        UpdateHorseAnimation();
+    }
+    protected virtual void UpdateHorsePosition() { Debug.Log("Updated Horse Position"); }
+    protected virtual void UpdateDriverPosition()  { Debug.Log("Updated Driver Position"); }
+    protected virtual void UpdateHorseAnimation()
+    {
+        if (animator == null || vehicleProfiles == null)
             return;
 
-        controller.UpdateFacing(currentDirection);
+        // normalize your speed into [0,1]
+        float t = currentSpeed / vehicleProfiles.moveSpeed;
+        string action;
+
+        if (t <= vehicleProfiles.walkThreshold)
+            action = Actions.Idle.ToString();
+        else if (t <= vehicleProfiles.runThreshold)
+            action = Actions.Walk.ToString();
+        else
+            action = Actions.Run.ToString();
+
+        animator.SetEnum("Actions", action);
     }
-    protected virtual void UpdateHorseAnimation()  { Debug.Log("Updated Horse Animation"); }
+ 
+
 
     // Public controls
-    public virtual void ActivateVehicle()   => active = true;
+    public virtual void ActivateVehicle() => active = true;
     public virtual void DeactivateVehicle() => active = false;
 }

@@ -3938,8 +3938,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   input: {fileID: 1088137767}
   rb: {fileID: 3237542533880177403}
-  animator: {fileID: 1762616681}
-  driverFacingComponet: {fileID: 0}
+  animator: {fileID: 7623027959562987158}
+  driverFacingController: {fileID: 1762616685}
+  horseFacingController: {fileID: 7623027959562987161}
   vehicleProfiles: {fileID: 11400000, guid: 27e2c50b467d82c449915ac41a02dbb7, type: 2}
   active: 1
   wheels:
@@ -4957,6 +4958,7 @@ GameObject:
   - component: {fileID: 7623027959562987159}
   - component: {fileID: 7623027959562987158}
   - component: {fileID: 7623027959562987160}
+  - component: {fileID: 7623027959562987161}
   m_Layer: 0
   m_Name: Horse
   m_TagString: Untagged
@@ -5452,6 +5454,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 856beaa7dd6154640ad6d25707cbf07a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &7623027959562987161
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6137954065170051978}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6a85784e3e7b264388ec5c82b634523, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 7623027959562987158}
+  mainCamera: {fileID: 330585545}
+  currentDirection: 5
 --- !u!1001 &7707937824315020394
 PrefabInstance:
   m_ObjectHideFlags: 0
