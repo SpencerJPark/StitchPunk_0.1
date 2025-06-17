@@ -3,7 +3,8 @@ using UnityEngine;
 public class FacingDirection2D : FacingDirectionBase
 {
 
-    private Direction currentDirection = Direction.SouthWest;
+    [SerializeField] private Direction _currentDirection = Direction.SouthEast;
+    public override Direction CurrentDirection => _currentDirection;
 
     public override void UpdateFacing(Vector3 movementDirection)
     {
@@ -21,10 +22,10 @@ public class FacingDirection2D : FacingDirectionBase
 
         Direction newDirection = Get2Direction(dir);
 
-        if (newDirection != currentDirection)
+        if (newDirection != _currentDirection)
         {
-            currentDirection = newDirection;
-            animator.SetEnum("Direction", currentDirection.ToString());
+            _currentDirection = newDirection;
+            animator.SetEnum("Direction", _currentDirection.ToString());
         }
     }
 

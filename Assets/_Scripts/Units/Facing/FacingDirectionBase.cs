@@ -6,6 +6,7 @@ public abstract class FacingDirectionBase : MonoBehaviour
 {
     [SerializeField] protected RiveAnimator animator;
     [SerializeField] protected Camera mainCamera;
+    public abstract Direction CurrentDirection { get; }
     protected string defaultDirection = "SouthEast";
 
     protected ViewModelInstance viewModel;

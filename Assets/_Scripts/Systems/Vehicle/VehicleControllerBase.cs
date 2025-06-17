@@ -11,8 +11,19 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] private FacingDirectionBase driverFacingController;
     [SerializeField] private FacingDirectionBase horseFacingController;
 
+
     [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
+
+
+    [Header("2D Visuals")]
+    [SerializeField] private Transform            horseQuad;
+    [SerializeField] private FacingOffsetProfile  horseOffsetProfile;
+    [SerializeField] private FacingDirectionBase  horseFacing;
+    [SerializeField] private Transform            driverQuad;
+    [SerializeField] private FacingOffsetProfile  driverOffsetProfile;
+    [SerializeField] private FacingDirectionBase  driverFacing;
+    
 
 
     [Header("Starting State")]
@@ -159,8 +170,19 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         
         UpdateHorseAnimation();
     }
-    protected virtual void UpdateHorsePosition() { Debug.Log("Updated Horse Position"); }
-    protected virtual void UpdateDriverPosition()  { Debug.Log("Updated Driver Position"); }
+
+    protected virtual void UpdateHorsePosition()
+    {
+        var dir = horseFacing.CurrentDirection;
+        horseQuad.localPosition = horseOffsetProfile.GetOffset(dir);
+    }
+
+    protected virtual void UpdateDriverPosition()
+    {
+        var dir = driverFacing.CurrentDirection;
+        driverQuad.localPosition = driverOffsetProfile.GetOffset(dir);
+    }
+
     protected virtual void UpdateHorseAnimation()
     {
         if (animator == null || vehicleProfiles == null)
@@ -180,7 +202,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         animator.SetEnum("Actions", action);
     }
  
-
 
     // Public controls
     public virtual void ActivateVehicle() => active = true;

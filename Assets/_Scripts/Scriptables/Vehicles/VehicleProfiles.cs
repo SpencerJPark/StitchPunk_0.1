@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "VehicleProfile", menuName = "Characters/Vehicle Profile", order = 1)]
+[CreateAssetMenu(fileName = "VehicleProfile", menuName = "Vehicle/Vehicle Profile", order = 1)]
 public class VehicleProfiles : ScriptableObject
 {
     [Header("Speed Settings")]
