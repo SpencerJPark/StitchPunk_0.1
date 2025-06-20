@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Player_Normal
   m_EditorClassIdentifier: 
   stateName: Player_Normal
-  idleAnimation: Idol
+  idleAnimation: Idle
   walkAnimation: Run
   talkAnimation: Talking
   moveSpeed: 5

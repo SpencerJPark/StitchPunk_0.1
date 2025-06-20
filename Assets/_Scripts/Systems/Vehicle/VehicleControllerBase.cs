@@ -56,6 +56,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     {
         FixedUpdateManager.RegisterObserver(this);
     }
+
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
     public void ObservedFixedUpdate()
@@ -68,6 +69,20 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         Handle2D();
     }
+
+    void Start()
+{
+    // 1) Lower the COM so the pivot is closer to the ground:
+    rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
+    
+    // 2) Increase angular drag so flips damp out instantly:
+    rb.angularDamping = 10f;                        // higher = more resistance to spinning
+    
+    // (Optional) Manually boost inertia on X/Z so it “weighs” more against tipping:
+    rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
+    rb.inertiaTensorRotation = Quaternion.identity;
+}
+
 
     private void ReadInput()
     {

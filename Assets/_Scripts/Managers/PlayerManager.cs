@@ -25,7 +25,6 @@ public class PlayerManager : MonoBehaviour
     // Switch both the Input System map and the Cinemachine cam
     void SwitchControlZone(string mapName, CameraType cam)
     {
-        inputHandler.SwitchActionMap(mapName);
         CameraManager.Instance.SwitchCamera(cam);
     }
 

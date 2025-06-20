@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87f2b654f256e754a9041ce3bc3f794b, type: 3}
   m_Name: HorseCaravanOffset
   m_EditorClassIdentifier: 
-  North: {x: 0, y: 0, z: 6.43}
+  North: {x: 0, y: 0, z: 5.98}
   NorthEast: {x: 0.65, y: 0, z: 5.98}
-  East: {x: 0.71, y: 0, z: 6.23}
-  SouthEast: {x: 0.4, y: 0, z: 6.38}
-  South: {x: 0, y: 0, z: 7.06}
+  East: {x: 0.71, y: 0, z: 6.48}
+  SouthEast: {x: 0.4, y: 0, z: 6.6}
+  South: {x: 0, y: 0, z: 6.84}
   SouthWest: {x: -0.74, y: 0, z: 6.6}
   West: {x: -0.7, y: 0, z: 6.48}
   NorthWest: {x: -0.44, y: 0, z: 5.98}

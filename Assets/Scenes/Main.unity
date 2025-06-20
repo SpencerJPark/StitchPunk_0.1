@@ -808,6 +808,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4375270851487209611, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
   m_PrefabInstance: {fileID: 403840701253218605}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &601275536 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6369249578600076829, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+  m_PrefabInstance: {fileID: 403840701253218605}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6a85784e3e7b264388ec5c82b634523, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &610227560
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2252,6 +2263,10 @@ PrefabInstance:
       propertyPath: input
       value: 
       objectReference: {fileID: 1088137767}
+    - target: {fileID: 8548127309489790521, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+      propertyPath: facingController
+      value: 
+      objectReference: {fileID: 601275536}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
