@@ -134,6 +134,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   riveWidget: {fileID: 5259935714593041126}
+  defaultEnum: 
+  defaultValue: 
 --- !u!143 &4662493781791061324
 CharacterController:
   m_ObjectHideFlags: 0
@@ -174,7 +176,7 @@ MonoBehaviour:
   input: {fileID: 0}
   cc: {fileID: 4662493781791061324}
   animator: {fileID: 3566570639237875709}
-  facingComponent: {fileID: 6369249578600076829}
+  facingController: {fileID: 6369249578600076829}
   currentState: {fileID: 11400000, guid: 9c9e5e6e4ece1da418091cf15959db9b, type: 2}
   movementProfile: {fileID: 11400000, guid: e2b70de142556b24db0b412d3f338186, type: 2}
   attackAnimation: Attack
@@ -206,7 +208,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   animator: {fileID: 3566570639237875709}
   mainCamera: {fileID: 0}
-  currentDirection: 0
+  _currentDirection: 3
 --- !u!1 &7238799691761946203
 GameObject:
   m_ObjectHideFlags: 0

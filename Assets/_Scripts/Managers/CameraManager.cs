@@ -2,16 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Cinemachine;
 
-public enum CameraType
-{
-    Player,
-    PlayerZoom,
-    Vehicle,
-    Horde,
-    MapUI,
-    // add more as you need…
-}
-
 public class CameraManager : MonoBehaviour
 {
     public static CameraManager Instance { get; private set; }

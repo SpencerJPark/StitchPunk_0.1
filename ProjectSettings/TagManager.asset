@@ -8,6 +8,7 @@ TagManager:
   - NPC
   - Vehicle
   - Object
+  - TriggerZone
   layers:
   - Default
   - TransparentFX

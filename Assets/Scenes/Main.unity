@@ -405,6 +405,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1599906578}
     m_Modifications:
+    - target: {fileID: 468830232216986760, guid: 4a48fb71527aea441afaf119e60a5e85, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 2cbe88ef9ca947e40bd845216984e5c7, type: 2}
+    - target: {fileID: 468830232216986760, guid: 4a48fb71527aea441afaf119e60a5e85, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 468830232216986760, guid: 4a48fb71527aea441afaf119e60a5e85, type: 3}
+      propertyPath: 'm_Materials.Array.data[2]'
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 1642321002469662695, guid: 4a48fb71527aea441afaf119e60a5e85, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.03000021
@@ -545,6 +557,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1599906578}
     m_Modifications:
+    - target: {fileID: 5263142891161902821, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b94f84d3fc4078846a94596d5880a635, type: 2}
     - target: {fileID: 5911692366581628720, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
       propertyPath: m_Name
       value: Sidewalk_Paved_20x20m
@@ -827,6 +843,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1599906578}
     m_Modifications:
+    - target: {fileID: 5263142891161902821, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 134a9cbde3e998549b0cd5c2519821f6, type: 2}
     - target: {fileID: 5911692366581628720, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
       propertyPath: m_Name
       value: Sidewalk_Paved_20x20m (3)
@@ -1764,6 +1784,18 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 7
       objectReference: {fileID: 0}
+    - target: {fileID: 4023958839242944247, guid: e588594cb83210d48a7702555b81a1dc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 4023958839242944247, guid: e588594cb83210d48a7702555b81a1dc, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a7e06fb88ce8b364cbf43fbe96c8df08, type: 2}
+    - target: {fileID: 4023958839242944247, guid: e588594cb83210d48a7702555b81a1dc, type: 3}
+      propertyPath: 'm_Materials.Array.data[2]'
+      value: 
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2149,6 +2181,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1599906578}
     m_Modifications:
+    - target: {fileID: 5263142891161902821, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 6878f2ec06c0899459f20fdafffeb956, type: 2}
     - target: {fileID: 5911692366581628720, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
       propertyPath: m_Name
       value: Sidewalk_Paved_20x20m (1)
@@ -2255,10 +2291,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6292492159008228805, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+      propertyPath: m_textureAssignmentMode
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6369249578600076829, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
       propertyPath: mainCamera
       value: 
       objectReference: {fileID: 330585545}
+    - target: {fileID: 7606910828104541663, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 2f52c8d7599e86e4094f5c194f1ee5c8, type: 2}
     - target: {fileID: 8548127309489790521, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
       propertyPath: input
       value: 
@@ -2385,6 +2429,10 @@ PrefabInstance:
     - target: {fileID: 2075922643745190594, guid: f35dc8017e8729a4ba969c657b95e2cd, type: 3}
       propertyPath: speed
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2986907048409897392, guid: f35dc8017e8729a4ba969c657b95e2cd, type: 3}
+      propertyPath: m_LightProbeUsage
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3724629130533202809, guid: f35dc8017e8729a4ba969c657b95e2cd, type: 3}
       propertyPath: m_Name
@@ -2515,31 +2563,31 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -0.0067305565
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 24.057337
+      value: 8.565718
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -34.003796
+      value: -5.6371584
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.97433645
+      value: 0.9906303
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.22509661
+      value: 0.13635911
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -5.487388e-10
+      value: -0.007527584
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 1.2677268e-10
+      value: 0.0010361633
       objectReference: {fileID: 0}
     - target: {fileID: 119775869710765657, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -2559,11 +2607,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7197142125328707619, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: field of view
-      value: 15
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 7197142125328707619, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
       propertyPath: orthographic size
-      value: 5
+      value: 3.04
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 4695429803948329753, guid: 45b8af610fa284f4bb2ee66244d995c2, type: 3}
@@ -2710,6 +2758,10 @@ PrefabInstance:
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_Name
       value: FollowCamera
+      objectReference: {fileID: 0}
+    - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
