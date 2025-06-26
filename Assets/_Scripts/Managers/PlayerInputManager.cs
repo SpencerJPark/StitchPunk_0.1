@@ -2,9 +2,9 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 
-public class PlayerManager : MonoBehaviour
+public class PlayerInputManager : MonoBehaviour
 {
-    public static PlayerManager Instance { get; private set; }
+    public static PlayerInputManager Instance { get; private set; }
 
     [Header("Input Handler")]
     [Tooltip("Drag in the PlayerInputHandler component here")]

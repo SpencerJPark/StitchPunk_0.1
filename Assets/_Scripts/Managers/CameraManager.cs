@@ -22,7 +22,7 @@ public class CameraManager : MonoBehaviour
 
     Dictionary<CameraType, CinemachineCamera> cams;
 
-    void Enable()
+    void OnEnable()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;

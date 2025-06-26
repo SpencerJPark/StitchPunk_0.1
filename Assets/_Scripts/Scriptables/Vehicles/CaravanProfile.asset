@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df0af5b9c711f4f4ea2d4ad7e97dac8b, type: 3}
   m_Name: CaravanProfile
   m_EditorClassIdentifier: 
-  moveSpeed: 6
+  moveSpeed: 7
   turnSpeed: 30
   forwardAcceleration: 1
   forwardDeceleration: 3

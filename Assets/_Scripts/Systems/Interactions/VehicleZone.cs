@@ -2,9 +2,11 @@ using UnityEngine;
 
 public class VehicleZone : InteractableZone
 {
+    [SerializeField] private VehicleControllerBase vehicleControllerBase;
     protected override void OnInteract()
     {
         Debug.Log("Enter vehicle");
-        playerManager.SwitchToVehicle();
+        vehicleControllerBase.EnableVehicle();
+        CameraManager.Instance.SwitchCamera(CameraType.Vehicle);
     }
 }

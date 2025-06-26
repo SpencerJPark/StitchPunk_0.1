@@ -8,7 +8,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected Rigidbody rb;
     [SerializeField] protected RiveAnimator animator;
-    [SerializeField] private FacingDirectionBase driverFacingController;
+    //[SerializeField] private FacingDirectionBase driverFacingController;
     [SerializeField] private FacingDirectionBase horseFacingController;
 
 
@@ -20,14 +20,14 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] private Transform            horseQuad;
     [SerializeField] private FacingOffsetProfile  horseOffsetProfile;
     [SerializeField] private FacingDirectionBase  horseFacing;
-    [SerializeField] private Transform            driverQuad;
-    [SerializeField] private FacingOffsetProfile  driverOffsetProfile;
-    [SerializeField] private FacingDirectionBase  driverFacing;
+    //[SerializeField] private Transform            driverQuad;
+    //[SerializeField] private FacingOffsetProfile  driverOffsetProfile;
+    //[SerializeField] private FacingDirectionBase  driverFacing;
     
 
 
     [Header("Starting State")]
-    [SerializeField] private bool active = true;
+    public bool active = true;
 
 
     // Movement state
@@ -178,9 +178,9 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
    protected virtual void Handle2D()
     {
         UpdateHorsePosition();
-        UpdateDriverPosition();
+        //UpdateDriverPosition();
 
-        driverFacingController.UpdateFacing(currentDirection);
+        //driverFacingController.UpdateFacing(currentDirection);
         horseFacingController.UpdateFacing(currentDirection);
         
         UpdateHorseAnimation();
@@ -192,11 +192,11 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         horseQuad.localPosition = horseOffsetProfile.GetOffset(dir);
     }
 
-    protected virtual void UpdateDriverPosition()
-    {
-        var dir = driverFacing.CurrentDirection;
-        driverQuad.localPosition = driverOffsetProfile.GetOffset(dir);
-    }
+    // protected virtual void UpdateDriverPosition()
+    // {
+    //     var dir = driverFacing.CurrentDirection;
+    //     driverQuad.localPosition = driverOffsetProfile.GetOffset(dir);
+    // }
 
     protected virtual void UpdateHorseAnimation()
     {
@@ -219,6 +219,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
  
 
     // Public controls
-    public virtual void ActivateVehicle() => active = true;
-    public virtual void DeactivateVehicle() => active = false;
+    public virtual void EnableVehicle() => active = true;
+    public virtual void DisVehicle() => active = false;
 }

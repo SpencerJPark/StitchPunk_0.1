@@ -1,43 +1,59 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
 public abstract class InteractableZone : MonoBehaviour
 {
-    [Header("References")]
-    [Tooltip("Drag your PlayerManager GameObject here")]
-    [SerializeField] protected PlayerManager playerManager;
+    [Header("Interaction")]
+    [Tooltip("Higher = this zone wins when multiple overlap")]
+    [SerializeField] private int priority = 0;
 
-    bool inZone;
-    bool hasTriggeredThisPress;
+    // static list of all zones the player is currently inside
+    static readonly List<InteractableZone> _zonesInRange = new List<InteractableZone>();
+
+    bool _hasTriggeredThisPress = false;
 
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        inZone = true;
+        _zonesInRange.Add(this);
     }
 
     void OnTriggerExit(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        inZone = false;
-        hasTriggeredThisPress = false;
+        _zonesInRange.Remove(this);
+        _hasTriggeredThisPress = false;
     }
 
     void Update()
     {
-        if (!inZone) return;
+        // nothing to do if player isn't in any zone
+        if (_zonesInRange.Count == 0) return;
 
-        // Pull from your IInputProvider
-        var input = playerManager.InputHandler;  
-        if (input.InteractPressed && !hasTriggeredThisPress)
+        var input = PlayerInputManager.Instance?.InputHandler;
+        if (input == null) return;
+
+        // reset trigger when button is released
+        if (!input.InteractPressed)
         {
-            hasTriggeredThisPress = true;
-            OnInteract();
+            _hasTriggeredThisPress = false;
+            return;
         }
-        else if (!input.InteractPressed)
+
+        // only fire once per press
+        if (_hasTriggeredThisPress) return;
+
+        // pick the zone with the highest priority
+        var topZone = _zonesInRange
+            .OrderByDescending(z => z.priority)
+            .FirstOrDefault();
+
+        if (topZone == this)
         {
-            // reset once button is released
-            hasTriggeredThisPress = false;
+            _hasTriggeredThisPress = true;
+            OnInteract();
         }
     }
 
