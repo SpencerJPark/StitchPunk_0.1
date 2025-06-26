@@ -1,7 +1,14 @@
+// IInputProvider.cs
 using UnityEngine;
 
-public abstract class IInputProvider : MonoBehaviour
+public class InputProviderBase : MonoBehaviour
 {
-    public abstract Vector2 MoveInput { get; }
-    public abstract bool ActionFired { get; }
+    // ON–FOOT
+    public virtual Vector2 MoveInput       => Vector2.zero;
+    public virtual bool    ActionFired     => false;
+    public virtual bool    InteractFired   => false;
+
+    // IN–VEHICLE
+    public virtual float   SteerInput      => 0f;
+    
 }

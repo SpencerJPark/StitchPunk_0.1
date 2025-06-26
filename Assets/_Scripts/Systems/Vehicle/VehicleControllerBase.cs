@@ -14,7 +14,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     [Header("Dependencies")]
     [Tooltip("Will be set dynamically when someone enters")]
-    protected IInputProvider input;
+    protected InputProviderBase input;
     [SerializeField] private Rigidbody rb;
     [SerializeField] private RiveAnimator animator;
     [SerializeField] private FacingDirectionBase horseFacingController;
@@ -232,7 +232,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     /// Called to make someone start driving.
     /// Pass in their transform and their IInputProvider.
     /// </summary>
-    public void EnableVehicle(Transform driver, IInputProvider driverInput)
+    public void EnableVehicle(Transform driver, InputProviderBase driverInput)
     {
         // 1) Vehicle becomes kinematic/dynamic as desired
         rb.isKinematic = false;

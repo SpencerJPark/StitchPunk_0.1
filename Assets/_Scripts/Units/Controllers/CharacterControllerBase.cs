@@ -3,7 +3,7 @@ using UnityEngine;
 public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 {
     [Header("Dependencies")]
-    [SerializeField] protected IInputProvider input;
+    [SerializeField] protected InputProviderBase input;
     [SerializeField] protected CharacterController cc;
     [SerializeField] protected RiveAnimator animator;
     // Option B: serialize a generic MonoBehaviour and cast it in OnEnable
