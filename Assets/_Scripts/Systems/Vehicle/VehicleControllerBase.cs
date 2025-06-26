@@ -4,13 +4,20 @@ using System;
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 {
-    [Header("Dependencies")]
-    [SerializeField] protected IInputProvider input;
-    [SerializeField] protected Rigidbody rb;
-    [SerializeField] protected RiveAnimator animator;
-    //[SerializeField] private FacingDirectionBase driverFacingController;
-    [SerializeField] private FacingDirectionBase horseFacingController;
+    [Header("Seating")]
+    [Tooltip("Empty transform marking where the driver should sit")]
+    [SerializeField] private Transform driverSeatAnchor;
+    [Tooltip("2D offset profile for driver quad (if you still draw them)")]
+    [SerializeField] private FacingOffsetProfile driverOffsetProfile;
+    [Tooltip("Facing controller on the driver GameObject (if you still use 2D facing)")]
+    [SerializeField] private FacingDirectionBase driverFacingController;
 
+    [Header("Dependencies")]
+    [Tooltip("Will be set dynamically when someone enters")]
+    protected IInputProvider input;
+    [SerializeField] private Rigidbody rb;
+    [SerializeField] private RiveAnimator animator;
+    [SerializeField] private FacingDirectionBase horseFacingController;
 
     [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
@@ -20,21 +27,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] private Transform            horseQuad;
     [SerializeField] private FacingOffsetProfile  horseOffsetProfile;
     [SerializeField] private FacingDirectionBase  horseFacing;
-    //[SerializeField] private Transform            driverQuad;
-    //[SerializeField] private FacingOffsetProfile  driverOffsetProfile;
-    //[SerializeField] private FacingDirectionBase  driverFacing;
-    
-
-
-    [Header("Starting State")]
-    public bool active = true;
-
-
-    // Movement state
-    private Vector2 moveInput;
-    private float   currentSpeed;
-    private Vector3 currentDirection = Vector3.forward;
-    private float   turnVelocity;
 
 
     [Header("Wheels")]
@@ -51,37 +43,45 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         public float     targetRPM;
     }
 
+    // runtime state
+    private Transform           currentDriver;
+    private bool                active = false;
+    private Vector2             moveInput;
+    private float               currentSpeed;
+    private Vector3             currentDirection = Vector3.forward;
+    private float               turnVelocity;
+    private FacingDirectionBase driverFacingDynamic;
 
-    void OnEnable()
-    {
-        FixedUpdateManager.RegisterObserver(this);
-    }
-
+    void OnEnable()  => FixedUpdateManager.RegisterObserver(this);
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
     public void ObservedFixedUpdate()
     {
         if (!active) return;
 
-        ReadInput();
+        // read whichever input provider we were given
+        moveInput = input?.MoveInput ?? Vector2.zero;
+
+        // drive physics
         HandleMovement();
         ComputeWheelSpinTargets();
 
+        // 2D visuals for horse + driver
         Handle2D();
     }
 
     void Start()
-{
-    // 1) Lower the COM so the pivot is closer to the ground:
-    rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
-    
-    // 2) Increase angular drag so flips damp out instantly:
-    rb.angularDamping = 10f;                        // higher = more resistance to spinning
-    
-    // (Optional) Manually boost inertia on X/Z so it “weighs” more against tipping:
-    rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
-    rb.inertiaTensorRotation = Quaternion.identity;
-}
+    {
+        // 1) Lower the COM so the pivot is closer to the ground:
+        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
+        
+        // 2) Increase angular drag so flips damp out instantly:
+        rb.angularDamping = 10f;                        // higher = more resistance to spinning
+        
+        // (Optional) Manually boost inertia on X/Z so it “weighs” more against tipping:
+        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
+        rb.inertiaTensorRotation = Quaternion.identity;
+    }
 
 
     private void ReadInput()
@@ -175,14 +175,22 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
 
     // 2D Visuals
-   protected virtual void Handle2D()
+    protected virtual void Handle2D()
     {
-        UpdateHorsePosition();
-        //UpdateDriverPosition();
+        // horse visuals...
+        horseFacingController?.UpdateFacing(currentDirection);
 
-        //driverFacingController.UpdateFacing(currentDirection);
-        horseFacingController.UpdateFacing(currentDirection);
-        
+        // driver visuals, if we have one
+        if (driverFacingDynamic != null)
+        {
+            driverFacingDynamic.UpdateFacing(currentDirection);
+
+            // if you still use an offset profile:
+            var dir = driverFacingDynamic.CurrentDirection;
+            driverSeatAnchor.localPosition = driverOffsetProfile.GetOffset(dir);
+        }
+
+        // optionally horse animation
         UpdateHorseAnimation();
     }
 
@@ -216,9 +224,55 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         animator.SetEnum("Actions", action);
     }
- 
+
 
     // Public controls
-    public virtual void EnableVehicle() => active = true;
-    public virtual void DisVehicle() => active = false;
+    
+    /// <summary>
+    /// Called to make someone start driving.
+    /// Pass in their transform and their IInputProvider.
+    /// </summary>
+    public void EnableVehicle(Transform driver, IInputProvider driverInput)
+    {
+        // 1) Vehicle becomes kinematic/dynamic as desired
+        rb.isKinematic = false;
+        active = true;
+
+        // 2) Capture which input to read
+        input = driverInput;
+
+        // 3) Parent the driver to the seat anchor
+        currentDriver = driver;
+        driver.SetParent(driverSeatAnchor, worldPositionStays: false);
+        driver.localPosition = Vector3.zero;
+        driver.localRotation = Quaternion.identity;
+
+        // 4) Hook up facing if you need it
+        driverFacingDynamic = driverFacingController
+            ? driver.GetComponent<FacingDirectionBase>()
+            : null;
+    }
+
+    /// <summary>
+    /// Called to drop the driver back out.
+    /// </summary>
+    public void DisableVehicle()
+    {
+        active = false;
+
+        // 1) Unparent the driver
+        if (currentDriver != null)
+        {
+            currentDriver.SetParent(null, worldPositionStays: true);
+            currentDriver = null;
+        }
+
+        // 2) Stop reading input
+        input = null;
+        driverFacingDynamic = null;
+
+        // 3) Make vehicle immovable by NPC bumps
+        rb.isKinematic = true;
+    }
+
 }

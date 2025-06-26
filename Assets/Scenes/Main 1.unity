@@ -3903,7 +3903,7 @@ Rigidbody:
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 1
-  m_IsKinematic: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
@@ -3919,7 +3919,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e64f1bf25361854db5b6a1d6c64f07f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  input: {fileID: 1088137767}
+  driverSeatAnchor: {fileID: 0}
+  driverOffsetProfile: {fileID: 0}
+  driverFacingController: {fileID: 0}
   rb: {fileID: 3237542533880177403}
   animator: {fileID: 7623027959562987158}
   horseFacingController: {fileID: 7623027959562987161}
@@ -3927,7 +3929,6 @@ MonoBehaviour:
   horseQuad: {fileID: 6802040858197649712}
   horseOffsetProfile: {fileID: 11400000, guid: 748dc3d9e09f5d34b9bb960962a2d3b9, type: 2}
   horseFacing: {fileID: 7623027959562987161}
-  active: 0
   wheels:
   - mesh: {fileID: 4526564188587383052}
     isLeftSide: 1
