@@ -1,39 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Reads input values from the built-in PlayerInput / Input Actions asset.
-/// Supports any number of action maps—just switch via PlayerInput.SwitchCurrentActionMap.
-/// </summary>
 public class PlayerInputHandler : InputProviderBase
 {
-    [Header("Core")]
-    [Tooltip("The PlayerInput component that holds your Input Actions asset")]
-    [SerializeField] private PlayerInput playerInput;
-
-    [Header("On-Foot Actions")]
-    [Tooltip("Drag in the Move action from your 'Player' map")]
-    [SerializeField] private InputActionReference moveAction;
-    [Tooltip("Drag in the Interact action from your 'Player' map")]
-    [SerializeField] private InputActionReference interactAction;
-
-    [Header("Vehicle Actions")]
-    [Tooltip("Drag in the Steer action from your 'Vehicle' map")]
-    [SerializeField] private InputActionReference steerAction;
-
-    // --------------------------------------------------
-    // Runtime state
-    // --------------------------------------------------
-    Vector2 _moveInput;
-    bool    _interactFired;
-    float   _steerInput;
-
-    // --------------------------------------------------
-    // Overrides from InputProviderBase
-    // --------------------------------------------------
-    public override Vector2 MoveInput      => _moveInput;
-    public override bool    InteractFired  => _interactFired;
-    public override float   SteerInput     => _steerInput;
+    public static PlayerInputHandler Instance { get; private set; }
 
     void Awake()
     {
@@ -42,37 +12,41 @@ public class PlayerInputHandler : InputProviderBase
         DontDestroyOnLoad(gameObject);
     }
 
-    // --------------------------------------------------
-    // Hook up callbacks
-    // --------------------------------------------------
-    void OnEnable()
+    Vector2 _moveInput;
+    bool    _interactFired;
+    Vector2 _steerInput;
+    bool    _exitVehicleFired;
+
+    public override Vector2 MoveInput        => _moveInput;
+    public override bool    InteractFired    => _interactFired;
+    public override Vector2 SteerInput       => _steerInput;
+    public override bool    ExitVehicleFired => _exitVehicleFired;
+
+    // these methods must match your action names exactly:
+    public void OnMove(InputAction.CallbackContext ctx)
     {
-        // Enable all actions (only the active map fires its callbacks)
-        moveAction.action.Enable();
-        interactAction.action.Enable();
-        steerAction.action.Enable();
-
-        // On-Foot
-        moveAction.action.performed     += ctx => _moveInput       = ctx.ReadValue<Vector2>();
-        moveAction.action.canceled      += ctx => _moveInput       = Vector2.zero;
-        interactAction.action.performed += ctx => _interactFired   = true;
-        interactAction.action.canceled  += ctx => _interactFired   = false;
-
-        // Vehicle
-        steerAction.action.performed    += ctx => _steerInput      = ctx.ReadValue<float>();
-        steerAction.action.canceled     += ctx => _steerInput      = 0f;
+        _moveInput = ctx.ReadValue<Vector2>();
     }
 
-    void OnDisable()
+    public void OnInteract(InputAction.CallbackContext ctx)
     {
-        // Disable all at once (unsubscribing lambdas inline is tricky)
-        moveAction.action.Disable();
-        interactAction.action.Disable();
-        steerAction.action.Disable();
+        _interactFired = ctx.started;
+        Debug.Log($"[Input] Interact {(ctx.started? "DOWN":"UP")}, map={ctx.action.activeControl?.device.displayName}");
     }
 
-    /// <summary>
-    /// Switch the active map.
-    /// </summary>
-    public void SwitchActionMap(string mapName) => playerInput.SwitchCurrentActionMap(mapName);
+    public void OnSteer(InputAction.CallbackContext ctx)
+    {
+        _steerInput = ctx.ReadValue<Vector2>();
+    }
+
+    public void OnExitVehicle(InputAction.CallbackContext ctx)
+    {
+        _exitVehicleFired = ctx.started;
+    }
+
+    public void SwitchActionMap(string mapName)
+    {
+        var pi = GetComponent<PlayerInput>();
+        if (pi != null) pi.SwitchCurrentActionMap(mapName);
+    }
 }

@@ -46,7 +46,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     // runtime state
     private Transform           currentDriver;
     private bool                active = false;
-    private Vector2             moveInput;
+    private Vector2             Input;
     private float               currentSpeed;
     private Vector3             currentDirection = Vector3.forward;
     private float               turnVelocity;
@@ -60,7 +60,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         if (!active) return;
 
         // read whichever input provider we were given
-        moveInput = input?.MoveInput ?? Vector2.zero;
+        Input = input?.SteerInput ?? Vector2.zero;
 
         // drive physics
         HandleMovement();
@@ -86,7 +86,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     private void ReadInput()
     {
-        moveInput = input.MoveInput;
+        Input = input.SteerInput;
     }
 
     protected virtual void HandleMovement()
@@ -102,7 +102,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     private Vector3 ComputeDesiredVelocity()
     {
-        return new Vector3(moveInput.x, 0f, moveInput.y) * vehicleProfiles.moveSpeed;
+        return new Vector3(Input.x, 0f, Input.y) * vehicleProfiles.moveSpeed;
     }
 
     private Vector3 GetTargetDirection(Vector3 desiredVelocity)

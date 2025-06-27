@@ -1327,7 +1327,6 @@ GameObject:
   - component: {fileID: 1088137769}
   - component: {fileID: 1088137768}
   - component: {fileID: 1088137767}
-  - component: {fileID: 1088137770}
   m_Layer: 0
   m_Name: PlayerManager
   m_TagString: Untagged
@@ -1347,7 +1346,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c1934dc99b29454787c6feb748f6eac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerInput: {fileID: 1088137768}
 --- !u!114 &1088137768
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1422,7 +1420,19 @@ MonoBehaviour:
     m_ActionId: 54126885-5dc1-4b31-897a-d4bc839504de
     m_ActionName: 'Player/Switch[/Mouse/scroll/down]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1088137767}
+        m_TargetAssemblyTypeName: PlayerInputHandler, Assembly-CSharp
+        m_MethodName: OnSteer
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: 2ad1f8e3-9211-44a3-9f05-f9ab53ddfb06
     m_ActionName: 'Drive/Move[/Keyboard/w,/Keyboard/upArrow,/Keyboard/s,/Keyboard/downArrow,/Keyboard/a,/Keyboard/leftArrow,/Keyboard/d,/Keyboard/rightArrow]'
   - m_PersistentCalls:
@@ -1434,7 +1444,19 @@ MonoBehaviour:
     m_ActionId: e260b507-9d79-4902-aef7-75ea00002bbe
     m_ActionName: 'Drive/Switch to Back[/Mouse/leftButton,/Touchscreen/primaryTouch/tap,/Keyboard/enter]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1088137767}
+        m_TargetAssemblyTypeName: PlayerInputHandler, Assembly-CSharp
+        m_MethodName: OnExitVehicle
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: d865e841-dbbc-499b-bba2-37c67d3688fa
     m_ActionName: 'Drive/Leave[/Keyboard/e]'
   - m_PersistentCalls:
@@ -1501,19 +1523,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 163677902}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1088137770
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1088137766}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5606e61cc92d3024c9abdfb1d5e1e977, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  inputHandler: {fileID: 1088137767}
 --- !u!4 &1107080111 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6431523234311316874, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}

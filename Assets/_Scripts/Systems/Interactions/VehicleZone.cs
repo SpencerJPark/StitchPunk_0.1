@@ -15,10 +15,10 @@ public class VehicleZone : InteractableZone
         }
 
         var playerT = playerGO.transform;
-        var inputProvider = PlayerInputManager.Instance.InputHandler;
+        var inputProvider = PlayerInputHandler.Instance;
         if (inputProvider == null)
         {
-            Debug.LogError("VehicleZone: PlayerInputManager.InputHandler is null.");
+            Debug.LogError("VehicleZone: PlayerInputHandler is null.");
             return;
         }
 
@@ -26,7 +26,7 @@ public class VehicleZone : InteractableZone
         vehicleControllerBase.EnableVehicle(playerT, inputProvider);
 
         // Switch action map & camera
-        PlayerInputManager.Instance.SwitchToVehicle();
+        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Vehicle.ToString());
         CameraManager.Instance.SwitchCamera(CameraType.Vehicle);
     }
 }

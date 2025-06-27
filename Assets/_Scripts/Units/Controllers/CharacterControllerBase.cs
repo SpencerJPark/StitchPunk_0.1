@@ -102,7 +102,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         if (currentState == null) return;
 
         string animState = moving ? currentState.WalkAnimation : currentState.IdleAnimation;
-        animator.SetEnum("Actions", animState);
+        animator.SetEnum("Actions", animState.ToString());
     }
 
     protected virtual void UpdateActionAnimation(string action)
