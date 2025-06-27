@@ -51,13 +51,32 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     private Vector3             currentDirection = Vector3.forward;
     private float               turnVelocity;
     private FacingDirectionBase driverFacingDynamic;
+    private bool _exitTriggeredThisPress = false;
 
     void OnEnable()  => FixedUpdateManager.RegisterObserver(this);
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
-    public void ObservedFixedUpdate()
+     public void ObservedFixedUpdate()
     {
-        if (!active) return;
+        if (!active) 
+            return;
+
+        // --- EXIT HANDLING ---
+        if (input.ExitVehicleFired)
+        {
+            if (!_exitTriggeredThisPress)
+            {
+                _exitTriggeredThisPress = true;
+                PerformExit();
+            }
+            // skip all driving logic this frame
+            return;
+        }
+        else
+        {
+            // reset once button is released
+            _exitTriggeredThisPress = false;
+        }
 
         // read whichever input provider we were given
         Input = input?.SteerInput ?? Vector2.zero;
@@ -179,6 +198,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     {
         // horse visuals...
         horseFacingController?.UpdateFacing(currentDirection);
+        UpdateHorsePosition();
 
         // driver visuals, if we have one
         if (driverFacingDynamic != null)
@@ -227,6 +247,20 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
 
     // Public controls
+    /// <summary>
+    /// Handles unseating the driver, switching maps/cams back to the player
+    /// </summary>
+    private void PerformExit()
+    {
+        // 1) Disable vehicle drive
+        DisableVehicle();
+
+        // 2) Switch back to Player action map
+        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Player.ToString());
+
+        // 3) Switch camera back
+        CameraManager.Instance.SwitchCamera(CameraType.Player);
+    }
     
     /// <summary>
     /// Called to make someone start driving.
@@ -258,21 +292,32 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     /// </summary>
     public void DisableVehicle()
     {
+        // 0) Kill drive state immediately
         active = false;
+        currentSpeed  = 0f;
+        turnVelocity  = 0f;
+        Input         = Vector2.zero;
 
-        // 1) Unparent the driver
+        // 1) Stop all wheel spins
+        for (int i = 0; i < wheels.Length; i++)
+            wheels[i].targetRPM = 0f;
+
+        // 2) Reset animator to idle
+        if (animator != null && vehicleProfiles != null)
+            animator.SetEnum("Actions", Actions.Idle.ToString());
+
+        // 3) Unparent the driver
         if (currentDriver != null)
         {
             currentDriver.SetParent(null, worldPositionStays: true);
             currentDriver = null;
         }
 
-        // 2) Stop reading input
+        // 4) Stop reading input & facing
         input = null;
         driverFacingDynamic = null;
 
-        // 3) Make vehicle immovable by NPC bumps
+        // 5) Make vehicle immovable by NPC bumps
         rb.isKinematic = true;
     }
-
 }
