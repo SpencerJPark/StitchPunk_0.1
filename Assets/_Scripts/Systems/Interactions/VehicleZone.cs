@@ -14,7 +14,7 @@ public class VehicleZone : InteractableZone
             return;
         }
 
-        var playerT = playerGO.transform;
+        var playerT = playerGO;
         var inputProvider = PlayerInputHandler.Instance;
         if (inputProvider == null)
         {

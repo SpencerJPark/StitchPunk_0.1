@@ -97,6 +97,8 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         // UpdateActionAnimation() or FireTriggerAnimation()
     }
 
+    // Handle Animation
+
     protected virtual void UpdateMovementAnimation(bool moving)
     {
         if (currentState == null) return;
@@ -113,5 +115,29 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     protected virtual void FireTriggerAnimation(string trigger)
     {
         animator.Trigger(trigger);
+    }
+
+
+    // Other Object Interactions
+
+    /// <summary>
+    /// Called by your vehicle code when the player gets into a seat.
+    /// Disables all movement, gravity, and collision so we can snap them into place.
+    /// </summary>
+    public void OnMount()
+    {
+        // Set Sitting Animation
+        // stop ObservedUpdate entirely
+        // turn off CharacterController collision & gravity
+    }
+
+    /// <summary>
+    /// Called by your vehicle code when the player leaves the seat.
+    /// Restores movement and gravity.
+    /// </summary>
+    public void OnDismount()
+    {
+        // Set Idle Animation
+        // Reset movement ability and gravity
     }
 }

@@ -9,6 +9,7 @@ TagManager:
   - Vehicle
   - Object
   - TriggerZone
+  - CharacterQuad
   layers:
   - Default
   - TransparentFX

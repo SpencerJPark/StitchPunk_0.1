@@ -1705,6 +1705,14 @@ PrefabInstance:
       propertyPath: mainCamera
       value: 
       objectReference: {fileID: 330585545}
+    - target: {fileID: 8255609838257685514, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+      propertyPath: m_Name
+      value: CharacterPlane
+      objectReference: {fileID: 0}
+    - target: {fileID: 8255609838257685514, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+      propertyPath: m_TagString
+      value: CharacterQuad
+      objectReference: {fileID: 0}
     - target: {fileID: 8548127309489790521, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
       propertyPath: input
       value: 
@@ -3961,16 +3969,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e64f1bf25361854db5b6a1d6c64f07f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  driverSeatAnchor: {fileID: 0}
-  driverOffsetProfile: {fileID: 0}
-  driverFacingController: {fileID: 0}
   rb: {fileID: 3237542533880177403}
+  driverSeatAnchor: {fileID: 5816964981341875430}
+  driverObject: {fileID: 0}
+  driverOffsetProfile: {fileID: 11400000, guid: 0ed8e688226f7194c9346d83a3592de1, type: 2}
   animator: {fileID: 7623027959562987158}
   horseFacingController: {fileID: 7623027959562987161}
-  vehicleProfiles: {fileID: 11400000, guid: 27e2c50b467d82c449915ac41a02dbb7, type: 2}
   horseQuad: {fileID: 6802040858197649712}
   horseOffsetProfile: {fileID: 11400000, guid: 748dc3d9e09f5d34b9bb960962a2d3b9, type: 2}
-  horseFacing: {fileID: 7623027959562987161}
+  vehicleProfiles: {fileID: 11400000, guid: 27e2c50b467d82c449915ac41a02dbb7, type: 2}
   wheels:
   - mesh: {fileID: 4526564188587383052}
     isLeftSide: 1
@@ -4989,7 +4996,7 @@ GameObject:
   - component: {fileID: 7623027959562987161}
   m_Layer: 0
   m_Name: Horse
-  m_TagString: Untagged
+  m_TagString: CharacterQuad
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
