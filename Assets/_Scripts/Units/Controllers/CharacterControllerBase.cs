@@ -22,6 +22,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     private float fallSpeed;
     protected Vector3 moveDirection;
     protected bool isMoving;
+    private bool mount = false;
 
 
     void OnEnable()
@@ -35,8 +36,13 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        HandleMovement();
+        if (!mount)
+        {
+            HandleMovement();
+        }
+        
         HandleFacing();
+
         HandleAction();
     }
 
@@ -103,13 +109,13 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     {
         if (currentState == null) return;
 
-        string animState = moving ? currentState.WalkAnimation : currentState.IdleAnimation;
+        Actions animState = moving ? currentState.WalkAnimation : currentState.IdleAnimation;
         animator.SetEnum("Actions", animState.ToString());
     }
 
-    protected virtual void UpdateActionAnimation(string action)
+    protected virtual void UpdateActionAnimation(Actions action)
     {
-        animator.SetEnum("Actions", action);
+        animator.SetEnum("Actions", action.ToString());
     }
 
     protected virtual void FireTriggerAnimation(string trigger)
@@ -126,8 +132,9 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     /// </summary>
     public void OnMount()
     {
-        // Set Sitting Animation
-        // stop ObservedUpdate entirely
+        UpdateActionAnimation(Actions.Drive);
+        cc.enabled = false;
+        mount = true;
         // turn off CharacterController collision & gravity
     }
 
@@ -137,7 +144,9 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     /// </summary>
     public void OnDismount()
     {
-        // Set Idle Animation
+        UpdateActionAnimation(Actions.Idle);
+        cc.enabled = true;
+        mount = false;
         // Reset movement ability and gravity
     }
 }

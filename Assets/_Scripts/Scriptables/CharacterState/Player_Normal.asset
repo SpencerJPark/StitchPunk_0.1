@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Player_Normal
   m_EditorClassIdentifier: 
   stateName: Player_Normal
-  idleAnimation: Idle
-  walkAnimation: Run
-  talkAnimation: Talking
+  idleAnimation: 0
+  walkAnimation: 2
+  talkAnimation: 6
   moveSpeed: 5
   colorTint: {r: 1, g: 1, b: 1, a: 1}

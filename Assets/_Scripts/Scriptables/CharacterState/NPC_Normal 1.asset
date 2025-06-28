@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: NPC_Normal 1
   m_EditorClassIdentifier: 
   stateName: Normal
-  idleAnimation: Idle
-  walkAnimation: Walk
-  talkAnimation: Talking
+  idleAnimation: 0
+  walkAnimation: 1
+  talkAnimation: 6
   moveSpeed: 3
   colorTint: {r: 1, g: 1, b: 1, a: 1}

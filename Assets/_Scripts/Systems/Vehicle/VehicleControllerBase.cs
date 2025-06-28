@@ -15,7 +15,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     public GameObject driverObject = null;
     private CharacterControllerBase driverCharacterController;
     private FacingDirectionBase driverFacingController;
-    private Transform driverQuad;
     [SerializeField] private FacingOffsetProfile driverOffsetProfile;
 
 
@@ -28,7 +27,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
-    private Vector2 Input;
 
 
     [Header("Wheels")]
@@ -56,25 +54,19 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     void OnEnable()
     {
-        // 1) Lower the COM so the pivot is closer to the ground:
-        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
+        // 1) Sets vehicle weights to make sure it won't tip over
+        SetUpVehicle();
 
-        // 2) Increase angular drag so flips damp out instantly:
-        rb.angularDamping = 10f;                        // higher = more resistance to spinning
-
-        // 3) Manually boost inertia on X/Z so it “weighs” more against tipping:
-        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
-        rb.inertiaTensorRotation = Quaternion.identity;
-
-        // 4) Registers for updates:
+        // 2) Registers for updates:
         FixedUpdateManager.RegisterObserver(this);
 
-        // 5) Checks if driver game object is set, if so set ups hooks
+        // 3) Checks if driver game object is set, if so set ups hooks
         if (driverObject)
         {
             SetUpDriver(driverObject);
         }
     }
+
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
 
@@ -100,9 +92,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
             _exitTriggeredThisPress = false;
         }
 
-        // read whichever input provider we were given
-        ReadInput();
-
         // drive physics
         HandleMovement();
         ComputeWheelSpinTargets();
@@ -110,9 +99,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         // 2D visuals for horse + driver
         Handle2D();
     }
-
-
-    private void ReadInput() => Input = input.SteerInput;
 
     protected virtual void HandleMovement()
     {
@@ -127,7 +113,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     private Vector3 ComputeDesiredVelocity()
     {
-        return new Vector3(Input.x, 0f, Input.y) * vehicleProfiles.moveSpeed;
+        return new Vector3(input.SteerInput.x, 0f, input.SteerInput.y) * vehicleProfiles.moveSpeed;
     }
 
     private Vector3 GetTargetDirection(Vector3 desiredVelocity)
@@ -226,7 +212,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     protected virtual void UpdateDriverPosition()
     {
         var dir = driverFacingController.CurrentDirection;
-        driverQuad.localPosition = driverOffsetProfile.GetOffset(dir);
+        driverObject.transform.localPosition = driverOffsetProfile.GetOffset(dir);
     }
 
     protected virtual void UpdateHorseAnimation()
@@ -236,16 +222,16 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         // normalize your speed into [0,1]
         float t = currentSpeed / vehicleProfiles.moveSpeed;
-        string action;
+        Actions action;
 
         if (t <= vehicleProfiles.walkThreshold)
-            action = Actions.Idle.ToString();
+            action = Actions.Idle;
         else if (t <= vehicleProfiles.runThreshold)
-            action = Actions.Walk.ToString();
+            action = Actions.Walk;
         else
-            action = Actions.Run.ToString();
+            action = Actions.Run;
 
-        animator.SetEnum("Actions", action);
+        animator.SetEnum("Actions", action.ToString());
     }
 
 
@@ -282,7 +268,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         SetUpDriver(driver);
 
         // 4) Parent Driver
-        
+
     }
 
     /// <summary>
@@ -294,7 +280,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         active = false;
         currentSpeed = 0f;
         turnVelocity = 0f;
-        Input = Vector2.zero;
 
         // 1) Stop all wheel spins
         for (int i = 0; i < wheels.Length; i++)
@@ -327,27 +312,32 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         driverCharacterController = driverObject.GetComponent<CharacterControllerBase>();
         driverFacingController = driverObject.GetComponent<FacingDirectionBase>();
 
-        driverQuad = null;
-        
-        foreach (var t in driverObject.transform.GetComponentsInChildren<Transform>(true))
-        {
-            if (t.CompareTag("CharacterQuad"))
-            {
-                driverQuad = t;
-                break;
-            }
-        }
 
-        if (driverQuad == null)
-            Debug.LogWarning("No child tagged 'CharacterQuad' found under " + driverObject.name);
+        driverCharacterController.OnMount();
+
+        driverObject.transform.SetParent(driverSeatAnchor, worldPositionStays: false);
     }
 
     // releases driver references
     private void UnsetDriver()
     {
+        driverCharacterController.OnDismount();
         driverObject = null;
         driverCharacterController = null;
         driverFacingController = null;
-        driverQuad = null;
+        
+    }
+
+    private void SetUpVehicle()
+    {
+        // 1) Lower the COM so the pivot is closer to the ground:
+        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
+
+        // 2) Increase angular drag so flips damp out instantly:
+        rb.angularDamping = 10f;                        // higher = more resistance to spinning
+
+        // 3) Manually boost inertia on X/Z so it “weighs” more against tipping:
+        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
+        rb.inertiaTensorRotation = Quaternion.identity;
     }
 }
