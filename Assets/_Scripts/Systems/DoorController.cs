@@ -91,14 +91,14 @@ public class DoorController : MonoBehaviour
         if (smooth)
         {
             // debug so we know it's firing
-            Debug.Log($"[{name}] ResetDoor() starting smooth close.");
+            //Debug.Log($"[{name}] ResetDoor() starting smooth close.");
             // start closing from wherever we are
             SetOpen(false);
         }
         else
         {
             // snap instantly
-            Debug.Log($"[{name}] ResetDoor() snapping shut.");
+           // Debug.Log($"[{name}] ResetDoor() snapping shut.");
             Vector3 e = hinge.localEulerAngles;
             e.y = closedAngle;
             hinge.localEulerAngles = e;
