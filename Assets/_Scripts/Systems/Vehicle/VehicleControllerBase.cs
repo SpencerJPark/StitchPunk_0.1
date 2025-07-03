@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
@@ -9,6 +10,11 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     protected InputProviderBase input;
     [SerializeField] private Rigidbody rb;
     [SerializeField] private Transform driverSeatAnchor;
+    
+
+    [Header("References")]
+    [Tooltip("Drag in your door zones")]
+    [SerializeField] private List<GameObject> doors = new List<GameObject>();
 
 
     [Header("Driver")]
@@ -66,7 +72,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
             SetUpDriver(driverObject);
         }
     }
-
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
 
@@ -81,7 +86,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
             if (!_exitTriggeredThisPress)
             {
                 _exitTriggeredThisPress = true;
-                PerformExit();
+                DisableVehicle();
             }
             // skip all driving logic this frame
             return;
@@ -100,6 +105,73 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         Handle2D();
     }
 
+    // Public controls
+
+    /// <summary>
+    /// Called to make someone start driving.
+    /// Pass in their transform and their IInputProvider.
+    /// </summary>
+    public void EnableVehicle(GameObject driver, InputProviderBase driverInput)
+    {
+        // 1) Vehicle becomes kinematic/dynamic as desired
+        rb.isKinematic = false;
+        active = true;
+
+        // 2) Capture which input to read
+        input = driverInput;
+
+        // 3) Hook up driver Refrences
+        SetUpDriver(driver);
+
+        // 4) Set input Handler Map
+        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Vehicle.ToString());
+
+        // 5) Set Camera Up
+        CameraManager.Instance.SwitchCamera(CameraType.Vehicle);
+
+        // 6) Disable Entry Points
+        GameObjectUtils.SetActiveForAll(false, doors);
+    }
+
+    /// <summary>
+    /// Called to drop the driver back out.
+    /// </summary>
+    public void DisableVehicle()
+    {
+        // 1) Kill drive state immediately
+        active = false;
+        currentSpeed = 0f;
+        turnVelocity = 0f;
+
+        // 2) Stop all wheel spins
+        for (int i = 0; i < wheels.Length; i++)
+            wheels[i].targetRPM = 0f;
+
+        // 3) Reset horse animator to idle
+        if (animator != null && vehicleProfiles != null)
+            animator.SetEnum("Actions", Actions.Idle.ToString());
+
+        // 4) Stop reading input
+        input = null;
+
+        // 5) Resets Driver variables
+        UnsetDriver();
+
+        // 6) Make vehicle immovable by NPC bumps
+        rb.isKinematic = true;
+
+        // 7) Switch back to Player action map
+        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Player.ToString());
+
+        // 8) Switch camera back
+        CameraManager.Instance.SwitchCamera(CameraType.Player);
+
+        // 9) Sets back up interactable zones around the vehicle
+        GameObjectUtils.SetActiveForAll(true, doors);
+    }
+
+
+    // Vehicle Movement
     protected virtual void HandleMovement()
     {
         Vector3 desiredVelocity = ComputeDesiredVelocity();
@@ -184,6 +256,19 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         }
     }
 
+    private void SetUpVehicle()
+    {
+        // 1) Lower the COM so the pivot is closer to the ground:
+        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
+
+        // 2) Increase angular drag so flips damp out instantly:
+        rb.angularDamping = 10f;                        // higher = more resistance to spinning
+
+        // 3) Manually boost inertia on X/Z so it “weighs” more against tipping:
+        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
+        rb.inertiaTensorRotation = Quaternion.identity;
+    }
+
 
     // 2D Visuals
     protected virtual void Handle2D()
@@ -212,7 +297,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     protected virtual void UpdateDriverPosition()
     {
         var dir = driverFacingController.CurrentDirection;
-        driverObject.transform.localPosition = driverOffsetProfile.GetOffset(dir);
+        driverSeatAnchor.transform.localPosition = driverOffsetProfile.GetOffset(dir);
     }
 
     protected virtual void UpdateHorseAnimation()
@@ -234,77 +319,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         animator.SetEnum("Actions", action.ToString());
     }
 
-
-    // Public controls
-    /// <summary>
-    /// Handles unseating the driver, switching maps/cams back to the player
-    /// </summary>
-    private void PerformExit()
-    {
-        // 1) Disable vehicle drive
-        DisableVehicle();
-
-        // 2) Switch back to Player action map
-        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Player.ToString());
-
-        // 3) Switch camera back
-        CameraManager.Instance.SwitchCamera(CameraType.Player);
-    }
-
-    /// <summary>
-    /// Called to make someone start driving.
-    /// Pass in their transform and their IInputProvider.
-    /// </summary>
-    public void EnableVehicle(GameObject driver, InputProviderBase driverInput)
-    {
-        // 1) Vehicle becomes kinematic/dynamic as desired
-        rb.isKinematic = false;
-        active = true;
-
-        // 2) Capture which input to read
-        input = driverInput;
-
-        // 3) Hook up driver Refrences
-        SetUpDriver(driver);
-
-        // 4) Parent Driver
-
-    }
-
-    /// <summary>
-    /// Called to drop the driver back out.
-    /// </summary>
-    public void DisableVehicle()
-    {
-        // 0) Kill drive state immediately
-        active = false;
-        currentSpeed = 0f;
-        turnVelocity = 0f;
-
-        // 1) Stop all wheel spins
-        for (int i = 0; i < wheels.Length; i++)
-            wheels[i].targetRPM = 0f;
-
-        // 2) Reset horse animator to idle
-        if (animator != null && vehicleProfiles != null)
-            animator.SetEnum("Actions", Actions.Idle.ToString());
-
-        // 3) Unparent the driver
-
-
-        // 4) Stop reading input
-        input = null;
-
-        // 5) Moves Driver out of vehicle and sets its state to dimounted.
-
-        // 6) Resets Driver variables
-        UnsetDriver();
-
-        // 7) Make vehicle immovable by NPC bumps
-        rb.isKinematic = true;
-    }
-
-    // Sets up driver references
     private void SetUpDriver(GameObject driver)
     {
         // Check if driver is null, if so set driver as driverObject
@@ -312,13 +326,11 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         driverCharacterController = driverObject.GetComponent<CharacterControllerBase>();
         driverFacingController = driverObject.GetComponent<FacingDirectionBase>();
 
-
         driverCharacterController.OnMount();
 
         driverObject.transform.SetParent(driverSeatAnchor, worldPositionStays: false);
     }
 
-    // releases driver references
     private void UnsetDriver()
     {
         driverCharacterController.OnDismount();
@@ -326,18 +338,5 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         driverCharacterController = null;
         driverFacingController = null;
         
-    }
-
-    private void SetUpVehicle()
-    {
-        // 1) Lower the COM so the pivot is closer to the ground:
-        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
-
-        // 2) Increase angular drag so flips damp out instantly:
-        rb.angularDamping = 10f;                        // higher = more resistance to spinning
-
-        // 3) Manually boost inertia on X/Z so it “weighs” more against tipping:
-        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
-        rb.inertiaTensorRotation = Quaternion.identity;
     }
 }

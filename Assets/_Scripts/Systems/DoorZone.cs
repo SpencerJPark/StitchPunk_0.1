@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// Door Zone is to be attached to the zone that triggers doors opening for the player, it should be purely visual
 [RequireComponent(typeof(Collider))]
 public class DoorZone : MonoBehaviour
 {
@@ -10,11 +11,26 @@ public class DoorZone : MonoBehaviour
     [Tooltip("Tags allowed to open these doors")]
     [SerializeField] private string[] allowedTags = { "Player", "NPC" };
 
-    private void Reset()
+    private void OnDisable()
     {
-        var col = GetComponent<Collider>();
-        col.isTrigger = true;
+        ResetDoors();
     }
+
+    /// <summary>
+    /// Force all doors in this zone to clear their queues and close.
+    /// </summary>
+    public void ResetDoors()
+    {
+        Debug.Log($"[DoorZone] ResetDoors() called, controlling {doors.Length} doors.");
+        foreach (var door in doors)
+        {
+            if (door != null)
+                door.ForceClose(smooth: true);
+            else
+                Debug.LogWarning("[DoorZone] Null door in array!");
+        }
+    }
+
 
     private void OnTriggerEnter(Collider other)
     {

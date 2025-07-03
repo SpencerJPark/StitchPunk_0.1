@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Door Controller is attached to the physical door object and is driven by the door zone controller
 [RequireComponent(typeof(BoxCollider))]
 public class DoorController : MonoBehaviour
 {
@@ -41,13 +42,17 @@ public class DoorController : MonoBehaviour
             SetOpen(false);
     }
 
-    private void SetOpen(bool open)
+    public void SetOpen(bool open)
     {
-        if (IsOpen == open) return;
+        // only skip if you’re already opening and you ask to open again
+        if (open && IsOpen == true)
+            return;
+
         IsOpen = open;
         if (anim != null) StopCoroutine(anim);
         anim = StartCoroutine(AnimateDoor(open));
     }
+
 
     private IEnumerator AnimateDoor(bool open)
     {
@@ -68,5 +73,38 @@ public class DoorController : MonoBehaviour
         final.y = target;
         hinge.localEulerAngles = final;
         anim = null;
+    }
+
+    public void ForceClose(bool smooth = true)
+     {
+        // 1) clear any requests
+        requesters.Clear();
+
+        // 2) kill any running tween
+        if (anim != null)
+        {
+            StopCoroutine(anim);
+            anim = null;
+        }
+
+        // 3) always run the close animation
+        if (smooth)
+        {
+            // debug so we know it's firing
+            Debug.Log($"[{name}] ResetDoor() starting smooth close.");
+            // start closing from wherever we are
+            SetOpen(false);
+        }
+        else
+        {
+            // snap instantly
+            Debug.Log($"[{name}] ResetDoor() snapping shut.");
+            Vector3 e = hinge.localEulerAngles;
+            e.y = closedAngle;
+            hinge.localEulerAngles = e;
+        }
+
+        // 4) mark closed
+        IsOpen = false;
     }
 }

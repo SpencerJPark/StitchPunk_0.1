@@ -2231,7 +2231,7 @@ Transform:
   m_GameObject: {fileID: 1901796356}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 2.42, z: 2.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3154,7 +3154,7 @@ Transform:
   m_GameObject: {fileID: 3278289540360009550}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7070244, y: -0.010798262, z: -0.010798266, w: 0.7070243}
-  m_LocalPosition: {x: 2.048393, y: 1.7500482, z: 2.6327467}
+  m_LocalPosition: {x: 2.43, y: 1.7500482, z: 2.64}
   m_LocalScale: {x: 1.278587, y: 2.2700102, z: 3.2964752}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3970,7 +3970,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rb: {fileID: 3237542533880177403}
-  driverSeatAnchor: {fileID: 5816964981341875430}
+  driverSeatAnchor: {fileID: 1901796357}
+  doors:
+  - {fileID: 3278289540360009550}
+  - {fileID: 37925219599084691}
+  - {fileID: 2344509128066692266}
   driverObject: {fileID: 0}
   driverOffsetProfile: {fileID: 11400000, guid: 0ed8e688226f7194c9346d83a3592de1, type: 2}
   animator: {fileID: 7623027959562987158}
@@ -4431,7 +4435,7 @@ Transform:
   m_GameObject: {fileID: 37925219599084691}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7070244, y: -0.010798262, z: -0.010798266, w: 0.7070243}
-  m_LocalPosition: {x: -2.03, y: 1.7500482, z: 2.6327467}
+  m_LocalPosition: {x: -2.36, y: 1.7500482, z: 2.62}
   m_LocalScale: {x: 1.278587, y: 2.2700102, z: 3.2964752}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4877,7 +4881,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2828329835722350030}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -9.528479, y: 5.715688, z: -4.4983425}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -5769,6 +5773,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   priority: 100
   vehicleControllerBase: {fileID: 3237542533880177405}
+  doorZone: {fileID: 871837101920933863}
 --- !u!114 &8839820071522318106
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5819,6 +5824,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   priority: 100
   vehicleControllerBase: {fileID: 3237542533880177405}
+  doorZone: {fileID: 8839820071522318106}
 --- !u!33 &9071585313406085623
 MeshFilter:
   m_ObjectHideFlags: 0
