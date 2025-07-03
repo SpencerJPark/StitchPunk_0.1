@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87f2b654f256e754a9041ce3bc3f794b, type: 3}
   m_Name: PlayerCaravanOffset 1
   m_EditorClassIdentifier: 
-  North: {x: 2.73, y: 4.55, z: 2.26}
-  NorthEast: {x: 3.23, y: 4.55, z: 1.86}
-  East: {x: 3.05, y: 4.55, z: 2.06}
-  SouthEast: {x: 2.73, y: 4.55, z: 2.16}
-  South: {x: 2.72, y: 4.55, z: 2.26}
-  SouthWest: {x: 2.61, y: 4.55, z: 2.16}
-  West: {x: 2.24, y: 4.55, z: 2.06}
-  NorthWest: {x: 2.1, y: 4.55, z: 1.86}
+  North: {x: 0, y: 3.2, z: 3.08}
+  NorthEast: {x: 0.59, y: 3.2, z: 2.63}
+  East: {x: 0.45, y: 3.2, z: 2.68}
+  SouthEast: {x: 0.22, y: 3.2, z: 2.98}
+  South: {x: 0, y: 3.2, z: 3.03}
+  SouthWest: {x: -0.25, y: 3.2, z: 2.98}
+  West: {x: -0.48, y: 3.2, z: 2.68}
+  NorthWest: {x: -0.57, y: 3.2, z: 2.65}

@@ -10,7 +10,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     protected InputProviderBase input;
     [SerializeField] private Rigidbody rb;
     [SerializeField] private Transform driverSeatAnchor;
-    
+
 
     [Header("References")]
     [Tooltip("Drag in your door zones")]
@@ -117,8 +117,9 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         rb.isKinematic = false;
         active = true;
 
-        // 2) Capture which input to read
+        // 2) Capture which input to read and makes sures first update round can pass
         input = driverInput;
+        _exitTriggeredThisPress = input.ExitVehicleFired;
 
         // 3) Hook up driver Refrences
         SetUpDriver(driver);
@@ -328,7 +329,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         driverCharacterController.OnMount();
 
-        driverObject.transform.SetParent(driverSeatAnchor, worldPositionStays: false);
+        ParentToAnchor();
     }
 
     private void UnsetDriver()
@@ -337,6 +338,21 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         driverObject = null;
         driverCharacterController = null;
         driverFacingController = null;
-        
+
+    }
+
+    private void ParentToAnchor()
+    {
+        // 1) Snap the world-space transform to exactly where the anchor is:
+        driverObject.transform.position = driverSeatAnchor.position;
+        driverObject.transform.rotation = driverSeatAnchor.rotation;
+
+        // 2) Now parent but keep that world-space pose:
+        driverObject.transform.SetParent(driverSeatAnchor, worldPositionStays: true);
+
+        // 3) Zero your local so you’re *exactly* at the anchor point:
+        driverObject.transform.localPosition = Vector3.zero;
+        driverObject.transform.localRotation = Quaternion.identity;
+
     }
 }
