@@ -9,7 +9,6 @@ public class PlayerInputHandler : InputProviderBase
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
     }
 
     Vector2 _moveInput;
