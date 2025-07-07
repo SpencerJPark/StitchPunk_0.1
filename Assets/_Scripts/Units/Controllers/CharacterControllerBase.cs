@@ -6,16 +6,22 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     [SerializeField] protected InputProviderBase input;
     [SerializeField] protected CharacterController cc;
     [SerializeField] protected RiveAnimator animator;
-    // Option B: serialize a generic MonoBehaviour and cast it in OnEnable
-    [SerializeField]
-    private FacingDirectionBase facingController;
+    [SerializeField] private FacingDirectionBase facingController;
+
 
     [Header("State Data")]
-    [SerializeField] protected CharacterStateData currentState;
+    [SerializeField] protected UnitStateData currentState;
 
 
-    [Header("Movement Profile")]
-    [SerializeField] private MovementProfile movementProfile;
+    [Header("UnitBaseData")]
+       protected IUnitData unitData;
+
+    // ───────────────────────────────────────────────────────────────
+    // Override this in subclasses to supply the correct data instance
+    protected abstract IUnitData CreateUnitData();
+    // ───────────────────────────────────────────────────────────────
+
+
 
 
     private bool isGrounded;
@@ -24,7 +30,14 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     protected bool isMoving;
     private bool mount = false;
 
-
+    protected virtual void Awake()
+    {
+        // Build your data model here
+        unitData = CreateUnitData();
+        if (unitData == null)
+            Debug.LogError($"{name} failed to CreateUnitData()");
+    } 
+    
     void OnEnable()
     {
         UpdateManager.RegisterObserver(this);
@@ -46,7 +59,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         HandleAction();
     }
 
-    public virtual void ApplyState(CharacterStateData state)
+    public virtual void ApplyState(UnitStateData state)
     {
         currentState = state;
     }
@@ -56,13 +69,13 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         moveDirection = new Vector3(input.MoveInput.x, 0f, input.MoveInput.y);
         isMoving = moveDirection.sqrMagnitude > 0.01f;
 
-        float speed = currentState != null ? currentState.MoveSpeed : 3f;
+        float speed = unitData != null ? unitData.MoveSpeed : 3f;
         Vector3 motion = moveDirection * speed;
 
         // apply gravity if needed
-        if (movementProfile != null &&
-            (movementProfile.movementType == MovementType.Grounded ||
-             movementProfile.movementType == MovementType.Floating))
+        if (unitData != null &&
+            (unitData.Movement == MovementType.Grounded ||
+             unitData.Movement == MovementType.Floating))
         {
             HandleGravity();
             motion.y = -fallSpeed;
@@ -77,12 +90,12 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     private void HandleGravity()
     {
         isGrounded = Physics.Raycast(transform.position, Vector3.down,
-            movementProfile.groundCheckDistance, movementProfile.groundLayer);
+            unitData.GroundCheckDistance, unitData.GroundLayer);
 
         if (!isGrounded)
         {
-            fallSpeed += movementProfile.gravity * Time.deltaTime;
-            fallSpeed = Mathf.Clamp(fallSpeed, 0f, movementProfile.maxFallSpeed);
+            fallSpeed += unitData.Gravity * Time.deltaTime;
+            fallSpeed = Mathf.Clamp(fallSpeed, 0f, unitData.MaxFallSpeed);
         }
         else
         {

@@ -9,7 +9,7 @@ public class CharacterInitializer : MonoBehaviour
     [SerializeField] private CharacterControllerBase controller;
 
     [Header("Optional")]
-    [SerializeField] private CharacterStateData defaultState;
+    [SerializeField] private UnitStateData defaultState;
     [SerializeField] private CharacterDesignBase design;
     [SerializeField] private MonoBehaviour facingComponent; // Must implement IFacingController
 

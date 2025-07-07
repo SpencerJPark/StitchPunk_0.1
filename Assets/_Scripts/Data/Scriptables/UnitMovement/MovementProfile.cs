@@ -1,19 +1,12 @@
 using UnityEngine;
 
-public enum MovementType
-{
-    Grounded,
-    Flying,
-    Floating // Optional for slow gravity etc.
-}
-
 [CreateAssetMenu(fileName = "MovementProfile", menuName = "Characters/Movement Profile", order = 1)]
 public class MovementProfile : ScriptableObject
 {
     public MovementType movementType = MovementType.Grounded;
 
     [Header("Speed Settings")]
-    public float moveSpeed = 3f;
+    public float MoveSpeed = 3f;
 
     [Header("Gravity Settings")]
     public float gravity = 9.8f;
