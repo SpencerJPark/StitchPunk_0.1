@@ -5,7 +5,7 @@ using Rive.Components;
 public abstract class FacingDirectionBase : MonoBehaviour
 {
     [SerializeField] protected RiveAnimator animator;
-    [SerializeField] protected Camera mainCamera;
+    [SerializeField] protected Camera mainCamera; // Switch to injection
     public abstract Direction CurrentDirection { get; }
     protected string defaultDirection = "SouthEast";
 

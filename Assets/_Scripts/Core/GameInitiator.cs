@@ -3,11 +3,14 @@ using Cysharp.Threading.Tasks;
 
 public class GameInitiator : MonoBehaviour
 {
+    [SerializeField] 
+    
     private async void Start()
     {
         BindObjects();
         await InitializeObjects();
         await CreateObjects();
+        PrepareGame();
         BeginGame();
     }
 
@@ -22,6 +25,11 @@ public class GameInitiator : MonoBehaviour
     }
 
     private async UniTask CreateObjects()
+    {
+
+    }
+
+    private void PrepareGame()
     {
 
     }
