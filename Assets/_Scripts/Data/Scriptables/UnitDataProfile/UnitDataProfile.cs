@@ -1,8 +1,12 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "MovementProfile", menuName = "Characters/Movement Profile", order = 1)]
-public class MovementProfile : ScriptableObject
+[CreateAssetMenu(fileName = "UnitDataProfile", menuName = "Units/Unit Data Profile", order = 1)]
+public class UnitDataProfile : ScriptableObject
 {
+    [field: SerializeField] public string UnitName { get; private set; }
+    [field: SerializeField] public int MaxHealth { get; private set; }
+    [field: SerializeField] public int AttackDamage { get; private set; }
+
     public MovementType movementType = MovementType.Grounded;
 
     [Header("Speed Settings")]

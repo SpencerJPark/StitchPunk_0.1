@@ -2,7 +2,7 @@ using UnityEngine;
 
 // These are states that effect unit visual/movement data that can be applied to most units. Meant to be swapped at runtime
 
-[CreateAssetMenu(fileName = "UnitStateData", menuName = "Units/Unit State", order = 1)]
+[CreateAssetMenu(fileName = "UnitStateData", menuName = "Units/Unit State", order = 2)]
 public class UnitStateData : ScriptableObject
 {
     [field: Header("Optional Visual State Info")]

@@ -1,26 +1,25 @@
 using UnityEngine;
 
-public class MaleNPCData : MonoBehaviour, IUnitData
+public class MaleNPCData : IUnitData
 {
-    private readonly UnitBaseData _so;
-    private readonly MovementProfile _mp;
-    public MaleNPCData(UnitBaseData so, MovementProfile mp)
+    private readonly UnitDataProfile _so;
+
+    public MaleNPCData(UnitDataProfile so)
     {
         _so = so;
-        _mp = mp;
     }
 
 // Immutable Universal Data from Scriptable Object
     public string UnitName => _so.UnitName;
     public int MaxHealth => _so.MaxHealth;
     public int AttackDamage => _so.AttackDamage;
-    public MovementType Movement => _mp.movementType;
-    public float MoveSpeed => _mp.MoveSpeed;
-    public float Gravity => _mp.gravity;
-    public float MaxFallSpeed => _mp.maxFallSpeed;
-    public float GroundCheckDistance => _mp.groundCheckDistance;
-    public LayerMask GroundLayer => _mp.groundLayer;
-    public float GravityMultiplier => _mp.gravityMultiplier;
+    public MovementType Movement => _so.movementType;
+    public float MoveSpeed => _so.MoveSpeed;
+    public float Gravity => _so.gravity;
+    public float MaxFallSpeed => _so.maxFallSpeed;
+    public float GroundCheckDistance => _so.groundCheckDistance;
+    public LayerMask GroundLayer => _so.groundLayer;
+    public float GravityMultiplier => _so.gravityMultiplier;
 
 // Mutable Data
     public int CurrentHealth;

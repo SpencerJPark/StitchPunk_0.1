@@ -2,14 +2,11 @@ using UnityEngine;
 
 public class HeroController : CharacterControllerBase
 {
-    [Header("Hero Data Assets")]
-    [SerializeField] private UnitBaseData     baseDataSO;
-    [SerializeField] private MovementProfile  movementProfileSO;
 
     protected override IUnitData CreateUnitData()
     {
         // here you pick exactly which implementation to use:
-        return new HeroData(baseDataSO, movementProfileSO);
+        return new HeroData(unitDataProfile);
     }
 
     protected override void HandleAction()

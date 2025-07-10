@@ -1,7 +1,7 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Characters/Customization Data")]
-public class CharacterCustomizationData : ScriptableObject
+[CreateAssetMenu(menuName = "Units/Unit Customization Data", order = 3)]
+public class UnitCustomizationData : ScriptableObject
 {
     public Hats hats = Hats.Newsboy;
     public Eyeware eyeware = Eyeware.None;

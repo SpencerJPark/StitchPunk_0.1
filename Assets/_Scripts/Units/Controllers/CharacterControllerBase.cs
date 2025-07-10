@@ -14,15 +14,13 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
 
     [Header("UnitBaseData")]
-       protected IUnitData unitData;
+    [SerializeField] protected UnitDataProfile unitDataProfile;
+    protected IUnitData unitData;
 
     // ───────────────────────────────────────────────────────────────
     // Override this in subclasses to supply the correct data instance
     protected abstract IUnitData CreateUnitData();
     // ───────────────────────────────────────────────────────────────
-
-
-
 
     private bool isGrounded;
     private float fallSpeed;
@@ -30,6 +28,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     protected bool isMoving;
     private bool mount = false;
 
+    // Will swith to dependecy injection
     protected virtual void Awake()
     {
         // Build your data model here

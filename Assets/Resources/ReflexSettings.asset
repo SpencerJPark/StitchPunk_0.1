@@ -9,15 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f84dce2f5f116e94aa458d160e5fd831, type: 3}
-  m_Name: HeroMovement
+  m_Script: {fileID: 11500000, guid: f50e4916e4924f2788a73057a16764c0, type: 3}
+  m_Name: ReflexSettings
   m_EditorClassIdentifier: 
-  movementType: 0
-  moveSpeed: 3
-  gravity: 9.8
-  maxFallSpeed: 20
-  groundCheckDistance: 0.2
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  gravityMultiplier: 0.3
+  <LogLevel>k__BackingField: 0
+  <ProjectScopes>k__BackingField: []

@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class HeroDesign : CharacterDesignBase
 {
-    [SerializeField] private CharacterCustomizationData customizationData;
+    [SerializeField] private UnitCustomizationData customizationData;
 
     public override void ApplyCustomization()
     {

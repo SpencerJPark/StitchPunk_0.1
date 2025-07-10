@@ -12,9 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7000167831327f0498add53c7201349a, type: 3}
   m_Name: Player_Normal
   m_EditorClassIdentifier: 
-  stateName: Player_Normal
-  idleAnimation: 0
-  walkAnimation: 2
-  talkAnimation: 6
-  moveSpeed: 5
-  colorTint: {r: 1, g: 1, b: 1, a: 1}
+  <StateName>k__BackingField: Normal
+  <IdleAnimation>k__BackingField: 0
+  <WalkAnimation>k__BackingField: 2
+  <TalkAnimation>k__BackingField: 6
+  <ColorTint>k__BackingField: {r: 1, g: 1, b: 1, a: 1}
