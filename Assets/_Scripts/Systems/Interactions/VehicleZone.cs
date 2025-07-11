@@ -1,30 +1,32 @@
 using UnityEngine;
 
-// Vehicle Zone is used to create a zone for the player to enter a vehicle from, it inherits from InteractableZone
 [RequireComponent(typeof(Collider))]
 public class VehicleZone : InteractableZone
 {
-    [SerializeField] private VehicleControllerBase vehicleControllerBase;
-    [SerializeField] private DoorZone doorZone;
+    [SerializeField] private VehicleControllerBase vehicleController;
 
-    protected override void OnInteract()
+    protected override void OnTriggerEnter(Collider other)
     {
-        var playerGO = GameObject.FindWithTag("Player");
-        if (playerGO == null)
+        base.OnTriggerEnter(other);
+        // (optional) extra logic on enter
+    }
+
+    protected override void OnTriggerExit(Collider other)
+    {
+        base.OnTriggerExit(other);
+    }
+
+    public override void OnInteract()
+    {
+        var player = GameObject.FindWithTag("Player");
+        var input = PlayerInputHandler.Instance;
+        if (player == null || input == null)
         {
-            Debug.LogError("VehicleZone: no GameObject tagged 'Player'.");
+            Debug.LogError("VehicleZone: missing Player or InputHandler");
             return;
         }
 
-        var playerT = playerGO;
-        var inputProvider = PlayerInputHandler.Instance;
-        if (inputProvider == null)
-        {
-            Debug.LogError("VehicleZone: PlayerInputHandler is null.");
-            return;
-        }
-
-        // Seat & bind the player’s IInputProvider
-        vehicleControllerBase.EnableVehicle(playerT, inputProvider);
+        vehicleController.EnableVehicle(player, input);
+        InteractionManager.Instance.UnregisterZone(this);
     }
 }
