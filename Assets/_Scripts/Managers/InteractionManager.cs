@@ -2,17 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class InteractionManager : MonoBehaviour, IUpdateObserver
+public class InteractionManager : PersistentSingleton<InteractionManager>, IUpdateObserver
 {
-    public static InteractionManager Instance { get; private set; }
-
     readonly HashSet<IInteractableZone> _zones = new();
-
-    void Awake()
-    {
-        if (Instance != null) Destroy(this);
-        else Instance = this;
-    }
 
     void OnEnable() => UpdateManager.RegisterObserver(this);
     void OnDisable() => UpdateManager.UnregisterObserver(this);

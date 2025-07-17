@@ -7,7 +7,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 {
     [Header("Dependencies")]
     [Tooltip("Will be set dynamically when someone enters")]
-    protected InputProviderBase input;
+    protected IInputProvider input;
     [SerializeField] private Rigidbody rb;
     [SerializeField] private Transform driverSeatAnchor;
 
@@ -111,7 +111,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     /// Called to make someone start driving.
     /// Pass in their transform and their IInputProvider.
     /// </summary>
-    public void EnableVehicle(GameObject driver, InputProviderBase driverInput)
+    public void EnableVehicle(GameObject driver, IInputProvider driverInput)
     {
         // 1) Vehicle becomes kinematic/dynamic as desired
         rb.isKinematic = false;

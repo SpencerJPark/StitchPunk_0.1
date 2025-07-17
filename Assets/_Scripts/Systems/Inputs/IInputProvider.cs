@@ -1,15 +1,14 @@
-// IInputProvider.cs
 using UnityEngine;
 
-public class InputProviderBase : MonoBehaviour
+public interface IInputProvider
 {
     // ON–FOOT
-    public virtual Vector2 MoveInput => Vector2.zero;
-    public virtual bool ActionFired => false;
-    public virtual bool InteractFired => false;
+    Vector2 MoveInput      { get; }
+    bool    ActionFired    { get; }
+    bool    InteractFired  { get; }
 
     // IN–VEHICLE
-    public virtual Vector2 SteerInput => Vector2.zero;
-    public virtual bool ExitVehicleFired => false;
-    
+    Vector2 SteerInput         { get; }
+    bool    ExitVehicleFired   { get; }
 }
+

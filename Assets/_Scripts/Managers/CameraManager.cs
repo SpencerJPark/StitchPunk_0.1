@@ -2,10 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Cinemachine;
 
-public class CameraManager : MonoBehaviour
+public class CameraManager : PersistentSingleton<CameraManager>
 {
-    public static CameraManager Instance { get; private set; }
-
     [Header("Cams (assign in inspector)")]
     [SerializeField] CinemachineCamera playerCam;
     [SerializeField] CinemachineCamera playerZoomCam;
@@ -24,9 +22,6 @@ public class CameraManager : MonoBehaviour
 
     void OnEnable()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-
         // build lookup
         cams = new Dictionary<CameraType, CinemachineCamera>()
         {

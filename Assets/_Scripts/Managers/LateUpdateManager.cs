@@ -8,7 +8,7 @@ public interface ILateUpdateObserver
     void ObservedLateUpdate();
 }
 
-public class LateUpdateManager : MonoBehaviour
+public class LateUpdateManager : PersistentSingleton<LateUpdateManager>
 {
     private static List<ILateUpdateObserver> _observers = new List<ILateUpdateObserver>();
     private static List<ILateUpdateObserver> _pendingObservers = new List<ILateUpdateObserver>();

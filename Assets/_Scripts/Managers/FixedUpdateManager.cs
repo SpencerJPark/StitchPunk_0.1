@@ -8,7 +8,7 @@ public interface IFixedUpdateObserver
     void ObservedFixedUpdate();
 }
 
-public class FixedUpdateManager : MonoBehaviour
+public class FixedUpdateManager : PersistentSingleton<FixedUpdateManager>
 {
     private static List<IFixedUpdateObserver> _observers = new List<IFixedUpdateObserver>();
     private static List<IFixedUpdateObserver> _pendingObservers = new List<IFixedUpdateObserver>();
