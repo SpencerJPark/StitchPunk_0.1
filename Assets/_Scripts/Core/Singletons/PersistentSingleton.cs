@@ -19,7 +19,7 @@ public class PersistentSingleton<T> : MonoBehaviour where T : Component
                 if (instance == null)
                 {
                     var go = new GameObject(typeof(T).Name + " Auto-Generated");
-                    instance = go.AddComponet<T>();
+                    instance = go.AddComponent<T>();
                 }
             }
             return instance;

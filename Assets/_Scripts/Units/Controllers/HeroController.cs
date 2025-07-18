@@ -2,7 +2,20 @@ using UnityEngine;
 
 public class HeroController : CharacterControllerBase
 {
+    protected override void Awake()
+    {
+        // Let the base class create unitData and validate it
+        base.Awake();
 
+        // Now do any Hero‑specific setup:
+        // e.g. ensure we have an input provider wired in
+        if (input == null)
+            input = PlayerInputHandler.Instance;
+
+        // or initialize hero‑only systems:
+        // InitializeHeroAbilities();
+    }
+    
     protected override IUnitData CreateUnitData()
     {
         // here you pick exactly which implementation to use:

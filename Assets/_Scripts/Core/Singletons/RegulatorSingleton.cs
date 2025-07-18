@@ -19,7 +19,7 @@ public class RegulatorSingleton<T> : MonoBehaviour where T : Component
                 {
                     var go = new GameObject(typeof(T).Name + " Auto-Generated");
                     go.hideFlags = HideFlags.HideAndDontSave;
-                    instance = go.AddComponet<T>();
+                    instance = go.GetComponent<T>();
                 }
             }
             return instance;
@@ -40,7 +40,7 @@ public class RegulatorSingleton<T> : MonoBehaviour where T : Component
         T[] oldInstances = FindObjectsByType<T>(FindObjectsSortMode.None);
         foreach (T old in oldInstances)
         {
-            if (old.GetComponet<RegulatorSingleton<T>>().InitializationTime < InitializationTime)
+            if (old.GetComponent<RegulatorSingleton<T>>().InitializationTime < InitializationTime)
             {
                 Destroy(old.gameObject);
             }
