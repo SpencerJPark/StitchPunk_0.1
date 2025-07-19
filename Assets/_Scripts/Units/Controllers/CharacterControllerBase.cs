@@ -3,7 +3,7 @@ using UnityEngine;
 public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 {
     [Header("Dependencies")]
-    [SerializeField] protected IInputProvider input;
+    [SerializeField] public IInputProvider input;
     [SerializeField] protected CharacterController cc;
     [SerializeField] protected RiveAnimator animator;
     [SerializeField] private FacingDirectionBase facingController;

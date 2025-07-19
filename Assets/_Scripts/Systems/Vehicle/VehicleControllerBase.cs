@@ -12,68 +12,69 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] private Transform driverSeatAnchor;
 
 
-    [Header("References")]
     [Tooltip("Drag in your door zones")]
-    [SerializeField] private List<GameObject> doors = new List<GameObject>();
+    [SerializeField] private List<GameObject> doorZones = new List<GameObject>();
 
 
-    [Header("Driver")]
+    [Header("Driver Info")]
     public GameObject driverObject = null;
     private CharacterControllerBase driverCharacterController;
     private FacingDirectionBase driverFacingController;
-    [SerializeField] private FacingOffsetProfile driverOffsetProfile;
+    
 
-
-    [Header("Horse")]
-    [SerializeField] private RiveAnimator animator;
+    [Header("Horse Info")]
+    [SerializeField] private RiveAnimator horseAnimator;
     [SerializeField] private FacingDirectionBase horseFacingController;
     [SerializeField] private Transform horseQuad;
+
+
+    [Header("Data")]
+    [SerializeField] private FacingOffsetProfile driverOffsetProfile;
     [SerializeField] private FacingOffsetProfile horseOffsetProfile;
-
-
-    [Header("Vehicle Profile")]
     [SerializeField] private VehicleProfiles vehicleProfiles;
 
+    // HorseData
 
-    [Header("Wheels")]
-    [SerializeField] private WheelData[] wheels;
-    public WheelData[] Wheels => wheels;
-    [Serializable]
-    public struct WheelData
-    {
-        public Transform mesh;
-        public bool isLeftSide;
-        public float radius;
-        [HideInInspector]
-        public float targetRPM;
-    }
+
+
 
 
     // Runtime state
+    [HideInInspector] public float currentSpeed;
     private bool active = false;
-    private float currentSpeed;
     private Vector3 currentDirection = Vector3.forward;
     private float turnVelocity;
+
+
     private bool _exitTriggeredThisPress = false;
 
 
 
     void OnEnable()
     {
-        // 1) Sets vehicle weights to make sure it won't tip over
         SetUpVehicle();
 
-        // 2) Registers for updates:
         FixedUpdateManager.RegisterObserver(this);
 
-        // 3) Checks if driver game object is set, if so set ups hooks
-        if (driverObject)
-        {
-            SetUpDriver(driverObject);
-        }
+        // Issue is that this initializes before characters
+        // if (driverObject != null)
+        // {
+        //     // 1) get the CharacterControllerBase
+        //     var ctrl = driverObject.GetComponent<CharacterControllerBase>();
+        //     if (ctrl == null)
+        //     {
+        //         Debug.LogError($"VehicleController: driverObject {driverObject.name} has no CharacterControllerBase!");
+        //         return;
+        //     }
+
+        //     // 2) pull its input provider
+        //     var provider = ctrl.input;
+
+        //     // 3) now enable the vehicle with that exact provider
+        //     EnableVehicle(driverObject, provider);
+        // }
     }
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
-
 
     public void ObservedFixedUpdate()
     {
@@ -99,18 +100,13 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         // drive physics
         HandleMovement();
-        ComputeWheelSpinTargets();
 
         // 2D visuals for horse + driver
         Handle2D();
     }
 
-    // Public controls
 
-    /// <summary>
-    /// Called to make someone start driving.
-    /// Pass in their transform and their IInputProvider.
-    /// </summary>
+    // Public controls
     public void EnableVehicle(GameObject driver, IInputProvider driverInput)
     {
         // 1) Vehicle becomes kinematic/dynamic as desired
@@ -125,18 +121,15 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         SetUpDriver(driver);
 
         // 4) Set input Handler Map
-        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Vehicle.ToString());
+        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Vehicle);
 
         // 5) Set Camera Up
         CameraManager.Instance.SwitchCamera(CameraType.Vehicle);
 
         // 6) Disable Entry Points
-        GameObjectUtils.SetActiveForAll(false, doors);
+        GameObjectUtils.SetActiveForAll(false, doorZones);
     }
 
-    /// <summary>
-    /// Called to drop the driver back out.
-    /// </summary>
     public void DisableVehicle()
     {
         // 1) Kill drive state immediately
@@ -144,32 +137,30 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         currentSpeed = 0f;
         turnVelocity = 0f;
 
-        // 2) Stop all wheel spins
-        for (int i = 0; i < wheels.Length; i++)
-            wheels[i].targetRPM = 0f;
+        // 2) Reset horse horseAnimator to idle
+        if (horseAnimator != null && vehicleProfiles != null)
+            horseAnimator.SetEnum("Actions", Actions.Idle.ToString());
 
-        // 3) Reset horse animator to idle
-        if (animator != null && vehicleProfiles != null)
-            animator.SetEnum("Actions", Actions.Idle.ToString());
-
-        // 4) Stop reading input
+        // 3) Stop reading input
         input = null;
 
-        // 5) Resets Driver variables
+        // 4) Resets Driver variables
         UnsetDriver();
 
-        // 6) Make vehicle immovable by NPC bumps
+        // 5) Make vehicle immovable by NPC bumps
         rb.isKinematic = true;
 
-        // 7) Switch back to Player action map
-        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Player.ToString());
+        // 6) Switch back to Player action map
+        PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Player);
 
-        // 8) Switch camera back
+        // 7) Switch camera back
         CameraManager.Instance.SwitchCamera(CameraType.Player);
 
-        // 9) Sets back up interactable zones around the vehicle
-        GameObjectUtils.SetActiveForAll(true, doors);
+        // 8) Sets back up interactable zones around the vehicle
+        GameObjectUtils.SetActiveForAll(true, doorZones);
     }
+
+
 
 
     // Vehicle Movement
@@ -244,34 +235,10 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         }
     }
 
-    private void ComputeWheelSpinTargets()
-    {
-        float speed = currentSpeed;
-        for (int i = 0; i < wheels.Length; i++)
-        {
-            var w = wheels[i];
-            float rpm = speed > 0.01f
-                ? (speed / (2f * Mathf.PI * w.radius)) * 60f
-                : 0f;
-            wheels[i].targetRPM = rpm;
-        }
-    }
-
-    private void SetUpVehicle()
-    {
-        // 1) Lower the COM so the pivot is closer to the ground:
-        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
-
-        // 2) Increase angular drag so flips damp out instantly:
-        rb.angularDamping = 10f;                        // higher = more resistance to spinning
-
-        // 3) Manually boost inertia on X/Z so it “weighs” more against tipping:
-        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
-        rb.inertiaTensorRotation = Quaternion.identity;
-    }
 
 
-    // 2D Visuals
+
+    // Animations
     protected virtual void Handle2D()
     {
         // horse visuals...
@@ -303,7 +270,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     protected virtual void UpdateHorseAnimation()
     {
-        if (animator == null || vehicleProfiles == null)
+        if (horseAnimator == null || vehicleProfiles == null)
             return;
 
         // normalize your speed into [0,1]
@@ -317,9 +284,24 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         else
             action = Actions.Run;
 
-        animator.SetEnum("Actions", action.ToString());
+        horseAnimator.SetEnum("Actions", action.ToString());
     }
 
+
+    // Setup
+    private void SetUpVehicle()
+    {
+        // 1) Lower the COM so the pivot is closer to the ground:
+        rb.centerOfMass = new Vector3(0, -1.0f, 0);  // tweak Y until it feels stable
+
+        // 2) Increase angular drag so flips damp out instantly:
+        rb.angularDamping = 10f;                        // higher = more resistance to spinning
+
+        // 3) Manually boost inertia on X/Z so it “weighs” more against tipping:
+        rb.inertiaTensor = new Vector3(1000f, 2f, 1000f);
+        rb.inertiaTensorRotation = Quaternion.identity;
+    }
+   
     private void SetUpDriver(GameObject driver)
     {
         // Check if driver is null, if so set driver as driverObject

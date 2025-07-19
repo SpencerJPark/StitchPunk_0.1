@@ -34,10 +34,10 @@ public class PlayerInputHandler : PersistentSingleton<PlayerInputHandler>, IInpu
         => _exitVehicleFired = ctx.started;
 
     /// <summary>Switch between your 'Player' and 'Vehicle' maps.</summary>
-    public void SwitchActionMap(string mapName)
+    public void SwitchActionMap(ActionMaps mapName)
     {
         var pi = GetComponent<PlayerInput>();
         if (pi != null)
-            pi.SwitchCurrentActionMap(mapName);
+            pi.SwitchCurrentActionMap(mapName.ToString());
     }
 }

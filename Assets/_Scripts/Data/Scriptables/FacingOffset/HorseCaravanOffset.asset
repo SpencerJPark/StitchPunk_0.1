@@ -15,8 +15,8 @@ MonoBehaviour:
   North: {x: 0, y: 0, z: 5.98}
   NorthEast: {x: 0.65, y: 0, z: 5.98}
   East: {x: 0.71, y: 0, z: 6.48}
-  SouthEast: {x: 0.4, y: 0, z: 6.6}
+  SouthEast: {x: 0.58, y: 0, z: 6.6}
   South: {x: 0, y: 0, z: 6.84}
   SouthWest: {x: -0.74, y: 0, z: 6.6}
   West: {x: -0.7, y: 0, z: 6.48}
-  NorthWest: {x: -0.44, y: 0, z: 5.98}
+  NorthWest: {x: -0.6, y: 0, z: 5.98}
