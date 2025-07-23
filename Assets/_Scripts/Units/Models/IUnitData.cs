@@ -1,6 +1,6 @@
 using UnityEngine;
 
-interface IUnitData
+public interface IUnitDataModel
 {
     UnitData ImutableDate { get; }
     UnitStateData CurrentState { get; }
@@ -34,7 +34,7 @@ interface IUnitData
     
 
     // Manipulated States
-    vector3 Position { get; }
+    Vector3 Position { get; }
     Direction CurrentDirection { get; }
     bool IsMoving { get; }
     bool IsGrounded { get; }

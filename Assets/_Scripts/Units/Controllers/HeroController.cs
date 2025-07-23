@@ -16,10 +16,10 @@ public class HeroController : CharacterControllerBase
         // InitializeHeroAbilities();
     }
     
-    protected override IUnitData CreateUnitData()
+    protected override UnitModel CreateUnitModel()
     {
         // here you pick exactly which implementation to use:
-        return new HeroData(unitDataProfile);
+        return new HeroModel(unitData);
     }
 
     protected override void HandleAction()

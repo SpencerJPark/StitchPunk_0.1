@@ -10,5 +10,5 @@ public class UnitData : ScriptableObject
     public UnitMovementData MovementData;
 
     [Header("Default State")]
-    public UnitState DefaultState;
+    public UnitStateData DefaultState;
 }

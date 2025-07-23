@@ -1,52 +1,52 @@
-using UnityEngine;
-using Cysharp.Threading.Tasks;
+// using UnityEngine;
+// using Cysharp.Threading.Tasks;
 
-[DefaultExecutionOrder(-100)] // Runs early
-public class CharacterInitializer : MonoBehaviour
-{
-    [Header("Core")]
-    [SerializeField] private RiveAnimator riveAnimator;
-    [SerializeField] private CharacterControllerBase controller;
+// [DefaultExecutionOrder(-100)] // Runs early
+// public class CharacterInitializer : MonoBehaviour
+// {
+//     [Header("Core")]
+//     [SerializeField] private RiveAnimator riveAnimator;
+//     [SerializeField] private CharacterControllerBase controller;
 
-    [Header("Optional")]
-    [SerializeField] private UnitStateData defaultState;
-    [SerializeField] private CharacterDesignBase design;
-    [SerializeField] private MonoBehaviour facingComponent; // Must implement IFacingController
+//     [Header("Optional")]
+//     [SerializeField] private UnitStateData defaultState;
+//     [SerializeField] private CharacterDesignBase design;
+//     [SerializeField] private MonoBehaviour facingComponent; // Must implement IFacingController
 
-    private bool isInitialized = false;
+//     private bool isInitialized = false;
 
-    private async void Start()
-    {
-        if (isInitialized) return;
+//     private async void Start()
+//     {
+//         if (isInitialized) return;
 
-        await InitializeAsync();
-    }
+//         await InitializeAsync();
+//     }
 
-    public async UniTask InitializeAsync()
-    {
-        if (riveAnimator == null)
-        {
-            Debug.LogError($"{name} is missing RiveAnimator!");
-            return;
-        }
+//     public async UniTask InitializeAsync()
+//     {
+//         if (riveAnimator == null)
+//         {
+//             Debug.LogError($"{name} is missing RiveAnimator!");
+//             return;
+//         }
 
-        // Wait for Rive to be fully ready
-        await riveAnimator.WaitForReadyAsync();
+//         // Wait for Rive to be fully ready
+//         await riveAnimator.WaitForReadyAsync();
 
-        // Apply visual customization (skin, hair, etc.)
-        if (design != null)
-            design.ApplyCustomization();
+//         // Apply visual customization (skin, hair, etc.)
+//         if (design != null)
+//             design.ApplyCustomization();
 
-        // Apply default state
-        if (controller != null && defaultState != null)
-            controller.ApplyState(defaultState);
+//         // Apply default state
+//         if (controller != null && defaultState != null)
+//             controller.ApplyState(defaultState);
 
-        // // Set default facing direction
-        // if (facingComponent is IFacingController facing)
-        //     facing.SetDefaultFacing();
+//         // // Set default facing direction
+//         // if (facingComponent is IFacingController facing)
+//         //     facing.SetDefaultFacing();
 
-        isInitialized = true;
-        Debug.Log($"{name} initialized successfully.");
-    }
-}
+//         isInitialized = true;
+//         Debug.Log($"{name} initialized successfully.");
+//     }
+// }
 

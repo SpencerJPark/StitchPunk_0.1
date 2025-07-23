@@ -38,11 +38,11 @@ public static class DirectionUtil
     {
         switch (directionType)
         {
-            case AnimationDirectionType.TwoDirection:
+            case AnimationDirectionType.TwoDirections:
                 return Get2Direction(dir);
-            case AnimationDirectionType.FourDirection:
+            case AnimationDirectionType.FourDirections:
                 return Get4Direction(dir);
-            case AnimationDirectionType.EightDirection:
+            case AnimationDirectionType.EightDirections:
                 return Get8Direction(dir);
             default:
                 Debug.LogWarning("Unknown direction type. Defaulting to South.");

@@ -13,17 +13,18 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
 
     [Header("Model Dependencies")]
-    [SerializeField] protected UnitDataProfile unitDataProfile;
+    [SerializeField] protected UnitData unitData;
 
     [Header("Optional")]
      [SerializeField] protected UnitStateData currentState;
 
 
-    protected IUnitData unitData;
+
+    protected UnitModel unitModel;
 
     // ───────────────────────────────────────────────────────────────
     // Override this in subclasses to supply the correct data instance
-    protected abstract IUnitData CreateUnitData();
+    protected abstract UnitModel CreateUnitModel();
     // ───────────────────────────────────────────────────────────────
 
 
@@ -31,23 +32,23 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     protected virtual void Awake()
     {
         // Build your data model here
-        unitData = CreateUnitData();
-        if (unitData == null)
-            Debug.LogError($"{name} failed to CreateUnitData()");
+        unitModel = CreateUnitModel();
+        if (unitModel == null)
+            Debug.LogError($"{name} failed to CreateUnitModel()");
     } 
     
     void OnEnable()
     {
         UpdateManager.RegisterObserver(this);
 
-        unitData.FallSpeed = 0f;
+        unitModel.SetFallSpeed(0f);
     }
 
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
     public void ObservedUpdate()
     {
-        if (!unitData.Mount)
+        if (!unitModel.Mount)
         {
             HandleMovement();
         }
@@ -64,19 +65,19 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     protected virtual void HandleMovement()
     {
-        unitData.MovementVector = new Vector3(input.MoveInput.x, 0f, input.MoveInput.y);
-        unitData.IsMoving = unitData.MovementVector.sqrMagnitude > 0.01f;
+        unitModel.SetMovementVector(new Vector3(input.MoveInput.x, 0f, input.MoveInput.y));
+        unitModel.SetMoving(unitModel.MovementVector.sqrMagnitude > 0.01f);
 
-        float speed = unitData != null ? unitData.MoveSpeed : 3f;
-        Vector3 motion = unitData.MovementVector * speed;
+        float speed = unitModel != null ? unitModel.MoveSpeed : 3f;
+        Vector3 motion = unitModel.MovementVector * speed;
 
         // apply gravity if needed
-        if (unitData != null &&
-            (unitData.Movement == MovementType.Grounded ||
-             unitData.Movement == MovementType.Floating))
+        if (unitModel != null &&
+            (unitModel.Movement == MovementType.Grounded ||
+             unitModel.Movement == MovementType.Floating))
         {
             HandleGravity();
-            motion.y = -unitData.FallSpeed;
+            motion.y = -unitModel.FallSpeed;
         }
 
         // **CharacterController.Move expects units per second**
@@ -87,17 +88,16 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     private void HandleGravity()
     {
-        unitData.IsGrounded = Physics.Raycast(transform.position, Vector3.down,
-            unitData.GroundCheckDistance, unitData.GroundLayer);
+        unitModel.SetGrounding(Physics.Raycast(transform.position, Vector3.down, unitModel.GroundCheckDistance, unitModel.GroundLayer));
 
-        if (!unitData.IsGrounded)
+        if (!unitModel.IsGrounded)
         {
-            unitData.FallSpeed += unitData.Gravity * Time.deltaTime;
-            unitData.FallSpeed = Mathf.Clamp(unitData.FallSpeed, 0f, unitData.MaxFallSpeed);
+            unitModel.SetFallSpeed(unitModel.FallSpeed + unitModel.Gravity * Time.deltaTime);
+            unitModel.SetFallSpeed(Mathf.Clamp(unitModel.FallSpeed, 0f, unitModel.MaxFallSpeed));
         }
         else
         {
-            unitData.FallSpeed = 0f;
+            unitModel.SetFallSpeed(0f);
         }
     }
 
@@ -111,16 +111,16 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         camForward.y = 0f;
 
         Quaternion camRot = Quaternion.LookRotation(camForward);
-        Vector3 camRelativeMove = camRot * unitData.MovementVector;
+        Vector3 camRelativeMove = camRot * unitModel.MovementVector;
 
         Vector2 dir = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
 
-        Direction newDirection = DirectionUtil.GetDirection(dir);
+        Direction newDirection = DirectionUtil.GetDirection(dir, unitModel.DirectionType);
 
-        if (newDirection != unitData.CurrentDirection)
+        if (newDirection != unitModel.CurrentDirection)
         {
-            unitData.CurrentDirection = newDirection;
-            animator.SetEnum("Direction", unitData.CurrentDirection.ToString());
+            unitModel.SetDirection(newDirection);
+            animator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
         }
     }
 
@@ -133,7 +133,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     protected virtual void UpdateMovementAnimation()
     {
-        Actions animState = unitData.IsMoving ? unitData.WalkAnimation : unitData.IdleAnimation;
+        Actions animState = unitModel.IsMoving ? unitModel.WalkAnimation : unitModel.IdleAnimation;
         animator.SetEnum("Actions", animState.ToString());
     }
 
@@ -158,7 +158,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     {
         UpdateActionAnimation(Actions.Drive);
         cc.enabled = false;
-        unitData.Mount = true;
+        unitModel.SetMount(true);
         // turn off CharacterController collision & gravity
     }
 
@@ -168,9 +168,9 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     /// </summary>
     public void OnDismount()
     {
-        UpdateActionAnimation(unitData.IdleAnimation);
+        UpdateActionAnimation(unitModel.IdleAnimation);
         cc.enabled = true;
-        unitData.Mount = false;
+        unitModel.SetMount(false);
         // Reset movement ability and gravity
     }
 }

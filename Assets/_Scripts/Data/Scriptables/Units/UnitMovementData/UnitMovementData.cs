@@ -6,7 +6,7 @@ public class UnitMovementData : ScriptableObject
     [Header("Movement Settings")]
     public MovementType movementType = MovementType.Grounded;
     public Direction defaultDirection = Direction.SouthWest;
-    public AnimationDirectionType directionType = AnimationDirectionType.FourDirection;
+    public AnimationDirectionType directionType = AnimationDirectionType.FourDirections;
     public float moveSpeed = 3f;
 
 
