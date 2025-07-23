@@ -20,13 +20,18 @@ public class FacingDirection4D : FacingDirectionBase
 
         Vector2 dir = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
 
-        Direction newDirection = Get4Direction(dir);
+        Direction newDirection = DirectionUtil.GetDirection(dir);
 
-       if (newDirection != _currentDirection)
+        if (newDirection != _currentDirection)
         {
             _currentDirection = newDirection;
             animator.SetEnum("Direction", _currentDirection.ToString());
         }
+    }
+
+    private Direction Get2Direction(Vector2 dir)
+    {
+        return dir.x >= 0 ? Direction.SouthEast : Direction.SouthWest;
     }
 
     private Direction Get4Direction(Vector2 dir)
@@ -37,6 +42,22 @@ public class FacingDirection4D : FacingDirectionBase
         if (angle < 90) return Direction.NorthEast;
         if (angle < 180) return Direction.NorthWest;
         if (angle < 270) return Direction.SouthWest;
+        return Direction.SouthEast;
+    }
+    
+    private Direction Get8Direction(Vector2 dir)
+    {
+        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        angle = (angle + 360f + 22.5f) % 360f;
+
+        if (angle < 45) return Direction.East;
+        if (angle < 90) return Direction.NorthEast;
+        if (angle < 135) return Direction.North;
+        if (angle < 180) return Direction.NorthWest;
+        if (angle < 225) return Direction.West;
+        if (angle < 270) return Direction.SouthWest;
+        if (angle < 315) return Direction.South;
+
         return Direction.SouthEast;
     }
 }

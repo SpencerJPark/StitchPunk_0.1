@@ -2,19 +2,23 @@ using UnityEngine;
 
 public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 {
-    [Header("Dependencies")]
-    [SerializeField] public IInputProvider input;
+    [Header("Controller Dependencies")]
+    [SerializeField] protected IInputProvider input;
     [SerializeField] protected CharacterController cc;
+    [SerializeField] protected Camera mainCamera;
+
+
+    [Header("View Dependencies")]
     [SerializeField] protected RiveAnimator animator;
-    [SerializeField] private FacingDirectionBase facingController;
 
 
-    [Header("State Data")]
-    [SerializeField] protected UnitStateData currentState;
-
-
-    [Header("UnitBaseData")]
+    [Header("Model Dependencies")]
     [SerializeField] protected UnitDataProfile unitDataProfile;
+
+    [Header("Optional")]
+     [SerializeField] protected UnitStateData currentState;
+
+
     protected IUnitData unitData;
 
     // ───────────────────────────────────────────────────────────────
@@ -22,11 +26,6 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     protected abstract IUnitData CreateUnitData();
     // ───────────────────────────────────────────────────────────────
 
-    private bool isGrounded;
-    private float fallSpeed;
-    protected Vector3 moveDirection;
-    protected bool isMoving;
-    private bool mount = false;
 
     // Will swith to dependecy injection
     protected virtual void Awake()
@@ -41,19 +40,19 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     {
         UpdateManager.RegisterObserver(this);
 
-        fallSpeed = 0f;
+        unitData.FallSpeed = 0f;
     }
 
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
     public void ObservedUpdate()
     {
-        if (!mount)
+        if (!unitData.Mount)
         {
             HandleMovement();
         }
         
-        HandleFacing();
+        UpdateFacing();
 
         HandleAction();
     }
@@ -65,11 +64,11 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     protected virtual void HandleMovement()
     {
-        moveDirection = new Vector3(input.MoveInput.x, 0f, input.MoveInput.y);
-        isMoving = moveDirection.sqrMagnitude > 0.01f;
+        unitData.MovementVector = new Vector3(input.MoveInput.x, 0f, input.MoveInput.y);
+        unitData.IsMoving = unitData.MovementVector.sqrMagnitude > 0.01f;
 
         float speed = unitData != null ? unitData.MoveSpeed : 3f;
-        Vector3 motion = moveDirection * speed;
+        Vector3 motion = unitData.MovementVector * speed;
 
         // apply gravity if needed
         if (unitData != null &&
@@ -77,37 +76,52 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
              unitData.Movement == MovementType.Floating))
         {
             HandleGravity();
-            motion.y = -fallSpeed;
+            motion.y = -unitData.FallSpeed;
         }
 
         // **CharacterController.Move expects units per second**
         cc.Move(motion * Time.deltaTime);
 
-        UpdateMovementAnimation(isMoving);
+        UpdateMovementAnimation();
     }
 
     private void HandleGravity()
     {
-        isGrounded = Physics.Raycast(transform.position, Vector3.down,
+        unitData.IsGrounded = Physics.Raycast(transform.position, Vector3.down,
             unitData.GroundCheckDistance, unitData.GroundLayer);
 
-        if (!isGrounded)
+        if (!unitData.IsGrounded)
         {
-            fallSpeed += unitData.Gravity * Time.deltaTime;
-            fallSpeed = Mathf.Clamp(fallSpeed, 0f, unitData.MaxFallSpeed);
+            unitData.FallSpeed += unitData.Gravity * Time.deltaTime;
+            unitData.FallSpeed = Mathf.Clamp(unitData.FallSpeed, 0f, unitData.MaxFallSpeed);
         }
         else
         {
-            fallSpeed = 0f;
+            unitData.FallSpeed = 0f;
         }
     }
 
-    protected virtual void HandleFacing()
+    public void UpdateFacing()
     {
-        if (!isMoving || facingController == null)
+        if (mainCamera == null || animator == null)
             return;
 
-        facingController.UpdateFacing(moveDirection);
+        // Convert movement to camera-relative direction
+        Vector3 camForward = mainCamera.transform.forward;
+        camForward.y = 0f;
+
+        Quaternion camRot = Quaternion.LookRotation(camForward);
+        Vector3 camRelativeMove = camRot * unitData.MovementVector;
+
+        Vector2 dir = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
+
+        Direction newDirection = DirectionUtil.GetDirection(dir);
+
+        if (newDirection != unitData.CurrentDirection)
+        {
+            unitData.CurrentDirection = newDirection;
+            animator.SetEnum("Direction", unitData.CurrentDirection.ToString());
+        }
     }
 
     protected virtual void HandleAction()
@@ -117,11 +131,9 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     // Handle Animation
 
-    protected virtual void UpdateMovementAnimation(bool moving)
+    protected virtual void UpdateMovementAnimation()
     {
-        if (currentState == null) return;
-
-        Actions animState = moving ? currentState.WalkAnimation : currentState.IdleAnimation;
+        Actions animState = unitData.IsMoving ? unitData.WalkAnimation : unitData.IdleAnimation;
         animator.SetEnum("Actions", animState.ToString());
     }
 
@@ -146,7 +158,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     {
         UpdateActionAnimation(Actions.Drive);
         cc.enabled = false;
-        mount = true;
+        unitData.Mount = true;
         // turn off CharacterController collision & gravity
     }
 
@@ -156,9 +168,9 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     /// </summary>
     public void OnDismount()
     {
-        UpdateActionAnimation(Actions.Idle);
+        UpdateActionAnimation(unitData.IdleAnimation);
         cc.enabled = true;
-        mount = false;
+        unitData.Mount = false;
         // Reset movement ability and gravity
     }
 }

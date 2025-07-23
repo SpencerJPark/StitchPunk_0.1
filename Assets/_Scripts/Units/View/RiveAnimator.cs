@@ -7,7 +7,6 @@ using Cysharp.Threading.Tasks;
 
 public class RiveAnimator : MonoBehaviour
 {
-
     [SerializeField] private RiveWidget riveWidget;
 
     [Header("Optional")]

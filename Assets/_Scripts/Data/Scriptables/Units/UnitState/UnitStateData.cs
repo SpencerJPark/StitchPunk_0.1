@@ -18,10 +18,6 @@ public class UnitStateData : ScriptableObject
 
     [field: SerializeField]
     public Actions TalkAnimation { get; private set; } = Actions.Talking;
-
-    [field: Header("Color Tint")]
-    [field: SerializeField]
-    public Color ColorTint { get; private set; } = Color.white;
 }
 
 
