@@ -49,4 +49,28 @@ public static class DirectionUtil
                 return Direction.South;
         }
     }
+
+    /// <summary>
+    /// Calculates camera-relative facing direction based on movement vector and camera rotation.
+    /// </summary>
+    public static Direction GetCameraRelativeDirection(
+        Camera camera,
+        Vector3 movementVector,
+        AnimationDirectionType directionType)
+    {
+        if (camera == null)
+        {
+            Debug.LogWarning("Camera is null in GetCameraRelativeDirection.");
+            return Direction.South;
+        }
+
+        Vector3 camForward = camera.transform.forward;
+        camForward.y = 0f;
+
+        Quaternion camRot = Quaternion.LookRotation(camForward);
+        Vector3 camRelativeMove = camRot * movementVector;
+
+        Vector2 flatDirection = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
+        return GetDirection(flatDirection, directionType);
+    }
 }

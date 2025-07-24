@@ -21,7 +21,7 @@ public interface IUnitDataModel
     
 
     // Movement Info
-    Vector3 MovementVector{ get; }
+    Vector3 MovementVector { get; }
     MovementType Movement { get; }
     Direction DefaultDirection { get; }
     AnimationDirectionType DirectionType { get; }

@@ -106,23 +106,24 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         if (mainCamera == null || animator == null)
             return;
 
-        // Convert movement to camera-relative direction
-        Vector3 camForward = mainCamera.transform.forward;
-        camForward.y = 0f;
-
-        Quaternion camRot = Quaternion.LookRotation(camForward);
-        Vector3 camRelativeMove = camRot * unitModel.MovementVector;
-
-        Vector2 dir = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
-
-        Direction newDirection = DirectionUtil.GetDirection(dir, unitModel.DirectionType);
-
-        if (newDirection != unitModel.CurrentDirection)
+        if (unitModel.IsMoving)
         {
-            unitModel.SetDirection(newDirection);
-            animator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
+            Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
+                mainCamera,
+                unitModel.MovementVector,
+                unitModel.DirectionType
+            );
+
+            if (newDirection != unitModel.CurrentDirection)
+            {
+                unitModel.SetDirection(newDirection);
+            }
         }
+
+        animator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
+
+
 
     protected virtual void HandleAction()
     {

@@ -5,35 +5,41 @@ using System.Collections.Generic;
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 {
-    [Header("Dependencies")]
-    [Tooltip("Will be set dynamically when someone enters")]
+    [Header("Controller Dependencies")]
     protected IInputProvider input;
     [SerializeField] private Rigidbody rb;
-    [SerializeField] private Transform driverSeatAnchor;
-
+    [SerializeField] protected Camera mainCamera;
 
     [Tooltip("Drag in your door zones")]
     [SerializeField] private List<GameObject> doorZones = new List<GameObject>();
 
 
     [Header("Driver Info")]
-    public GameObject driverObject = null;
-    private CharacterControllerBase driverCharacterController;
-    private FacingDirectionBase driverFacingController;
+    public GameObject DriverObject = null;
+    private CharacterControllerBase DriverController;
     
 
-    [Header("Horse Info")]
-    [SerializeField] private RiveAnimator horseAnimator;
-    [SerializeField] private FacingDirectionBase horseFacingController;
+    [Header("View Dependencies")]
+    [SerializeField] private RiveAnimator riveAnimator;
+    [SerializeField] private Transform driverSeatAnchor;
     [SerializeField] private Transform horseQuad;
 
+    [SerializeField] private FacingDirectionBase horseFacingController;
 
-    [Header("Data")]
-    [SerializeField] private FacingOffsetProfile driverOffsetProfile;
-    [SerializeField] private FacingOffsetProfile horseOffsetProfile;
-    [SerializeField] private VehicleProfiles vehicleProfiles;
 
-    // HorseData
+    
+
+
+    [Header("Model Dependencies")]
+    [SerializeField] private VehicleData vehicleData;
+
+    private VehicleModel vehicleModel;
+
+
+
+    // [SerializeField] private FacingOffsetProfile driverOffsetProfile;
+    // [SerializeField] private FacingOffsetProfile horseOffsetProfile;
+
 
 
 
@@ -43,7 +49,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [HideInInspector] public float currentSpeed;
     private bool active = false;
     private Vector3 currentDirection = Vector3.forward;
-    private float turnVelocity;
+    private float vehicleModel.TurnVelocity;
 
 
     private bool _exitTriggeredThisPress = false;
@@ -57,13 +63,13 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         FixedUpdateManager.RegisterObserver(this);
 
         // Issue is that this initializes before characters
-        // if (driverObject != null)
+        // if (DriverObject != null)
         // {
         //     // 1) get the CharacterControllerBase
-        //     var ctrl = driverObject.GetComponent<CharacterControllerBase>();
+        //     var ctrl = DriverObject.GetComponent<CharacterControllerBase>();
         //     if (ctrl == null)
         //     {
-        //         Debug.LogError($"VehicleController: driverObject {driverObject.name} has no CharacterControllerBase!");
+        //         Debug.LogError($"VehicleController: DriverObject {DriverObject.name} has no CharacterControllerBase!");
         //         return;
         //     }
 
@@ -71,7 +77,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         //     var provider = ctrl.input;
 
         //     // 3) now enable the vehicle with that exact provider
-        //     EnableVehicle(driverObject, provider);
+        //     EnableVehicle(DriverObject, provider);
         // }
     }
     void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
@@ -135,11 +141,11 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         // 1) Kill drive state immediately
         active = false;
         currentSpeed = 0f;
-        turnVelocity = 0f;
+        vehicleModel.TurnVelocity = 0f;
 
-        // 2) Reset horse horseAnimator to idle
-        if (horseAnimator != null && vehicleProfiles != null)
-            horseAnimator.SetEnum("Actions", Actions.Idle.ToString());
+        // 2) Reset horse riveAnimator to idle
+        if (riveAnimator != null && vehicleModel != null)
+            riveAnimator.SetEnum("Actions", Actions.Idle.ToString());
 
         // 3) Stop reading input
         input = null;
@@ -177,59 +183,59 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     private Vector3 ComputeDesiredVelocity()
     {
-        return new Vector3(input.SteerInput.x, 0f, input.SteerInput.y) * vehicleProfiles.moveSpeed;
+        return new Vector3(input.SteerInput.x, 0f, input.SteerInput.y) * vehicleModel.MoveSpeed;
     }
 
     private Vector3 GetTargetDirection(Vector3 desiredVelocity)
     {
         return desiredVelocity.sqrMagnitude > 0.0001f
              ? desiredVelocity.normalized
-             : currentDirection;
+             : vehicleModel.CurrentDirection;
     }
 
     private void UpdateSpeed(float targetSpeed)
     {
-        float accel = (targetSpeed > currentSpeed)
-            ? vehicleProfiles.forwardAcceleration
-            : vehicleProfiles.forwardDeceleration;
+        float accel = (targetSpeed > vehicleModel.CurrentSpeed)
+            ? vehicleModel.ForwardAcceleration
+            : vehicleModel.ForwardDeceleration;
 
-        currentSpeed = Mathf.MoveTowards(
-            currentSpeed,
+        SetCurrentSpeed (Mathf.MoveTowards(
+            vehicleModel.CurrentSpeed,
             targetSpeed,
             accel * Time.fixedDeltaTime
-        );
+        ));
     }
 
     private void UpdateDirection(Vector3 targetDirection)
     {
-        float currentAngle = Mathf.Atan2(currentDirection.x, currentDirection.z) * Mathf.Rad2Deg;
+        float currentAngle = Mathf.Atan2(vehicleModel.CurrentDirection.x, vehicleModel.CurrentDirection.z) * Mathf.Rad2Deg;
         float targetAngle = Mathf.Atan2(targetDirection.x, targetDirection.z) * Mathf.Rad2Deg;
 
         float smoothAngle = Mathf.SmoothDampAngle(
             currentAngle,
             targetAngle,
-            ref turnVelocity,
-            vehicleProfiles.turnSmoothTime,
-            vehicleProfiles.turnSpeed,
+            vehicleModel.TurnVelocity,
+            vehicleModel.TurnSmoothTime,
+            vehicleModel.TurnSpeed,
             Time.fixedDeltaTime
         );
 
-        currentDirection = (Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized;
+        SetCurrentDirection((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
     }
 
     private void ApplyMovement()
     {
-        Vector3 velocity = currentDirection * currentSpeed;
+        Vector3 velocity = vehicleModel.CurrentDirection * vehicleModel.CurrentSpeed;
         rb.MovePosition(rb.position + velocity * Time.fixedDeltaTime);
 
         if (velocity.sqrMagnitude > 0.001f)
         {
-            Quaternion look = Quaternion.LookRotation(currentDirection, Vector3.up);
+            Quaternion look = Quaternion.LookRotation(vehicleModel.CurrentDirection, Vector3.up);
             rb.MoveRotation(
                 Quaternion.RotateTowards(
                     rb.rotation,
                     look,
-                    vehicleProfiles.turnSpeed * Time.fixedDeltaTime
+                    vehicleModel.TurnSpeed * Time.fixedDeltaTime
                 )
             );
         }
@@ -246,7 +252,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         UpdateHorsePosition();
 
         // driver visuals, if we have one
-        if (driverObject)
+        if (DriverObject)
         {
             driverFacingController.UpdateFacing(currentDirection);
             UpdateDriverPosition();
@@ -254,6 +260,28 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         // optionally horse animation
         UpdateHorseAnimation();
+    }
+
+    private void UpdateHorseFacing()
+    {
+        if (mainCamera == null || riveAnimator == null)
+            return;
+
+        if (unitModel.IsMoving)
+        {
+            Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
+                mainCamera,
+                unitModel.MovementVector,
+                unitModel.DirectionType
+            );
+
+            if (newDirection != unitModel.CurrentDirection)
+            {
+                unitModel.SetDirection(newDirection);
+            }
+        }
+
+        riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
 
     protected virtual void UpdateHorsePosition()
@@ -270,21 +298,21 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     protected virtual void UpdateHorseAnimation()
     {
-        if (horseAnimator == null || vehicleProfiles == null)
+        if (riveAnimator == null || vehicleModel == null)
             return;
 
         // normalize your speed into [0,1]
-        float t = currentSpeed / vehicleProfiles.moveSpeed;
+        float t = vehicleModel.CurrentSpeed / vehicleModel.moveSpeed;
         Actions action;
 
-        if (t <= vehicleProfiles.walkThreshold)
+        if (t <= vehicleModel.WalkThreshold)
             action = Actions.Idle;
-        else if (t <= vehicleProfiles.runThreshold)
+        else if (t <= vehicleModel.RunThreshold)
             action = Actions.Walk;
         else
             action = Actions.Run;
 
-        horseAnimator.SetEnum("Actions", action.ToString());
+        riveAnimator.SetEnum("Actions", action.ToString());
     }
 
 
@@ -304,37 +332,35 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
    
     private void SetUpDriver(GameObject driver)
     {
-        // Check if driver is null, if so set driver as driverObject
-        driverObject = driver;
-        driverCharacterController = driverObject.GetComponent<CharacterControllerBase>();
-        driverFacingController = driverObject.GetComponent<FacingDirectionBase>();
+        // Check if driver is null, if so set driver as DriverObject
+        vehicleModel.SetDriver(driver);
+        vehicleModel.SetDriverController(DriverObject.GetComponent<CharacterControllerBase>());
 
-        driverCharacterController.OnMount();
+        vehicleModel.DriverController.OnMount();
 
         ParentToAnchor();
     }
 
     private void UnsetDriver()
     {
-        driverCharacterController.OnDismount();
-        driverObject = null;
-        driverCharacterController = null;
-        driverFacingController = null;
+        vehicleModel.DriverController.OnDismount();
 
+        vehicleModel.SetDriver(null);
+        vehicleModel.SetDriverController(null);
     }
 
     private void ParentToAnchor()
     {
         // 1) Snap the world-space transform to exactly where the anchor is:
-        driverObject.transform.position = driverSeatAnchor.position;
-        driverObject.transform.rotation = driverSeatAnchor.rotation;
+        vehicleModel.DriverObject.transform.position = driverSeatAnchor.position;
+        vehicleModel.DriverObject.transform.rotation = driverSeatAnchor.rotation;
 
         // 2) Now parent but keep that world-space pose:
-        driverObject.transform.SetParent(driverSeatAnchor, worldPositionStays: true);
+        vehicleModel.DriverObject.transform.SetParent(driverSeatAnchor, worldPositionStays: true);
 
         // 3) Zero your local so you’re *exactly* at the anchor point:
-        driverObject.transform.localPosition = Vector3.zero;
-        driverObject.transform.localRotation = Quaternion.identity;
+        vehicleModel.DriverObject.transform.localPosition = Vector3.zero;
+        vehicleModel.DriverObject.transform.localRotation = Quaternion.identity;
 
     }
 }

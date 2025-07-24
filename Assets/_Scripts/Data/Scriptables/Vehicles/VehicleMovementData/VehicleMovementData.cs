@@ -1,7 +1,7 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "VehicleProfile", menuName = "Vehicle/Vehicle Profile", order = 1)]
-public class VehicleProfiles : ScriptableObject
+[CreateAssetMenu(fileName = "VehicleMovementData", menuName = "Vehicle/Vehicle Movement Data", order = 3)]
+public class VehicleMovementData : ScriptableObject
 {
     [Header("Speed Settings")]
     public float moveSpeed = 7f;
@@ -20,7 +20,5 @@ public class VehicleProfiles : ScriptableObject
     [Header("Animation Thresholds")]
     // As a fraction of max speed: below walkThreshold → Idle; between walk/run → Walk; above runThreshold → Run
     public float walkThreshold = 0.1f;
-    public float runThreshold  = 0.7f;
-
-
+    public float runThreshold = 0.7f;
 }

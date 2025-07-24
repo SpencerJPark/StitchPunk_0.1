@@ -46,7 +46,7 @@ public abstract class UnitModel : IUnitDataModel
 
     // Runtime State
     public virtual Vector3 Position { get; protected set; }
-    public virtual Direction CurrentDirection { get; protected set; } = Direction.South;
+    public virtual Direction CurrentDirection { get; protected set; }
     public virtual bool IsMoving { get; protected set; }
     public virtual bool IsGrounded { get; protected set; }
     public virtual float FallSpeed { get; protected set; }

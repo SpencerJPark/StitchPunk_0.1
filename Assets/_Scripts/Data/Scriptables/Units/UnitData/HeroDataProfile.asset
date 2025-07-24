@@ -14,13 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <UnitName>k__BackingField: Hero
   <MaxHealth>k__BackingField: 90
-  <AttackDamage>k__BackingField: 30
-  movementType: 0
-  MoveSpeed: 5
-  gravity: 9.8
-  maxFallSpeed: 20
-  groundCheckDistance: 0.2
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  gravityMultiplier: 0.3
+  MovementData: {fileID: 11400000, guid: 5dc5a7ceda039524390c0faca5003e81, type: 2}
+  DefaultState: {fileID: 11400000, guid: 9c9e5e6e4ece1da418091cf15959db9b, type: 2}
