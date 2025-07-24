@@ -1,4 +1,6 @@
-public abstract class VehicleModel : IVehicleModel
+using UnityEngine;
+
+public abstract class VehicleModel : IVehicleDataModel
 {
     protected VehicleData baseData;
 
@@ -12,6 +14,10 @@ public abstract class VehicleModel : IVehicleModel
 
 
     public VehicleData ImutableDate => baseData;
+    public FacingOffsetProfile DriverOffset => baseData.driverOffsetProfile;
+    public FacingOffsetProfile HorseOffset => baseData.horseOffsetProfile;
+
+
     public float MaxVehicleHealth => baseData.MaxVehicleHealth;
     public float CurrentVehicleHealth { get; protected set; }
 
@@ -44,7 +50,8 @@ public abstract class VehicleModel : IVehicleModel
     // Manipulated States
     public bool Active { get; protected set; }
     public bool ExitTriggeredThisPress { get; protected set; }
-    public Vector3 CurrentDirection { get; protected set; }
+    public Direction CurrentDirection { get; protected set; }
+    public Vector3 MovementVector { get; protected set; }
     public float CurrentSpeed { get; protected set; }
     public float TurnVelocity { get; protected set; }
     public Vector3 Position { get; protected set; }
@@ -63,9 +70,9 @@ public abstract class VehicleModel : IVehicleModel
         ExitTriggeredThisPress = press;
     }
 
-    public virtual void SetCurrentDirection(Vector3 newDir)
+    public virtual void SetMovementVector(Vector3 newVec)
     {
-        CurrentDirection = newDir;
+        MovementVector = newVec;
     }
 
     public virtual void SetCurrentSpeed(float newSpeed)

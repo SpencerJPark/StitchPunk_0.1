@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
-public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
+public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 {
     [Header("Controller Dependencies")]
     protected IInputProvider input;
@@ -12,11 +12,6 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     [Tooltip("Drag in your door zones")]
     [SerializeField] private List<GameObject> doorZones = new List<GameObject>();
-
-
-    [Header("Driver Info")]
-    public GameObject DriverObject = null;
-    private CharacterControllerBase DriverController;
     
 
     [Header("View Dependencies")]
@@ -24,37 +19,24 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     [SerializeField] private Transform driverSeatAnchor;
     [SerializeField] private Transform horseQuad;
 
-    [SerializeField] private FacingDirectionBase horseFacingController;
-
-
-    
-
 
     [Header("Model Dependencies")]
     [SerializeField] private VehicleData vehicleData;
 
+
     private VehicleModel vehicleModel;
+    // ───────────────────────────────────────────────────────────────
+    // Override this in subclasses to supply the correct data instance
+    protected abstract VehicleModel CreateVehicleModel();
+    // ───────────────────────────────────────────────────────────────
 
-
-
-    // [SerializeField] private FacingOffsetProfile driverOffsetProfile;
-    // [SerializeField] private FacingOffsetProfile horseOffsetProfile;
-
-
-
-
-
-
-    // Runtime state
-    [HideInInspector] public float currentSpeed;
-    private bool active = false;
-    private Vector3 currentDirection = Vector3.forward;
-    private float vehicleModel.TurnVelocity;
-
-
-    private bool _exitTriggeredThisPress = false;
-
-
+    protected virtual void Awake()
+    {
+        // Build your data model here
+        vehicleModel = CreateVehicleModel();
+        if (vehicleModel == null)
+            Debug.LogError($"{name} failed to CreateVehicleModel()");
+    } 
 
     void OnEnable()
     {
@@ -90,9 +72,9 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         // --- EXIT HANDLING ---
         if (input.ExitVehicleFired)
         {
-            if (!_exitTriggeredThisPress)
+            if (!vehicleModel.ExitTriggeredThisPress)
             {
-                _exitTriggeredThisPress = true;
+                vehicleModel.SetExitTriggered(true);
                 DisableVehicle();
             }
             // skip all driving logic this frame
@@ -101,7 +83,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         else
         {
             // reset once button is released
-            _exitTriggeredThisPress = false;
+            vehicleModel.SetExitTriggered(false);
         }
 
         // drive physics
@@ -121,7 +103,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
         // 2) Capture which input to read and makes sures first update round can pass
         input = driverInput;
-        _exitTriggeredThisPress = input.ExitVehicleFired;
+        vehicleModel.ExitTriggeredThisPress = input.ExitVehicleFired;
 
         // 3) Hook up driver Refrences
         SetUpDriver(driver);
@@ -190,7 +172,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     {
         return desiredVelocity.sqrMagnitude > 0.0001f
              ? desiredVelocity.normalized
-             : vehicleModel.CurrentDirection;
+             : vehicleModel.MovementVector;
     }
 
     private void UpdateSpeed(float targetSpeed)
@@ -208,7 +190,7 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
 
     private void UpdateDirection(Vector3 targetDirection)
     {
-        float currentAngle = Mathf.Atan2(vehicleModel.CurrentDirection.x, vehicleModel.CurrentDirection.z) * Mathf.Rad2Deg;
+        float currentAngle = Mathf.Atan2(vehicleModel.MovementVector.x, vehicleModel.MovementVector.z) * Mathf.Rad2Deg;
         float targetAngle = Mathf.Atan2(targetDirection.x, targetDirection.z) * Mathf.Rad2Deg;
 
         float smoothAngle = Mathf.SmoothDampAngle(
@@ -220,17 +202,17 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
             Time.fixedDeltaTime
         );
 
-        SetCurrentDirection((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
+        SetMovementVector((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
     }
 
     private void ApplyMovement()
     {
-        Vector3 velocity = vehicleModel.CurrentDirection * vehicleModel.CurrentSpeed;
+        Vector3 velocity = vehicleModel.MovementVector * vehicleModel.CurrentSpeed;
         rb.MovePosition(rb.position + velocity * Time.fixedDeltaTime);
 
         if (velocity.sqrMagnitude > 0.001f)
         {
-            Quaternion look = Quaternion.LookRotation(vehicleModel.CurrentDirection, Vector3.up);
+            Quaternion look = Quaternion.LookRotation(vehicleModel.MovementVector, Vector3.up);
             rb.MoveRotation(
                 Quaternion.RotateTowards(
                     rb.rotation,
@@ -287,13 +269,13 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
     protected virtual void UpdateHorsePosition()
     {
         var dir = horseFacingController.CurrentDirection;
-        horseQuad.localPosition = horseOffsetProfile.GetOffset(dir);
+        horseQuad.localPosition = vehicleModel.HorseOffset.GetOffset(dir);
     }
 
     protected virtual void UpdateDriverPosition()
     {
         var dir = driverFacingController.CurrentDirection;
-        driverSeatAnchor.transform.localPosition = driverOffsetProfile.GetOffset(dir);
+        driverSeatAnchor.transform.localPosition = vehicleModel.DriverOffset.GetOffset(dir);
     }
 
     protected virtual void UpdateHorseAnimation()
@@ -361,6 +343,5 @@ public class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
         // 3) Zero your local so you’re *exactly* at the anchor point:
         vehicleModel.DriverObject.transform.localPosition = Vector3.zero;
         vehicleModel.DriverObject.transform.localRotation = Quaternion.identity;
-
     }
 }
