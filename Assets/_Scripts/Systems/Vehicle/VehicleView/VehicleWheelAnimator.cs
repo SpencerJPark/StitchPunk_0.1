@@ -1,9 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class VehicleWheelAnimator : MonoBehaviour, IFixedUpdateObserver
+public class VehicleWheelAnimator : MonoBehaviour
 {
-    [SerializeField] private VehicleControllerBase controller;
     [SerializeField] private List<WheelPair> wheelPairs;
 
     // internal angles for each mesh
@@ -15,19 +14,14 @@ public class VehicleWheelAnimator : MonoBehaviour, IFixedUpdateObserver
         _angles = new float[wheelPairs.Count * 2];
     }
 
-    void OnEnable()  => FixedUpdateManager.RegisterObserver(this);
-    void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
-
-    public void ObservedFixedUpdate()
+    public void UpdateWheels(float currentSpeed)
     {
-        float speed = controller.currentSpeed;
-
         // each WheelPair holds two wheels (left & right)
         for (int i = 0; i < wheelPairs.Count; i++)
         {
             var pair = wheelPairs[i];
-            AnimatePair(i * 2 + 0, speed, pair.left.radius,  pair.left.mesh);
-            AnimatePair(i * 2 + 1, speed, pair.right.radius, pair.right.mesh);
+            AnimatePair(i * 2 + 0, currentSpeed, pair.left.radius,  pair.left.mesh);
+            AnimatePair(i * 2 + 1, currentSpeed, pair.right.radius, pair.right.mesh);
         }
     }
 

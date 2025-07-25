@@ -3,7 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class VehicleZone : InteractableZone
 {
-    [SerializeField] private VehicleControllerBase vehicleController;
+    [SerializeField] private VehicleController vehicleController;
 
     protected override void OnTriggerEnter(Collider other)
     {

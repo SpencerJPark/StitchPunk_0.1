@@ -3,12 +3,16 @@ using System;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
-public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserver
+public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 {
     [Header("Controller Dependencies")]
     protected IInputProvider input;
     [SerializeField] private Rigidbody rb;
     [SerializeField] protected Camera mainCamera;
+
+    [Header("Child Object Refs")]
+    [SerializeField] private Transform driverSeatAnchor;
+    [SerializeField] private Transform horseQuad;
 
     [Tooltip("Drag in your door zones")]
     [SerializeField] private List<GameObject> doorZones = new List<GameObject>();
@@ -16,8 +20,8 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
 
     [Header("View Dependencies")]
     [SerializeField] private RiveAnimator riveAnimator;
-    [SerializeField] private Transform driverSeatAnchor;
-    [SerializeField] private Transform horseQuad;
+    [SerializeField] private VehicleShakerAnimator vehicleShakerAnimator;
+    [SerializeField] private VehicleWheelAnimator vehicleWheelAnimator;
 
 
     [Header("Model Dependencies")]
@@ -25,17 +29,10 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
 
 
     private VehicleModel vehicleModel;
-    // ───────────────────────────────────────────────────────────────
-    // Override this in subclasses to supply the correct data instance
-    protected abstract VehicleModel CreateVehicleModel();
-    // ───────────────────────────────────────────────────────────────
 
-    protected virtual void Awake()
+    void Awake()
     {
-        // Build your data model here
-        vehicleModel = CreateVehicleModel();
-        if (vehicleModel == null)
-            Debug.LogError($"{name} failed to CreateVehicleModel()");
+        vehicleModel = new VehicleModel(vehicleData);
     } 
 
     void OnEnable()
@@ -66,7 +63,7 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
 
     public void ObservedFixedUpdate()
     {
-        if (!active)
+        if (!vehicleModel.Active)
             return;
 
         // --- EXIT HANDLING ---
@@ -90,7 +87,7 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
         HandleMovement();
 
         // 2D visuals for horse + driver
-        Handle2D();
+        HandleView();
     }
 
 
@@ -99,11 +96,11 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
     {
         // 1) Vehicle becomes kinematic/dynamic as desired
         rb.isKinematic = false;
-        active = true;
+        vehicleModel.SetActive(true);
 
         // 2) Capture which input to read and makes sures first update round can pass
         input = driverInput;
-        vehicleModel.ExitTriggeredThisPress = input.ExitVehicleFired;
+        vehicleModel.SetExitTriggered(input.ExitVehicleFired);
 
         // 3) Hook up driver Refrences
         SetUpDriver(driver);
@@ -121,9 +118,9 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
     public void DisableVehicle()
     {
         // 1) Kill drive state immediately
-        active = false;
-        currentSpeed = 0f;
-        vehicleModel.TurnVelocity = 0f;
+        vehicleModel.SetActive(false);
+        vehicleModel.SetCurrentSpeed(0f);
+        vehicleModel.SetTurnVelocity(0f);
 
         // 2) Reset horse riveAnimator to idle
         if (riveAnimator != null && vehicleModel != null)
@@ -181,7 +178,7 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
             ? vehicleModel.ForwardAcceleration
             : vehicleModel.ForwardDeceleration;
 
-        SetCurrentSpeed (Mathf.MoveTowards(
+        vehicleModel.SetCurrentSpeed (Mathf.MoveTowards(
             vehicleModel.CurrentSpeed,
             targetSpeed,
             accel * Time.fixedDeltaTime
@@ -193,16 +190,18 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
         float currentAngle = Mathf.Atan2(vehicleModel.MovementVector.x, vehicleModel.MovementVector.z) * Mathf.Rad2Deg;
         float targetAngle = Mathf.Atan2(targetDirection.x, targetDirection.z) * Mathf.Rad2Deg;
 
+        float turnVelocity = vehicleModel.TurnVelocity;
+
         float smoothAngle = Mathf.SmoothDampAngle(
             currentAngle,
             targetAngle,
-            vehicleModel.TurnVelocity,
+            ref turnVelocity,
             vehicleModel.TurnSmoothTime,
             vehicleModel.TurnSpeed,
             Time.fixedDeltaTime
         );
 
-        SetMovementVector((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
+        vehicleModel.SetMovementVector((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
     }
 
     private void ApplyMovement()
@@ -227,55 +226,57 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
 
 
     // Animations
-    protected virtual void Handle2D()
+    protected virtual void HandleView()
     {
         // horse visuals...
-        horseFacingController?.UpdateFacing(currentDirection);
+        //horseFacingController?.UpdateFacing(currentDirection);
         UpdateHorsePosition();
 
         // driver visuals, if we have one
-        if (DriverObject)
+        if (vehicleModel.DriverObject)
         {
-            driverFacingController.UpdateFacing(currentDirection);
+            //driverFacingController.UpdateFacing(currentDirection);
             UpdateDriverPosition();
         }
 
         // optionally horse animation
         UpdateHorseAnimation();
+        vehicleShakerAnimator.UpdateShake(vehicleModel.CurrentSpeed);
+        vehicleWheelAnimator.UpdateWheels(vehicleModel.CurrentSpeed);
     }
 
     private void UpdateHorseFacing()
     {
-        if (mainCamera == null || riveAnimator == null)
-            return;
+        // if (mainCamera == null || riveAnimator == null)
+        //     return;
 
-        if (unitModel.IsMoving)
-        {
-            Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
-                mainCamera,
-                unitModel.MovementVector,
-                unitModel.DirectionType
-            );
+        // if (unitModel.IsMoving)
+        // {
+        //     Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
+        //         mainCamera,
+        //         unitModel.MovementVector,
+        //         unitModel.DirectionType
+        //     );
 
-            if (newDirection != unitModel.CurrentDirection)
-            {
-                unitModel.SetDirection(newDirection);
-            }
-        }
+        //     if (newDirection != unitModel.CurrentDirection)
+        //     {
+        //         unitModel.SetDirection(newDirection);
+        //     }
+        // }
 
-        riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
+        // riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
 
     protected virtual void UpdateHorsePosition()
     {
-        var dir = horseFacingController.CurrentDirection;
-        horseQuad.localPosition = vehicleModel.HorseOffset.GetOffset(dir);
+        //var dir = horseFacingController.CurrentDirection;
+        //horseQuad.localPosition = vehicleModel.HorseOffset.GetOffset(dir);
     }
 
     protected virtual void UpdateDriverPosition()
     {
-        var dir = driverFacingController.CurrentDirection;
-        driverSeatAnchor.transform.localPosition = vehicleModel.DriverOffset.GetOffset(dir);
+        // var dir = driverFacingController.CurrentDirection;
+        // driverSeatAnchor.transform.localPosition = vehicleModel.DriverOffset.GetOffset(dir);
     }
 
     protected virtual void UpdateHorseAnimation()
@@ -284,7 +285,7 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
             return;
 
         // normalize your speed into [0,1]
-        float t = vehicleModel.CurrentSpeed / vehicleModel.moveSpeed;
+        float t = vehicleModel.CurrentSpeed / vehicleModel.MoveSpeed;
         Actions action;
 
         if (t <= vehicleModel.WalkThreshold)
@@ -316,7 +317,7 @@ public abstract class VehicleControllerBase : MonoBehaviour, IFixedUpdateObserve
     {
         // Check if driver is null, if so set driver as DriverObject
         vehicleModel.SetDriver(driver);
-        vehicleModel.SetDriverController(DriverObject.GetComponent<CharacterControllerBase>());
+        vehicleModel.SetDriverController(vehicleModel.DriverObject.GetComponent<CharacterControllerBase>());
 
         vehicleModel.DriverController.OnMount();
 

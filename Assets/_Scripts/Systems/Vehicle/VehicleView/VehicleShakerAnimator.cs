@@ -1,20 +1,18 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Transform))]
-public class VehicleShakerAnimator : MonoBehaviour, IFixedUpdateObserver
+public class VehicleShakerAnimator : MonoBehaviour
 {
-    [Header("Source (auto‑found on parent if blank)")]
-    [SerializeField] private VehicleControllerBase controller;
-    [SerializeField] private Rigidbody              vehicleRb;
+    [SerializeField] private Rigidbody vehicleRb;
 
     [Header("Speed‑based bounce")]
-    [SerializeField] private float maxSpeed       = 10f;
+    [SerializeField] private float maxSpeed = 10f;
     [SerializeField] private float speedTiltAngle = 5f;
     [SerializeField] private float noiseFrequency = 1f;
 
     [Header("Turn‑based lean")]
     [SerializeField] private float turnTiltAngle = 10f;
-    [SerializeField] private float maxYawRate    = 2f;
+    [SerializeField] private float maxYawRate = 2f;
 
     [Header("Tilt Ranges")]
     [Tooltip("Clamp how far (in degrees) you pitch/bounce (X‑axis)")]
@@ -27,22 +25,15 @@ public class VehicleShakerAnimator : MonoBehaviour, IFixedUpdateObserver
     void Awake()
     {
         _restRot = transform.localRotation;
-        if (controller == null)
-            controller = GetComponentInParent<VehicleControllerBase>();
-        if (vehicleRb == null && controller != null)
-            vehicleRb = controller.GetComponent<Rigidbody>();
     }
-    
-    void OnEnable() => FixedUpdateManager.RegisterObserver(this);
-    void OnDisable() => FixedUpdateManager.UnregisterObserver(this);
 
-    public void ObservedFixedUpdate()
+    public void UpdateShake(float currentSpeed)
     {
-        if (controller == null || vehicleRb == null)
+        if (vehicleRb == null)
             return;
 
         // 1) Compute “raw” pitch & roll from speed + turn
-        float speedNorm = Mathf.Clamp01(controller.currentSpeed / maxSpeed);
+        float speedNorm = Mathf.Clamp01(currentSpeed / maxSpeed);
         float n1 = Mathf.PerlinNoise(Time.time * noiseFrequency, 0f) - 0.5f;
         float rawPitch = n1 * 2f * speedTiltAngle * speedNorm;
 

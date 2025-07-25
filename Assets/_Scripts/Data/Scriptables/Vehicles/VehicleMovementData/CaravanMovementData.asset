@@ -9,16 +9,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: df0af5b9c711f4f4ea2d4ad7e97dac8b, type: 3}
-  m_Name: CaravanProfile
+  m_Script: {fileID: 11500000, guid: d248a57882155d74c80aa0a63efe0498, type: 3}
+  m_Name: CaravanMovementData
   m_EditorClassIdentifier: 
   moveSpeed: 7
-  turnSpeed: 30
-  forwardAcceleration: 1
+  turnSpeed: 50
+  forwardAcceleration: 2
   forwardDeceleration: 3
   turnAcceleration: 200
   turnDeceleration: 150
   idleTurnSpeedFactor: 0.4
-  turnSmoothTime: 0.2
+  turnSmoothTime: 0.1
   walkThreshold: 0.1
   runThreshold: 0.7

@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   movementType: 0
   defaultDirection: 5
-  directionType: 1
-  moveSpeed: 3
+  directionType: 2
+  moveSpeed: 4.5
   gravity: 9.8
   maxFallSpeed: 20
   groundCheckDistance: 0.2
