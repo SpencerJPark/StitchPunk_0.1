@@ -17,6 +17,6 @@ MonoBehaviour:
   forwardAcceleration: 1.2
   forwardDeceleration: 3
   idleTurnSpeedFactor: 0.4
-  turnSmoothTime: 2.67
+  turnSmoothTime: 2.44
   walkThreshold: 0.1
   runThreshold: 0.7

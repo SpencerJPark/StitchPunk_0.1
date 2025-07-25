@@ -48,12 +48,15 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        if (!unitModel.Mount)
-        {
-            HandleMovement();
-        }
+        if (unitModel.Mount)
+            return;
         
-        UpdateFacing();
+        HandleMovement();
+        
+        if (unitModel.IsMoving)
+        {
+            UpdateFacing(unitModel.MovementVector);
+        }
 
         HandleAction();
     }
@@ -101,16 +104,16 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         }
     }
 
-    public void UpdateFacing()
+    public void UpdateFacing(Vector3 moveVect)
     {
         if (mainCamera == null || animator == null)
             return;
 
-        if (unitModel.IsMoving)
-        {
+        // 
+        
             Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
                 mainCamera,
-                unitModel.MovementVector,
+                moveVect,
                 unitModel.DirectionType
             );
 
@@ -118,7 +121,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
             {
                 unitModel.SetDirection(newDirection);
             }
-        }
+        
 
         animator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }

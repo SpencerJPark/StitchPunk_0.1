@@ -241,55 +241,53 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
     // Animations
     protected virtual void HandleView()
     {
-        // horse visuals...
-        //horseFacingController?.UpdateFacing(currentDirection);
-        UpdateHorsePosition();
-
-        // driver visuals, if we have one
-        if (vehicleModel.DriverObject)
+        // Driver View
+        if (vehicleModel.DriverController)
         {
-            //driverFacingController.UpdateFacing(currentDirection);
+            vehicleModel.DriverController.UpdateFacing(vehicleModel.MovementVector);
             UpdateDriverPosition();
         }
 
-        // optionally horse animation
+        // Horse View
+        UpdateHorseFacing();
+        UpdateHorsePosition();
         UpdateHorseAnimation();
+
         vehicleShakerAnimator.UpdateShake(vehicleModel.CurrentSpeed);
+
         vehicleWheelAnimator.UpdateWheels(vehicleModel.CurrentSpeed);
     }
 
     private void UpdateHorseFacing()
     {
-        // if (mainCamera == null || riveAnimator == null)
-        //     return;
+        if (mainCamera == null || riveAnimator == null)
+            return;
 
-        // if (unitModel.IsMoving)
-        // {
-        //     Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
-        //         mainCamera,
-        //         unitModel.MovementVector,
-        //         unitModel.DirectionType
-        //     );
+        if (vehicleModel.CurrentSpeed > 0.1f)
+        {
+            Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
+                mainCamera,
+                vehicleModel.MovementVector,
+                AnimationDirectionType.EightDirections
+            );
 
-        //     if (newDirection != unitModel.CurrentDirection)
-        //     {
-        //         unitModel.SetDirection(newDirection);
-        //     }
-        // }
+            if (newDirection != vehicleModel.CurrentDirection)
+            {
+                vehicleModel.SetDirection(newDirection);
+            }
+        }
 
-        // riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
+        riveAnimator.SetEnum("Direction", vehicleModel.CurrentDirection.ToString());
     }
 
     protected virtual void UpdateHorsePosition()
     {
-        //var dir = horseFacingController.CurrentDirection;
-        //horseQuad.localPosition = vehicleModel.HorseOffset.GetOffset(dir);
+        horseQuad.localPosition = vehicleModel.HorseOffset.GetOffset(vehicleModel.CurrentDirection);
     }
 
     protected virtual void UpdateDriverPosition()
     {
-        // var dir = driverFacingController.CurrentDirection;
-        // driverSeatAnchor.transform.localPosition = vehicleModel.DriverOffset.GetOffset(dir);
+        driverSeatAnchor.transform.localPosition = vehicleModel.DriverOffset.GetOffset(vehicleModel.CurrentDirection);
     }
 
     protected virtual void UpdateHorseAnimation()

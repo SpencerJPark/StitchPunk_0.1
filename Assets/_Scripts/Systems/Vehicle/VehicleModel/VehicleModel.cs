@@ -63,6 +63,11 @@ public class VehicleModel : IVehicleDataModel
         Active = newActive;
     }
 
+    public virtual void SetDirection(Direction newDir)
+    {
+        CurrentDirection = newDir;
+    }
+
     public virtual void SetExitTriggered(bool press)
     {
         ExitTriggeredThisPress = press;
