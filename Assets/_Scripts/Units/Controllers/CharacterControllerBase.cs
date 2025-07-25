@@ -5,11 +5,10 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     [Header("Controller Dependencies")]
     [SerializeField] protected IInputProvider input;
     [SerializeField] protected CharacterController cc;
-    [SerializeField] protected Camera mainCamera;
 
 
     [Header("View Dependencies")]
-    [SerializeField] protected RiveAnimator animator;
+    [SerializeField] protected RiveAnimator riveAnimator;
 
 
     [Header("Model Dependencies")]
@@ -106,24 +105,18 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     public void UpdateFacing(Vector3 moveVect)
     {
-        if (mainCamera == null || animator == null)
+        if (riveAnimator == null)
             return;
 
-        // 
-        
-            Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
-                mainCamera,
-                moveVect,
-                unitModel.DirectionType
-            );
+        Direction newDirection = DirectionUtil.GetWorldRelativeDirection(moveVect, unitModel.DirectionType);
 
-            if (newDirection != unitModel.CurrentDirection)
-            {
-                unitModel.SetDirection(newDirection);
-            }
+        if (newDirection != unitModel.CurrentDirection)
+        {
+            unitModel.SetDirection(newDirection);
+        }
         
 
-        animator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
+        riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
 
 
@@ -138,17 +131,17 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     protected virtual void UpdateMovementAnimation()
     {
         Actions animState = unitModel.IsMoving ? unitModel.WalkAnimation : unitModel.IdleAnimation;
-        animator.SetEnum("Actions", animState.ToString());
+        riveAnimator.SetEnum("Actions", animState.ToString());
     }
 
     protected virtual void UpdateActionAnimation(Actions action)
     {
-        animator.SetEnum("Actions", action.ToString());
+        riveAnimator.SetEnum("Actions", action.ToString());
     }
 
     protected virtual void FireTriggerAnimation(string trigger)
     {
-        animator.Trigger(trigger);
+        riveAnimator.Trigger(trigger);
     }
 
 

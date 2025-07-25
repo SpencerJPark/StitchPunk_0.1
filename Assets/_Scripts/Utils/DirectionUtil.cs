@@ -2,6 +2,9 @@ using UnityEngine;
 
 public static class DirectionUtil
 {
+    // You will assign this once at game start or in a global manager
+    public static WorldOrientationSO Orientation;
+
     public static Direction Get2Direction(Vector2 dir)
     {
         return dir.x >= 0 ? Direction.SouthEast : Direction.SouthWest;
@@ -51,26 +54,26 @@ public static class DirectionUtil
     }
 
     /// <summary>
-    /// Calculates camera-relative facing direction based on movement vector and camera rotation.
+    /// Uses global world orientation instead of camera to determine movement direction.
     /// </summary>
-    public static Direction GetCameraRelativeDirection(
-        Camera camera,
+    public static Direction GetWorldRelativeDirection(
         Vector3 movementVector,
         AnimationDirectionType directionType)
     {
-        if (camera == null)
+        if (Orientation == null)
         {
-            Debug.LogWarning("Camera is null in GetCameraRelativeDirection.");
+            Debug.LogWarning("WorldOrientationSO not assigned to DirectionUtil. Returning South.");
             return Direction.South;
         }
 
-        Vector3 camForward = camera.transform.forward;
-        camForward.y = 0f;
+        Vector3 forward = Orientation.WorldForward.normalized;
+        Vector3 right = Orientation.WorldRight.normalized;
 
-        Quaternion camRot = Quaternion.LookRotation(camForward);
-        Vector3 camRelativeMove = camRot * movementVector;
+        Vector2 flatMove = new Vector2(
+            Vector3.Dot(movementVector, right),
+            Vector3.Dot(movementVector, forward)
+        ).normalized;
 
-        Vector2 flatDirection = new Vector2(camRelativeMove.x, camRelativeMove.z).normalized;
-        return GetDirection(flatDirection, directionType);
+        return GetDirection(flatMove, directionType);
     }
 }

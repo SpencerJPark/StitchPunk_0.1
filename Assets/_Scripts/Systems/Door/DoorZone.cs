@@ -11,17 +11,13 @@ public class DoorZone : MonoBehaviour
     [Tooltip("Tags allowed to open these doors")]
     [SerializeField] private string[] allowedTags = { "Player", "NPC" };
 
-    private void OnDisable()
-    {
-        ResetDoors();
-    }
 
     /// <summary>
     /// Force all doors in this zone to clear their queues and close.
     /// </summary>
     public void ResetDoors()
     {
-        Debug.Log($"[DoorZone] ResetDoors() called, controlling {doors.Length} doors.");
+        //Debug.Log($"[DoorZone] ResetDoors() called, controlling {doors.Length} doors.");
         foreach (var door in doors)
         {
             if (door != null)
@@ -65,4 +61,13 @@ public class DoorZone : MonoBehaviour
             break;
         }
     }
+    
+    public void SetZoneActive(bool isActive)
+    {
+        ResetDoors();
+        var col = GetComponent<Collider>();
+        if (col != null)
+            col.enabled = isActive;
+    }
+
 }

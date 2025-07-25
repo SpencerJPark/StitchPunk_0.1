@@ -8,7 +8,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
     [Header("Controller Dependencies")]
     protected IInputProvider input;
     [SerializeField] private Rigidbody rb;
-    [SerializeField] protected Camera mainCamera;
+
 
     [Header("Child Object Refs")]
     [SerializeField] private Transform driverSeatAnchor;
@@ -112,7 +112,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         CameraManager.Instance.SwitchCamera(CameraType.Vehicle);
 
         // 6) Disable Entry Points
-        GameObjectUtils.SetActiveForAll(false, doorZones);
+        SetDoorZone(false);
     }
 
     public void DisableVehicle()
@@ -142,7 +142,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         CameraManager.Instance.SwitchCamera(CameraType.Player);
 
         // 8) Sets back up interactable zones around the vehicle
-        GameObjectUtils.SetActiveForAll(true, doorZones);
+        SetDoorZone(true);
     }
 
 
@@ -174,7 +174,6 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
         return vehicleModel.MovementVector;
     }
-
 
     private void UpdateSpeed(float targetSpeed)
     {
@@ -214,9 +213,6 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         vehicleModel.SetMovementVector((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
     }
 
-
-
-
     private void ApplyMovement()
     {
         Vector3 velocity = vehicleModel.MovementVector * vehicleModel.CurrentSpeed;
@@ -236,7 +232,15 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
     }
 
 
-
+    // Doors
+    private void SetDoorZone(bool setting)
+    {
+        foreach (var zoneGO in doorZones)
+        {
+            if (zoneGO.TryGetComponent<DoorZone>(out var zone))
+                zone.SetZoneActive(setting);
+        }
+    }
 
     // Animations
     protected virtual void HandleView()
@@ -260,13 +264,12 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
     private void UpdateHorseFacing()
     {
-        if (mainCamera == null || riveAnimator == null)
+        if (riveAnimator == null)
             return;
 
         if (vehicleModel.CurrentSpeed > 0.1f)
         {
-            Direction newDirection = DirectionUtil.GetCameraRelativeDirection(
-                mainCamera,
+            Direction newDirection = DirectionUtil.GetWorldRelativeDirection(
                 vehicleModel.MovementVector,
                 AnimationDirectionType.EightDirections
             );

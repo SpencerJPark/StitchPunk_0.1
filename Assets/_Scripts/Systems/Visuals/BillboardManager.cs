@@ -9,6 +9,14 @@ public class BillboardManager : MonoBehaviour, ILateUpdateObserver
     public Camera targetCamera;
     private Vector3 lastEulerAngles;
 
+    [SerializeField] private WorldOrientationSO worldOrientation;
+
+    void Awake()
+    {
+        DirectionUtil.Orientation = worldOrientation;
+    }
+
+
     void OnEnable()
     {
         LateUpdateManager.RegisterObserver(this);

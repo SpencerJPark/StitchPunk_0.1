@@ -154,8 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cc: {fileID: 4662493781791061324}
-  mainCamera: {fileID: 0}
-  animator: {fileID: 3566570639237875709}
+  riveAnimator: {fileID: 3566570639237875709}
   unitData: {fileID: 11400000, guid: e2b70de142556b24db0b412d3f338186, type: 2}
   currentState: {fileID: 11400000, guid: 9c9e5e6e4ece1da418091cf15959db9b, type: 2}
 --- !u!1 &7238799691761946203
