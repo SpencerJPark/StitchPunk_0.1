@@ -32,8 +32,6 @@ public class VehicleModel : IVehicleDataModel
     public float TurnSpeed => baseData.vehicleMovementData.turnSpeed;
     public float ForwardAcceleration => baseData.vehicleMovementData.forwardAcceleration;
     public float ForwardDeceleration => baseData.vehicleMovementData.forwardDeceleration;
-    public float TurnAcceleration => baseData.vehicleMovementData.turnAcceleration;
-    public float TurnDeceleration => baseData.vehicleMovementData.turnDeceleration;
     public float IdleTurnSpeedFactor => baseData.vehicleMovementData.idleTurnSpeedFactor;
     public float TurnSmoothTime => baseData.vehicleMovementData.turnSmoothTime;
 

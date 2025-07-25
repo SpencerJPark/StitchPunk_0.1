@@ -14,11 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 7
   turnSpeed: 50
-  forwardAcceleration: 2
+  forwardAcceleration: 1.2
   forwardDeceleration: 3
-  turnAcceleration: 200
-  turnDeceleration: 150
   idleTurnSpeedFactor: 0.4
-  turnSmoothTime: 0.1
+  turnSmoothTime: 2.67
   walkThreshold: 0.1
   runThreshold: 0.7

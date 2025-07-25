@@ -21,8 +21,6 @@ public interface IVehicleDataModel
     float TurnSpeed { get; }
     float ForwardAcceleration { get; }
     float ForwardDeceleration { get; }
-    float TurnAcceleration { get; }
-    float TurnDeceleration { get; }
     float IdleTurnSpeedFactor { get; }
     float TurnSmoothTime { get; }
 

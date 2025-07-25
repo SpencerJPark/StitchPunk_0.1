@@ -167,10 +167,14 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
     private Vector3 GetTargetDirection(Vector3 desiredVelocity)
     {
-        return desiredVelocity.sqrMagnitude > 0.0001f
-             ? desiredVelocity.normalized
-             : vehicleModel.MovementVector;
+        Vector2 steerInput = input.SteerInput;
+
+        if (steerInput.sqrMagnitude > 0.0001f)
+            return new Vector3(steerInput.x, 0f, steerInput.y).normalized;
+
+        return vehicleModel.MovementVector;
     }
+
 
     private void UpdateSpeed(float targetSpeed)
     {
@@ -192,17 +196,26 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
         float turnVelocity = vehicleModel.TurnVelocity;
 
+        // Calculate how fast we should allow turning based on current speed
+        float speedFactor = Mathf.Clamp01(vehicleModel.CurrentSpeed / vehicleModel.MoveSpeed);
+        float idleTurnFactor = Mathf.Lerp(vehicleModel.IdleTurnSpeedFactor, 1f, speedFactor);
+        float turnSpeed = vehicleModel.TurnSpeed * idleTurnFactor;
+
         float smoothAngle = Mathf.SmoothDampAngle(
             currentAngle,
             targetAngle,
             ref turnVelocity,
             vehicleModel.TurnSmoothTime,
-            vehicleModel.TurnSpeed,
+            turnSpeed,
             Time.fixedDeltaTime
         );
 
+        vehicleModel.SetTurnVelocity(turnVelocity);
         vehicleModel.SetMovementVector((Quaternion.Euler(0f, smoothAngle, 0f) * Vector3.forward).normalized);
     }
+
+
+
 
     private void ApplyMovement()
     {
