@@ -1,4 +1,5 @@
 using UnityEngine;
+using Data;
 
 // These are states that effect unit visual/movement data that can be applied to most units. Meant to be swapped at runtime
 
@@ -11,13 +12,13 @@ public class UnitStateData : ScriptableObject
 
     [field: Header("Animation States")]
     [field: SerializeField]
-    public Actions IdleAnimation { get; private set; } = Actions.Idle;
+    public ActionType IdleAnimation { get; private set; } = ActionType.Idle;
 
     [field: SerializeField]
-    public Actions WalkAnimation { get; private set; } = Actions.Walk;
+    public ActionType WalkAnimation { get; private set; } = ActionType.Walk;
 
     [field: SerializeField]
-    public Actions TalkAnimation { get; private set; } = Actions.Talking;
+    public ActionType TalkAnimation { get; private set; } = ActionType.Talking;
 }
 
 

@@ -1,7 +1,10 @@
-public enum SkinColor
+namespace Data
+{
+    public enum SkinColor
     {
         White,
         Tan,
         Brown,
         Dark
     }
+}

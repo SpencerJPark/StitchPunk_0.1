@@ -1,4 +1,6 @@
-public enum HairType
+namespace Data
+{
+    public enum HairType
     {
         Combed,
         Spiked,
@@ -9,4 +11,4 @@ public enum HairType
         Kinky,
         HairDown
     }
-    
+}

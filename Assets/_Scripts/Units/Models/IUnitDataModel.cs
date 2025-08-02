@@ -1,4 +1,5 @@
 using UnityEngine;
+using Data;
 
 public interface IUnitDataModel
 {
@@ -43,7 +44,7 @@ public interface IUnitDataModel
 
 
     // Dynamically swapping state animations at runtime
-    Actions IdleAnimation { get; }
-    Actions WalkAnimation { get; }
-    Actions TalkAnimation { get; }
+    ActionType IdleAnimation { get; }
+    ActionType WalkAnimation { get; }
+    ActionType TalkAnimation { get; }
 }

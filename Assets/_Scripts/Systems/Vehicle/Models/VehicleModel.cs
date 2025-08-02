@@ -1,4 +1,5 @@
 using UnityEngine;
+using Data;
 
 public class VehicleModel : IVehicleDataModel
 {

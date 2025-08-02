@@ -1,4 +1,6 @@
-public enum Hats
+namespace Data
+{
+    public enum Hats
     {
         None,
         TopHat,
@@ -6,3 +8,4 @@ public enum Hats
         Mask,
         Newsboy
     }
+}

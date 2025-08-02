@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f84dce2f5f116e94aa458d160e5fd831, type: 3}
-  m_Name: HeroDataProfile
+  m_Name: HeroData
   m_EditorClassIdentifier: 
   <UnitName>k__BackingField: Hero
   <MaxHealth>k__BackingField: 90

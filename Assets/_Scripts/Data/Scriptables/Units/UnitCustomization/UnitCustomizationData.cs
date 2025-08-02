@@ -1,4 +1,5 @@
 using UnityEngine;
+using Data;
 
 [CreateAssetMenu(menuName = "Units/Unit Customization Data", order = 3)]
 public class UnitCustomizationData : ScriptableObject

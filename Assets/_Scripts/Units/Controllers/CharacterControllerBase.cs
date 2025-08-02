@@ -1,4 +1,5 @@
 using UnityEngine;
+using Data;
 
 public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 {
@@ -27,7 +28,7 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
     // ───────────────────────────────────────────────────────────────
 
 
-    // Will swith to dependecy injection
+// Will swith to Initialize
     protected virtual void Awake()
     {
         // Build your data model here
@@ -45,26 +46,19 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
+
     public void ObservedUpdate()
     {
         if (unitModel.Mount)
             return;
         
         HandleMovement();
-        
-        if (unitModel.IsMoving)
-        {
-            UpdateFacing(unitModel.MovementVector);
-        }
-
         HandleAction();
+        HandleAnimation();
     }
 
-    public virtual void ApplyState(UnitStateData state)
-    {
-        currentState = state;
-    }
 
+// Movement Updates
     protected virtual void HandleMovement()
     {
         unitModel.SetMovementVector(new Vector3(input.MoveInput.x, 0f, input.MoveInput.y));
@@ -84,8 +78,6 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
         // **CharacterController.Move expects units per second**
         cc.Move(motion * Time.deltaTime);
-
-        UpdateMovementAnimation();
     }
 
     private void HandleGravity()
@@ -103,6 +95,28 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         }
     }
 
+
+// Action Updates
+    protected virtual void HandleAction()
+    {
+        // uses action information for timing, action type, and if it is a trigger or other action
+    }
+
+
+// Animation Updates
+    private void HandleAnimation()
+    {
+        // Handle Action animation first if needed
+
+        UpdateMovementAnimation();
+
+        if (unitModel.IsMoving)
+        {
+            UpdateFacing(unitModel.MovementVector);
+        }
+    }
+
+
     public void UpdateFacing(Vector3 moveVect)
     {
         if (riveAnimator == null)
@@ -119,55 +133,56 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
 
-
-
-    protected virtual void HandleAction()
-    {
-        // UpdateActionAnimation() or FireTriggerAnimation()
-    }
-
-    // Handle Animation
-
     protected virtual void UpdateMovementAnimation()
     {
-        Actions animState = unitModel.IsMoving ? unitModel.WalkAnimation : unitModel.IdleAnimation;
+        ActionType animState = unitModel.IsMoving ? unitModel.WalkAnimation : unitModel.IdleAnimation;
         riveAnimator.SetEnum("Actions", animState.ToString());
     }
 
-    protected virtual void UpdateActionAnimation(Actions action)
+    public virtual void ApplyState(UnitStateData state)
+    {
+        currentState = state;
+    }
+
+    public virtual void UpdateActionAnimation(ActionType action)
     {
         riveAnimator.SetEnum("Actions", action.ToString());
     }
-
     protected virtual void FireTriggerAnimation(string trigger)
     {
         riveAnimator.Trigger(trigger);
     }
 
+    // Paticle System
 
-    // Other Object Interactions
 
-    /// <summary>
-    /// Called by your vehicle code when the player gets into a seat.
-    /// Disables all movement, gravity, and collision so we can snap them into place.
-    /// </summary>
+// Object Interactions
     public void OnMount()
     {
-        UpdateActionAnimation(Actions.Drive);
+        UpdateActionAnimation(ActionType.Drive);
         cc.enabled = false;
         unitModel.SetMount(true);
         // turn off CharacterController collision & gravity
     }
 
-    /// <summary>
-    /// Called by your vehicle code when the player leaves the seat.
-    /// Restores movement and gravity.
-    /// </summary>
+
     public void OnDismount()
     {
         UpdateActionAnimation(unitModel.IdleAnimation);
         cc.enabled = true;
         unitModel.SetMount(false);
         // Reset movement ability and gravity
+    }
+
+
+// Customization
+    protected void ApplyCustomization()
+    {
+        //if (DesignData != null)
+        {
+            // Set data in model
+        }
+
+        // Customization for npcs will be based on assigned jobs
     }
 }

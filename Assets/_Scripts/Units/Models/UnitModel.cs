@@ -1,4 +1,5 @@
 using UnityEngine;
+using Data;
 
 public abstract class UnitModel : IUnitDataModel
 {
@@ -53,9 +54,9 @@ public abstract class UnitModel : IUnitDataModel
     public virtual bool Mount { get; protected set; }
 
     // Current State Animations
-    public virtual Actions IdleAnimation => currentState.IdleAnimation;
-    public virtual Actions WalkAnimation => currentState.WalkAnimation;
-    public virtual Actions TalkAnimation => currentState.TalkAnimation;
+    public virtual ActionType IdleAnimation => currentState.IdleAnimation;
+    public virtual ActionType WalkAnimation => currentState.WalkAnimation;
+    public virtual ActionType TalkAnimation => currentState.TalkAnimation;
 
     public virtual void SetState(UnitStateData newState)
     {

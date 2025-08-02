@@ -1,6 +1,7 @@
 // PlayerInputHandler.cs
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Data;
 
 public class PlayerInputHandler : PersistentSingleton<PlayerInputHandler>, IInputProvider
 {

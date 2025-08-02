@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b91ceb548275aba4dad2f16ce9648c4c, type: 3}
   m_Name: New Character Customization Data
   m_EditorClassIdentifier: 
-  hats: 4
+  hats: 0
   eyeware: 0
   hairColor: 0
   hairType: 2

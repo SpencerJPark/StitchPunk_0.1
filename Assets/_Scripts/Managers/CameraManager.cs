@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Cinemachine;
+using Data;
 
 public class CameraManager : PersistentSingleton<CameraManager>
 {
@@ -18,18 +19,18 @@ public class CameraManager : PersistentSingleton<CameraManager>
     [Tooltip("Priority for all inactive cameras")]
     [SerializeField] int inactivePriority = 10;
 
-    Dictionary<CameraType, CinemachineCamera> cams;
+    Dictionary<CameraTypeEnum, CinemachineCamera> cams;
 
     void OnEnable()
     {
         // build lookup
-        cams = new Dictionary<CameraType, CinemachineCamera>()
+        cams = new Dictionary<CameraTypeEnum, CinemachineCamera>()
         {
-            { CameraType.Player, playerCam },
-            { CameraType.PlayerZoom, playerZoomCam },
-            { CameraType.Vehicle, vehicleCam },
-            // { CameraType.Horde,   hordeCam   },
-            // { CameraType.MapUI,   mapUICam   },
+            { CameraTypeEnum.Player, playerCam },
+            { CameraTypeEnum.PlayerZoom, playerZoomCam },
+            { CameraTypeEnum.Vehicle, vehicleCam },
+            // { CameraTypeEnum.Horde,   hordeCam   },
+            // { CameraTypeEnum.MapUI,   mapUICam   },
         };
 
         // sanity check
@@ -38,13 +39,13 @@ public class CameraManager : PersistentSingleton<CameraManager>
                 Debug.LogWarning($"CameraManager: `{kv.Key}` cam is not assigned.");
 
         // start in player mode
-        SwitchCamera(CameraType.Player);
+        SwitchCamera(CameraTypeEnum.Player);
     }
 
     /// <summary>
     /// Activates the given cam by raising its priority, and demotes all others.
     /// </summary>
-    public void SwitchCamera(CameraType type)
+    public void SwitchCamera(CameraTypeEnum type)
     {
         foreach (var kv in cams)
         {

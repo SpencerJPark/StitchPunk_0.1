@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using Data;
 
 [RequireComponent(typeof(Rigidbody))]
 public class VehicleController : MonoBehaviour, IFixedUpdateObserver
@@ -91,7 +92,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
     }
 
 
-    // Public controls
+// Public controls
     public void EnableVehicle(GameObject driver, IInputProvider driverInput)
     {
         // 1) Vehicle becomes kinematic/dynamic as desired
@@ -109,7 +110,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Vehicle);
 
         // 5) Set Camera Up
-        CameraManager.Instance.SwitchCamera(CameraType.Vehicle);
+        CameraManager.Instance.SwitchCamera(CameraTypeEnum.Vehicle);
 
         // 6) Disable Entry Points
         SetDoorZone(false);
@@ -124,7 +125,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
         // 2) Reset horse riveAnimator to idle
         if (riveAnimator != null && vehicleModel != null)
-            riveAnimator.SetEnum("Actions", Actions.Idle.ToString());
+            riveAnimator.SetEnum("ActionType", ActionType.Idle.ToString());
 
         // 3) Stop reading input
         input = null;
@@ -139,16 +140,14 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         PlayerInputHandler.Instance.SwitchActionMap(ActionMaps.Player);
 
         // 7) Switch camera back
-        CameraManager.Instance.SwitchCamera(CameraType.Player);
+        CameraManager.Instance.SwitchCamera(CameraTypeEnum.Player);
 
         // 8) Sets back up interactable zones around the vehicle
         SetDoorZone(true);
     }
 
 
-
-
-    // Vehicle Movement
+// Movement Updates
     protected virtual void HandleMovement()
     {
         Vector3 desiredVelocity = ComputeDesiredVelocity();
@@ -232,17 +231,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
     }
 
 
-    // Doors
-    private void SetDoorZone(bool setting)
-    {
-        foreach (var zoneGO in doorZones)
-        {
-            if (zoneGO.TryGetComponent<DoorZone>(out var zone))
-                zone.SetZoneActive(setting);
-        }
-    }
-
-    // Animations
+// View Animations
     protected virtual void HandleView()
     {
         // Driver View
@@ -300,20 +289,20 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
         // normalize your speed into [0,1]
         float t = vehicleModel.CurrentSpeed / vehicleModel.MoveSpeed;
-        Actions action;
+        ActionType action;
 
         if (t <= vehicleModel.WalkThreshold)
-            action = Actions.Idle;
+            action = ActionType.Idle;
         else if (t <= vehicleModel.RunThreshold)
-            action = Actions.Walk;
+            action = ActionType.Walk;
         else
-            action = Actions.Run;
+            action = ActionType.Run;
 
-        riveAnimator.SetEnum("Actions", action.ToString());
+        riveAnimator.SetEnum("Action", action.ToString());
     }
 
 
-    // Setup
+// Setup
     private void SetUpVehicle()
     {
         // 1) Lower the COM so the pivot is closer to the ground:
@@ -358,5 +347,14 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         // 3) Zero your local so you’re *exactly* at the anchor point:
         vehicleModel.DriverObject.transform.localPosition = Vector3.zero;
         vehicleModel.DriverObject.transform.localRotation = Quaternion.identity;
+    }
+
+    private void SetDoorZone(bool setting)
+    {
+        foreach (var zoneGO in doorZones)
+        {
+            if (zoneGO.TryGetComponent<DoorZone>(out var zone))
+                zone.SetZoneActive(setting);
+        }
     }
 }

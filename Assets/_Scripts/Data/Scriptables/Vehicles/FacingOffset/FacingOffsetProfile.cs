@@ -1,5 +1,6 @@
 // FacingOffsetProfile.cs
 using UnityEngine;
+using Data;
 
 [CreateAssetMenu(menuName = "Vehicle/Facing Offset Profile")]
 public class FacingOffsetProfile : ScriptableObject

@@ -1,6 +1,9 @@
-public enum MovementType
+namespace Data
 {
-    Grounded,
-    Flying,
-    Floating // Optional for slow gravity etc.
+    public enum MovementType
+    {
+        Grounded,
+        Flying,
+        Floating // Optional for slow gravity etc.
+    }
 }
