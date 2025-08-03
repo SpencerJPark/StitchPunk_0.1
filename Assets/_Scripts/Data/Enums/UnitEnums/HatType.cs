@@ -1,6 +1,6 @@
 namespace Data
 {
-    public enum Hats
+    public enum HatType
     {
         None,
         TopHat,

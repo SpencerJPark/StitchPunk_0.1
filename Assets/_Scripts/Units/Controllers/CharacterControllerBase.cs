@@ -146,11 +146,14 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
 
     public virtual void UpdateActionAnimation(ActionType action)
     {
+        // Add a bool and Timer
         riveAnimator.SetEnum("Actions", action.ToString());
     }
-    protected virtual void FireTriggerAnimation(string trigger)
+
+    protected virtual void FireTriggerAnimation(TriggerType trigger)
     {
-        riveAnimator.Trigger(trigger);
+        // Add a bool and Timer
+        riveAnimator.Trigger(trigger.ToString());
     }
 
     // Paticle System
@@ -164,7 +167,6 @@ public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
         unitModel.SetMount(true);
         // turn off CharacterController collision & gravity
     }
-
 
     public void OnDismount()
     {

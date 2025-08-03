@@ -1,6 +1,6 @@
 namespace Data
 {
-    public enum Eyeware
+    public enum EyewareType
     {
         None,
         Monicle,

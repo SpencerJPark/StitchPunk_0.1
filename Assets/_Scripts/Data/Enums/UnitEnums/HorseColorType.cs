@@ -1,6 +1,6 @@
 namespace Data
 {
-    public enum HorseColor
+    public enum HorseColorType
     {
         Black,
         DarkBrown,

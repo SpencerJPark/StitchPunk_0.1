@@ -1,6 +1,6 @@
 namespace Data
 {
-    public enum HairColor
+    public enum HairColorType
     {
         Black,
         DarkBrown,
