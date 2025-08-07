@@ -25,10 +25,10 @@ public abstract class UnitModel : IUnitDataModel
 
     // Appearance
     public virtual HairType HairType { get; protected set; } = HairType.Buzzed;
-    public virtual HairColorType HairColor { get; protected set; } = HairColor.Black;
-    public virtual EyewareType Eyeware { get; protected set; } = Eyeware.None;
-    public virtual HatType Hat { get; protected set; } = Hats.None;
-    public virtual SkinType SkinColor { get; protected set; } = SkinColor.White;
+    public virtual HairColor HairColor { get; protected set; } = HairColor.Black;
+    public virtual EyewareType Eyeware { get; protected set; } = EyewareType.None;
+    public virtual HatType Hat { get; protected set; } = HatType.None;
+    public virtual SkinColor SkinColor { get; protected set; } = SkinColor.White;
 
 
     // Movement Config (pass-through to MovementData)

@@ -1,16 +1,18 @@
+#if false
+
 using UnityEngine;
 using System.Collections.Generic;
 
-[RequireComponent(typeof(CharacterControllerBase))]
+[RequireComponent(typeof(UnitController))]
 public class Brain : MonoBehaviour, IInputProvider
 {
     [Header("Brain Settings")]
     //[SerializeField] private List<Trait> traits;
-    [SerializeField] private NeedSet needs;
-    [SerializeField] private Schedule schedule;
-    [SerializeField] private CharacterContollerBase controller;
+    //[SerializeField] private NeedSet needs;
+    //[SerializeField] private Schedule schedule;
+    [SerializeField] private UnitController controller;
 
-    private ISignalProvider currentTarget;
+    //private ISignalProvider currentTarget;
 
 
     // IInputProvider implementation
@@ -18,7 +20,7 @@ public class Brain : MonoBehaviour, IInputProvider
     public Vector2 SteerInput { get; private set; }
     public bool ExitVehicleFired => false;
     public bool InteractFired => false;
-    public bool AttackFired => false;
+    public bool ActionFired => false;
 
     void Update()
     {
@@ -67,3 +69,6 @@ public class Brain : MonoBehaviour, IInputProvider
         return false;
     }
 }
+
+
+#endif

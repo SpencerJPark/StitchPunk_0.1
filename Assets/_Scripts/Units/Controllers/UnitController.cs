@@ -1,7 +1,7 @@
 using UnityEngine;
 using Data;
 
-public abstract class CharacterControllerBase : MonoBehaviour, IUpdateObserver
+public abstract class UnitController : MonoBehaviour, IUpdateObserver
 {
     [Header("Controller Dependencies")]
     [SerializeField] protected IInputProvider input;

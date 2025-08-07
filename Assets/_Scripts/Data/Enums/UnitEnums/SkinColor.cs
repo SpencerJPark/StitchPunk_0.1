@@ -1,6 +1,6 @@
 namespace Data
 {
-    public enum SkinType
+    public enum SkinColor
     {
         White,
         Tan,

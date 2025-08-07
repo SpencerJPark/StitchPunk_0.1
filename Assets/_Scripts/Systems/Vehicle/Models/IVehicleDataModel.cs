@@ -45,5 +45,5 @@ public interface IVehicleDataModel
     Vector3 Position { get; }
 
     GameObject DriverObject { get; }
-    CharacterControllerBase DriverController { get; }
+    UnitController DriverController { get; }
 }

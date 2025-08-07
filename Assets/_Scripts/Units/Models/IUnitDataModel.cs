@@ -15,8 +15,8 @@ public interface IUnitDataModel
     // Design Info
     HairType HairType { get; }
     HairColor HairColor { get; }
-    Eyeware Eyeware { get; }
-    Hats Hats { get; }
+    EyewareType Eyeware { get; }
+    HatType Hat { get; }
     // HatColor
     SkinColor SkinColor { get; }
     
