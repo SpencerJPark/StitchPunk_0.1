@@ -125,7 +125,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
 
         // 2) Reset horse riveAnimator to idle
         if (riveAnimator != null && vehicleModel != null)
-            riveAnimator.SetEnum("ActionType", ActionType.Idle.ToString());
+            riveAnimator.SetEnum("Actions", ActionType.Idle.ToString());
 
         // 3) Stop reading input
         input = null;
