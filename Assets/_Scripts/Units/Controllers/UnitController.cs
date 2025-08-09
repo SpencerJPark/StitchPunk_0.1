@@ -162,7 +162,7 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 // Object Interactions
     public void OnMount()
     {
-        UpdateActionAnimation(ActionType.Drive);
+        UpdateActionAnimation(ActionType.Sit);
         cc.enabled = false;
         unitModel.SetMount(true);
         // turn off CharacterController collision & gravity

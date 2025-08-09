@@ -9,7 +9,6 @@ namespace Data
         Sneak,
         Interact,
         Talking,
-        Drive,
         PlayFlute,
         MailDelivery,
         IdleCarryBody,

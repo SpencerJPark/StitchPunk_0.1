@@ -298,7 +298,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
         else
             action = ActionType.Run;
 
-        riveAnimator.SetEnum("Action", action.ToString());
+        riveAnimator.SetEnum("Actions", action.ToString());
     }
 
 
