@@ -5,7 +5,7 @@ using Data;
 
 public class TownManager()
 {
-    // List of available job objects
+    // List of available Role objects
     // List of available home objects
     // Ref to spawners
 
@@ -15,7 +15,7 @@ public class TownManager()
     public TownManager()
     {
         // On initiation, see if save file info exists
-        // If null, search scene for building objects for jobs, homes, spawners
+        // If null, search scene for building objects for Roles, homes, spawners
         // Create Town Data
         // Call PopulateTown which 
 
@@ -48,7 +48,7 @@ public class TownData()
     public int MaxPopulation { get; protected set; }
     public int MaxRecoveryRatePerDay { get; protected set; }
 
-    // List of jobs available with status of availability
+    // List of Roles available with status of availability
 
     public int MaxMales { get; protected set; }
     public int MaxFemales { get; protected set; }
@@ -99,7 +99,7 @@ public class UnitRoleFactory()
     {
         UnitRoleData newUnitData = UnitRoleData();
 
-        newUnitData.SetJobType(DetermineJob());
+        newUnitData.SetRoleType(DetermineRole());
         newUnitData.SetSocialClassType(DetermineSocialClass());
         newUnitData.SetGenderType(DetermineGender(townData.CurrentMales, townData.CurrentFemales));
         newUnitData.SetAgeType(DetermineAge());
@@ -107,26 +107,26 @@ public class UnitRoleFactory()
 
         return newUnitData;
     }
-    private void DetermineJob()
+    private void DetermineRole()
     {
-        // logic for picking job
+        // logic for picking Role
 
-        // Set Job
+        // Set Role
         // Set Work
     }
 
     private void DetermineGender(int currentMales, int currentFemales)
     {
-        // influenced by job first then town needs
+        // influenced by Role first then town needs
     }
 
     private void DetermineAge()
     {
-        // influenced by job first then town needs
+        // influenced by Role first then town needs
     }
     private void DetermineSocialClass()
     {
-        // influenced by job first then homeneeds
+        // influenced by Role first then homeneeds
     }
 
     private void DetermineHome()
@@ -136,137 +136,7 @@ public class UnitRoleFactory()
 }
 
 
-public interface IUnitRole()
-{
-
-}
 
 
-public class CitizenRole: IUnitRole
-{
-    public JobType Job { get; protected set; }
-    public SocialClassType SocialClass { get; protected set; }
-    public GenderType Gender { get; protected set; }
-    public AgeType Age { get; protected set; }
-    public Transform Home { get; protected set; }
-    public Transform Work { get; protected set; }
-
-    public void SetJobType(JobType job) // Change to Job data
-    {
-        Job = job;
-        SetWork(); // Sets location based on job data
-    }
-
-    public void SetSocialClassType(SocialClassType socialClass)
-    {
-        SocialClass = socialClass;
-    }
-
-    public void SetGenderType(GenderType gender)
-    {
-        Gender = gender;
-    }
-
-    public void SetAgeType(AgeType age)
-    {
-        Age = age;
-    }
-
-    public void SetHome(Transform home)
-    {
-        Home = home;
-    }
-
-    public void SetWork(Transform work)
-    {
-        Work = work;
-    }
-}
-
-// MinionRole, EnemyRole, SoilderRole...
-
-public interface IUnitDesign()
-{
-    void NewDesign(IUnitRole unitRole);
-
-    static IUnitDesign CreateDefault()
-    {
-        return new MaleDesign();
-    }
-}
-
-public class MaleDesign : IUnitDesign
-{
-    // Head
-    // HatType
-    // HatColor
-    // HairType
-    // HairColor
-    // EyewareType
-    // FaceDetails
-    // Mustache
-    public float NoseCurve { get; protected set; }
-    public float NoseWidth { get; protected set; }
-    public float NoseLength { get; protected set; }
-    public float ChinWidth { get; protected set; }
-    public float ChinLenght { get; protected set; }
-
-    // Body
-    // BodyStyle influenced by job
-    // TieColor
-    // JacketColor
-    // PantColor
-    // VestButtonColor
-    // VestColor
-    // ShirtColor
-    // ShoeColor
-    // ShoeType
-
-    void NewDesign(IUnitRole unitRole);
-}
-
-public class FemaleDesign : IUnitDesign
-{
-    // Head
-    // HatType
-    // HatColor
-    // HairType
-    // HairColor
-    // EyewareType
-    // FaceDetails
-    // Mustache
-    public float NoseCurve { get; protected set; }
-    public float NoseWidth { get; protected set; }
-    public float NoseLength { get; protected set; }
-    public float ChinWidth { get; protected set; }
-    public float ChinLenght { get; protected set; }
-
-    // Body
-    // BodyStyle influenced by job
-    // TieColor
-    // JacketColor
-    // PantColor
-    // VestButtonColor
-    // VestColor
-    // ShirtColor
-    // ShoeColor
-    // ShoeType
-
-    void NewDesign(IUnitRole unitRole);
-
-}
-
-
-public abstract class UnitDesignFactory : ScriptableObject {
-    public abstract IUnitDesign CreateDesign();
-}
-
-[CreateAssetMenu(fileName = "MaleDesignFactory", menuName = "Units/Unit Design Factory/MaleDesignFactory")]
-public class MaleDesignFactory: UnitDesignFactory {
-    public override IUnitDesign CreateDesign()
-    {
-        return new MaleDesign();
-    }
-}
 
 #endif

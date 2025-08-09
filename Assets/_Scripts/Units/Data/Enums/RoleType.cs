@@ -1,9 +1,14 @@
 namespace Data
 {
-    public enum JobType
+    public enum RoleType
     {
+        // Simple Role Types
+        Citizen,
+        Enemy,
+        Minion,
+        Animal,
+
         // Domestic & Civilian Life
-        Unemployed,
         Maid,
         Butler,
         Cook,

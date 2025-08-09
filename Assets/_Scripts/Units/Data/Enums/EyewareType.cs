@@ -4,6 +4,7 @@ namespace Data
     {
         None,
         Monicle,
-        Glasses
+        SmallGlasses,
+        Glasses,
     }
 }
