@@ -4,7 +4,7 @@ using Data;
 public abstract class UnitController : MonoBehaviour, IUpdateObserver
 {
     [Header("Controller Dependencies")]
-    [SerializeField] protected IInputProvider input;
+    [SerializeField] private IInputProvider input;
     [SerializeField] protected CharacterController cc;
 
 

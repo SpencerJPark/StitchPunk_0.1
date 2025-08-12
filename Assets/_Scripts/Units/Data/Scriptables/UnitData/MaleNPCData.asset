@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f84dce2f5f116e94aa458d160e5fd831, type: 3}
+  m_Name: MaleNPCData
+  m_EditorClassIdentifier: 
+  <UnitName>k__BackingField: MaleNPC
+  <MaxHealth>k__BackingField: 90
+  MovementData: {fileID: 11400000, guid: 5dc5a7ceda039524390c0faca5003e81, type: 2}
+  DefaultState: {fileID: 11400000, guid: 804d5c244650b494fb6c2fcda1ea079a, type: 2}
