@@ -5,7 +5,10 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 {
     [Header("Controller Dependencies")]
     [SerializeField] public IInputProvider input;
-    [SerializeField] protected CharacterController cc;
+
+
+    [Header("Motor (plug in CCMotor or AgentMotor)")]
+    [SerializeField] UnitMotorBase motor;
 
 
     [Header("View Dependencies")]
@@ -17,7 +20,6 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 
     [Header("Optional")]
      [SerializeField] protected UnitStateData currentState;
-
 
 
     protected UnitModel unitModel;
@@ -49,16 +51,13 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        if (unitModel.Mount)
-            return;
-        
+        if (unitModel.Mount) return;
+
         HandleMovement();
         HandleAction();
         HandleAnimation();
     }
 
-
-// Movement Updates
     protected virtual void HandleMovement()
     {
         unitModel.SetMovementVector(new Vector3(input.MoveInput.x, 0f, input.MoveInput.y));
@@ -76,8 +75,7 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
             motion.y = -unitModel.FallSpeed;
         }
 
-        // **CharacterController.Move expects units per second**
-        cc.Move(motion * Time.deltaTime);
+        motor.Tick(Time.deltaTime);
     }
 
     private void HandleGravity()
