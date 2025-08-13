@@ -9,11 +9,11 @@ public class HeroController : UnitController
 
         // Now do any Hero‑specific setup:
         // e.g. ensure we have an input provider wired in
-        // if (input == null)
-        //     input = PlayerInputHandler.Instance;
+        if (input == null)
+            input = PlayerInputHandler.Instance;
 
         // or initialize hero‑only systems:
-        // InitializeHeroAbilities();
+        //InitializeHeroAbilities();
     }
     
     protected override UnitModel CreateUnitModel()
