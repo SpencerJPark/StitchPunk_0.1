@@ -21,7 +21,7 @@ public class CCMotor : UnitMotorBase
 
     void Reset() => cc = GetComponent<CharacterController>();
 
-    public void Build(UnitMovementData movementData) => data = movementData;
+    public override void Build(UnitMovementData movementData) => data = movementData;
 
     public override void SetMoveDirection(Vector3 worldDirectionXZ)
     {

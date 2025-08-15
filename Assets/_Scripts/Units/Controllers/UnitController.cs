@@ -36,17 +36,12 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
         unitModel = CreateUnitModel();
         if (unitModel == null)
             Debug.LogError($"{name} failed to CreateUnitModel()");
-            
+
         // Setup Motor using unit data
+        motor.Build(unitModel.MovementData);
     } 
     
-    void OnEnable()
-    {
-        UpdateManager.RegisterObserver(this);
-
-        unitModel.SetFallSpeed(0f);
-    }
-
+    void OnEnable() => UpdateManager.RegisterObserver(this);
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
 
@@ -61,9 +56,11 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 
     protected virtual void HandleMovement()
     {
-        unitModel.SetMoving(input.MoveInput.sqrMagnitude > 0.01f);
+        unitModel.SetMoving(input.MoveInput.sqrMagnitude > 0.01f); // Adjust for ai
 
-        motor.SetMoveDirection(input.MoveInput);
+        motor.SetMoveDirection(input.MoveInput); // add logic for handling different move insturctions
+
+
         motor.Tick(Time.deltaTime);
     }
 
