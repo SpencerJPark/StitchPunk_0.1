@@ -3,79 +3,68 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class CCMotor : UnitMotorBase
 {
-    [SerializeField] CharacterController cc;
-    [SerializeField] float speed = 4f;
-    [SerializeField] float gravity = 20f;
-    [SerializeField] float maxFall = 30f;
+    [SerializeField] private CharacterController cc;
+    [SerializeField] private UnitMovementData data;
 
-    public Vector2 MoveInput; // set by your player input provider
+    // cached refs
+    float Speed => data ? data.moveSpeed : 3f;
+    float Gravity => data ? data.gravity : 9.81f;
+    float MaxFall => data ? data.maxFallSpeed : 20f;
+    float GroundCheckDistance => data ? data.groundCheckDistance : 0.2f;
+    LayerMask GroundLayer => data ? data.groundLayer : ~0;
+
+    bool isGrounded;
     float fallSpeed;
-    Vector3 velocity;
+    Vector2 moveInput; // x=world x, y=world z
+
+    public override bool IsGrounded => isGrounded;
 
     void Reset() => cc = GetComponent<CharacterController>();
 
-    public override Vector3 Velocity => velocity;
-    public override bool IsGrounded => cc.isGrounded;
+    public void Build(UnitMovementData movementData) => data = movementData;
+
+    public override void SetMoveDirection(Vector3 worldDirectionXZ)
+    {
+        // accept either (x,0,z) or (x,y,0) by falling back to y if z==0
+        float z = Mathf.Abs(worldDirectionXZ.z) > 1e-6f ? worldDirectionXZ.z : worldDirectionXZ.y;
+        moveInput = new Vector2(worldDirectionXZ.x, z);
+    }
 
     public override void Tick(float dt)
     {
-        Vector3 move = new Vector3(MoveInput.x, 0f, MoveInput.y) * speed;
+        // Grounding
+        isGrounded = CheckGrounded();
 
-        // gravity
-        if (!cc.isGrounded)
-        {
-            fallSpeed = Mathf.Min(fallSpeed + gravity * dt, maxFall);
-        }
-        else
-        {
-            fallSpeed = 0f;
-        }
-        move.y = -fallSpeed;
+        // Gravity
+        fallSpeed = isGrounded ? 0f : Mathf.Min(fallSpeed + Gravity * dt, MaxFall);
 
-        cc.Move(move * dt);
-        velocity = cc.velocity;
+        // Planar motion
+        Vector3 planar = new Vector3(moveInput.x, 0f, moveInput.y);
+        Vector3 motion = planar * Speed;
+        motion.y = -fallSpeed;
+
+        // Move & output MovementVector for anim (direction only, planar)
+        cc.Move(motion * dt);
+        var planarVel = new Vector3(cc.velocity.x, 0f, cc.velocity.z);
+        MovementVector = planarVel.sqrMagnitude > 1e-6f
+            ? planarVel.normalized
+            : (planar.sqrMagnitude > 1e-6f ? planar.normalized : Vector3.zero);
     }
 
     public override void Halt()
     {
         fallSpeed = 0f;
-        velocity = Vector3.zero;
+        moveInput = Vector2.zero;
+        MovementVector = Vector3.zero;
     }
 
-    // Movement Updates
-    protected virtual void HandleMovement()
+    bool CheckGrounded()
     {
-        unitModel.SetMovementVector(new Vector3(input.MoveInput.x, 0f, input.MoveInput.y));
-        unitModel.SetMoving(unitModel.MovementVector.sqrMagnitude > 0.01f);
-
-        float speed = unitModel != null ? unitModel.MoveSpeed : 3f;
-        Vector3 motion = unitModel.MovementVector * speed;
-
-        // apply gravity if needed
-        if (unitModel != null &&
-            (unitModel.Movement == MovementType.Grounded ||
-             unitModel.Movement == MovementType.Floating))
-        {
-            HandleGravity();
-            motion.y = -unitModel.FallSpeed;
-        }
-
-        // **CharacterController.Move expects units per second**
-        cc.Move(motion * Time.deltaTime);
-    }
-
-    private void HandleGravity()
-    {
-        unitModel.SetGrounding(Physics.Raycast(transform.position, Vector3.down, unitModel.GroundCheckDistance, unitModel.GroundLayer));
-
-        if (!unitModel.IsGrounded)
-        {
-            unitModel.SetFallSpeed(unitModel.FallSpeed + unitModel.Gravity * Time.deltaTime);
-            unitModel.SetFallSpeed(Mathf.Clamp(unitModel.FallSpeed, 0f, unitModel.MaxFallSpeed));
-        }
-        else
-        {
-            unitModel.SetFallSpeed(0f);
-        }
+        if (!cc) return false;
+        Vector3 feet = transform.position + cc.center + Vector3.down * (cc.height * 0.5f - cc.radius);
+        Vector3 origin = feet + Vector3.up * 0.05f;
+        float rayLen = GroundCheckDistance + cc.skinWidth;
+        return Physics.Raycast(origin, Vector3.down, rayLen, GroundLayer, QueryTriggerInteraction.Ignore);
+        // or: return Physics.Raycast(...) || cc.isGrounded;
     }
 }

@@ -21,7 +21,6 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
     [Header("Optional")]
      [SerializeField] protected UnitStateData currentState;
 
-
     protected UnitModel unitModel;
 
     // ───────────────────────────────────────────────────────────────
@@ -30,13 +29,15 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
     // ───────────────────────────────────────────────────────────────
 
 
-// Will swith to Initialize
+    // Will swith to Initialize
     protected virtual void Awake()
     {
         // Build your data model here
         unitModel = CreateUnitModel();
         if (unitModel == null)
             Debug.LogError($"{name} failed to CreateUnitModel()");
+            
+        // Setup Motor using unit data
     } 
     
     void OnEnable()
@@ -60,37 +61,10 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 
     protected virtual void HandleMovement()
     {
-        unitModel.SetMovementVector(new Vector3(input.MoveInput.x, 0f, input.MoveInput.y));
-        unitModel.SetMoving(unitModel.MovementVector.sqrMagnitude > 0.01f);
+        unitModel.SetMoving(input.MoveInput.sqrMagnitude > 0.01f);
 
-        float speed = unitModel != null ? unitModel.MoveSpeed : 3f;
-        Vector3 motion = unitModel.MovementVector * speed;
-
-        // apply gravity if needed
-        if (unitModel != null &&
-            (unitModel.Movement == MovementType.Grounded ||
-             unitModel.Movement == MovementType.Floating))
-        {
-            HandleGravity();
-            motion.y = -unitModel.FallSpeed;
-        }
-
+        motor.SetMoveDirection(input.MoveInput);
         motor.Tick(Time.deltaTime);
-    }
-
-    private void HandleGravity()
-    {
-        unitModel.SetGrounding(Physics.Raycast(transform.position, Vector3.down, unitModel.GroundCheckDistance, unitModel.GroundLayer));
-
-        if (!unitModel.IsGrounded)
-        {
-            unitModel.SetFallSpeed(unitModel.FallSpeed + unitModel.Gravity * Time.deltaTime);
-            unitModel.SetFallSpeed(Mathf.Clamp(unitModel.FallSpeed, 0f, unitModel.MaxFallSpeed));
-        }
-        else
-        {
-            unitModel.SetFallSpeed(0f);
-        }
     }
 
 
@@ -110,7 +84,7 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
 
         if (unitModel.IsMoving)
         {
-            UpdateFacing(unitModel.MovementVector);
+            UpdateFacing(motor.MovementVector);
         }
     }
 
@@ -161,17 +135,14 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
     public void OnMount()
     {
         UpdateActionAnimation(ActionType.Sit);
-        cc.enabled = false;
         unitModel.SetMount(true);
-        // turn off CharacterController collision & gravity
+        motor.Halt();
     }
 
     public void OnDismount()
     {
         UpdateActionAnimation(unitModel.IdleAnimation);
-        cc.enabled = true;
         unitModel.SetMount(false);
-        // Reset movement ability and gravity
     }
 
 

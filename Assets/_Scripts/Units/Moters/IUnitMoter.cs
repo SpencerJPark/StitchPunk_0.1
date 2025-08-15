@@ -1,8 +1,19 @@
+using UnityEngine;
+
 public interface IUnitMotor
 {
-    Vector3 Velocity { get; }       // world-space current velocity
-    Vector3 Desired { get; }        // optional: where it wants to go
-    bool    IsGrounded { get; }     // CC motor fills this; Agent motor can return true
-    void    Tick(float dt);         // advance movement this frame
-    void    Halt();                 // stop now
+    bool IsGrounded { get; }
+    /// Normalized planar direction (y=0) for anim; zero if idle
+    Vector3 MovementVector { get; }
+
+    // Directional intent (world XZ). Used by CCMotor/Rigidbody motors.
+    void SetMoveDirection(Vector3 worldDirectionXZ);
+
+    // Goal intent (world point). Used by NavMesh motors.
+    void SetDestination(Vector3 worldPosition);
+
+    // Advance motor (or grab Time.deltaTime internally if you prefer)
+    void Tick(float dt);
+    void Halt();
 }
+

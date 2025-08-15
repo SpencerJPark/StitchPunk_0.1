@@ -74,9 +74,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4375270851487209611}
-  - component: {fileID: 3566570639237875709}
-  - component: {fileID: 4662493781791061324}
   - component: {fileID: 8548127309489790521}
+  - component: {fileID: 3566570639237875709}
+  - component: {fileID: 1528014124740203110}
+  - component: {fileID: 4662493781791061324}
   m_Layer: 10
   m_Name: Hero
   m_TagString: Player
@@ -101,6 +102,22 @@ Transform:
   - {fileID: 8780332369117814448}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8548127309489790521
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1031511907768811452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66cf6372813045246b8811d5c41cb10a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  motor: {fileID: 1528014124740203110}
+  riveAnimator: {fileID: 3566570639237875709}
+  unitData: {fileID: 11400000, guid: e2b70de142556b24db0b412d3f338186, type: 2}
+  currentState: {fileID: 11400000, guid: 9c9e5e6e4ece1da418091cf15959db9b, type: 2}
 --- !u!114 &3566570639237875709
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -116,6 +133,19 @@ MonoBehaviour:
   riveWidget: {fileID: 5259935714593041126}
   defaultEnum: 
   defaultValue: 
+--- !u!114 &1528014124740203110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1031511907768811452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2e31fe8e4da56342911ace61741e1ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cc: {fileID: 4662493781791061324}
 --- !u!143 &4662493781791061324
 CharacterController:
   m_ObjectHideFlags: 0
@@ -141,22 +171,6 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &8548127309489790521
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1031511907768811452}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 66cf6372813045246b8811d5c41cb10a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  cc: {fileID: 4662493781791061324}
-  riveAnimator: {fileID: 3566570639237875709}
-  unitData: {fileID: 11400000, guid: e2b70de142556b24db0b412d3f338186, type: 2}
-  currentState: {fileID: 11400000, guid: 9c9e5e6e4ece1da418091cf15959db9b, type: 2}
 --- !u!1 &7238799691761946203
 GameObject:
   m_ObjectHideFlags: 0

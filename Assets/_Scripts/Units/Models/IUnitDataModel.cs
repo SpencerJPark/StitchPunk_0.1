@@ -19,20 +19,11 @@ public interface IUnitDataModel
     HatType Hat { get; }
     // HatColor
     SkinColor SkinColor { get; }
-    
+
 
     // Movement Info
-    Vector3 MovementVector { get; }
-    MovementType Movement { get; }
-    Direction DefaultDirection { get; }
-    AnimationDirectionType DirectionType { get; }
-    float MoveSpeed { get; }
-    float Gravity { get; }
-    float MaxFallSpeed { get; }
-    float GroundCheckDistance { get; }
-    LayerMask GroundLayer { get; }
-    float GravityMultiplier { get; }
-    
+    UnitMovementData MovementData { get; }    
+
 
     // Manipulated States
     Vector3 Position { get; }
