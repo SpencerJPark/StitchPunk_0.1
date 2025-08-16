@@ -7,9 +7,13 @@ public class AgentMotor : UnitMotorBase
     [SerializeField] NavMeshAgent agent;
     [SerializeField] private UnitMovementData data;
 
+    // cached ref
+    float Speed => data ? data.moveSpeed : 3f;
 
-    [SerializeField] bool useKinematicMove = false; // set true if you want manual position writes
-    Vector3 lastPos;
+    // motor specific
+    [SerializeField] private readonly bool useKinematicMove = false; // set true if you want manual position writes
+    private Vector3 lastPos;
+
 
     void Reset() => agent = GetComponent<NavMeshAgent>();
 

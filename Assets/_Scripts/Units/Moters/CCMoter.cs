@@ -6,12 +6,15 @@ public class CCMotor : UnitMotorBase
     [SerializeField] private CharacterController cc;
     [SerializeField] private UnitMovementData data;
 
-    // cached refs
+    // cached ref
     float Speed => data ? data.moveSpeed : 3f;
-    float Gravity => data ? data.gravity : 9.81f;
-    float MaxFall => data ? data.maxFallSpeed : 20f;
-    float GroundCheckDistance => data ? data.groundCheckDistance : 0.2f;
-    LayerMask GroundLayer => data ? data.groundLayer : ~0;
+
+    // motor specific
+    [SerializeField] private readonly float Gravity = 9.8f;
+    [SerializeField] private readonly float MaxFall = 20f;
+    [SerializeField] private readonly float GroundCheckDistance = 0.2f;
+    [SerializeField] private readonly LayerMask GroundLayer;
+
 
     bool isGrounded;
     float fallSpeed;

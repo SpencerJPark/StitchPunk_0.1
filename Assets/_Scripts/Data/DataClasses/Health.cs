@@ -13,16 +13,22 @@ public class Health
 
     public bool IsAlive => CurrentHealth > 0f;
 
-    public Health(float maxHealth, bool startFull = true)
+    public Health(float maxHealth, float? oldCurrentHealth = null)
     {
         if (maxHealth <= 0f)
             throw new ArgumentException("Max health must be greater than zero.", nameof(maxHealth));
 
         MaxHealth = maxHealth;
-        CurrentHealth = startFull ? maxHealth : 0f;
+
+        // Use old value if provided, otherwise start full
+        CurrentHealth = oldCurrentHealth ?? MaxHealth;
+
+        // Clamp so it never exceeds max
+        CurrentHealth = Math.Clamp(CurrentHealth, 0f, MaxHealth);
 
         OnHealthChanged?.Invoke(CurrentHealth, MaxHealth);
     }
+
 
     public void SetMaxHealth(float newMax, bool clampCurrent = true)
     {
@@ -56,6 +62,7 @@ public class Health
         CurrentHealth = Math.Min(MaxHealth, CurrentHealth + amount);
 
         float healed = CurrentHealth - prev;
+
         if (healed > 0f)
         {
             OnHealed?.Invoke(healed);

@@ -4,13 +4,19 @@ using Data;
 public interface IUnitDataModel
 {
     UnitData ImutableDate { get; }
-    UnitStateData CurrentState { get; }
 
+    // State
+    UnitStateData CurrentState { get; }
+    ActionType IdleAnimation { get; }
+    ActionType WalkAnimation { get; }
+    ActionType TalkAnimation { get; }
 
     // Health
-    int MaxHealth { get; }
-    int CurrentHealth { get; }
+    Health UnitHealth { get; }
 
+    // Movement Info
+    UnitMovementData MovementData { get; }
+    AnimationDirectionType DirectionType { get; }
 
     // Design Info
     HairType HairType { get; }
@@ -21,21 +27,11 @@ public interface IUnitDataModel
     SkinColor SkinColor { get; }
 
 
-    // Movement Info
-    UnitMovementData MovementData { get; }    
-
-
-    // Manipulated States
+    // Runtime States
     Vector3 Position { get; }
     Direction CurrentDirection { get; }
     bool IsMoving { get; }
     bool IsGrounded { get; }
     float FallSpeed { get; }
     bool Mount { get; }
-
-
-    // Dynamically swapping state animations at runtime
-    ActionType IdleAnimation { get; }
-    ActionType WalkAnimation { get; }
-    ActionType TalkAnimation { get; }
 }

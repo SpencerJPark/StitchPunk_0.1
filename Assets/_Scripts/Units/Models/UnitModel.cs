@@ -4,16 +4,13 @@ using Data;
 public abstract class UnitModel : IUnitDataModel
 {
     protected UnitData baseData;
-    protected UnitStateData currentState;
-
-    // Health Componet
 
     public UnitModel(UnitData baseData)
     {
         this.baseData = baseData;
         this.currentState = baseData.DefaultState;
 
-        CurrentHealth = baseData.MaxHealth;
+        UnitHealth = new Health(baseData.MaxHealth);
     }
 
     // Immutable References
@@ -21,9 +18,20 @@ public abstract class UnitModel : IUnitDataModel
     public virtual UnitStateData CurrentState => currentState != null ? currentState : baseData.DefaultState;
 
 
+    // State
+    protected UnitStateData currentState;
+    public virtual ActionType IdleAnimation => currentState.IdleAnimation;
+    public virtual ActionType WalkAnimation => currentState.WalkAnimation;
+    public virtual ActionType TalkAnimation => currentState.TalkAnimation;
+
+
     // Health
-    public virtual int MaxHealth => baseData.MaxHealth;
-    public virtual int CurrentHealth { get; protected set; }
+    public virtual Health UnitHealth { get; protected set; }
+
+
+    // Movement Config (pass-through to MovementData)
+    public virtual UnitMovementData MovementData => baseData.MovementData;
+    public virtual AnimationDirectionType DirectionType => MovementData.directionType; 
 
 
     // Appearance
@@ -34,11 +42,6 @@ public abstract class UnitModel : IUnitDataModel
     public virtual SkinColor SkinColor { get; protected set; } = SkinColor.White;
 
 
-    // Movement Config (pass-through to MovementData)
-    public virtual UnitMovementData MovementData => baseData.MovementData;
-    public virtual AnimationDirectionType DirectionType => MovementData.directionType; 
-
-
     // Runtime State
     public virtual Vector3 Position { get; protected set; }
     public virtual Direction CurrentDirection { get; protected set; }
@@ -47,11 +50,6 @@ public abstract class UnitModel : IUnitDataModel
     public virtual float FallSpeed { get; protected set; }
     public virtual bool Mount { get; protected set; }
 
-
-    // Current State Animations
-    public virtual ActionType IdleAnimation => currentState.IdleAnimation;
-    public virtual ActionType WalkAnimation => currentState.WalkAnimation;
-    public virtual ActionType TalkAnimation => currentState.TalkAnimation;
 
     public virtual void SetState(UnitStateData newState)
     {
