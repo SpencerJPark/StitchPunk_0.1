@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class HeroController : UnitController
+public class HeroController : UnitControllerBase
 {
     protected override void Awake()
     {

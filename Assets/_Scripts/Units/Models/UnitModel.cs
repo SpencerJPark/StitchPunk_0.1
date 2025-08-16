@@ -31,7 +31,7 @@ public abstract class UnitModel : IUnitDataModel
 
     // Movement Config (pass-through to MovementData)
     public virtual UnitMovementData MovementData => baseData.MovementData;
-    public virtual AnimationDirectionType DirectionType => MovementData.directionType; 
+    public virtual AnimationDirectionType DirectionType => MovementData.directionType;
 
 
     // Appearance
@@ -51,39 +51,20 @@ public abstract class UnitModel : IUnitDataModel
     public virtual bool Mount { get; protected set; }
 
 
-    public virtual void SetState(UnitStateData newState)
-    {
-        currentState = newState;
-    }
+    // Setters
+    public virtual void SetState(UnitStateData newState) => currentState = newState;
+    public void SetPosition(Vector3 newPos) => Position = newPos;
+    public void SetDirection(Direction newDir) => CurrentDirection = newDir;
+    public void SetFallSpeed(float newSpeed) => FallSpeed = newSpeed;
+    public void SetMount(bool newVal) => Mount = newVal;
+    public void SetGrounding(bool newVal) => IsGrounded = newVal;
+    public void SetMoving(bool newVal) => IsMoving = newVal;
 
-    public void SetPosition(Vector3 newPos)
-    {
-        Position = newPos;
-    }
 
-    public void SetDirection(Direction newDir)
-    {
-        CurrentDirection = newDir;
-    }
-
-    public void SetFallSpeed(float newSpeed)
-    {
-        FallSpeed = newSpeed;
-    }
-
-    public void SetMount(bool newVal)
-    {
-        Mount = newVal;
-    }
-
-    public void SetGrounding(bool newVal)
-    {
-        IsGrounded = newVal;
-    }
-
-    public void SetMoving(bool newVal)
-    {
-        IsMoving = newVal;
-    }
+    // Health Passthrough
+    public void SetMaxHealth(float newMax, bool clampCurrent = true) => UnitHealth.SetMaxHealth(newMax, clampCurrent);
+    public void Damage(float amount) => UnitHealth.Damage(amount);
+    public void Heal(float amount) => UnitHealth.Heal(amount);
+    public void Kill() => UnitHealth.Kill();
     
 }

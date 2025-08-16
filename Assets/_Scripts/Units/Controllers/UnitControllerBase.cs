@@ -1,7 +1,7 @@
 using UnityEngine;
 using Data;
 
-public abstract class UnitController : MonoBehaviour, IUpdateObserver
+public abstract class UnitControllerBase : MonoBehaviour, IUpdateObserver
 {
     [Header("Controller Dependencies")]
     [SerializeField] public IInputProvider input;
@@ -59,7 +59,6 @@ public abstract class UnitController : MonoBehaviour, IUpdateObserver
         unitModel.SetMoving(input.MoveInput.sqrMagnitude > 0.01f); // Adjust for ai
 
         motor.SetMoveDirection(input.MoveInput); // add logic for handling different move insturctions
-
 
         motor.Tick(Time.deltaTime);
     }

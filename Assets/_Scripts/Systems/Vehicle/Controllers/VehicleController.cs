@@ -320,7 +320,7 @@ public class VehicleController : MonoBehaviour, IFixedUpdateObserver
     {
         // Check if driver is null, if so set driver as DriverObject
         vehicleModel.SetDriver(driver);
-        vehicleModel.SetDriverController(vehicleModel.DriverObject.GetComponent<UnitController>());
+        vehicleModel.SetDriverController(vehicleModel.DriverObject.GetComponent<UnitControllerBase>());
 
         vehicleModel.DriverController.OnMount();
 
