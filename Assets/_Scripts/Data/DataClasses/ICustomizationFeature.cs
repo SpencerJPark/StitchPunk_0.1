@@ -3,42 +3,167 @@ using Data;
 public interface ICustomizationFeature
 {
     // Called once when the unit spawns / visuals are ready
-    void Apply(RiveAnimator anim, IUnitRole? role);
+    RiveAnimator Anim { get; }
+    string FeatureID { get; }
+    void Initialize(RiveAnimator Anim);
+    string Create(string target, IUnitRole? role);
+    void ApplyEnum(string target, string value);
+    void ApplyNumber(string target, float value);
 }
 
-public class HairFeature : ICustomizationFeature
+
+public abstract class CustomizationFeature : ICustomizationFeature
 {
-    public void Apply(RiveAnimator anim, IUnitRole? role)
+    private RiveAnimator Anim;
+    public abstract string FeatureID;
+
+    public virtual void Initialize(RiveAnimator riveAnimator)
     {
-        // Call to logic for random weighted value selection based on role data
+        Anim = riveAnimator;
+    }
 
-        // Set values in Rive
-        anim.SetEnum("HairType", );
-        anim.SetNumber("NoseCurve", 20);
+    public virtual void ApplyEnum(string target, string value)
+    {
+        Anim.SetEnum(target, value);
+    }
 
-        // if logic
-        anim.SetEnum("FacialHair")
+    public virtual void ApplyNumber(string target, float value)
+    {
+        Anim.SetNumber(target, value);
+    }
+
+    public abstract string Create(string target, IUnitRole? role);
+
+}
+
+
+public class MaleHairFeature : CustomizationFeature
+{
+    public string FeatureID = "MaleHairFeature";
+    // private HairType hairType; // Only male
+    // private HairColor hairColor;
+    // private FacialHairType facialHairType;
+
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
+
+}
+
+public class FemaleHairFeature : CustomizationFeature
+{
+    public string FeatureID = "FemaleHairFeature";
+    // private HairType hairType; // Only female
+    // private HairColor hairColor;
+
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
+
+}
+
+public class PlayerHairFeature : CustomizationFeature
+{
+    public string FeatureID = "PlayerHairFeature";
+    // private HairType hairType; // All hair options
+    // private HairColor hairColor; // more color options
+
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
+
+}
+
+
+public class EyewareFeature : CustomizationFeature
+{
+    public string FeatureID = "EyewareFeature";
+    // private EyewareType eyewareType;
+
+    public string Create(string target, IUnitRole? role)
+    {
+
     }
 }
 
-public class FacialHairFeature : ICustomizationFeature
-{
 
+public class HatFeature : CustomizationFeature
+{
+    public string FeatureID = "HatFeature";
+    // private HatType hatType;
+    // private HatColor hatColor;
+
+    public string Create(string target, IUnitRole? role)
+    {
+        
+    }
 }
 
-public class HeadShapeFeature : ICustomizationFeature
+
+public class MaleOutfitFeature : CustomizationFeature
 {
-    float NoseCurve;
-    float NoseWidth;
-    float NoseLength;
-    float ChinLength;
-    float ChinWidth;
+    public string FeatureID = "MaleOutfitFeature";
+
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
 }
 
 
-public class ShoeFeature : ICustomizationFeature
+public class FemaleOutfitFeature : CustomizationFeature
 {
+    public string FeatureID = "MaleOutfitFeature";
 
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
+}
+
+
+public class FleshworkOutfitFeature : CustomizationFeature
+{
+    public string FeatureID = "MaleOutfitFeature";
+    // Outfit color
+    // Hat type or other customization
+
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
+}
+
+
+public class HeadShapeFeature : CustomizationFeature
+{
+    public string FeatureID = "HeadShapeFeature";
+    // NoseCurve;
+    // NoseWidth;
+    // NoseLength;
+    // ChinLength;
+    // ChinWidth;
+
+    public string Create(string target, IUnitRole? role)
+    {
+        // random value between 0-100
+    }
+}
+
+
+public class ShoeFeature : CustomizationFeature
+{
+    public string FeatureID = "ShoeFeature";
+    // Type
+    // Color
+
+    public string Create(string target, IUnitRole? role)
+    {
+
+    }
 }
 
 

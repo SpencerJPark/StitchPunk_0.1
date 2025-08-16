@@ -13,6 +13,7 @@ public abstract class UnitControllerBase : MonoBehaviour, IUpdateObserver
 
     [Header("View Dependencies")]
     [SerializeField] protected RiveAnimator riveAnimator;
+    // FeatureFactory Ref (manipulate values)
 
 
     [Header("Model Dependencies")]

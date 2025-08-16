@@ -35,11 +35,8 @@ public abstract class UnitModel : IUnitDataModel
 
 
     // Appearance
-    public virtual HairType HairType { get; protected set; } = HairType.Buzzed;
-    public virtual HairColor HairColor { get; protected set; } = HairColor.Black;
-    public virtual EyewareType Eyeware { get; protected set; } = EyewareType.None;
-    public virtual HatType Hat { get; protected set; } = HatType.None;
-    public virtual SkinColor SkinColor { get; protected set; } = SkinColor.White;
+    // Factory Results
+    // Schema (values)
 
 
     // Runtime State
@@ -59,6 +56,11 @@ public abstract class UnitModel : IUnitDataModel
     public void SetMount(bool newVal) => Mount = newVal;
     public void SetGrounding(bool newVal) => IsGrounded = newVal;
     public void SetMoving(bool newVal) => IsMoving = newVal;
+
+
+    // Abstract Design Setters
+    public abstract void CreateDesign();
+    public abstract void ApplyDesign();
 
 
     // Health Passthrough
