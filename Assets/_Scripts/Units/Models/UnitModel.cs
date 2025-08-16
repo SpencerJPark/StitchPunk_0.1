@@ -11,6 +11,8 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
         this.currentState = baseData.DefaultState;
 
         UnitHealth = new Health(baseData.MaxHealth);
+
+        CreateDesignProfile();
     }
 
     // Immutable References
@@ -34,9 +36,15 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
     public virtual AnimationDirectionType DirectionType => MovementData.directionType;
 
 
+    // Role
+    public virtual UnitRoleFactory RoleFactory => baseData.RoleFactory;
+
+
     // Appearance
-    // Factory Ref
+    public virtual UnitDesignFactory DesignFactory => baseData.DesignFactory;
     public virtual UnitDesignProfile DesignProfile { get; protected set; }
+
+
     public virtual string HairType { get; protected set; }
     public virtual string HairColor { get; protected set; }
     public virtual string FacialHairColor { get; protected set; }
@@ -61,13 +69,12 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
     public void SetMount(bool newVal) => Mount = newVal;
     public void SetGrounding(bool newVal) => IsGrounded = newVal;
     public void SetMoving(bool newVal) => IsMoving = newVal;
-    
 
 
     // Abstract Design Setters
+    public void CreateDesignProfile() => DesignProfile = DesignFactory.BuildProfile();
     public abstract void CreateDesign();
     public abstract void ApplyDesign();
-
 
 
     // Health Passthrough
@@ -75,5 +82,4 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
     public void Damage(float amount) => UnitHealth.Damage(amount);
     public void Heal(float amount) => UnitHealth.Heal(amount);
     public void Kill() => UnitHealth.Kill();
-    
 }
