@@ -56,7 +56,7 @@ public class VehicleModel : IVehicleDataModel
     public Vector3 Position { get; protected set; }
 
     public GameObject DriverObject { get; protected set; }
-    public UnitControllerBase DriverController { get; protected set; }
+    public UnitController DriverController { get; protected set; }
 
 
     public virtual void SetActive(bool newActive)
@@ -94,7 +94,7 @@ public class VehicleModel : IVehicleDataModel
         DriverObject = newDriver;
     }
 
-    public virtual void SetDriverController(UnitControllerBase newController)
+    public virtual void SetDriverController(UnitController newController)
     {
         DriverController = newController;
     }

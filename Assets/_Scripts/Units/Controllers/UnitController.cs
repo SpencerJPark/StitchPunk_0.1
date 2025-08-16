@@ -1,7 +1,7 @@
 using UnityEngine;
 using Data;
 
-public abstract class UnitControllerBase : MonoBehaviour, IUpdateObserver
+public class UnitController : MonoBehaviour, IUpdateObserver
 {
     [Header("Controller Dependencies")]
     [SerializeField] public IInputProvider input;
@@ -17,26 +17,18 @@ public abstract class UnitControllerBase : MonoBehaviour, IUpdateObserver
 
 
     [Header("Model Dependencies")]
+    [SerializeField] protected UnitModel unitModel;
     [SerializeField] protected UnitData unitData;
 
     [Header("Optional")]
      [SerializeField] protected UnitStateData currentState;
-
-    protected UnitModel unitModel;
-
-    // ───────────────────────────────────────────────────────────────
-    // Override this in subclasses to supply the correct data instance
-    protected abstract UnitModel CreateUnitModel();
-    // ───────────────────────────────────────────────────────────────
 
 
     // Will swith to Initialize
     protected virtual void Awake()
     {
         // Build your data model here
-        unitModel = CreateUnitModel();
-        if (unitModel == null)
-            Debug.LogError($"{name} failed to CreateUnitModel()");
+        unitModel.Build(unitData);
 
         // Setup Motor using unit data
         motor.Build(unitModel.MovementData);

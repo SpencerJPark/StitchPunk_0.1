@@ -1,11 +1,11 @@
 using UnityEngine;
 using Data;
 
-public abstract class UnitModel : IUnitDataModel
+public abstract class UnitModel : MonoBehaviour, IUnitDataModel
 {
     protected UnitData baseData;
 
-    public UnitModel(UnitData baseData)
+    public void Build(UnitData baseData)
     {
         this.baseData = baseData;
         this.currentState = baseData.DefaultState;
@@ -35,8 +35,13 @@ public abstract class UnitModel : IUnitDataModel
 
 
     // Appearance
-    // Factory Results
-    // Schema (values)
+    // Factory Ref
+    public virtual UnitDesignProfile DesignProfile { get; protected set; }
+    public virtual string HairType { get; protected set; }
+    public virtual string HairColor { get; protected set; }
+    public virtual string FacialHairColor { get; protected set; }
+    public virtual string SkinColor { get; protected set; }
+    public virtual string Outfit { get; protected set; }
 
 
     // Runtime State
@@ -56,11 +61,13 @@ public abstract class UnitModel : IUnitDataModel
     public void SetMount(bool newVal) => Mount = newVal;
     public void SetGrounding(bool newVal) => IsGrounded = newVal;
     public void SetMoving(bool newVal) => IsMoving = newVal;
+    
 
 
     // Abstract Design Setters
     public abstract void CreateDesign();
     public abstract void ApplyDesign();
+
 
 
     // Health Passthrough

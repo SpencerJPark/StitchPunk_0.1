@@ -4,7 +4,7 @@ using UnityEngine;
 public class CCMotor : UnitMotorBase
 {
     [SerializeField] private CharacterController cc;
-    [SerializeField] private UnitMovementData data;
+    private UnitMovementData data;
 
     // cached ref
     float Speed => data ? data.moveSpeed : 3f;

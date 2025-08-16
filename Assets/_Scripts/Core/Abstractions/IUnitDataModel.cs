@@ -19,13 +19,7 @@ public interface IUnitDataModel
     AnimationDirectionType DirectionType { get; }
 
     // Design Info
-    HairType HairType { get; }
-    HairColor HairColor { get; }
-    EyewareType Eyeware { get; }
-    HatType Hat { get; }
-    // HatColor
-    SkinColor SkinColor { get; }
-
+    UnitDesignProfile DesignProfile { get; }
 
     // Runtime States
     Vector3 Position { get; }

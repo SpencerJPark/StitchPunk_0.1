@@ -1,172 +1,147 @@
+#nullable enable
+using System;
 using Data;
 
 public interface ICustomizationFeature
 {
-    // Called once when the unit spawns / visuals are ready
     RiveAnimator Anim { get; }
     string FeatureID { get; }
-    void Initialize(RiveAnimator Anim);
+    void Initialize(RiveAnimator anim);
     string Create(string target, IUnitRole? role);
     void ApplyEnum(string target, string value);
     void ApplyNumber(string target, float value);
 }
 
-
 public abstract class CustomizationFeature : ICustomizationFeature
 {
-    private RiveAnimator Anim;
-    public abstract string FeatureID;
+    // Non-null per interface; suppress init warning and enforce via Initialize()
+    public RiveAnimator Anim { get; private set; } = null!;
 
-    public virtual void Initialize(RiveAnimator riveAnimator)
+    public abstract string FeatureID { get; }
+
+    public virtual void Initialize(RiveAnimator anim)
     {
-        Anim = riveAnimator;
+        Anim = anim ?? throw new ArgumentNullException(nameof(anim));
+    }
+
+    protected void EnsureInitialized()
+    {
+        if (Anim == null)
+            throw new InvalidOperationException($"{GetType().Name} not initialized. Call Initialize() first.");
     }
 
     public virtual void ApplyEnum(string target, string value)
     {
+        EnsureInitialized();
         Anim.SetEnum(target, value);
     }
 
     public virtual void ApplyNumber(string target, float value)
     {
+        EnsureInitialized();
         Anim.SetNumber(target, value);
     }
 
     public abstract string Create(string target, IUnitRole? role);
-
 }
-
 
 public class MaleHairFeature : CustomizationFeature
 {
-    public string FeatureID = "MaleHairFeature";
-    // private HairType hairType; // Only male
-    // private HairColor hairColor;
-    // private FacialHairType facialHairType;
+    public override string FeatureID => "MaleHairFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        // TODO: implement
+        return target;
     }
-
 }
 
 public class FemaleHairFeature : CustomizationFeature
 {
-    public string FeatureID = "FemaleHairFeature";
-    // private HairType hairType; // Only female
-    // private HairColor hairColor;
+    public override string FeatureID => "FemaleHairFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
-
 }
 
 public class PlayerHairFeature : CustomizationFeature
 {
-    public string FeatureID = "PlayerHairFeature";
-    // private HairType hairType; // All hair options
-    // private HairColor hairColor; // more color options
+    public override string FeatureID => "PlayerHairFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
-
 }
-
 
 public class EyewareFeature : CustomizationFeature
 {
-    public string FeatureID = "EyewareFeature";
-    // private EyewareType eyewareType;
+    public override string FeatureID => "EyewareFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
 }
-
 
 public class HatFeature : CustomizationFeature
 {
-    public string FeatureID = "HatFeature";
-    // private HatType hatType;
-    // private HatColor hatColor;
+    public override string FeatureID => "HatFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-        
+        return target;
     }
 }
-
 
 public class MaleOutfitFeature : CustomizationFeature
 {
-    public string FeatureID = "MaleOutfitFeature";
+    public override string FeatureID => "MaleOutfitFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
 }
-
 
 public class FemaleOutfitFeature : CustomizationFeature
 {
-    public string FeatureID = "MaleOutfitFeature";
+    public override string FeatureID => "FemaleOutfitFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
 }
-
 
 public class FleshworkOutfitFeature : CustomizationFeature
 {
-    public string FeatureID = "MaleOutfitFeature";
-    // Outfit color
-    // Hat type or other customization
+    public override string FeatureID => "FleshworkOutfitFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
 }
-
 
 public class HeadShapeFeature : CustomizationFeature
 {
-    public string FeatureID = "HeadShapeFeature";
-    // NoseCurve;
-    // NoseWidth;
-    // NoseLength;
-    // ChinLength;
-    // ChinWidth;
+    public override string FeatureID => "HeadShapeFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-        // random value between 0-100
+        return target;
     }
 }
-
 
 public class ShoeFeature : CustomizationFeature
 {
-    public string FeatureID = "ShoeFeature";
-    // Type
-    // Color
+    public override string FeatureID => "ShoeFeature";
 
-    public string Create(string target, IUnitRole? role)
+    public override string Create(string target, IUnitRole? role)
     {
-
+        return target;
     }
 }
-
-
-
-
-
