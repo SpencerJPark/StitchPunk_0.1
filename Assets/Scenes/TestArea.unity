@@ -788,7 +788,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   agent: {fileID: 552899715}
   data: {fileID: 0}
-  useKinematicMove: 0
 --- !u!1001 &610227560
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -7,6 +7,7 @@ public class UnitData : ScriptableObject
     
     [field: SerializeField] public int MaxHealth { get; private set; }
     public UnitMovementData MovementData;
+    public UnitDesignProfile DesignProfile;
 
     [Header("Default State")]
     public UnitStateData DefaultState;
