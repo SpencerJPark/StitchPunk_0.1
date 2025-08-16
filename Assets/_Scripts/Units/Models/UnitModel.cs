@@ -22,22 +22,22 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
 
     // State
     protected UnitStateData currentState;
-    public virtual ActionType IdleAnimation => currentState.IdleAnimation;
-    public virtual ActionType WalkAnimation => currentState.WalkAnimation;
-    public virtual ActionType TalkAnimation => currentState.TalkAnimation;
+    [RuntimeWatch] public virtual ActionType IdleAnimation => currentState.IdleAnimation;
+    [RuntimeWatch] public virtual ActionType WalkAnimation => currentState.WalkAnimation;
+    [RuntimeWatch] public virtual ActionType TalkAnimation => currentState.TalkAnimation;
 
 
     // Health
-    public virtual Health UnitHealth { get; protected set; }
+    [RuntimeWatch] public virtual Health UnitHealth { get; protected set; }
 
 
     // Movement Config (pass-through to MovementData)
     public virtual UnitMovementData MovementData => baseData.MovementData;
-    public virtual AnimationDirectionType DirectionType => MovementData.directionType;
+    [RuntimeWatch] public virtual AnimationDirectionType DirectionType => MovementData.directionType;
 
 
     // Role
-    public virtual UnitRoleFactory RoleFactory => baseData.RoleFactory;
+    //public virtual UnitRoleFactory RoleFactory => baseData.RoleFactory;
 
 
     // Appearance
@@ -45,20 +45,20 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
     public virtual UnitDesignProfile DesignProfile { get; protected set; }
 
 
-    public virtual string HairType { get; protected set; }
-    public virtual string HairColor { get; protected set; }
-    public virtual string FacialHairColor { get; protected set; }
-    public virtual string SkinColor { get; protected set; }
-    public virtual string Outfit { get; protected set; }
+    [RuntimeWatch] public virtual string HairType { get; protected set; }
+    [RuntimeWatch] public virtual string HairColor { get; protected set; }
+    [RuntimeWatch] public virtual string FacialHairColor { get; protected set; }
+    [RuntimeWatch] public virtual string SkinColor { get; protected set; }
+    [RuntimeWatch] public virtual string Outfit { get; protected set; }
 
 
     // Runtime State
-    public virtual Vector3 Position { get; protected set; }
-    public virtual Direction CurrentDirection { get; protected set; }
+    [RuntimeWatch] public virtual Vector3 Position { get; protected set; }
+    [RuntimeWatch] public virtual Direction CurrentDirection { get; protected set; }
     public virtual bool IsMoving { get; protected set; }
     public virtual bool IsGrounded { get; protected set; }
     public virtual float FallSpeed { get; protected set; }
-    public virtual bool Mount { get; protected set; }
+    [RuntimeWatch] public virtual bool Mount { get; protected set; }
 
 
     // Setters
