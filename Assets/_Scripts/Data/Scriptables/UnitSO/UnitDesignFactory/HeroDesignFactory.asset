@@ -9,11 +9,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b91ceb548275aba4dad2f16ce9648c4c, type: 3}
-  m_Name: New Character Customization Data
+  m_Script: {fileID: 11500000, guid: 9b5acdff6bfa0414d90e06d11f1843dc, type: 3}
+  m_Name: HeroDesignFactory
   m_EditorClassIdentifier: 
-  hats: 0
-  eyeware: 0
-  hairColor: 0
-  hairType: 2
-  skinColor: 0

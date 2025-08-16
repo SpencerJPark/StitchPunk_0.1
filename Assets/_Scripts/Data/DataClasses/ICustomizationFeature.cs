@@ -45,6 +45,7 @@ public abstract class CustomizationFeature : ICustomizationFeature
     public abstract string Create(string target, IUnitRole? role);
 }
 
+[Serializable]
 public class MaleHairFeature : CustomizationFeature
 {
     public override string FeatureID => "MaleHairFeature";
@@ -56,6 +57,7 @@ public class MaleHairFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class FemaleHairFeature : CustomizationFeature
 {
     public override string FeatureID => "FemaleHairFeature";
@@ -66,6 +68,7 @@ public class FemaleHairFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class PlayerHairFeature : CustomizationFeature
 {
     public override string FeatureID => "PlayerHairFeature";
@@ -76,6 +79,18 @@ public class PlayerHairFeature : CustomizationFeature
     }
 }
 
+[Serializable]
+public class SkinColorFeature : CustomizationFeature
+{
+    public override string FeatureID => "SkinColorFeature";
+
+    public override string Create(string target, IUnitRole? role)
+    {
+        return target;
+    }
+}
+
+[Serializable]
 public class EyewareFeature : CustomizationFeature
 {
     public override string FeatureID => "EyewareFeature";
@@ -86,6 +101,7 @@ public class EyewareFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class HatFeature : CustomizationFeature
 {
     public override string FeatureID => "HatFeature";
@@ -96,6 +112,7 @@ public class HatFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class MaleOutfitFeature : CustomizationFeature
 {
     public override string FeatureID => "MaleOutfitFeature";
@@ -116,6 +133,7 @@ public class FemaleOutfitFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class FleshworkOutfitFeature : CustomizationFeature
 {
     public override string FeatureID => "FleshworkOutfitFeature";
@@ -126,6 +144,7 @@ public class FleshworkOutfitFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class HeadShapeFeature : CustomizationFeature
 {
     public override string FeatureID => "HeadShapeFeature";
@@ -136,6 +155,7 @@ public class HeadShapeFeature : CustomizationFeature
     }
 }
 
+[Serializable]
 public class ShoeFeature : CustomizationFeature
 {
     public override string FeatureID => "ShoeFeature";
