@@ -1,10 +1,14 @@
 using UnityEngine;
 using Data;
 
+[RequireComponent(typeof(UnitMotorBase))]
 public class UnitController : MonoBehaviour, IUpdateObserver
 {
-    [Header("Controller Dependencies")]
-    [SerializeField] public IInputProvider input;
+    [Header("Input Source")]
+    [SerializeField] protected bool player = false;
+    [SerializeField] protected Brain brain;
+
+    private IInputProvider input;
 
 
     [Header("Motor (plug in CCMotor or AgentMotor)")]
@@ -21,19 +25,27 @@ public class UnitController : MonoBehaviour, IUpdateObserver
     [SerializeField] protected UnitData unitData;
 
     [Header("Optional")]
-     [SerializeField] protected UnitStateData currentState;
+    [SerializeField] protected UnitStateData currentState;
 
 
     // Will swith to Initialize
     protected virtual void Awake()
     {
-        // Build your data model here
-        unitModel.Build(unitData);
+        ResolveInput();
+        unitModel.Initialize(unitData);
+        motor.Initialize(unitModel.MovementData);
+    }
 
-        // Setup Motor using unit data
-        motor.Build(unitModel.MovementData);
-    } 
-    
+    private void ResolveInput()
+    {
+        input = player
+            ? PlayerInputHandler.Instance
+            : brain as IInputProvider;
+
+        if (input == null)
+            Debug.LogError($"{name}: Failed to resolve input provider.");
+    }
+
     void OnEnable() => UpdateManager.RegisterObserver(this);
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
@@ -57,14 +69,14 @@ public class UnitController : MonoBehaviour, IUpdateObserver
     }
 
 
-// Action Updates
+    // Action Updates
     protected virtual void HandleAction()
     {
         // uses action information for timing, action type, and if it is a trigger or other action
     }
 
 
-// Animation Updates
+    // Animation Updates
     private void HandleAnimation()
     {
         // Handle Action animation first if needed
@@ -89,7 +101,7 @@ public class UnitController : MonoBehaviour, IUpdateObserver
         {
             unitModel.SetDirection(newDirection);
         }
-        
+
 
         riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
@@ -120,7 +132,7 @@ public class UnitController : MonoBehaviour, IUpdateObserver
     // Paticle System
 
 
-// Object Interactions
+    // Object Interactions
     public void OnMount()
     {
         UpdateActionAnimation(ActionType.Sit);
@@ -132,10 +144,11 @@ public class UnitController : MonoBehaviour, IUpdateObserver
     {
         UpdateActionAnimation(unitModel.IdleAnimation);
         unitModel.SetMount(false);
+        motor.Go();
     }
 
 
-// Customization
+    // Customization
     protected void ApplyCustomization()
     {
         //if (DesignData != null)

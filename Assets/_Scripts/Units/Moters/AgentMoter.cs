@@ -17,7 +17,7 @@ public class AgentMotor : UnitMotorBase
 
     void Reset() => agent = GetComponent<NavMeshAgent>();
 
-    public override void Build(UnitMovementData movementData)
+    public override void Initialize(UnitMovementData movementData)
     {
         data = movementData;
 
@@ -29,7 +29,7 @@ public class AgentMotor : UnitMotorBase
         lastPos = transform.position;
     }
 
-     public override void SetDestination(Vector3 worldPosition)
+    public override void SetDestination(Vector3 worldPosition)
     {
         if (!agent) return;
         agent.isStopped = false;
@@ -45,7 +45,8 @@ public class AgentMotor : UnitMotorBase
         // Direction for anim (planar, normalized)
         Vector3 planarVel = new Vector3(agent.velocity.x, 0f, agent.velocity.z);
         if (planarVel.sqrMagnitude > 1e-6f) MovementVector = planarVel.normalized;
-        else {
+        else
+        {
             Vector3 want = new Vector3(agent.desiredVelocity.x, 0f, agent.desiredVelocity.z);
             MovementVector = want.sqrMagnitude > 1e-6f ? want.normalized : Vector3.zero;
         }
@@ -55,6 +56,14 @@ public class AgentMotor : UnitMotorBase
     {
         if (!agent) return;
         agent.isStopped = true;
+        agent.ResetPath();
+        MovementVector = Vector3.zero;
+    }
+    
+    public override void Go()
+    {
+        if (!agent) return;
+        agent.isStopped = false;
         agent.ResetPath();
         MovementVector = Vector3.zero;
     }

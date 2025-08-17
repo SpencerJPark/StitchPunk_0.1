@@ -6,7 +6,7 @@ public interface IUnitMotor
     /// Normalized planar direction (y=0) for anim; zero if idle
     Vector3 MovementVector { get; }
 
-    void Build(UnitMovementData movementData);
+    void Initialize(UnitMovementData movementData);
 
     // Directional intent (world XZ). Used by CCMotor/Rigidbody motors.
     void SetMoveDirection(Vector3 worldDirectionXZ);
@@ -17,5 +17,6 @@ public interface IUnitMotor
     // Advance motor (or grab Time.deltaTime internally if you prefer)
     void Tick(float dt);
     void Halt();
+    void Go();
 }
 

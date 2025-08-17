@@ -5,7 +5,7 @@ public abstract class UnitModel : MonoBehaviour, IUnitDataModel
 {
     protected UnitData baseData;
 
-    public void Build(UnitData baseData)
+    public void Initialize(UnitData baseData)
     {
         this.baseData = baseData;
         this.currentState = baseData.DefaultState;

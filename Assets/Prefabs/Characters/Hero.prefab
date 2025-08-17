@@ -115,6 +115,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72216af57aebd2d42b6a0a2164fdea4e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: 1
+  brain: {fileID: 0}
   motor: {fileID: 1528014124740203110}
   riveAnimator: {fileID: 3566570639237875709}
   unitModel: {fileID: 2844716562479880763}
@@ -148,7 +150,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cc: {fileID: 4662493781791061324}
-  data: {fileID: 11400000, guid: 5dc5a7ceda039524390c0faca5003e81, type: 2}
 --- !u!143 &4662493781791061324
 CharacterController:
   m_ObjectHideFlags: 0

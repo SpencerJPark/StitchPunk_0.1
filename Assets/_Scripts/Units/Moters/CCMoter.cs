@@ -24,7 +24,7 @@ public class CCMotor : UnitMotorBase
 
     void Reset() => cc = GetComponent<CharacterController>();
 
-    public override void Build(UnitMovementData movementData) => data = movementData;
+    public override void Initialize(UnitMovementData movementData) => data = movementData;
 
     public override void SetMoveDirection(Vector3 worldDirectionXZ)
     {
@@ -59,6 +59,12 @@ public class CCMotor : UnitMotorBase
         fallSpeed = 0f;
         moveInput = Vector2.zero;
         MovementVector = Vector3.zero;
+        cc.enabled = false;
+    }
+
+    public override void Go()
+    {
+        cc.enabled = true;
     }
 
     bool CheckGrounded()
