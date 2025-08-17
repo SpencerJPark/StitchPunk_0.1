@@ -80,6 +80,17 @@ public class PlayerHairFeature : CustomizationFeature
 }
 
 [Serializable]
+public class HairColorFeature : CustomizationFeature
+{
+    public override string FeatureID => "PlayerHairFeature";
+
+    public override string Create(string target, IUnitRole? role)
+    {
+        return target;
+    }
+}
+
+[Serializable]
 public class SkinColorFeature : CustomizationFeature
 {
     public override string FeatureID => "SkinColorFeature";
@@ -103,6 +114,17 @@ public class EyewareFeature : CustomizationFeature
 
 [Serializable]
 public class HatFeature : CustomizationFeature
+{
+    public override string FeatureID => "HatFeature";
+
+    public override string Create(string target, IUnitRole? role)
+    {
+        return target;
+    }
+}
+
+[Serializable]
+public class HatColorFeature : CustomizationFeature
 {
     public override string FeatureID => "HatFeature";
 

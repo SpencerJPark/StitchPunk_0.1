@@ -9,6 +9,9 @@ public class HeroDesignFactory : UnitDesignFactory
     {
         SetScheme(
             new PlayerHairFeature(),   // gives access to all hair
+            new HairColorFeature(),
+            new HatFeature(),
+            new HatColorFeature(),
             new EyewareFeature(),
             new SkinColorFeature()
         );
