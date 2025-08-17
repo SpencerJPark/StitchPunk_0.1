@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using Data;
 
@@ -7,7 +6,7 @@ public interface ICustomizationFeature
     RiveAnimator Anim { get; }
     string FeatureID { get; }
     void Initialize(RiveAnimator anim);
-    string Create(string target, IUnitRole? role);
+    string Create();
     void ApplyEnum(string target, string value);
     void ApplyNumber(string target, float value);
 }
@@ -42,7 +41,7 @@ public abstract class CustomizationFeature : ICustomizationFeature
         Anim.SetNumber(target, value);
     }
 
-    public abstract string Create(string target, IUnitRole? role);
+    public abstract string Create();
 }
 
 [Serializable]
@@ -50,10 +49,10 @@ public class MaleHairFeature : CustomizationFeature
 {
     public override string FeatureID => "MaleHairFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
         // TODO: implement
-        return target;
+        return "";
     }
 }
 
@@ -62,9 +61,9 @@ public class FemaleHairFeature : CustomizationFeature
 {
     public override string FeatureID => "FemaleHairFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "";
     }
 }
 
@@ -73,9 +72,9 @@ public class PlayerHairFeature : CustomizationFeature
 {
     public override string FeatureID => "PlayerHairFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -84,9 +83,9 @@ public class HairColorFeature : CustomizationFeature
 {
     public override string FeatureID => "PlayerHairFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -95,9 +94,9 @@ public class SkinColorFeature : CustomizationFeature
 {
     public override string FeatureID => "SkinColorFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -106,9 +105,9 @@ public class EyewareFeature : CustomizationFeature
 {
     public override string FeatureID => "EyewareFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -117,9 +116,9 @@ public class HatFeature : CustomizationFeature
 {
     public override string FeatureID => "HatFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -128,9 +127,9 @@ public class HatColorFeature : CustomizationFeature
 {
     public override string FeatureID => "HatFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -139,9 +138,9 @@ public class MaleOutfitFeature : CustomizationFeature
 {
     public override string FeatureID => "MaleOutfitFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -149,9 +148,9 @@ public class FemaleOutfitFeature : CustomizationFeature
 {
     public override string FeatureID => "FemaleOutfitFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -160,9 +159,9 @@ public class FleshworkOutfitFeature : CustomizationFeature
 {
     public override string FeatureID => "FleshworkOutfitFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -171,9 +170,9 @@ public class HeadShapeFeature : CustomizationFeature
 {
     public override string FeatureID => "HeadShapeFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }
 
@@ -182,8 +181,8 @@ public class ShoeFeature : CustomizationFeature
 {
     public override string FeatureID => "ShoeFeature";
 
-    public override string Create(string target, IUnitRole? role)
+    public override string Create()
     {
-        return target;
+        return "target";
     }
 }

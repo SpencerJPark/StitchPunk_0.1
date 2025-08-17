@@ -1,4 +1,3 @@
-#nullable enable
 using UnityEngine;
 using System;
 using Data;
@@ -10,14 +9,14 @@ public class UnitDesignProfile
 
     public void Initialize(RiveAnimator anim)
     {
-        foreach (var f in features)
-            f?.Initialize(anim);
+        foreach (var feature in features)
+            feature?.Initialize(anim);
     }
 
-    public string Create(string featureID, string target, IUnitRole? role)
+    public string Create(string featureID)
     {
-        if (TryFindFeature(featureID, out var f))
-            return f.Create(target, role);
+        if (TryFindFeature(featureID, out var feature))
+            return feature.Create();
 
         Debug.LogWarning($"[UnitDesignProfile.Create] FeatureID '{featureID}' not found.");
         return string.Empty;
@@ -25,7 +24,7 @@ public class UnitDesignProfile
 
     public void Apply(string featureID, string target, string value, bool isNumber = false)
     {
-        if (!TryFindFeature(featureID, out var f))
+        if (!TryFindFeature(featureID, out var feature))
         {
             Debug.LogWarning($"[UnitDesignProfile.Apply] FeatureID '{featureID}' not found.");
             return;
@@ -34,28 +33,28 @@ public class UnitDesignProfile
         if (isNumber)
         {
             if (float.TryParse(value, out float num))
-                f.ApplyNumber(target, num);
+                feature.ApplyNumber(target, num);
             else
                 Debug.LogWarning($"[Apply] Could not parse '{value}' as float for target '{target}' (FeatureID='{featureID}').");
         }
         else
         {
-            f.ApplyEnum(target, value);
+            feature.ApplyEnum(target, value);
         }
     }
 
     // Helper avoids nullable returns; no CS8603
-    private bool TryFindFeature(string featureID, out CustomizationFeature feature)
+    private bool TryFindFeature(string featureID, out CustomizationFeature customizationFeature)
     {
-        foreach (var f in features)
+        foreach (var feature in features)
         {
-            if (f != null && string.Equals(f.FeatureID, featureID, StringComparison.Ordinal))
+            if (feature != null && string.Equals(feature.FeatureID, featureID, StringComparison.Ordinal))
             {
-                feature = f;
+                customizationFeature = feature;
                 return true;
             }
         }
-        feature = null!; // safe: only used when method returns false
+        customizationFeature = null!; // safe: only used when method returns false
         return false;
     }
 }
