@@ -1738,6 +1738,7 @@ GameObject:
   - component: {fileID: 776853103052774478}
   - component: {fileID: 3299783111394073637}
   - component: {fileID: 861908872262999057}
+  - component: {fileID: 581495768949463109}
   m_Layer: 0
   m_Name: Caravan
   m_TagString: Vehicle
@@ -1824,7 +1825,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rb: {fileID: 3299783111394073637}
-  mainCamera: {fileID: 0}
   driverSeatAnchor: {fileID: 8923705560840500474}
   horseQuad: {fileID: 3942219430862374319}
   doorZones: []
@@ -1832,6 +1832,21 @@ MonoBehaviour:
   vehicleShakerAnimator: {fileID: 595485307451974953}
   vehicleWheelAnimator: {fileID: 2173302499082780453}
   vehicleData: {fileID: 11400000, guid: 27e2c50b467d82c449915ac41a02dbb7, type: 2}
+--- !u!114 &581495768949463109
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4320109915508575037}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e92b2e305586515439019e6b72d7424f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  obstacleRadius: 0.74
+  team: 0
+  rb: {fileID: 3299783111394073637}
 --- !u!1 &4450904372252791348
 GameObject:
   m_ObjectHideFlags: 0

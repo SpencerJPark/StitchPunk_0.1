@@ -13,7 +13,8 @@ public sealed class PathService : MonoBehaviour
     [SerializeField] float cacheCellSize = 1.0f;    // quantize end points
     [SerializeField] float cacheTTL = 1.0f;         // seconds
 
-    struct Request {
+    struct Request
+    {
         public Vector3 start, end;
         public int areaMask;
         public Action<PathResult> onComplete;

@@ -18,8 +18,8 @@ TagManager:
   - Water
   - UI
   - Outline
-  - GroundWalkable
-  - Skewed
+  - Ground
+  - Obsticle
   - 
   - Player
   - Unit

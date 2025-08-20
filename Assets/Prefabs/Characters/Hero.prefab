@@ -116,7 +116,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: 1
-  brain: {fileID: 0}
+  inputBase: {fileID: 0}
   motor: {fileID: 1528014124740203110}
   riveAnimator: {fileID: 3566570639237875709}
   unitModel: {fileID: 2844716562479880763}
@@ -352,13 +352,12 @@ MonoBehaviour:
   m_pointerInputMode: 1
   m_initialRivePanel: {fileID: 7045768873980396643}
   m_objectRenderer: {fileID: 7606910828104541663}
-  m_textureAssignmentMode: 1
+  m_textureAssignmentMode: 0
   m_visibilityOptimization: 0
   m_materialPropertyNameData:
     m_keys: 00000000
     m_values:
-    - m_propertyNames:
-      - _BaseRive
+    - m_propertyNames: []
 --- !u!114 &3950894617048501231
 MonoBehaviour:
   m_ObjectHideFlags: 0
