@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Data;
 
-public class PlayerInputHandler : PersistentSingleton<PlayerInputHandler>, IInputProvider
+public class PlayerInputHandler : PersistentSingleton<PlayerInputHandler>,  IInputProvider
 {
     Vector2 _moveInput;
     bool    _actionFired;

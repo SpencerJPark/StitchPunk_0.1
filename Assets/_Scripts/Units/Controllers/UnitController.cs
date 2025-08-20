@@ -5,53 +5,109 @@ using Data;
 public class UnitController : MonoBehaviour, IUpdateObserver
 {
     [Header("Input Source")]
-    [SerializeField] protected bool player = false;
-    [SerializeField] protected Brain brain;
+    [Tooltip("If true, reads from PlayerInputHandler.Instance (must implement IInputProvider).")]
+    [SerializeField] private bool player = false;
 
-    private IInputProvider input;
+    [Tooltip("Optional: explicit on-foot input provider for NPCs (e.g., PathInputProvider, AIBrainInputProvider).")]
+    [SerializeField] private InputProviderBase inputBase;   // concrete base
+
+    private IInputProvider input;                           // interface the controller uses
 
 
     [Header("Motor (plug in CCMotor or AgentMotor)")]
-    [SerializeField] UnitMotorBase motor;
+    [SerializeField] private UnitMotorBase motor;
 
 
     [Header("View Dependencies")]
-    [SerializeField] protected RiveAnimator riveAnimator;
-    // FeatureFactory Ref (manipulate values)
+    [SerializeField] private RiveAnimator riveAnimator;
 
 
     [Header("Model Dependencies")]
-    [SerializeField] protected UnitModel unitModel;
-    [SerializeField] protected UnitData unitData;
+    [SerializeField] private UnitModel unitModel;
+    [SerializeField] private UnitData  unitData;
 
     [Header("Optional")]
-    [SerializeField] protected UnitStateData currentState;
+    [SerializeField] private UnitStateData currentState;
 
 
-    // Will swith to Initialize
+    // -------------------- LIFECYCLE --------------------
     protected virtual void Awake()
     {
         ResolveInput();
-        unitModel.Initialize(unitData);
-        motor.Initialize(unitModel.MovementData);
+        ResolveMotor();
+
+        if (unitModel == null) Debug.LogError($"{name}: UnitModel not assigned.");
+        if (unitData  == null) Debug.LogError($"{name}: UnitData not assigned.");
+
+        unitModel?.Initialize(unitData);
+        motor?.Initialize(unitModel.MovementData);
+    }
+
+    private void ResolveMotor()
+    {
+        if (motor == null)
+        {
+            motor = GetComponent<UnitMotorBase>();
+            if (motor == null)
+                Debug.LogError($"{name}: No UnitMotorBase found.");
+        }
     }
 
     private void ResolveInput()
     {
-        input = player
-            ? PlayerInputHandler.Instance
-            : brain as IInputProvider;
+        // Priority: Player → assigned InputBase → local component
+        if (player)
+        {
+            if (PlayerInputHandler.Instance == null)
+            {
+                Debug.LogError($"{name}: PlayerInputHandler.Instance is null.");
+                input = null;
+                return;
+            }
+
+            input = PlayerInputHandler.Instance; // must implement IInputProvider
+            inputBase = null; // player path uses handler, ignore serialized base
+        }
+        else
+        {
+            if (inputBase == null)
+                inputBase = GetComponent<InputProviderBase>(); // auto-pick sibling if present
+
+            if (inputBase == null)
+            {
+                Debug.LogError($"{name}: No InputProviderBase assigned/found for NPC.");
+                input = null;
+                return;
+            }
+
+            // InputBase implements the interface contract
+            input = (IInputProvider)inputBase;
+        }
 
         if (input == null)
-            Debug.LogError($"{name}: Failed to resolve input provider.");
+            Debug.LogError($"{name}: Failed to resolve IInputProvider.");
     }
 
-    void OnEnable() => UpdateManager.RegisterObserver(this);
+    /// <summary>
+    /// Hot-swap the input provider at runtime (e.g., enter/exit vehicle).
+    /// Pass an InputProviderBase that implements IInputProvider.
+    /// </summary>
+    public void SetInputProvider(InputProviderBase newProvider, bool isPlayer = false)
+    {
+        player = isPlayer;
+        inputBase = newProvider;
+        input = null; // force rebind
+        ResolveInput();
+    }
+
+    void OnEnable()  => UpdateManager.RegisterObserver(this);
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
 
+    // -------------------- UPDATE LOOP --------------------
     public void ObservedUpdate()
     {
+        if (unitModel == null || motor == null || input == null) return;
         if (unitModel.Mount) return;
 
         HandleMovement();
@@ -61,47 +117,41 @@ public class UnitController : MonoBehaviour, IUpdateObserver
 
     protected virtual void HandleMovement()
     {
-        unitModel.SetMoving(input.MoveInput.sqrMagnitude > 0.01f); // Adjust for ai
+        // Input is 2D (x,z) from IInputProvider.MoveInput
+        Vector2 move2D = input.MoveInput;
+        unitModel.SetMoving(move2D.sqrMagnitude > 0.01f);
 
-        motor.SetMoveDirection(input.MoveInput); // add logic for handling different move insturctions
-
+        motor.SetMoveDirection(move2D);   // your motor interprets this
         motor.Tick(Time.deltaTime);
     }
 
-
-    // Action Updates
+    // Action Updates (extend as needed)
     protected virtual void HandleAction()
     {
-        // uses action information for timing, action type, and if it is a trigger or other action
+        // Example edge-trigger reads:
+        // if (input.ActionFired)   { ... }
+        // if (input.InteractFired) { ... }
     }
 
-
-    // Animation Updates
+    // -------------------- ANIMATION --------------------
     private void HandleAnimation()
     {
-        // Handle Action animation first if needed
+        if (riveAnimator == null || unitModel == null) return;
 
         UpdateMovementAnimation();
 
         if (unitModel.IsMoving)
-        {
             UpdateFacing(motor.MovementVector);
-        }
     }
-
 
     public void UpdateFacing(Vector3 moveVect)
     {
-        if (riveAnimator == null)
-            return;
+        if (riveAnimator == null || unitModel == null) return;
 
         Direction newDirection = DirectionUtil.GetWorldRelativeDirection(moveVect, unitModel.DirectionType);
 
         if (newDirection != unitModel.CurrentDirection)
-        {
             unitModel.SetDirection(newDirection);
-        }
-
 
         riveAnimator.SetEnum("Direction", unitModel.CurrentDirection.ToString());
     }
@@ -112,27 +162,16 @@ public class UnitController : MonoBehaviour, IUpdateObserver
         riveAnimator.SetEnum("Actions", animState.ToString());
     }
 
-    public virtual void ApplyState(UnitStateData state)
-    {
-        currentState = state;
-    }
+    // -------------------- STATE/APIs --------------------
+    public virtual void ApplyState(UnitStateData state) => currentState = state;
 
     public virtual void UpdateActionAnimation(ActionType action)
-    {
-        // Add a bool and Timer
-        riveAnimator.SetEnum("Actions", action.ToString());
-    }
+        => riveAnimator?.SetEnum("Actions", action.ToString());
 
     protected virtual void FireTriggerAnimation(TriggerType trigger)
-    {
-        // Add a bool and Timer
-        riveAnimator.Trigger(trigger.ToString());
-    }
+        => riveAnimator?.Trigger(trigger.ToString());
 
-    // Paticle System
-
-
-    // Object Interactions
+    // -------------------- MOUNT / DISMOUNT --------------------
     public void OnMount()
     {
         UpdateActionAnimation(ActionType.Sit);
@@ -147,15 +186,11 @@ public class UnitController : MonoBehaviour, IUpdateObserver
         motor.Go();
     }
 
-
-    // Customization
-    protected void ApplyCustomization()
+#if UNITY_EDITOR
+    void OnValidate()
     {
-        //if (DesignData != null)
-        {
-            // Set data in model
-        }
-
-        // Customization for npcs will be based on assigned jobs
+        if (motor == null) motor = GetComponent<UnitMotorBase>();
+        if (!player && inputBase == null) inputBase = GetComponent<InputProviderBase>();
     }
+#endif
 }

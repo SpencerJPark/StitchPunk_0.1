@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <UnitName>k__BackingField: MaleNPC
   <MaxHealth>k__BackingField: 90
-  MovementData: {fileID: 11400000, guid: 5dc5a7ceda039524390c0faca5003e81, type: 2}
-  DefaultState: {fileID: 11400000, guid: 804d5c244650b494fb6c2fcda1ea079a, type: 2}
+  MovementData: {fileID: 11400000, guid: 8e802e4d9573be248b60363ef244aad8, type: 2}
+  DesignFactory: {fileID: 11400000, guid: 1335ab2ef1bc55e438ec8553a65fcd58, type: 2}
+  DefaultState: {fileID: 11400000, guid: 9c9e5e6e4ece1da418091cf15959db9b, type: 2}
