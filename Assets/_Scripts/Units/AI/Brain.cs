@@ -1,69 +1,31 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 [RequireComponent(typeof(UnitController))]
-public class Brain : MonoBehaviour, IInputProvider
+public class Brain : InputProviderBase, IUpdateObserver
 {
-    // [Header("Brain Settings")]
-    // //[SerializeField] private List<Trait> traits;
-    // //[SerializeField] private NeedSet needs;
-    // //[SerializeField] private Schedule schedule;
-    // [SerializeField] private UnitController controller;
+    // AI Components
+    [SerializeField] private PathfindingComponent pathfinding;
 
-    // //private ISignalProvider currentTarget;
-
-
-    // // IInputProvider implementation
-    public Vector2 MoveInput { get; }
-    public Vector2 SteerInput { get; private set; }
+    // IInputProvider implementation
+    public Vector2 MoveInput => pathfinding != null ? pathfinding.CurrentMoveInput : Vector2.zero;
+    public Vector2 SteerInput { get; private set; }   // can later be filled with vehicle steering logic
     public bool ExitVehicleFired => false;
     public bool InteractFired => false;
     public bool ActionFired => false;
 
-    // void Update()
-    // {
-    //     if (EvaluateNeedsAndPickTarget(out Vector3 moveDir))
-    //     {
-    //         SteerInput = new Vector2(moveDir.x, moveDir.z).normalized;
-    //     }
-    //     else
-    //     {
-    //         SteerInput = Vector2.zero;
-    //     }
-    // }
+    void OnEnable()  => UpdateManager.RegisterObserver(this);
+    void OnDisable() => UpdateManager.UnregisterObserver(this);
 
-    // private bool EvaluateNeedsAndPickTarget(out Vector3 moveDirection)
-    // {
-    //     // 1. Evaluate current state
-    //     var signals = SignalRegistry.Instance.GetNearbySignals(transform.position);
+    public void ObservedUpdate()
+    {
+        // Decision logic will go here later.
+        // For now, just let pathfinding update itself each frame.
+        pathfinding?.TickUpdate();
+    }
 
-    //     // 2. Score best signal to pursue
-    //     ISignalProvider best = null;
-    //     float bestScore = float.MinValue;
-
-    //     foreach (var s in signals)
-    //     {
-    //         float urgency = needs.GetUrgency(s.Type);
-    //         float score = s.SatisfactionValue * urgency * s.PriorityModifier;
-
-    //         if (score > bestScore)
-    //         {
-    //             bestScore = score;
-    //             best = s;
-    //         }
-    //     }
-
-    //     currentTarget = best;
-
-    //     // 3. Set movement if target exists
-    //     if (currentTarget != null)
-    //     {
-    //         Vector3 dir = (currentTarget.Position - transform.position);
-    //         moveDirection = dir.normalized;
-    //         return true;
-    //     }
-
-    //     moveDirection = Vector3.zero;
-    //     return false;
-    // }
+    public void SetDestination(Vector3 pos)
+    {
+        if (pathfinding != null)
+            pathfinding.SetDestination(pos);
+    }
 }

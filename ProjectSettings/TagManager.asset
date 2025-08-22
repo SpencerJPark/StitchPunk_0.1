@@ -10,11 +10,12 @@ TagManager:
   - Object
   - TriggerZone
   - CharacterQuad
+  - Outline
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Systems
   - Water
   - UI
   - Outline

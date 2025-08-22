@@ -19,8 +19,13 @@ public sealed class PathService : MonoBehaviour
         public int areaMask;
         public Action<PathResult> onComplete;
     }
+    
+    // Simple registry for separation (all live providers)
+    private static readonly List<PathfindingComponent> AllAgents = new(capacity: 256);
 
-    struct CacheKey : IEquatable<CacheKey> {
+
+    struct CacheKey : IEquatable<CacheKey>
+    {
         public Vector3 endQ; public int areaMask;
         public bool Equals(CacheKey other) => endQ == other.endQ && areaMask == other.areaMask;
         public override int GetHashCode() => endQ.GetHashCode() ^ areaMask.GetHashCode();

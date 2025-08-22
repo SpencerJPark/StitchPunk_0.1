@@ -3,7 +3,7 @@ using UnityEngine;
 public class DebugClickToMove : MonoBehaviour
 {
     public Camera cam;
-    public PathInputProvider target;
+    public Brain target;
     void Awake() { if (!cam) cam = Camera.main; }
     void Update()
     {
@@ -15,7 +15,7 @@ public class DebugClickToMove : MonoBehaviour
                 var pos = hit.point;
                 if (UnityEngine.AI.NavMesh.SamplePosition(pos, out var nh, 2f, UnityEngine.AI.NavMesh.AllAreas))
                     pos = nh.position;
-                target.outputSpace = MoveSpace.WorldXZ;      // << match CCMotor
+                //target.outputSpace = MoveSpace.WorldXZ;      // << match CCMotor
                 target.SetDestination(pos);
             }
         }

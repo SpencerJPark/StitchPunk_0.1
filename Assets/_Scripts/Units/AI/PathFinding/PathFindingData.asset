@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 213bed6b92c6cd846b5cef2444c5e940, type: 3}
+  m_Name: PathFindingData
+  m_EditorClassIdentifier: 
+  repathIntervalSeconds: 0.5
+  cornerProximityThreshold: 0.25
+  softStoppingDistance: 0.5
+  navMeshAreaMask: -1
+  enableSimpleSteering: 1
+  hardStopOnEnter: 1
+  goalAcceptanceRadius: 0.6
+  arrivalCooldownSeconds: 0.35
+  softArriveRadius: 0.45
+  softSlowRadius: 1.2
+  softArriveHoldSeconds: 0.15
+  samplePositionsToNavMesh: 1
+  sampleMaxDistance: 1.5
+  steeringObstacleMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  steeringProbeLength: 0.6
+  moveSmoothingSeconds: 0.15
+  inputDeadzone: 0.05
+  segmentLookaheadDistance: 0.6
+  enableSeparation: 1
+  separationGroupId: 0
+  separationRadius: 1.25
+  separationStrength: 1
+  separationMaxNudge: 0.7
+  separationSmoothingSeconds: 0.08
+  separationMaxNeighbors: 16
+  enableSharedGoalSlotting: 1
+  firstRingSlotCount: 6
+  firstRingRadius: 0.7
+  ringSpacing: 0.6
+  goalQuantizationMeters: 0.5
+  wallProbeDistance: 0.9
+  wallFeelerAngle: 30
+  wallAvoidStrength: 1
+  minClearance: 0.45
+  solidLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  clearanceSlowFactor: 0.5
+  clearanceAngleTries: 3
+  clearanceAngleStep: 15
