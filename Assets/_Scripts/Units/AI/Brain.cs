@@ -7,17 +7,18 @@ public class Brain : InputProviderBase, IUpdateObserver
     [SerializeField] private PathfindingComponent pathfinding;
 
     // IInputProvider implementation
-    public Vector2 MoveInput => pathfinding != null ? pathfinding.CurrentMoveInput : Vector2.zero;
-    public Vector2 SteerInput { get; private set; }   // can later be filled with vehicle steering logic
-    public bool ExitVehicleFired => false;
-    public bool InteractFired => false;
-    public bool ActionFired => false;
+    public override Vector2 MoveInput => pathfinding.CurrentMoveInput;
+    public  Vector2 SteerInput { get; private set; }   // can later be filled with vehicle steering logic
+    public override bool ExitVehicleFired => false;
+    public override bool InteractFired => false;
+    public override bool ActionFired => false;
 
     void OnEnable()  => UpdateManager.RegisterObserver(this);
     void OnDisable() => UpdateManager.UnregisterObserver(this);
 
     public void ObservedUpdate()
     {
+        
         // Decision logic will go here later.
         // For now, just let pathfinding update itself each frame.
         pathfinding?.TickUpdate();
@@ -27,5 +28,7 @@ public class Brain : InputProviderBase, IUpdateObserver
     {
         if (pathfinding != null)
             pathfinding.SetDestination(pos);
+        else
+            Debug.LogError("Brain is missing PathfindingComponent!");
     }
 }

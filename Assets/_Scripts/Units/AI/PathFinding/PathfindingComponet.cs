@@ -1,13 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-/// <summary>
-/// Handles navigation/path-following for a single unit.
-/// Path requests are handled by PathService to allow caching & throttling.
-/// LocalAvoidanceManager injects separation/wall nudges.
-/// </summary>
 [System.Serializable]
-public class PathfindingComponent
+public class PathfindingComponent : MonoBehaviour
 {
     private Vector3[] corners = System.Array.Empty<Vector3>();
     private int currentCornerIndex;
@@ -15,15 +10,15 @@ public class PathfindingComponent
 
     private Vector3 accumulatedAvoidance = Vector3.zero;
 
-    public Vector2 CurrentMoveInput { get; private set; } = Vector2.zero;
+    public Vector2 CurrentMoveInput { get; private set; }
 
-    public PathfindingComponent(Transform ownerTransform)
+    private void Awake()
     {
-        owner = ownerTransform;
+        owner = transform;   // make sure we use Unity's transform
         Register();
     }
 
-    ~PathfindingComponent()
+    private void OnDestroy()
     {
         Unregister();
     }
@@ -54,6 +49,7 @@ public class PathfindingComponent
         var start = owner.position;
         int areaMask = NavMesh.AllAreas;
 
+        Debug.Log($"[Pathfinding] Requesting path from {start} to {targetPosition}");
         PathService.Instance.RequestPath(start, targetPosition, areaMask, OnPathReady);
     }
 
@@ -61,14 +57,21 @@ public class PathfindingComponent
     {
         if (result.IsValid)
         {
+            Debug.Log($"[Pathfinding] Got path with {result.Corners.Length} corners");
             corners = result.Corners;
             currentCornerIndex = 0;
         }
         else
         {
+            Debug.LogWarning("[Pathfinding] Path invalid!");
             corners = System.Array.Empty<Vector3>();
             currentCornerIndex = 0;
         }
+    }
+
+    private void Update()
+    {
+        TickUpdate();
     }
 
     public void TickUpdate()
@@ -79,22 +82,20 @@ public class PathfindingComponent
             return;
         }
 
-        // get current target corner
         Vector3 worldTarget = corners[currentCornerIndex];
         Vector3 planarDir = (worldTarget - owner.position);
         planarDir.y = 0f;
 
-        // advance corner if close
-        if (planarDir.magnitude < 0.25f)
+        float dist = planarDir.magnitude;
+        if (dist < 0.25f)
         {
+            Debug.Log($"[Pathfinding] Reached corner {currentCornerIndex}, dist {dist}");
             currentCornerIndex++;
             CurrentMoveInput = Vector2.zero;
             return;
         }
 
         planarDir.Normalize();
-
-        // apply avoidance nudges
         Vector3 finalWorldDir = planarDir + accumulatedAvoidance;
         finalWorldDir.y = 0f;
 
@@ -103,22 +104,15 @@ public class PathfindingComponent
 
         CurrentMoveInput = new Vector2(finalWorldDir.x, finalWorldDir.z);
 
-        // clear nudges for next frame
+        //Debug.Log($"[Pathfinding] CurrentMoveInput = {CurrentMoveInput}");
+
         accumulatedAvoidance = Vector3.zero;
     }
+
     #endregion
 
     #region Called by LocalAvoidanceManager
-    public void AddAvoidanceNudge(Vector3 nudge)
-    {
-        accumulatedAvoidance += nudge;
-    }
-
-    public void ClearAvoidanceNudge()
-    {
-        accumulatedAvoidance = Vector3.zero;
-    }
-
-    public Transform transform => owner;
+    public void AddAvoidanceNudge(Vector3 nudge) => accumulatedAvoidance += nudge;
+    public void ClearAvoidanceNudge() => accumulatedAvoidance = Vector3.zero;
     #endregion
 }

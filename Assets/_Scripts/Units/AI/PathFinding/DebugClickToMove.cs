@@ -1,21 +1,28 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 public class DebugClickToMove : MonoBehaviour
 {
-    public Camera cam;
-    public Brain target;
-    void Awake() { if (!cam) cam = Camera.main; }
+    [SerializeField] private Camera cam;
+    [SerializeField] private Brain target;
+
+    void Awake()
+    {
+        if (!cam) cam = Camera.main;
+        if (!target) target = FindObjectOfType<Brain>(); // fallback
+    }
+
     void Update()
     {
         if (Input.GetMouseButtonDown(0) && cam && target)
         {
             var ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit, 200f))
+            if (Physics.Raycast(ray, out RaycastHit hit, 200f))
             {
-                var pos = hit.point;
-                if (UnityEngine.AI.NavMesh.SamplePosition(pos, out var nh, 2f, UnityEngine.AI.NavMesh.AllAreas))
+                Vector3 pos = hit.point;
+                if (NavMesh.SamplePosition(pos, out NavMeshHit nh, 2f, NavMesh.AllAreas))
                     pos = nh.position;
-                //target.outputSpace = MoveSpace.WorldXZ;      // << match CCMotor
+
                 target.SetDestination(pos);
             }
         }
