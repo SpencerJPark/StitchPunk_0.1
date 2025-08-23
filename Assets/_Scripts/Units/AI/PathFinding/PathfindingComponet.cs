@@ -1,121 +1,95 @@
+// PathfindingComponent.cs
 using UnityEngine;
 using UnityEngine.AI;
 
-[System.Serializable]
 public class PathfindingComponent : MonoBehaviour
 {
     [SerializeField] private PathSystem pathSystem;
-    [SerializeField] private LocalAvoidanceSystem localAvoidanceSystem;
+    [SerializeField] private int areaMask = NavMesh.AllAreas;
+    [SerializeField] private float cornerReachedRadius = 0.3f;
+    [SerializeField] private float waypointRefreshInterval = 0.25f;
 
-    private Vector3[] corners = System.Array.Empty<Vector3>();
-    private int currentCornerIndex;
     private Transform owner;
+    private Vector3 currentGoal;
+    private bool hasGoal;
 
+    private Vector3 currentWaypoint;
+    private float nextRefreshTime;
+
+    // Local avoidance accumulation
     private Vector3 accumulatedAvoidance = Vector3.zero;
 
     public Vector2 CurrentMoveInput { get; private set; }
 
-    private void Awake()
+    private void Awake() { owner = transform; }
+
+    public void SetDestination(Vector3 worldGoal)
     {
-        owner = transform;   // make sure we use Unity's transform
-        Register();
+        // ✅ Use explicit NavMeshHit, not `out var`
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(worldGoal, out hit, 1.5f, areaMask))
+            worldGoal = hit.position;
+
+        currentGoal = worldGoal;
+        hasGoal = true;
+        nextRefreshTime = 0f; // force refresh now
     }
 
-    private void OnDestroy()
+    public void ClearDestination()
     {
-        Unregister();
+        hasGoal = false;
+        CurrentMoveInput = Vector2.zero;
     }
 
-    #region Registration
-    private void Register()
+    public void Tick()
     {
-        if (localAvoidanceSystem != null)
-            localAvoidanceSystem.Register(this);
-    }
-
-    private void Unregister()
-    {
-        if (localAvoidanceSystem != null)
-            localAvoidanceSystem.Unregister(this);
-    }
-    #endregion
-
-    #region Public API
-    public void SetDestination(Vector3 targetPosition)
-    {
-        if (pathSystem == null)
-        {
-            Debug.LogWarning("No PathSystem ref, cannot request path.");
-            return;
-        }
-
-        var start = owner.position;
-        int areaMask = NavMesh.AllAreas;
-
-        Debug.Log($"[Pathfinding] Requesting path from {start} to {targetPosition}");
-        pathSystem.RequestPath(start, targetPosition, areaMask, OnPathReady);
-    }
-
-    private void OnPathReady(PathResult result)
-    {
-        if (result.IsValid)
-        {
-            Debug.Log($"[Pathfinding] Got path with {result.Corners.Length} corners");
-            corners = result.Corners;
-            currentCornerIndex = 0;
-        }
-        else
-        {
-            Debug.LogWarning("[Pathfinding] Path invalid!");
-            corners = System.Array.Empty<Vector3>();
-            currentCornerIndex = 0;
-        }
-    }
-
-    private void Update()
-    {
-        TickUpdate();
-    }
-
-    public void TickUpdate()
-    {
-        if (corners == null || corners.Length == 0 || currentCornerIndex >= corners.Length)
+        if (!hasGoal || pathSystem == null)
         {
             CurrentMoveInput = Vector2.zero;
             return;
         }
 
-        Vector3 worldTarget = corners[currentCornerIndex];
-        Vector3 planarDir = (worldTarget - owner.position);
-        planarDir.y = 0f;
-
-        float dist = planarDir.magnitude;
-        if (dist < 0.25f)
+        // Refresh/advance waypoint
+        if (Time.time >= nextRefreshTime || Vector3.Distance(owner.position, currentWaypoint) <= cornerReachedRadius)
         {
-            Debug.Log($"[Pathfinding] Reached corner {currentCornerIndex}, dist {dist}");
-            currentCornerIndex++;
+            // ✅ Use the new synchronous helper (no callbacks, no Action<> confusion)
+            if (pathSystem.TryGetFirstWaypoint(owner.position, currentGoal, areaMask, out var wp))
+            {
+                currentWaypoint = wp;
+                nextRefreshTime = Time.time + waypointRefreshInterval;
+            }
+            else
+            {
+                // No path: stop
+                CurrentMoveInput = Vector2.zero;
+                return;
+            }
+        }
+
+        // Move toward waypoint (+ local avoidance)
+        Vector3 toWp = currentWaypoint - owner.position;
+        toWp.y = 0f;
+
+        if (toWp.sqrMagnitude < 1e-6f)
+        {
             CurrentMoveInput = Vector2.zero;
             return;
         }
 
-        planarDir.Normalize();
-        Vector3 finalWorldDir = planarDir + accumulatedAvoidance;
-        finalWorldDir.y = 0f;
+        toWp.Normalize();
 
-        if (finalWorldDir.sqrMagnitude > 1f)
-            finalWorldDir.Normalize();
+        // ✅ Apply any nudge from LocalAvoidanceManager
+        Vector3 finalDir = toWp + accumulatedAvoidance;
+        finalDir.y = 0f;
+        if (finalDir.sqrMagnitude > 1f) finalDir.Normalize();
 
-        CurrentMoveInput = new Vector2(finalWorldDir.x, finalWorldDir.z);
+        CurrentMoveInput = new Vector2(finalDir.x, finalDir.z);
 
-        //Debug.Log($"[Pathfinding] CurrentMoveInput = {CurrentMoveInput}");
-
+        // ✅ Clear nudges for next frame
         accumulatedAvoidance = Vector3.zero;
     }
 
-    #endregion
-
-    #region Called by localAvoidanceSystem
+    // ===== Called by LocalAvoidanceManager =====
     public void AddAvoidanceNudge(Vector3 nudge) => accumulatedAvoidance += nudge;
-    public void ClearAvoidanceNudge() => accumulatedAvoidance = Vector3.zero;
-    #endregion
+    public void ClearAvoidanceNudge()           => accumulatedAvoidance  = Vector3.zero;
 }

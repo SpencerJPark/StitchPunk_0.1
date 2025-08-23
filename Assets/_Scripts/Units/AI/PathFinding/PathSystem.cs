@@ -1,16 +1,22 @@
-// PathService.cs
+// Assets/_Scripts/ScriptableSystems/PathSystem.cs
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.SceneManagement;
 
 [CreateAssetMenu(fileName = "Path System", menuName = "Scriptable Systems/Path System")]
 public sealed class PathSystem : ScriptableSystem
 {
     [Header("Perf")]
-    [SerializeField] int maxRequestsPerFrame = 16;
-    [SerializeField] float cacheCellSize = 1.0f;    // quantize end points
-    [SerializeField] float cacheTTL = 1.0f;         // seconds
+    [SerializeField] private int maxRequestsPerFrame = 16;
+    [SerializeField] private float cacheCellSize = 1.0f;
+    [SerializeField] private float cacheTTL = 1.0f;
+
+    [Header("Graph (auto-rebuilt per scene)")]
+    [SerializeField] private NavMeshGraph navGraph = new();
+
+    public NavMeshGraph Graph => navGraph;
 
     struct Request
     {
@@ -18,10 +24,6 @@ public sealed class PathSystem : ScriptableSystem
         public int areaMask;
         public Action<PathResult> onComplete;
     }
-
-    // Simple registry for separation (all live providers)
-    private static readonly List<PathfindingComponent> AllAgents = new(capacity: 256);
-
 
     struct CacheKey : IEquatable<CacheKey>
     {
@@ -32,50 +34,129 @@ public sealed class PathSystem : ScriptableSystem
 
     class CacheVal { public float time; public Vector3[] corners; public NavMeshPathStatus status; }
 
-    Queue<Request> _queue = new();
-    Dictionary<CacheKey, CacheVal> _cache = new();
+    private readonly Queue<Request> queue = new();
+    private readonly Dictionary<CacheKey, CacheVal> cache = new();
 
+    // ---- ScriptableSystem lifecycle ----
+
+    public override void Initialize()
+    {
+        // subscribe to scene load and build immediately for the active scene
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        RebuildGraphForActiveScene();
+        LogGraph("Initialize");
+    }
+
+    public override void Shutdown()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    // Tick runs every scheduler tick (configure in your GameInitializer)
     public override void Tick()
     {
-        // prune cache
-        if (_cache.Count > 0)
-        {
-            float now = Time.time;
-            var toRemove = new List<CacheKey>();
-            foreach (var kv in _cache)
-                if (now - kv.Value.time > cacheTTL) toRemove.Add(kv.Key);
-            foreach (var k in toRemove) _cache.Remove(k);
-        }
+        PruneCache();
 
         int budget = maxRequestsPerFrame;
-        while (budget-- > 0 && _queue.Count > 0)
+        while (budget-- > 0 && queue.Count > 0)
         {
-            var req = _queue.Dequeue();
+            var req = queue.Dequeue();
 
-            // cache lookup by END only; start is handled by path following steering
-            var key = new CacheKey { endQ = Quantize(req.end, cacheCellSize), areaMask = req.areaMask };
-            if (_cache.TryGetValue(key, out var cached))
+            var key = new CacheKey
+            {
+                endQ = Quantize(req.end, cacheCellSize),
+                areaMask = req.areaMask
+            };
+
+            if (cache.TryGetValue(key, out var cached))
             {
                 req.onComplete?.Invoke(new PathResult(cached.status, cached.corners));
                 continue;
             }
 
             var path = new NavMeshPath();
-            bool ok = NavMesh.CalculatePath(req.start, req.end, req.areaMask, path);
+            NavMesh.CalculatePath(req.start, req.end, req.areaMask, path);
             var result = new PathResult(path.status, path.corners);
 
-            _cache[key] = new CacheVal { time = Time.time, status = path.status, corners = result.Corners };
+            cache[key] = new CacheVal
+            {
+                time = Time.unscaledTime,
+                status = path.status,
+                corners = result.Corners
+            };
+
             req.onComplete?.Invoke(result);
         }
     }
 
+    // ---- Public API ----
     public void RequestPath(Vector3 start, Vector3 end, int areaMask, Action<PathResult> onComplete)
+        => queue.Enqueue(new Request { start = start, end = end, areaMask = areaMask, onComplete = onComplete });
+
+    public void ForceRebuildGraph()
     {
-        _queue.Enqueue(new Request { start = start, end = end, areaMask = areaMask, onComplete = onComplete });
+        RebuildGraphForActiveScene();
+        LogGraph("ForceRebuildGraph");
     }
 
-    static Vector3 Quantize(Vector3 v, float cell)
+    
+    public bool TryGetFirstWaypoint(Vector3 start, Vector3 end, int areaMask, out Vector3 firstWaypoint)
+        {
+            firstWaypoint = default;
+
+            var path = new NavMeshPath();
+            if (!NavMesh.CalculatePath(start, end, areaMask, path)) return false;
+            if (path.status != NavMeshPathStatus.PathComplete || path.corners == null || path.corners.Length == 0)
+                return false;
+
+            // Usually corner[0] ~ start. If there’s a second corner, head there.
+            if (path.corners.Length >= 2)
+                firstWaypoint = path.corners[1];
+            else
+                firstWaypoint = path.corners[0];
+
+            return true;
+        }
+
+
+    // ---- Internals ----
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        RebuildGraphForActiveScene();
+        LogGraph($"OnSceneLoaded: {scene.name}");
+        // Optional: clear path cache on scene change
+        cache.Clear();
+    }
+
+    private void RebuildGraphForActiveScene()
+    {
+        var t0 = Time.realtimeSinceStartup;
+        navGraph.BuildFromNavMesh();
+        var ms = (Time.realtimeSinceStartup - t0) * 1000f;
+        Debug.Log($"[PathSystem] NavMeshGraph built (nodes={navGraph.Nodes.Count}, edges={navGraph.Edges.Count}) in {ms:0.00} ms (version {navGraph.Version}).");
+    }
+
+    private void LogGraph(string where)
+    {
+        Debug.Log($"[PathSystem] {where} → Graph version {navGraph.Version}, nodes={navGraph.Nodes.Count}, edges={navGraph.Edges.Count}");
+    }
+
+    private void PruneCache()
+    {
+        if (cache.Count == 0) return;
+        float now = Time.unscaledTime;
+        var remove = ListPool<CacheKey>.Get(); // small GC saver (see pool below)
+        foreach (var kv in cache)
+        {
+            if (now - kv.Value.time > cacheTTL) remove.Add(kv.Key);
+        }
+        foreach (var k in remove) cache.Remove(k);
+        ListPool<CacheKey>.Release(remove);
+    }
+
+    private static Vector3 Quantize(Vector3 v, float cell)
+    {
+        if (cell <= 0f) return v;
         float qx = Mathf.Round(v.x / cell) * cell;
         float qy = Mathf.Round(v.y / cell) * cell;
         float qz = Mathf.Round(v.z / cell) * cell;
@@ -83,9 +164,19 @@ public sealed class PathSystem : ScriptableSystem
     }
 }
 
-public readonly struct PathResult {
+public readonly struct PathResult
+{
     public readonly NavMeshPathStatus Status;
     public readonly Vector3[] Corners;
     public bool IsValid => Status == NavMeshPathStatus.PathComplete && Corners != null && Corners.Length > 0;
-    public PathResult(NavMeshPathStatus status, Vector3[] corners){ Status = status; Corners = corners ?? Array.Empty<Vector3>(); }
+    public PathResult(NavMeshPathStatus status, Vector3[] corners)
+    { Status = status; Corners = corners ?? Array.Empty<Vector3>(); }
+}
+
+/// <summary>Tiny list pool to avoid small GC spikes in cache pruning.</summary>
+static class ListPool<T>
+{
+    static readonly Stack<List<T>> Pool = new();
+    public static List<T> Get() => Pool.Count > 0 ? Pool.Pop() : new List<T>(8);
+    public static void Release(List<T> list) { list.Clear(); Pool.Push(list); }
 }

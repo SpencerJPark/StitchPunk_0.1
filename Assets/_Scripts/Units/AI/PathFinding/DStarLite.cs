@@ -202,7 +202,54 @@ namespace Pathfinding {
             lookups[goalNode] = key;
         }
         
-        public List<Node<T>> GetPath() {
+        public bool StepOnce()
+        {
+            // Return false when consistent or open empty
+            if (openSet.Count == 0) return false;
+            if (!(openSet.Min.Item1 < CalculateKey(startNode) || startNode.RHS > startNode.G)) return false;
+
+            var smallest = openSet.Min;
+            openSet.Remove(smallest);
+            lookups.Remove(smallest.Item2);
+            var node = smallest.Item2;
+
+            if (smallest.Item1 < CalculateKey(node))
+            {
+                var newKey = CalculateKey(node);
+                openSet.Add((newKey, node));
+                lookups[node] = newKey;
+            }
+            else if (node.G > node.RHS)
+            {
+                node.G = node.RHS;
+                foreach (var s in Predecessors(node))
+                {
+                    if (s != goalNode)
+                        s.RHS = Mathf.Min(s.RHS, s.Cost(s, node) + node.G);
+                    UpdateVertex(s);
+                }
+            }
+            else
+            {
+                float gOld = node.G;
+                node.G = float.MaxValue;
+                foreach (var s in Predecessors(node).Concat(new[] { node }))
+                {
+                    if ((s.RHS).Approx(s.Cost(s, node) + gOld))
+                    {
+                        if (s != goalNode) s.RHS = float.MaxValue;
+                        foreach (var sp in Successors(s))
+                            s.RHS = Mathf.Min(s.RHS, s.Cost(s, sp) + sp.G);
+                    }
+                    UpdateVertex(s);
+                }
+            }
+            return true;
+        }
+
+        
+        public List<Node<T>> GetPath()
+        {
             var path = new List<Node<T>> { startNode };
             // Implement your own path construction here using the calculated costs
             // Greedy best-first search, Dijkstra's, etc.

@@ -21,7 +21,7 @@ public class Brain : InputProviderBase, IUpdateObserver
         
         // Decision logic will go here later.
         // For now, just let pathfinding update itself each frame.
-        pathfinding?.TickUpdate();
+        pathfinding?.Tick();
     }
 
     public void SetDestination(Vector3 pos)
