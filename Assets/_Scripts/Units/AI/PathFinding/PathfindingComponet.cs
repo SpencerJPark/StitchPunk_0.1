@@ -4,6 +4,9 @@ using UnityEngine.AI;
 [System.Serializable]
 public class PathfindingComponent : MonoBehaviour
 {
+    [SerializeField] private PathSystem pathSystem;
+    [SerializeField] private LocalAvoidanceSystem localAvoidanceSystem;
+
     private Vector3[] corners = System.Array.Empty<Vector3>();
     private int currentCornerIndex;
     private Transform owner;
@@ -26,23 +29,23 @@ public class PathfindingComponent : MonoBehaviour
     #region Registration
     private void Register()
     {
-        if (LocalAvoidanceManager.Instance != null)
-            LocalAvoidanceManager.Instance.Register(this);
+        if (localAvoidanceSystem != null)
+            localAvoidanceSystem.Register(this);
     }
 
     private void Unregister()
     {
-        if (LocalAvoidanceManager.Instance != null)
-            LocalAvoidanceManager.Instance.Unregister(this);
+        if (localAvoidanceSystem != null)
+            localAvoidanceSystem.Unregister(this);
     }
     #endregion
 
     #region Public API
     public void SetDestination(Vector3 targetPosition)
     {
-        if (PathService.Instance == null)
+        if (pathSystem == null)
         {
-            Debug.LogWarning("No PathService in scene, cannot request path.");
+            Debug.LogWarning("No PathSystem ref, cannot request path.");
             return;
         }
 
@@ -50,7 +53,7 @@ public class PathfindingComponent : MonoBehaviour
         int areaMask = NavMesh.AllAreas;
 
         Debug.Log($"[Pathfinding] Requesting path from {start} to {targetPosition}");
-        PathService.Instance.RequestPath(start, targetPosition, areaMask, OnPathReady);
+        pathSystem.RequestPath(start, targetPosition, areaMask, OnPathReady);
     }
 
     private void OnPathReady(PathResult result)
@@ -111,7 +114,7 @@ public class PathfindingComponent : MonoBehaviour
 
     #endregion
 
-    #region Called by LocalAvoidanceManager
+    #region Called by localAvoidanceSystem
     public void AddAvoidanceNudge(Vector3 nudge) => accumulatedAvoidance += nudge;
     public void ClearAvoidanceNudge() => accumulatedAvoidance = Vector3.zero;
     #endregion

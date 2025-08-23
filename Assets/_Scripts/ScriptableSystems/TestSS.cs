@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "TestSS", menuName = "Scriptable Systems/Test SS", order = 1)]
+[CreateAssetMenu(fileName = "TestSS", menuName = "Scriptable Systems/Test SS")]
 public class TestSS : ScriptableSystem
 {
     public override void Initialize()

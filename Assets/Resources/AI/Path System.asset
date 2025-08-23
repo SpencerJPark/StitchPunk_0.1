@@ -9,6 +9,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4832ee8d2374ff348b91a2b0de741598, type: 3}
-  m_Name: TestSS 2
+  m_Script: {fileID: 11500000, guid: 64e9da38315e45c438f1545ff7b6b3aa, type: 3}
+  m_Name: Path System
   m_EditorClassIdentifier: 
+  tickMode: 2
+  tickRate: 1
+  initialDelay: 0
+  allowCatchUp: 1
+  maxCatchUpPerUpdate: 3
+  maxRequestsPerFrame: 16
+  cacheCellSize: 1
+  cacheTTL: 1

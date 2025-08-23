@@ -5,10 +5,11 @@ using UnityEngine;
 /// Central manager that handles local avoidance (separation + wall feelers) 
 /// for all registered PathInputProviders.
 /// </summary>
-public class LocalAvoidanceManager : MonoBehaviour
-{
-    public static LocalAvoidanceManager Instance { get; private set; }
+/// 
 
+[CreateAssetMenu(fileName = "Local Avoidance", menuName = "Scriptable Systems/Local Avoidance", order = 0)]
+public class LocalAvoidanceSystem : ScriptableSystem
+{
     // Tunables (can also be ScriptableObject-driven if you want)
     [Header("Separation Settings")]
     public float separationRadius = 1.0f;
@@ -23,16 +24,6 @@ public class LocalAvoidanceManager : MonoBehaviour
 
     private readonly List<PathfindingComponent> agents = new();
 
-    void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-    }
-
     public void Register(PathfindingComponent agent)
     {
         if (!agents.Contains(agent))
@@ -44,7 +35,7 @@ public class LocalAvoidanceManager : MonoBehaviour
         agents.Remove(agent);
     }
 
-    void Update()
+    public override void Tick()
     {
         // Clear from last frame
         foreach (var agent in agents)
