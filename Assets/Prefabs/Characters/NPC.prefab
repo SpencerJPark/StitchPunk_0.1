@@ -36,7 +36,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 700, y: 700}
+  m_SizeDelta: {x: 500, y: 500}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &8769679828312659634
 MonoBehaviour:
@@ -105,6 +105,7 @@ Transform:
   m_Children:
   - {fileID: 8472683179719426595}
   - {fileID: 7027830411985016968}
+  - {fileID: 7674970547635980865}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1168929286295218989
@@ -220,7 +221,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pathSystem: {fileID: 11400000, guid: a4aa1f261aca79b4fb4cf1e3765a0f08, type: 2}
-  localAvoidanceSystem: {fileID: 11400000, guid: f23fd99d805224745a07cbd4ec5746de, type: 2}
+  areaMask: -1
+  cornerReachedRadius: 0.3
+  waypointRefreshInterval: 0.25
 --- !u!114 &5022848169746290608
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -301,7 +304,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 6351b733fbd56274ca81329bf20575d5, type: 2}
+  - {fileID: 2100000, guid: 2f52c8d7599e86e4094f5c194f1ee5c8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -338,13 +341,12 @@ MonoBehaviour:
   m_pointerInputMode: 1
   m_initialRivePanel: {fileID: 5590962200022683252}
   m_objectRenderer: {fileID: 4442468662117500690}
-  m_textureAssignmentMode: 1
+  m_textureAssignmentMode: 0
   m_visibilityOptimization: 0
   m_materialPropertyNameData:
     m_keys: 00000000
     m_values:
-    - m_propertyNames:
-      - _BaseRive
+    - m_propertyNames: []
 --- !u!114 &6328690148858032855
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -357,6 +359,55 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 856beaa7dd6154640ad6d25707cbf07a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &7179236477997439440
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7674970547635980865}
+  - component: {fileID: 5480184153612486907}
+  m_Layer: 0
+  m_Name: Pooled Render Target Strategy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7674970547635980865
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7179236477997439440}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -4.75558, y: -6.795636, z: 3.2375946}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7338826261649629526}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5480184153612486907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7179236477997439440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3360aa709854e4363b38ea3b0fdc6353, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_drawTiming: 0
+  m_pooledTextureSize: {x: 1024, y: 1024}
+  m_initialPoolSize: 2
+  m_maxPoolSize: 60
+  m_poolOverflowBehavior: 0
 --- !u!1 &8384422867976201618
 GameObject:
   m_ObjectHideFlags: 0
@@ -417,7 +468,7 @@ MonoBehaviour:
   m_layoutScalingMode: 1
   m_fallbackDPI: 96
   m_referenceDPI: 150
-  m_hitTestBehavior: 0
+  m_hitTestBehavior: 3
   m_eventPoolingMode: 0
   m_speed: 1
   m_dataBindingMode: 0

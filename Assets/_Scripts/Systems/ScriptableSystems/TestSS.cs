@@ -1,15 +1,18 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "TestSS", menuName = "Scriptable Systems/Test SS")]
-public class TestSS : ScriptableSystem
+namespace ScriptableSystems
 {
-    public override void Initialize()
+    [CreateAssetMenu(fileName = "TestSS", menuName = "Scriptable Systems/Test SS")]
+    public class TestSS : ScriptableSystem
     {
-        Debug.Log("test run");
-    }
+        public override void Initialize()
+        {
+            Debug.Log("test run");
+        }
 
-    public override void Tick()
-    {
+        public override void Tick()
+        {
 
+        }
     }
 }

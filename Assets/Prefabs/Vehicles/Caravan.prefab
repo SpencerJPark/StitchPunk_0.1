@@ -98,7 +98,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f980c8c19ea824215be0686df1b90726, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_customRenderTargetStrategy: {fileID: 0}
+  m_customRenderTargetStrategy: {fileID: 8938543023450288321}
   m_updateMode: 0
   m_disableEditorPreview: 0
 --- !u!1 &450010067056024551
@@ -136,6 +136,7 @@ Transform:
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 560896813176150970}
+  - {fileID: 4222221686203555726}
   m_Father: {fileID: 6804667179820964279}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8354472962128971551
@@ -714,7 +715,7 @@ MonoBehaviour:
   m_layoutScalingMode: 1
   m_fallbackDPI: 96
   m_referenceDPI: 150
-  m_hitTestBehavior: 0
+  m_hitTestBehavior: 3
   m_eventPoolingMode: 0
   m_speed: 1
   m_dataBindingMode: 0
@@ -2003,6 +2004,55 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &5142069595085075705
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4222221686203555726}
+  - component: {fileID: 8938543023450288321}
+  m_Layer: 0
+  m_Name: Pooled Render Target Strategy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4222221686203555726
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5142069595085075705}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3942219430862374319}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8938543023450288321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5142069595085075705}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3360aa709854e4363b38ea3b0fdc6353, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_drawTiming: 0
+  m_pooledTextureSize: {x: 1024, y: 1024}
+  m_initialPoolSize: 2
+  m_maxPoolSize: 6
+  m_poolOverflowBehavior: 0
 --- !u!1 &5257588678769161901
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,43 +1,44 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
-[CreateAssetMenu(fileName = "System Bundle", menuName = "Scriptable Systems/System Bundle", order = 0)]
-public class SystemBundle : ScriptableSystem
+namespace ScriptableSystems
 {
-    [Header("Systems")]
-    [SerializeField] private List<ScriptableSystem> systems = new List<ScriptableSystem>();
-
-    public override void Initialize()
+    [CreateAssetMenu(fileName = "System Bundle", menuName = "Scriptable Systems/System Bundle", order = 0)]
+    public class SystemBundle : ScriptableSystem
     {
-        foreach (var system in systems)
+        [Header("Systems")]
+        [SerializeField] private List<ScriptableSystem> systems = new List<ScriptableSystem>();
+
+        public override void Initialize()
         {
-            if (system != null)
+            foreach (var system in systems)
             {
-                system.Initialize();
-                Debug.Log($"Initialized ScriptableSystem: {system.name}");
-            }
-            else
-            {
-                Debug.LogWarning($"{name} has a null ScriptableSystem reference in its list.");
+                if (system != null)
+                {
+                    system.Initialize();
+                    Debug.Log($"Initialized ScriptableSystem: {system.name}");
+                }
+                else
+                {
+                    Debug.LogWarning($"{name} has a null ScriptableSystem reference in its list.");
+                }
             }
         }
-    }
 
-    public override void Tick()
-    {
-        foreach (var system in systems)
+        public override void Tick()
         {
-            if (system != null)
+            foreach (var system in systems)
             {
-                system.Tick();
-                //Debug.Log($"Initialized ScriptableSystem: {system.name}");
-            }
-            else
-            {
-                Debug.LogWarning($"{name} has a null ScriptableSystem reference in its list.");
+                if (system != null)
+                {
+                    system.Tick();
+                    //Debug.Log($"Initialized ScriptableSystem: {system.name}");
+                }
+                else
+                {
+                    Debug.LogWarning($"{name} has a null ScriptableSystem reference in its list.");
+                }
             }
         }
     }
 }
-

@@ -1,29 +1,32 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class DebugClickToMove : MonoBehaviour
+namespace StitchPunk.AI
 {
-    [SerializeField] private Camera cam;
-    [SerializeField] private Brain target;
-
-    void Awake()
+    public class DebugClickToMove : MonoBehaviour
     {
-        if (!cam) cam = Camera.main;
-        if (!target) target = FindObjectOfType<Brain>(); // fallback
-    }
+        [SerializeField] private Camera cam;
+        [SerializeField] private Brain target;
 
-    void Update()
-    {
-        if (Input.GetMouseButtonDown(0) && cam && target)
+        void Awake()
         {
-            var ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit, 200f))
-            {
-                Vector3 pos = hit.point;
-                if (NavMesh.SamplePosition(pos, out NavMeshHit nh, 2f, NavMesh.AllAreas))
-                    pos = nh.position;
+            if (!cam) cam = Camera.main;
+            if (!target) target = FindObjectOfType<Brain>(); // fallback
+        }
 
-                target.SetDestination(pos);
+        void Update()
+        {
+            if (Input.GetMouseButtonDown(0) && cam && target)
+            {
+                var ray = cam.ScreenPointToRay(Input.mousePosition);
+                if (Physics.Raycast(ray, out RaycastHit hit, 200f))
+                {
+                    Vector3 pos = hit.point;
+                    if (NavMesh.SamplePosition(pos, out NavMeshHit nh, 2f, NavMesh.AllAreas))
+                        pos = nh.position;
+
+                    target.SetDestination(pos);
+                }
             }
         }
     }

@@ -1926,6 +1926,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5259935714593041126, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
+      propertyPath: m_hitTestBehavior
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6369249578600076829, guid: 5de75d347b0d5e44595e8bc3202ae12a, type: 3}
       propertyPath: mainCamera
       value: 
@@ -2712,6 +2716,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2107248268 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5480184153612486907, guid: e1b194c7c37aecc43810c094e92f0bb9, type: 3}
+  m_PrefabInstance: {fileID: 2737865623386392846}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3360aa709854e4363b38ea3b0fdc6353, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2111539948
 GameObject:
   m_ObjectHideFlags: 0
@@ -3117,6 +3132,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: NPC
       objectReference: {fileID: 0}
+    - target: {fileID: 5590962200022683252, guid: e1b194c7c37aecc43810c094e92f0bb9, type: 3}
+      propertyPath: m_updateMode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5590962200022683252, guid: e1b194c7c37aecc43810c094e92f0bb9, type: 3}
+      propertyPath: m_customRenderTargetStrategy
+      value: 
+      objectReference: {fileID: 2107248268}
     - target: {fileID: 7338826261649629526, guid: e1b194c7c37aecc43810c094e92f0bb9, type: 3}
       propertyPath: m_LocalPosition.x
       value: 8.4
