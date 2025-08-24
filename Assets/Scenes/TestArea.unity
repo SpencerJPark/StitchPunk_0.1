@@ -3282,8 +3282,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pathfinding: {fileID: 6151247373770508486}
-  actions: []
-  health: {fileID: 0}
+  actions:
+  - {fileID: 11400000, guid: 94cd36161c8a68548bda1aae9c5abe2b, type: 2}
+  - {fileID: 11400000, guid: 9f99fccaf84517c4e9fc40bddec39bf3, type: 2}
+  health: {fileID: 7926408688205051996}
 --- !u!1001 &3935112347458459224
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4228,6 +4230,7 @@ GameObject:
   - component: {fileID: 6938472022662045374}
   - component: {fileID: 941398194667056225}
   - component: {fileID: 7926408688205051995}
+  - component: {fileID: 7926408688205051996}
   m_Layer: 11
   m_Name: NPC
   m_TagString: NPC
@@ -4323,6 +4326,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   detectionRadius: 20.99
   targetTags: []
+--- !u!114 &7926408688205051996
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7525592247590743781}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5f5427bdccb4039a0deaa40e645a770, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 100
+  Current: 0
 --- !u!114 &8226630041002408921
 MonoBehaviour:
   m_ObjectHideFlags: 0
