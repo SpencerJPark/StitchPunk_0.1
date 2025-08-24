@@ -1,6 +1,7 @@
 using UnityEngine;
+using PathFinding;
 
-namespace StitchPunk.AI
+namespace AI
 {
     [RequireComponent(typeof(UnitController))]
     public class Brain : InputProviderBase, IUpdateObserver

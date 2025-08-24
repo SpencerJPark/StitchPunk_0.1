@@ -7,7 +7,7 @@ using ScriptableSystems;
 /// for all registered PathInputProviders.
 /// </summary>
 /// 
-namespace StitchPunk.AI
+namespace PathFinding
 {
     [CreateAssetMenu(fileName = "Local Avoidance", menuName = "Scriptable Systems/Local Avoidance", order = 0)]
     public class LocalAvoidanceSystem : ScriptableSystem

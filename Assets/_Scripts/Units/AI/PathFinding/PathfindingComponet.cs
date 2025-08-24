@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-namespace StitchPunk.AI
+namespace PathFinding
 {
     public class PathfindingComponent : MonoBehaviour
     {

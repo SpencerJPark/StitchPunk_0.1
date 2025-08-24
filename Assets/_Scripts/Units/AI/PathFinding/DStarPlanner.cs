@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace StitchPunk.AI
+namespace PathFinding
 {
     /// <summary>
     /// Thin adapter that maps your NavMeshGraph (poly-centers + adjacency)

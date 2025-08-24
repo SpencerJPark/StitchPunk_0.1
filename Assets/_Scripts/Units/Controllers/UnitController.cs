@@ -1,6 +1,6 @@
 using UnityEngine;
 using Data;
-using StitchPunk.AI;
+using AI;
 
 [RequireComponent(typeof(UnitMotorBase))]
 public class UnitController : MonoBehaviour, IUpdateObserver

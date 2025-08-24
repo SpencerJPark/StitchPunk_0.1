@@ -6,7 +6,7 @@ using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 using ScriptableSystems;
 
-namespace StitchPunk.AI
+namespace PathFinding
 {
     [CreateAssetMenu(fileName = "Path System", menuName = "Scriptable Systems/Path System")]
     public sealed class PathSystem : ScriptableSystem

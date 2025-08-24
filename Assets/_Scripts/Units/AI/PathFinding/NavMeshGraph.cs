@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-namespace StitchPunk.AI
+namespace PathFinding
 {
     /// <summary>
     /// Compact graph built from the scene NavMesh. Nodes are triangle centroids;

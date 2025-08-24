@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
+using AI;
 
-namespace StitchPunk.AI
+namespace PathFinding
 {
     public class DebugClickToMove : MonoBehaviour
     {
