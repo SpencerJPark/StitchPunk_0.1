@@ -17,7 +17,7 @@ namespace UtilityAI {
             Transform targetTransform = context.sensor.GetClosestTarget(targetTag);
             if (targetTransform == null) return 0f;
             
-            Transform agentTransform = context.agent.transform;
+            Transform agentTransform = context.agent;
             
             bool isInRange = agentTransform.InRangeOf(targetTransform, maxDistance, maxAngle);
             if (!isInRange) return 0f;

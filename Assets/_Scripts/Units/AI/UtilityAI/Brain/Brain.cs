@@ -1,16 +1,36 @@
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
+using System.Collections.Generic;
+using UtilityAI;
+using PathFinding;
 
-namespace UtilityAI {
-    [RequireComponent(typeof(NavMeshAgent), typeof(Sensor))]
-    public class Brain : MonoBehaviour {
+namespace UtilityAI
+{
+    [RequireComponent(typeof(UnitController), typeof(Sensor))]
+    public class Brain : InputProviderBase, IUpdateObserver
+    {
+        // AI Components
+        [SerializeField] private PathfindingComponent pathfinding;
+
         public List<AIAction> actions;
         public Context context;
 
         public Health health;
 
-        void Awake() {
+
+        // IInputProvider implementation
+        public override Vector2 MoveInput => pathfinding.CurrentMoveInput;
+        public Vector2 SteerInput { get; private set; }   // can later be filled with vehicle steering logic
+        public override bool ExitVehicleFired => false;
+        public override bool InteractFired => false;
+        public override bool ActionFired => false;
+
+
+        void OnEnable() => UpdateManager.RegisterObserver(this);
+        void OnDisable() => UpdateManager.UnregisterObserver(this);
+
+        
+        void Awake()
+        {
             context = new Context(this);
             health = GetComponent<Health>();
 
@@ -19,27 +39,29 @@ namespace UtilityAI {
             }
         }
 
-        void Update() {
+        public void ObservedUpdate()
+        {
             UpdateContext();
-            
-            AIAction bestAction = null;
-            float highestUtility = float.MinValue;
 
-            foreach (var action in actions) {
-                float utility = action.CalculateUtility(context);
-                if (utility > highestUtility) {
-                    highestUtility = utility;
-                    bestAction = action;
-                }
-            }
+            // Decision logic will go here later.
 
-            if (bestAction != null) {
-                bestAction.Execute(context);
-            }
+
+            pathfinding?.Tick();
         }
 
-        void UpdateContext() {
+        private void UpdateContext()
+        {
             context.SetData("health", health.normalizedHealth);
+        }
+
+
+        // Action API's
+        public void SetDestination(Vector3 pos)
+        {
+            if (pathfinding != null)
+                pathfinding.SetDestination(pos);
+            else
+                Debug.LogError("Brain is missing PathfindingComponent!");
         }
     }
 }

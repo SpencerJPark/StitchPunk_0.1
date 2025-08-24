@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
-using AI;
+using UtilityAI;
 
 namespace PathFinding
 {

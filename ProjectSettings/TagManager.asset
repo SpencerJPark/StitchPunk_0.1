@@ -10,7 +10,11 @@ TagManager:
   - Object
   - TriggerZone
   - CharacterQuad
-  - Outline
+  - Health
+  - Food
+  - Entertainment
+  - Bathroom
+  - Energy
   layers:
   - Default
   - TransparentFX

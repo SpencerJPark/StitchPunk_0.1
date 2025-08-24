@@ -9,9 +9,15 @@ namespace UtilityAI {
         void Start() {
             Current = maxHealth;
         }
-        
-        public void Heal(float value) {
+
+        public void Heal(float value)
+        {
             Current += value;
+
+            if (Current > maxHealth)
+            {
+                Current = maxHealth;
+            }
         }
 
         public void TakeDamage(float damage) {

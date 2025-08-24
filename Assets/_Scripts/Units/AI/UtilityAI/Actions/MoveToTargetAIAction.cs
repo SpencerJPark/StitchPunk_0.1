@@ -13,7 +13,7 @@ namespace UtilityAI {
 
             context.target = target;
             
-            context.agent.SetDestination(target.position);
+            context.brain.SetDestination(target.position);
         }
     }
 }

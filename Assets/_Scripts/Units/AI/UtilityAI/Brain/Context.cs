@@ -6,7 +6,7 @@ using UnityUtils;
 namespace UtilityAI {
     public class Context {
         public Brain brain;
-        public NavMeshAgent agent;
+        public Transform agent;
         public Transform target;
         public Sensor sensor;
         
@@ -16,7 +16,6 @@ namespace UtilityAI {
             Preconditions.CheckNotNull(brain, nameof(brain));
             
             this.brain = brain;
-            this.agent = brain.gameObject.GetOrAdd<NavMeshAgent>();
             this.sensor = brain.gameObject.GetOrAdd<Sensor>();
         }
         

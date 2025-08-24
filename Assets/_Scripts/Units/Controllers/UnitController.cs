@@ -1,6 +1,6 @@
 using UnityEngine;
 using Data;
-using AI;
+using UtilityAI;
 
 [RequireComponent(typeof(UnitMotorBase))]
 public class UnitController : MonoBehaviour, IUpdateObserver
