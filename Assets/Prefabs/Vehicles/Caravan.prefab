@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3369943863956248353}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Doors
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -47,7 +47,7 @@ GameObject:
   - component: {fileID: 4523360134045426745}
   - component: {fileID: 4494384404286799927}
   - component: {fileID: 3431046837320988669}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Horse Rive Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -129,7 +129,7 @@ GameObject:
   - component: {fileID: 5008938482927882707}
   - component: {fileID: 5264272998035696982}
   - component: {fileID: 6907797307223868140}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Horse
   m_TagString: CharacterQuad
   m_Icon: {fileID: 0}
@@ -266,7 +266,7 @@ GameObject:
   - component: {fileID: 708757503877901377}
   - component: {fileID: 510536992221878289}
   - component: {fileID: 4315166326111704368}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Chest
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -353,7 +353,7 @@ GameObject:
   - component: {fileID: 5723855785637039008}
   - component: {fileID: 2445328370490984934}
   - component: {fileID: 4958819453691736052}
-  m_Layer: 8
+  m_Layer: 6
   m_Name: DoorLeft
   m_TagString: TriggerZone
   m_Icon: {fileID: 0}
@@ -435,7 +435,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6804667179820964279}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Rive
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -469,7 +469,7 @@ GameObject:
   - component: {fileID: 1223319385473990093}
   - component: {fileID: 2188786456674606377}
   - component: {fileID: 5165424661128311729}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BigShelt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -557,7 +557,7 @@ GameObject:
   - component: {fileID: 7036282052591419494}
   - component: {fileID: 2540794875198368467}
   - component: {fileID: 7031946522713025151}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: RightDoor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -679,7 +679,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2115670024779884169}
   - component: {fileID: 6668986219692470389}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Rive Widget
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -746,7 +746,7 @@ GameObject:
   - component: {fileID: 3822491308376151358}
   - component: {fileID: 7459112773400312704}
   - component: {fileID: 5367876631867839887}
-  m_Layer: 8
+  m_Layer: 6
   m_Name: DoorRight
   m_TagString: TriggerZone
   m_Icon: {fileID: 0}
@@ -830,7 +830,7 @@ GameObject:
   - component: {fileID: 8948585048548701375}
   - component: {fileID: 7564729991955002431}
   - component: {fileID: 1909754711992592425}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -922,7 +922,7 @@ GameObject:
   - component: {fileID: 6279564374970776540}
   - component: {fileID: 3975080752987792529}
   - component: {fileID: 4033530071936150850}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Chimey
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1008,7 +1008,7 @@ GameObject:
   - component: {fileID: 2392455825841799271}
   - component: {fileID: 3193280944247976959}
   - component: {fileID: 2435498769314267932}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: TeslaCoil
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1092,7 +1092,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6894187296753457530}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Zones
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1126,7 +1126,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7578245170214486812}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Exterior
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1162,7 +1162,7 @@ GameObject:
   - component: {fileID: 6703238597937178128}
   - component: {fileID: 2367217814029757590}
   - component: {fileID: 2821887571782398488}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BackRightWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1250,7 +1250,7 @@ GameObject:
   - component: {fileID: 8598338356671220244}
   - component: {fileID: 9190758066361333512}
   - component: {fileID: 3333739471138597908}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Cube.002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1373,7 +1373,7 @@ GameObject:
   - component: {fileID: 7272787128943233236}
   - component: {fileID: 2419621247512312705}
   - component: {fileID: 7026829838092522254}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Carpet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1459,7 +1459,7 @@ GameObject:
   - component: {fileID: 400990306083619074}
   - component: {fileID: 8774581548334427301}
   - component: {fileID: 3525787365905874595}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: WorkTable
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1545,7 +1545,7 @@ GameObject:
   - component: {fileID: 2277254353823070517}
   - component: {fileID: 2686561202091112745}
   - component: {fileID: 3016293669160963907}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FrontLeftWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1631,7 +1631,7 @@ GameObject:
   - component: {fileID: 7164724970293339916}
   - component: {fileID: 2928847707262540773}
   - component: {fileID: 5358741046368419863}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Point Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1753,7 +1753,7 @@ GameObject:
   - component: {fileID: 776853103052774478}
   - component: {fileID: 3299783111394073637}
   - component: {fileID: 861908872262999057}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Caravan
   m_TagString: Vehicle
   m_Icon: {fileID: 0}
@@ -1857,7 +1857,7 @@ GameObject:
   - component: {fileID: 3282080206826996801}
   - component: {fileID: 1140339214171861573}
   - component: {fileID: 8628509847208819911}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FrontWheelHinge
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1943,7 +1943,7 @@ GameObject:
   - component: {fileID: 838243664658421571}
   - component: {fileID: 5601296086800398912}
   - component: {fileID: 3777779882792911560}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Shell
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2028,7 +2028,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4222221686203555726}
   - component: {fileID: 8938543023450288321}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Pooled Render Target Strategy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2076,7 +2076,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1569118170357933193}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: CarrageDriverLeft
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2108,7 +2108,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8227678261561369394}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: CarrageDriverRight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2144,7 +2144,7 @@ GameObject:
   - component: {fileID: 7891926638518161982}
   - component: {fileID: 4637205850467088140}
   - component: {fileID: 2934611265334125294}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: LeftDoor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2267,7 +2267,7 @@ GameObject:
   - component: {fileID: 4176544564925178529}
   - component: {fileID: 1798287723902146234}
   - component: {fileID: 3626602562365983249}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FrontRightWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2351,7 +2351,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8998888132391857464}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Interior
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2389,7 +2389,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8175537191250724304}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: RightDoorHingeControl
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2421,7 +2421,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2527418696446719618}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Unlockables
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2456,7 +2456,7 @@ GameObject:
   - component: {fileID: 706137797713972096}
   - component: {fileID: 7573894037968683247}
   - component: {fileID: 4546082645459618237}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Lamp
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2542,7 +2542,7 @@ GameObject:
   - component: {fileID: 1943477154751572208}
   - component: {fileID: 2790394171139242323}
   - component: {fileID: 3802396822115186627}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BackWheelHinge
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2630,7 +2630,7 @@ GameObject:
   - component: {fileID: 538655326309592131}
   - component: {fileID: 6824378619158820723}
   - component: {fileID: 2668772341361753752}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Cube.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2752,7 +2752,7 @@ GameObject:
   m_Component:
   - component: {fileID: 9183893619189527133}
   - component: {fileID: 2173302499082780453}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Wheels
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2816,7 +2816,7 @@ GameObject:
   - component: {fileID: 2152849765678283471}
   - component: {fileID: 4495718971968428358}
   - component: {fileID: 8105382163115596256}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BackLeftWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2901,7 +2901,7 @@ GameObject:
   m_Component:
   - component: {fileID: 266947837185427633}
   - component: {fileID: 595485307451974953}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Shakable
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2953,7 +2953,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8923705560840500474}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: DriverAnchor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2984,7 +2984,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3297332381161038986}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: LeftDoorHingeControl
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3019,7 +3019,7 @@ GameObject:
   - component: {fileID: 3192375494058197202}
   - component: {fileID: 2182197650185909926}
   - component: {fileID: 4164739279804297588}
-  m_Layer: 8
+  m_Layer: 6
   m_Name: BackZone
   m_TagString: TriggerZone
   m_Icon: {fileID: 0}
@@ -3102,7 +3102,7 @@ GameObject:
   - component: {fileID: 334506832235720593}
   - component: {fileID: 623659047599848910}
   - component: {fileID: 6838636025884179985}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Small Shelf
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3225,6 +3225,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -6065946568169081377, guid: ab5eb6151eecfc449ac1911d973747bd, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: -5493613786446153285, guid: ab5eb6151eecfc449ac1911d973747bd, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -3237,10 +3241,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: CookingPot
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: ab5eb6151eecfc449ac1911d973747bd, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1618012323157174930, guid: ab5eb6151eecfc449ac1911d973747bd, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 2833893269328553960, guid: ab5eb6151eecfc449ac1911d973747bd, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: a9ffc1c54a2fbc5449e47940dd376367, type: 2}
+    - target: {fileID: 3189837146981755723, guid: ab5eb6151eecfc449ac1911d973747bd, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3306,6 +3322,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 4578b229c89160146957e91171f22f62, type: 3}
       propertyPath: m_Name
       value: Stool
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 4578b229c89160146957e91171f22f62, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
