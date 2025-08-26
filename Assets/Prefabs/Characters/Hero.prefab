@@ -251,6 +251,7 @@ GameObject:
   - component: {fileID: 8918501096030298981}
   - component: {fileID: 5937103243998154928}
   - component: {fileID: 7045768873980396643}
+  - component: {fileID: 9193653798465627307}
   m_Layer: 10
   m_Name: Rive Panel
   m_TagString: Untagged
@@ -306,6 +307,19 @@ MonoBehaviour:
   m_customRenderTargetStrategy: {fileID: 12387257596375706}
   m_updateMode: 0
   m_disableEditorPreview: 0
+--- !u!114 &9193653798465627307
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7238799691761946203}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce150dea1bda844da50f27bdc7deda8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 7045768873980396643}
 --- !u!1001 &9101977953798781275
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -1,8 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// This file is used on a game object in scenes to efficiently handle all object updates
-
 public interface IUpdateObserver
 {
     void ObservedUpdate();
