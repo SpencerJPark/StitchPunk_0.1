@@ -121,7 +121,7 @@ public class UnitController : MonoBehaviour, IUpdateObserver
     {
         // Input is 2D (x,z) from IInputProvider.MoveInput
         Vector2 move2D = input.MoveInput;
-        Debug.Log($"move2D = {move2D}");
+        //Debug.Log($"move2D = {move2D}");
         unitModel.SetMoving(move2D.sqrMagnitude > 0.01f);
 
         motor.SetMoveDirection(move2D);   // your motor interprets this

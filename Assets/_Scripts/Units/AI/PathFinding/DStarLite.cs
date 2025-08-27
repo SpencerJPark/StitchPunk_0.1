@@ -174,7 +174,7 @@ namespace PathFinding
                 }
 
                 startNode.G = startNode.RHS;
-                Debug.Log("Shortest path computed in " + (k_maxCycles - maxSteps) + " steps.");
+                //Debug.Log("Shortest path computed in " + (k_maxCycles - maxSteps) + " steps.");
             }
 
             IEnumerable<Node<T>> Predecessors(Node<T> node)

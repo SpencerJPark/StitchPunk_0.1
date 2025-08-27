@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 6409168546597042010}
   - component: {fileID: 6526466232540506064}
   - component: {fileID: 7064070804340054724}
-  - component: {fileID: 9181537472957211061}
   m_Layer: 11
   m_Name: Rive Panel
   m_TagString: Untagged
@@ -67,19 +66,6 @@ MonoBehaviour:
   m_customRenderTargetStrategy: {fileID: 0}
   m_updateMode: 1
   m_disableEditorPreview: 0
---- !u!114 &9181537472957211061
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2298835740220220212}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4ce150dea1bda844da50f27bdc7deda8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  panel: {fileID: 7064070804340054724}
 --- !u!1 &3014264820116184486
 GameObject:
   m_ObjectHideFlags: 0
@@ -158,6 +144,7 @@ GameObject:
   - component: {fileID: 1821736472395080990}
   - component: {fileID: 3360097159613584994}
   - component: {fileID: 3485167879039094072}
+  - component: {fileID: 6601175816089530878}
   m_Layer: 11
   m_Name: CharacterPlane (1)
   m_TagString: Untagged
@@ -266,6 +253,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 856beaa7dd6154640ad6d25707cbf07a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &6601175816089530878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4848755591649724297}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce150dea1bda844da50f27bdc7deda8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panel: {fileID: 7064070804340054724}
+  mr: {fileID: 1821736472395080990}
 --- !u!1 &8421936651334946029
 GameObject:
   m_ObjectHideFlags: 0
