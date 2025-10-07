@@ -1862,6 +1862,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: MaleBaseUnit (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 7302516720841867328, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.9999097
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302516720841867328, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302516720841867328, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.013438593
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302516720841867328, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: -1.54
+      objectReference: {fileID: 0}
     - target: {fileID: 7927039899107557322, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
       propertyPath: m_LocalRotation.w
       value: 1
@@ -1881,6 +1897,22 @@ PrefabInstance:
     - target: {fileID: 7927039899107557322, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7927039899107557322, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8005134390914855445, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 8005134390914855445, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 8005134390914855445, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 8005134390914855445, guid: 495e2a559b3b1ea47805b3a54d7d24b8, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2235,6 +2267,10 @@ MonoBehaviour:
   targetFps: 12
   groupCount: 5
   autoRebucketOnValidate: 1
+  _stepSeconds: 0.083333336
+  _windowElapsed: 0
+  _windowId: 3
+  _lastExecutedSlice: -1
 --- !u!4 &1602567525 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6431523234311316874, guid: 52436ec2ce58d3f41ad48084458a0449, type: 3}
@@ -2669,6 +2705,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 94cd36161c8a68548bda1aae9c5abe2b, type: 2}
   - {fileID: 11400000, guid: 9f99fccaf84517c4e9fc40bddec39bf3, type: 2}
   health: {fileID: 8863591262543139836}
+  <SteerInput>k__BackingField: {x: 0, y: 0}
 --- !u!135 &150469461301828237
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -2702,7 +2739,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2e31fe8e4da56342911ace61741e1ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  <MovementVector>k__BackingField: {x: 0, y: 0, z: 0}
   cc: {fileID: 1399824394351386762}
+  data: {fileID: 0}
+  isGrounded: 0
+  fallSpeed: 0
+  moveInput: {x: 0, y: 0}
 --- !u!1001 &674468687415718875
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3047,7 +3089,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fbf5d1759d1567469dc55bdac93dcae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pathSystem: {fileID: 11400000, guid: a4aa1f261aca79b4fb4cf1e3765a0f08, type: 2}
   areaMask: -1
   cornerReachedRadius: 0.3
   waypointRefreshInterval: 0.25
@@ -3214,6 +3255,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04dae87ea0c023446bc55f1ceaf465da, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  baseData: {fileID: 0}
+  currentState: {fileID: 0}
+  <HairType>k__BackingField: 
+  <HairColor>k__BackingField: 
+  <FacialHairColor>k__BackingField: 
+  <SkinColor>k__BackingField: 
+  <Outfit>k__BackingField: 
+  <Position>k__BackingField: {x: 0, y: 0, z: 0}
+  <CurrentDirection>k__BackingField: 0
+  <IsMoving>k__BackingField: 0
+  <IsGrounded>k__BackingField: 0
+  <FallSpeed>k__BackingField: 0
+  <Mount>k__BackingField: 0
   HeroHair: 
   HeroHairColor: 
   eyeware: 
