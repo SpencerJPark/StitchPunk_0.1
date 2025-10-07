@@ -1,0 +1,22 @@
+﻿public enum AnimationEnum: int
+{
+    Idle,
+    Walk,
+    Run,
+    Sit,
+    Sneak,
+    Interact,
+    Talking,
+    PlayFlute,
+    MailDelivery,
+    IdleCarryBody,
+    WalkCarryBody,
+    IdleAimRifle,
+    WalkAimRifle,
+    Death,
+    RapierIdol,
+    IdelAimPistol,
+    WalkAimPistol,
+    IdelAimBlunder,
+    WalkAimBlunder
+}

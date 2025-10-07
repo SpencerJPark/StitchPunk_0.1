@@ -1,16 +1,16 @@
 // using System.Collections.Generic;
 // using UnityEngine;
 // using Rive.Components;
-
+//
 // public class AtlasManager : MonoBehaviour
 // {
 //     [Header("Atlas Settings")]
 //     [SerializeField] private AtlasRenderTargetStrategy atlasPrefab; // Prefab of atlas render strategy
 //     [SerializeField] private int initialPoolSize = 2;
 //     [SerializeField] private int maxPanelsPerAtlas = 16;
-
+//
 //     private readonly List<AtlasRenderTargetStrategy> atlasPool = new List<AtlasRenderTargetStrategy>();
-
+//
 //     private void Awake()
 //     {
 //         // Pre-populate the pool
@@ -19,24 +19,24 @@
 //             CreateNewAtlas();
 //         }
 //     }
-
+//
 //     /// <summary>
 //     /// Registers a RiveCharacter with an atlas.
 //     /// </summary>
 //     public void RegisterCharacter(RiveCharacter character)
 //     {
 //         AtlasRenderTargetStrategy targetAtlas = FindAvailableAtlas();
-
+//
 //         if (targetAtlas == null)
 //         {
 //             // No atlas has free space — create a new one
 //             targetAtlas = CreateNewAtlas();
 //         }
-
+//
 //         targetAtlas.RegisterPanel(character.Panel);
 //         character.CurrentAtlas = targetAtlas;
 //     }
-
+//
 //     /// <summary>
 //     /// Unregisters a RiveCharacter from its atlas.
 //     /// </summary>
@@ -48,7 +48,7 @@
 //             character.CurrentAtlas = null;
 //         }
 //     }
-
+//
 //     /// <summary>
 //     /// Finds an atlas with available space.
 //     /// </summary>
@@ -63,7 +63,7 @@
 //         }
 //         return null;
 //     }
-
+//
 //     /// <summary>
 //     /// Instantiates a new atlas and adds it to the pool.
 //     /// </summary>
