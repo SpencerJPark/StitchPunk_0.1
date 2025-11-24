@@ -1,14 +1,6 @@
 using UnityEngine;
 
-public class MouseWorldPosition : MonoBehaviour {
-
-
-    public static MouseWorldPosition Instance { get; private set; }
-
-
-    private void Awake() {
-        Instance = this;
-    }
+public class MouseWorldPosition : PersistentSingleton<MouseWorldPosition> {
 
     public Vector3 GetPosition() {
         Ray mouseCameraRay = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -21,6 +13,4 @@ public class MouseWorldPosition : MonoBehaviour {
             return Vector3.zero;
         }
     }
-
-
 }
