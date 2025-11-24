@@ -115,6 +115,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panel: {fileID: 4494384404286799927}
+  mr: {fileID: 0}
 --- !u!1 &450010067056024551
 GameObject:
   m_ObjectHideFlags: 0
@@ -128,7 +129,6 @@ GameObject:
   - component: {fileID: 3746785376080950815}
   - component: {fileID: 5008938482927882707}
   - component: {fileID: 5264272998035696982}
-  - component: {fileID: 6907797307223868140}
   m_Layer: 6
   m_Name: Horse
   m_TagString: CharacterQuad
@@ -243,18 +243,6 @@ MonoBehaviour:
   riveWidget: {fileID: 6668986219692470389}
   defaultEnum: 
   defaultValue: 
---- !u!114 &6907797307223868140
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 450010067056024551}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 856beaa7dd6154640ad6d25707cbf07a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &534332228578455109
 GameObject:
   m_ObjectHideFlags: 0
@@ -351,8 +339,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8255781160118282441}
   - component: {fileID: 5723855785637039008}
-  - component: {fileID: 2445328370490984934}
-  - component: {fileID: 4958819453691736052}
   m_Layer: 6
   m_Name: DoorLeft
   m_TagString: TriggerZone
@@ -396,36 +382,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &2445328370490984934
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 568881164960952224}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1997376135e4844b94bbafb00245e39, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  doors:
-  - {fileID: 2668772341361753752}
-  allowedTags:
-  - Player
---- !u!114 &4958819453691736052
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 568881164960952224}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dded6e00bcd626045a11af271ce79402, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  priority: 100
-  vehicleController: {fileID: 0}
 --- !u!1 &845486546815450094
 GameObject:
   m_ObjectHideFlags: 0
@@ -556,7 +512,6 @@ GameObject:
   - component: {fileID: 4504794106069144450}
   - component: {fileID: 7036282052591419494}
   - component: {fileID: 2540794875198368467}
-  - component: {fileID: 7031946522713025151}
   m_Layer: 6
   m_Name: RightDoor
   m_TagString: Untagged
@@ -653,22 +608,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0077996794, y: 0.0011968163, z: 0.024603443}
   m_Center: {x: 0.0038827537, y: 0.02278093, z: 0.03195009}
---- !u!114 &7031946522713025151
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1211464640618381413}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1329c90431d363e4bbdefb538db1c5bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hinge: {fileID: 8175537191250724304}
-  closedAngle: 0
-  openAngle: -120
-  speed: 2
 --- !u!1 &2484825063272031840
 GameObject:
   m_ObjectHideFlags: 0
@@ -744,8 +683,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7716795274367770555}
   - component: {fileID: 3822491308376151358}
-  - component: {fileID: 7459112773400312704}
-  - component: {fileID: 5367876631867839887}
   m_Layer: 6
   m_Name: DoorRight
   m_TagString: TriggerZone
@@ -789,36 +726,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &7459112773400312704
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2492552439637158578}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1997376135e4844b94bbafb00245e39, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  doors:
-  - {fileID: 3333739471138597908}
-  allowedTags:
-  - Player
---- !u!114 &5367876631867839887
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2492552439637158578}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dded6e00bcd626045a11af271ce79402, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  priority: 100
-  vehicleController: {fileID: 0}
 --- !u!1 &2503406418026715954
 GameObject:
   m_ObjectHideFlags: 0
@@ -1249,7 +1156,6 @@ GameObject:
   - component: {fileID: 4898103744079265216}
   - component: {fileID: 8598338356671220244}
   - component: {fileID: 9190758066361333512}
-  - component: {fileID: 3333739471138597908}
   m_Layer: 6
   m_Name: Cube.002
   m_TagString: Untagged
@@ -1346,22 +1252,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.003098717, y: 0.013282725, z: 0.0075309095}
   m_Center: {x: 0.013297048, y: -0.027668696, z: 0.019890789}
---- !u!114 &3333739471138597908
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3989242267956879416}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1329c90431d363e4bbdefb538db1c5bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hinge: {fileID: 8227678261561369394}
-  closedAngle: 0
-  openAngle: -120
-  speed: 2
 --- !u!1 &4143156684219204580
 GameObject:
   m_ObjectHideFlags: 0
@@ -1752,7 +1642,6 @@ GameObject:
   - component: {fileID: 753404905456159833}
   - component: {fileID: 776853103052774478}
   - component: {fileID: 3299783111394073637}
-  - component: {fileID: 861908872262999057}
   m_Layer: 6
   m_Name: Caravan
   m_TagString: Vehicle
@@ -1826,26 +1715,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &861908872262999057
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4320109915508575037}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2e64f1bf25361854db5b6a1d6c64f07f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rb: {fileID: 3299783111394073637}
-  driverSeatAnchor: {fileID: 8923705560840500474}
-  horseQuad: {fileID: 3942219430862374319}
-  doorZones: []
-  riveAnimator: {fileID: 5264272998035696982}
-  vehicleShakerAnimator: {fileID: 595485307451974953}
-  vehicleWheelAnimator: {fileID: 2173302499082780453}
-  vehicleData: {fileID: 11400000, guid: 27e2c50b467d82c449915ac41a02dbb7, type: 2}
 --- !u!1 &4450904372252791348
 GameObject:
   m_ObjectHideFlags: 0
@@ -2143,7 +2012,6 @@ GameObject:
   - component: {fileID: 2666680832110139441}
   - component: {fileID: 7891926638518161982}
   - component: {fileID: 4637205850467088140}
-  - component: {fileID: 2934611265334125294}
   m_Layer: 6
   m_Name: LeftDoor
   m_TagString: Untagged
@@ -2240,22 +2108,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.007802216, y: 0.0011968145, z: 0.024603443}
   m_Center: {x: -0.0040408256, y: 0.022827197, z: 0.03195009}
---- !u!114 &2934611265334125294
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5640751651516290960}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1329c90431d363e4bbdefb538db1c5bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hinge: {fileID: 3297332381161038986}
-  closedAngle: 0
-  openAngle: 120
-  speed: 2
 --- !u!1 &6377548584599430561
 GameObject:
   m_ObjectHideFlags: 0
@@ -2629,7 +2481,6 @@ GameObject:
   - component: {fileID: 4505489510064546644}
   - component: {fileID: 538655326309592131}
   - component: {fileID: 6824378619158820723}
-  - component: {fileID: 2668772341361753752}
   m_Layer: 6
   m_Name: Cube.001
   m_TagString: Untagged
@@ -2726,22 +2577,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0033241548, y: 0.013295584, z: 0.0075309114}
   m_Center: {x: -0.012812136, y: -0.027896546, z: 0.019890787}
---- !u!114 &2668772341361753752
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8027733446798048663}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1329c90431d363e4bbdefb538db1c5bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hinge: {fileID: 1569118170357933193}
-  closedAngle: 0
-  openAngle: 120
-  speed: 2
 --- !u!1 &8143445172855057533
 GameObject:
   m_ObjectHideFlags: 0
@@ -2751,7 +2586,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9183893619189527133}
-  - component: {fileID: 2173302499082780453}
   m_Layer: 6
   m_Name: Wheels
   m_TagString: Untagged
@@ -2780,31 +2614,6 @@ Transform:
   - {fileID: 1943477154751572208}
   m_Father: {fileID: 753404905456159833}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2173302499082780453
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8143445172855057533}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c02799facb006f44a9ba777a5235b47e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  wheelPairs:
-  - left:
-      mesh: {fileID: 2277254353823070517}
-      radius: 1.2
-    right:
-      mesh: {fileID: 4176544564925178529}
-      radius: 1.2
-  - left:
-      mesh: {fileID: 2152849765678283471}
-      radius: 1.2
-    right:
-      mesh: {fileID: 6703238597937178128}
-      radius: 1.2
 --- !u!1 &8146377878926648092
 GameObject:
   m_ObjectHideFlags: 0
@@ -2900,7 +2709,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 266947837185427633}
-  - component: {fileID: 595485307451974953}
   m_Layer: 6
   m_Name: Shakable
   m_TagString: Untagged
@@ -2924,26 +2732,6 @@ Transform:
   - {fileID: 8948585048548701375}
   m_Father: {fileID: 753404905456159833}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &595485307451974953
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8261653850173143483}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 667f35d65fc80c744a5087857f7624c0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  vehicleRb: {fileID: 3299783111394073637}
-  maxSpeed: 10
-  speedTiltAngle: 5
-  noiseFrequency: 1
-  turnTiltAngle: 10
-  maxYawRate: 2
-  rangeX: 8
-  rangeZ: 12
 --- !u!1 &8315947810249623731
 GameObject:
   m_ObjectHideFlags: 0
@@ -3017,8 +2805,6 @@ GameObject:
   m_Component:
   - component: {fileID: 3306860925375198778}
   - component: {fileID: 3192375494058197202}
-  - component: {fileID: 2182197650185909926}
-  - component: {fileID: 4164739279804297588}
   m_Layer: 6
   m_Name: BackZone
   m_TagString: TriggerZone
@@ -3062,35 +2848,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &2182197650185909926
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8632329054065513839}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1997376135e4844b94bbafb00245e39, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  doors:
-  - {fileID: 2934611265334125294}
-  - {fileID: 7031946522713025151}
-  allowedTags:
-  - Player
---- !u!114 &4164739279804297588
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8632329054065513839}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 26e90f07e0eadff4da989b628a65c2e8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &8754963569918533938
 GameObject:
   m_ObjectHideFlags: 0
