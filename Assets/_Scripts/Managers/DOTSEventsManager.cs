@@ -3,20 +3,11 @@ using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-public class DOTSEventsManager : MonoBehaviour {
-
-
-    public static DOTSEventsManager Instance { get; private set; }
-
-
+public class DOTSEventsManager : PersistentSingleton<DOTSEventsManager> {
+    
     public event EventHandler OnBarracksUnitQueueChanged;
     public event EventHandler OnHealthDead;
     public event EventHandler OnHQDead;
-
-
-    private void Awake() {
-        Instance = this;
-    }
 
 
     public void TriggerOnBarracksUnitQueueChanged(NativeList<Entity> entityNativeList) {

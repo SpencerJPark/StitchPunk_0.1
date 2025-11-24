@@ -7,11 +7,7 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class UnitSelectionManager : MonoBehaviour {
-
-
-    public static UnitSelectionManager Instance { get; private set; }
-
+public class UnitSelectionManager : Singleton<UnitSelectionManager> {
 
     public event EventHandler OnSelectionAreaStart;
     public event EventHandler OnSelectionAreaEnd;
@@ -19,11 +15,7 @@ public class UnitSelectionManager : MonoBehaviour {
 
 
     private Vector2 selectionStartMousePosition;
-
-
-    private void Awake() {
-        Instance = this;
-    }
+    
 
     private void Start() {
         BuildingPlacementManager.Instance.OnActiveBuildingTypeSOChanged += BuildingPlacementManager_OnActiveBuildingTypeSOChanged;

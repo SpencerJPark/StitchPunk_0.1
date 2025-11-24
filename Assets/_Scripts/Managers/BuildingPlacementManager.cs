@@ -7,12 +7,8 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class BuildingPlacementManager : MonoBehaviour {
-
-
-    public static BuildingPlacementManager Instance { get; private set; }
-
-
+public class BuildingPlacementManager : Singleton<BuildingPlacementManager> {
+    
     public event EventHandler OnActiveBuildingTypeSOChanged;
 
 
@@ -21,11 +17,6 @@ public class BuildingPlacementManager : MonoBehaviour {
 
 
     private Transform ghostTransform;
-
-
-    private void Awake() {
-        Instance = this;
-    }
 
     private void Update() {
         if (ghostTransform != null) {

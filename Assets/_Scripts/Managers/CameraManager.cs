@@ -1,7 +1,7 @@
 using Unity.Cinemachine;
 using UnityEngine;
 
-public class CameraManager : MonoBehaviour {
+public class CameraManager : PersistentSingleton<CameraManager> {
 
 
     [SerializeField] private CinemachineCamera cinemachineCamera;
