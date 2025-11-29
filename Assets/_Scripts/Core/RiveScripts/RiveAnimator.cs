@@ -5,15 +5,10 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 
-public class RiveAnimator : MonoBehaviour
+public class RiveAnimator
 {
-    [SerializeField] private RiveWidget riveWidget;
-
-    [Header("Optional")]
-    [SerializeField] private string defaultEnum;
-    [SerializeField] private string defaultValue;
-
-    private ViewModelInstance viewModel;
+    public RiveWidget riveWidget;
+    public ViewModelInstance viewModel;
 
     private readonly Dictionary<string, ViewModelInstanceNumberProperty> numberProperties = new();
     private readonly Dictionary<string, ViewModelInstanceStringProperty> stringProperties = new();
@@ -22,45 +17,13 @@ public class RiveAnimator : MonoBehaviour
     private readonly Dictionary<string, ViewModelInstanceColorProperty> colorProperties = new();
     private readonly Dictionary<string, ViewModelInstanceTriggerProperty> triggerProperties = new();
 
-    private void OnEnable()
+    
+    public void Initialize(RiveWidget riveWidget)
     {
-        if (riveWidget != null)
-            riveWidget.OnWidgetStatusChanged += OnRiveLoaded;
-        else
-            Debug.LogError($"{name} is missing a reference to a RiveWidget!");
-    }
-
-
-    public async UniTask WaitForReadyAsync()
-    {
-        while (viewModel == null)
-            await UniTask.Yield();
-    }
-
-    private void OnDisable()
-    {
-        if (riveWidget != null)
-            riveWidget.OnWidgetStatusChanged -= OnRiveLoaded;
-    }
-
-
-    private void OnRiveLoaded()
-    {
-        if (riveWidget.Status != WidgetStatus.Loaded)
-            return;
-
+        riveWidget = riveWidget;
         viewModel = riveWidget.StateMachine.ViewModelInstance;
-        SetDefaultAction();
     }
-
-    private void SetDefaultAction()
-    {
-        if (!string.IsNullOrWhiteSpace(defaultEnum)
-        && !string.IsNullOrWhiteSpace(defaultValue))
-        {
-            SetEnum(defaultEnum, defaultValue);
-        }
-    }
+    
 
 
     // ================== Public Rive API Methods ==================

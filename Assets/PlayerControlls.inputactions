@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "PlayerControlls",
     "maps": [
         {
@@ -344,6 +345,34 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "Switch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "UnitSelect",
+            "id": "e36238af-d082-4c75-90ff-d7ba8c8e6fa8",
+            "actions": [
+                {
+                    "name": "MoveMouse",
+                    "type": "Button",
+                    "id": "dfc90286-1bd2-4b08-8a6e-8fdadc01aebd",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "025ceaac-87d3-4e8c-aa45-0343c15ad191",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "MoveMouse",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

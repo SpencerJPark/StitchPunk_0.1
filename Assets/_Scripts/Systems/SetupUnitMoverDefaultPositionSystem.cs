@@ -8,6 +8,7 @@ partial struct SetupUnitMoverDefaultPositionSystem : ISystem {
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
     }
 
     [BurstCompile]

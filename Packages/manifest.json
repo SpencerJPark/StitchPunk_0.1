@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "app.rive.rive-unity": "https://github.com/rive-app/rive-unity.git?path=package#v0.3.6",
+    "app.rive.rive-unity": "https://github.com/rive-app/rive-unity.git?path=package#v0.3.8",
     "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
     "com.gustavopsantos.reflex": "https://github.com/gustavopsantos/reflex.git?path=/Assets/Reflex/#10.0.3",
     "com.unity.2d.animation": "10.2.1",
