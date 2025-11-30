@@ -7,6 +7,7 @@ public class PlayerInputManager : MonoBehaviour
 {
     private EntityManager entityManager;
     private Entity _inputEntity;
+    private ActionMaps currentActionMap;
 
     private void Awake()
     {
@@ -37,7 +38,7 @@ public class PlayerInputManager : MonoBehaviour
             value = new float2(v.x, v.y);
         }
 
-        var data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
+        PlayerInput data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
         data.moveInput = value;
         entityManager.SetComponentData(_inputEntity, data);
     }
@@ -47,7 +48,7 @@ public class PlayerInputManager : MonoBehaviour
         if (!context.performed)
             return;
 
-        var data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
+        PlayerInput data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
         data.onAttackInput = true;
         entityManager.SetComponentData(_inputEntity, data);
     }
@@ -57,8 +58,32 @@ public class PlayerInputManager : MonoBehaviour
         if (!context.performed)
             return;
 
-        var data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
+        PlayerInput data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
         data.onInteractInput = true;
+        entityManager.SetComponentData(_inputEntity, data);
+    }
+    
+    public void OnUnitControlToggle(InputAction.CallbackContext context)
+    {
+        if (!context.performed)
+            return;
+        
+        PlayerInput data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
+
+        if (currentActionMap == ActionMaps.Player)
+        {
+            currentActionMap = ActionMaps.ControlUnits;
+            data.activeActionMap = ActionMaps.ControlUnits;
+            CameraManager.Instance.SwitchCamera(CinemachineCameraType.ControlUnits);
+        }
+
+        else
+        {
+            currentActionMap = ActionMaps.Player;
+            data.activeActionMap = ActionMaps.Player;
+            CameraManager.Instance.SwitchCamera(CinemachineCameraType.Player);
+        }
+        
         entityManager.SetComponentData(_inputEntity, data);
     }
 
@@ -67,6 +92,7 @@ public class PlayerInputManager : MonoBehaviour
 
 public struct PlayerInput : IComponentData {
     public float2 moveInput;
+    public ActionMaps activeActionMap;
     public bool sneakToggleInput;
     
     public bool onAttackInput;

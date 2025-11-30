@@ -4,7 +4,7 @@
         Player,
         PlayerZoom,
         Vehicle,
-        Horde,
+        ControlUnits,
         Map,
         // add more as you need…
     }

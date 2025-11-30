@@ -53,7 +53,7 @@
                 },
                 {
                     "name": "Switch",
-                    "type": "Value",
+                    "type": "Button",
                     "id": "54126885-5dc1-4b31-897a-d4bc839504de",
                     "expectedControlType": "",
                     "processors": "",
@@ -339,9 +339,9 @@
                 },
                 {
                     "name": "",
-                    "id": "9d73ba7d-d35a-4cf3-a887-a34d3a1619b5",
-                    "path": "<Mouse>/scroll/down",
-                    "interactions": "Hold",
+                    "id": "08976501-ff20-47b2-9516-bc45a4ef6b1a",
+                    "path": "<Keyboard>/tab",
+                    "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "Switch",

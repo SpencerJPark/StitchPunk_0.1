@@ -2,13 +2,13 @@ using UnityEngine;
 using Unity.Cinemachine;
 using System.Collections.Generic;
 
-public class CameraManager : MonoBehaviour
+public class CameraManager : Singleton<CameraManager>
 {
     [Header("Virtual Cameras")]
     [SerializeField] private CinemachineCamera playerCam;
     [SerializeField] private CinemachineCamera playerZoomCam;
     [SerializeField] private CinemachineCamera vehicleCam;
-    [SerializeField] private CinemachineCamera hordeCam;
+    [SerializeField] private CinemachineCamera controllUnitsCam;
     [SerializeField] private CinemachineCamera mapCam;
 
     private Dictionary<CinemachineCameraType, CinemachineCamera> cameraMap;
@@ -26,7 +26,7 @@ public class CameraManager : MonoBehaviour
             { CinemachineCameraType.Player,      playerCam },
             { CinemachineCameraType.PlayerZoom,  playerZoomCam },
             { CinemachineCameraType.Vehicle,     vehicleCam },
-            { CinemachineCameraType.Horde,       hordeCam },
+            { CinemachineCameraType.ControlUnits, controllUnitsCam },
             { CinemachineCameraType.Map,         mapCam },
         };
 
