@@ -7,7 +7,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class BuildingPlacementManager : Singleton<BuildingPlacementManager> {
+public class BuildingPlacementManager : Singleton<BuildingPlacementManager>, IUpdateObserver {
     
     public event EventHandler OnActiveBuildingTypeSOChanged;
 
@@ -17,8 +17,11 @@ public class BuildingPlacementManager : Singleton<BuildingPlacementManager> {
 
 
     private Transform ghostTransform;
+    
+    private void OnEnable() => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
 
-    private void Update() {
+    public void ObservedUpdate() {
         if (ghostTransform != null) {
             ghostTransform.position = MouseWorldPosition.Instance.GetPosition();
         }

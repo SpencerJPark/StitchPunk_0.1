@@ -7,7 +7,7 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class UnitSelectionManager : Singleton<UnitSelectionManager> {
+public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObserver {
 
     public event EventHandler OnSelectionAreaStart;
     public event EventHandler OnSelectionAreaEnd;
@@ -16,6 +16,8 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager> {
 
     private Vector2 selectionStartMousePosition;
     
+    private void OnEnable() => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
 
     private void Start() {
         BuildingPlacementManager.Instance.OnActiveBuildingTypeSOChanged += BuildingPlacementManager_OnActiveBuildingTypeSOChanged;
@@ -28,7 +30,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager> {
         }
     }
 
-    private void Update() {
+    public void ObservedUpdate() {
         if (!BuildingPlacementManager.Instance.GetActiveBuildingTypeSO().IsNone()) {
             return;
         }

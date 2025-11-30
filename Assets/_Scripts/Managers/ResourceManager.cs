@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ResourceManager : MonoBehaviour
+public class ResourceManager : Singleton<ResourceManager>
 {
-    public static ResourceManager Instance { get; private set; }
     
     public event EventHandler OnResourceAmountChanged;
     
@@ -14,8 +13,6 @@ public class ResourceManager : MonoBehaviour
 
     private void Awake()
     {
-        Instance = this;
-        
         resourceTypeAmountDictionary = new Dictionary<ResourceTypeSO.ResourceType, int>();
 
         foreach (ResourceTypeSO resourceTypeSo in resourceTypeListSO.resourceTypeSOList)

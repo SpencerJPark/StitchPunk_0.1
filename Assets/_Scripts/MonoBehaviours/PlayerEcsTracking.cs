@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-public class PlayerEcsTracker : MonoBehaviour
+public class PlayerEcsTracker : MonoBehaviour, IUpdateObserver
 {
     private EntityManager _entityManager;
     private EntityQuery _playerQuery;
@@ -20,8 +20,11 @@ public class PlayerEcsTracker : MonoBehaviour
             ComponentType.ReadOnly<PlayerCharacter>(),
             ComponentType.ReadOnly<LocalTransform>());
     }
+    
+    private void OnEnable() => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
 
-    private void Update()
+    public void ObservedUpdate()
     {
         // Lazy-bind the player entity in case it spawns later
         if (!_hasPlayer)

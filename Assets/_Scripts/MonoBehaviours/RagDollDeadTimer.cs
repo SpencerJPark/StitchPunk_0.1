@@ -1,12 +1,15 @@
 using System;
 using UnityEngine;
 
-public class RagDollDeadTimer : MonoBehaviour
+public class RagDollDeadTimer : MonoBehaviour, IUpdateObserver
 {
     private float timer = 6f;
     private bool hasColliders = true;
 
-    private void Update()
+    private void OnEnable() => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
+    
+    public void ObservedUpdate()
     {
         timer -= Time.deltaTime;
 
