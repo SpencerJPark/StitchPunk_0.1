@@ -1,12 +1,10 @@
-namespace Data
-{
-    public enum CameraTypeEnum
+
+    public enum CinemachineCameraType
     {
         Player,
         PlayerZoom,
         Vehicle,
         Horde,
-        MapUI,
+        Map,
         // add more as you need…
     }
-}
