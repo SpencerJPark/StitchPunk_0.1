@@ -73,7 +73,6 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
         switch (playerInput.activeActionMap)
         {
             case ActionMaps.Player:
-            case ActionMaps.PlayerZoom:
             case ActionMaps.Vehicle:
                 PlayerFollowMove();
                 break;
@@ -100,15 +99,10 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
 
     private void FreeMovement(PlayerInput input)
     {
-        // Example: use moveInput to slide the camera target around
-        // in top-down XZ plane instead of following the player.
-
-        // Tune this speed as a serialized field if you want
         float moveSpeed = 10f;
         Vector3 move = new Vector3(input.moveInput.x, 0f, input.moveInput.y);
 
         transform.position += move * moveSpeed * Time.deltaTime;
-        // rotation likely stays fixed, or you can do something fancier
     }
 
     private void CenterOnPlayer()

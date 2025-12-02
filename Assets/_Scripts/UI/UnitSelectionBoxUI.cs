@@ -2,17 +2,23 @@ using UnityEngine;
 using Rive;
 using Rive.Components;
 
-public class UnitSelectionBoxUI : MonoBehaviour {
+public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver {
     
+    // Rive Setup
     public RiveWidget riveWidget;
-
     private RiveAnimator selectionRiveVisual;
     
+    // Values to Pass
     private bool visable = false;
-    
     private float lineAmount;
     private float musiceNoteAmount;
-
+    
+    // Constant Variables
+    private const float lineWidth = 100f;
+    private const float musicNoteWidth = 90f;
+    private const float musicNoteExtra = 22f;
+    private const float minMusicNoteSpace = musicNoteWidth + musicNoteExtra;
+    
 
     private void Start() {
         UnitSelectionManager.Instance.OnSelectionAreaStart += UnitSelectionManager_OnSelectionAreaStart;
@@ -24,8 +30,13 @@ public class UnitSelectionBoxUI : MonoBehaviour {
         selectionRiveVisual.SetNumber("Visable", 0f);
         visable = false;
     }
+    
+    
+    private void OnEnable() => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
 
-    private void Update() {
+    
+    public void ObservedUpdate() {
         if (visable) {
             UpdateVisual();
         }
@@ -64,17 +75,17 @@ public class UnitSelectionBoxUI : MonoBehaviour {
 
     private void CalculateLineAmount(float selectionAreaHeight)
     {
-        lineAmount = Mathf.Floor(selectionAreaHeight / 100f);
+        lineAmount = Mathf.Floor(selectionAreaHeight / lineWidth);
     }
 
     private void CalculateMusiceNoteAmount(float selectionAreaWidth)
     {
-        if (selectionAreaWidth < 112f)
+        if (selectionAreaWidth < minMusicNoteSpace)
         {
             musiceNoteAmount = 0;
             return;
         }
-        musiceNoteAmount = Mathf.Floor((selectionAreaWidth - 22) / 90f) * lineAmount;
+        musiceNoteAmount = Mathf.Floor((selectionAreaWidth - musicNoteExtra) / musicNoteWidth) * lineAmount;
     }
 
 }

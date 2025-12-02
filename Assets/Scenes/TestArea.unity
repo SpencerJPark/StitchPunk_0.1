@@ -274,12 +274,12 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 552462644}
   - {fileID: 1991404910961756612}
   - {fileID: 144922119}
   - {fileID: 280655657}
   - {fileID: 549864144}
   - {fileID: 1484175829}
-  - {fileID: 552462644}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &245804754
@@ -648,7 +648,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 552462646}
         m_TargetAssemblyTypeName: PlayerInputManager, Assembly-CSharp
-        m_MethodName: OnMinionControllToggle
+        m_MethodName: OnUnitControlToggle
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

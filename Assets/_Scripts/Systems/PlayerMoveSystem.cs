@@ -19,6 +19,12 @@ partial struct PlayerMoveSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         PlayerInput input = SystemAPI.GetSingleton<PlayerInput>();
+        
+        // Early out if different action mode
+        if (input.activeActionMap != ActionMaps.Player)
+        {
+            return;
+        }
 
         // Convert 2D input into 3D world-space direction (XZ plane)
         float3 moveDir = new float3(input.moveInput.x, 0f, input.moveInput.y);
