@@ -42,6 +42,20 @@ public class PlayerInputManager : MonoBehaviour
         data.moveInput = value;
         entityManager.SetComponentData(_inputEntity, data);
     }
+    
+    public void OnLook(InputAction.CallbackContext context)
+    {
+        float2 value = float2.zero;
+        if (context.performed || context.canceled)
+        {
+            Vector2 v = context.ReadValue<Vector2>();
+            value = new float2(v.x, v.y);
+        }
+
+        PlayerInput data = entityManager.GetComponentData<PlayerInput>(_inputEntity);
+        data.lookInput = value;
+        entityManager.SetComponentData(_inputEntity, data);
+    }
 
     public void OnAttack(InputAction.CallbackContext context)
     {
@@ -92,6 +106,7 @@ public class PlayerInputManager : MonoBehaviour
 
 public struct PlayerInput : IComponentData {
     public float2 moveInput;
+    public float2 lookInput;
     public ActionMaps activeActionMap;
     public bool sneakToggleInput;
     

@@ -1,20 +1,31 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Unity.Entities;
+using Unity.Mathematics;
 
-public class UnitSelectionCursorUI : MonoBehaviour
+public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 {
     [Header("References")]
-    [SerializeField] private RectTransform cursorImageRectTransform;   // assign MusicCursorImage
-    [SerializeField] private Canvas uiCanvas;                          // the canvas this lives on
+    [SerializeField] private RectTransform cursorImageRectTransform; // assign MusicCursorImage
+    [SerializeField] private Canvas uiCanvas;                        // the canvas this lives on
 
     [Header("Movement")]
-    [SerializeField] private float controllerSpeed = 900f;             // pixels per second
-    [SerializeField] private bool allowMouseInput = true;
+    [SerializeField] private float controllerSpeed = 900f;           // pixels per second
 
     public bool IsActive { get; private set; }
 
-    // internal screen-space position in canvas pixels
-    private Vector2 cursorPosition;
+    /// <summary>
+    /// Screen-space position in pixels (0..Screen.width, 0..Screen.height)
+    /// </summary>
+    public Vector2 ScreenPosition => cursorScreenPosition;
+
+    private Vector2 cursorScreenPosition;
+
+    // ECS
+    private EntityManager _entityManager;
+    private EntityQuery _inputQuery;
+    private Entity _inputEntity;
+    private bool _hasInputEntity;
 
     private void Awake()
     {
@@ -24,20 +35,28 @@ public class UnitSelectionCursorUI : MonoBehaviour
         if (uiCanvas == null)
             uiCanvas = GetComponentInParent<Canvas>();
 
+        if (uiCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            Debug.LogWarning("UnitSelectionCursorUI: For HUD-style cursor, Canvas should be Screen Space - Overlay.");
+
+        _entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+        _inputQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerInput>());
+
         // Start hidden
         SetVisible(false);
-        Cursor.visible = true; // make sure system cursor is visible by default
-    }
-
-    private void OnDisable()
-    {
-        // Safety: if this component gets disabled while active, restore OS cursor
         Cursor.visible = true;
     }
 
-    private void Update()
+    private void OnEnable()  => UpdateManager.RegisterObserver(this);
+
+    private void OnDisable()
     {
-        // ⬇⬇⬇ CHANGE #1: Tab as a TOGGLE instead of hold ⬇⬇⬇
+        UpdateManager.UnregisterObserver(this);
+        Cursor.visible = true;
+    }
+
+    public void ObservedUpdate()
+    {
+        // Tab toggle
         if (Input.GetKeyDown(KeyCode.Tab))
         {
             if (IsActive)
@@ -45,13 +64,47 @@ public class UnitSelectionCursorUI : MonoBehaviour
             else
                 Activate();
         }
-        // ⬆⬆⬆ END CHANGE #1 ⬆⬆⬆
 
         if (!IsActive)
             return;
 
-        UpdateInput();
+        if (!EnsureInputEntity())
+            return; // no PlayerInput yet
+
+        PlayerInput input = _entityManager.GetComponentData<PlayerInput>(_inputEntity);
+
+        // Optional: only move in certain action maps
+        if (input.activeActionMap != ActionMaps.ControlUnits &&
+            input.activeActionMap != ActionMaps.MapUI)
+        {
+            // In Player/Vehicle mode maybe you don't want the fake cursor to move at all
+            // Comment this out if you want it always active
+            UpdatePosition(input);   // or skip
+        }
+        else
+        {
+            UpdatePosition(input);
+        }
+
         ApplyPositionToUI();
+    }
+
+    private bool EnsureInputEntity()
+    {
+        if (_hasInputEntity)
+        {
+            if (_entityManager.Exists(_inputEntity))
+                return true;
+
+            _hasInputEntity = false;
+        }
+
+        if (_inputQuery.IsEmpty)
+            return false;
+
+        _inputEntity = _inputQuery.GetSingletonEntity();
+        _hasInputEntity = true;
+        return true;
     }
 
     public void Activate()
@@ -59,38 +112,24 @@ public class UnitSelectionCursorUI : MonoBehaviour
         IsActive = true;
         SetVisible(true);
 
-        RectTransform canvasRect = uiCanvas.transform as RectTransform;
-
-        // Optional: start at mouse position if present, so swap feels seamless
-        if (allowMouseInput && Input.mousePresent)
+        // Start at mouse position or screen center
+        if (Input.mousePresent)
         {
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect,
-                Input.mousePosition,
-                uiCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : uiCanvas.worldCamera,
-                out Vector2 localPoint);
-
-            cursorPosition = localPoint + canvasRect.rect.size / 2f;
+            cursorScreenPosition = Input.mousePosition;
         }
         else
         {
-            // Otherwise initialize position to center of canvas
-            cursorPosition = canvasRect.rect.size / 2f;
+            cursorScreenPosition = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
         }
 
-        // ⬇⬇⬇ CHANGE #2: hide OS cursor when fake cursor is active ⬇⬇⬇
         Cursor.visible = false;
-        // ⬆⬆⬆ END CHANGE #2 ⬆⬆⬆
     }
 
     public void Deactivate()
     {
         IsActive = false;
         SetVisible(false);
-
-        // ⬇⬇⬇ CHANGE #3: show OS cursor again ⬇⬇⬇
         Cursor.visible = true;
-        // ⬆⬆⬆ END CHANGE #3 ⬆⬆⬆
     }
 
     private void SetVisible(bool visible)
@@ -99,43 +138,23 @@ public class UnitSelectionCursorUI : MonoBehaviour
             cursorImageRectTransform.gameObject.SetActive(visible);
     }
 
-    private void UpdateInput()
+    /// <summary>
+    /// Move the cursor in screen space based on PlayerInput.lookInput.
+    /// </summary>
+    private void UpdatePosition(PlayerInput input)
     {
-        // 1. Controller stick movement
-        Vector2 controllerDelta = new Vector2(
-            Input.GetAxis("Horizontal"),
-            Input.GetAxis("Vertical")
-        );
+        // lookInput is a float2 (x,y) from mouse delta or right stick
+        float2 look = input.lookInput;
 
-        // Convert to pixels-per-frame
-        controllerDelta *= controllerSpeed * Time.deltaTime;
+        // Treat lookInput as a normalized direction or delta;
+        // you can tune how big it is in your PlayerInputManager.
+        Vector2 delta = new Vector2(look.x, look.y) * controllerSpeed * Time.deltaTime;
 
-        // 2. Optional mouse input: snap to mouse position if mouse moved
-        if (allowMouseInput)
-        {
-            // NOTE: parentheses to keep logic correct
-            if (Input.mousePresent && (Input.GetAxis("Mouse X") != 0f || Input.GetAxis("Mouse Y") != 0f))
-            {
-                RectTransform canvasRect = uiCanvas.transform as RectTransform;
+        cursorScreenPosition += delta;
 
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    canvasRect,
-                    Input.mousePosition,
-                    uiCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : uiCanvas.worldCamera,
-                    out Vector2 localPoint);
-
-                cursorPosition = localPoint + canvasRect.rect.size / 2f;
-            }
-        }
-
-        // 3. Apply controller delta
-        cursorPosition += controllerDelta;
-
-        // Clamp to canvas bounds
-        RectTransform canvasRectClamp = uiCanvas.transform as RectTransform;
-        Vector2 size = canvasRectClamp.rect.size;
-        cursorPosition.x = Mathf.Clamp(cursorPosition.x, 0f, size.x);
-        cursorPosition.y = Mathf.Clamp(cursorPosition.y, 0f, size.y);
+        // Clamp to screen bounds
+        cursorScreenPosition.x = Mathf.Clamp(cursorScreenPosition.x, 0f, Screen.width);
+        cursorScreenPosition.y = Mathf.Clamp(cursorScreenPosition.y, 0f, Screen.height);
     }
 
     private void ApplyPositionToUI()
@@ -145,9 +164,13 @@ public class UnitSelectionCursorUI : MonoBehaviour
 
         RectTransform canvasRect = uiCanvas.transform as RectTransform;
 
-        // Canvas (0,0) is bottom-left in cursorPosition;
-        // RectTransform anchoredPosition is relative to center:
-        Vector2 anchored = cursorPosition - (canvasRect.rect.size / 2f);
-        cursorImageRectTransform.anchoredPosition = anchored;
+        // Convert screen-space position to canvas local position
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect,
+            cursorScreenPosition,
+            null, // null because ScreenSpaceOverlay
+            out Vector2 localPoint);
+
+        cursorImageRectTransform.anchoredPosition = localPoint;
     }
 }
