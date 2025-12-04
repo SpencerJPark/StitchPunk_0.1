@@ -11,7 +11,7 @@ public class ResourceManager : Singleton<ResourceManager>
     
     private Dictionary<ResourceTypeSO.ResourceType, int> resourceTypeAmountDictionary;
 
-    private void Awake()
+    private void Start()
     {
         resourceTypeAmountDictionary = new Dictionary<ResourceTypeSO.ResourceType, int>();
 

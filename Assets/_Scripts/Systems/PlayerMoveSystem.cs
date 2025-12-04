@@ -11,23 +11,23 @@ partial struct PlayerMoveSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<PlayerInput>();
+        state.RequireForUpdate<PlayerInputData>();
         state.RequireForUpdate<PlayerCharacter>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        PlayerInput input = SystemAPI.GetSingleton<PlayerInput>();
+        PlayerInputData inputData = SystemAPI.GetSingleton<PlayerInputData>();
         
         // Early out if different action mode
-        if (input.activeActionMap != ActionMaps.Player)
+        if (inputData.activeActionMap != ActionMaps.Player)
         {
             return;
         }
 
         // Convert 2D input into 3D world-space direction (XZ plane)
-        float3 moveDir = new float3(input.moveInput.x, 0f, input.moveInput.y);
+        float3 moveDir = new float3(inputData.moveInput.x, 0f, inputData.moveInput.y);
 
         bool hasMoveInput = math.lengthsq(moveDir) > 0.0001f;
         if (hasMoveInput)

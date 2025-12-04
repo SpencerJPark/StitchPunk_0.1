@@ -22,31 +22,42 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
     private Vector2 cursorScreenPosition;
 
     // ECS
-    private EntityManager _entityManager;
-    private EntityQuery _inputQuery;
-    private Entity _inputEntity;
-    private bool _hasInputEntity;
+    private EntityManager entityManager;
+    private EntityQuery inputQuery;
+    private Entity inputEntity;
+    private bool hasInputEntity;
 
     private void Awake()
     {
         if (cursorImageRectTransform == null)
+        {
             Debug.LogError("UnitSelectionCursorUI: cursorImageRectTransform is not assigned.");
+        }
 
         if (uiCanvas == null)
+        {
             uiCanvas = GetComponentInParent<Canvas>();
+        }
 
         if (uiCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+        {
             Debug.LogWarning("UnitSelectionCursorUI: For HUD-style cursor, Canvas should be Screen Space - Overlay.");
+        }
 
-        _entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-        _inputQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerInput>());
+        entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+        inputQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerInputData>());
 
         // Start hidden
         SetVisible(false);
         Cursor.visible = true;
+
+        hasInputEntity = false;
     }
 
-    private void OnEnable()  => UpdateManager.RegisterObserver(this);
+    private void OnEnable()
+    {
+        UpdateManager.RegisterObserver(this);
+    }
 
     private void OnDisable()
     {
@@ -56,63 +67,71 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        // Tab toggle
-        if (Input.GetKeyDown(KeyCode.Tab))
+        if (!EnsureInputEntity())
         {
             if (IsActive)
+            {
                 Deactivate();
-            else
-                Activate();
+            }
+            return;
+        }
+
+        PlayerInputData inputData = entityManager.GetComponentData<PlayerInputData>(inputEntity);
+
+        // Decide if the fake cursor *should* be active in this frame
+        bool shouldBeActive = (inputData.activeActionMap == ActionMaps.ControlUnits);
+
+        // Handle visibility toggling based on ECS state
+        if (shouldBeActive && !IsActive)
+        {
+            ActivateFromInput();
+        }
+        else if (!shouldBeActive && IsActive)
+        {
+            Deactivate();
         }
 
         if (!IsActive)
+        {
             return;
-
-        if (!EnsureInputEntity())
-            return; // no PlayerInput yet
-
-        PlayerInput input = _entityManager.GetComponentData<PlayerInput>(_inputEntity);
-
-        // Optional: only move in certain action maps
-        if (input.activeActionMap != ActionMaps.ControlUnits &&
-            input.activeActionMap != ActionMaps.MapUI)
-        {
-            // In Player/Vehicle mode maybe you don't want the fake cursor to move at all
-            // Comment this out if you want it always active
-            UpdatePosition(input);   // or skip
-        }
-        else
-        {
-            UpdatePosition(input);
         }
 
+        // When active in ControlUnits mode, move the cursor
+        UpdatePosition(inputData);
         ApplyPositionToUI();
     }
 
     private bool EnsureInputEntity()
     {
-        if (_hasInputEntity)
+        if (hasInputEntity)
         {
-            if (_entityManager.Exists(_inputEntity))
+            if (entityManager.Exists(inputEntity))
+            {
                 return true;
+            }
 
-            _hasInputEntity = false;
+            hasInputEntity = false;
         }
 
-        if (_inputQuery.IsEmpty)
+        if (inputQuery.IsEmpty)
+        {
             return false;
+        }
 
-        _inputEntity = _inputQuery.GetSingletonEntity();
-        _hasInputEntity = true;
+        inputEntity = inputQuery.GetSingletonEntity();
+        hasInputEntity = true;
         return true;
     }
 
-    public void Activate()
+    /// <summary>
+    /// Activate the fake cursor and initialize its position.
+    /// </summary>
+    private void ActivateFromInput()
     {
         IsActive = true;
         SetVisible(true);
 
-        // Start at mouse position or screen center
+        // Start at current mouse pos if available, so transition feels natural
         if (Input.mousePresent)
         {
             cursorScreenPosition = Input.mousePosition;
@@ -135,20 +154,23 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
     private void SetVisible(bool visible)
     {
         if (cursorImageRectTransform != null)
+        {
             cursorImageRectTransform.gameObject.SetActive(visible);
+        }
     }
 
     /// <summary>
-    /// Move the cursor in screen space based on PlayerInput.lookInput.
+    /// Move the cursor in screen space based on PlayerInputData.cursorInput.
+    /// cursorInput should be driven by mouse delta or right stick in PlayerInputManager.
     /// </summary>
-    private void UpdatePosition(PlayerInput input)
+    private void UpdatePosition(PlayerInputData inputData)
     {
-        // lookInput is a float2 (x,y) from mouse delta or right stick
-        float2 look = input.lookInput;
+        float2 cursorInput = inputData.cursorInput;
 
-        // Treat lookInput as a normalized direction or delta;
-        // you can tune how big it is in your PlayerInputManager.
-        Vector2 delta = new Vector2(look.x, look.y) * controllerSpeed * Time.deltaTime;
+        // Debug to see if we're actually getting input
+        // Debug.Log($"CursorInput: {cursorInput}");
+
+        Vector2 delta = new Vector2(cursorInput.x, cursorInput.y) * controllerSpeed * Time.deltaTime;
 
         cursorScreenPosition += delta;
 
@@ -160,11 +182,12 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
     private void ApplyPositionToUI()
     {
         if (cursorImageRectTransform == null)
+        {
             return;
+        }
 
         RectTransform canvasRect = uiCanvas.transform as RectTransform;
 
-        // Convert screen-space position to canvas local position
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
             canvasRect,
             cursorScreenPosition,

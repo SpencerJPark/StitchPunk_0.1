@@ -19,7 +19,7 @@ public class CameraManager : Singleton<CameraManager>
     private const int ACTIVE_PRIORITY = 20;
     private const int INACTIVE_PRIORITY = 1;
 
-    private void Awake()
+    private void Start()
     {
         cameraMap = new Dictionary<CinemachineCameraType, CinemachineCamera>
         {

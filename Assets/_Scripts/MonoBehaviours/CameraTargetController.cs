@@ -26,7 +26,7 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
 
         // Player input singleton (activeActionMap, moveInput, etc.)
         _inputQuery = _entityManager.CreateEntityQuery(
-            ComponentType.ReadOnly<PlayerInput>());
+            ComponentType.ReadOnly<PlayerInputData>());
     }
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
@@ -67,10 +67,11 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
         }
 
         // Get current input state (including active action map)
-        PlayerInput playerInput = _entityManager.GetComponentData<PlayerInput>(_inputEntity);
+        PlayerInputData playerInputData = _entityManager.GetComponentData<PlayerInputData>(_inputEntity);
+        
 
         // Branch camera behavior by current action map
-        switch (playerInput.activeActionMap)
+        switch (playerInputData.activeActionMap)
         {
             case ActionMaps.Player:
             case ActionMaps.Vehicle:
@@ -78,7 +79,7 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
                 break;
 
             case ActionMaps.ControlUnits:
-                FreeMovement(playerInput);
+                FreeMovement(playerInputData);
                 break;
 
             case ActionMaps.MapUI:
@@ -97,10 +98,10 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
         transform.rotation = playerTransform.Rotation;
     }
 
-    private void FreeMovement(PlayerInput input)
+    private void FreeMovement(PlayerInputData inputData)
     {
         float moveSpeed = 10f;
-        Vector3 move = new Vector3(input.moveInput.x, 0f, input.moveInput.y);
+        Vector3 move = new Vector3(inputData.moveInput.x, 0f, inputData.moveInput.y);
 
         transform.position += move * moveSpeed * Time.deltaTime;
     }

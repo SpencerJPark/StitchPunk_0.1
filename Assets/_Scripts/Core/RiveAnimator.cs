@@ -18,9 +18,9 @@ public class RiveAnimator
     private readonly Dictionary<string, ViewModelInstanceTriggerProperty> triggerProperties = new();
 
     
-    public void Initialize(RiveWidget riveWidget)
+    public void Initialize(RiveWidget riveWidgetInitialize)
     {
-        riveWidget = riveWidget;
+        riveWidget = riveWidgetInitialize;
         viewModel = riveWidget.StateMachine.ViewModelInstance;
     }
     
