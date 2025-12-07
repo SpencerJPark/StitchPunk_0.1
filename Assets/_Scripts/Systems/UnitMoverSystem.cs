@@ -76,8 +76,18 @@ partial struct UnitMoverSystem : ISystem {
         flowFieldFollowerJob.ScheduleParallel();
 
 
-        UnitMoverJob unitMoverJob = new UnitMoverJob {
-            deltaTime = SystemAPI.Time.DeltaTime,
+        CollisionFilter moveCollisionFilter = new CollisionFilter
+        {
+            BelongsTo    = ~0u,
+            CollidesWith =
+                (1u << GameAssets.PATHFINDING_WALLS) |
+                (1u << GameAssets.BUILDINGS_LAYER),
+            GroupIndex   = 0
+        };
+
+        UnitMoverJob unitMoverJob = new UnitMoverJob
+        {
+            deltaTime        = SystemAPI.Time.DeltaTime,
         };
         unitMoverJob.ScheduleParallel();
     }
@@ -86,36 +96,75 @@ partial struct UnitMoverSystem : ISystem {
 
 
 [BurstCompile]
-public partial struct UnitMoverJob : IJobEntity {
-    
+public partial struct UnitMoverJob : IJobEntity
+{
     public float deltaTime;
-    
-    public void Execute(ref LocalTransform localTransform, ref UnitMover unitMover, ref PhysicsVelocity physicsVelocity) {
-        float3 moveDirection = unitMover.targetPosition - localTransform.Position;
 
-        float reachedTargetDistanceSq = UnitMoverSystem.REACHED_TARGET_POSITION_DISTANCE_SQ;
-        if (math.lengthsq(moveDirection) <= reachedTargetDistanceSq) {
-            // Reached the target position
-            physicsVelocity.Linear = float3.zero;
+    public void Execute(
+        ref LocalTransform localTransform,
+        ref UnitMover unitMover,
+        ref PhysicsVelocity physicsVelocity)
+    {
+        float3 currentPos = localTransform.Position;
+        float3 toTarget   = unitMover.targetPosition - currentPos;
+        float  distanceSq = math.lengthsq(toTarget);
+
+        const float stopDistanceSq   = 0.01f;
+        const float blockedThreshold = 0.001f;  // ~ how little movement counts as "stuck"
+        const float blockedTimeMax   = 0.3f;    // seconds
+
+        // Check if we're blocked (moved very little since last frame)
+        float movedSq = math.lengthsq(currentPos - unitMover.lastPosition);
+        if (movedSq < blockedThreshold * blockedThreshold &&
+            math.lengthsq(physicsVelocity.Linear) > 0.0001f)
+        {
+            unitMover.blockedTime += deltaTime;
+        }
+        else
+        {
+            unitMover.blockedTime = 0f;
+        }
+
+        unitMover.lastPosition = currentPos;
+
+        // If we've been blocked for a bit, stop trying
+        if (unitMover.blockedTime >= blockedTimeMax)
+        {
+            physicsVelocity.Linear  = float3.zero;
             physicsVelocity.Angular = float3.zero;
-            unitMover.isMoving = false;
+            unitMover.isMoving      = false;
+            unitMover.targetPosition = currentPos;
+            unitMover.blockedTime    = 0f;
             return;
         }
 
-        unitMover.isMoving = true;
+        if (distanceSq <= stopDistanceSq)
+        {
+            physicsVelocity.Linear  = float3.zero;
+            physicsVelocity.Angular = float3.zero;
+            unitMover.isMoving      = false;
+            return;
+        }
 
-        moveDirection = math.normalize(moveDirection);
+        float distance = math.sqrt(distanceSq);
+        float3 moveDirection = toTarget / math.max(distance, 1e-4f);
 
-        localTransform.Rotation =
-            math.slerp(localTransform.Rotation,
-                        quaternion.LookRotation(moveDirection, math.up()),
-                        deltaTime * unitMover.rotationSpeed);
+        // quaternion targetRot = quaternion.LookRotation(moveDirection, math.up());
+        // localTransform.Rotation = math.slerp(
+        //     localTransform.Rotation,
+        //     targetRot,
+        //     deltaTime * unitMover.rotationSpeed);
 
-        physicsVelocity.Linear = moveDirection * unitMover.moveSpeed;
+        physicsVelocity.Linear  = moveDirection * unitMover.moveSpeed;
         physicsVelocity.Angular = float3.zero;
-    }
 
+        unitMover.isMoving = true;
+    }
 }
+
+
+
+
 
 
 [BurstCompile]
@@ -137,6 +186,8 @@ public partial struct TargetPositionPathQueuedJob : IJobEntity {
         in LocalTransform localTransform,
         ref UnitMover unitMover,
         Entity entity) {
+
+        // add blocked test, if blocked too long set target to zero
 
         RaycastInput raycastInput = new RaycastInput {
             Start = localTransform.Position,

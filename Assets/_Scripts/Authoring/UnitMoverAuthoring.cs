@@ -2,34 +2,36 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-public class UnitMoverAuthoring : MonoBehaviour {
+public class UnitMoverAuthoring : MonoBehaviour
+{
+    [Header("Movement")]
+    public float moveSpeed = 5f;
+    public float rotationSpeed = 10f;
 
-
-    public float moveSpeed;
-    public float rotationSpeed;
-
-
-    public class Baker : Baker<UnitMoverAuthoring> {
-
-        public override void Bake(UnitMoverAuthoring authoring) {
+    public class Baker : Baker<UnitMoverAuthoring>
+    {
+        public override void Bake(UnitMoverAuthoring authoring)
+        {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new UnitMover {
-                moveSpeed = authoring.moveSpeed,
-                rotationSpeed = authoring.rotationSpeed,
+            AddComponent(entity, new UnitMover
+            {
+                moveSpeed              = authoring.moveSpeed,
+                rotationSpeed          = authoring.rotationSpeed,
+                targetPosition         = float3.zero,
+                isMoving               = false,
             });
         }
-
     }
-
 }
 
-public struct UnitMover : IComponentData {
-
-
+public struct UnitMover : IComponentData
+{
     public float moveSpeed;
     public float rotationSpeed;
     public float3 targetPosition;
     public bool isMoving;
 
-
+    public float3 lastPosition;
+    public bool blocked;
+    public float blockedTime;
 }
