@@ -10,7 +10,6 @@ using Unity.Jobs;
 partial struct UnitMoverSystem : ISystem
 {
     public const float REACHED_TARGET_POSITION_DISTANCE_SQ = 0.04f;
-    public const float BLOCKED_TARGET_POSITION_DISTANCE_SQ = .05f;
     
     float deltaTime;
     GridSystem.GridSystemData gridSystemData;
@@ -116,19 +115,10 @@ partial struct UnitMoverSystem : ISystem
 
     private void RunUnitMover(ref SystemState state)
     {
-        CollisionFilter filter = new CollisionFilter
-        {
-            BelongsTo    = ~0u,
-            CollidesWith = (1u << GameAssets.PATHFINDING_WALLS) |
-                           (1u << GameAssets.BUILDINGS_LAYER),
-            GroupIndex   = 0
-        };
-
         UnitMoverJob unitMoverJob = new UnitMoverJob
         {
             deltaTime       = deltaTime,
             collisionWorld  = collisionWorld,
-            collisionFilter = filter,
         };
 
         unitMoverJob.ScheduleParallel();
@@ -140,7 +130,6 @@ public partial struct UnitMoverJob : IJobEntity
 {
     public float deltaTime;
     [ReadOnly] public CollisionWorld collisionWorld;
-    [ReadOnly] public CollisionFilter collisionFilter;
 
     public void Execute(
         ref LocalTransform localTransform, 
@@ -166,89 +155,118 @@ public partial struct UnitMoverJob : IJobEntity
 
         unsafe
         {
-            // Cast the character's collider along the movement path
-            ColliderCastInput castInput = new ColliderCastInput()
-            {
-                Collider = physicsCollider.ColliderPtr,
-                Orientation = localTransform.Rotation,
-                Start = currentPosition,
-                End = currentPosition + desiredMove
-            };
+            float3 newPosition = CalculateMovementWithCollision(
+                currentPosition, 
+                desiredMove, 
+                moveDir,
+                physicsCollider.ColliderPtr,
+                localTransform.Rotation);
 
-            ColliderCastHit hit;
-            bool haveHit = collisionWorld.CastCollider(castInput, out hit);
-            
-            if (haveHit)
-            {
-                // Check if we're moving away from the surface (dot product with normal)
-                float3 normal = hit.SurfaceNormal;
-                float moveTowardsWall = math.dot(moveDir, -normal);
-                
-                // If moving away from wall (negative dot product) and already touching (low fraction), allow movement
-                if (hit.Fraction < 0.01f && moveTowardsWall < 0f)
-                {
-                    // Already touching and moving away - allow free movement
-                    localTransform.Position = currentPosition + desiredMove;
-                }
-                else
-                {
-                    // Hit something ahead - move up to hit point
-                    float3 moveToHit = desiredMove * hit.Fraction;
-                    float3 hitPos = currentPosition + moveToHit;
-
-                    // Push slightly away from surface to avoid immediate re-collision
-                    float3 separationOffset = normal * 0.001f;
-                    hitPos += separationOffset;
-
-                    // Calculate slide direction (project remaining movement onto surface)
-                    float3 remainingMove = desiredMove * (1f - hit.Fraction);
-                    float3 slideDir = remainingMove - math.dot(remainingMove, normal) * normal;
-                
-                    // Try sliding if there's meaningful movement left
-                    if (math.lengthsq(slideDir) > 0.0001f)
-                    {
-                        // Normalize and scale to maintain desired speed
-                        float slideLength = math.length(slideDir);
-                        
-                        ColliderCastInput slideInput = new ColliderCastInput()
-                        {
-                            Collider = physicsCollider.ColliderPtr,
-                            Orientation = localTransform.Rotation,
-                            Start = hitPos,
-                            End = hitPos + slideDir
-                        };
-
-                        ColliderCastHit slideHit;
-                        if (collisionWorld.CastCollider(slideInput, out slideHit))
-                        {
-                            // Hit another surface while sliding
-                            localTransform.Position = hitPos + slideDir * slideHit.Fraction;
-                        }
-                        else
-                        {
-                            // Free to slide along surface
-                            localTransform.Position = hitPos + slideDir;
-                        }
-                    }
-                    else
-                    {
-                        localTransform.Position = hitPos;
-                    }
-                }
-            }
-            else
-            {
-                // No collision - move freely
-                localTransform.Position = currentPosition + desiredMove;
-            }
+            localTransform.Position = newPosition;
         }
 
         float3 actualMove = localTransform.Position - currentPosition;
         unitMover.isMoving = math.lengthsq(actualMove) > 1e-6f;
-        unitMover.blocked = !unitMover.isMoving && distSq > 0.0001f;
+    }
+
+    private unsafe float3 CalculateMovementWithCollision(
+        float3 currentPosition,
+        float3 desiredMove,
+        float3 moveDir,
+        Unity.Physics.Collider* collider,
+        quaternion orientation)
+    {
+        ColliderCastHit hit;
+        bool haveHit = CastCollider(currentPosition, desiredMove, collider, orientation, out hit);
+        
+        if (!haveHit)
+        {
+            return currentPosition + desiredMove;
+        }
+
+        if (IsMovingAwayFromSurface(hit, moveDir))
+        {
+            return currentPosition + desiredMove;
+        }
+
+        return CalculateSlideMovement(currentPosition, desiredMove, hit, collider, orientation);
+    }
+
+    private unsafe bool CastCollider(
+        float3 start,
+        float3 movement,
+        Unity.Physics.Collider* collider,
+        quaternion orientation,
+        out ColliderCastHit hit)
+    {
+        ColliderCastInput castInput = new ColliderCastInput()
+        {
+            Collider = collider,
+            Orientation = orientation,
+            Start = start,
+            End = start + movement
+        };
+
+        return collisionWorld.CastCollider(castInput, out hit);
+    }
+
+    private bool IsMovingAwayFromSurface(ColliderCastHit hit, float3 moveDir)
+    {
+        if (hit.Fraction >= 0.01f)
+        {
+            return false;
+        }
+
+        float3 normal = hit.SurfaceNormal;
+        float moveTowardsWall = math.dot(moveDir, -normal);
+        
+        return moveTowardsWall < 0f;
+    }
+
+    private unsafe float3 CalculateSlideMovement(
+        float3 currentPosition,
+        float3 desiredMove,
+        ColliderCastHit hit,
+        Unity.Physics.Collider* collider,
+        quaternion orientation)
+    {
+        float3 normal = hit.SurfaceNormal;
+        float3 moveToHit = desiredMove * hit.Fraction;
+        float3 hitPos = currentPosition + moveToHit;
+
+        // Push slightly away from surface to avoid immediate re-collision
+        float3 separationOffset = normal * 0.001f;
+        hitPos += separationOffset;
+
+        // Calculate slide direction (project remaining movement onto surface)
+        float3 remainingMove = desiredMove * (1f - hit.Fraction);
+        float3 slideDir = remainingMove - math.dot(remainingMove, normal) * normal;
+
+        if (math.lengthsq(slideDir) < 0.0001f)
+        {
+            return hitPos;
+        }
+
+        return TrySlideAlongSurface(hitPos, slideDir, collider, orientation);
+    }
+
+    private unsafe float3 TrySlideAlongSurface(
+        float3 hitPos,
+        float3 slideDir,
+        Unity.Physics.Collider* collider,
+        quaternion orientation)
+    {
+        ColliderCastHit slideHit;
+        bool hasSlideHit = CastCollider(hitPos, slideDir, collider, orientation, out slideHit);
+
+        if (hasSlideHit)
+        {
+            return hitPos + slideDir * slideHit.Fraction;
+        }
+
+        return hitPos + slideDir;
     }
 }
-
 
 [BurstCompile]
 [WithAll(typeof(TargetPositionPathQueued))]
