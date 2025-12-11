@@ -7,13 +7,13 @@ public class ImageIndexAuthoring : MonoBehaviour {
     public int defaultIndex;
     
     public class Baker : Baker<ImageIndexAuthoring> {
-
-
+        
         public override void Bake(ImageIndexAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new ImageIndex
             {
-                index = authoring.defaultIndex
+                index = authoring.defaultIndex,
+                onUpdate = true
             });
             AddComponent(entity, new ImageIndexOverride
             {
@@ -25,8 +25,8 @@ public class ImageIndexAuthoring : MonoBehaviour {
 
 public struct ImageIndex : IComponentData
 {
-    public bool onUpdate;
     public int index;
+    public bool onUpdate;
 }
 
 [MaterialProperty("_ImageIndex")]

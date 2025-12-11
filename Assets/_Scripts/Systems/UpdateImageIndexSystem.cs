@@ -1,7 +1,5 @@
 using Unity.Burst;
 using Unity.Entities;
-using Unity.Mathematics;
-using Unity.Rendering;
 
 [BurstCompile]
 public partial struct UpdateImageIndexSystem : ISystem
