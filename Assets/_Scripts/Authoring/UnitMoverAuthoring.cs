@@ -1,5 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEditor.UI;
 using UnityEngine;
 
 public class UnitMoverAuthoring : MonoBehaviour
@@ -17,7 +18,7 @@ public class UnitMoverAuthoring : MonoBehaviour
             {
                 moveSpeed              = authoring.moveSpeed,
                 rotationSpeed          = authoring.rotationSpeed,
-                targetPosition         = float3.zero,
+                targetPosition         = ,
                 isMoving               = false,
             });
         }

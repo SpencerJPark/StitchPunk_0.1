@@ -21,21 +21,19 @@ partial struct ResetEventsSystem : ISystem {
     }
 
     public void OnUpdate(ref SystemState state) {
+
+        EndGameCheck(ref state);
         
-        // End Game Check
-        if (SystemAPI.HasSingleton<BuildingHQ>()) {
-            Health hqHealth = SystemAPI.GetComponent<Health>(SystemAPI.GetSingletonEntity<BuildingHQ>());
-            if (hqHealth.onDead) {
-                DOTSEventsManager.Instance?.TriggerOnHQDead();
-            }
-        }
+        ScheduleResetEventJobs(ref state);
+        
+        PassEventsToGameObjects(ref state);
 
-        // Schedule Jobs
-        jobHandleNativeArray[0] = new ResetSelectedEventsJob().ScheduleParallel(state.Dependency);
-        jobHandleNativeArray[1] = new ResetShootAttackEventsJob().ScheduleParallel(state.Dependency);
-        jobHandleNativeArray[2] = new ResetMeleeAttackEventsJob().ScheduleParallel(state.Dependency);
+        // Run Jobs Array
+        state.Dependency = JobHandle.CombineDependencies(jobHandleNativeArray);
+    }
 
-        // Events Passed into GameObject world
+    private void PassEventsToGameObjects(ref SystemState state)
+    {
         onBarracksUnitQueueChangedEntityList.Clear();
         new ResetBuildingBarracksEventsJob() {
             onUnitQueueChangedEntityList = onBarracksUnitQueueChangedEntityList.AsParallelWriter(),
@@ -49,9 +47,24 @@ partial struct ResetEventsSystem : ISystem {
         }.ScheduleParallel(state.Dependency).Complete();
 
         DOTSEventsManager.Instance?.TriggerOnHealthDead(onHealthDeadEntityList);
+    }
 
-        // Run Jobs Array
-        state.Dependency = JobHandle.CombineDependencies(jobHandleNativeArray);
+    private void EndGameCheck(ref SystemState state)
+    {
+        if (SystemAPI.HasSingleton<BuildingHQ>()) {
+            Health hqHealth = SystemAPI.GetComponent<Health>(SystemAPI.GetSingletonEntity<BuildingHQ>());
+            if (hqHealth.onDead) {
+                DOTSEventsManager.Instance?.TriggerOnHQDead();
+            }
+        }
+    }
+
+    private void ScheduleResetEventJobs(ref SystemState state)
+    {
+        jobHandleNativeArray[0] = new ResetSelectedEventsJob().ScheduleParallel(state.Dependency);
+        jobHandleNativeArray[1] = new ResetShootAttackEventsJob().ScheduleParallel(state.Dependency);
+        jobHandleNativeArray[2] = new ResetMeleeAttackEventsJob().ScheduleParallel(state.Dependency);
+        jobHandleNativeArray[3] = new ResetImageIndexUpdateJob().ScheduleParallel(state.Dependency);
     }
 
     public void OnDestroy(ref SystemState state) {
@@ -64,6 +77,14 @@ partial struct ResetEventsSystem : ISystem {
 
 }
 
+
+[BurstCompile]
+public partial struct ResetImageIndexUpdateJob : IJobEntity {
+
+    public void Execute(ref ImageIndex imageIndex) {
+        imageIndex.onUpdate = false;
+    }
+}
 
 [BurstCompile]
 public partial struct ResetShootAttackEventsJob : IJobEntity {
