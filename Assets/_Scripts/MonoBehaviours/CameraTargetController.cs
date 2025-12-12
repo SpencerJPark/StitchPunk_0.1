@@ -21,7 +21,7 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
 
         // Player entity (position/rotation comes from here)
         _playerQuery = _entityManager.CreateEntityQuery(
-            ComponentType.ReadOnly<PlayerCharacter>(),
+            ComponentType.ReadOnly<Player>(),
             ComponentType.ReadOnly<LocalTransform>());
 
         // Player input singleton (activeActionMap, moveInput, etc.)

@@ -12,7 +12,7 @@ partial struct PlayerMoveSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<PlayerInputData>();
-        state.RequireForUpdate<PlayerCharacter>();
+        state.RequireForUpdate<Player>();
     }
 
     [BurstCompile]
@@ -37,7 +37,7 @@ partial struct PlayerMoveSystem : ISystem
 
         foreach (var (transform, unitMover) in
                  SystemAPI.Query<RefRO<LocalTransform>, RefRW<UnitMover>>()
-                     .WithAll<PlayerCharacter>())
+                     .WithAll<Player>())
         {
             float3 currentPos = transform.ValueRO.Position;
 

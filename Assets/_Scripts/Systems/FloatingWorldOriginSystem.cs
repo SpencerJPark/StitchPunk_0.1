@@ -14,7 +14,7 @@ public partial struct FloatingWorldOriginSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<PlayerCharacter>();
+        state.RequireForUpdate<Player>();
         nextCheckTime = 0;
     }
 
@@ -32,7 +32,7 @@ public partial struct FloatingWorldOriginSystem : ISystem
         // ───────────────────────────────────────────────
         // 1. Get the player entity (tag + only one)
         // ───────────────────────────────────────────────
-        Entity playerEntity = SystemAPI.GetSingletonEntity<PlayerCharacter>();
+        Entity playerEntity = SystemAPI.GetSingletonEntity<Player>();
 
         // ───────────────────────────────────────────────
         // 2. Get its LocalTransform
