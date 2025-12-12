@@ -26,8 +26,8 @@ TagManager:
   - Buildings
   - PathfindingWalls
   - PathfindingHeavy
-  - Minimap
-  - Ragdoll
+  - Objects
+  - Visual
   - 
   - 
   - 

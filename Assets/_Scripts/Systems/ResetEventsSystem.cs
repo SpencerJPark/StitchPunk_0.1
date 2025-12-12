@@ -5,17 +5,20 @@ using Unity.Entities;
 using Unity.Jobs;
 
 [UpdateInGroup(typeof(LateSimulationSystemGroup), OrderLast = true)]
-partial struct ResetEventsSystem : ISystem {
-
-
+partial struct ResetEventsSystem : ISystem
+{
+    // Update count when adding more jobs
+    private const int NUMBER_OF_RESET_EVENT_JOBS = 4;
     private NativeArray<JobHandle> jobHandleNativeArray;
+    
+    // Lists to pass Entities to GameObjects World
     private NativeList<Entity> onBarracksUnitQueueChangedEntityList;
     private NativeList<Entity> onHealthDeadEntityList;
 
 
     [BurstCompile]
     public void OnCreate(ref SystemState state) {
-        jobHandleNativeArray = new NativeArray<JobHandle>(3, Allocator.Persistent);
+        jobHandleNativeArray = new NativeArray<JobHandle>(NUMBER_OF_RESET_EVENT_JOBS, Allocator.Persistent);
         onBarracksUnitQueueChangedEntityList = new NativeList<Entity>(Allocator.Persistent);
         onHealthDeadEntityList = new NativeList<Entity>(Allocator.Persistent);
     }
@@ -31,24 +34,7 @@ partial struct ResetEventsSystem : ISystem {
         // Run Jobs Array
         state.Dependency = JobHandle.CombineDependencies(jobHandleNativeArray);
     }
-
-    private void PassEventsToGameObjects(ref SystemState state)
-    {
-        onBarracksUnitQueueChangedEntityList.Clear();
-        new ResetBuildingBarracksEventsJob() {
-            onUnitQueueChangedEntityList = onBarracksUnitQueueChangedEntityList.AsParallelWriter(),
-        }.ScheduleParallel(state.Dependency).Complete();
-
-        DOTSEventsManager.Instance?.TriggerOnBarracksUnitQueueChanged(onBarracksUnitQueueChangedEntityList);
-        
-        onHealthDeadEntityList.Clear();
-        new ResetHealthEventsJob() {
-            onHealthDeadEntityList = onHealthDeadEntityList.AsParallelWriter(),
-        }.ScheduleParallel(state.Dependency).Complete();
-
-        DOTSEventsManager.Instance?.TriggerOnHealthDead(onHealthDeadEntityList);
-    }
-
+    
     private void EndGameCheck(ref SystemState state)
     {
         if (SystemAPI.HasSingleton<BuildingHQ>()) {
@@ -65,6 +51,23 @@ partial struct ResetEventsSystem : ISystem {
         jobHandleNativeArray[1] = new ResetShootAttackEventsJob().ScheduleParallel(state.Dependency);
         jobHandleNativeArray[2] = new ResetMeleeAttackEventsJob().ScheduleParallel(state.Dependency);
         jobHandleNativeArray[3] = new ResetImageIndexUpdateJob().ScheduleParallel(state.Dependency);
+    }
+    
+    private void PassEventsToGameObjects(ref SystemState state)
+    {
+        onBarracksUnitQueueChangedEntityList.Clear();
+        new ResetBuildingBarracksEventsJob() {
+            onUnitQueueChangedEntityList = onBarracksUnitQueueChangedEntityList.AsParallelWriter(),
+        }.ScheduleParallel(state.Dependency).Complete();
+
+        DOTSEventsManager.Instance?.TriggerOnBarracksUnitQueueChanged(onBarracksUnitQueueChangedEntityList);
+        
+        onHealthDeadEntityList.Clear();
+        new ResetHealthEventsJob() {
+            onHealthDeadEntityList = onHealthDeadEntityList.AsParallelWriter(),
+        }.ScheduleParallel(state.Dependency).Complete();
+
+        DOTSEventsManager.Instance?.TriggerOnHealthDead(onHealthDeadEntityList);
     }
 
     public void OnDestroy(ref SystemState state) {
