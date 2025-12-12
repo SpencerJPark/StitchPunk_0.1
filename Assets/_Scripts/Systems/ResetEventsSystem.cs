@@ -22,6 +22,13 @@ partial struct ResetEventsSystem : ISystem
         onBarracksUnitQueueChangedEntityList = new NativeList<Entity>(Allocator.Persistent);
         onHealthDeadEntityList = new NativeList<Entity>(Allocator.Persistent);
     }
+    
+    [BurstCompile]
+    public void OnDestroy(ref SystemState state) {
+        jobHandleNativeArray.Dispose();
+        onBarracksUnitQueueChangedEntityList.Dispose();
+        onHealthDeadEntityList.Dispose();
+    }
 
     public void OnUpdate(ref SystemState state) {
 
@@ -69,14 +76,6 @@ partial struct ResetEventsSystem : ISystem
 
         DOTSEventsManager.Instance?.TriggerOnHealthDead(onHealthDeadEntityList);
     }
-
-    public void OnDestroy(ref SystemState state) {
-        jobHandleNativeArray.Dispose();
-        onBarracksUnitQueueChangedEntityList.Dispose();
-        onHealthDeadEntityList.Dispose();
-    }
-
-
 
 }
 
