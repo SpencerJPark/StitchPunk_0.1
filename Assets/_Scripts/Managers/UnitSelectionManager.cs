@@ -135,7 +135,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
                     Filter = new CollisionFilter
                     {
                         BelongsTo = ~0u,
-                        CollidesWith = (1u << GameAssets.UNITS_LAYER) | (1u << GameAssets.BUILDINGS_LAYER),
+                        CollidesWith = (1u << GameAssets.UNITS_LAYER) | (1u << GameAssets.STRUCTURES_LAYER),
                         GroupIndex = 0,
                     }
                 };
@@ -191,7 +191,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
                 Filter = new CollisionFilter
                 {
                     BelongsTo = ~0u,
-                    CollidesWith = (1u << GameAssets.UNITS_LAYER) | (1u << GameAssets.BUILDINGS_LAYER),
+                    CollidesWith = (1u << GameAssets.UNITS_LAYER) | (1u << GameAssets.STRUCTURES_LAYER),
                     GroupIndex = 0,
                 }
             };

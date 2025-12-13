@@ -12,6 +12,8 @@ public class OutlineChildAuthoring : MonoBehaviour {
             {
                 parentEntity = GetEntity(authoring.outlineParent, TransformUsageFlags.Dynamic),
             });
+            AddComponent(entity, new OutlinedTag());
+            SetComponentEnabled<OutlinedTag>(entity, false);
         }
     }
 }
@@ -19,4 +21,11 @@ public class OutlineChildAuthoring : MonoBehaviour {
 
 public struct OutlineChild : IComponentData {
     public Entity parentEntity;
+}
+
+/// <summary>
+/// When this component is present and enabled, the entity renders to the outline camera
+/// </summary>
+public struct OutlinedTag : IComponentData, IEnableableComponent
+{
 }

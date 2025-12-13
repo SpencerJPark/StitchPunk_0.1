@@ -23,11 +23,11 @@ TagManager:
   - Water
   - UI
   - Units
-  - Buildings
+  - Structures
   - PathfindingWalls
   - PathfindingHeavy
   - Objects
-  - Visual
+  - Outlined
   - 
   - 
   - 

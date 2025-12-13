@@ -3,12 +3,12 @@
 --- !u!21 &2100000
 Material:
   serializedVersion: 8
-  m_ObjectHideFlags: 0
+  m_ObjectHideFlags: 32
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: LeftEyeBrow
-  m_Shader: {fileID: -6465566751694194690, guid: 05114cc5e6bf2d24eb044308c91053fd, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: e5e6305bdbeddc649b56d342dc41c652, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -17,7 +17,7 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 2450
+  m_CustomRenderQueue: -1
   stringTagMap:
     RenderType: TransparentCutout
   disabledShaderPasses:
@@ -51,7 +51,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 12db7edfacbbcb44ea77b6481af8e5fd, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4d854537e1ce2104da7d5326f2fa9951, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -87,6 +87,8 @@ Material:
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 1
     - _AlphaToMask: 1
+    - _AtlasHeight: 1
+    - _AtlasWidth: 1
     - _Blend: 0
     - _BlendModePreserveSpecular: 0
     - _BumpScale: 1
@@ -103,6 +105,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
+    - _ImageIndex: 0
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005

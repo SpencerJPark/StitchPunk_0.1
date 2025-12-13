@@ -5,9 +5,11 @@ public class GameAssets : MonoBehaviour {
     public const int DEFAULT_LAYER = 0;
     public const int GROUND_LAYER = 3;
     public const int UNITS_LAYER = 6;
-    public const int BUILDINGS_LAYER = 7;
-    public const int PATHFINDING_WALLS = 8;
-    public const int PATHFINDING_HEAVY = 9;
+    public const int STRUCTURES_LAYER = 7;
+    public const int WALLS_LAYER = 8;
+    public const int PATHFINDING_HEAVY_LAYER = 9;
+    public const int OBJECTS_LAYER = 10;
+    public const int OUTLINE_LAYER = 11;
 
 
 

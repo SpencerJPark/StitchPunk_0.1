@@ -27,7 +27,7 @@ public partial struct UnitGravitySystem : ISystem
         {
             BelongsTo    = ~0u,
             CollidesWith = (1u << GameAssets.GROUND_LAYER) |
-                           (1u << GameAssets.BUILDINGS_LAYER),
+                           (1u << GameAssets.STRUCTURES_LAYER),
             GroupIndex   = 0,
         };
 

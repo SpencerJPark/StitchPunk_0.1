@@ -1,10 +1,11 @@
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Collections;
-using Unity.Jobs;
+
 
 partial struct OutlineSystem : ISystem
 {
+    private Entity playerEntity;
     private Entity previousEntity;
     private Entity nextEntity;
     
@@ -17,6 +18,7 @@ partial struct OutlineSystem : ISystem
         
         previousEntity = Entity.Null;
         nextEntity = Entity.Null;
+        playerEntity = Entity.Null;
         
         outlineEntityChildrenList = new NativeList<Entity>(Allocator.Persistent);
     }
@@ -26,10 +28,15 @@ partial struct OutlineSystem : ISystem
     {
         outlineEntityChildrenList.Dispose();
     }
-
+    
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        if (playerEntity == Entity.Null || !state.EntityManager.Exists(playerEntity))
+        {
+            playerEntity = SystemAPI.GetSingletonEntity<Player>();
+        }
+        
         FindNextOutlined(ref state);
         
         if (nextEntity == Entity.Null)
@@ -42,46 +49,19 @@ partial struct OutlineSystem : ISystem
             return;
         }
         
-        ResetPreviousChildrenOutline(ref state);
+        SetChildrenOutline(ref state, false);
         
         previousEntity = nextEntity;
         
         GatherNewChildren(ref state);
         
-        SetNextChildrenOutline(ref state);
+        SetChildrenOutline(ref state, true);
     }
 
+  
     private void FindNextOutlined(ref SystemState state)
     {
-        nextEntity = SystemAPI.GetSingleton<Player>().interactableEntity;
-    }
-
-    private void ResetPreviousChildrenOutline(ref SystemState state)
-    {
-        // Set all children in the list to not outlined
-        foreach (Entity childEntity in outlineEntityChildrenList)
-        {
-            if (!state.EntityManager.Exists(childEntity)) continue;
-            
-            // Disable OutlinedTag
-            if (state.EntityManager.HasComponent<OutlinedTag>(childEntity))
-            {
-                state.EntityManager.SetComponentEnabled<OutlinedTag>(childEntity, false);
-            }
-            
-            // Clear material RenderType (main thread operation)
-            if (state.EntityManager.HasComponent<RenderMeshArray>(childEntity))
-            {
-                RenderMeshArray renderMeshArray = state.EntityManager.GetSharedComponentManaged<RenderMeshArray>(childEntity);
-                var materials = renderMeshArray.Materials;
-                
-                foreach (var material in materials)
-                {
-                    if (material == null) continue;
-                    material.SetOverrideTag("RenderType", "");
-                }
-            }
-        }
+        nextEntity = SystemAPI.GetComponent<Player>(playerEntity).interactableEntity;
     }
     
     private void GatherNewChildren(ref SystemState state)
@@ -93,34 +73,17 @@ partial struct OutlineSystem : ISystem
         }.ScheduleParallel(state.Dependency).Complete();
     }
     
-    private void SetNextChildrenOutline(ref SystemState state)
+    private void SetChildrenOutline(ref SystemState state, bool enabled)
     {
-        // Get outline settings from parent entity
-        Outline settings = state.EntityManager.GetComponentData<Outline>(nextEntity);
-        
-        // Set all children in the list to outlined
+        // Set all children in the list to not outlined
         foreach (Entity childEntity in outlineEntityChildrenList)
         {
             if (!state.EntityManager.Exists(childEntity)) continue;
             
-            // Enable OutlinedTag
-            if (!state.EntityManager.HasComponent<OutlinedTag>(childEntity))
+            // Disable OutlinedTag
+            if (state.EntityManager.HasComponent<OutlinedTag>(childEntity))
             {
-                state.EntityManager.AddComponent<OutlinedTag>(childEntity);
-            }
-            state.EntityManager.SetComponentEnabled<OutlinedTag>(childEntity, true);
-            
-            // Set material RenderType to "Outlined" (main thread operation)
-            if (state.EntityManager.HasComponent<RenderMeshArray>(childEntity))
-            {
-                RenderMeshArray renderMeshArray = state.EntityManager.GetSharedComponentManaged<RenderMeshArray>(childEntity);
-                var materials = renderMeshArray.Materials;
-                
-                foreach (var material in materials)
-                {
-                    if (material == null) continue;
-                    material.SetOverrideTag("RenderType", "Outlined");
-                }
+                state.EntityManager.SetComponentEnabled<OutlinedTag>(childEntity, enabled);
             }
         }
     }

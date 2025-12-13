@@ -89,7 +89,7 @@ public class BuildingPlacementManager : Singleton<BuildingPlacementManager>, IUp
         CollisionWorld collisionWorld = physicsWorldSingleton.CollisionWorld;
         CollisionFilter collisionFilter = new CollisionFilter {
             BelongsTo = ~0u,
-            CollidesWith = 1u << GameAssets.BUILDINGS_LAYER | 1u << GameAssets.DEFAULT_LAYER,
+            CollidesWith = 1u << GameAssets.STRUCTURES_LAYER | 1u << GameAssets.DEFAULT_LAYER,
             GroupIndex = 0,
         };
 
