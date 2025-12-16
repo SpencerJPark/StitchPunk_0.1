@@ -25,7 +25,6 @@ public class OutlineAuthoring : MonoBehaviour
                     authoring.outlineColor.b, 
                     authoring.outlineColor.a),
                 outlineWidth = authoring.outlineWidth,
-                onUpdateVisual = true
             });
         }
     }
@@ -40,5 +39,4 @@ public struct Outline : IComponentData
 {
     public float4 outlineColor;
     public float outlineWidth;
-    public bool onUpdateVisual;
 }

@@ -17,7 +17,7 @@ public class ImageIndexAuthoring : MonoBehaviour {
             });
             AddComponent(entity, new ImageIndexOverride
             {
-                value = authoring.defaultIndex
+                Value = 0
             });
         }
     }
@@ -32,5 +32,9 @@ public struct ImageIndex : IComponentData
 [MaterialProperty("_ImageIndex")]
 public struct ImageIndexOverride : IComponentData
 {
-    public float value;
+    public float Value;
 }
+
+// Damage color bool propertyBlock
+// tint for effects
+// disolve

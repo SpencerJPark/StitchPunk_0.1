@@ -19,7 +19,7 @@ public partial struct UpdateImageIndexJob : IJobEntity
     {
         if (imageIndex.onUpdate)
         {
-            imageIndexOverride.value = imageIndex.index;
+            imageIndexOverride.Value = imageIndex.index;
         }
     }
 }

@@ -414,7 +414,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_Name
-      value: MapCamera
+      value: MapCinemachine
       objectReference: {fileID: 0}
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_IsActive
@@ -1849,7 +1849,7 @@ PrefabInstance:
       objectReference: {fileID: 1298202565}
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_Name
-      value: UnitControlCamera
+      value: UnitControlCinemachine
       objectReference: {fileID: 0}
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_IsActive
@@ -2214,7 +2214,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 728313225602708406, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_Name
-      value: PlayerZoomCamera
+      value: PlayerZoomCinemachine
       objectReference: {fileID: 0}
     - target: {fileID: 728313225602708406, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_IsActive
@@ -2278,7 +2278,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.11966827
+      value: 0.11966826
       objectReference: {fileID: 0}
     - target: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_LocalRotation.y
@@ -2286,7 +2286,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.0011366095
+      value: 0.0011366092
       objectReference: {fileID: 0}
     - target: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -2315,7 +2315,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_Name
-      value: VehicleCamera
+      value: VehicleCinemachine
       objectReference: {fileID: 0}
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_IsActive
@@ -2545,7 +2545,7 @@ PrefabInstance:
       objectReference: {fileID: 1298202565}
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_Name
-      value: PlayerCamera
+      value: PlayerCinemachine
       objectReference: {fileID: 0}
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_IsActive
