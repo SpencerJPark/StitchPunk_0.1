@@ -2397,6 +2397,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 947815299}
     m_Modifications:
+    - target: {fileID: 1604691996422051065, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_RendererIndex
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1604691996422051065, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_RequiresDepthTextureOption
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1604691996422051065, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_RequiresOpaqueTextureOption
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 1874135436899282969, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: worldOrientation
       value: 
@@ -2412,6 +2424,10 @@ PrefabInstance:
     - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: orthographic size
       value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2459,7 +2475,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6287997935826373757, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: ShowCameraFrustum
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6287997935826373757, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: LensModeOverride.Enabled
