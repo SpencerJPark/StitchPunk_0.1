@@ -8,13 +8,10 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: BaseColor
-  m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 6de63fabd6bf77a41bdb92021c57de0a, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _DETAIL_SCALED
-  - _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
-  - _SPECULARHIGHLIGHTS_OFF
   - _SPECULAR_SETUP
   m_InvalidKeywords: []
   m_LightmapFlags: 4
@@ -58,6 +55,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -107,6 +108,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _ADDITIONAL_LIGHTS: 0
+    - _ADDITIONAL_LIGHTS_SHADOWS: 0
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
@@ -127,11 +130,20 @@ Material:
     - _DetailStrength: 0
     - _DstBlend: 0
     - _DstBlendAlpha: 0
+    - _EdgeDiffuse: 0.1
+    - _EdgeDistanceAttenuation: 0.5
+    - _EdgeRimAttenuation: 0.3
+    - _EdgeRimOffset: 0.5
+    - _EdgeShadowAttenuation: 0.5
+    - _EdgeSpecular: 0.1
+    - _EdgeSpecularOffset: 0.1
     - _EnvironmentReflections: 1
     - _GlobalSkewFactor: 7.32
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
+    - _MAIN_LIGHT_SHADOWS: 0
+    - _MAIN_LIGHT_SHADOWS_CASCADE: 0
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -139,12 +151,21 @@ Material:
     - _QueueControl: 0
     - _QueueOffset: 0
     - _ReceiveShadows: 1
+    - _RimIntensity: 0.5
+    - _RimSmooth: 0.1
+    - _RimThreshold: 0.1
+    - _SHADOWS_SOFT: 0
     - _SampleGI: 0
-    - _Smoothness: 0
+    - _ShadowSmoothness: 0.05
+    - _ShadowThreshold: 0.5
+    - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 1
     - _SpecularHighlights: 0
+    - _SpecularSize: 0.95
+    - _SpecularSmooth: 0.02
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
+    - _Strength: 0
     - _Surface: 0
     - _UVSec: 0
     - _WorkflowMode: 0
@@ -160,8 +181,16 @@ Material:
     - _BaseTiling: {r: 1, g: 1, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DetailTiling: {r: 1, g: 1, b: 0, a: 0}
+    - _Detail_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Detail_Tilling: {r: 0, g: 0, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _MainTexTilling: {r: 1, g: 1, b: 0, a: 0}
+    - _Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _RimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShadowColor: {r: 0.6, g: 0.5, b: 0.7, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Tilling: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &3283360599845868551

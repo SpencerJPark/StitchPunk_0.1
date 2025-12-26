@@ -16,7 +16,7 @@ MonoBehaviour:
   settings:
     outlineLayerMask:
       serializedVersion: 2
-      m_Bits: 1408
+      m_Bits: 1928
     robertsCrossMaterial: {fileID: 2100000, guid: 14a97ad2ce613324f999eb312ce251b4, type: 2}
     normalCaptureShader: {fileID: 4800000, guid: ad2b20eee37990d4eaa5a0839c82812f, type: 3}
     robertsCrossMultiplier: 1
@@ -43,9 +43,9 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 2048
     outlineColor: {r: 1, g: 1, b: 1, a: 1}
-    outlineThickness: 2
+    outlineThickness: 1.6
     edgeThreshold: 0.1
-    silhouetteBufferScale: 0.8
+    silhouetteBufferScale: 0.9
     disableInSceneView: 0
     renderPassEvent: 500
     showSilhouetteBuffer: 0
