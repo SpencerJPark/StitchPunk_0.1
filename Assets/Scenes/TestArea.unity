@@ -134,7 +134,7 @@ GameObject:
   m_Component:
   - component: {fileID: 144922119}
   - component: {fileID: 144922120}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: BuildingPlacementManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -254,7 +254,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 163677902}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: Managers
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -355,7 +355,7 @@ GameObject:
   m_Component:
   - component: {fileID: 280655657}
   - component: {fileID: 280655658}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: CameraManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -415,6 +415,10 @@ PrefabInstance:
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_Name
       value: MapCinemachine
+      objectReference: {fileID: 0}
+    - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
+      propertyPath: m_Layer
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_IsActive
@@ -579,7 +583,7 @@ Transform:
   m_GameObject: {fileID: 488662803}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.19261621, z: -0, w: 0.9812742}
-  m_LocalPosition: {x: 5.22, y: 4.78, z: 4.37}
+  m_LocalPosition: {x: 8.13, y: 4.22, z: 6.55}
   m_LocalScale: {x: 3.8600001, y: 3.86, z: 3.8600001}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -606,7 +610,7 @@ GameObject:
   m_Component:
   - component: {fileID: 549864144}
   - component: {fileID: 549864145}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: DOTSEventsManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -652,7 +656,7 @@ GameObject:
   - component: {fileID: 552462644}
   - component: {fileID: 552462645}
   - component: {fileID: 552462646}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: InputManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1100,7 +1104,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &744871819
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1650,7 +1654,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 947815299}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: View
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1732,7 +1736,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1154694571}
   - component: {fileID: 1154694572}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: MouseWorldPosition
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1808,7 +1812,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1298202565}
   - component: {fileID: 1298202566}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: CameraFollowTarget
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1868,7 +1872,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1484175829}
   - component: {fileID: 1484175830}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: UnitSelectionManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1962,6 +1966,10 @@ PrefabInstance:
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_Name
       value: UnitControlCinemachine
+      objectReference: {fileID: 0}
+    - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
+      propertyPath: m_Layer
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_IsActive
@@ -2337,9 +2345,9 @@ RectTransform:
   - {fileID: 813224535}
   m_Father: {fileID: 245804755}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 50, y: -50}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2025466355
@@ -2525,7 +2533,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2128192922}
   - component: {fileID: 2128192923}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: GameAssets
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2572,6 +2580,10 @@ PrefabInstance:
     - target: {fileID: 728313225602708406, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_Name
       value: PlayerZoomCinemachine
+      objectReference: {fileID: 0}
+    - target: {fileID: 728313225602708406, guid: af00876333d15584da2cd4c777ae644b, type: 3}
+      propertyPath: m_Layer
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 728313225602708406, guid: af00876333d15584da2cd4c777ae644b, type: 3}
       propertyPath: m_IsActive
@@ -2673,6 +2685,10 @@ PrefabInstance:
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_Name
       value: VehicleCinemachine
+      objectReference: {fileID: 0}
+    - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
+      propertyPath: m_Layer
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1157079891281974908, guid: 8349b2b7f31d74e4fa02062e2c768094, type: 3}
       propertyPath: m_IsActive
@@ -2791,6 +2807,18 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_BackGroundColor.b
+      value: 0.6156863
+      objectReference: {fileID: 0}
+    - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_BackGroundColor.g
+      value: 0.60784316
+      objectReference: {fileID: 0}
+    - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_BackGroundColor.r
+      value: 0.5058824
+      objectReference: {fileID: 0}
+    - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_CullingMask.m_Bits
       value: 4294967295
       objectReference: {fileID: 0}
@@ -2857,6 +2885,10 @@ PrefabInstance:
     - target: {fileID: 6941212794284220681, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_Name
       value: Main Camera
+      objectReference: {fileID: 0}
+    - target: {fileID: 6941212794284220681, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
+      propertyPath: m_Layer
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 1874135436899282969, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
@@ -2929,6 +2961,10 @@ PrefabInstance:
       value: PlayerCinemachine
       objectReference: {fileID: 0}
     - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
+      propertyPath: m_Layer
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7317921124216564921, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
@@ -2947,39 +2983,47 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.b
-      value: 0.075315036
+      value: 0.77254903
       objectReference: {fileID: 0}
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.g
-      value: 0.35216615
+      value: 0.8156863
       objectReference: {fileID: 0}
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.r
-      value: 0.4641509
+      value: 0.88235295
       objectReference: {fileID: 0}
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Intensity
-      value: 0.5
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.b
-      value: 0.9433962
+      value: 0.6156863
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.g
-      value: 0.9433962
+      value: 0.60784316
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.r
-      value: 0.9433962
+      value: 0.5058824
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Intensity
-      value: 0.5
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_Shadows.m_Type
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_ColorTemperature
-      value: 12548
+      value: 6130
+      objectReference: {fileID: 0}
+    - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 8121
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_UseColorTemperature
@@ -3026,12 +3070,28 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3589602662227609597, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_Layer
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3589602662227609597, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4451738319340620162, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_Layer
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5811693445958410358, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_Layer
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7902485301888813566, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Name
       value: Lighting1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7902485301888813566, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_Layer
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7902485301888813566, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_IsActive
@@ -3056,7 +3116,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1991404910961756612}
   - component: {fileID: 8197606585528494045}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: UpdateManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
