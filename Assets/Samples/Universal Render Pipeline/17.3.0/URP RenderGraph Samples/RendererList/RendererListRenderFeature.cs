@@ -9,7 +9,27 @@ using UnityEngine.Rendering.Universal;
 // You can use the frame debugger to inspect the pass output.
 public class RendererListRenderFeature : ScriptableRendererFeature
 {
-    class RendererListPass : ScriptableRenderPass
+    RendererListPass m_ScriptablePass;
+    public LayerMask m_LayerMask;
+
+    /// <inheritdoc/>
+    public override void Create()
+    {
+        m_ScriptablePass = new RendererListPass(m_LayerMask);
+
+        // Configures where the render pass should be injected.
+        m_ScriptablePass.renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
+    }
+
+    // Here you can inject one or multiple render passes in the renderer.
+    // This method is called when setting up the renderer once per-camera.
+    public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
+    {
+        renderer.EnqueuePass(m_ScriptablePass);
+    }
+}
+
+class RendererListPass : ScriptableRenderPass
     {
         // Layer mask used to filter objects to put in the renderer list.
         private LayerMask m_LayerMask;
@@ -103,25 +123,5 @@ public class RendererListRenderFeature : ScriptableRendererFeature
             }
         }
     }
-
-    RendererListPass m_ScriptablePass;
-    public LayerMask m_LayerMask;
-
-    /// <inheritdoc/>
-    public override void Create()
-    {
-        m_ScriptablePass = new RendererListPass(m_LayerMask);
-
-        // Configures where the render pass should be injected.
-        m_ScriptablePass.renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
-    }
-
-    // Here you can inject one or multiple render passes in the renderer.
-    // This method is called when setting up the renderer once per-camera.
-    public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
-    {
-        renderer.EnqueuePass(m_ScriptablePass);
-    }
-}
 
 

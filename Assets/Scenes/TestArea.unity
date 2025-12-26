@@ -181,7 +181,7 @@ GameObject:
   - component: {fileID: 155692908}
   - component: {fileID: 155692910}
   - component: {fileID: 155692909}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Image
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -292,7 +292,7 @@ GameObject:
   m_Component:
   - component: {fileID: 245804755}
   - component: {fileID: 245804756}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: ButtonContainer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -822,7 +822,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 583630790}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Cursor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -863,7 +863,7 @@ GameObject:
   - component: {fileID: 728536947}
   - component: {fileID: 728536946}
   - component: {fileID: 728536945}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Rive Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -982,7 +982,7 @@ GameObject:
   - component: {fileID: 744871819}
   - component: {fileID: 744871821}
   - component: {fileID: 744871820}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: BuildingPlacementManagerUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1047,7 +1047,7 @@ GameObject:
   m_Component:
   - component: {fileID: 785971301}
   - component: {fileID: 785971302}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Rive Widget
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1166,7 +1166,7 @@ GameObject:
   - component: {fileID: 813224535}
   - component: {fileID: 813224537}
   - component: {fileID: 813224536}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Icon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1267,7 +1267,7 @@ GameObject:
   - component: {fileID: 840347167}
   - component: {fileID: 840347166}
   - component: {fileID: 840347165}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Selected
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1358,7 +1358,7 @@ GameObject:
   - component: {fileID: 843865707}
   - component: {fileID: 843865706}
   - component: {fileID: 843865705}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: UI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1465,7 +1465,7 @@ GameObject:
   - component: {fileID: 858965688}
   - component: {fileID: 858965690}
   - component: {fileID: 858965689}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1876,7 +1876,7 @@ GameObject:
   - component: {fileID: 1558628100}
   - component: {fileID: 1558628102}
   - component: {fileID: 1558628101}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: UnitSelectionManagerUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2050,7 +2050,7 @@ Transform:
   m_GameObject: {fileID: 1891309474}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.28861898, z: -0, w: 0.9574441}
-  m_LocalPosition: {x: -15.17, y: 1.91, z: 17.83}
+  m_LocalPosition: {x: 2.54, y: 1.98, z: 7.36}
   m_LocalScale: {x: 3.86, y: 3.86, z: 3.86}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -2068,7 +2068,7 @@ GameObject:
   - component: {fileID: 2025466357}
   - component: {fileID: 2025466356}
   - component: {fileID: 2025466355}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: BuildingButtonTemplate
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2190,7 +2190,7 @@ GameObject:
   - component: {fileID: 2074009644}
   - component: {fileID: 2074009646}
   - component: {fileID: 2074009645}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: CursorImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2543,31 +2543,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -0.00000071525574
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 16.031418
+      value: 26.28247
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -31.307806
+      value: -28.721838
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.97433645
+      value: 0.934715
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.22509661
+      value: 0.35539827
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -5.487388e-10
+      value: 0.000000027335227
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 1.2677268e-10
+      value: -0.000000010393428
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x

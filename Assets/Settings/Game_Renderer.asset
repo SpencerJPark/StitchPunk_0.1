@@ -14,9 +14,93 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ScreenSpaceOutlines
   m_Active: 0
   settings:
+    renderPassEvent: 300
     layerMask:
       serializedVersion: 2
-      m_Bits: 4294967295
+      m_Bits: 2048
+    normalsMaterial: {fileID: 2100000, guid: a3f91b1c34d437f469e387d57af94158, type: 2}
+    outlineMaterial: {fileID: 2100000, guid: cfabcae96ec3175418ab788a8b4e95c6, type: 2}
+--- !u!114 &-5118561301527254510
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acb79387c9ca1f1488597d2f5a64a897, type: 3}
+  m_Name: RobertsCrossRenderFeature
+  m_EditorClassIdentifier: Assembly-CSharp::RobertsCrossRenderFeature
+  m_Active: 1
+  settings:
+    layerMask:
+      serializedVersion: 2
+      m_Bits: 2048
+    robertsCrossMaterial: {fileID: 2100000, guid: 14a97ad2ce613324f999eb312ce251b4, type: 2}
+    normalCaptureMaterial: {fileID: 2100000, guid: fe8033c670770ee4e91d01d13293faea, type: 2}
+    robertsCrossMultiplier: 1.74
+    outlineColor: {r: 1, g: 1, b: 1, a: 1}
+    outlineThickness: 3
+    renderPassEvent: 300
+--- !u!114 &-3632171203873698434
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b3d386ba5cd94485973aee1479b272e, type: 3}
+  m_Name: RenderObjects
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.RenderObjects
+  m_Active: 0
+  settings:
+    passTag: RenderObjects
+    Event: 300
+    filterSettings:
+      RenderQueueType: 0
+      LayerMask:
+        serializedVersion: 2
+        m_Bits: 0
+      PassNames: []
+    overrideMaterial: {fileID: 0}
+    overrideMaterialPassIndex: 0
+    overrideShader: {fileID: 0}
+    overrideShaderPassIndex: 0
+    overrideMode: 1
+    overrideDepthState: 0
+    depthCompareFunction: 4
+    enableWrite: 1
+    stencilSettings:
+      overrideStencilState: 0
+      stencilReference: 0
+      stencilCompareFunction: 8
+      passOperation: 0
+      failOperation: 0
+      zFailOperation: 0
+    cameraSettings:
+      overrideCamera: 0
+      restoreCamera: 1
+      offset: {x: 0, y: 0, z: 0, w: 0}
+      cameraFieldOfView: 60
+--- !u!114 &-596435947614349045
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0f308632a61c8247b1df9f93dc00944, type: 3}
+  m_Name: RendererListRenderFeature
+  m_EditorClassIdentifier: Assembly-CSharp::RendererListRenderFeature
+  m_Active: 0
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 2048
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -45,8 +129,10 @@ MonoBehaviour:
   - {fileID: 7833122117494664109}
   - {fileID: 1201332300713465557}
   - {fileID: -6279023577045195488}
-  - {fileID: 5919911304126069728}
-  m_RendererFeatureMap: ad6b866f10d7b46cd5963ad15cfdab102025eb09536ddca8e0fb4050f7bf2752
+  - {fileID: -596435947614349045}
+  - {fileID: -3632171203873698434}
+  - {fileID: -5118561301527254510}
+  m_RendererFeatureMap: ad6b866f10d7b46cd5963ad15cfdab102025eb09536ddca80b592c6baa08b9f77e8db4bd88ef97cd122a68959d37f7b8
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -95,48 +181,6 @@ MonoBehaviour:
   passIndex: 0
   bindDepthStencilAttachment: 0
   m_Version: 1
---- !u!114 &5919911304126069728
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b3d386ba5cd94485973aee1479b272e, type: 3}
-  m_Name: RenderObjects
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.RenderObjects
-  m_Active: 0
-  settings:
-    passTag: RenderObjects
-    Event: 300
-    filterSettings:
-      RenderQueueType: 0
-      LayerMask:
-        serializedVersion: 2
-        m_Bits: 2048
-      PassNames: []
-    overrideMaterial: {fileID: 2100000, guid: a3f91b1c34d437f469e387d57af94158, type: 2}
-    overrideMaterialPassIndex: 0
-    overrideShader: {fileID: 0}
-    overrideShaderPassIndex: 0
-    overrideMode: 1
-    overrideDepthState: 0
-    depthCompareFunction: 4
-    enableWrite: 1
-    stencilSettings:
-      overrideStencilState: 0
-      stencilReference: 0
-      stencilCompareFunction: 8
-      passOperation: 0
-      failOperation: 0
-      zFailOperation: 0
-    cameraSettings:
-      overrideCamera: 0
-      restoreCamera: 1
-      offset: {x: 0, y: 0, z: 0, w: 0}
-      cameraFieldOfView: 60
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
