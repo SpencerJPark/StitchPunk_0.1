@@ -7,8 +7,10 @@ Shader "Custom/ViewSpaceNormalsCapture"
         Pass
         {
             Name "ViewSpaceNormalsCapture"
-            ZWrite On
-            ZTest LEqual
+            
+            ZWrite Off        // Don't write to depth - we're using the scene's depth
+            ZTest LEqual      // Only render if we pass depth test against scene
+            Cull Back
             
             HLSLPROGRAM
             #pragma target 4.5
@@ -41,12 +43,8 @@ Shader "Custom/ViewSpaceNormalsCapture"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 
-                VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
-                output.positionCS = vertexInput.positionCS;
-                
-                // Transform normal to view space
-                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
-                output.normalVS = TransformWorldToViewNormal(normalWS);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.normalVS = TransformWorldToViewNormal(TransformObjectToWorldNormal(input.normalOS));
                 
                 return output;
             }
@@ -56,8 +54,6 @@ Shader "Custom/ViewSpaceNormalsCapture"
                 UNITY_SETUP_INSTANCE_ID(input);
                 
                 float3 normalVS = normalize(input.normalVS);
-                
-                // Encode to 0-1 range for storage (decode in Roberts Cross shader)
                 return float4(normalVS * 0.5 + 0.5, 1.0);
             }
             ENDHLSL

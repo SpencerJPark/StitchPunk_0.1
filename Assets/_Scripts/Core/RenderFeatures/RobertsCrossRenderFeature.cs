@@ -10,29 +10,39 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
     [System.Serializable]
     public class Settings
     {
-        public LayerMask layerMask = -1;
+        [Header("Outline Target")]
+        public LayerMask outlineLayerMask = -1;
+        
+        [Header("Materials")]
         public Material robertsCrossMaterial;
-        public Material normalCaptureMaterial;
+        public Shader normalCaptureShader;
+        
+        [Header("Outline Settings")]
         public float robertsCrossMultiplier = 1.0f;
         public Color outlineColor = Color.white;
         [Range(0.01f, 10f)]
         public float outlineThickness = 1.0f;
+        [Range(0f, 1f)]
+        public float depthThreshold = 0.1f;
+        [Range(0f, 1f)]
+        public float normalThreshold = 0.3f;
+        
+        [Header("Rendering")]
         public RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 
     public Settings settings = new Settings();
 
-    // Custom data container to pass textures between passes
-    public class CustomData : ContextItem
+    public class RobertsCrossData : ContextItem
     {
         public TextureHandle normalsTexture;
-
         public override void Reset()
         {
             normalsTexture = TextureHandle.nullHandle;
         }
     }
 
+    // Normal capture pass that uses scene depth for culling
     class NormalCapturePass : ScriptableRenderPass
     {
         private LayerMask m_LayerMask;
@@ -48,71 +58,63 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
         {
             m_LayerMask = layerMask;
             m_NormalMaterial = normalMaterial;
-        }
-
-        private RendererListHandle CreateRendererList(ContextContainer frameData, RenderGraph renderGraph)
-        {
-            UniversalRenderingData universalRenderingData = frameData.Get<UniversalRenderingData>();
-            UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
-            UniversalLightData lightData = frameData.Get<UniversalLightData>();
-
-            var sortFlags = cameraData.defaultOpaqueSortFlags;
-            FilteringSettings filterSettings = new FilteringSettings(RenderQueueRange.opaque, m_LayerMask);
-
-            m_ShaderTagIdList.Clear();
+            
             m_ShaderTagIdList.Add(new ShaderTagId("UniversalForwardOnly"));
             m_ShaderTagIdList.Add(new ShaderTagId("UniversalForward"));
             m_ShaderTagIdList.Add(new ShaderTagId("SRPDefaultUnlit"));
             m_ShaderTagIdList.Add(new ShaderTagId("LightweightForward"));
+        }
+
+        public void UpdateSettings(LayerMask layerMask)
+        {
+            m_LayerMask = layerMask;
+        }
+
+        private RendererListHandle CreateRendererList(ContextContainer frameData, RenderGraph renderGraph)
+        {
+            UniversalRenderingData renderingData = frameData.Get<UniversalRenderingData>();
+            UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
+            UniversalLightData lightData = frameData.Get<UniversalLightData>();
+
+            FilteringSettings filterSettings = new FilteringSettings(RenderQueueRange.all, m_LayerMask);
 
             DrawingSettings drawSettings = RenderingUtils.CreateDrawingSettings(
                 m_ShaderTagIdList,
-                universalRenderingData,
+                renderingData,
                 cameraData,
                 lightData,
-                sortFlags
+                cameraData.defaultOpaqueSortFlags
             );
 
             drawSettings.overrideMaterial = m_NormalMaterial;
             drawSettings.overrideMaterialPassIndex = 0;
 
-            var param = new RendererListParams(universalRenderingData.cullResults, drawSettings, filterSettings);
+            var param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
             return renderGraph.CreateRendererList(param);
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
         {
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
-            
-            // Create the normals texture OUTSIDE the pass so it persists
-            var normalsDescriptor = new TextureDesc(
+            UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
+
+            // Create normals texture
+            var normalsDesc = new TextureDesc(
                 cameraData.cameraTargetDescriptor.width,
                 cameraData.cameraTargetDescriptor.height
-            );
-            normalsDescriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            normalsDescriptor.depthBufferBits = DepthBits.None;
-            normalsDescriptor.msaaSamples = MSAASamples.None;
-            normalsDescriptor.name = "ViewSpaceNormalsTexture";
-            normalsDescriptor.clearBuffer = true;
-            normalsDescriptor.clearColor = Color.clear;
+            )
+            {
+                colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
+                depthBufferBits = DepthBits.None,
+                msaaSamples = MSAASamples.None,
+                name = "ViewSpaceNormalsTexture",
+                clearBuffer = true,
+                clearColor = Color.clear
+            };
 
-            TextureHandle normalsTexture = renderGraph.CreateTexture(normalsDescriptor);
+            TextureHandle normalsTexture = renderGraph.CreateTexture(normalsDesc);
 
-            // Create depth texture for this pass
-            var depthDescriptor = new TextureDesc(
-                cameraData.cameraTargetDescriptor.width,
-                cameraData.cameraTargetDescriptor.height
-            );
-            depthDescriptor.colorFormat = GraphicsFormat.None;
-            depthDescriptor.depthBufferBits = DepthBits.Depth24;
-            depthDescriptor.msaaSamples = MSAASamples.None;
-            depthDescriptor.name = "NormalCaptureDepth";
-            depthDescriptor.clearBuffer = true;
-
-            TextureHandle depthTexture = renderGraph.CreateTexture(depthDescriptor);
-
-            // Store in custom data BEFORE the pass
-            var customData = frameData.Create<CustomData>();
+            var customData = frameData.GetOrCreate<RobertsCrossData>();
             customData.normalsTexture = normalsTexture;
 
             using (var builder = renderGraph.AddRasterRenderPass<PassData>("Normal Capture Pass", out var passData))
@@ -124,7 +126,10 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
 
                 builder.UseRendererList(passData.rendererListHandle);
                 builder.SetRenderAttachment(normalsTexture, 0);
-                builder.SetRenderAttachmentDepth(depthTexture, AccessFlags.Write);
+                
+                // USE THE SCENE'S DEPTH BUFFER - this is the key!
+                // Read-only so we test against it but don't write to it
+                builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture, AccessFlags.Read);
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
                 {
@@ -137,26 +142,30 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
     class RobertsCrossPass : ScriptableRenderPass
     {
         private Material m_Material;
-        private float m_RobertsCrossMultiplier;
-        private Color m_OutlineColor;
-        private float m_OutlineThickness;
+        private Settings m_Settings;
 
         private class PassData
         {
             public Material material;
             public TextureHandle normalsTexture;
             public TextureHandle cameraColorCopy;
-            public float robertsCrossMultiplier;
-            public Color outlineColor;
-            public float outlineThickness;
+            public Settings settings;
         }
 
-        public RobertsCrossPass(Material material, float multiplier, Color color, float thickness)
+        private class CopyPassData
+        {
+            public TextureHandle source;
+        }
+
+        public RobertsCrossPass(Material material, Settings settings)
         {
             m_Material = material;
-            m_RobertsCrossMultiplier = multiplier;
-            m_OutlineColor = color;
-            m_OutlineThickness = thickness;
+            m_Settings = settings;
+        }
+
+        public void UpdateSettings(Settings settings)
+        {
+            m_Settings = settings;
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -164,47 +173,41 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
 
-            var customData = frameData.GetOrCreate<CustomData>();
+            var customData = frameData.GetOrCreate<RobertsCrossData>();
             if (!customData.normalsTexture.IsValid())
-            {
-                Debug.LogWarning("Roberts Cross: Normals texture is invalid, skipping pass");
                 return;
-            }
 
-            // Create a copy of camera color to read from
             var copyDesc = new TextureDesc(
                 cameraData.cameraTargetDescriptor.width,
                 cameraData.cameraTargetDescriptor.height
-            );
-            copyDesc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-            copyDesc.depthBufferBits = DepthBits.None;
-            copyDesc.name = "CameraColorCopy";
+            )
+            {
+                colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
+                depthBufferBits = DepthBits.None,
+                name = "CameraColorCopy"
+            };
 
             TextureHandle cameraColorCopy = renderGraph.CreateTexture(copyDesc);
 
-            // First, copy the current camera color
             using (var builder = renderGraph.AddRasterRenderPass<CopyPassData>("Copy Camera Color", out var copyData))
             {
                 copyData.source = resourceData.activeColorTexture;
-                
+
                 builder.UseTexture(resourceData.activeColorTexture, AccessFlags.Read);
                 builder.SetRenderAttachment(cameraColorCopy, 0);
-                
+
                 builder.SetRenderFunc(static (CopyPassData data, RasterGraphContext context) =>
                 {
                     Blitter.BlitTexture(context.cmd, data.source, new Vector4(1, 1, 0, 0), 0, false);
                 });
             }
 
-            // Now apply the Roberts Cross effect
             using (var builder = renderGraph.AddRasterRenderPass<PassData>("Roberts Cross Outline Pass", out var passData))
             {
                 passData.material = m_Material;
                 passData.normalsTexture = customData.normalsTexture;
                 passData.cameraColorCopy = cameraColorCopy;
-                passData.robertsCrossMultiplier = m_RobertsCrossMultiplier;
-                passData.outlineColor = m_OutlineColor;
-                passData.outlineThickness = m_OutlineThickness;
+                passData.settings = m_Settings;
 
                 builder.UseTexture(resourceData.cameraDepthTexture, AccessFlags.Read);
                 builder.UseTexture(customData.normalsTexture, AccessFlags.Read);
@@ -215,48 +218,55 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
                 {
                     data.material.SetTexture("_NormalsTexture", data.normalsTexture);
                     data.material.SetTexture("_MainTex", data.cameraColorCopy);
-                    data.material.SetFloat("_RobertsCrossMultiplier", data.robertsCrossMultiplier);
-                    data.material.SetColor("_OutlineColor", data.outlineColor);
-                    data.material.SetFloat("_OutlineThickness", data.outlineThickness);
+                    data.material.SetFloat("_RobertsCrossMultiplier", data.settings.robertsCrossMultiplier);
+                    data.material.SetColor("_OutlineColor", data.settings.outlineColor);
+                    data.material.SetFloat("_OutlineThickness", data.settings.outlineThickness);
+                    data.material.SetFloat("_DepthThreshold", data.settings.depthThreshold);
+                    data.material.SetFloat("_NormalThreshold", data.settings.normalThreshold);
 
                     Blitter.BlitTexture(context.cmd, data.cameraColorCopy, new Vector4(1, 1, 0, 0), data.material, 0);
                 });
             }
         }
-
-        private class CopyPassData
-        {
-            public TextureHandle source;
-        }
     }
 
-    NormalCapturePass m_NormalCapturePass;
-    RobertsCrossPass m_RobertsCrossPass;
+    private Material m_NormalCaptureMaterial;
+    private NormalCapturePass m_NormalCapturePass;
+    private RobertsCrossPass m_RobertsCrossPass;
 
     public override void Create()
     {
-        if (settings.normalCaptureMaterial == null || settings.robertsCrossMaterial == null)
+        if (settings.robertsCrossMaterial == null)
         {
-            Debug.LogWarning("Roberts Cross Render Feature: Materials not assigned!");
+            Debug.LogWarning("Roberts Cross: Material not assigned!");
             return;
         }
 
-        m_NormalCapturePass = new NormalCapturePass(settings.layerMask, settings.normalCaptureMaterial);
+        if (settings.normalCaptureShader == null)
+            settings.normalCaptureShader = Shader.Find("Custom/ViewSpaceNormalsCapture");
+
+        if (settings.normalCaptureShader == null)
+        {
+            Debug.LogError("Roberts Cross: Could not find normal capture shader!");
+            return;
+        }
+
+        m_NormalCaptureMaterial = CoreUtils.CreateEngineMaterial(settings.normalCaptureShader);
+
+        m_NormalCapturePass = new NormalCapturePass(settings.outlineLayerMask, m_NormalCaptureMaterial);
         m_NormalCapturePass.renderPassEvent = settings.renderPassEvent;
 
-        m_RobertsCrossPass = new RobertsCrossPass(
-            settings.robertsCrossMaterial,
-            settings.robertsCrossMultiplier,
-            settings.outlineColor,
-            settings.outlineThickness
-        );
+        m_RobertsCrossPass = new RobertsCrossPass(settings.robertsCrossMaterial, settings);
         m_RobertsCrossPass.renderPassEvent = settings.renderPassEvent;
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        if (settings.normalCaptureMaterial == null || settings.robertsCrossMaterial == null)
+        if (settings.robertsCrossMaterial == null || m_NormalCaptureMaterial == null)
             return;
+
+        m_NormalCapturePass.UpdateSettings(settings.outlineLayerMask);
+        m_RobertsCrossPass.UpdateSettings(settings);
 
         renderer.EnqueuePass(m_NormalCapturePass);
         renderer.EnqueuePass(m_RobertsCrossPass);
@@ -264,5 +274,10 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
 
     protected override void Dispose(bool disposing)
     {
+        if (m_NormalCaptureMaterial != null)
+        {
+            CoreUtils.Destroy(m_NormalCaptureMaterial);
+            m_NormalCaptureMaterial = null;
+        }
     }
 }
