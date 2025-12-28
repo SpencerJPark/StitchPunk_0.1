@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Hair
-  m_Shader: {fileID: -6465566751694194690, guid: dd0290a2d3ecfec4aa7453f268717683, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: d7c4d50d47942aa44b714ba0240727de, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -70,6 +70,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _Texture2D_Array:
+        m_Texture: {fileID: 18700000, guid: 2780eb65e233c5340b6b207aba7c88a6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _TextureArray_35172cf51cc441b1bfb7a71938a5f1f8_MainTex_2972538029_Texture2D:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -116,7 +120,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _ImageIndex: 20
+    - _ImageIndex: 0
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005

@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a5e2974b2629f74cbd15132bea97432, type: 3}
+  m_Name: _AnimationLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::AnimationLibrarySO
+  clips:
+  - {fileID: 11400000, guid: 4c4dbe187266fbe42bb3e7be210cd0ed, type: 2}
+  - {fileID: 11400000, guid: 266b38be5ed2eed4dbdbac0288c9696c, type: 2}

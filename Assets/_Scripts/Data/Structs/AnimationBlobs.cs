@@ -1,0 +1,36 @@
+using Unity.Entities;
+using Unity.Mathematics;
+
+public struct KeyframeBlob
+{
+    public float normalizedTime;
+    public float3 position;
+    public float rotation;
+    public float2 scale;
+    public int imageIndex;
+    public InterpolationMode interpolation;
+}
+
+public struct PartTrackBlob
+{
+    public BodyPart bodyPart;
+    public BlendMode blendMode;
+    public AnimatedProperties animatedProperties;
+    public InterpolationMode defaultInterpolation;
+    public BlobArray<KeyframeBlob> keyframes;
+}
+
+public struct AnimationClipBlob
+{
+    public AnimationType animationType;
+    public float duration;
+    public bool looping;
+    public bool allowBlendIn;
+    public bool allowBlendOut;
+    public BlobArray<PartTrackBlob> partTracks;
+}
+
+public struct AnimationLibraryBlob
+{
+    public BlobArray<AnimationClipBlob> clips;
+}
