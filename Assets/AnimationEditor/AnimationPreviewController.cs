@@ -1,5 +1,5 @@
 ﻿// =====================================
-// ANIMATION PREVIEW CONTROLLER (Simplified)
+// ANIMATION PREVIEW CONTROLLER (Fixed)
 // =====================================
 
 using UnityEngine;
@@ -32,10 +32,12 @@ public class AnimationPreviewController : MonoBehaviour
     // Internal state
     private EntityManager entityManager;
     private Entity timeControlEntity = Entity.Null;
+    private World cachedWorld = null;
     private bool worldInitialized = false;
     
     // Track what we last sent to ECS to detect external changes
     private float lastSentNormalizedTime = -1f;
+    private bool isBeingDestroyed = false;
     
     private void Start()
     {
@@ -49,14 +51,17 @@ public class AnimationPreviewController : MonoBehaviour
     
     private void Update()
     {
-        if (!Application.isPlaying) return;
+        if (!Application.isPlaying || isBeingDestroyed) return;
         
         TryInitializeWorld();
         if (!worldInitialized) return;
         
-        if (!entityManager.Exists(timeControlEntity))
+        // Validate world and entity are still valid
+        if (!IsWorldValid())
         {
             worldInitialized = false;
+            cachedWorld = null;
+            timeControlEntity = Entity.Null;
             return;
         }
         
@@ -73,7 +78,7 @@ public class AnimationPreviewController : MonoBehaviour
         }
         else if (!isPlaying)
         {
-            // Paused but not scrubbing - keep UI in sync with ECS (in case something else changed it)
+            // Paused but not scrubbing - keep UI in sync with ECS
             normalizedTime = timeControl.normalizedTime;
         }
         else
@@ -91,31 +96,62 @@ public class AnimationPreviewController : MonoBehaviour
         lastSentNormalizedTime = timeControl.normalizedTime;
     }
     
+    private bool IsWorldValid()
+    {
+        if (cachedWorld == null || !cachedWorld.IsCreated)
+        {
+            return false;
+        }
+        
+        try
+        {
+            // Try to check if entity exists - this will throw if EntityManager is disposed
+            return entityManager.Exists(timeControlEntity);
+        }
+        catch (System.ObjectDisposedException)
+        {
+            return false;
+        }
+        catch (System.Exception)
+        {
+            return false;
+        }
+    }
+    
     private void TryInitializeWorld()
     {
         if (worldInitialized) return;
         
-        var world = World.DefaultGameObjectInjectionWorld;
-        if (world == null || !world.IsCreated) return;
+        cachedWorld = World.DefaultGameObjectInjectionWorld;
+        if (cachedWorld == null || !cachedWorld.IsCreated) return;
         
-        entityManager = world.EntityManager;
+        entityManager = cachedWorld.EntityManager;
         
-        var query = entityManager.CreateEntityQuery(typeof(EditorAnimationTimeControl));
-        if (query.CalculateEntityCount() > 0)
+        try
         {
-            timeControlEntity = query.GetSingletonEntity();
-            worldInitialized = true;
-            
-            // Push initial state
-            var timeControl = entityManager.GetComponentData<EditorAnimationTimeControl>(timeControlEntity);
-            timeControl.isPaused = !isPlaying;
-            timeControl.normalizedTime = normalizedTime;
-            timeControl.playbackSpeed = playbackSpeed;
-            timeControl.forceLoop = loop;
-            entityManager.SetComponentData(timeControlEntity, timeControl);
-            lastSentNormalizedTime = normalizedTime;
+            using var query = entityManager.CreateEntityQuery(typeof(EditorAnimationTimeControl));
+            if (query.CalculateEntityCount() > 0)
+            {
+                timeControlEntity = query.GetSingletonEntity();
+                worldInitialized = true;
+                
+                // Push initial state
+                var timeControl = entityManager.GetComponentData<EditorAnimationTimeControl>(timeControlEntity);
+                timeControl.isPaused = !isPlaying;
+                timeControl.normalizedTime = normalizedTime;
+                timeControl.playbackSpeed = playbackSpeed;
+                timeControl.forceLoop = loop;
+                entityManager.SetComponentData(timeControlEntity, timeControl);
+                lastSentNormalizedTime = normalizedTime;
+                
+                Debug.Log("[AnimationPreviewController] Connected to ECS time control");
+            }
         }
-        query.Dispose();
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[AnimationPreviewController] Failed to initialize: {e.Message}");
+            worldInitialized = false;
+        }
     }
     
     public void Play()
@@ -140,15 +176,32 @@ public class AnimationPreviewController : MonoBehaviour
         normalizedTime = Mathf.Clamp01(time);
         lastSentNormalizedTime = -1f; // Force push on next update
         OnTimeChanged?.Invoke(normalizedTime);
+        
+        // Immediately push to ECS if possible
+        if (IsWorldValid())
+        {
+            try
+            {
+                var timeControl = entityManager.GetComponentData<EditorAnimationTimeControl>(timeControlEntity);
+                timeControl.normalizedTime = normalizedTime;
+                entityManager.SetComponentData(timeControlEntity, timeControl);
+                lastSentNormalizedTime = normalizedTime;
+            }
+            catch (System.Exception)
+            {
+                // Ignore - will be handled next frame
+            }
+        }
     }
     
     public void NextFrame()
     {
-        if (currentClip == null || currentClip.partTracks.Count == 0) return;
+        if (currentClip == null || currentClip.partTracks == null || currentClip.partTracks.Count == 0) return;
         
         float nextTime = 1f;
         foreach (var track in currentClip.partTracks)
         {
+            if (track.keyframes == null) continue;
             foreach (var kf in track.keyframes)
             {
                 if (kf.normalizedTime > normalizedTime + 0.001f && kf.normalizedTime < nextTime)
@@ -162,11 +215,12 @@ public class AnimationPreviewController : MonoBehaviour
     
     public void PreviousFrame()
     {
-        if (currentClip == null || currentClip.partTracks.Count == 0) return;
+        if (currentClip == null || currentClip.partTracks == null || currentClip.partTracks.Count == 0) return;
         
         float prevTime = 0f;
         foreach (var track in currentClip.partTracks)
         {
+            if (track.keyframes == null) continue;
             foreach (var kf in track.keyframes)
             {
                 if (kf.normalizedTime < normalizedTime - 0.001f && kf.normalizedTime > prevTime)
@@ -187,31 +241,52 @@ public class AnimationPreviewController : MonoBehaviour
         OnClipChanged?.Invoke(clip);
         
         // Update character animation in ECS
-        if (worldInitialized)
+        if (IsWorldValid())
         {
-            var query = entityManager.CreateEntityQuery(typeof(CharacterAnimation));
-            var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
-            
-            foreach (var entity in entities)
+            try
             {
-                var anim = entityManager.GetComponentData<CharacterAnimation>(entity);
-                anim.currentAnimation = currentAnimation;
-                anim.time = 0f;
-                anim.requestedAnimation = AnimationType.None;
-                entityManager.SetComponentData(entity, anim);
+                using var query = entityManager.CreateEntityQuery(typeof(CharacterAnimation));
+                var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
+                
+                foreach (var entity in entities)
+                {
+                    var anim = entityManager.GetComponentData<CharacterAnimation>(entity);
+                    anim.currentAnimation = currentAnimation;
+                    anim.time = 0f;
+                    anim.requestedAnimation = AnimationType.None;
+                    entityManager.SetComponentData(entity, anim);
+                }
+                
+                entities.Dispose();
             }
-            
-            entities.Dispose();
-            query.Dispose();
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[AnimationPreviewController] Failed to set clip: {e.Message}");
+            }
         }
     }
     
     private void OnDestroy()
     {
-        if (worldInitialized && entityManager.Exists(timeControlEntity))
+        isBeingDestroyed = true;
+        
+        // Only try to reset if world is still valid
+        if (IsWorldValid())
         {
-            entityManager.SetComponentData(timeControlEntity, EditorAnimationTimeControl.Default);
+            try
+            {
+                entityManager.SetComponentData(timeControlEntity, EditorAnimationTimeControl.Default);
+            }
+            catch (System.Exception)
+            {
+                // Ignore - world is being destroyed
+            }
         }
+    }
+    
+    private void OnApplicationQuit()
+    {
+        isBeingDestroyed = true;
     }
     
     #if UNITY_EDITOR
@@ -240,9 +315,12 @@ public class AnimationPreviewController : MonoBehaviour
             }
         );
         
+        if (currentClip.partTracks == null) return;
+        
         var keyframeTimes = new System.Collections.Generic.HashSet<float>();
         foreach (var track in currentClip.partTracks)
         {
+            if (track.keyframes == null) continue;
             foreach (var kf in track.keyframes)
             {
                 keyframeTimes.Add(kf.normalizedTime);
