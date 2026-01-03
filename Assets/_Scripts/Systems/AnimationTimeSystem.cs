@@ -8,6 +8,7 @@ using Unity.Mathematics;
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial struct AnimationTimeSystem : ISystem
 {
+    
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
@@ -18,13 +19,13 @@ public partial struct AnimationTimeSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var library = SystemAPI.GetSingleton<AnimationLibrary>().library;
-        float dt = SystemAPI.Time.DeltaTime;
+        BlobAssetReference<AnimationLibraryBlob> library = SystemAPI.GetSingleton<AnimationLibrary>().library;
+        float deltaTime = SystemAPI.Time.DeltaTime;
         
         new UpdateAnimationTimeJob
         {
             library = library,
-            deltaTime = dt
+            deltaTime = deltaTime
         }.ScheduleParallel();
     }
 }
@@ -35,7 +36,7 @@ public partial struct UpdateAnimationTimeJob : IJobEntity
     [ReadOnly] public BlobAssetReference<AnimationLibraryBlob> library;
     public float deltaTime;
     
-    public void Execute(ref CharacterAnimation anim)
+    public void Execute(ref Animator anim)
     {
         ref AnimationClipBlob clip = ref library.Value.clips[(int)anim.currentAnimation];
         

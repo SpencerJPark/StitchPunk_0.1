@@ -16,7 +16,7 @@ public enum AnimationType : ushort
     FaceRightBackView,
 }
 
-public enum BodyPart : byte // keep under 256
+public enum AnimationTarget : byte // keep under 256
 {
     Body,
     

@@ -1,5 +1,5 @@
 ﻿// =====================================
-// SCENE VIEW PREVIEW (Optional - shows in Scene view)
+// ANIMATION PREVIEW CONTROLLER EDITOR
 // =====================================
 
 #if UNITY_EDITOR
@@ -37,6 +37,35 @@ public class AnimationPreviewControllerEditor : Editor
         GUI.enabled = true;
         
         EditorGUILayout.EndHorizontal();
+        
+        // Clip selection from library
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Clip Selection", EditorStyles.boldLabel);
+        
+        var newClip = (AnimationClipSO)EditorGUILayout.ObjectField(
+            "Animation Clip",
+            controller.currentClip,
+            typeof(AnimationClipSO),
+            false
+        );
+        
+        if (newClip != controller.currentClip)
+        {
+            controller.SetClip(newClip);
+            EditorUtility.SetDirty(controller);
+        }
+        
+        // Show current animation info
+        if (controller.currentClip != null)
+        {
+            EditorGUILayout.HelpBox(
+                $"Type: {controller.currentAnimation}\n" +
+                $"Duration: {controller.currentClip.duration:F2}s\n" +
+                $"Looping: {controller.currentClip.looping}\n" +
+                $"Tracks: {controller.currentClip.partTracks?.Count ?? 0}",
+                MessageType.Info
+            );
+        }
         
         EditorGUILayout.Space();
         

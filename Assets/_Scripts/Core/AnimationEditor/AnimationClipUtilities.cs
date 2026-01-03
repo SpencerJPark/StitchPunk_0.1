@@ -27,7 +27,7 @@ public static class AnimationClipUtilities
         
         copy.partTracks = source.partTracks.Select(t => new AnimationClipSO.PartTrack
         {
-            bodyPart = t.bodyPart,
+            animationTarget = t.animationTarget,
             blendMode = t.blendMode,
             interpolation = t.interpolation,
             animatedProperties = t.animatedProperties,
@@ -72,7 +72,7 @@ public static class AnimationClipUtilities
         
         copy.partTracks = source.partTracks.Select(t => new AnimationClipSO.PartTrack
         {
-            bodyPart = MirrorBodyPart(t.bodyPart),
+            animationTarget = MirrorBodyPart(t.animationTarget),
             blendMode = t.blendMode,
             interpolation = t.interpolation,
             animatedProperties = t.animatedProperties,
@@ -93,18 +93,18 @@ public static class AnimationClipUtilities
         Selection.activeObject = copy;
     }
     
-    private static BodyPart MirrorBodyPart(BodyPart part)
+    private static AnimationTarget MirrorBodyPart(AnimationTarget part)
     {
         return part switch
         {
-            BodyPart.UpperLeftArm => BodyPart.UpperRightArm,
-            BodyPart.UpperRightArm => BodyPart.UpperLeftArm,
-            BodyPart.LowerLeftArm => BodyPart.LowerRightArm,
-            BodyPart.LowerRightArm => BodyPart.LowerLeftArm,
-            BodyPart.LeftHand => BodyPart.RightHand,
-            BodyPart.RightHand => BodyPart.LeftHand,
-            BodyPart.LeftEyebrow => BodyPart.RightEyebrow,
-            BodyPart.RightEyebrow => BodyPart.LeftEyebrow,
+            AnimationTarget.UpperLeftArm => AnimationTarget.UpperRightArm,
+            AnimationTarget.UpperRightArm => AnimationTarget.UpperLeftArm,
+            AnimationTarget.LowerLeftArm => AnimationTarget.LowerRightArm,
+            AnimationTarget.LowerRightArm => AnimationTarget.LowerLeftArm,
+            AnimationTarget.LeftHand => AnimationTarget.RightHand,
+            AnimationTarget.RightHand => AnimationTarget.LeftHand,
+            AnimationTarget.LeftEyebrow => AnimationTarget.RightEyebrow,
+            AnimationTarget.RightEyebrow => AnimationTarget.LeftEyebrow,
             _ => part
         };
     }

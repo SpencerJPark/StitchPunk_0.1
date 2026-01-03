@@ -440,7 +440,7 @@ public class AnimationClipEditorWindow : EditorWindow
         
         // Body part label
         Rect labelRect = new Rect(trackRect.x + 5, trackRect.y + 5, 90, 20);
-        EditorGUI.LabelField(labelRect, track.bodyPart.ToString());
+        EditorGUI.LabelField(labelRect, track.animationTarget.ToString());
         
         // Blend mode indicator
         Rect blendRect = new Rect(trackRect.x + 100, trackRect.y + 5, 40, 20);
@@ -452,7 +452,7 @@ public class AnimationClipEditorWindow : EditorWindow
         if (GUI.Button(deleteRect, "×", EditorStyles.miniButton))
         {
             if (EditorUtility.DisplayDialog("Delete Track", 
-                $"Delete track for {track.bodyPart}?", "Delete", "Cancel"))
+                $"Delete track for {track.animationTarget}?", "Delete", "Cancel"))
             {
                 Undo.RecordObject(currentClip, "Delete Track");
                 currentClip.partTracks.RemoveAt(index);
@@ -629,7 +629,7 @@ public class AnimationClipEditorWindow : EditorWindow
         
         EditorGUI.BeginChangeCheck();
         
-        track.bodyPart = (BodyPart)EditorGUILayout.EnumPopup("Body Part", track.bodyPart);
+        track.animationTarget = (AnimationTarget)EditorGUILayout.EnumPopup("Body Part", track.animationTarget);
         track.blendMode = (BlendMode)EditorGUILayout.EnumPopup("Blend Mode", track.blendMode);
         track.interpolation = (InterpolationMode)EditorGUILayout.EnumPopup("Default Interpolation", track.interpolation);
         
@@ -676,7 +676,7 @@ public class AnimationClipEditorWindow : EditorWindow
         var keyframe = track.keyframes[selectedKeyframeIndex];
         
         EditorGUILayout.LabelField("Keyframe Properties", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField($"Track: {track.bodyPart}", EditorStyles.miniLabel);
+        EditorGUILayout.LabelField($"Track: {track.animationTarget}", EditorStyles.miniLabel);
         EditorGUILayout.Space();
         
         EditorGUI.BeginChangeCheck();
@@ -967,9 +967,9 @@ private void HandleGlobalInput()
         }
         
         // Find first body part not already used
-        BodyPart newPart = BodyPart.Body;
-        var usedParts = currentClip.partTracks.Select(t => t.bodyPart).ToHashSet();
-        foreach (BodyPart part in System.Enum.GetValues(typeof(BodyPart)))
+        AnimationTarget newPart = AnimationTarget.Body;
+        var usedParts = currentClip.partTracks.Select(t => t.animationTarget).ToHashSet();
+        foreach (AnimationTarget part in System.Enum.GetValues(typeof(AnimationTarget)))
         {
             if (!usedParts.Contains(part))
             {
@@ -980,7 +980,7 @@ private void HandleGlobalInput()
         
         var newTrack = new AnimationClipSO.PartTrack
         {
-            bodyPart = newPart,
+            animationTarget = newPart,
             blendMode = BlendMode.Additive,
             interpolation = InterpolationMode.Linear,
             animatedProperties = AnimatedProperties.All,

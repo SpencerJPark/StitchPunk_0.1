@@ -11,9 +11,9 @@ public struct KeyframeBlob
     public InterpolationMode interpolation;
 }
 
-public struct PartTrackBlob
+public struct AnimationTargetTrackBlob
 {
-    public BodyPart bodyPart;
+    public AnimationTarget animationTarget;
     public BlendMode blendMode;
     public AnimatedProperties animatedProperties;
     public InterpolationMode defaultInterpolation;
@@ -27,7 +27,7 @@ public struct AnimationClipBlob
     public bool looping;
     public bool allowBlendIn;
     public bool allowBlendOut;
-    public BlobArray<PartTrackBlob> partTracks;
+    public BlobArray<AnimationTargetTrackBlob> animationTargetTracks;
 }
 
 public struct AnimationLibraryBlob

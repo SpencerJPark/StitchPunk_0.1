@@ -2,18 +2,18 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-public class CharacterAnimationAuthoring : MonoBehaviour
+public class AnimatorAuthoring : MonoBehaviour
 {
     public AnimationType startingAnimation = AnimationType.Idle;
     public float animationSpeed = 1f;
     
-    public class Baker : Baker<CharacterAnimationAuthoring>
+    public class Baker : Baker<AnimatorAuthoring>
     {
-        public override void Bake(CharacterAnimationAuthoring authoring)
+        public override void Bake(AnimatorAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             
-            AddComponent(entity, new CharacterAnimation
+            AddComponent(entity, new Animator
             {
                 currentAnimation = authoring.startingAnimation,
                 requestedAnimation = AnimationType.None,
@@ -21,18 +21,18 @@ public class CharacterAnimationAuthoring : MonoBehaviour
             });
             
             // Add a secondary layer for overlays (facing, expressions)
-            AddComponent(entity, new CharacterAnimationLayer
+            AddComponent(entity, new AnimatorLayer
             {
                 active = false,
                 weight = 1f,
             });
             
-            AddBuffer<CharacterBodyPart>(entity);
+            AddBuffer<AnimatorTarget>(entity);
         }
     }
 }
 
-public struct CharacterAnimation : IComponentData
+public struct Animator : IComponentData
 {
     // Primary animation layer
     public AnimationType currentAnimation;
@@ -49,7 +49,7 @@ public struct CharacterAnimation : IComponentData
 }
 
 // Secondary animation layer (for things like facing direction, expressions)
-public struct CharacterAnimationLayer : IComponentData
+public struct AnimatorLayer : IComponentData
 {
     public AnimationType animation;
     public float time;
@@ -58,9 +58,9 @@ public struct CharacterAnimationLayer : IComponentData
 }
 
 // Buffer of all body parts belonging to this character
-[InternalBufferCapacity(16)]
-public struct CharacterBodyPart : IBufferElementData
+[InternalBufferCapacity(32)]
+public struct AnimatorTarget : IBufferElementData
 {
     public Entity entity;
-    public BodyPart part;
+    public AnimationTarget target;
 }

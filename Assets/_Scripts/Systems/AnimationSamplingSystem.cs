@@ -6,29 +6,39 @@ using Unity.Mathematics;
 [BurstCompile]
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(AnimationTimeSystem))]
+[UpdateBefore(typeof(ApplyAnimatedPoseSystem))]
 public partial struct AnimationSamplingSystem : ISystem
 {
+    ComponentLookup<AnimationTargetRestPose> animationTargetRestPoseLookup;
+    ComponentLookup<AnimationTargetPose> animatedPoseLookup;
+    ComponentLookup<AnimationTargetTag> animationTargetLookup;
+    
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<AnimationLibrary>();
+        state.RequireForUpdate<GameSceneTag>();
+        
+        animationTargetRestPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetRestPose>(true);
+        animatedPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetPose>(false);
+        animationTargetLookup = SystemAPI.GetComponentLookup<AnimationTargetTag>(true);
     }
     
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var library = SystemAPI.GetSingleton<AnimationLibrary>().library;
+        BlobAssetReference<AnimationLibraryBlob> library = SystemAPI.GetSingleton<AnimationLibrary>().library;
         
-        var restPoseLookup = SystemAPI.GetComponentLookup<PartRestPose>(true);
-        var animatedPoseLookup = SystemAPI.GetComponentLookup<PartAnimatedPose>(false);
-        var bodyPartLookup = SystemAPI.GetComponentLookup<BodyPartTag>(true);
+        animationTargetRestPoseLookup.Update(ref state);
+        animatedPoseLookup.Update(ref state);
+        animationTargetLookup.Update(ref state);
         
         new SampleAnimationJob
         {
             library = library,
-            restPoseLookup = restPoseLookup,
+            restPoseLookup = animationTargetRestPoseLookup,
             animatedPoseLookup = animatedPoseLookup,
-            bodyPartLookup = bodyPartLookup,
+            bodyPartLookup = animationTargetLookup,
         }.ScheduleParallel();
     }
 }
@@ -37,24 +47,25 @@ public partial struct AnimationSamplingSystem : ISystem
 public partial struct SampleAnimationJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<AnimationLibraryBlob> library;
-    [ReadOnly] public ComponentLookup<PartRestPose> restPoseLookup;
-    [ReadOnly] public ComponentLookup<BodyPartTag> bodyPartLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<PartAnimatedPose> animatedPoseLookup;
+    [ReadOnly] public ComponentLookup<AnimationTargetRestPose> restPoseLookup;
+    [ReadOnly] public ComponentLookup<AnimationTargetTag> bodyPartLookup;
+    [NativeDisableParallelForRestriction] public ComponentLookup<AnimationTargetPose> animatedPoseLookup;
     
-    public void Execute(in CharacterAnimation anim, in DynamicBuffer<CharacterBodyPart> parts)
+    public void Execute(in Animator anim, in DynamicBuffer<AnimatorTarget> animationTargets)
     {
+        UnityEngine.Debug.Log($"[SampleJob] anim.time={anim.time}, targets={animationTargets.Length}");
         ref AnimationClipBlob clip = ref library.Value.clips[(int)anim.currentAnimation];
         float normalizedTime = clip.duration > 0 ? anim.time / clip.duration : 0f;
         
         // Process each body part
-        for (int i = 0; i < parts.Length; i++)
+        for (int i = 0; i < animationTargets.Length; i++)
         {
-            Entity partEntity = parts[i].entity;
-            BodyPart partType = parts[i].part;
+            Entity targetEntity = animationTargets[i].entity;
+            AnimationTarget partType = animationTargets[i].target;
             
-            if (!animatedPoseLookup.HasComponent(partEntity)) continue;
+            if (!animatedPoseLookup.HasComponent(targetEntity)) continue;
             
-            PartRestPose restPose = restPoseLookup[partEntity];
+            AnimationTargetRestPose restPose = restPoseLookup[targetEntity];
             
             // Start with rest pose
             float3 finalPosition = restPose.localPosition;
@@ -89,7 +100,7 @@ public partial struct SampleAnimationJob : IJobEntity
             }
             
             // Write final pose
-            animatedPoseLookup[partEntity] = new PartAnimatedPose
+            animatedPoseLookup[targetEntity] = new AnimationTargetPose
             {
                 localPosition = finalPosition,
                 rotation = finalRotation,
@@ -101,31 +112,34 @@ public partial struct SampleAnimationJob : IJobEntity
     
     private void SampleClipForPart(
         ref AnimationClipBlob clip,
-        BodyPart partType,
+        AnimationTarget target,
         float normalizedTime,
         ref float3 position,
         ref float rotation,
         ref float2 scale,
         ref int imageIndex)
     {
-        // Find track for this part
-        for (int t = 0; t < clip.partTracks.Length; t++)
+        for (int t = 0; t < clip.animationTargetTracks.Length; t++)
         {
-            ref PartTrackBlob track = ref clip.partTracks[t];
-            if (track.bodyPart != partType) continue;
+            ref AnimationTargetTrackBlob track = ref clip.animationTargetTracks[t];
+            if (track.animationTarget != target) continue;
             if (track.keyframes.Length == 0) continue;
-            
-            // Sample keyframes
+        
+            // Check keyframe scale values
+            for (int k = 0; k < track.keyframes.Length; k++)
+            {
+                ref KeyframeBlob kf = ref track.keyframes[k];
+            }
+        
             KeyframeBlob sampled = SampleKeyframes(ref track, normalizedTime);
-            
-            // Apply based on blend mode and animated properties
+        
             ApplyTrackTopose(ref track, ref sampled, ref position, ref rotation, ref scale, ref imageIndex);
-            
-            break; // Found our track, done
+        
+            break;
         }
     }
     
-    private KeyframeBlob SampleKeyframes(ref PartTrackBlob track, float normalizedTime)
+    private KeyframeBlob SampleKeyframes(ref AnimationTargetTrackBlob track, float normalizedTime)
     {
         ref BlobArray<KeyframeBlob> keyframes = ref track.keyframes;
         
@@ -190,7 +204,7 @@ public partial struct SampleAnimationJob : IJobEntity
     }
     
     private void ApplyTrackTopose(
-        ref PartTrackBlob track,
+        ref AnimationTargetTrackBlob track,
         ref KeyframeBlob sampled,
         ref float3 position,
         ref float rotation,
@@ -230,3 +244,9 @@ public partial struct SampleAnimationJob : IJobEntity
         }
     }
 }
+
+
+
+
+
+

@@ -468,7 +468,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AnimationPreviewController
   currentClip: {fileID: 11400000, guid: 266b38be5ed2eed4dbdbac0288c9696c, type: 2}
   currentAnimation: 1
-  normalizedTime: 0.47131148
+  normalizedTime: 0
   playbackSpeed: 1
   isPlaying: 1
   loop: 1

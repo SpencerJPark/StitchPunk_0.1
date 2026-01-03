@@ -5,13 +5,14 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateAfter(typeof(AnimationSamplingSystem))]
 public partial struct ApplyAnimatedPoseSystem : ISystem
 {
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         new ApplyPoseJob().ScheduleParallel();
+        new ApplyAnimatedImageIndexJob().ScheduleParallel();
+        new ApplyAnimatedScaleJob().ScheduleParallel();
     }
 }
 
@@ -19,20 +20,34 @@ public partial struct ApplyAnimatedPoseSystem : ISystem
 public partial struct ApplyPoseJob : IJobEntity
 {
     public void Execute(
-        in PartAnimatedPose animatedPose,
-        ref LocalTransform transform,
-        ref ImageIndex imageIndex)
+        in AnimationTargetPose animatedPose,
+        ref LocalTransform transform)
     {
-        // Apply position and rotation
         transform.Position = animatedPose.localPosition;
         transform.Rotation = quaternion.Euler(0, 0, math.radians(animatedPose.rotation));
-        transform.Scale = 1f; // We handle scale separately for 2D
-        
-        // For non-uniform 2D scale, you might need a separate component
-        // or handle it in the shader
-        
-        // Apply image index
+        transform.Scale = 1f;
+    }
+}
+
+[BurstCompile]
+public partial struct ApplyAnimatedImageIndexJob : IJobEntity
+{
+    public void Execute(
+        in AnimationTargetPose animatedPose,
+        ref ImageIndex imageIndex)
+    {
         imageIndex.index = animatedPose.imageIndex;
         imageIndex.onUpdate = true;
+    }
+}
+
+[BurstCompile]
+public partial struct ApplyAnimatedScaleJob : IJobEntity
+{
+    public void Execute(
+        in AnimationTargetPose animatedPose,
+        ref PostTransformMatrix postTransformMatrix)
+    {
+        postTransformMatrix.Value = float4x4.Scale(animatedPose.scale.x, animatedPose.scale.y, 1f);
     }
 }

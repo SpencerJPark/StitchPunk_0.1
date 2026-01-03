@@ -18,9 +18,9 @@ MonoBehaviour:
   allowBlendIn: 1
   allowBlendOut: 1
   partTracks:
-  - bodyPart: 1
-    blendMode: 0
-    animatedProperties: 127
+  - animationTarget: 0
+    blendMode: 1
+    animatedProperties: 48
     interpolation: 0
     keyframes:
     - normalizedTime: 0
@@ -30,9 +30,16 @@ MonoBehaviour:
       imageIndex: -1
       overrideInterpolation: 0
       interpolationOverride: 0
+    - normalizedTime: 0.5
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 0.98, y: 0.98}
+      imageIndex: -1
+      overrideInterpolation: 0
+      interpolationOverride: 0
     - normalizedTime: 1
       position: {x: 0, y: 0, z: 0}
-      rotation: 90
+      rotation: 0
       scale: {x: 1, y: 1}
       imageIndex: -1
       overrideInterpolation: 0

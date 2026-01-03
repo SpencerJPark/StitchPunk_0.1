@@ -39,7 +39,7 @@ public partial struct AnimationLibraryBakingSystem : ISystem
         {
             clipsBuilder[i].animationType = (AnimationType)i;
             clipsBuilder[i].duration = 0;
-            builder.Allocate(ref clipsBuilder[i].partTracks, 0);
+            builder.Allocate(ref clipsBuilder[i].animationTargetTracks, 0);
         }
         
         // Fill in clips we have data for
@@ -56,14 +56,14 @@ public partial struct AnimationLibraryBakingSystem : ISystem
             clipBlob.allowBlendIn = clipSO.allowBlendIn;
             clipBlob.allowBlendOut = clipSO.allowBlendOut;
             
-            var tracksBuilder = builder.Allocate(ref clipBlob.partTracks, clipSO.partTracks.Count);
+            var tracksBuilder = builder.Allocate(ref clipBlob.animationTargetTracks, clipSO.partTracks.Count);
             
             for (int t = 0; t < clipSO.partTracks.Count; t++)
             {
                 var trackSO = clipSO.partTracks[t];
-                ref PartTrackBlob trackBlob = ref tracksBuilder[t];
+                ref AnimationTargetTrackBlob trackBlob = ref tracksBuilder[t];
                 
-                trackBlob.bodyPart = trackSO.bodyPart;
+                trackBlob.animationTarget = trackSO.animationTarget;
                 trackBlob.blendMode = trackSO.blendMode;
                 trackBlob.animatedProperties = trackSO.animatedProperties;
                 trackBlob.defaultInterpolation = trackSO.interpolation;
@@ -115,17 +115,17 @@ public partial struct CharacterBodyPartBakingSystem : ISystem
         var ecb = new EntityCommandBuffer(Allocator.Temp);
         
         foreach (var (partTag, parentChar, entity) in 
-            SystemAPI.Query<RefRO<BodyPartTag>, RefRO<ParentCharacter>>().WithEntityAccess())
+            SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<ParentAnimator>>().WithEntityAccess())
         {
-            Entity characterEntity = parentChar.ValueRO.character;
+            Entity characterEntity = parentChar.ValueRO.animator;
             
-            if (SystemAPI.HasBuffer<CharacterBodyPart>(characterEntity))
+            if (SystemAPI.HasBuffer<AnimatorTarget>(characterEntity))
             {
-                var buffer = SystemAPI.GetBuffer<CharacterBodyPart>(characterEntity);
-                buffer.Add(new CharacterBodyPart
+                var buffer = SystemAPI.GetBuffer<AnimatorTarget>(characterEntity);
+                buffer.Add(new AnimatorTarget
                 {
                     entity = entity,
-                    part = partTag.ValueRO.part
+                    target = partTag.ValueRO.target
                 });
             }
         }

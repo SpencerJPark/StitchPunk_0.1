@@ -3,15 +3,15 @@ using UnityEngine.AI;
 
 namespace UtilityAI {
     public class AnimationController : MonoBehaviour {
-        Animator animator;
+        UnityEngine.Animator animator;
         NavMeshAgent agent;
-        readonly int speedHash = Animator.StringToHash("Speed");
+        readonly int speedHash = UnityEngine.Animator.StringToHash("Speed");
         float currentSpeed;
         float speedVelocity;
         public float smoothTime = 0.3f;
 
         void Start() {
-            animator = GetComponentInChildren<Animator>();
+            animator = GetComponentInChildren<UnityEngine.Animator>();
             agent = GetComponent<NavMeshAgent>();
         }
 

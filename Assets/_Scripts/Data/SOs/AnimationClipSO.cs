@@ -18,7 +18,7 @@ public class AnimationClipSO : ScriptableObject
     [Serializable]
     public class PartTrack
     {
-        public BodyPart bodyPart;
+        [FormerlySerializedAs("bodyPart")] public AnimationTarget animationTarget;
         public BlendMode blendMode = BlendMode.Additive;
         public AnimatedProperties animatedProperties = AnimatedProperties.All;
         public InterpolationMode interpolation = InterpolationMode.Linear;

@@ -1,5 +1,5 @@
 ﻿// =====================================
-// ANIMATION PREVIEW CONTROLLER (Fixed)
+// ANIMATION PREVIEW CONTROLLER
 // =====================================
 
 using UnityEngine;
@@ -37,6 +37,7 @@ public class AnimationPreviewController : MonoBehaviour
     
     // Track what we last sent to ECS to detect external changes
     private float lastSentNormalizedTime = -1f;
+    private AnimationType lastSentAnimation = AnimationType.None;
     private bool isBeingDestroyed = false;
     
     private void Start()
@@ -56,7 +57,6 @@ public class AnimationPreviewController : MonoBehaviour
         TryInitializeWorld();
         if (!worldInitialized) return;
         
-        // Validate world and entity are still valid
         if (!IsWorldValid())
         {
             worldInitialized = false;
@@ -70,20 +70,20 @@ public class AnimationPreviewController : MonoBehaviour
         // Check if user changed normalizedTime in inspector/timeline (scrubbing)
         bool userScrubbed = Mathf.Abs(normalizedTime - lastSentNormalizedTime) > 0.0001f && lastSentNormalizedTime >= 0f;
         
+        // Check if animation changed
+        bool animationChanged = currentAnimation != lastSentAnimation;
+        
         if (userScrubbed)
         {
-            // User moved the slider - push to ECS
             timeControl.normalizedTime = normalizedTime;
             OnTimeChanged?.Invoke(normalizedTime);
         }
         else if (!isPlaying)
         {
-            // Paused but not scrubbing - keep UI in sync with ECS
             normalizedTime = timeControl.normalizedTime;
         }
         else
         {
-            // Playing - read back from ECS so slider moves
             normalizedTime = timeControl.normalizedTime;
         }
         
@@ -91,9 +91,11 @@ public class AnimationPreviewController : MonoBehaviour
         timeControl.isPaused = !isPlaying;
         timeControl.playbackSpeed = playbackSpeed;
         timeControl.forceLoop = loop;
+        timeControl.currentAnimation = currentAnimation;
         
         entityManager.SetComponentData(timeControlEntity, timeControl);
         lastSentNormalizedTime = timeControl.normalizedTime;
+        lastSentAnimation = currentAnimation;
     }
     
     private bool IsWorldValid()
@@ -105,7 +107,6 @@ public class AnimationPreviewController : MonoBehaviour
         
         try
         {
-            // Try to check if entity exists - this will throw if EntityManager is disposed
             return entityManager.Exists(timeControlEntity);
         }
         catch (System.ObjectDisposedException)
@@ -135,14 +136,15 @@ public class AnimationPreviewController : MonoBehaviour
                 timeControlEntity = query.GetSingletonEntity();
                 worldInitialized = true;
                 
-                // Push initial state
                 var timeControl = entityManager.GetComponentData<EditorAnimationTimeControl>(timeControlEntity);
                 timeControl.isPaused = !isPlaying;
                 timeControl.normalizedTime = normalizedTime;
                 timeControl.playbackSpeed = playbackSpeed;
                 timeControl.forceLoop = loop;
+                timeControl.currentAnimation = currentAnimation;
                 entityManager.SetComponentData(timeControlEntity, timeControl);
                 lastSentNormalizedTime = normalizedTime;
+                lastSentAnimation = currentAnimation;
                 
                 Debug.Log("[AnimationPreviewController] Connected to ECS time control");
             }
@@ -168,16 +170,15 @@ public class AnimationPreviewController : MonoBehaviour
     {
         isPlaying = false;
         normalizedTime = 0f;
-        lastSentNormalizedTime = -1f; // Force push on next update
+        lastSentNormalizedTime = -1f;
     }
     
     public void SetTime(float time)
     {
         normalizedTime = Mathf.Clamp01(time);
-        lastSentNormalizedTime = -1f; // Force push on next update
+        lastSentNormalizedTime = -1f;
         OnTimeChanged?.Invoke(normalizedTime);
         
-        // Immediately push to ECS if possible
         if (IsWorldValid())
         {
             try
@@ -238,39 +239,14 @@ public class AnimationPreviewController : MonoBehaviour
         currentAnimation = clip != null ? clip.animationType : AnimationType.None;
         normalizedTime = 0f;
         lastSentNormalizedTime = -1f;
+        lastSentAnimation = AnimationType.None; // Force push
         OnClipChanged?.Invoke(clip);
-        
-        // Update character animation in ECS
-        if (IsWorldValid())
-        {
-            try
-            {
-                using var query = entityManager.CreateEntityQuery(typeof(CharacterAnimation));
-                var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
-                
-                foreach (var entity in entities)
-                {
-                    var anim = entityManager.GetComponentData<CharacterAnimation>(entity);
-                    anim.currentAnimation = currentAnimation;
-                    anim.time = 0f;
-                    anim.requestedAnimation = AnimationType.None;
-                    entityManager.SetComponentData(entity, anim);
-                }
-                
-                entities.Dispose();
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"[AnimationPreviewController] Failed to set clip: {e.Message}");
-            }
-        }
     }
     
     private void OnDestroy()
     {
         isBeingDestroyed = true;
         
-        // Only try to reset if world is still valid
         if (IsWorldValid())
         {
             try
@@ -289,7 +265,7 @@ public class AnimationPreviewController : MonoBehaviour
         isBeingDestroyed = true;
     }
     
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     private void OnDrawGizmos()
     {
         if (!showKeyframeMarkers || currentClip == null) return;
@@ -306,12 +282,12 @@ public class AnimationPreviewController : MonoBehaviour
         
         string status = isPlaying ? "▶ PLAYING" : "⏸ PAUSED";
         UnityEditor.Handles.Label(
-            currentPos + Vector3.up * 0.5f, 
+            currentPos + Vector3.up * 0.5f,
             $"{status} ({normalizedTime:F2})",
-            new GUIStyle 
-            { 
-                fontSize = 12, 
-                normal = { textColor = isPlaying ? Color.green : Color.yellow } 
+            new GUIStyle
+            {
+                fontSize = 12,
+                normal = { textColor = isPlaying ? Color.green : Color.yellow }
             }
         );
         
@@ -334,5 +310,5 @@ public class AnimationPreviewController : MonoBehaviour
             Gizmos.DrawSphere(pos, 0.08f);
         }
     }
-    #endif
+#endif
 }
