@@ -1,10 +1,15 @@
-﻿using Unity.Burst;
+﻿// =====================================
+// APPLY ANIMATED POSE SYSTEM
+// =====================================
+
+using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(AnimationSamplingSystem))]
 public partial struct ApplyAnimatedPoseSystem : ISystem
 {
     [BurstCompile]
@@ -12,7 +17,6 @@ public partial struct ApplyAnimatedPoseSystem : ISystem
     {
         new ApplyPoseJob().ScheduleParallel();
         new ApplyAnimatedImageIndexJob().ScheduleParallel();
-        new ApplyAnimatedScaleJob().ScheduleParallel();
     }
 }
 
@@ -38,16 +42,5 @@ public partial struct ApplyAnimatedImageIndexJob : IJobEntity
     {
         imageIndex.index = animatedPose.imageIndex;
         imageIndex.onUpdate = true;
-    }
-}
-
-[BurstCompile]
-public partial struct ApplyAnimatedScaleJob : IJobEntity
-{
-    public void Execute(
-        in AnimationTargetPose animatedPose,
-        ref PostTransformMatrix postTransformMatrix)
-    {
-        postTransformMatrix.Value = float4x4.Scale(animatedPose.scale.x, animatedPose.scale.y, 1f);
     }
 }

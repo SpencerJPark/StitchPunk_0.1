@@ -22,7 +22,10 @@ public class GameAssets : MonoBehaviour {
     }
 
 
-
+    [Header("Animation")]
+    [Range(1, 60)]
+    public int animationFrameRate = 24;
+    
     public UnitTypeListSO unitTypeListSO;
     public BuildingTypeListSO buildingTypeListSO;
 

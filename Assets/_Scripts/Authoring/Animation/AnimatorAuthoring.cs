@@ -1,11 +1,35 @@
 using Unity.Entities;
-using Unity.Mathematics;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class AnimatorAuthoring : MonoBehaviour
 {
-    public AnimationType startingAnimation = AnimationType.Idle;
-    public float animationSpeed = 1f;
+    [Header("Starting Animations")]
+    public List<StartingLayer> startingLayers = new List<StartingLayer>();
+    
+    [System.Serializable]
+    public class StartingLayer
+    {
+        public AnimationLayerType layer = AnimationLayerType.Base;
+        public AnimationType animation = AnimationType.Idle;
+        public float speed = 1f;
+        public bool looping = true;
+    }
+    
+    private void Reset()
+    {
+        // Default setup when component is added
+        startingLayers = new List<StartingLayer>
+        {
+            new StartingLayer
+            {
+                layer = AnimationLayerType.Base,
+                animation = AnimationType.Idle,
+                speed = 1f,
+                looping = true
+            }
+        };
+    }
     
     public class Baker : Baker<AnimatorAuthoring>
     {
@@ -13,51 +37,61 @@ public class AnimatorAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             
-            AddComponent(entity, new Animator
-            {
-                currentAnimation = authoring.startingAnimation,
-                requestedAnimation = AnimationType.None,
-                speed = authoring.animationSpeed,
-            });
+            var layers = AddBuffer<AnimationLayer>(entity);
             
-            // Add a secondary layer for overlays (facing, expressions)
-            AddComponent(entity, new AnimatorLayer
+            foreach (var startingLayer in authoring.startingLayers)
             {
-                active = false,
-                weight = 1f,
-            });
+                layers.Add(new AnimationLayer
+                {
+                    layer = startingLayer.layer,
+                    animation = startingLayer.animation,
+                    time = 0f,
+                    speed = startingLayer.speed,
+                    active = true,
+                    looping = startingLayer.looping
+                });
+            }
+            
+            // Sort by layer priority
+            SortLayers(ref layers);
             
             AddBuffer<AnimatorTarget>(entity);
+        }
+        
+        private void SortLayers(ref DynamicBuffer<AnimationLayer> layers)
+        {
+            for (int i = 0; i < layers.Length - 1; i++)
+            {
+                for (int j = 0; j < layers.Length - 1 - i; j++)
+                {
+                    if ((int)layers[j].layer > (int)layers[j + 1].layer)
+                    {
+                        var temp = layers[j];
+                        layers[j] = layers[j + 1];
+                        layers[j + 1] = temp;
+                    }
+                }
+            }
         }
     }
 }
 
-public struct Animator : IComponentData
-{
-    // Primary animation layer
-    public AnimationType currentAnimation;
-    public AnimationType requestedAnimation;
-    public float time;
-    public float speed;
-    
-    // Blend state
-    public AnimationType blendFromAnimation;
-    public float blendFromTime;
-    public float blendWeight;      // 0 = fully blendFrom, 1 = fully current
-    public float blendDuration;
-    public bool isBlending;
-}
+// =====================================
+// ANIMATION LAYER DATA
+// =====================================
 
-// Secondary animation layer (for things like facing direction, expressions)
-public struct AnimatorLayer : IComponentData
+[InternalBufferCapacity(8)]
+public struct AnimationLayer : IBufferElementData
 {
+    public AnimationLayerType layer;
     public AnimationType animation;
     public float time;
-    public float weight;    // How much this layer affects the final pose
+    public float speed;
     public bool active;
+    public bool looping;
 }
 
-// Buffer of all body parts belonging to this character
+// Buffer of all body parts belonging to this animator
 [InternalBufferCapacity(32)]
 public struct AnimatorTarget : IBufferElementData
 {

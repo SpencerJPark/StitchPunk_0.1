@@ -112,7 +112,7 @@ public partial struct CharacterBodyPartBakingSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
+        EntityCommandBuffer entityCommandBuffer = new EntityCommandBuffer(Allocator.Temp);
         
         foreach (var (partTag, parentChar, entity) in 
             SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<ParentAnimator>>().WithEntityAccess())
@@ -130,7 +130,7 @@ public partial struct CharacterBodyPartBakingSystem : ISystem
             }
         }
         
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
+        entityCommandBuffer.Playback(state.EntityManager);
+        entityCommandBuffer.Dispose();
     }
 }

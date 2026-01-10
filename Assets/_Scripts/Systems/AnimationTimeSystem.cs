@@ -1,14 +1,15 @@
+// =====================================
+// ANIMATION TIME SYSTEM
+// =====================================
+
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-
 
 [BurstCompile]
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial struct AnimationTimeSystem : ISystem
 {
-    
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
@@ -22,7 +23,7 @@ public partial struct AnimationTimeSystem : ISystem
         BlobAssetReference<AnimationLibraryBlob> library = SystemAPI.GetSingleton<AnimationLibrary>().library;
         float deltaTime = SystemAPI.Time.DeltaTime;
         
-        new UpdateAnimationTimeJob
+        new UpdateLayerTimeJob
         {
             library = library,
             deltaTime = deltaTime
@@ -31,65 +32,36 @@ public partial struct AnimationTimeSystem : ISystem
 }
 
 [BurstCompile]
-public partial struct UpdateAnimationTimeJob : IJobEntity
+public partial struct UpdateLayerTimeJob : IJobEntity
 {
-    [ReadOnly] public BlobAssetReference<AnimationLibraryBlob> library;
+    public BlobAssetReference<AnimationLibraryBlob> library;
     public float deltaTime;
     
-    public void Execute(ref Animator anim)
+    public void Execute(ref DynamicBuffer<AnimationLayer> layers)
     {
-        ref AnimationClipBlob clip = ref library.Value.clips[(int)anim.currentAnimation];
-        
-        // Handle blend transition
-        if (anim.isBlending)
+        for (int i = 0; i < layers.Length; i++)
         {
-            anim.blendWeight += deltaTime / anim.blendDuration;
-            anim.blendFromTime += deltaTime * anim.speed;
+            var layer = layers[i];
+            if (!layer.active) continue;
             
-            if (anim.blendWeight >= 1f)
-            {
-                anim.blendWeight = 1f;
-                anim.isBlending = false;
-            }
-        }
-        
-        // Update current animation time
-        anim.time += deltaTime * anim.speed;
-        
-        // Handle looping / completion
-        if (clip.duration > 0 && anim.time >= clip.duration)
-        {
-            if (clip.looping)
-            {
-                anim.time = math.fmod(anim.time, clip.duration);
-            }
-            else
-            {
-                anim.time = clip.duration;
-            }
-        }
-        
-        // Handle animation change request
-        if (anim.requestedAnimation != AnimationType.None && 
-            anim.requestedAnimation != anim.currentAnimation)
-        {
-            ref AnimationClipBlob currentClip = ref library.Value.clips[(int)anim.currentAnimation];
-            ref AnimationClipBlob nextClip = ref library.Value.clips[(int)anim.requestedAnimation];
+            ref AnimationClipBlob clip = ref library.Value.clips[(int)layer.animation];
             
-            // Check if we should blend
-            if (currentClip.allowBlendOut && nextClip.allowBlendIn && anim.blendDuration > 0)
+            layer.time += deltaTime * layer.speed;
+            
+            if (clip.duration > 0 && layer.time >= clip.duration)
             {
-                anim.blendFromAnimation = anim.currentAnimation;
-                anim.blendFromTime = anim.time;
-                anim.blendWeight = 0f;
-                anim.isBlending = true;
+                if (layer.looping)
+                {
+                    layer.time = math.fmod(layer.time, clip.duration);
+                }
+                else
+                {
+                    layer.time = clip.duration;
+                    layer.active = false;
+                }
             }
             
-            anim.currentAnimation = anim.requestedAnimation;
-            anim.time = 0f;
-            anim.requestedAnimation = AnimationType.None;
+            layers[i] = layer;
         }
     }
 }
-
-

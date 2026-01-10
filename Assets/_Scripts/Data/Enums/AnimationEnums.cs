@@ -16,28 +16,34 @@ public enum AnimationType : ushort
     FaceRightBackView,
 }
 
+public enum AnimationLayerType
+{
+    Base,      // Idle, Walk, Run - always present
+    Action,    // Attack, Jump - temporary actions
+    Face,      // Expressions
+    Eyes,      // Blink, look direction
+    Mouth,     // Talking, reactions
+    Override  // Highest priority - screams, damage reactions
+}
+
 public enum AnimationTarget : byte // keep under 256
 {
     Body,
-    
     UpperLeftArm,
     UpperRightArm,
     LowerLeftArm,
     LowerRightArm,
     LeftHand,
     RightHand,
-    
     ItemRightHand,
     ItemLeftHand,
-    
-    Pelvis, // controlls torso tilt
+    Pelvis,
     UpperLeftLeg,
     UpperRightLeg,
     LowerLeftLeg,
     LowerRightLeg,
     LeftFoot,
     RightFoot,
-    
     Head,
     LeftEyebrow,
     RightEyebrow,
@@ -47,7 +53,6 @@ public enum AnimationTarget : byte // keep under 256
     Mustache,
     Nose,
     Ear,
-    
     Hat,
     Torso,
     JacketLeftSide,
@@ -55,6 +60,9 @@ public enum AnimationTarget : byte // keep under 256
     JacketInside,
     Belt,
     PantFront,
+    Neck,
+    FaceDetails,
+    FaceWare,
 }
 
 public enum InterpolationMode : byte
