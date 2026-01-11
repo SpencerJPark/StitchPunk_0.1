@@ -577,7 +577,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ee91155b4991994e87b4e308aa5029e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameAssets
-  animationFrameRate: 12
+  animationFrameRate: 24
   unitTypeListSO: {fileID: 0}
   buildingTypeListSO: {fileID: 11400000, guid: 2b35da6bdaa3395408d1ff4c39abb8c4, type: 2}
 --- !u!4 &2031238220
@@ -625,13 +625,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7faeb823a52640a89d1d2209cba6c69d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AnimationPreviewController
-  currentClip: {fileID: 11400000, guid: 266b38be5ed2eed4dbdbac0288c9696c, type: 2}
-  currentAnimation: 1
+  mode: 0
+  editClip: {fileID: 11400000, guid: 266b38be5ed2eed4dbdbac0288c9696c, type: 2}
+  previewLayers: []
   normalizedTime: 0
   playbackSpeed: 1
   isPlaying: 1
   loop: 1
+  showDebugLog: 1
   showKeyframeMarkers: 1
+  forceRebuild: 0
 --- !u!114 &2047629042
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,6 +14,7 @@ public enum AnimationType : ushort
     FaceRight,
     FaceLeftBackView,
     FaceRightBackView,
+    BlinkNormal,
 }
 
 public enum AnimationLayerType

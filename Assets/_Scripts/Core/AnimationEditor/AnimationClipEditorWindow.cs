@@ -1,5 +1,5 @@
 ﻿// =====================================
-// CUSTOM EDITOR WINDOW (Fixed)
+// CUSTOM EDITOR WINDOW (Fixed for new layer system)
 // =====================================
 
 #if UNITY_EDITOR
@@ -70,8 +70,15 @@ public class AnimationClipEditorWindow : EditorWindow
     
     private void OnEditorUpdate()
     {
-        // Continuously repaint while in play mode to show animation
         if (Application.isPlaying && previewController != null)
+        {
+            Repaint();
+        }
+    }
+    
+    private void OnInspectorUpdate()
+    {
+        if (Application.isPlaying)
         {
             Repaint();
         }
@@ -81,7 +88,6 @@ public class AnimationClipEditorWindow : EditorWindow
     {
         if (state == PlayModeStateChange.EnteredPlayMode)
         {
-            // Delay the search slightly to allow objects to initialize
             EditorApplication.delayCall += FindPreviewController;
         }
         else if (state == PlayModeStateChange.ExitingPlayMode)
@@ -98,17 +104,15 @@ public class AnimationClipEditorWindow : EditorWindow
         {
             Debug.Log($"[AnimationClipEditor] Found preview controller: {previewController.name}");
             
-            // Subscribe to events
             previewController.OnTimeChanged -= OnPreviewTimeChanged;
             previewController.OnTimeChanged += OnPreviewTimeChanged;
             
             previewController.OnClipChanged -= OnPreviewClipChanged;
             previewController.OnClipChanged += OnPreviewClipChanged;
             
-            // Sync clip if we have one selected
-            if (currentClip != null && previewController.currentClip != currentClip)
+            if (currentClip != null && previewController.editClip != currentClip)
             {
-                previewController.SetClip(currentClip);
+                previewController.SetEditClip(currentClip);
             }
         }
         else if (Application.isPlaying)
@@ -135,7 +139,12 @@ public class AnimationClipEditorWindow : EditorWindow
     
     private void OnGUI()
     {
-        // Try to find controller if we don't have one
+        // Force continuous repaint during playback
+        if (Application.isPlaying && previewController != null && previewController.isPlaying)
+        {
+            Repaint();
+        }
+        
         if (Application.isPlaying && previewController == null)
         {
             FindPreviewController();
@@ -143,21 +152,18 @@ public class AnimationClipEditorWindow : EditorWindow
         
         EditorGUILayout.BeginHorizontal();
         
-        // Left panel - Track list and timeline
         EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
         DrawToolbar();
         DrawTimeline();
         DrawTrackList();
         EditorGUILayout.EndVertical();
         
-        // Right panel - Inspector
         EditorGUILayout.BeginVertical(GUILayout.Width(INSPECTOR_WIDTH));
         DrawInspector();
         EditorGUILayout.EndVertical();
         
         EditorGUILayout.EndHorizontal();
         
-        // Handle input AFTER drawing so we have correct rects
         HandleGlobalInput();
     }
     
@@ -177,13 +183,12 @@ public class AnimationClipEditorWindow : EditorWindow
             
             if (previewController != null)
             {
-                previewController.SetClip(currentClip);
+                previewController.SetEditClip(currentClip);
             }
         }
         
         GUILayout.Space(20);
         
-        // Playback controls - show status
         bool hasController = Application.isPlaying && previewController != null;
         
         if (!Application.isPlaying)
@@ -199,21 +204,16 @@ public class AnimationClipEditorWindow : EditorWindow
         }
         else
         {
-            // Stop button
             if (GUILayout.Button("⏮", EditorStyles.toolbarButton, GUILayout.Width(25)))
             {
                 previewController.Stop();
-                Repaint();
             }
             
-            // Previous frame
             if (GUILayout.Button("⏪", EditorStyles.toolbarButton, GUILayout.Width(25)))
             {
                 previewController.PreviousFrame();
-                Repaint();
             }
             
-            // Play/Pause
             bool isPlaying = previewController.isPlaying;
             if (GUILayout.Button(isPlaying ? "⏸" : "▶", EditorStyles.toolbarButton, GUILayout.Width(25)))
             {
@@ -221,37 +221,36 @@ public class AnimationClipEditorWindow : EditorWindow
                     previewController.Pause();
                 else
                     previewController.Play();
-                Repaint();
             }
             
-            // Next frame
             if (GUILayout.Button("⏩", EditorStyles.toolbarButton, GUILayout.Width(25)))
             {
                 previewController.NextFrame();
-                Repaint();
             }
         }
         
         GUILayout.Space(20);
         
-        // Time display
-        float currentTime = (previewController != null) ? previewController.normalizedTime : 0f;
+        // Time display - always get fresh from controller
+        float currentTime = 0f;
+        if (previewController != null)
+        {
+            currentTime = previewController.normalizedTime;
+        }
         float duration = (currentClip != null) ? currentClip.duration : 1f;
         
-        string timeText = $"Time: {currentTime:F2} ({currentTime * duration:F2}s)";
-        EditorGUILayout.LabelField(timeText, GUILayout.Width(140));
+        string timeText = $"Time: {currentTime:F3} ({currentTime * duration:F2}s)";
+        EditorGUILayout.LabelField(timeText, GUILayout.Width(160));
         
-        // Playing indicator
         if (hasController)
         {
             GUIStyle statusStyle = new GUIStyle(EditorStyles.miniLabel);
             statusStyle.normal.textColor = previewController.isPlaying ? Color.green : Color.yellow;
-            EditorGUILayout.LabelField(previewController.isPlaying ? "▶ Playing" : "⏸ Paused", statusStyle, GUILayout.Width(70));
+            EditorGUILayout.LabelField(previewController.isPlaying ? "▶ PLAYING" : "⏸ PAUSED", statusStyle, GUILayout.Width(80));
         }
         
         GUILayout.FlexibleSpace();
         
-        // Zoom controls
         EditorGUILayout.LabelField("Zoom:", GUILayout.Width(40));
         timelineZoom = EditorGUILayout.Slider(timelineZoom, 0.5f, 4f, GUILayout.Width(100));
         
@@ -259,117 +258,121 @@ public class AnimationClipEditorWindow : EditorWindow
     }
     
     private void DrawTimeline()
-{
-    Rect timelineRect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, 
-        GUILayout.ExpandWidth(true), GUILayout.Height(TIMELINE_HEIGHT));
-    
-    lastTimelineRect = timelineRect;
-    
-    // Background
-    EditorGUI.DrawRect(timelineRect, TIMELINE_BG);
-    
-    if (currentClip == null)
     {
-        GUI.Label(timelineRect, "Select a clip to edit", EditorStyles.centeredGreyMiniLabel);
-        return;
-    }
-    
-    // Calculate timeline dimensions
-    float timelineStartX = timelineRect.x + TRACK_HEADER_WIDTH;
-    float timelineWidth = timelineRect.width - TRACK_HEADER_WIDTH - 20f;
-    float scaledWidth = timelineWidth * timelineZoom;
-    
-    // Store these for input handling
-    cachedTimelineStartX = timelineStartX;
-    cachedScaledWidth = scaledWidth;
-    
-    // Draw header area
-    Rect headerRect = new Rect(timelineRect.x, timelineRect.y, TRACK_HEADER_WIDTH, timelineRect.height);
-    EditorGUI.DrawRect(headerRect, new Color(0.15f, 0.15f, 0.15f));
-    GUI.Label(new Rect(headerRect.x + 10, headerRect.y + 20, 100, 20), "Timeline", EditorStyles.boldLabel);
-    
-    // Draw time markers
-    Handles.color = Color.gray;
-    int numMarkers = Mathf.CeilToInt(10 * timelineZoom);
-    for (int i = 0; i <= numMarkers; i++)
-    {
-        float t = i / (float)numMarkers;
-        float x = timelineStartX + t * scaledWidth - timelineOffset;
+        Rect timelineRect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, 
+            GUILayout.ExpandWidth(true), GUILayout.Height(TIMELINE_HEIGHT));
         
-        if (x < timelineStartX || x > timelineRect.xMax - 20f) continue;
+        lastTimelineRect = timelineRect;
         
-        // Tick mark
-        Handles.DrawLine(
-            new Vector3(x, timelineRect.y + 35f, 0),
-            new Vector3(x, timelineRect.yMax, 0));
+        EditorGUI.DrawRect(timelineRect, TIMELINE_BG);
         
-        // Time label
-        GUI.Label(new Rect(x - 15, timelineRect.y + 15f, 30, 20), 
-            $"{t:F1}", EditorStyles.centeredGreyMiniLabel);
-    }
-    
-    // Draw aggregate keyframe markers
-    if (currentClip.partTracks != null)
-    {
-        HashSet<float> keyframeTimes = new HashSet<float>();
-        foreach (var track in currentClip.partTracks)
+        if (currentClip == null)
         {
-            if (track.keyframes == null) continue;
-            foreach (var kf in track.keyframes)
+            GUI.Label(timelineRect, "Select a clip to edit", EditorStyles.centeredGreyMiniLabel);
+            return;
+        }
+        
+        float timelineStartX = timelineRect.x + TRACK_HEADER_WIDTH;
+        float timelineWidth = timelineRect.width - TRACK_HEADER_WIDTH - 20f;
+        float scaledWidth = timelineWidth * timelineZoom;
+        
+        cachedTimelineStartX = timelineStartX;
+        cachedScaledWidth = scaledWidth;
+        
+        Rect headerRect = new Rect(timelineRect.x, timelineRect.y, TRACK_HEADER_WIDTH, timelineRect.height);
+        EditorGUI.DrawRect(headerRect, new Color(0.15f, 0.15f, 0.15f));
+        GUI.Label(new Rect(headerRect.x + 10, headerRect.y + 20, 100, 20), "Timeline", EditorStyles.boldLabel);
+        
+        Handles.color = Color.gray;
+        int numMarkers = Mathf.CeilToInt(10 * timelineZoom);
+        for (int i = 0; i <= numMarkers; i++)
+        {
+            float t = i / (float)numMarkers;
+            float x = timelineStartX + t * scaledWidth - timelineOffset;
+            
+            if (x < timelineStartX || x > timelineRect.xMax - 20f) continue;
+            
+            Handles.DrawLine(
+                new Vector3(x, timelineRect.y + 35f, 0),
+                new Vector3(x, timelineRect.yMax, 0));
+            
+            GUI.Label(new Rect(x - 15, timelineRect.y + 15f, 30, 20), 
+                $"{t:F1}", EditorStyles.centeredGreyMiniLabel);
+        }
+        
+        if (currentClip.partTracks != null)
+        {
+            HashSet<float> keyframeTimes = new HashSet<float>();
+            foreach (var track in currentClip.partTracks)
             {
-                keyframeTimes.Add(kf.normalizedTime);
+                if (track.keyframes == null) continue;
+                foreach (var kf in track.keyframes)
+                {
+                    keyframeTimes.Add(kf.normalizedTime);
+                }
+            }
+            
+            foreach (float t in keyframeTimes)
+            {
+                float x = timelineStartX + t * scaledWidth - timelineOffset;
+                if (x < timelineStartX || x > timelineRect.xMax - 20f) continue;
+                
+                Rect markerRect = new Rect(x - 3, timelineRect.y + 40f, 6, 15);
+                EditorGUI.DrawRect(markerRect, KEYFRAME_COLOR);
             }
         }
         
-        foreach (float t in keyframeTimes)
+        // PLAYHEAD - Get time directly from preview controller
+        float playheadTime = 0f;
+        if (previewController != null)
         {
-            float x = timelineStartX + t * scaledWidth - timelineOffset;
-            if (x < timelineStartX || x > timelineRect.xMax - 20f) continue;
+            playheadTime = previewController.normalizedTime;
+        }
+        
+        float playheadX = timelineStartX + playheadTime * scaledWidth - timelineOffset;
+        
+        // Always draw playhead if in valid range
+        if (playheadX >= timelineStartX - 10 && playheadX <= timelineRect.xMax)
+        {
+            // Clamp for drawing
+            float drawX = Mathf.Clamp(playheadX, timelineStartX, timelineRect.xMax - 20f);
             
-            Rect markerRect = new Rect(x - 3, timelineRect.y + 40f, 6, 15);
-            EditorGUI.DrawRect(markerRect, KEYFRAME_COLOR);
+            // Playhead line
+            Handles.color = PLAYHEAD_COLOR;
+            Handles.DrawLine(
+                new Vector3(drawX, timelineRect.y, 0),
+                new Vector3(drawX, timelineRect.yMax + 500f, 0));
+            
+            // Playhead handle
+            Vector3[] trianglePoints = new Vector3[]
+            {
+                new Vector3(drawX - 8, timelineRect.y + 5, 0),
+                new Vector3(drawX + 8, timelineRect.y + 5, 0),
+                new Vector3(drawX + 8, timelineRect.y + 15, 0),
+                new Vector3(drawX, timelineRect.y + 25, 0),
+                new Vector3(drawX - 8, timelineRect.y + 15, 0),
+            };
+            Handles.color = PLAYHEAD_COLOR;
+            Handles.DrawAAConvexPolygon(trianglePoints);
+            
+            // Debug: Show current time value
+            GUI.Label(new Rect(drawX - 20, timelineRect.y + 28, 40, 15), 
+                $"{playheadTime:F2}", EditorStyles.centeredGreyMiniLabel);
+        }
+        
+        // Handle timeline clicking
+        Rect clickableTimelineRect = new Rect(timelineStartX, timelineRect.y, timelineWidth, timelineRect.height);
+        
+        Event e = Event.current;
+        
+        if (e.type == EventType.MouseDown && e.button == 0 && clickableTimelineRect.Contains(e.mousePosition))
+        {
+            isDraggingPlayhead = true;
+            UpdatePlayheadFromMouse(e.mousePosition.x);
+            e.Use();
+            Repaint();
         }
     }
-    
-    // Draw playhead
-    float playheadTime = (previewController != null) ? previewController.normalizedTime : 0f;
-    float playheadX = timelineStartX + playheadTime * scaledWidth - timelineOffset;
-    
-    if (playheadX >= timelineStartX && playheadX <= timelineRect.xMax - 20f)
-    {
-        // Playhead line - extends into track area
-        Handles.color = PLAYHEAD_COLOR;
-        Handles.DrawLine(
-            new Vector3(playheadX, timelineRect.y, 0),
-            new Vector3(playheadX, timelineRect.yMax + 500f, 0));
-        
-        // Playhead handle
-        Vector3[] trianglePoints = new Vector3[]
-        {
-            new Vector3(playheadX - 8, timelineRect.y + 5, 0),
-            new Vector3(playheadX + 8, timelineRect.y + 5, 0),
-            new Vector3(playheadX + 8, timelineRect.y + 15, 0),
-            new Vector3(playheadX, timelineRect.y + 25, 0),
-            new Vector3(playheadX - 8, timelineRect.y + 15, 0),
-        };
-        Handles.color = PLAYHEAD_COLOR;
-        Handles.DrawAAConvexPolygon(trianglePoints);
-    }
-    
-    // Handle timeline clicking - use the FULL timeline area including below tracks
-    Rect clickableTimelineRect = new Rect(timelineStartX, timelineRect.y, timelineWidth, timelineRect.height);
-    
-    Event e = Event.current;
-    
-    // Only start dragging on mouse down in the timeline header area
-    if (e.type == EventType.MouseDown && e.button == 0 && clickableTimelineRect.Contains(e.mousePosition))
-    {
-        isDraggingPlayhead = true;
-        UpdatePlayheadFromMouse(e.mousePosition.x);
-        e.Use();
-        Repaint();
-    }
-}
     
     private void UpdatePlayheadFromMouse(float mouseX)
     {
@@ -393,7 +396,6 @@ public class AnimationClipEditorWindow : EditorWindow
             return;
         }
         
-        // Track list header
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         EditorGUILayout.LabelField("Body Part", GUILayout.Width(100));
         EditorGUILayout.LabelField("Blend", GUILayout.Width(50));
@@ -405,14 +407,17 @@ public class AnimationClipEditorWindow : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
         
-        // Track list
         trackScrollPos = EditorGUILayout.BeginScrollView(trackScrollPos);
         
-        // Calculate dimensions
         float trackAreaWidth = position.width - INSPECTOR_WIDTH - 20f;
         float timelineStartX = TRACK_HEADER_WIDTH;
         float timelineWidth = trackAreaWidth - TRACK_HEADER_WIDTH;
         float scaledWidth = timelineWidth * timelineZoom;
+        
+        if (currentClip.partTracks == null)
+        {
+            currentClip.partTracks = new List<AnimationClipSO.PartTrack>();
+        }
         
         lastTrackAreaRect = GUILayoutUtility.GetRect(trackAreaWidth, 
             Mathf.Max(200f, currentClip.partTracks.Count * TRACK_HEIGHT));
@@ -430,24 +435,19 @@ public class AnimationClipEditorWindow : EditorWindow
     
     private void DrawTrack(int index, AnimationClipSO.PartTrack track, Rect trackRect, float timelineStartX, float scaledWidth)
     {
-        // Background
         Color bgColor = index == selectedTrackIndex ? TRACK_SELECTED :
             (index % 2 == 0 ? TRACK_BG_EVEN : TRACK_BG_ODD);
         EditorGUI.DrawRect(trackRect, bgColor);
         
-        // Header area
         Rect headerRect = new Rect(trackRect.x, trackRect.y, TRACK_HEADER_WIDTH, trackRect.height);
         
-        // Body part label
         Rect labelRect = new Rect(trackRect.x + 5, trackRect.y + 5, 90, 20);
         EditorGUI.LabelField(labelRect, track.animationTarget.ToString());
         
-        // Blend mode indicator
         Rect blendRect = new Rect(trackRect.x + 100, trackRect.y + 5, 40, 20);
         EditorGUI.LabelField(blendRect, track.blendMode == BlendMode.Additive ? "ADD" : "OVR",
             EditorStyles.miniLabel);
         
-        // Delete track button
         Rect deleteRect = new Rect(trackRect.x + 145, trackRect.y + 5, 20, 20);
         if (GUI.Button(deleteRect, "×", EditorStyles.miniButton))
         {
@@ -466,7 +466,6 @@ public class AnimationClipEditorWindow : EditorWindow
             }
         }
         
-        // Track header selection
         Event e = Event.current;
         if (e.type == EventType.MouseDown && headerRect.Contains(e.mousePosition))
         {
@@ -477,17 +476,14 @@ public class AnimationClipEditorWindow : EditorWindow
             Repaint();
         }
         
-        // Keyframe area
         Rect keyframeAreaRect = new Rect(trackRect.x + timelineStartX, trackRect.y, 
             trackRect.width - timelineStartX, trackRect.height);
         
-        // Draw separator line
         Handles.color = new Color(0.1f, 0.1f, 0.1f);
         Handles.DrawLine(
             new Vector3(keyframeAreaRect.x, trackRect.y, 0),
             new Vector3(keyframeAreaRect.x, trackRect.yMax, 0));
         
-        // Draw keyframes
         if (track.keyframes != null)
         {
             for (int k = 0; k < track.keyframes.Count; k++)
@@ -507,10 +503,8 @@ public class AnimationClipEditorWindow : EditorWindow
                 bool isSelected = index == selectedTrackIndex && k == selectedKeyframeIndex;
                 Color kfColor = isSelected ? KEYFRAME_SELECTED : KEYFRAME_COLOR;
                 
-                // Draw diamond shape
                 DrawDiamond(kfRect, kfColor);
                 
-                // Keyframe selection
                 if (e.type == EventType.MouseDown && kfRect.Contains(e.mousePosition))
                 {
                     selectedTrackIndex = index;
@@ -522,7 +516,6 @@ public class AnimationClipEditorWindow : EditorWindow
             }
         }
         
-        // Double-click in keyframe area to add keyframe
         if (e.type == EventType.MouseDown && e.clickCount == 2 && keyframeAreaRect.Contains(e.mousePosition))
         {
             float clickTime = (e.mousePosition.x - keyframeAreaRect.x + timelineOffset) / scaledWidth;
@@ -611,7 +604,6 @@ public class AnimationClipEditorWindow : EditorWindow
         EditorGUILayout.Space();
         EditorGUILayout.Space();
         
-        // Quick actions
         EditorGUILayout.LabelField("Quick Actions", EditorStyles.boldLabel);
         
         if (GUILayout.Button("Add New Track"))
@@ -681,7 +673,6 @@ public class AnimationClipEditorWindow : EditorWindow
         
         EditorGUI.BeginChangeCheck();
         
-        // Time
         float newTime = EditorGUILayout.Slider("Time", keyframe.normalizedTime, 0f, 1f);
         
         if (currentClip.duration > 0)
@@ -691,7 +682,6 @@ public class AnimationClipEditorWindow : EditorWindow
         
         EditorGUILayout.Space();
         
-        // Transform properties
         EditorGUILayout.LabelField("Transform", EditorStyles.boldLabel);
         
         AnimatedProperties props = track.animatedProperties;
@@ -721,7 +711,6 @@ public class AnimationClipEditorWindow : EditorWindow
         
         EditorGUILayout.Space();
         
-        // Interpolation
         EditorGUILayout.LabelField("Interpolation", EditorStyles.boldLabel);
         keyframe.overrideInterpolation = EditorGUILayout.Toggle("Override Track Default", keyframe.overrideInterpolation);
         
@@ -738,7 +727,6 @@ public class AnimationClipEditorWindow : EditorWindow
         
         bool changed = EditorGUI.EndChangeCheck();
         
-        // Handle time change separately to re-sort
         if (Mathf.Abs(newTime - keyframe.normalizedTime) > 0.0001f)
         {
             keyframe.normalizedTime = newTime;
@@ -755,7 +743,6 @@ public class AnimationClipEditorWindow : EditorWindow
         EditorGUILayout.Space();
         EditorGUILayout.Space();
         
-        // Quick actions
         EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
         
         EditorGUILayout.BeginHorizontal();
@@ -793,167 +780,163 @@ public class AnimationClipEditorWindow : EditorWindow
         GUI.backgroundColor = Color.white;
     }
     
-private void HandleGlobalInput()
-{
-    Event e = Event.current;
-    
-    // Playhead dragging - handle this FIRST and globally
-    if (isDraggingPlayhead)
+    private void HandleGlobalInput()
     {
-        if (e.type == EventType.MouseDrag)
-        {
-            UpdatePlayheadFromMouse(e.mousePosition.x);
-            e.Use();
-        }
-        else if (e.type == EventType.MouseUp || e.rawType == EventType.MouseUp)
-        {
-            isDraggingPlayhead = false;
-            e.Use();
-        }
+        Event e = Event.current;
         
-        // While dragging playhead, don't process other inputs
-        if (e.type == EventType.MouseDrag || e.type == EventType.MouseUp)
+        // Playhead dragging - handle this FIRST and globally
+        if (isDraggingPlayhead)
         {
-            return;
-        }
-    }
-    
-    // Keyframe dragging
-    if (isDraggingKeyframe)
-    {
-        if (e.type == EventType.MouseDrag)
-        {
-            if (selectedTrackIndex >= 0 && selectedKeyframeIndex >= 0 &&
-                currentClip != null && selectedTrackIndex < currentClip.partTracks.Count)
+            if (e.type == EventType.MouseDrag)
             {
-                var track = currentClip.partTracks[selectedTrackIndex];
-                if (track.keyframes != null && selectedKeyframeIndex < track.keyframes.Count)
-                {
-                    var kf = track.keyframes[selectedKeyframeIndex];
-                    
-                    float timelineWidth = position.width - INSPECTOR_WIDTH - TRACK_HEADER_WIDTH - 40f;
-                    float scaledWidth = timelineWidth * timelineZoom;
-                    
-                    if (scaledWidth > 0)
-                    {
-                        float delta = e.delta.x / scaledWidth;
-                        kf.normalizedTime = Mathf.Clamp01(kf.normalizedTime + delta);
-                        
-                        EditorUtility.SetDirty(currentClip);
-                        Repaint();
-                    }
-                }
+                UpdatePlayheadFromMouse(e.mousePosition.x);
+                e.Use();
             }
-            e.Use();
-        }
-        else if (e.type == EventType.MouseUp || e.rawType == EventType.MouseUp)
-        {
-            isDraggingKeyframe = false;
-            
-            // Re-sort keyframes
-            if (selectedTrackIndex >= 0 && selectedKeyframeIndex >= 0 && currentClip != null)
+            else if (e.type == EventType.MouseUp || e.rawType == EventType.MouseUp)
             {
-                var track = currentClip.partTracks[selectedTrackIndex];
-                if (track.keyframes != null && selectedKeyframeIndex < track.keyframes.Count)
-                {
-                    var kf = track.keyframes[selectedKeyframeIndex];
-                    track.keyframes = track.keyframes.OrderBy(k => k.normalizedTime).ToList();
-                    selectedKeyframeIndex = track.keyframes.IndexOf(kf);
-                }
+                isDraggingPlayhead = false;
+                e.Use();
             }
             
-            e.Use();
+            // While dragging playhead, don't process other inputs
+            if (e.type == EventType.MouseDrag || e.type == EventType.MouseUp)
+            {
+                return;
+            }
         }
-    }
-    
-    // Keyboard shortcuts
-    if (e.type == EventType.KeyDown)
-    {
-        bool used = false;
         
-        switch (e.keyCode)
+        if (isDraggingKeyframe)
         {
-            case KeyCode.Delete:
-            case KeyCode.Backspace:
-                if (selectedKeyframeIndex >= 0)
-                {
-                    DeleteSelectedKeyframe();
-                    used = true;
-                }
-                break;
-                
-            case KeyCode.D:
-                if (e.control && selectedKeyframeIndex >= 0 && selectedTrackIndex >= 0 && currentClip != null)
+            if (e.type == EventType.MouseDrag)
+            {
+                if (selectedTrackIndex >= 0 && selectedKeyframeIndex >= 0 &&
+                    currentClip != null && selectedTrackIndex < currentClip.partTracks.Count)
                 {
                     var track = currentClip.partTracks[selectedTrackIndex];
                     if (track.keyframes != null && selectedKeyframeIndex < track.keyframes.Count)
                     {
                         var kf = track.keyframes[selectedKeyframeIndex];
-                        DuplicateKeyframe(track, kf);
-                        used = true;
+                        
+                        float timelineWidth = position.width - INSPECTOR_WIDTH - TRACK_HEADER_WIDTH - 40f;
+                        float scaledWidth = timelineWidth * timelineZoom;
+                        
+                        if (scaledWidth > 0)
+                        {
+                            float delta = e.delta.x / scaledWidth;
+                            kf.normalizedTime = Mathf.Clamp01(kf.normalizedTime + delta);
+                            
+                            EditorUtility.SetDirty(currentClip);
+                            Repaint();
+                        }
                     }
                 }
-                break;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseUp || e.rawType == EventType.MouseUp)
+            {
+                isDraggingKeyframe = false;
                 
-            case KeyCode.Space:
-                if (Application.isPlaying && previewController != null)
+                if (selectedTrackIndex >= 0 && selectedKeyframeIndex >= 0 && currentClip != null)
                 {
-                    if (previewController.isPlaying)
-                        previewController.Pause();
-                    else
-                        previewController.Play();
-                    used = true;
+                    var track = currentClip.partTracks[selectedTrackIndex];
+                    if (track.keyframes != null && selectedKeyframeIndex < track.keyframes.Count)
+                    {
+                        var kf = track.keyframes[selectedKeyframeIndex];
+                        track.keyframes = track.keyframes.OrderBy(k => k.normalizedTime).ToList();
+                        selectedKeyframeIndex = track.keyframes.IndexOf(kf);
+                    }
                 }
-                break;
                 
-            case KeyCode.LeftArrow:
-                if (Application.isPlaying && previewController != null)
-                {
-                    previewController.PreviousFrame();
-                    used = true;
-                }
-                break;
-                
-            case KeyCode.RightArrow:
-                if (Application.isPlaying && previewController != null)
-                {
-                    previewController.NextFrame();
-                    used = true;
-                }
-                break;
-                
-            case KeyCode.Home:
-                if (Application.isPlaying && previewController != null)
-                {
-                    previewController.SetTime(0f);
-                    used = true;
-                }
-                break;
-                
-            case KeyCode.End:
-                if (Application.isPlaying && previewController != null)
-                {
-                    previewController.SetTime(1f);
-                    used = true;
-                }
-                break;
+                e.Use();
+            }
         }
         
-        if (used)
+        if (e.type == EventType.KeyDown)
         {
+            bool used = false;
+            
+            switch (e.keyCode)
+            {
+                case KeyCode.Delete:
+                case KeyCode.Backspace:
+                    if (selectedKeyframeIndex >= 0)
+                    {
+                        DeleteSelectedKeyframe();
+                        used = true;
+                    }
+                    break;
+                    
+                case KeyCode.D:
+                    if (e.control && selectedKeyframeIndex >= 0 && selectedTrackIndex >= 0 && currentClip != null)
+                    {
+                        var track = currentClip.partTracks[selectedTrackIndex];
+                        if (track.keyframes != null && selectedKeyframeIndex < track.keyframes.Count)
+                        {
+                            var kf = track.keyframes[selectedKeyframeIndex];
+                            DuplicateKeyframe(track, kf);
+                            used = true;
+                        }
+                    }
+                    break;
+                    
+                case KeyCode.Space:
+                    if (Application.isPlaying && previewController != null)
+                    {
+                        if (previewController.isPlaying)
+                            previewController.Pause();
+                        else
+                            previewController.Play();
+                        used = true;
+                    }
+                    break;
+                    
+                case KeyCode.LeftArrow:
+                    if (Application.isPlaying && previewController != null)
+                    {
+                        previewController.PreviousFrame();
+                        used = true;
+                    }
+                    break;
+                    
+                case KeyCode.RightArrow:
+                    if (Application.isPlaying && previewController != null)
+                    {
+                        previewController.NextFrame();
+                        used = true;
+                    }
+                    break;
+                    
+                case KeyCode.Home:
+                    if (Application.isPlaying && previewController != null)
+                    {
+                        previewController.SetTime(0f);
+                        used = true;
+                    }
+                    break;
+                    
+                case KeyCode.End:
+                    if (Application.isPlaying && previewController != null)
+                    {
+                        previewController.SetTime(1f);
+                        used = true;
+                    }
+                    break;
+            }
+            
+            if (used)
+            {
+                e.Use();
+                Repaint();
+            }
+        }
+        
+        if (e.type == EventType.ScrollWheel && e.control)
+        {
+            timelineZoom = Mathf.Clamp(timelineZoom - e.delta.y * 0.1f, 0.5f, 4f);
             e.Use();
             Repaint();
         }
     }
-    
-    // Mouse wheel zoom
-    if (e.type == EventType.ScrollWheel && e.control)
-    {
-        timelineZoom = Mathf.Clamp(timelineZoom - e.delta.y * 0.1f, 0.5f, 4f);
-        e.Use();
-        Repaint();
-    }
-}
     
     private void AddNewTrack()
     {
@@ -966,7 +949,6 @@ private void HandleGlobalInput()
             currentClip.partTracks = new List<AnimationClipSO.PartTrack>();
         }
         
-        // Find first body part not already used
         AnimationTarget newPart = AnimationTarget.Body;
         var usedParts = currentClip.partTracks.Select(t => t.animationTarget).ToHashSet();
         foreach (AnimationTarget part in System.Enum.GetValues(typeof(AnimationTarget)))
@@ -1062,7 +1044,6 @@ private void HandleGlobalInput()
         Repaint();
     }
     
-    // Copy/Paste support
     private static AnimationClipSO.Keyframe copiedKeyframe;
     
     private void CopyKeyframe(AnimationClipSO.Keyframe kf)
@@ -1091,7 +1072,6 @@ private void HandleGlobalInput()
         
         Undo.RecordObject(currentClip, "Paste Keyframe Values");
         
-        // Paste values but keep the time
         target.position = copiedKeyframe.position;
         target.rotation = copiedKeyframe.rotation;
         target.scale = copiedKeyframe.scale;
@@ -1103,37 +1083,6 @@ private void HandleGlobalInput()
         Repaint();
         
         Debug.Log("[AnimationClipEditor] Keyframe values pasted");
-    }
-    
-    private void PasteKeyframe(AnimationClipSO.PartTrack track)
-    {
-        if (copiedKeyframe == null)
-        {
-            Debug.LogWarning("[AnimationClipEditor] No keyframe copied");
-            return;
-        }
-        
-        Undo.RecordObject(currentClip, "Paste Keyframe");
-        
-        float pasteTime = previewController != null ? previewController.normalizedTime : copiedKeyframe.normalizedTime;
-        
-        var newKf = new AnimationClipSO.Keyframe
-        {
-            normalizedTime = pasteTime,
-            position = copiedKeyframe.position,
-            rotation = copiedKeyframe.rotation,
-            scale = copiedKeyframe.scale,
-            imageIndex = copiedKeyframe.imageIndex,
-            overrideInterpolation = copiedKeyframe.overrideInterpolation,
-            interpolationOverride = copiedKeyframe.interpolationOverride
-        };
-        
-        track.keyframes.Add(newKf);
-        track.keyframes = track.keyframes.OrderBy(k => k.normalizedTime).ToList();
-        selectedKeyframeIndex = track.keyframes.IndexOf(newKf);
-        
-        EditorUtility.SetDirty(currentClip);
-        Repaint();
     }
 }
 #endif

@@ -1,39 +1,39 @@
 ﻿using UnityEngine;
 using Unity.Entities;
 
-public static class AnimationUtils
-{
-    public static float QuantizeTime(float normalizedTime, float duration, int frameRate)
-    {
-        if (frameRate <= 0 || duration <= 0) return normalizedTime;
+    public static class AnimationUtils 
+    { 
+        public static float QuantizeTime(float normalizedTime, float duration, int frameRate)
+        {
+            if (frameRate <= 0 || duration <= 0) return normalizedTime;
         
-        float totalFrames = duration * frameRate;
-        float currentFrame = Mathf.Floor(normalizedTime * totalFrames);
-        return currentFrame / totalFrames;
-    }
+            float totalFrames = duration * frameRate;
+            float currentFrame = Mathf.Floor(normalizedTime * totalFrames);
+            return currentFrame / totalFrames;
+        }
     
-    public static void SetLayer(
+        public static void SetLayer(
         ref DynamicBuffer<AnimationLayer> layers,
         AnimationLayerType layerType,
         AnimationType animation,
         float speed = 1f,
         bool looping = true)
-    {
-        // Find existing layer slot
-        for (int i = 0; i < layers.Length; i++)
         {
-            if (layers[i].layer == layerType)
+        // Find existing layer slot
+            for (int i = 0; i < layers.Length; i++)
             {
-                var layer = layers[i];
-                layer.animation = animation;
-                layer.time = 0f;
-                layer.speed = speed;
-                layer.active = true;
-                layer.looping = looping;
-                layers[i] = layer;
-                return;
+                if (layers[i].layer == layerType)
+                {
+                    var layer = layers[i];
+                    layer.animation = animation;
+                    layer.time = 0f;
+                    layer.speed = speed;
+                    layer.active = true;
+                    layer.looping = looping;
+                    layers[i] = layer;
+                    return;
+                }
             }
-        }
         
         // Add new and sort by layer priority
         layers.Add(new AnimationLayer
@@ -63,6 +63,7 @@ public static class AnimationUtils
         }
     }
     
+    // fix this 
     private static void SortLayers(ref DynamicBuffer<AnimationLayer> layers)
     {
         // Simple sort by layer enum value
@@ -79,7 +80,9 @@ public static class AnimationUtils
             }
         }
     }
-}
+    }
+
+
 
 /*
  // In a locomotion system

@@ -1,5 +1,5 @@
 ﻿// =====================================
-// EDITOR ANIMATION SYSTEM (Live SO Sampling)
+// EDITOR ANIMATION SYSTEM (Live SO Sampling with Layers)
 // =====================================
 
 using Unity.Entities;
@@ -10,70 +10,71 @@ using UnityEngine;
 [UpdateBefore(typeof(ApplyAnimatedPoseSystem))]
 public partial struct EditorAnimationSystem : ISystem
 {
+    private int lastSampledFrame;
+    private float accumulatedTime;
+    
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<AnimationEditorActive>();
         state.RequireForUpdate<EditorAnimationTimeControl>();
+        
+        lastSampledFrame = -1;
+        accumulatedTime = 0f;
     }
-
+    
     public void OnUpdate(ref SystemState state)
     {
         try
         {
-            Entity timeControlEntity =
-                SystemAPI.GetSingletonEntity<EditorAnimationTimeControl>();
-
+            Entity timeControlEntity = SystemAPI.GetSingletonEntity<EditorAnimationTimeControl>();
+            
             if (!state.EntityManager.HasComponent<EditorAnimationLibraryManaged>(timeControlEntity))
-                return;
-
-            EditorAnimationLibraryManaged libraryManaged =
-                state.EntityManager.GetComponentObject<EditorAnimationLibraryManaged>(timeControlEntity);
-
-            if (libraryManaged == null || libraryManaged.library == null)
-                return;
-
-            EditorAnimationTimeControl timeControl =
-                SystemAPI.GetSingleton<EditorAnimationTimeControl>();
-
-            float deltaTime = SystemAPI.Time.DeltaTime;
-
-            int frameRate = GameAssets.Instance != null
-                ? GameAssets.Instance.animationFrameRate
-                : 24;
-
-            ComponentLookup<AnimationTargetPose> animatedPoseLookup =
-                SystemAPI.GetComponentLookup<AnimationTargetPose>(false);
-
-            ComponentLookup<AnimationTargetRestPose> restPoseLookup =
-                SystemAPI.GetComponentLookup<AnimationTargetRestPose>(true);
-
-            // ============================================================
-            // UPDATE LAYER TIMES
-            // ============================================================
-
-            foreach (var layers
-                     in SystemAPI.Query<DynamicBuffer<AnimationLayer>>())
             {
-                for (int i = 0; i < layers.Length; i++)
+                return;
+            }
+            
+            var libraryManaged = state.EntityManager.GetComponentObject<EditorAnimationLibraryManaged>(timeControlEntity);
+            
+            if (libraryManaged?.library == null)
+            {
+                return;
+            }
+            
+            var timeControl = SystemAPI.GetSingleton<EditorAnimationTimeControl>();
+            float dt = SystemAPI.Time.DeltaTime;
+            
+            int frameRate = GameAssets.Instance != null ? GameAssets.Instance.animationFrameRate : 24;
+            
+            // Frame rate limiting
+            accumulatedTime += dt;
+            int currentFrame = (int)(accumulatedTime * frameRate);
+            
+            bool shouldSample = currentFrame != lastSampledFrame;
+            if (shouldSample)
+            {
+                lastSampledFrame = currentFrame;
+            }
+            
+            // Update layer times
+            if (!timeControl.isPaused)
+            {
+                foreach (var (layers, entity) in SystemAPI.Query<DynamicBuffer<AnimationLayer>>().WithEntityAccess())
                 {
-                    ref AnimationLayer layer = ref layers.ElementAt(i);
-
-                    if (!layer.active)
-                        continue;
-
-                    AnimationClipSO clipSO =
-                        libraryManaged.library.GetClip(layer.animation);
-
-                    if (clipSO == null || clipSO.duration <= 0f)
-                        continue;
-
-                    if (!timeControl.isPaused)
+                    var writableLayers = state.EntityManager.GetBuffer<AnimationLayer>(entity);
+                    
+                    for (int i = 0; i < writableLayers.Length; i++)
                     {
-                        layer.time += deltaTime * layer.speed * timeControl.playbackSpeed;
-
+                        var layer = writableLayers[i];
+                        if (!layer.active) continue;
+                        
+                        AnimationClipSO clipSO = libraryManaged.library.GetClip(layer.animation);
+                        if (clipSO == null || clipSO.duration <= 0) continue;
+                        
+                        layer.time += dt * layer.speed * timeControl.playbackSpeed;
+                        
                         if (layer.time >= clipSO.duration)
                         {
-                            if (layer.looping)
+                            if (layer.looping || timeControl.forceLoop)
                             {
                                 layer.time = math.fmod(layer.time, clipSO.duration);
                             }
@@ -83,56 +84,56 @@ public partial struct EditorAnimationSystem : ISystem
                                 layer.active = false;
                             }
                         }
+                        
+                        writableLayers[i] = layer;
                     }
                 }
             }
-
-            // ============================================================
-            // SAMPLE & APPLY POSES
-            // ============================================================
-
-            foreach (var (layers, targets, entity)
-                     in SystemAPI.Query<
-                            DynamicBuffer<AnimationLayer>,
-                            DynamicBuffer<AnimatorTarget>>()
-                         .WithEntityAccess())
+            
+            // Only sample on frame boundaries
+            if (!shouldSample) return;
+            
+            // Sample and apply poses
+            var animatedPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetPose>(false);
+            var restPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetRestPose>(true);
+            
+            foreach (var (layers, targets) in SystemAPI.Query<DynamicBuffer<AnimationLayer>, DynamicBuffer<AnimatorTarget>>())
             {
                 for (int i = 0; i < targets.Length; i++)
                 {
                     Entity targetEntity = targets[i].entity;
                     AnimationTarget partType = targets[i].target;
-
-                    if (!animatedPoseLookup.HasComponent(targetEntity) ||
-                        !restPoseLookup.HasComponent(targetEntity))
-                        continue;
-
-                    AnimationTargetRestPose restPose =
-                        restPoseLookup[targetEntity];
-
+                    
+                    if (!animatedPoseLookup.HasComponent(targetEntity)) continue;
+                    if (!restPoseLookup.HasComponent(targetEntity)) continue;
+                    
+                    var restPose = restPoseLookup[targetEntity];
+                    
                     float3 finalPosition = restPose.localPosition;
                     float finalRotation = restPose.rotation;
                     float2 finalScale = restPose.scale;
                     int finalImageIndex = restPose.baseImageIndex;
-
+                    
                     AnimatedProperties appliedProperties = AnimatedProperties.None;
-
-                    for (int layerIndex = layers.Length - 1; layerIndex >= 0; layerIndex--)
+                    
+                    // Process layers in reverse order (highest priority first)
+                    for (int layerIdx = layers.Length - 1; layerIdx >= 0; layerIdx--)
                     {
-                        var layer = layers[layerIndex];
-
-                        if (!layer.active)
+                        var layer = layers[layerIdx];
+                        if (!layer.active) continue;
+                        
+                        // Solo mode - only process the solo layer
+                        if (timeControl.soloLayerIndex >= 0 && layerIdx != timeControl.soloLayerIndex)
+                        {
                             continue;
-
-                        AnimationClipSO clipSO =
-                            libraryManaged.library.GetClip(layer.animation);
-
-                        if (clipSO == null || clipSO.duration <= 0f)
-                            continue;
-
+                        }
+                        
+                        AnimationClipSO clipSO = libraryManaged.library.GetClip(layer.animation);
+                        if (clipSO == null || clipSO.duration <= 0) continue;
+                        
                         float normalizedTime = layer.time / clipSO.duration;
-                        float quantizedTime =
-                            QuantizeTime(normalizedTime, clipSO.duration, frameRate);
-
+                        float quantizedTime = QuantizeTime(normalizedTime, clipSO.duration, frameRate);
+                        
                         SampleClipSO(
                             clipSO,
                             partType,
@@ -143,7 +144,7 @@ public partial struct EditorAnimationSystem : ISystem
                             ref finalImageIndex,
                             ref appliedProperties);
                     }
-
+                    
                     animatedPoseLookup[targetEntity] = new AnimationTargetPose
                     {
                         localPosition = finalPosition,
@@ -153,63 +154,50 @@ public partial struct EditorAnimationSystem : ISystem
                     };
                 }
             }
-
-            // ============================================================
-            // UPDATE NORMALIZED TIME (UI)
-            // ============================================================
-
+            
+            // Update normalized time for UI (based on base layer or solo layer)
             if (!timeControl.isPaused)
             {
-                AnimationClipSO currentClipSO =
-                    libraryManaged.library.GetClip(timeControl.currentAnimation);
-
-                if (currentClipSO != null && currentClipSO.duration > 0f)
+                foreach (var layers in SystemAPI.Query<DynamicBuffer<AnimationLayer>>())
                 {
-                    float baseTime = 0f;
-
-                    foreach (var layers
-                             in SystemAPI.Query<DynamicBuffer<AnimationLayer>>())
+                    int targetLayerIdx = timeControl.soloLayerIndex >= 0 ? timeControl.soloLayerIndex : 0;
+                    
+                    if (targetLayerIdx < layers.Length && layers[targetLayerIdx].active)
                     {
-                        for (int i = 0; i < layers.Length; i++)
+                        var layer = layers[targetLayerIdx];
+                        AnimationClipSO clipSO = libraryManaged.library.GetClip(layer.animation);
+                        
+                        if (clipSO != null && clipSO.duration > 0)
                         {
-                            if (layers[i].layer == AnimationLayerType.Base &&
-                                layers[i].active)
+                            SystemAPI.SetSingleton(new EditorAnimationTimeControl
                             {
-                                baseTime = layers[i].time;
-                                break;
-                            }
+                                isPaused = timeControl.isPaused,
+                                normalizedTime = layer.time / clipSO.duration,
+                                playbackSpeed = timeControl.playbackSpeed,
+                                forceLoop = timeControl.forceLoop,
+                                soloLayerIndex = timeControl.soloLayerIndex
+                            });
                         }
-                        break;
                     }
-
-                    SystemAPI.SetSingleton(new EditorAnimationTimeControl
-                    {
-                        isPaused = timeControl.isPaused,
-                        normalizedTime = baseTime / currentClipSO.duration,
-                        playbackSpeed = timeControl.playbackSpeed,
-                        forceLoop = timeControl.forceLoop,
-                        currentAnimation = timeControl.currentAnimation
-                    });
+                    break;
                 }
             }
         }
-        catch (System.Exception exception)
+        catch (System.Exception e)
         {
-            Debug.LogError(
-                $"[EditorAnim] Exception: {exception.Message}\n{exception.StackTrace}");
+            Debug.LogError($"[EditorAnim] Exception: {e.Message}\n{e.StackTrace}");
         }
     }
-
+    
     private float QuantizeTime(float normalizedTime, float duration, int frameRate)
     {
-        if (frameRate <= 0 || duration <= 0f)
-            return normalizedTime;
-
+        if (frameRate <= 0 || duration <= 0) return normalizedTime;
+        
         float totalFrames = duration * frameRate;
         float currentFrame = math.floor(normalizedTime * totalFrames);
         return currentFrame / totalFrames;
     }
-
+    
     private void SampleClipSO(
         AnimationClipSO clip,
         AnimationTarget target,
@@ -220,96 +208,71 @@ public partial struct EditorAnimationSystem : ISystem
         ref int imageIndex,
         ref AnimatedProperties appliedProperties)
     {
-        if (clip.partTracks == null)
-            return;
-
-        foreach (AnimationClipSO.PartTrack track in clip.partTracks)
+        if (clip.partTracks == null) return;
+        
+        foreach (var track in clip.partTracks)
         {
-            if (track == null || track.animationTarget != target)
-                continue;
-
-            if (track.keyframes == null || track.keyframes.Count == 0)
-                continue;
-
-            AnimatedProperties propertiesToApply =
-                track.animatedProperties & ~appliedProperties;
-
-            if (propertiesToApply == AnimatedProperties.None)
-                break;
-
-            AnimationClipSO.Keyframe sampledKeyframe =
-                SampleKeyframesSO(track, normalizedTime);
-
-            ApplyTrackToPose(
-                track,
-                sampledKeyframe,
-                propertiesToApply,
-                ref position,
-                ref rotation,
-                ref scale,
-                ref imageIndex);
-
+            if (track == null) continue;
+            if (track.animationTarget != target) continue;
+            if (track.keyframes == null || track.keyframes.Count == 0) continue;
+            
+            AnimatedProperties propsToApply = track.animatedProperties & ~appliedProperties;
+            if (propsToApply == AnimatedProperties.None) break;
+            
+            var sampled = SampleKeyframesSO(track, normalizedTime);
+            ApplyTrackToPose(track, sampled, propsToApply, ref position, ref rotation, ref scale, ref imageIndex);
+            
             appliedProperties |= track.animatedProperties;
             break;
         }
     }
-
-    private AnimationClipSO.Keyframe SampleKeyframesSO(
-        AnimationClipSO.PartTrack track,
-        float normalizedTime)
+    
+    private AnimationClipSO.Keyframe SampleKeyframesSO(AnimationClipSO.PartTrack track, float normalizedTime)
     {
         var keyframes = track.keyframes;
-
-        int previousIndex = 0;
+        
+        int prevIndex = 0;
         int nextIndex = 0;
-
+        
         for (int i = 0; i < keyframes.Count; i++)
         {
             if (keyframes[i].normalizedTime <= normalizedTime)
-                previousIndex = i;
-
+            {
+                prevIndex = i;
+            }
             if (keyframes[i].normalizedTime >= normalizedTime)
             {
                 nextIndex = i;
                 break;
             }
-
             nextIndex = i;
         }
-
-        AnimationClipSO.Keyframe previous = keyframes[previousIndex];
-        AnimationClipSO.Keyframe next = keyframes[nextIndex];
-
-        InterpolationMode interpolationMode =
-            previous.overrideInterpolation
-                ? previous.interpolationOverride
-                : track.interpolation;
-
-        if (previousIndex == nextIndex ||
-            interpolationMode == InterpolationMode.Step)
+        
+        var prev = keyframes[prevIndex];
+        var next = keyframes[nextIndex];
+        
+        var interpMode = prev.overrideInterpolation ? prev.interpolationOverride : track.interpolation;
+        if (prevIndex == nextIndex || interpMode == InterpolationMode.Step)
         {
-            return previous;
+            return prev;
         }
-
-        float range = next.normalizedTime - previous.normalizedTime;
-        float t = range > 0f
-            ? (normalizedTime - previous.normalizedTime) / range
-            : 0f;
-
-        t = ApplyEasing(t, interpolationMode);
-
+        
+        float range = next.normalizedTime - prev.normalizedTime;
+        float t = range > 0 ? (normalizedTime - prev.normalizedTime) / range : 0f;
+        t = ApplyEasing(t, interpMode);
+        
         return new AnimationClipSO.Keyframe
         {
             normalizedTime = normalizedTime,
-            position = Vector3.Lerp(previous.position, next.position, t),
-            rotation = Mathf.Lerp(previous.rotation, next.rotation, t),
-            scale = Vector2.Lerp(previous.scale, next.scale, t),
-            imageIndex = t < 0.5f ? previous.imageIndex : next.imageIndex,
-            overrideInterpolation = previous.overrideInterpolation,
-            interpolationOverride = previous.interpolationOverride
+            position = Vector3.Lerp(prev.position, next.position, t),
+            rotation = Mathf.Lerp(prev.rotation, next.rotation, t),
+            scale = Vector2.Lerp(prev.scale, next.scale, t),
+            imageIndex = t < 0.5f ? prev.imageIndex : next.imageIndex,
+            overrideInterpolation = prev.overrideInterpolation,
+            interpolationOverride = prev.interpolationOverride
         };
     }
-
+    
     private float ApplyEasing(float t, InterpolationMode mode)
     {
         switch (mode)
@@ -319,47 +282,36 @@ public partial struct EditorAnimationSystem : ISystem
             case InterpolationMode.EaseOut:
                 return 1f - (1f - t) * (1f - t);
             case InterpolationMode.EaseInOut:
-                return t < 0.5f
-                    ? 2f * t * t
-                    : 1f - 2f * (1f - t) * (1f - t);
+                return t < 0.5f ? 2f * t * t : 1f - 2f * (1f - t) * (1f - t);
             default:
                 return t;
         }
     }
-
+    
     private void ApplyTrackToPose(
         AnimationClipSO.PartTrack track,
         AnimationClipSO.Keyframe sampled,
-        AnimatedProperties propertiesToApply,
+        AnimatedProperties propsToApply,
         ref float3 position,
         ref float rotation,
         ref float2 scale,
         ref int imageIndex)
     {
         bool isAdditive = track.blendMode == BlendMode.Additive;
-
-        if ((propertiesToApply & AnimatedProperties.PositionX) != 0)
+        
+        if ((propsToApply & AnimatedProperties.PositionX) != 0)
             position.x = isAdditive ? position.x + sampled.position.x : sampled.position.x;
-
-        if ((propertiesToApply & AnimatedProperties.PositionY) != 0)
+        if ((propsToApply & AnimatedProperties.PositionY) != 0)
             position.y = isAdditive ? position.y + sampled.position.y : sampled.position.y;
-
-        if ((propertiesToApply & AnimatedProperties.PositionZ) != 0)
+        if ((propsToApply & AnimatedProperties.PositionZ) != 0)
             position.z = isAdditive ? position.z + sampled.position.z : sampled.position.z;
-
-        if ((propertiesToApply & AnimatedProperties.Rotation) != 0)
+        if ((propsToApply & AnimatedProperties.Rotation) != 0)
             rotation = isAdditive ? rotation + sampled.rotation : sampled.rotation;
-
-        if ((propertiesToApply & AnimatedProperties.ScaleX) != 0)
+        if ((propsToApply & AnimatedProperties.ScaleX) != 0)
             scale.x = isAdditive ? scale.x * sampled.scale.x : sampled.scale.x;
-
-        if ((propertiesToApply & AnimatedProperties.ScaleY) != 0)
+        if ((propsToApply & AnimatedProperties.ScaleY) != 0)
             scale.y = isAdditive ? scale.y * sampled.scale.y : sampled.scale.y;
-
-        if ((propertiesToApply & AnimatedProperties.ImageIndex) != 0 &&
-            sampled.imageIndex >= 0)
-        {
+        if ((propsToApply & AnimatedProperties.ImageIndex) != 0 && sampled.imageIndex >= 0)
             imageIndex = sampled.imageIndex;
-        }
     }
 }

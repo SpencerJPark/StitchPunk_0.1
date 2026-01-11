@@ -25,7 +25,8 @@ public class EditorAnimationTimeControlAuthoring : MonoBehaviour
                 isPaused = authoring.startPaused,
                 normalizedTime = 0f,
                 playbackSpeed = authoring.playbackSpeed,
-                forceLoop = authoring.forceLoop
+                forceLoop = authoring.forceLoop,
+                soloLayerIndex = -1 // -1 means no solo, play all layers
             });
             
             AddComponentObject(entity, new EditorAnimationLibraryManaged
@@ -42,7 +43,7 @@ public struct EditorAnimationTimeControl : IComponentData
     public float normalizedTime;
     public float playbackSpeed;
     public bool forceLoop;
-    public AnimationType currentAnimation;
+    public int soloLayerIndex; // -1 = play all, 0+ = solo specific layer
     
     public static EditorAnimationTimeControl Default => new EditorAnimationTimeControl
     {
@@ -50,7 +51,7 @@ public struct EditorAnimationTimeControl : IComponentData
         normalizedTime = 0f,
         playbackSpeed = 1f,
         forceLoop = true,
-        currentAnimation = AnimationType.Idle
+        soloLayerIndex = -1
     };
 }
 
