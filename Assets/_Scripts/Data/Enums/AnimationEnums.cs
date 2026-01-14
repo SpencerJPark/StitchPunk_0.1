@@ -10,16 +10,23 @@ public enum AnimationType : ushort
     Talking,
     PlayFlute,
     MailDelivery,
-    FaceLeft,
-    FaceRight,
-    FaceLeftBackView,
-    FaceRightBackView,
+    
+    SouthWest,
+    SouthEast,
+    NorthWest,
+    NorthEast,
+    North,
+    South,
+    East,
+    West,
+    
     BlinkNormal,
 }
 
 public enum AnimationLayerType
 {
     Base,      // Idle, Walk, Run - always present
+    Direction,
     Action,    // Attack, Jump - temporary actions
     Face,      // Expressions
     Eyes,      // Blink, look direction

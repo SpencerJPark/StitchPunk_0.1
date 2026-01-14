@@ -2584,6 +2584,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ee91155b4991994e87b4e308aa5029e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  animationFrameRate: 24
   unitTypeListSO: {fileID: 0}
   buildingTypeListSO: {fileID: 0}
 --- !u!1001 &674468687415718875
