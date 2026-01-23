@@ -73,6 +73,7 @@ public enum AnimationTarget : byte // keep under 256
     FaceWare,
 }
 
+
 public enum InterpolationMode : byte
 {
     Linear,

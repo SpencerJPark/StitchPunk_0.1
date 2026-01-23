@@ -159,13 +159,14 @@ GameObject:
   - component: {fileID: 8635332958258473507}
   - component: {fileID: 3064184537361583474}
   - component: {fileID: 3023686410222282756}
-  - component: {fileID: 3570120476859933309}
   - component: {fileID: 323249702145562905}
   - component: {fileID: 8088709406222128485}
   - component: {fileID: 6142933478762234054}
   - component: {fileID: 711091554357179147}
   - component: {fileID: 9215831187208810432}
   - component: {fileID: 3004038991711854641}
+  - component: {fileID: 3475789621352244214}
+  - component: {fileID: 3801419847962034913}
   m_Layer: 6
   m_Name: BaseUnit
   m_TagString: Untagged
@@ -188,6 +189,7 @@ Transform:
   m_Children:
   - {fileID: 5296687524658748456}
   - {fileID: 1637979671052500160}
+  - {fileID: 7925378716681516739}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!136 &3252298093452205623
@@ -368,23 +370,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 054e98a8ddfd428438ef48e363abb6f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &3570120476859933309
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 669014965038cd941a83dda3f41fa496, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  idleAnimationType: 0
-  walkAnimationType: 0
-  shootAnimationType: 0
-  aimAnimationType: 0
-  meleeAttackAnimationType: 0
 --- !u!114 &323249702145562905
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -485,6 +470,151 @@ MonoBehaviour:
     animation: 0
     speed: 1
     looping: 1
+--- !u!114 &3475789621352244214
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e49addbf14a04b599c33702a3d698625, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnitBaseAnimationsAuthoring
+  idle: 1
+  move: 2
+  attack: 0
+  interact: 0
+  overide: 0
+--- !u!114 &3801419847962034913
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
+  brain: {fileID: 5840296948594079509}
+--- !u!1 &5840296948594079509
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7925378716681516739}
+  - component: {fileID: 4255529005934916258}
+  - component: {fileID: 7315605134597470847}
+  - component: {fileID: 3251194353809982799}
+  - component: {fileID: 4350883157626960763}
+  - component: {fileID: 2767894940050807392}
+  - component: {fileID: 3192358502790128916}
+  m_Layer: 0
+  m_Name: Brain
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7925378716681516739
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7273244649239706813}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4255529005934916258
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f43523f3f3700e8428ced25da0bfc995, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BrainLinkAuthoring
+  body: {fileID: 3094532311958105572}
+--- !u!114 &7315605134597470847
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d174d924c3f41c1b10649d8ebdd02ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AwarenessAuthoring
+  radius: 10
+--- !u!114 &3251194353809982799
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3e288092f0d42219946045c7d984d9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NeedsAuthoring
+  hunger: 0.5
+  energy: 0.5
+  entertainment: 0.5
+  social: 0.5
+--- !u!114 &4350883157626960763
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdbf449859564efa8fb5edeec308c5b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SelectedActionAuthoring
+--- !u!114 &2767894940050807392
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c227afcc1178472391a546189878b1fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ActionScoreAuthoring
+--- !u!114 &3192358502790128916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5840296948594079509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7574b247c9147c3a668f9b8988b6041, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CurrentInteractionAuthoring
 --- !u!1001 &4233715775177122149
 PrefabInstance:
   m_ObjectHideFlags: 0

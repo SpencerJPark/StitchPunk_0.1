@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Entities;
 
-    public static class AnimationUtils 
+    public static class AnimationUtil 
     { 
         public static float QuantizeTime(float normalizedTime, float duration, int frameRate)
         {
@@ -48,6 +48,18 @@ using Unity.Entities;
         
         SortLayers(ref layers);
     }
+        
+    public static bool IsCurrentLayer(ref DynamicBuffer<AnimationLayer> layers, AnimationLayerType layerType, AnimationType animationType)
+    {
+        for (int i = 0; i < layers.Length; i++)
+        {
+            if (layers[i].layer == layerType)
+            {
+                return layers[i].animation == animationType;
+            }
+        }
+        return false;
+    }    
     
     public static void ClearLayer(ref DynamicBuffer<AnimationLayer> layers, AnimationLayerType layerType)
     {

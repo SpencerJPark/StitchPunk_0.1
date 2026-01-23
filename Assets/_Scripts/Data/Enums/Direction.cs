@@ -1,6 +1,4 @@
-namespace Data
-{
-    public enum Direction
+public enum Direction
     {
         North,
         NorthEast,
@@ -11,4 +9,12 @@ namespace Data
         West,
         NorthWest
     }
+
+public enum AnimationDirections : byte
+{
+    One,
+    Two,
+    Four,
+    Six,
+    Eight,
 }
