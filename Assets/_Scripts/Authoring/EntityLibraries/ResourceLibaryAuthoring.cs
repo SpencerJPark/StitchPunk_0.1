@@ -1,13 +1,13 @@
 using Unity.Entities;
 using UnityEngine;
 
-public class ResourceTypeSOHolderAuthoring : MonoBehaviour
+public class ResourceLibaryAuthoring : MonoBehaviour
 {
     public ResourceTypeSO.ResourceType resourceType;
 
-    public class Baker : Baker<ResourceTypeSOHolderAuthoring>
+    public class Baker : Baker<ResourceLibaryAuthoring>
     {
-        public override void Bake(ResourceTypeSOHolderAuthoring authoring)
+        public override void Bake(ResourceLibaryAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new ResourceTypeSOHolder

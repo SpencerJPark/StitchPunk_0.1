@@ -1,15 +1,15 @@
 using Unity.Entities;
 using UnityEngine;
 
-public class UnitTypeHolderAuthoring : MonoBehaviour {
+public class UnitLibraryAuthoring : MonoBehaviour {
 
     public UnitTypeSO.UnitType unitType;
 
 
-    public class Baker : Baker<UnitTypeHolderAuthoring> {
+    public class Baker : Baker<UnitLibraryAuthoring> {
 
 
-        public override void Bake(UnitTypeHolderAuthoring authoring) {
+        public override void Bake(UnitLibraryAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new UnitTypeHolder {
                 unitType = authoring.unitType
