@@ -28,7 +28,7 @@ TagManager:
   - PathfindingHeavy
   - Objects
   - Outlined
-  - SeeBehind
+  - Interactable
   - 
   - 
   - 

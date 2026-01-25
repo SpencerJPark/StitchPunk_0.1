@@ -8,7 +8,7 @@ public class CurrentInteractionAuthoring : MonoBehaviour
         public override void Bake(CurrentInteractionAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new CurrentInteraction());
+            AddComponent<CurrentInteraction>(entity, new CurrentInteraction());
         }
     }
 }
@@ -17,6 +17,10 @@ public struct CurrentInteraction : IComponentData
 {
     public Entity target;
     public ActionType action;
-    public float timeRemaining;
     public AnimationType animation;
+    public float timeRemaining;
+    public float interactionRange;
+    public NeedType needAffected;
+    public float needModifier;
+    public bool isInRange;
 }

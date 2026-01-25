@@ -8,8 +8,10 @@
     Socialize,
     Smoke,
     Drink,
-    Wander,
+    Wander,    // Stay near current area
+    Roam,      // Walk through city
     Attack,
     Patrol,
-    Flee
+    Flee,
+    SeekEntertainment
 }

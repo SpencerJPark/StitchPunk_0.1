@@ -9,6 +9,7 @@ public struct CanSleep : IComponentData { }
 public struct CanSocialize : IComponentData { }
 public struct CanAttack : IComponentData { }
 public struct CanWander : IComponentData { }
+public struct CanRoam: IComponentData { }
 public struct CanPatrol : IComponentData { }
 
 

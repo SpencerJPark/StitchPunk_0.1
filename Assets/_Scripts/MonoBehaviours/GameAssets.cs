@@ -10,6 +10,7 @@ public class GameAssets : MonoBehaviour {
     public const int PATHFINDING_HEAVY_LAYER = 9;
     public const int OBJECTS_LAYER = 10;
     public const int OUTLINE_LAYER = 11;
+    public const int INTERACTABLE_LAYER = 12;
 
 
 
