@@ -3,6 +3,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+[UpdateInGroup(typeof(MovementSystemGroup))]
 partial struct MoveOverrideSystem : ISystem {
 
     [BurstCompile]

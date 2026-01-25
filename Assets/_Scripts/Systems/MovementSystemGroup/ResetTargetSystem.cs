@@ -3,7 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
 
-[UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+[UpdateInGroup(typeof(MovementSystemGroup), OrderFirst = true)]
 partial struct ResetTargetSystem : ISystem {
 
 

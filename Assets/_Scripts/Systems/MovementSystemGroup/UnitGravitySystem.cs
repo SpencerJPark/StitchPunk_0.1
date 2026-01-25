@@ -6,7 +6,7 @@ using Unity.Physics;
 using Unity.Transforms;
 
 [BurstCompile]
-[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateInGroup(typeof(MovementSystemGroup))]
 [UpdateAfter(typeof(UnitMoverSystem))] // move first, then stick to ground
 public partial struct UnitGravitySystem : ISystem
 {

@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
-[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateInGroup(typeof(MovementSystemGroup))]
 [UpdateBefore(typeof(UnitMoverSystem))]  
 partial struct PlayerMoveSystem : ISystem
 {

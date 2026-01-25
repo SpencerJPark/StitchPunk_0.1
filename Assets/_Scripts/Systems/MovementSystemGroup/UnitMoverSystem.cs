@@ -7,6 +7,7 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
 
+[UpdateInGroup(typeof(MovementSystemGroup))]
 partial struct UnitMoverSystem : ISystem
 {
     public const float REACHED_TARGET_POSITION_DISTANCE_SQ = 0.04f;

@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
 
+[UpdateInGroup(typeof(MovementSystemGroup))]
 partial struct SetupUnitMoverDefaultPositionSystem : ISystem {
 
     [BurstCompile]

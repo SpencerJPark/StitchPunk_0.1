@@ -5,6 +5,7 @@ using Unity.Jobs;
 using Unity.Rendering;
 using UnityEngine;
 
+[UpdateInGroup(typeof(PresentationSystemGroup))]
 partial struct OutlineSystem : ISystem
 {
     private Entity playerEntity;

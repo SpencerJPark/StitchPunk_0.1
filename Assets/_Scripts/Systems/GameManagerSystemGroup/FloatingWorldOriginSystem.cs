@@ -4,6 +4,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
+[UpdateInGroup(typeof(GameManagerSystemGroup))]
 public partial struct FloatingWorldOriginSystem : ISystem
 {
     private double nextCheckTime;

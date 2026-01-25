@@ -2,7 +2,7 @@ using Unity.Burst;
 using Unity.Entities;
 
 
-[UpdateAfter(typeof(UnitGravitySystem))]
+[UpdateInGroup(typeof(AnimationSystemGroup))]
 partial struct UpdateBaseAnimationLayerSystem : ISystem
 {
     [BurstCompile]
