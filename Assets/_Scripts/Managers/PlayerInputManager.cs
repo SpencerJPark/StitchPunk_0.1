@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 
 public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 {
+    #region Fields
     [SerializeField] private PlayerInput playerInput;
     
     private EntityManager entityManager;
@@ -16,9 +17,9 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     // ActionMaps
     private const string PLAYER_ACTION_MAP_NAME = "Player";
     private const string CONTROL_UNITS_ACTION_MAP_NAME = "ControlUnits";
+    #endregion
     
-    
-    // Initialize
+    #region Initialization
     private void Awake()
     {
         // Setup Input
@@ -59,7 +60,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
     private void OnDisable() => UpdateManager.UnregisterObserver(this);
-    
+    #endregion
     
     public void ObservedUpdate()
     {
@@ -106,8 +107,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentData(inputEntity, data);
     }
 
-    // ==== Input System callback methods ====
-
+    #region Input System callback methods
+    
     public void OnMove(InputAction.CallbackContext context)
     {
         float2 value = float2.zero;
@@ -136,21 +137,6 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentData(inputEntity, data);
     }
     
-    public void OnCursor(InputAction.CallbackContext context)
-    {
-        float2 value = float2.zero;
-
-        if (context.performed || context.canceled)
-        {
-            Vector2 v = context.ReadValue<Vector2>();
-            value = new float2(v.x, v.y);
-        }
-
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.cursorInput = value;
-        entityManager.SetComponentData(inputEntity, data);
-    }
-
     public void OnAttack(InputAction.CallbackContext context)
     {
         if (!context.performed)
@@ -175,6 +161,34 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentData(inputEntity, data);
     }
     
+    public void OnCursorMovement(InputAction.CallbackContext context)
+    {
+        float2 value = float2.zero;
+        if (context.performed || context.canceled)
+        {
+            Vector2 v = context.ReadValue<Vector2>();
+            value = new float2(v.x, v.y);
+        }
+
+        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
+        data.cursorInput = value;
+        entityManager.SetComponentData(inputEntity, data);
+    }
+    
+    public void OnZoom(InputAction.CallbackContext context)
+    {
+        float value = 0f;
+        if (context.performed || context.canceled)
+        {
+            Vector2 v = context.ReadValue<Vector2>();
+            value = v.y;
+        }
+
+        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
+        data.zoomInput = value;
+        entityManager.SetComponentData(inputEntity, data);
+    }
+    
     public void OnSwitchControls(InputAction.CallbackContext context)
     {
         if (!context.performed)
@@ -196,8 +210,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
         hasPendingMapSwitch = true;
     }
-
     // etc. for sneak, roll …
+    #endregion
 }
 
 public struct PlayerInputData : IComponentData
@@ -205,6 +219,7 @@ public struct PlayerInputData : IComponentData
     public float2 moveInput;
     public float2 lookInput;
     public float2 cursorInput;
+    public float zoomInput;
     public ActionMaps activeActionMap;
     
     public bool sneakToggle;

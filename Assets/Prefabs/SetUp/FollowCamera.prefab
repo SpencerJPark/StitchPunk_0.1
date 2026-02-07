@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 8278539063394861542}
   - component: {fileID: 4205522287688703112}
   - component: {fileID: 5484424885552543924}
+  - component: {fileID: 5135731674664115208}
   m_Layer: 0
   m_Name: FollowCamera
   m_TagString: Untagged
@@ -141,3 +142,21 @@ MonoBehaviour:
   Offset: {x: 0, y: 0, z: -19.6}
   ApplyAfter: 1
   PreserveComposition: 0
+--- !u!114 &5135731674664115208
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7317921124216564921}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acfbaabcd636473a8675123ca286f826, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraZoomController
+  cameraOffset: {fileID: 5484424885552543924}
+  defaultOffset: -16.5
+  closestOffset: 1
+  farthestOffset: -50
+  zoomStep: 6
+  smoothTime: 0.15
