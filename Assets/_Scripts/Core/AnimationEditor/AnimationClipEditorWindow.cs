@@ -98,7 +98,7 @@ public class AnimationClipEditorWindow : EditorWindow
     
     private void FindPreviewController()
     {
-        previewController = FindObjectOfType<AnimationPreviewController>();
+        previewController = FindAnyObjectByType<AnimationPreviewController>();
         
         if (previewController != null)
         {
