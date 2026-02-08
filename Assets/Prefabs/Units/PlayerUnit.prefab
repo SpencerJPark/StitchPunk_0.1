@@ -274,6 +274,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 12
       objectReference: {fileID: 0}
+    - target: {fileID: 3801419847962034913, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+      propertyPath: brain
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 4647571582865489710, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       propertyPath: m_Layer
       value: 12
@@ -399,6 +403,7 @@ PrefabInstance:
     - {fileID: 7858052843807643276, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
     - {fileID: 400835017738712693, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
     - {fileID: 1554454757280070458, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+    - {fileID: 5840296948594079509, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 1637979671052500160, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       insertIndex: -1
