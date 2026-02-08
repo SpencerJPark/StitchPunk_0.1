@@ -13,5 +13,6 @@
     Attack,
     Patrol,
     Flee,
-    SeekEntertainment
+    SeekEntertainment,
+    UseBathroom,
 }

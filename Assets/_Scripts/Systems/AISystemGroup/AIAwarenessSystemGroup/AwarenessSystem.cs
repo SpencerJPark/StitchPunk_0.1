@@ -81,6 +81,7 @@ public partial struct AwarenessJob : IJobEntity
         float nearestEntertainmentDist = float.MaxValue;
         float nearestSmokeDist = float.MaxValue;
         float nearestBarDist = float.MaxValue;
+        float nearestBathroomDist = float.MaxValue;
 
         for (int i = 0; i < hits.Length; i++)
         {
@@ -153,6 +154,15 @@ public partial struct AwarenessJob : IJobEntity
                         nearestBarDist = dist;
                         awareness.nearestBar = hit.Entity;
                         awareness.hasBar = true;
+                    }
+                    break;
+                
+                case InteractableType.Bathroom:
+                    if (dist < nearestBathroomDist)
+                    {
+                        nearestBathroomDist = dist;
+                        awareness.nearestBathroom = hit.Entity;
+                        awareness.hasBathroom = true;
                     }
                     break;
             }

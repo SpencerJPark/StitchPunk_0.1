@@ -10,11 +10,11 @@ public partial struct ActionSelectionSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        uint seed = (uint)SystemAPI.Time.ElapsedTime * 1000 + 1;
+        uint seed = (uint)(SystemAPI.Time.ElapsedTime * 10000) + 1;
 
         new ActionSelectionJob
         {
-            baseSeed = seed,
+            seed = seed,
             topNCount = 3
         }.ScheduleParallel();
     }
@@ -23,14 +23,41 @@ public partial struct ActionSelectionSystem : ISystem
 [BurstCompile]
 public partial struct ActionSelectionJob : IJobEntity
 {
-    public uint baseSeed;
+    public uint seed;
     public int topNCount;
 
-    public void Execute(ref SelectedAction selected, ref DynamicBuffer<ActionScore> scores, [EntityIndexInQuery] int index)
+    public void Execute(
+        ref SelectedAction selected,
+        ref ActionLock actionLock,
+        ref DynamicBuffer<ActionScore> scores,
+        [EntityIndexInQuery] int index)
     {
-        Unity.Mathematics.Random random = new Unity.Mathematics.Random(baseSeed + (uint)index + 1);
+        // If action is locked and not complete, keep it
+        if (actionLock.lockedAction != ActionType.None && !actionLock.isComplete)
+        {
+            bool actionStillValid = IsActionValid(ref scores, actionLock.lockedAction);
 
-        // Find top N valid scores
+            if (actionStillValid)
+            {
+                selected.previous = selected.current;
+                selected.current = actionLock.lockedAction;
+                return;
+            }
+            else
+            {
+                ClearLock(ref actionLock);
+            }
+        }
+
+        // Action completed or timed out, clear lock
+        if (actionLock.isComplete)
+        {
+            ClearLock(ref actionLock);
+        }
+
+        // Select new action
+        Unity.Mathematics.Random random = new Unity.Mathematics.Random(seed + (uint)index + 1);
+
         NativeList<ActionScore> topActions = new NativeList<ActionScore>(topNCount, Allocator.Temp);
 
         for (int i = 0; i < scores.Length; i++)
@@ -50,7 +77,6 @@ public partial struct ActionSelectionJob : IJobEntity
             return;
         }
 
-        // Weighted random selection from top N
         float totalWeight = 0f;
         for (int i = 0; i < topActions.Length; i++)
         {
@@ -71,10 +97,49 @@ public partial struct ActionSelectionJob : IJobEntity
             }
         }
 
+        topActions.Dispose();
+
         selected.previous = selected.current;
         selected.current = chosen;
 
-        topActions.Dispose();
+        // Lock actions that need completion
+        if (RequiresCompletion(chosen))
+        {
+            actionLock.lockedAction = chosen;
+            actionLock.isComplete = false;
+            actionLock.timer = 0f;
+            actionLock.stuckTimer = 0f;
+        }
+    }
+
+    private void ClearLock(ref ActionLock actionLock)
+    {
+        actionLock.lockedAction = ActionType.None;
+        actionLock.isComplete = false;
+        actionLock.timer = 0f;
+        actionLock.stuckTimer = 0f;
+    }
+
+    private bool IsActionValid(ref DynamicBuffer<ActionScore> scores, ActionType action)
+    {
+        for (int i = 0; i < scores.Length; i++)
+        {
+            if (scores[i].actionType == action && scores[i].isValid && scores[i].score > 0f)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private bool RequiresCompletion(ActionType action)
+    {
+        return action == ActionType.Roam ||
+               action == ActionType.Eat ||
+               action == ActionType.Sleep ||
+               action == ActionType.Work ||
+               action == ActionType.Smoke ||
+               action == ActionType.Drink;
     }
 
     private void InsertSorted(ref NativeList<ActionScore> list, ActionScore newScore)

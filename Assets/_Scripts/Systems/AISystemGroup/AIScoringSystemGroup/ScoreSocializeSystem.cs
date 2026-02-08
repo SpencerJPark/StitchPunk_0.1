@@ -1,5 +1,6 @@
 ﻿using Unity.Burst;
 using Unity.Entities;
+using Unity.Mathematics;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
@@ -14,13 +15,14 @@ public partial struct ScoreSocializeSystem : ISystem
 }
 
 [BurstCompile]
+[WithAll(typeof(CanSocialize))]
 public partial struct ScoreSocializeJob : IJobEntity
 {
-    public void Execute(ref DynamicBuffer<ActionScore> scores, in Needs needs, in CanSocialize canSocialize)
+    public void Execute(ref DynamicBuffer<ActionScore> scores, in Needs needs)
     {
-        // Social need drives this - no location requirement for now
-        float score = ResponseCurve.Exponential(1f - needs.social, 1.5f) * 0.5f;
-
+        float socialNeed = 1f - needs.social;
+        float score = math.max(0.05f, ResponseCurve.Exponential(socialNeed, 1.5f) * 0.4f);
+        
         AIScoreUtil.SetScore(ref scores, ActionType.Socialize, score, true);
     }
 }

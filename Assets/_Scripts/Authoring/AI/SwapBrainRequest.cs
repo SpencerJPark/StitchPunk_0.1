@@ -7,9 +7,12 @@ public struct SwapBrainRequest : IComponentData
 
 public enum BrainType
 {
+    None,
+    Minion,
     Citizen,
+    Character,
     Zombie,
     Guard,
     Merchant,
-    None
+    
 }

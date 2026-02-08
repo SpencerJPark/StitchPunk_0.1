@@ -76,13 +76,17 @@ public enum InteractableType
     Bar,
     SmokingSpot,
     Toilet,
-    Entertainment
+    Entertainment,
+    Bathroom
 }
 
 public enum NeedType
 {
     Hunger,
     Energy,
+    Comfort,
     Entertainment,
-    Social
+    Bladder,
+    Social,
+    Safety,
 }

@@ -9,41 +9,41 @@ using Unity.Transforms;
 [UpdateAfter(typeof(AIExecutionSystem))]
 public partial struct WanderSystem : ISystem
 {
-    private ComponentLookup<UnitMover> unitMoverLookup;
     private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<UnitMover> unitMoverLookup;
     private ComponentLookup<TargetPositionPathQueued> pathQueuedLookup;
 
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        unitMoverLookup = SystemAPI.GetComponentLookup<UnitMover>(false);
-        transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
-        pathQueuedLookup = SystemAPI.GetComponentLookup<TargetPositionPathQueued>(false);
+        transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
+        pathQueuedLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        unitMoverLookup.Update(ref state);
         transformLookup.Update(ref state);
+        unitMoverLookup.Update(ref state);
         pathQueuedLookup.Update(ref state);
 
-        uint seed = (uint)(SystemAPI.Time.ElapsedTime * 1000) + 1;
+        uint seed = (uint)(SystemAPI.Time.ElapsedTime * 10000) + 1;
 
         state.Dependency = new WanderJob
         {
-            baseSeed = seed,
-            unitMoverLookup = unitMoverLookup,
+            seed = seed,
             transformLookup = transformLookup,
+            unitMoverLookup = unitMoverLookup,
             pathQueuedLookup = pathQueuedLookup
         }.ScheduleParallel(state.Dependency);
     }
 }
 
 [BurstCompile]
+[WithAll(typeof(CanWander))]
 public partial struct WanderJob : IJobEntity
 {
-    public uint baseSeed;
+    public uint seed;
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<UnitMover> unitMoverLookup;
@@ -53,7 +53,6 @@ public partial struct WanderJob : IJobEntity
         ref WanderState wanderState,
         in SelectedAction selectedAction,
         in BrainLink brainLink,
-        in CanWander canWander,
         [EntityIndexInQuery] int index)
     {
         if (selectedAction.current != ActionType.Wander)
@@ -70,30 +69,35 @@ public partial struct WanderJob : IJobEntity
         float3 currentPos = bodyTransform.Position;
         float distToTargetSq = math.distancesq(currentPos, wanderState.wanderTarget);
 
-        // Need new wander target if close to current or no target set
-        bool needNewTarget = distToTargetSq < 1f || wanderState.wanderTarget.Equals(float3.zero);
+        bool targetUninitialized = math.all(wanderState.wanderTarget == float3.zero);
+        bool reachedTarget = distToTargetSq < 2f;
 
-        if (needNewTarget)
+        if (reachedTarget || targetUninitialized)
         {
-            Unity.Mathematics.Random random = new Unity.Mathematics.Random(baseSeed + (uint)index + 1);
+            Unity.Mathematics.Random random = new Unity.Mathematics.Random(seed + (uint)index + 1);
 
             float wanderRadius = wanderState.wanderRadius;
             float angle = random.NextFloat(0f, math.PI * 2f);
-            float distance = random.NextFloat(wanderRadius * 0.5f, wanderRadius);
+            float distance = random.NextFloat(wanderRadius * 0.3f, wanderRadius);
 
             float3 offset = new float3(math.cos(angle) * distance, 0f, math.sin(angle) * distance);
             wanderState.wanderTarget = currentPos + offset;
 
-            if (pathQueuedLookup.HasComponent(body))
-            {
-                pathQueuedLookup[body] = new TargetPositionPathQueued { targetPosition = wanderState.wanderTarget };
-                pathQueuedLookup.SetComponentEnabled(body, true);
-            }
-            else
-            {
-                mover.targetPosition = wanderState.wanderTarget;
-                unitMoverLookup[body] = mover;
-            }
+            SetMovementTarget(body, wanderState.wanderTarget);
+        }
+    }
+
+    private void SetMovementTarget(Entity body, float3 targetPosition)
+    {
+        if (pathQueuedLookup.HasComponent(body))
+        {
+            pathQueuedLookup[body] = new TargetPositionPathQueued { targetPosition = targetPosition };
+            pathQueuedLookup.SetComponentEnabled(body, true);
+        }
+        else if (unitMoverLookup.TryGetComponent(body, out UnitMover mover))
+        {
+            mover.targetPosition = targetPosition;
+            unitMoverLookup[body] = mover;
         }
     }
 }

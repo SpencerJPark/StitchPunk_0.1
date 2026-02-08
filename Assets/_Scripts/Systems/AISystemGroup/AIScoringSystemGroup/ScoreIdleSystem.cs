@@ -1,5 +1,6 @@
 ﻿using Unity.Burst;
 using Unity.Entities;
+using Unity.Mathematics;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
@@ -14,11 +15,15 @@ public partial struct ScoreIdleSystem : ISystem
 }
 
 [BurstCompile]
+[WithAll(typeof(BrainLink))]
 public partial struct ScoreIdleJob : IJobEntity
 {
-    public void Execute(ref DynamicBuffer<ActionScore> scores)
+    public void Execute(ref DynamicBuffer<ActionScore> scores, in Needs needs)
     {
-        // Idle is always valid but low priority
-        AIScoreUtil.SetScore(ref scores, ActionType.Idle, 0.1f, true);
+        // Idle is more appealing when comfort is low (need to rest)
+        float comfortNeed = 1f - needs.comfort;
+        float score = math.max(0.05f, comfortNeed * 0.3f);
+        
+        AIScoreUtil.SetScore(ref scores, ActionType.Idle, score, true);
     }
 }
