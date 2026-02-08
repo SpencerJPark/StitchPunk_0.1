@@ -8,7 +8,7 @@ partial struct HordeSpawnerSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<EntitiesReferences>();
+        state.RequireForUpdate<StructureLibrary>();
     }
 
     [BurstCompile]
@@ -17,7 +17,7 @@ partial struct HordeSpawnerSystem : ISystem
         EntityCommandBuffer entityCommandBuffer = 
             SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
 
-        EntitiesReferences entitiesReferences = SystemAPI.GetSingleton<EntitiesReferences>();
+        StructureLibrary structureLibrary = SystemAPI.GetSingleton<StructureLibrary>();
         
         foreach ((
                      RefRO<LocalTransform> localTransform, 
@@ -46,7 +46,7 @@ partial struct HordeSpawnerSystem : ISystem
 
             horde.ValueRW.spawnTimer = horde.ValueRO.spawnTimerMax;
             
-            Entity zombieEntity = entityCommandBuffer.Instantiate(entitiesReferences.zombiePrefabEntity);
+            Entity zombieEntity = entityCommandBuffer.Instantiate(structureLibrary.zombiePrefabEntity);
 
             Random random = horde.ValueRO.random;
             float3 spawnPosition = localTransform.ValueRO.Position;

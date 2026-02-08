@@ -1,7 +1,7 @@
-using Unity.Entities;
+﻿using Unity.Entities;
 using UnityEngine;
 
-public class EntitiesReferencesAuthoring : MonoBehaviour {
+public class LegacyEntityLibraryAuthoring : MonoBehaviour {
 
 
     public GameObject bulletPrefabGameObject;
@@ -25,12 +25,12 @@ public class EntitiesReferencesAuthoring : MonoBehaviour {
     public GameObject buildingConstructionPrefabGameObject;
 
 
-    public class Baker : Baker<EntitiesReferencesAuthoring> {
+    public class Baker : Baker<LegacyEntityLibraryAuthoring> {
 
 
-        public override void Bake(EntitiesReferencesAuthoring authoring) {
+        public override void Bake(LegacyEntityLibraryAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new EntitiesReferences {
+            AddComponent(entity, new StructureLibrary {
                 bulletPrefabEntity = GetEntity(authoring.bulletPrefabGameObject, TransformUsageFlags.Dynamic),
                 zombiePrefabEntity = GetEntity(authoring.zombiePrefabGameObject, TransformUsageFlags.Dynamic),
                 shootLightPrefabEntity = GetEntity(authoring.shootLightPrefabGameObject, TransformUsageFlags.Dynamic),
@@ -58,7 +58,7 @@ public class EntitiesReferencesAuthoring : MonoBehaviour {
 }
 
 
-public struct EntitiesReferences : IComponentData {
+public struct StructureLibrary : IComponentData {
 
     public Entity bulletPrefabEntity;
     public Entity zombiePrefabEntity;

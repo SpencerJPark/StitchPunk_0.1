@@ -7,11 +7,11 @@ partial struct BuildingBarracksSystem : ISystem {
 
     [BurstCompile]
     public void OnCreate(ref SystemState state) {
-        state.RequireForUpdate<EntitiesReferences>();
+        state.RequireForUpdate<StructureLibrary>();
     }
 
     public void OnUpdate(ref SystemState state) {
-        EntitiesReferences entitiesReferences = SystemAPI.GetSingleton<EntitiesReferences>();
+        StructureLibrary structureLibrary = SystemAPI.GetSingleton<StructureLibrary>();
 
         foreach ((
             RefRW<BuildingBarracks> buildingBarracks,
@@ -69,7 +69,7 @@ partial struct BuildingBarracksSystem : ISystem {
             spawnUnitTypeDynamicBuffer.RemoveAt(0);
             buildingBarracks.ValueRW.onUnitQueueChanged = true;
 
-            Entity spawnedUnitEntity = state.EntityManager.Instantiate(unitTypeSO.GetPrefabEntity(entitiesReferences));
+            Entity spawnedUnitEntity = state.EntityManager.Instantiate(unitTypeSO.GetPrefabEntity(structureLibrary));
             SystemAPI.SetComponent(spawnedUnitEntity, LocalTransform.FromPosition(localTransform.ValueRO.Position));
 
             SystemAPI.SetComponent(spawnedUnitEntity, new MoveOverride {

@@ -52,23 +52,23 @@ public class BuildingPlacementManager : Singleton<BuildingPlacementManager>, IUp
 
                 EntityManager entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
 
-                EntityQuery entityQuery = entityManager.CreateEntityQuery(typeof(EntitiesReferences));
-                EntitiesReferences entitiesReferences = entityQuery.GetSingleton<EntitiesReferences>();
+                EntityQuery entityQuery = entityManager.CreateEntityQuery(typeof(StructureLibrary));
+                StructureLibrary structureLibrary = entityQuery.GetSingleton<StructureLibrary>();
 
                 //Entity spawnedEntity = entityManager.Instantiate(buildingTypeSO.GetPrefabEntity(entitiesReferences));
                 //entityManager.SetComponentData(spawnedEntity, LocalTransform.FromPosition(mouseWorldPosition));
                 
-                Entity buildingConstructionVisualEntity = entityManager.Instantiate(buildingTypeSO.GetVisualPrefabEntity(entitiesReferences));
+                Entity buildingConstructionVisualEntity = entityManager.Instantiate(buildingTypeSO.GetVisualPrefabEntity(structureLibrary));
                 entityManager.SetComponentData(buildingConstructionVisualEntity, LocalTransform.FromPosition(mouseWorldPosition + new Vector3(0, buildingTypeSO.constructionYOffset, 0)));
                 
-                Entity buildingConstructionEntity = entityManager.Instantiate(entitiesReferences.buildingConstructionPrefabEntity);
+                Entity buildingConstructionEntity = entityManager.Instantiate(structureLibrary.buildingConstructionPrefabEntity);
                 entityManager.SetComponentData(buildingConstructionEntity, LocalTransform.FromPosition(mouseWorldPosition));
                 entityManager.SetComponentData(buildingConstructionEntity, new BuildingConstruction
                 {
                     buildingType = buildingTypeSO.buildingType,
                     constructionTimer = 0f,
                     constructionTimerMax = buildingTypeSO.buildingConstructionTimerMax,
-                    finalPrefabEntity = buildingTypeSO.GetPrefabEntity(entitiesReferences),
+                    finalPrefabEntity = buildingTypeSO.GetPrefabEntity(structureLibrary),
                     visualEntity = buildingConstructionVisualEntity,
                     startPosition = mouseWorldPosition + new Vector3(0, buildingTypeSO.constructionYOffset, 0),
                     endPosition = mouseWorldPosition,

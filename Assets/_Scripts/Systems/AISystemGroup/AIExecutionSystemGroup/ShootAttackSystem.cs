@@ -8,12 +8,12 @@ partial struct ShootAttackSystem : ISystem {
 
     [BurstCompile]
     public void OnCreate(ref SystemState state) {
-        state.RequireForUpdate<EntitiesReferences>();
+        state.RequireForUpdate<StructureLibrary>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state) {
-        EntitiesReferences entitiesReferences = SystemAPI.GetSingleton<EntitiesReferences>();
+        StructureLibrary structureLibrary = SystemAPI.GetSingleton<StructureLibrary>();
 
         foreach ((
             RefRW<LocalTransform> localTransform,
@@ -95,7 +95,7 @@ partial struct ShootAttackSystem : ISystem {
                 }
             }
 
-            Entity bulletEntity = state.EntityManager.Instantiate(entitiesReferences.bulletPrefabEntity);
+            Entity bulletEntity = state.EntityManager.Instantiate(structureLibrary.bulletPrefabEntity);
             float3 bulletSpawnWorldPosition = localTransform.ValueRO.TransformPoint(shootAttack.ValueRO.bulletSpawnLocalPosition);
             SystemAPI.SetComponent(bulletEntity, LocalTransform.FromPosition(bulletSpawnWorldPosition));
 

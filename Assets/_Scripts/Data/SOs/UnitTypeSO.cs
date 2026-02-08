@@ -20,13 +20,13 @@ public class UnitTypeSO : ScriptableObject {
     public ResourceAmount[] SpawnCostResourceAmountArray;
 
 
-    public Entity GetPrefabEntity(EntitiesReferences entitiesReferences) {
+    public Entity GetPrefabEntity(StructureLibrary structureLibrary) {
         switch (unitType) {
             default:
             case UnitType.None:
-            case UnitType.Soldier:  return entitiesReferences.soldierPrefabEntity;
-            case UnitType.Scout:    return entitiesReferences.scoutPrefabEntity;
-            case UnitType.Zombie:   return entitiesReferences.zombiePrefabEntity;
+            case UnitType.Soldier:  return structureLibrary.soldierPrefabEntity;
+            case UnitType.Scout:    return structureLibrary.scoutPrefabEntity;
+            case UnitType.Zombie:   return structureLibrary.zombiePrefabEntity;
         }
     }
 
