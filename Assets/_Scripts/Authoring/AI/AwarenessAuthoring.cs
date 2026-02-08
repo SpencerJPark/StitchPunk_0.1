@@ -4,14 +4,14 @@ using UnityEngine;
 
 public class AwarenessAuthoring : MonoBehaviour
 {
-    public float radius = 10f;
+    public float radius = 15f;
 
     public class Baker : Baker<AwarenessAuthoring>
     {
         public override void Bake(AwarenessAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent<Awareness>(entity, new Awareness());
+            AddComponent<Awareness>(entity);
             AddComponent<AwarenessRadius>(entity, new AwarenessRadius { radius = authoring.radius });
             AddBuffer<SensedEntity>(entity);
         }
@@ -27,6 +27,16 @@ public struct Awareness : IComponentData
     public Entity nearestSmokeSpot;
     public Entity nearestBar;
     public Entity nearestBathroom;
+    public Entity nearestSeat;
+
+    public float nearestFoodDistance;
+    public float nearestBedDistance;
+    public float nearestWorkDistance;
+    public float nearestEntertainmentDistance;
+    public float nearestSmokeSpotDistance;
+    public float nearestBarDistance;
+    public float nearestBathroomDistance;
+    public float nearestSeatDistance;
 
     public bool hasFood;
     public bool hasBed;
@@ -35,6 +45,7 @@ public struct Awareness : IComponentData
     public bool hasSmokeSpot;
     public bool hasBar;
     public bool hasBathroom;
+    public bool hasSeat;
 }
 
 public struct AwarenessRadius : IComponentData

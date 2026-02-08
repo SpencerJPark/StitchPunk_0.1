@@ -8,11 +8,12 @@
     Socialize,
     Smoke,
     Drink,
-    Wander,    // Stay near current area
-    Roam,      // Walk through city
+    Wander,
+    Roam,
     Attack,
     Patrol,
     Flee,
     SeekEntertainment,
     UseBathroom,
+    Sit
 }

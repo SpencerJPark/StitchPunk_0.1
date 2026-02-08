@@ -49,6 +49,9 @@ public class CitizenBrainAuthoring : MonoBehaviour
                 stuckTimer = 0f,
                 lastPosition = float3.zero
             });
+            
+            // Pending offers from interactables
+            AddBuffer<PendingOffer>(entity);
         }
     }
 }

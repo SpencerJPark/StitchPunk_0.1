@@ -17,11 +17,11 @@ public partial struct AIExecutionSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
-        interactableLookup = SystemAPI.GetComponentLookup<Interactable>(true);
-        unitMoverLookup = SystemAPI.GetComponentLookup<UnitMover>(false);
-        pathQueuedLookup = SystemAPI.GetComponentLookup<TargetPositionPathQueued>(false);
-        interactableActionsLookup = SystemAPI.GetBufferLookup<InteractableAction>(true);
+        transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        interactableLookup = state.GetComponentLookup<Interactable>(true);
+        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
+        pathQueuedLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
+        interactableActionsLookup = state.GetBufferLookup<InteractableAction>(true);
     }
 
     [BurstCompile]
@@ -63,6 +63,7 @@ public partial struct AIExecutionJob : IJobEntity
         ref CurrentInteraction currentInteraction,
         ref Needs needs,
         ref SelectedAction selectedAction,
+        ref ActionLock actionLock,
         in BrainLink brainLink,
         in Awareness awareness)
     {
@@ -73,6 +74,17 @@ public partial struct AIExecutionJob : IJobEntity
 
         if (!transformLookup.TryGetComponent(body, out LocalTransform bodyTransform))
             return;
+
+        // Skip non-interactable actions
+        if (IsNonInteractableAction(selectedAction.current))
+        {
+            if (currentInteraction.target != Entity.Null)
+            {
+                currentInteraction = default;
+            }
+            selectedAction.previous = selectedAction.current;
+            return;
+        }
 
         // Handle action change
         if (selectedAction.current != selectedAction.previous)
@@ -94,9 +106,19 @@ public partial struct AIExecutionJob : IJobEntity
                 ref currentInteraction,
                 ref needs,
                 ref selectedAction,
+                ref actionLock,
                 body,
                 bodyTransform.Position);
         }
+    }
+
+    private bool IsNonInteractableAction(ActionType action)
+    {
+        return action == ActionType.Wander ||
+               action == ActionType.Roam ||
+               action == ActionType.Idle ||
+               action == ActionType.Flee ||
+               action == ActionType.None;
     }
 
     private void OnActionChanged(
@@ -158,8 +180,7 @@ public partial struct AIExecutionJob : IJobEntity
         currentInteraction.animation = matchedAction.animation;
         currentInteraction.timeRemaining = matchedAction.duration;
         currentInteraction.interactionRange = interactable.interactionRange;
-        currentInteraction.needAffected = matchedAction.needAffected;
-        currentInteraction.needModifier = matchedAction.needModifier;
+        currentInteraction.needModifiers = matchedAction.needModifiers;
         currentInteraction.isInRange = false;
 
         // Queue path to target
@@ -170,13 +191,13 @@ public partial struct AIExecutionJob : IJobEntity
         ref CurrentInteraction currentInteraction,
         ref Needs needs,
         ref SelectedAction selectedAction,
+        ref ActionLock actionLock,
         Entity body,
         float3 bodyPosition)
     {
         if (!transformLookup.TryGetComponent(currentInteraction.target, out LocalTransform targetTransform))
         {
-            // Target no longer exists
-            ClearInteraction(ref currentInteraction, ref selectedAction, body, bodyPosition);
+            ClearInteraction(ref currentInteraction, ref selectedAction, ref actionLock, body, bodyPosition);
             return;
         }
 
@@ -185,7 +206,6 @@ public partial struct AIExecutionJob : IJobEntity
 
         if (distanceSq <= rangeSq)
         {
-            // In range - perform interaction
             currentInteraction.isInRange = true;
 
             // Stop movement
@@ -195,16 +215,15 @@ public partial struct AIExecutionJob : IJobEntity
                 unitMoverLookup[body] = mover;
             }
 
-            // Apply need modification over time
-            ApplyNeedModification(ref needs, currentInteraction.needAffected, currentInteraction.needModifier);
+            // Apply all need modifications
+            ApplyNeedModifiers(ref needs, currentInteraction.needModifiers);
 
             // Count down
             currentInteraction.timeRemaining -= deltaTime;
 
             if (currentInteraction.timeRemaining <= 0f)
             {
-                // Interaction complete
-                ClearInteraction(ref currentInteraction, ref selectedAction, body, bodyPosition);
+                ClearInteraction(ref currentInteraction, ref selectedAction, ref actionLock, body, bodyPosition);
             }
         }
         else
@@ -213,36 +232,28 @@ public partial struct AIExecutionJob : IJobEntity
         }
     }
 
-    private void ApplyNeedModification(ref Needs needs, NeedType needType, float modifier)
+    private void ApplyNeedModifiers(ref Needs needs, NeedModifiers modifiers)
     {
-        float change = modifier * deltaTime;
-
-        switch (needType)
-        {
-            case NeedType.Hunger:
-                needs.hunger = math.saturate(needs.hunger - change);
-                break;
-            case NeedType.Energy:
-                needs.energy = math.saturate(needs.energy + change);
-                break;
-            case NeedType.Entertainment:
-                needs.entertainment = math.saturate(needs.entertainment + change);
-                break;
-            case NeedType.Social:
-                needs.social = math.saturate(needs.social + change);
-                break;
-        }
+        needs.hunger = math.saturate(needs.hunger + modifiers.hunger * deltaTime);
+        needs.energy = math.saturate(needs.energy + modifiers.energy * deltaTime);
+        needs.entertainment = math.saturate(needs.entertainment + modifiers.entertainment * deltaTime);
+        needs.social = math.saturate(needs.social + modifiers.social * deltaTime);
+        needs.comfort = math.saturate(needs.comfort + modifiers.comfort * deltaTime);
+        needs.bladder = math.saturate(needs.bladder + modifiers.bladder * deltaTime);
+        needs.safety = math.saturate(needs.safety + modifiers.safety * deltaTime);
     }
 
     private void ClearInteraction(
         ref CurrentInteraction currentInteraction,
         ref SelectedAction selectedAction,
+        ref ActionLock actionLock,
         Entity body,
         float3 bodyPosition)
     {
         currentInteraction = default;
         selectedAction.current = ActionType.Idle;
         selectedAction.previous = ActionType.Idle;
+        actionLock.isComplete = true;
 
         if (unitMoverLookup.TryGetComponent(body, out UnitMover mover))
         {
@@ -267,6 +278,10 @@ public partial struct AIExecutionJob : IJobEntity
                 return awareness.nearestBar;
             case ActionType.SeekEntertainment:
                 return awareness.nearestEntertainment;
+            case ActionType.UseBathroom:
+                return awareness.nearestBathroom;
+            case ActionType.Sit:
+                return awareness.nearestSeat;
             default:
                 return Entity.Null;
         }
