@@ -1,4 +1,5 @@
 ﻿using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class ActionLockAuthoring : MonoBehaviour
@@ -6,6 +7,7 @@ public class ActionLockAuthoring : MonoBehaviour
     public float maxActionDuration = 30f;
     public float stuckThreshold = 1f;
     public float stuckTime = 3f;
+    public float decisionInterval = 0.2f;
 
     public class Baker : Baker<ActionLockAuthoring>
     {
@@ -21,7 +23,9 @@ public class ActionLockAuthoring : MonoBehaviour
                 stuckThreshold = authoring.stuckThreshold,
                 stuckTime = authoring.stuckTime,
                 stuckTimer = 0f,
-                lastPosition = Unity.Mathematics.float3.zero
+                lastPosition = float3.zero,
+                decisionInterval = authoring.decisionInterval,
+                decisionTimer = 0f
             });
         }
     }
@@ -36,5 +40,7 @@ public struct ActionLock : IComponentData
     public float stuckThreshold;
     public float stuckTime;
     public float stuckTimer;
-    public Unity.Mathematics.float3 lastPosition;
+    public float3 lastPosition;
+    public float decisionInterval;
+    public float decisionTimer;
 }

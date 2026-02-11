@@ -103,6 +103,8 @@ public struct InteractableAction : IBufferElementData
 
 public struct NeedModifiers
 {
+    // Positive values INCREASE the need (improve it toward 1)
+    // Negative values DECREASE the need (worsen it toward 0)
     public float hunger;
     public float energy;
     public float entertainment;
@@ -110,6 +112,7 @@ public struct NeedModifiers
     public float comfort;
     public float bladder;
     public float safety;
+    public float movement;
 }
 
 public struct OccupantEntity : IBufferElementData

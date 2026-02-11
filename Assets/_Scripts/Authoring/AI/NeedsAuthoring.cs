@@ -3,13 +3,15 @@ using UnityEngine;
 
 public class NeedsAuthoring : MonoBehaviour
 {
-    [Range(0f, 1f)] public float hunger = 0.2f;
-    [Range(0f, 1f)] public float energy = 0.1f;
-    [Range(0f, 1f)] public float comfort = 0.1f;
+    [Header("All needs: 1 = satisfied, 0 = urgent")]
+    [Range(0f, 1f)] public float hunger = 0.8f;
+    [Range(0f, 1f)] public float energy = 0.8f;
     [Range(0f, 1f)] public float entertainment = 0.6f;
-    [Range(0f, 1f)] public float bladder = 0f;
     [Range(0f, 1f)] public float social = 0.5f;
+    [Range(0f, 1f)] public float comfort = 0.8f;
+    [Range(0f, 1f)] public float bladder = 0.9f;
     [Range(0f, 1f)] public float safety = 1f;
+    [Range(0f, 1f)] public float movement = 0.5f;
 
     public class Baker : Baker<NeedsAuthoring>
     {
@@ -20,11 +22,12 @@ public class NeedsAuthoring : MonoBehaviour
             {
                 hunger = authoring.hunger,
                 energy = authoring.energy,
-                comfort = authoring.comfort,
                 entertainment = authoring.entertainment,
-                bladder = authoring.bladder,
                 social = authoring.social,
+                comfort = authoring.comfort,
+                bladder = authoring.bladder,
                 safety = authoring.safety,
+                movement = authoring.movement
             });
         }
     }
@@ -32,14 +35,14 @@ public class NeedsAuthoring : MonoBehaviour
 
 public struct Needs : IComponentData
 {
-    // time based
-    public float hunger;
-    public float energy;
-    public float comfort;
-    public float entertainment;
-    public float bladder;
-    public float social;
-    
-    // event based
-    public float safety;
+    // All needs: 1 = satisfied, 0 = urgent/critical
+    public float hunger;        // 1 = full, 0 = starving
+    public float energy;        // 1 = rested, 0 = exhausted
+    public float entertainment; // 1 = entertained, 0 = bored
+    public float social;        // 1 = social, 0 = lonely
+    public float comfort;       // 1 = comfortable, 0 = uncomfortable
+    public float bladder;       // 1 = empty, 0 = urgent
+    public float safety;        // 1 = safe, 0 = terrified
+    public float movement;      // 1 = satisfied, 0 = restless
 }
+

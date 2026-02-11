@@ -510,11 +510,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7925378716681516739}
   - component: {fileID: 4255529005934916258}
-  - component: {fileID: 7315605134597470847}
-  - component: {fileID: 3251194353809982799}
-  - component: {fileID: 4350883157626960763}
-  - component: {fileID: 2767894940050807392}
-  - component: {fileID: 3192358502790128916}
   - component: {fileID: 7178743137103500623}
   m_Layer: 0
   m_Name: Brain
@@ -551,71 +546,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BrainLinkAuthoring
   body: {fileID: 3094532311958105572}
---- !u!114 &7315605134597470847
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5840296948594079509}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8d174d924c3f41c1b10649d8ebdd02ff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AwarenessAuthoring
-  radius: 10
---- !u!114 &3251194353809982799
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5840296948594079509}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3e288092f0d42219946045c7d984d9b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NeedsAuthoring
-  hunger: 0.5
-  energy: 0.5
-  entertainment: 0.5
-  social: 0.5
---- !u!114 &4350883157626960763
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5840296948594079509}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bdbf449859564efa8fb5edeec308c5b2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SelectedActionAuthoring
---- !u!114 &2767894940050807392
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5840296948594079509}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c227afcc1178472391a546189878b1fa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionScoreAuthoring
---- !u!114 &3192358502790128916
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5840296948594079509}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e7574b247c9147c3a668f9b8988b6041, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CurrentInteractionAuthoring
 --- !u!114 &7178743137103500623
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -629,9 +559,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CitizenBrainAuthoring
   wanderRadius: 10
-  roamArrivalThreshold: 2
-  roamMinWait: 0
-  roamMaxWait: 3
+  maxActionDuration: 30
+  stuckThreshold: 1
+  stuckTime: 3
+  decisionInterval: 0.2
+  hunger: 0.8
+  energy: 0.8
+  entertainment: 0.6
+  social: 0.5
+  comfort: 0.8
+  bladder: 0.9
+  safety: 1
+  movement: 0.5
 --- !u!1001 &4233715775177122149
 PrefabInstance:
   m_ObjectHideFlags: 0

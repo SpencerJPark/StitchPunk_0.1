@@ -1,21 +1,33 @@
 ﻿using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AISystemGroup))]
 [UpdateBefore(typeof(AIAwarenessSystemGroup))]
 public partial struct NeedsDecaySystem : ISystem
 {
+    private ComponentLookup<UnitMover> moverLookup;
+
+    [BurstCompile]
+    public void OnCreate(ref SystemState state)
+    {
+        moverLookup = state.GetComponentLookup<UnitMover>(true);
+    }
+
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        moverLookup.Update(ref state);
         float deltaTime = SystemAPI.Time.DeltaTime;
 
-        new NeedsDecayJob
+        state.Dependency = new NeedsDecayJob
         {
-            deltaTime = deltaTime
-        }.ScheduleParallel();
+            deltaTime = deltaTime,
+            moverLookup = moverLookup
+        }.ScheduleParallel(state.Dependency);
     }
 }
 
@@ -23,38 +35,45 @@ public partial struct NeedsDecaySystem : ISystem
 public partial struct NeedsDecayJob : IJobEntity
 {
     public float deltaTime;
+    [ReadOnly] public ComponentLookup<UnitMover> moverLookup;
 
-    public void Execute(ref Needs needs)
+    public void Execute(ref Needs needs, in BrainLink brainLink)
     {
-        // Hunger increases slowly (0 = full, 1 = starving)
-        float hungerRate = 0.001f;
-        
-        // Energy decreases slowly (1 = rested, 0 = exhausted)
-        float energyRate = 0.0008f;
-        
-        // Entertainment decreases (1 = entertained, 0 = bored)
-        float entertainmentRate = 0.002f;
-        
-        // Social decreases slowly (1 = social, 0 = lonely)
-        float socialRate = 0.001f;
-        
-        // Comfort decreases while standing/walking (1 = comfortable, 0 = need to sit)
-        float comfortRate = 0.0015f;
-        
-        // Bladder increases over time (0 = empty, 1 = urgent)
-        float bladderRate = 0.0012f;
-        
-        // Safety slowly recovers when not threatened (1 = safe, 0 = terrified)
-        float safetyRecoveryRate = 0.005f;
+        // All needs decay toward 0 (urgent) over time
+        float hungerDecay = 0.001f;
+        float energyDecay = 0.0008f;
+        float entertainmentDecay = 0.002f;
+        float socialDecay = 0.001f;
+        float comfortDecay = 0.0015f;
+        float bladderDecay = 0.0012f;
+        float movementDecay = 0.003f;
 
-        needs.hunger = math.saturate(needs.hunger + hungerRate * deltaTime);
-        needs.energy = math.saturate(needs.energy - energyRate * deltaTime);
-        needs.entertainment = math.saturate(needs.entertainment - entertainmentRate * deltaTime);
-        needs.social = math.saturate(needs.social - socialRate * deltaTime);
-        needs.comfort = math.saturate(needs.comfort - comfortRate * deltaTime);
-        needs.bladder = math.saturate(needs.bladder + bladderRate * deltaTime);
-        
-        // Safety slowly recovers toward 1
-        needs.safety = math.saturate(needs.safety + safetyRecoveryRate * deltaTime);
+        // Safety recovers toward 1 naturally
+        float safetyRecovery = 0.005f;
+
+        needs.hunger = math.saturate(needs.hunger - hungerDecay * deltaTime);
+        needs.energy = math.saturate(needs.energy - energyDecay * deltaTime);
+        needs.entertainment = math.saturate(needs.entertainment - entertainmentDecay * deltaTime);
+        needs.social = math.saturate(needs.social - socialDecay * deltaTime);
+        needs.comfort = math.saturate(needs.comfort - comfortDecay * deltaTime);
+        needs.bladder = math.saturate(needs.bladder - bladderDecay * deltaTime);
+        needs.safety = math.saturate(needs.safety + safetyRecovery * deltaTime);
+
+        // Movement - decays when stationary, recovers when moving
+        if (moverLookup.TryGetComponent(brainLink.body, out UnitMover mover))
+        {
+            if (mover.isMoving)
+            {
+                needs.movement = math.saturate(needs.movement + 0.01f * deltaTime);
+            }
+            else
+            {
+                needs.movement = math.saturate(needs.movement - movementDecay * deltaTime);
+            }
+        }
+        else
+        {
+            needs.movement = math.saturate(needs.movement - movementDecay * deltaTime);
+        }
     }
 }
