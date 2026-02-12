@@ -2,10 +2,7 @@ using Unity.Entities;
 using UnityEngine;
 
 public class UnitAuthoring : MonoBehaviour {
-
-
-
-
+    
     public class Baker : Baker<UnitAuthoring> {
 
         public override void Bake(UnitAuthoring authoring) {
@@ -13,15 +10,8 @@ public class UnitAuthoring : MonoBehaviour {
             AddComponent(entity, new Unit {
             });
         }
-
     }
-
 }
 
-
-
 public struct Unit : IComponentData {
-
-
-
 }

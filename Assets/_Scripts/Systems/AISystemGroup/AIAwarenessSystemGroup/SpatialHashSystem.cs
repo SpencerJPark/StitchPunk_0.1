@@ -4,6 +4,42 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+// -------------------------------------------------------
+// SPATIAL HASH INIT (runs once)
+// -------------------------------------------------------
+
+[UpdateInGroup(typeof(InitializationSystemGroup))]
+public partial struct SpatialHashInitSystem : ISystem
+{
+    public void OnCreate(ref SystemState state)
+    {
+        Entity entity = state.EntityManager.CreateEntity();
+        state.EntityManager.AddComponentData(entity, new SpatialHashSingleton
+        {
+            npcCells = new NativeParallelMultiHashMap<int2, Entity>(1000, Allocator.Persistent),
+            waypointCells = new NativeParallelMultiHashMap<int2, Entity>(500, Allocator.Persistent)
+        });
+    }
+
+    public void OnDestroy(ref SystemState state)
+    {
+        if (SystemAPI.TryGetSingletonRW<SpatialHashSingleton>(out RefRW<SpatialHashSingleton> singleton))
+        {
+            singleton.ValueRW.npcCells.Dispose();
+            singleton.ValueRW.waypointCells.Dispose();
+        }
+    }
+
+    public void OnUpdate(ref SystemState state)
+    {
+        state.Enabled = false;
+    }
+}
+
+// -------------------------------------------------------
+// SPATIAL HASH REBUILD (runs every frame before awareness)
+// -------------------------------------------------------
+
 [BurstCompile]
 [UpdateInGroup(typeof(AISystemGroup))]
 [UpdateBefore(typeof(AIAwarenessSystemGroup))]
@@ -20,22 +56,18 @@ public partial struct SpatialHashSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Get or create singleton
-        if (!SystemAPI.TryGetSingletonRW<SpatialHashSingleton>(out var singleton))
+        if (!SystemAPI.TryGetSingletonRW<SpatialHashSingleton>(out RefRW<SpatialHashSingleton> singleton))
             return;
 
-        // Clear previous frame
         singleton.ValueRW.npcCells.Clear();
         singleton.ValueRW.waypointCells.Clear();
 
-        // Hash NPCs
         state.Dependency = new HashNPCsJob
         {
             cellSize = CELL_SIZE,
             npcCells = singleton.ValueRW.npcCells.AsParallelWriter()
         }.ScheduleParallel(state.Dependency);
 
-        // Hash Waypoints
         state.Dependency = new HashWaypointsJob
         {
             cellSize = CELL_SIZE,
@@ -52,16 +84,11 @@ public partial struct HashNPCsJob : IJobEntity
 
     public void Execute(in LocalTransform transform, in BodyBrain bodyBrain, Entity entity)
     {
-        int2 cell = GetCell(transform.Position, cellSize);
-        npcCells.Add(cell, bodyBrain.brain);
-    }
-
-    private int2 GetCell(float3 pos, float size)
-    {
-        return new int2(
-            (int)math.floor(pos.x / size),
-            (int)math.floor(pos.z / size)
+        int2 cell = new int2(
+            (int)math.floor(transform.Position.x / cellSize),
+            (int)math.floor(transform.Position.z / cellSize)
         );
+        npcCells.Add(cell, bodyBrain.brain);
     }
 }
 
@@ -71,23 +98,12 @@ public partial struct HashWaypointsJob : IJobEntity
     public float cellSize;
     public NativeParallelMultiHashMap<int2, Entity>.ParallelWriter waypointCells;
 
-    public void Execute(in LocalTransform transform, in Waypoint waypoint, Entity entity)
+    public void Execute(in LocalTransform transform, in InteractionProvider interactionProvider, Entity entity)
     {
-        int2 cell = GetCell(transform.Position, cellSize);
+        int2 cell = new int2(
+            (int)math.floor(transform.Position.x / cellSize),
+            (int)math.floor(transform.Position.z / cellSize)
+        );
         waypointCells.Add(cell, entity);
     }
-
-    private int2 GetCell(float3 pos, float size)
-    {
-        return new int2(
-            (int)math.floor(pos.x / size),
-            (int)math.floor(pos.z / size)
-        );
-    }
-}
-
-public struct SpatialHashSingleton : IComponentData
-{
-    public NativeParallelMultiHashMap<int2, Entity> npcCells;
-    public NativeParallelMultiHashMap<int2, Entity> waypointCells;
 }

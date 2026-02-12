@@ -2,6 +2,16 @@
 using Unity.Entities;
 using Unity.Mathematics;
 
+/// <summary>
+/// Picks the best action from the options buffer using weighted random selection.
+/// 
+/// KEY BEHAVIORS:
+/// 1. Only runs when the NPC is unlocked and decision timer has expired, or action is complete.
+/// 2. When an action completes: saves current waypoint → previousWaypoint, clears current, unlocks.
+/// 3. Excludes previousWaypoint from selection to prevent ping-pong.
+/// 4. Uses weighted random from top 3 scored options for variety.
+/// 5. Locks the NPC onto the chosen waypoint action until it completes.
+/// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AISelectionSystemGroup))]
 public partial struct ActionSelectionSystem : ISystem
@@ -28,46 +38,49 @@ public partial struct ActionSelectionJob : IJobEntity
 
     public void Execute(
         ref SelectedAction selected,
-        ref ActionLock actionLock,
+        ref ActionLock selectedAction,
         ref ChosenActionOption chosenOption,
         in DynamicBuffer<ActionOption> options,
-        in CurrentInteraction currentInteraction,
         [EntityIndexInQuery] int index)
     {
-        // Update decision timer
-        actionLock.decisionTimer -= deltaTime;
-
-        // If locked and not complete, keep current
-        if (actionLock.decisionTimer > 0f && 
-            actionLock.lockedAction != ActionType.None && 
-            !actionLock.isComplete)
+        // -------------------------------------------------------
+        // STEP 1: Handle completed actions
+        // Save current waypoint as previous BEFORE clearing
+        // -------------------------------------------------------
+        if (selectedAction.isComplete)
         {
-            return;
-        }
-
-        // Clear completed lock
-        if (actionLock.isComplete)
-        {
-            // Only update previousWaypoint if we actually completed an interaction
-            // (currentInteraction.target will be null after AIExecutionSystem clears it)
-            // So we use chosenOption.waypoint which still has the value
+            // Save the waypoint we just finished so we don't immediately go back
             if (chosenOption.waypoint != Entity.Null)
             {
                 chosenOption.previousWaypoint = chosenOption.waypoint;
-                chosenOption.waypoint = Entity.Null;  // Clear it here
             }
 
-            actionLock.lockedAction = ActionType.None;
-            actionLock.isComplete = false;
-            actionLock.timer = 0f;
-            actionLock.stuckTimer = 0f;
+            // Clear the current waypoint and unlock
+            chosenOption.waypoint = Entity.Null;
+            selectedAction.lockedAction = ActionType.None;
+            selectedAction.isComplete = false;
+            selectedAction.timer = 0f;
+            selectedAction.stuckTimer = 0f;
+            // Reset decision timer so we pick a new action immediately
+            selectedAction.decisionTimer = 0f;
         }
 
-        // Only decide when timer expires
-        if (actionLock.decisionTimer > 0f)
+        // -------------------------------------------------------
+        // STEP 2: If still locked and not complete, do nothing
+        // -------------------------------------------------------
+        if (selectedAction.lockedAction != ActionType.None)
             return;
 
-        actionLock.decisionTimer = actionLock.decisionInterval;
+        // -------------------------------------------------------
+        // STEP 3: If unlocked but decision timer hasn't expired, wait
+        // -------------------------------------------------------
+        if (selectedAction.decisionTimer > 0f)
+            return;
+
+        // -------------------------------------------------------
+        // STEP 4: Decision timer expired - reset it and pick a new action
+        // -------------------------------------------------------
+        selectedAction.decisionTimer = selectedAction.decisionInterval;
 
         if (options.Length == 0)
         {
@@ -76,50 +89,62 @@ public partial struct ActionSelectionJob : IJobEntity
             return;
         }
 
+        // -------------------------------------------------------
+        // STEP 5: Weighted random selection from top 3, excluding previous waypoint
+        // -------------------------------------------------------
         Entity excludeWaypoint = chosenOption.previousWaypoint;
-
-        // Weighted random from top 3, excluding previous waypoint
         Unity.Mathematics.Random random = new Unity.Mathematics.Random(seed + (uint)index + 1);
 
-        int best1 = -1, best2 = -1, best3 = -1;
-        float score1 = 0f, score2 = 0f, score3 = 0f;
+        int best1 = -1;
+        int best2 = -1;
+        int best3 = -1;
+        float score1 = 0f;
+        float score2 = 0f;
+        float score3 = 0f;
 
         for (int i = 0; i < options.Length; i++)
         {
-            Entity optionWaypoint = options[i].waypoint;
+            Entity optionWaypoint = options[i].interactableEntity;
 
-            // Skip if this is the previous waypoint
+            // Skip if this is the waypoint we just came from
             if (optionWaypoint != Entity.Null && optionWaypoint == excludeWaypoint)
                 continue;
 
-            float s = options[i].score * random.NextFloat(0.9f, 1.1f);
+            // Add slight randomness to score for variety
+            float scoredValue = options[i].score * random.NextFloat(0.9f, 1.1f);
 
-            if (s > score1)
+            if (scoredValue > score1)
             {
-                score3 = score2; best3 = best2;
-                score2 = score1; best2 = best1;
-                score1 = s; best1 = i;
+                score3 = score2;
+                best3 = best2;
+                score2 = score1;
+                best2 = best1;
+                score1 = scoredValue;
+                best1 = i;
             }
-            else if (s > score2)
+            else if (scoredValue > score2)
             {
-                score3 = score2; best3 = best2;
-                score2 = s; best2 = i;
+                score3 = score2;
+                best3 = best2;
+                score2 = scoredValue;
+                best2 = i;
             }
-            else if (s > score3)
+            else if (scoredValue > score3)
             {
-                score3 = s; best3 = i;
+                score3 = scoredValue;
+                best3 = i;
             }
         }
 
-        // If nothing found after filtering, allow any option (edge case)
+        // If nothing survived the exclusion filter, allow any option
         if (best1 < 0)
         {
             for (int i = 0; i < options.Length; i++)
             {
-                float s = options[i].score;
-                if (s > score1)
+                float scoredValue = options[i].score;
+                if (scoredValue > score1)
                 {
-                    score1 = s;
+                    score1 = scoredValue;
                     best1 = i;
                 }
             }
@@ -132,6 +157,7 @@ public partial struct ActionSelectionJob : IJobEntity
             return;
         }
 
+        // Weighted random from the top candidates
         float total = score1 + score2 + score3;
         int chosenIdx = best1;
 
@@ -148,25 +174,27 @@ public partial struct ActionSelectionJob : IJobEntity
 
         ActionOption chosen = options[chosenIdx];
 
+        // -------------------------------------------------------
+        // STEP 6: Commit to the chosen action
+        // -------------------------------------------------------
         selected.previous = selected.current;
         selected.current = chosen.actionType;
 
-        chosenOption.waypoint = chosen.waypoint;
+        chosenOption.waypoint = chosen.interactableEntity;
         chosenOption.actionType = chosen.actionType;
         chosenOption.animation = chosen.animation;
         chosenOption.duration = chosen.duration;
         chosenOption.needModifiers = chosen.needModifiers;
         chosenOption.position = chosen.position;
         chosenOption.interactionRange = chosen.interactionRange;
-        // DON'T touch previousWaypoint here!
 
-        // Lock waypoint actions
-        if (chosen.waypoint != Entity.Null)
+        // Lock onto waypoint actions so the NPC stays committed
+        if (chosen.interactableEntity != Entity.Null)
         {
-            actionLock.lockedAction = chosen.actionType;
-            actionLock.isComplete = false;
-            actionLock.timer = 0f;
-            actionLock.stuckTimer = 0f;
+            selectedAction.lockedAction = chosen.actionType;
+            selectedAction.isComplete = false;
+            selectedAction.timer = 0f;
+            selectedAction.stuckTimer = 0f;
         }
     }
 }

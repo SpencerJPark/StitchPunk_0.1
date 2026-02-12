@@ -4,41 +4,61 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+/// <summary>
+/// Executes the chosen action: moves toward waypoint, performs action on arrival.
+///
+/// When an NPC arrives at a waypoint:
+///   1. Clears all previously active enable components
+///   2. Enables the matching ActiveXxx component for the action type
+///   3. Enables the matching behavior component (ActiveWanderArea, etc.)
+///   4. Downstream systems with [WithAll(typeof(ActiveEat))] only iterate relevant NPCs
+///
+/// When the action completes:
+///   1. Disables all active components
+///   2. Releases occupancy
+///   3. Signals actionLock.isComplete
+///
+/// NOTE: This system uses NativeDisableParallelForRestriction on the enable helper lookups
+/// because each NPC writes to its own entity's components. The occupant buffer writes
+/// target different entities (waypoints) so we keep parallel restriction disabled there too.
+/// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIExecutionSystemGroup))]
 public partial struct AIExecutionSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<UnitMover> unitMoverLookup;
     private ComponentLookup<TargetPositionPathQueued> pathQueuedLookup;
     private BufferLookup<WaypointOccupant> occupantLookup;
+    private ActionEnableHelper actionEnableHelper;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
         pathQueuedLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
         occupantLookup = state.GetBufferLookup<WaypointOccupant>(false);
+        actionEnableHelper = ActionEnableHelper.Create(ref state);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         transformLookup.Update(ref state);
-        unitMoverLookup.Update(ref state);
         pathQueuedLookup.Update(ref state);
         occupantLookup.Update(ref state);
+        actionEnableHelper.UpdateLookups(ref state);
 
         float deltaTime = SystemAPI.Time.DeltaTime;
+        uint timeSeed = (uint)(SystemAPI.Time.ElapsedTime * 1000) + 1;
 
         state.Dependency = new AIExecutionJob
         {
             deltaTime = deltaTime,
+            timeSeed = timeSeed,
             transformLookup = transformLookup,
-            unitMoverLookup = unitMoverLookup,
             pathQueuedLookup = pathQueuedLookup,
-            occupantLookup = occupantLookup
+            occupantLookup = occupantLookup,
+            actionEnableHelper = actionEnableHelper
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -47,58 +67,73 @@ public partial struct AIExecutionSystem : ISystem
 public partial struct AIExecutionJob : IJobEntity
 {
     public float deltaTime;
+    public uint timeSeed;
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<UnitMover> unitMoverLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<TargetPositionPathQueued> pathQueuedLookup;
     [NativeDisableParallelForRestriction] public BufferLookup<WaypointOccupant> occupantLookup;
+    [NativeDisableParallelForRestriction] public ActionEnableHelper actionEnableHelper;
 
     public void Execute(
         ref CurrentInteraction currentInteraction,
         ref Needs needs,
         ref SelectedAction selectedAction,
-        ref ActionLock actionLock,
+        ref ActionLock selectedAction,
         in ChosenActionOption chosenOption,
         in BrainLink brainLink,
-        Entity entity)
+        Entity entity,
+        [EntityIndexInQuery] int index)
     {
         Entity body = brainLink.body;
-
-        if (!unitMoverLookup.HasComponent(body))
-            return;
 
         if (!transformLookup.TryGetComponent(body, out LocalTransform bodyTransform))
             return;
 
         float3 bodyPos = bodyTransform.Position;
 
-        // Idle - stop moving
-        if (selectedAction.current == ActionType.Idle)
+        // -------------------------------------------------------
+        // IDLE (innate, no waypoint): stop moving, clear everything
+        // -------------------------------------------------------
+        if (selectedAction.current == ActionType.Idle && chosenOption.waypoint == Entity.Null)
         {
             if (currentInteraction.target != Entity.Null)
+            {
+                actionEnableHelper.ClearAllActiveActions(entity);
                 currentInteraction = default;
+            }
 
             StopMovement(body, bodyPos);
             return;
         }
 
-        // Wander - handled by WanderSystem, just clear interaction
-        if (selectedAction.current == ActionType.Wander)
+        // -------------------------------------------------------
+        // WANDER (innate, no waypoint): handled by WanderSystem
+        // -------------------------------------------------------
+        if (selectedAction.current == ActionType.Wander && chosenOption.waypoint == Entity.Null)
         {
             if (currentInteraction.target != Entity.Null)
+            {
+                actionEnableHelper.ClearAllActiveActions(entity);
                 currentInteraction = default;
+            }
             return;
         }
 
-        // Waypoint action
+        // -------------------------------------------------------
+        // WAYPOINT ACTION
+        // -------------------------------------------------------
         if (chosenOption.waypoint == Entity.Null)
             return;
 
-        // Check if this is a NEW interaction (target changed)
-        bool isNewTarget = currentInteraction.target != chosenOption.waypoint;
+        // Detect if this is a NEW target
+        bool isNewTarget = currentInteraction.target != chosenOption.waypoint ||
+                           currentInteraction.action != chosenOption.actionType;
 
         if (isNewTarget)
         {
+            // Clear previous action's enable components
+            actionEnableHelper.ClearAllActiveActions(entity);
+
             // Setup new interaction
             currentInteraction.target = chosenOption.waypoint;
             currentInteraction.action = chosenOption.actionType;
@@ -107,28 +142,43 @@ public partial struct AIExecutionJob : IJobEntity
             currentInteraction.interactionRange = chosenOption.interactionRange;
             currentInteraction.needModifiers = chosenOption.needModifiers;
             currentInteraction.isInRange = false;
+            currentInteraction.wanderCenter = chosenOption.position;
+            currentInteraction.wanderSubTarget = chosenOption.position;
+            currentInteraction.wanderSubTargetTimer = 0f;
 
             // Set movement target ONLY when target changes
             SetMovementTarget(body, chosenOption.position);
         }
 
-        // Process current interaction
+        // -------------------------------------------------------
+        // Check distance to approach point
+        // -------------------------------------------------------
         float distSq = math.distancesq(bodyPos, chosenOption.position);
         float rangeSq = currentInteraction.interactionRange * currentInteraction.interactionRange;
 
         if (distSq <= rangeSq)
         {
-            // Arrived
+            // -------------------------------------------------------
+            // ARRIVED: enable components and start performing
+            // -------------------------------------------------------
             if (!currentInteraction.isInRange)
             {
                 currentInteraction.isInRange = true;
-                StopMovement(body, bodyPos);
 
-                // Claim occupancy once
+                // Claim occupancy
                 ClaimOccupancy(chosenOption.waypoint, entity);
-            }
 
-            // Apply needs
+                // Reset stuck timer since we arrived
+                selectedAction.stuckTimer = 0f;
+
+                // ENABLE the action-specific component
+                actionEnableHelper.SetActionEnabled(entity, currentInteraction.action, true);
+
+
+            }
+            
+
+            // Apply need modifiers per second
             ApplyNeedModifiers(ref needs, currentInteraction.needModifiers);
 
             // Countdown
@@ -136,12 +186,52 @@ public partial struct AIExecutionJob : IJobEntity
 
             if (currentInteraction.timeRemaining <= 0f)
             {
+                // ACTION COMPLETE
+
+                // Disable all enable components
+                actionEnableHelper.ClearAllActiveActions(entity);
+
+                // Release occupancy
+                ReleaseOccupancy(chosenOption.waypoint, entity);
+
+                // Clear interaction
                 currentInteraction = default;
-                actionLock.isComplete = true;
+
+                // Signal completion
+                selectedAction.isComplete = true;
             }
         }
-        // Not in range yet - just let movement system handle it
-        // DON'T keep setting target every frame!
+        // NOT in range: movement system handles pathfinding
+        // Do NOT keep setting target every frame
+    }
+
+    private void ExecuteWanderArea(
+        ref CurrentInteraction currentInteraction,
+        Entity body,
+        float3 bodyPos,
+        int index)
+    {
+        currentInteraction.wanderSubTargetTimer -= deltaTime;
+
+        if (currentInteraction.wanderSubTargetTimer <= 0f)
+        {
+            Unity.Mathematics.Random random = new Unity.Mathematics.Random(
+                timeSeed + (uint)index * 7 + (uint)(currentInteraction.timeRemaining * 100));
+
+            float angle = random.NextFloat(0f, math.PI * 2f);
+            float radius = random.NextFloat(0f, currentInteraction.wanderRadius);
+
+            float3 offset = new float3(
+                math.cos(angle) * radius,
+                0f,
+                math.sin(angle) * radius
+            );
+
+            currentInteraction.wanderSubTarget = currentInteraction.wanderCenter + offset;
+            currentInteraction.wanderSubTargetTimer = random.NextFloat(2f, 5f);
+
+            SetMovementTarget(body, currentInteraction.wanderSubTarget);
+        }
     }
 
     private void StopMovement(Entity body, float3 position)
@@ -180,6 +270,21 @@ public partial struct AIExecutionJob : IJobEntity
         }
 
         occupants.Add(new WaypointOccupant { brain = brain });
+    }
+
+    private void ReleaseOccupancy(Entity waypoint, Entity brain)
+    {
+        if (!occupantLookup.TryGetBuffer(waypoint, out DynamicBuffer<WaypointOccupant> occupants))
+            return;
+
+        for (int i = 0; i < occupants.Length; i++)
+        {
+            if (occupants[i].brain == brain)
+            {
+                occupants.RemoveAtSwapBack(i);
+                return;
+            }
+        }
     }
 
     private void ApplyNeedModifiers(ref Needs needs, NeedModifiers mods)

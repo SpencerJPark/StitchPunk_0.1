@@ -1,0 +1,16 @@
+﻿using Unity.Entities;
+using UnityEngine;
+
+public class SocialInteractionAuthoring : MonoBehaviour {
+    
+    public class Baker : Baker<SocialInteractionAuthoring> {
+
+        public override void Bake(SocialInteractionAuthoring authoring) {
+            Entity entity = GetEntity(TransformUsageFlags.Dynamic);
+            AddComponent(entity, new SocialInteraction());
+        }
+    }
+}
+
+public struct SocialInteraction : IComponentData {
+}
