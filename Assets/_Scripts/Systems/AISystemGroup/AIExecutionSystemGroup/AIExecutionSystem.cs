@@ -28,7 +28,7 @@ public partial struct AIExecutionSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<TargetPositionPathQueued> pathQueuedLookup;
-    private BufferLookup<WaypointOccupant> occupantLookup;
+    private BufferLookup<InteractionOccupant> occupantLookup;
     private ActionEnableHelper actionEnableHelper;
 
     [BurstCompile]
@@ -36,7 +36,7 @@ public partial struct AIExecutionSystem : ISystem
     {
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
         pathQueuedLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
-        occupantLookup = state.GetBufferLookup<WaypointOccupant>(false);
+        occupantLookup = state.GetBufferLookup<InteractionOccupant>(false);
         actionEnableHelper = ActionEnableHelper.Create(ref state);
     }
 
@@ -71,7 +71,7 @@ public partial struct AIExecutionJob : IJobEntity
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<TargetPositionPathQueued> pathQueuedLookup;
-    [NativeDisableParallelForRestriction] public BufferLookup<WaypointOccupant> occupantLookup;
+    [NativeDisableParallelForRestriction] public BufferLookup<InteractionOccupant> occupantLookup;
     [NativeDisableParallelForRestriction] public ActionEnableHelper actionEnableHelper;
 
     public void Execute(
@@ -260,7 +260,7 @@ public partial struct AIExecutionJob : IJobEntity
 
     private void ClaimOccupancy(Entity waypoint, Entity brain)
     {
-        if (!occupantLookup.TryGetBuffer(waypoint, out DynamicBuffer<WaypointOccupant> occupants))
+        if (!occupantLookup.TryGetBuffer(waypoint, out DynamicBuffer<InteractionOccupant> occupants))
             return;
 
         for (int i = 0; i < occupants.Length; i++)
@@ -269,12 +269,12 @@ public partial struct AIExecutionJob : IJobEntity
                 return;
         }
 
-        occupants.Add(new WaypointOccupant { brain = brain });
+        occupants.Add(new InteractionOccupant { brain = brain });
     }
 
     private void ReleaseOccupancy(Entity waypoint, Entity brain)
     {
-        if (!occupantLookup.TryGetBuffer(waypoint, out DynamicBuffer<WaypointOccupant> occupants))
+        if (!occupantLookup.TryGetBuffer(waypoint, out DynamicBuffer<InteractionOccupant> occupants))
             return;
 
         for (int i = 0; i < occupants.Length; i++)

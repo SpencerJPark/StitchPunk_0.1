@@ -5,8 +5,6 @@ using Unity.Mathematics;
 
 public class SpatialHashSingletonAuthoring : MonoBehaviour
 {
-    public int initialCapacity = 1000;
-
     public class Baker : Baker<SpatialHashSingletonAuthoring>
     {
         public override void Bake(SpatialHashSingletonAuthoring authoring)

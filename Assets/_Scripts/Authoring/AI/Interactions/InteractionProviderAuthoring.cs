@@ -67,7 +67,7 @@ public class InteractionProviderAuthoring : MonoBehaviour
                 });
             }
 
-            AddBuffer<WaypointOccupant>(entity);
+            AddBuffer<InteractionOccupant>(entity);
         }
     }
 }
@@ -94,7 +94,7 @@ public struct Interaction : IBufferElementData
     public float wanderRadius;
 }
 
-public struct WaypointOccupant : IBufferElementData
+public struct InteractionOccupant : IBufferElementData
 {
     public Entity brain;
 }

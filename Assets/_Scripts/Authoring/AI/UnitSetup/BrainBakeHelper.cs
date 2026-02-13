@@ -27,18 +27,19 @@ public static class BrainBakeHelper
         baker.AddComponent<SelectedAction>(entity);
         baker.AddComponent(entity, new NeedsAction());
         baker.SetComponentEnabled<NeedsAction>(entity, false);
+        baker.AddBuffer<Hurt>(entity);
     }
 
     public static void AddHumanMotivations<T>(Baker<T> baker, Entity entity) where T : UnityEngine.Component
     {
-        baker.AddComponent<Hunger>();
-        baker.AddComponent<Energy>();
-        baker.AddComponent<Fun>();
-        baker.AddComponent<Social>();
-        baker.AddComponent<Comfort>();
-        baker.AddComponent<Bladder>();
-        baker.AddComponent<Safety>();
-        baker.AddComponent<Movement>();
+        baker.AddComponent<Hunger>(entity);
+        baker.AddComponent<Energy>(entity);
+        baker.AddComponent<Fun>(entity);
+        baker.AddComponent<Social>(entity);
+        baker.AddComponent<Comfort>(entity);
+        baker.AddComponent<Bladder>(entity);
+        baker.AddComponent<Safety>(entity);
+        baker.AddComponent<Movement>(entity);
     }
     
     public static void AddRandomMotivations<TAuthoring>(this Baker<TAuthoring> baker, Entity entity, uint seed) 

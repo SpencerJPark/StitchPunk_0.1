@@ -20,6 +20,7 @@ public struct SelectedAction : IComponentData
 {
     public ActionType current;
     public ActionType previous;
+    public bool startedAction;
     public float maxDuration;
     public float timer;
     public float stuckThreshold;
