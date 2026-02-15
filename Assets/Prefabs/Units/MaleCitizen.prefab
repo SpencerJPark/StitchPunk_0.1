@@ -147,26 +147,23 @@ GameObject:
   m_Component:
   - component: {fileID: 7273244649239706813}
   - component: {fileID: 3252298093452205623}
+  - component: {fileID: 123114018271666235}
+  - component: {fileID: 3325866980247311967}
   - component: {fileID: 5496935279846705089}
   - component: {fileID: 8570070412925931212}
+  - component: {fileID: 3475789621352244214}
   - component: {fileID: 4775533024303702}
   - component: {fileID: 757781151266987349}
+  - component: {fileID: 9215831187208810432}
+  - component: {fileID: 3801419847962034913}
   - component: {fileID: 6575585675197493464}
-  - component: {fileID: 123114018271666235}
-  - component: {fileID: 7600598660693931296}
-  - component: {fileID: 2932136529884960369}
-  - component: {fileID: 4978111483820332187}
   - component: {fileID: 8635332958258473507}
   - component: {fileID: 3064184537361583474}
   - component: {fileID: 3023686410222282756}
-  - component: {fileID: 323249702145562905}
   - component: {fileID: 8088709406222128485}
   - component: {fileID: 6142933478762234054}
   - component: {fileID: 711091554357179147}
-  - component: {fileID: 9215831187208810432}
   - component: {fileID: 3004038991711854641}
-  - component: {fileID: 3475789621352244214}
-  - component: {fileID: 3801419847962034913}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -215,6 +212,30 @@ CapsuleCollider:
   m_Height: 1.9388571
   m_Direction: 2
   m_Center: {x: -4.5539287e-18, y: 0.72, z: 0.6660752}
+--- !u!114 &123114018271666235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1901af463982af24580dbc12ae8f5b48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &3325866980247311967
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1bf2f7fcad444f0e9d931b87fe651c36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnitActionAuthoring
 --- !u!114 &5496935279846705089
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -242,6 +263,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fallSpeed: 16
+--- !u!114 &3475789621352244214
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e49addbf14a04b599c33702a3d698625, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnitBaseAnimationsAuthoring
+  idle: 1
+  move: 2
+  attack: 0
+  interact: 0
+  overide: 0
 --- !u!114 &4775533024303702
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -266,6 +304,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &9215831187208810432
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e56f3ff1228dad2489501c6c433aa3df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &3801419847962034913
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
+  brain: {fileID: 5840296948594079509}
 --- !u!114 &6575585675197493464
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -280,59 +343,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   healthAmount: 100
   healthAmountMax: 100
---- !u!114 &123114018271666235
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1901af463982af24580dbc12ae8f5b48, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &7600598660693931296
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8cece596deceae6478bf6e3aac0e4483, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  factionType: 0
---- !u!114 &2932136529884960369
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a46001d03a938b4389164bd39537b27, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  range: 0
-  targetFaction: 0
-  timerMax: 0.2
---- !u!114 &4978111483820332187
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a78eab084d266394797817d45c23e30d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  loseTargetDistance: 20
 --- !u!114 &8635332958258473507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -370,19 +380,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 054e98a8ddfd428438ef48e363abb6f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &323249702145562905
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3d79ef9f3fe8be3438842985c3a6b710, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  unitType: 0
 --- !u!114 &8088709406222128485
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -421,18 +418,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   visualGameObject: {fileID: 400835017738712693}
   showScale: 2
---- !u!114 &9215831187208810432
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e56f3ff1228dad2489501c6c433aa3df, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &3004038991711854641
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -470,36 +455,6 @@ MonoBehaviour:
     animation: 0
     speed: 1
     looping: 1
---- !u!114 &3475789621352244214
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e49addbf14a04b599c33702a3d698625, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitBaseAnimationsAuthoring
-  idle: 1
-  move: 2
-  attack: 0
-  interact: 0
-  overide: 0
---- !u!114 &3801419847962034913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
-  brain: {fileID: 5840296948594079509}
 --- !u!1 &5840296948594079509
 GameObject:
   m_ObjectHideFlags: 0
@@ -558,19 +513,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42b941a8f1a24fa4be4e54bd83f7cf2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CitizenBrainAuthoring
-  wanderRadius: 10
-  maxActionDuration: 30
-  stuckThreshold: 1
-  stuckTime: 3
-  decisionInterval: 0.2
-  hunger: 0.8
-  energy: 0.8
-  entertainment: 0.6
-  social: 0.5
-  comfort: 0.8
-  bladder: 0.9
-  safety: 1
-  movement: 0.5
+  awarenessRange: 20
 --- !u!1001 &4233715775177122149
 PrefabInstance:
   m_ObjectHideFlags: 0

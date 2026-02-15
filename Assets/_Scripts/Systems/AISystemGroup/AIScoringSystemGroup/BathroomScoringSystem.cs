@@ -60,8 +60,8 @@ public partial struct BathroomScoringSystem : ISystem
             float baseScore = bladder.value;
 
             // High value means bladder is fine — no need to search for bathrooms
-            if (baseScore > 50f)
-                return;
+            // if (baseScore > 50f)
+            //     return;
 
             // Invert: low bladder value = high action score
             float actionScore = -baseScore;

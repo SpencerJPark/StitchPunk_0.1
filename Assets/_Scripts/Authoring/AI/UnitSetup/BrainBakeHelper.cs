@@ -26,7 +26,7 @@ public static class BrainBakeHelper
         baker.AddBuffer<ActionOption>(entity);
         baker.AddComponent<SelectedAction>(entity);
         baker.AddComponent(entity, new NeedsAction());
-        baker.SetComponentEnabled<NeedsAction>(entity, false);
+        baker.SetComponentEnabled<NeedsAction>(entity, true);
         baker.AddBuffer<Hurt>(entity);
     }
 
