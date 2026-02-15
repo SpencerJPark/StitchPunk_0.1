@@ -1,27 +1,5 @@
 ﻿using Unity.Entities;
 using UnityEngine;
-// MotivationType
-public enum MotivationType
-{
-    Hunger,
-    Energy,
-    Fun,
-    Social,
-    Comfort,
-    Bladder,
-    Safety,
-    Movement,
-    
-    Bookworm,
-    Work,
-    NightOwl,
-    EarlyBird,
-    Glutton,
-    Grumpy,
-    Depressed,
-    Lazy,
-    Nervous,
-}
 
 // Motivations Range -100 to 100
 public struct Hunger : IComponentData
@@ -55,6 +33,11 @@ public struct Safety : IComponentData
 public struct Movement : IComponentData
 {
     [Range(-100, 100)] public int value;
+}
+
+public struct SelfPreservation : IComponentData
+{
+    public float healthThreshold;
 }
 
 

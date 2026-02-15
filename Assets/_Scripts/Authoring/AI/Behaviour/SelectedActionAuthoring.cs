@@ -16,6 +16,7 @@ public class SelectedActionAuthoring : MonoBehaviour
     }
 }
 
+
 public struct SelectedAction : IComponentData
 {
     public ActionType current;

@@ -12,5 +12,6 @@ public class BathroomInteractionAuthoring : MonoBehaviour {
     }
 }
 
-public struct BathroomInteraction : IComponentData {
+public struct BathroomInteraction : IComponentData
+{
 }

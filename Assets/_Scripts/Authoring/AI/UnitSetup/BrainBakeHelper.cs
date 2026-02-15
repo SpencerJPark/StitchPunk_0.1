@@ -21,7 +21,7 @@ public static class BrainBakeHelper
         public float decisionInterval;
     }
     
-    public static void AddRequirements<T>(Baker<T> baker, Entity entity, ActionLockSettings actionLockSettings) where T : UnityEngine.Component
+    public static void AddRequirements<T>(Baker<T> baker, Entity entity) where T : UnityEngine.Component
     {
         baker.AddBuffer<ActionOption>(entity);
         baker.AddComponent<SelectedAction>(entity);
@@ -40,6 +40,7 @@ public static class BrainBakeHelper
         baker.AddComponent<Bladder>(entity);
         baker.AddComponent<Safety>(entity);
         baker.AddComponent<Movement>(entity);
+        baker.AddComponent<SelfPreservation>(entity);
     }
     
     public static void AddRandomMotivations<TAuthoring>(this Baker<TAuthoring> baker, Entity entity, uint seed) 

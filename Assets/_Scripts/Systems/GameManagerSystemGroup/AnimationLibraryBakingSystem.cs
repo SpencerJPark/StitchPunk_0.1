@@ -17,7 +17,6 @@ public partial struct AnimationLibraryBakingSystem : ISystem
     
     public void OnUpdate(ref SystemState state)
     {
-        // Get the library SO
         AnimationLibrarySO librarySO = null;
         foreach (var reference in SystemAPI.Query<RefRO<AnimationLibraryReference>>())
         {
@@ -27,14 +26,12 @@ public partial struct AnimationLibraryBakingSystem : ISystem
         
         if (librarySO == null) return;
         
-        // Build blob asset
         using var builder = new BlobBuilder(Allocator.Temp);
         ref AnimationLibraryBlob libraryBlob = ref builder.ConstructRoot<AnimationLibraryBlob>();
         
         int clipCount = System.Enum.GetValues(typeof(AnimationType)).Length;
         var clipsBuilder = builder.Allocate(ref libraryBlob.clips, clipCount);
         
-        // Initialize all clips to empty
         for (int i = 0; i < clipCount; i++)
         {
             clipsBuilder[i].animationType = (AnimationType)i;
@@ -42,7 +39,6 @@ public partial struct AnimationLibraryBakingSystem : ISystem
             builder.Allocate(ref clipsBuilder[i].animationTargetTracks, 0);
         }
         
-        // Fill in clips we have data for
         foreach (var clipSO in librarySO.clips)
         {
             if (clipSO == null) continue;
@@ -86,10 +82,17 @@ public partial struct AnimationLibraryBakingSystem : ISystem
             }
         }
         
-        // Assign to holder
+        BlobAssetReference<AnimationLibraryBlob> blobReference = 
+            builder.CreateBlobAssetReference<AnimationLibraryBlob>(Allocator.Persistent);
+
         foreach (var holder in SystemAPI.Query<RefRW<AnimationLibrary>>())
         {
-            holder.ValueRW.library = builder.CreateBlobAssetReference<AnimationLibraryBlob>(Allocator.Persistent);
+            if (holder.ValueRO.library.IsCreated)
+            {
+                holder.ValueRW.library.Dispose();
+            }
+
+            holder.ValueRW.library = blobReference;
         }
     }
     
@@ -105,7 +108,6 @@ public partial struct AnimationLibraryBakingSystem : ISystem
     }
 }
 
-// Also need a baking system to populate CharacterBodyPart buffers
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct CharacterBodyPartBakingSystem : ISystem

@@ -7,6 +7,8 @@ public struct ActionOption : IBufferElementData
     public float score;
 }
 
+
+
 public struct Hurt : IBufferElementData
 {
     public Entity attackerEntity;

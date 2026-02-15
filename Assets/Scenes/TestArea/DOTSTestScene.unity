@@ -607,7 +607,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 88c6602ee14a44cc85409296508b45a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpatialHashSingletonAuthoring
-  initialCapacity: 1000
 --- !u!4 &1292122986
 Transform:
   m_ObjectHideFlags: 0
@@ -879,6 +878,7 @@ GameObject:
   - component: {fileID: 2137215068}
   - component: {fileID: 2137215069}
   - component: {fileID: 2137215070}
+  - component: {fileID: 2137215071}
   m_Layer: 0
   m_Name: Waypoint
   m_TagString: Untagged
@@ -915,22 +915,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WaypointAuthoring
   interactionRange: 1.56
   broadcastRadius: 6.7
-  maxOccupants: 1
-  approachPoint: {fileID: 2137215068}
-  actions:
-  - actionType: 2
-    animation: 2
-    behavior: 0
-    duration: 0.1
-    wanderRadius: 0
-    hunger: 0
-    energy: 0
-    entertainment: 0.1
-    social: 0
-    comfort: 0
-    bladder: 0
-    safety: 0
-    movement: 0.5
 --- !u!114 &2137215070
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -940,14 +924,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 2137215066}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc536509483e439f97b73e1649500a52, type: 3}
+  m_Script: {fileID: 11500000, guid: 5e42dc08e6744f89b01ee1c293d9e7f1, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WaypointDebugAuthoring
-  broadcastColor: {r: 0.3, g: 0.5, b: 1, a: 0.25}
-  interactionColor: {r: 0.3, g: 1, b: 0.3, a: 0.5}
-  approachColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  alwaysShowBroadcast: 0
-  showLabel: 1
+  m_EditorClassIdentifier: Assembly-CSharp::BathroomInteractionAuthoring
+--- !u!114 &2137215071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2137215066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bbc3df969ed4330b3fed20b3a585d3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractionTimerAuthoring
+  interactionRange: 1.5
+  broadcastRadius: 20
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

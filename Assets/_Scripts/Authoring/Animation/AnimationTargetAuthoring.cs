@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 
 public class AnimationTargetAuthoring : MonoBehaviour
 {
-    [FormerlySerializedAs("bodyPart")] public AnimationTarget animationTarget;
+    public AnimationTarget animationTarget;
     public GameObject characterRoot;
     public int baseImageIndex;
     

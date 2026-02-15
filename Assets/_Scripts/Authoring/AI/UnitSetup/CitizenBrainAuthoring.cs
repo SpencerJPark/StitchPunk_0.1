@@ -4,8 +4,7 @@ using UnityEngine;
 
 public class CitizenBrainAuthoring : MonoBehaviour
 {
-    [Header("Action Lock Settings")]
-    public BrainBakeHelper.ActionLockSettings actionLockSettings;
+    public float awarenessRange;
 
     public class Baker : Baker<CitizenBrainAuthoring>
     {
@@ -13,12 +12,23 @@ public class CitizenBrainAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            BrainBakeHelper.AddRequirements(this, entity, authoring.actionLockSettings);
+            AddComponent<CitizenBrain>(entity);
+            AddComponent(entity, new Awareness
+            {
+                range = authoring.awarenessRange
+            });
             
+            BrainBakeHelper.AddRequirements(this, entity);
             BrainBakeHelper.AddHumanMotivations(this, entity);
             BrainBakeHelper.AddRandomMotivations(this, entity, (uint)entity.Index);
         }
     }
 }
 
+
 public struct CitizenBrain : IComponentData { }
+
+public struct Awareness : IComponentData
+{
+    public float range;
+}
