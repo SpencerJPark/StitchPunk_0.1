@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e76d9c91e85c43c3b74a012ba45b544f, type: 3}
+  m_Name: EntertainmentCurve
+  m_EditorClassIdentifier: Assembly-CSharp::AIScoringCurveSO
+  motivationType: 0
+  curve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: -100
+      value: 99.40202
+      inSlope: -1.9353954
+      outSlope: -1.9353954
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.09885135
+    - serializedVersion: 3
+      time: 100
+      value: 99.125275
+      inSlope: 2.0066607
+      outSlope: 2.0066607
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.10061104
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

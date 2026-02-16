@@ -867,6 +867,51 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53af5ed8563681448afa32a424ede525, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &2113325572
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2113325574}
+  - component: {fileID: 2113325573}
+  m_Layer: 0
+  m_Name: ScoringLibrary
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2113325573
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113325572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb82636bb65a47a589d40216e0d92d93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AIScoringLibraryAuthoring
+  library: {fileID: 11400000, guid: 399d586aa60afae4bb6fd83346b780c7, type: 2}
+--- !u!4 &2113325574
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113325572}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.11034, y: 0.29201, z: 4.0141}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2137215066
 GameObject:
   m_ObjectHideFlags: 0
@@ -947,6 +992,7 @@ SceneRoots:
   m_Roots:
   - {fileID: 2004629422}
   - {fileID: 1292122986}
+  - {fileID: 2113325574}
   - {fileID: 506652775}
   - {fileID: 795723640}
   - {fileID: 1794040442}

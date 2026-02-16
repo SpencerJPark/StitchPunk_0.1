@@ -19,6 +19,22 @@ public static class AIUtil
         }
     }
     
+    public static float EvaluateScoringCurve(
+        ref BlobAssetReference<AIScoringLibraryBlob> library,
+        MotivationType motivationType,
+        float needValue)
+    {
+        ref AIScoringLibraryBlob blob = ref library.Value;
+
+        for (int i = 0; i < blob.curves.Length; i++)
+        {
+            if (blob.curves[i].motivationType == motivationType)
+                return blob.curves[i].curve.Evaluate(needValue);
+        }
+
+        return -needValue;
+    }
+    
     public static void QueryNearbyInteractions(
         in NativeParallelMultiHashMap<int2, Entity> waypointCells,
         in ComponentLookup<InteractionProvider> interactionLookup,

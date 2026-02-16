@@ -16,6 +16,7 @@ public partial struct BathroomScoringSystem : ISystem
     {
         state.RequireForUpdate<BathroomInteraction>();
         state.RequireForUpdate<SpatialHashSingleton>();
+        state.RequireForUpdate<ScoringLibrary>();
 
         bathroomInteractionLookup = state.GetComponentLookup<BathroomInteraction>(true);
         interactionLookup = state.GetComponentLookup<InteractionProvider>(true);
@@ -30,6 +31,7 @@ public partial struct BathroomScoringSystem : ISystem
         transformLookup.Update(ref state);
 
         SpatialHashSingleton spatialHash = SystemAPI.GetSingleton<SpatialHashSingleton>();
+        ScoringLibrary scoringLibrary = SystemAPI.GetSingleton<ScoringLibrary>();
 
         new BathroomScoringJob
         {
@@ -37,7 +39,8 @@ public partial struct BathroomScoringSystem : ISystem
             interactionLookup = interactionLookup,
             transformLookup = transformLookup,
             waypointCells = spatialHash.waypointCells,
-            cellSize = SpatialHashSystem.CELL_SIZE
+            cellSize = SpatialHashSystem.CELL_SIZE,
+            scoringLibrary = scoringLibrary.library
         }.ScheduleParallel();
     }
 
@@ -48,6 +51,7 @@ public partial struct BathroomScoringSystem : ISystem
         [ReadOnly] public ComponentLookup<InteractionProvider> interactionLookup;
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
         [ReadOnly] public NativeParallelMultiHashMap<int2, Entity> waypointCells;
+        [ReadOnly] public BlobAssetReference<AIScoringLibraryBlob> scoringLibrary;
         public float cellSize;
 
         public void Execute(
@@ -57,15 +61,6 @@ public partial struct BathroomScoringSystem : ISystem
             in LocalTransform transform,
             EnabledRefRO<NeedsAction> needsAction)
         {
-            float baseScore = bladder.value;
-
-            // High value means bladder is fine — no need to search for bathrooms
-            // if (baseScore > 50f)
-            //     return;
-
-            // Invert: low bladder value = high action score
-            float actionScore = -baseScore;
-
             float3 pos = transform.Position;
 
             NativeList<Entity> nearby = new NativeList<Entity>(8, Allocator.Temp);
@@ -78,7 +73,7 @@ public partial struct BathroomScoringSystem : ISystem
                 cellSize,
                 ref nearby);
 
-            FindBestBathroom(in nearby, pos, actionScore, out Entity bestTarget, out float bestScore);
+            FindBestBathroom(in nearby, pos, bladder.value, out Entity bestTarget, out float bestScore);
 
             nearby.Dispose();
 
@@ -88,7 +83,7 @@ public partial struct BathroomScoringSystem : ISystem
         private void FindBestBathroom(
             in NativeList<Entity> nearby,
             float3 pos,
-            float baseScore,
+            float needValue,
             out Entity bestTarget,
             out float bestScore)
         {
@@ -101,11 +96,11 @@ public partial struct BathroomScoringSystem : ISystem
 
                 if (!bathroomInteractionLookup.HasComponent(candidate))
                     continue;
-                
+
                 if (!interactionLookup.IsComponentEnabled(candidate))
                     continue;
 
-                float score = ScoreCandidate(candidate, pos, baseScore);
+                float score = ScoreCandidate(candidate, pos, needValue);
 
                 if (score > bestScore)
                 {
@@ -115,13 +110,17 @@ public partial struct BathroomScoringSystem : ISystem
             }
         }
 
-        private float ScoreCandidate(Entity candidate, float3 pos, float baseScore)
+        private float ScoreCandidate(Entity candidate, float3 pos, float needValue)
         {
-            InteractionProvider interactionProvider = interactionLookup[candidate];
+            InteractionProvider provider = interactionLookup[candidate];
             float3 targetPos = transformLookup[candidate].Position;
             float distance = math.distance(pos, targetPos);
 
-            float distanceBonus = math.remap(0f, interactionProvider.broadcastRadius, 10f, 0f, distance);
+            float baseScore = AIUtil.EvaluateScoringCurve(
+                ref scoringLibrary, MotivationType.Bladder, needValue);
+
+            float distanceBonus = math.remap(0f, provider.broadcastRadius, 10f, 0f, distance);
+
             return math.clamp(baseScore + distanceBonus, -100f, 100f);
         }
     }
