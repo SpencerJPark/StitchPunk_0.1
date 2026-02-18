@@ -296,7 +296,7 @@ public partial struct TargetPositionPathQueuedJob : IJobEntity
             Filter = new CollisionFilter
             {
                 BelongsTo    = ~0u,
-                CollidesWith = 1u << GameAssets.WALLS_LAYER,
+                CollidesWith = 1u << GlobalGameData.WALLS_LAYER,
                 GroupIndex   = 0
             }
         };
@@ -359,7 +359,7 @@ public partial struct TestCanMoveStraightJob : IJobEntity
             Filter = new CollisionFilter
             {
                 BelongsTo    = ~0u,
-                CollidesWith = 1u << GameAssets.WALLS_LAYER,
+                CollidesWith = 1u << GlobalGameData.WALLS_LAYER,
                 GroupIndex   = 0
             }
         };

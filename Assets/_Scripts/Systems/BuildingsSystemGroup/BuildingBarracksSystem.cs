@@ -50,7 +50,7 @@ partial struct BuildingBarracksSystem : ISystem {
                 buildingBarracks.ValueRW.activeUnitType = spawnUnitTypeDynamicBuffer[0].unitType;
 
                 UnitTypeSO activeUnitTypeSO = 
-                    GameAssets.Instance.unitTypeListSO.GetUnitTypeSO(buildingBarracks.ValueRO.activeUnitType);
+                    GlobalGameData.Instance.unitTypeListSO.GetUnitTypeSO(buildingBarracks.ValueRO.activeUnitType);
 
                 buildingBarracks.ValueRW.progressMax = activeUnitTypeSO.progressMax;
             }
@@ -64,7 +64,7 @@ partial struct BuildingBarracksSystem : ISystem {
             buildingBarracks.ValueRW.progress = 0f;
 
             UnitTypeSO.UnitType unitType = spawnUnitTypeDynamicBuffer[0].unitType;
-            UnitTypeSO unitTypeSO = GameAssets.Instance.unitTypeListSO.GetUnitTypeSO(unitType);
+            UnitTypeSO unitTypeSO = GlobalGameData.Instance.unitTypeListSO.GetUnitTypeSO(unitType);
 
             spawnUnitTypeDynamicBuffer.RemoveAt(0);
             buildingBarracks.ValueRW.onUnitQueueChanged = true;

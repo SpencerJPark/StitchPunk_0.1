@@ -33,7 +33,7 @@ public partial struct AnimationSamplingSystem : ISystem
     
     public void OnUpdate(ref SystemState state)
     {
-        int frameRate = GameAssets.Instance != null ? GameAssets.Instance.animationFrameRate : 24;
+        int frameRate = GlobalGameData.Instance != null ? GlobalGameData.Instance.animationFrameRate : 24;
         
         accumulatedTime += SystemAPI.Time.DeltaTime;
         int currentFrame = (int)(accumulatedTime * frameRate);

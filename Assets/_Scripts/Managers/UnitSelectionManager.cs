@@ -125,7 +125,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
     #region Event Handlers
     private void BuildingPlacementManager_OnActiveBuildingTypeSOChanged(object sender, EventArgs e)
     {
-        if (BuildingPlacementManager.Instance.GetActiveBuildingTypeSO() != GameAssets.Instance.buildingTypeListSO.none)
+        if (BuildingPlacementManager.Instance.GetActiveBuildingTypeSO() != GlobalGameData.Instance.buildingTypeListSO.none)
         {
             // Selected some building
             DeselectAllUnits();
@@ -331,7 +331,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
             Filter = new CollisionFilter
             {
                 BelongsTo = ~0u,
-                CollidesWith = (1u << GameAssets.UNITS_LAYER) | (1u << GameAssets.STRUCTURES_LAYER),
+                CollidesWith = (1u << GlobalGameData.UNITS_LAYER) | (1u << GlobalGameData.STRUCTURES_LAYER),
                 GroupIndex = 0,
             }
         };
@@ -415,7 +415,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
             Filter = new CollisionFilter
             {
                 BelongsTo = ~0u,
-                CollidesWith = (1u << GameAssets.UNITS_LAYER) | (1u << GameAssets.STRUCTURES_LAYER),
+                CollidesWith = (1u << GlobalGameData.UNITS_LAYER) | (1u << GlobalGameData.STRUCTURES_LAYER),
                 GroupIndex = 0,
             }
         };

@@ -35,7 +35,7 @@ public class BuildingPlacementManager : Singleton<BuildingPlacementManager>, IUp
         }
 
         if (Input.GetMouseButtonDown(1)) {
-            SetActiveBuildingTypeSO(GameAssets.Instance.buildingTypeListSO.none);
+            SetActiveBuildingTypeSO(GlobalGameData.Instance.buildingTypeListSO.none);
         }
 
         if (Input.GetMouseButtonDown(0)) {
@@ -89,7 +89,7 @@ public class BuildingPlacementManager : Singleton<BuildingPlacementManager>, IUp
         CollisionWorld collisionWorld = physicsWorldSingleton.CollisionWorld;
         CollisionFilter collisionFilter = new CollisionFilter {
             BelongsTo = ~0u,
-            CollidesWith = 1u << GameAssets.STRUCTURES_LAYER | 1u << GameAssets.DEFAULT_LAYER,
+            CollidesWith = 1u << GlobalGameData.STRUCTURES_LAYER | 1u << GlobalGameData.DEFAULT_LAYER,
             GroupIndex = 0,
         };
 

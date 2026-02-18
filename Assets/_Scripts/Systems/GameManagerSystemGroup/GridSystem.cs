@@ -196,12 +196,12 @@ public partial struct GridSystem : ISystem {
                 gridNodeComponentLookup = gridNodeComponentLookup,
                 collisionFilterHeavy = new CollisionFilter {
                     BelongsTo = ~0u,
-                    CollidesWith = 1u << GameAssets.PATHFINDING_HEAVY_LAYER,
+                    CollidesWith = 1u << GlobalGameData.PATHFINDING_HEAVY_LAYER,
                     GroupIndex = 0
                 },
                 collisionFilterWall = new CollisionFilter {
                     BelongsTo = ~0u,
-                    CollidesWith = 1u << GameAssets.WALLS_LAYER,
+                    CollidesWith = 1u << GlobalGameData.WALLS_LAYER,
                     GroupIndex = 0
                 }
             };

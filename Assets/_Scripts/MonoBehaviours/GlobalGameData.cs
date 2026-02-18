@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class GameAssets : MonoBehaviour
+public class GlobalGameData : MonoBehaviour
 {
     public const int DEFAULT_LAYER = 0;
     public const int GROUND_LAYER = 3;
@@ -14,7 +14,7 @@ public class GameAssets : MonoBehaviour
 
     public const int SCORING_CURVE_RESOLUTION = 32;
 
-    public static GameAssets Instance { get; private set; }
+    public static GlobalGameData Instance { get; private set; }
 
     private void Awake()
     {

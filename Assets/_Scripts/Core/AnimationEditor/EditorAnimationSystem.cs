@@ -43,7 +43,7 @@ public partial struct EditorAnimationSystem : ISystem
             var timeControl = SystemAPI.GetSingleton<EditorAnimationTimeControl>();
             float dt = SystemAPI.Time.DeltaTime;
             
-            int frameRate = GameAssets.Instance != null ? GameAssets.Instance.animationFrameRate : 24;
+            int frameRate = GlobalGameData.Instance != null ? GlobalGameData.Instance.animationFrameRate : 24;
             
             // Frame rate limiting
             accumulatedTime += dt;

@@ -50,7 +50,7 @@ partial struct OutlineLayerUpdateSystem : ISystem
             {
                 RenderFilterSettings renderFilterSettings = entityManager.GetSharedComponentManaged<RenderFilterSettings>(entity);
                 
-                byte targetLayer = isEnabled ? (byte)GameAssets.OUTLINE_LAYER : (byte)GameAssets.DEFAULT_LAYER;
+                byte targetLayer = isEnabled ? (byte)GlobalGameData.OUTLINE_LAYER : (byte)GlobalGameData.DEFAULT_LAYER;
                 
                 // Only update if layer changed
                 if (renderFilterSettings.Layer != targetLayer)
