@@ -9,7 +9,7 @@ using Unity.Transforms;
 public partial struct BathroomScoringSystem : ISystem
 {
     private const MotivationType BATHROOM_MOTIVATION = MotivationType.Bladder;
-    
+
     private ComponentLookup<BathroomInteraction> bathroomInteractionLookup;
     private ComponentLookup<InteractionProvider> interactionProviderLookup;
     private ComponentLookup<LocalTransform> transformLookup;
@@ -35,7 +35,7 @@ public partial struct BathroomScoringSystem : ISystem
         SpatialHashSingleton spatialHash = SystemAPI.GetSingleton<SpatialHashSingleton>();
         ScoringLibrary scoringLibrary = SystemAPI.GetSingleton<ScoringLibrary>();
 
-        new BathroomScoringJob
+        state.Dependency = new BathroomScoringJob
         {
             bathroomInteractionLookup = bathroomInteractionLookup,
             interactionProviderLookup = interactionProviderLookup,
@@ -43,7 +43,7 @@ public partial struct BathroomScoringSystem : ISystem
             waypointCells = spatialHash.waypointCells,
             cellSize = SpatialHashSystem.CELL_SIZE,
             scoringLibrary = scoringLibrary.library
-        }.ScheduleParallel();
+        }.ScheduleParallel(state.Dependency);
     }
 
     [BurstCompile]
@@ -67,31 +67,11 @@ public partial struct BathroomScoringSystem : ISystem
 
             NativeList<Entity> nearby = new NativeList<Entity>(8, Allocator.Temp);
             AIUtil.QueryNearbyInteractions(
-                in waypointCells,
-                in interactionProviderLookup,
-                in transformLookup,
-                pos,
-                awareness.range,
-                cellSize,
-                ref nearby);
+                in waypointCells, in interactionProviderLookup, in transformLookup,
+                pos, awareness.range, cellSize, ref nearby);
 
-            FindBestBathroom(in nearby, pos, bladder.value, awareness.range, out Entity bestTarget, out float bestScore);
-
-            nearby.Dispose();
-
-            AIUtil.AddActionOption(ref options, ref bestTarget, bestScore);
-        }
-
-        private void FindBestBathroom(
-            in NativeList<Entity> nearby,
-            float3 pos,
-            float needValue,
-            float awarenessRange,
-            out Entity bestTarget,
-            out float bestScore)
-        {
-            bestScore = float.MinValue;
-            bestTarget = Entity.Null;
+            float bestScore = float.MinValue;
+            Entity bestTarget = Entity.Null;
 
             for (int i = 0; i < nearby.Length; i++)
             {
@@ -103,7 +83,8 @@ public partial struct BathroomScoringSystem : ISystem
                 if (!interactionProviderLookup.IsComponentEnabled(candidate))
                     continue;
 
-                float score = ScoreCandidate(candidate, pos, needValue, awarenessRange);
+                float score = AIUtil.ScoreInteraction(candidate, pos, bladder.value,
+                    awareness.range, BATHROOM_MOTIVATION, ref scoringLibrary, ref transformLookup);
 
                 if (score > bestScore)
                 {
@@ -111,19 +92,10 @@ public partial struct BathroomScoringSystem : ISystem
                     bestTarget = candidate;
                 }
             }
-        }
 
-        private float ScoreCandidate(Entity candidate, float3 pos, float needValue, float awarenessRange)
-        {
-            float3 targetPos = transformLookup[candidate].Position;
-            float distance = math.distance(pos, targetPos);
+            nearby.Dispose();
 
-            float baseScore = AIUtil.EvaluateScoringCurve(
-                ref scoringLibrary, BATHROOM_MOTIVATION, needValue);
-
-            float distanceBonus = math.remap(0f, awarenessRange, 10f, 0f, distance);
-
-            return math.clamp(baseScore + distanceBonus, -100f, 100f);
+            AIUtil.AddActionOption(ref options, ref bestTarget, bestScore);
         }
     }
 }

@@ -13,6 +13,7 @@ public partial struct BathroomExecutionSystem : ISystem
     private ComponentLookup<BrainLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<Bladder> bladderLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -24,6 +25,7 @@ public partial struct BathroomExecutionSystem : ISystem
         brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        bladderLookup = state.GetComponentLookup<Bladder>(false);
     }
 
     [BurstCompile]
@@ -34,6 +36,7 @@ public partial struct BathroomExecutionSystem : ISystem
         brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
         transformLookup.Update(ref state);
+        bladderLookup.Update(ref state);
 
         float deltaTime = SystemAPI.Time.DeltaTime;
 
@@ -57,11 +60,12 @@ public partial struct BathroomExecutionSystem : ISystem
             needsActionLookup = needsActionLookup,
             unitActionLookup = unitActionLookup,
             brainLinkLookup = brainLinkLookup,
+            bladderLookup = bladderLookup
         }.Schedule(state.Dependency);
     }
 
     // -------------------------------------------------------
-    // ASSIGNMENT — pick a winner, reject losers, send winner walking
+    // ASSIGNMENT — select top N winners, reject the rest, send winners walking
     // -------------------------------------------------------
     [BurstCompile]
     public partial struct BathroomAssignmentJob : IJobEntity
@@ -81,71 +85,11 @@ public partial struct BathroomExecutionSystem : ISystem
             if (occupants.Length == 0)
                 return;
 
-            int winnerIndex = FindHighestScorer(in occupants);
-            Entity winnerBrain = occupants[winnerIndex].entity;
-
-            RejectLosers(in occupants, winnerIndex);
-            AssignWinner(winnerBrain, interactionTransform.Position, interaction.actionType);
+            AIUtil.SelectWinners(occupants, interaction.maxOccupants, ref needsActionLookup);
+            AIUtil.AssignWinners(in occupants, interactionTransform.Position, interaction.actionType,
+                ref brainLinkLookup, ref targetPositionLookup, ref unitActionLookup);
 
             interactionProviderEnabled.ValueRW = false;
-
-            InteractionOccupant winner = occupants[winnerIndex];
-            occupants.Clear();
-            occupants.Add(winner);
-        }
-
-        private static int FindHighestScorer(in DynamicBuffer<InteractionOccupant> occupants)
-        {
-            int winnerIndex = 0;
-            float highestScore = occupants[0].score;
-
-            for (int i = 1; i < occupants.Length; i++)
-            {
-                if (occupants[i].score > highestScore)
-                {
-                    highestScore = occupants[i].score;
-                    winnerIndex = i;
-                }
-            }
-
-            return winnerIndex;
-        }
-
-        private void RejectLosers(in DynamicBuffer<InteractionOccupant> occupants, int winnerIndex)
-        {
-            for (int i = 0; i < occupants.Length; i++)
-            {
-                if (i == winnerIndex)
-                    continue;
-
-                Entity loserBrain = occupants[i].entity;
-                needsActionLookup.SetComponentEnabled(loserBrain, true);
-            }
-        }
-
-        private void AssignWinner(Entity brainEntity, float3 interactionPosition, ActionType actionType)
-        {
-            if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
-                return;
-
-            Entity body = brainLink.body;
-
-            if (!targetPositionLookup.HasComponent(body))
-                return;
-
-            if (!unitActionLookup.HasComponent(body))
-                return;
-
-            targetPositionLookup[body] = new TargetPositionPathQueued
-            {
-                targetPosition = interactionPosition
-            };
-            targetPositionLookup.SetComponentEnabled(body, true);
-
-            unitActionLookup[body] = new UnitAction
-            {
-                current = actionType
-            };
         }
     }
 
@@ -168,30 +112,18 @@ public partial struct BathroomExecutionSystem : ISystem
             ref InteractionTimer timer,
             EnabledRefRW<InteractionTimer> timerEnabled)
         {
-            if (occupants.Length == 0)
-                return;
-
-            Entity brainEntity = occupants[0].entity;
-
-            if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
-                return;
-
-            if (!transformLookup.TryGetComponent(brainLink.body, out LocalTransform bodyTransform))
-                return;
-
-            float distSq = math.distancesq(bodyTransform.Position, interactionTransform.Position);
-            float rangeSq = interaction.interactionRange * interaction.interactionRange;
-
-            if (distSq > rangeSq)
-                return;
-
-            timer.elapsed = 0f;
-            timerEnabled.ValueRW = true;
+            if (AIUtil.CheckArrival(in occupants, in interactionTransform, interaction.interactionRange,
+                    ref brainLinkLookup, ref transformLookup))
+            {
+                timer.elapsed = 0f;
+                timer.duration = timer.maxTime;
+                timerEnabled.ValueRW = true;
+            }
         }
     }
 
     // -------------------------------------------------------
-    // COMPLETION — tick timer, release NPC when done, restore bladder
+    // COMPLETION — tick timer, release NPCs when done, restore bladder
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionProvider))]
@@ -201,6 +133,7 @@ public partial struct BathroomExecutionSystem : ISystem
         public ComponentLookup<NeedsAction> needsActionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        public ComponentLookup<Bladder> bladderLookup;
 
         public void Execute(
             in BathroomInteraction bathroomInteraction,
@@ -218,21 +151,13 @@ public partial struct BathroomExecutionSystem : ISystem
             {
                 Entity brainEntity = occupants[i].entity;
 
-                if (brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+                if (bladderLookup.HasComponent(brainEntity))
                 {
-                    if (unitActionLookup.HasComponent(brainLink.body))
-                    {
-                        unitActionLookup[brainLink.body] = new UnitAction
-                        {
-                            current = ActionType.None
-                        };
-                    }
+                    bladderLookup[brainEntity] = new Bladder { value = 100 };
                 }
-
-                needsActionLookup.SetComponentEnabled(brainEntity, true);
             }
 
-            occupants.Clear();
+            AIUtil.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup);
 
             timer.elapsed = 0f;
             timerEnabled.ValueRW = false;
