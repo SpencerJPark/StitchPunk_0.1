@@ -8,69 +8,56 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(AIExecutionSystemGroup))]
 public partial struct BathroomExecutionSystem : ISystem
 {
-    private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<TargetPositionPathQueued> targetPositionLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
     private ComponentLookup<BrainLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
-    private ComponentLookup<InteractionProvider> interactionProviderLookup;
-    private BufferLookup<InteractionOccupant> occupantBufferLookup;
+    private ComponentLookup<LocalTransform> transformLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<BathroomInteraction>();
 
-        transformLookup = state.GetComponentLookup<LocalTransform>(true);
         targetPositionLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
         brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
-        interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(false);
-        occupantBufferLookup = state.GetBufferLookup<InteractionOccupant>(false);
+        transformLookup = state.GetComponentLookup<LocalTransform>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        transformLookup.Update(ref state);
         targetPositionLookup.Update(ref state);
         unitActionLookup.Update(ref state);
         brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
-        interactionProviderLookup.Update(ref state);
-        occupantBufferLookup.Update(ref state);
+        transformLookup.Update(ref state);
 
         float deltaTime = SystemAPI.Time.DeltaTime;
 
-        new BathroomAssignmentJob
+        state.Dependency = new BathroomAssignmentJob
         {
-            transformLookup = transformLookup,
             targetPositionLookup = targetPositionLookup,
             unitActionLookup = unitActionLookup,
             brainLinkLookup = brainLinkLookup,
-            needsActionLookup = needsActionLookup,
-            interactionProviderLookup = interactionProviderLookup,
-            occupantBufferLookup = occupantBufferLookup
-        }.Schedule();
+            needsActionLookup = needsActionLookup
+        }.Schedule(state.Dependency);
 
-        new BathroomArrivalJob
+        state.Dependency = new BathroomArrivalJob
         {
             transformLookup = transformLookup,
-            brainLinkLookup = brainLinkLookup,
-            interactionProviderLookup = interactionProviderLookup,
-            occupantBufferLookup = occupantBufferLookup
-        }.Schedule();
+            brainLinkLookup = brainLinkLookup
+        }.Schedule(state.Dependency);
 
-        new BathroomCompletionJob
+        state.Dependency = new BathroomCompletionJob
         {
             deltaTime = deltaTime,
             needsActionLookup = needsActionLookup,
             unitActionLookup = unitActionLookup,
             brainLinkLookup = brainLinkLookup,
-            interactionProviderLookup = interactionProviderLookup,
-            occupantBufferLookup = occupantBufferLookup
-        }.Schedule();
+        }.Schedule(state.Dependency);
     }
 
     // -------------------------------------------------------
@@ -79,25 +66,18 @@ public partial struct BathroomExecutionSystem : ISystem
     [BurstCompile]
     public partial struct BathroomAssignmentJob : IJobEntity
     {
-        [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
         public ComponentLookup<TargetPositionPathQueued> targetPositionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
         public ComponentLookup<NeedsAction> needsActionLookup;
-        public ComponentLookup<InteractionProvider> interactionProviderLookup;
-        public BufferLookup<InteractionOccupant> occupantBufferLookup;
 
         public void Execute(
-            Entity interactionEntity,
             in BathroomInteraction bathroomInteraction,
-            in LocalTransform interactionTransform)
+            in Interaction interaction,
+            in LocalTransform interactionTransform,
+            DynamicBuffer<InteractionOccupant> occupants,
+            EnabledRefRW<InteractionProvider> interactionProviderEnabled)
         {
-            if (!interactionProviderLookup.IsComponentEnabled(interactionEntity))
-                return;
-
-            if (!occupantBufferLookup.TryGetBuffer(interactionEntity, out DynamicBuffer<InteractionOccupant> occupants))
-                return;
-
             if (occupants.Length == 0)
                 return;
 
@@ -105,9 +85,9 @@ public partial struct BathroomExecutionSystem : ISystem
             Entity winnerBrain = occupants[winnerIndex].entity;
 
             RejectLosers(in occupants, winnerIndex);
-            AssignWinner(winnerBrain, interactionTransform.Position);
+            AssignWinner(winnerBrain, interactionTransform.Position, interaction.actionType);
 
-            interactionProviderLookup.SetComponentEnabled(interactionEntity, false);
+            interactionProviderEnabled.ValueRW = false;
 
             InteractionOccupant winner = occupants[winnerIndex];
             occupants.Clear();
@@ -143,12 +123,18 @@ public partial struct BathroomExecutionSystem : ISystem
             }
         }
 
-        private void AssignWinner(Entity brainEntity, float3 interactionPosition)
+        private void AssignWinner(Entity brainEntity, float3 interactionPosition, ActionType actionType)
         {
             if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
                 return;
 
             Entity body = brainLink.body;
+
+            if (!targetPositionLookup.HasComponent(body))
+                return;
+
+            if (!unitActionLookup.HasComponent(body))
+                return;
 
             targetPositionLookup[body] = new TargetPositionPathQueued
             {
@@ -158,7 +144,7 @@ public partial struct BathroomExecutionSystem : ISystem
 
             unitActionLookup[body] = new UnitAction
             {
-                current = ActionType.UseBathroom
+                current = actionType
             };
         }
     }
@@ -168,29 +154,20 @@ public partial struct BathroomExecutionSystem : ISystem
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionTimer))]
+    [WithDisabled(typeof(InteractionProvider))]
     public partial struct BathroomArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
-        [ReadOnly] public ComponentLookup<InteractionProvider> interactionProviderLookup;
-        [ReadOnly] public BufferLookup<InteractionOccupant> occupantBufferLookup;
 
         public void Execute(
-            Entity interactionEntity,
             in BathroomInteraction bathroomInteraction,
+            in Interaction interaction,
             in LocalTransform interactionTransform,
+            in DynamicBuffer<InteractionOccupant> occupants,
             ref InteractionTimer timer,
             EnabledRefRW<InteractionTimer> timerEnabled)
         {
-            if (interactionProviderLookup.IsComponentEnabled(interactionEntity))
-                return;
-
-            if (!interactionProviderLookup.TryGetComponent(interactionEntity, out InteractionProvider interaction))
-                return;
-
-            if (!occupantBufferLookup.TryGetBuffer(interactionEntity, out DynamicBuffer<InteractionOccupant> occupants))
-                return;
-
             if (occupants.Length == 0)
                 return;
 
@@ -214,55 +191,52 @@ public partial struct BathroomExecutionSystem : ISystem
     }
 
     // -------------------------------------------------------
-    // COMPLETION — tick timer, release NPC when done
+    // COMPLETION — tick timer, release NPC when done, restore bladder
     // -------------------------------------------------------
     [BurstCompile]
+    [WithDisabled(typeof(InteractionProvider))]
     public partial struct BathroomCompletionJob : IJobEntity
     {
         public float deltaTime;
         public ComponentLookup<NeedsAction> needsActionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
-        public ComponentLookup<InteractionProvider> interactionProviderLookup;
-        public BufferLookup<InteractionOccupant> occupantBufferLookup;
 
         public void Execute(
-            Entity interactionEntity,
             in BathroomInteraction bathroomInteraction,
+            DynamicBuffer<InteractionOccupant> occupants,
             ref InteractionTimer timer,
-            EnabledRefRW<InteractionTimer> timerEnabled)
+            EnabledRefRW<InteractionTimer> timerEnabled,
+            EnabledRefRW<InteractionProvider> interactionProviderEnabled)
         {
-            if (interactionProviderLookup.IsComponentEnabled(interactionEntity))
-                return;
-
             timer.elapsed += deltaTime;
 
             if (timer.elapsed < timer.duration)
                 return;
 
-            if (occupantBufferLookup.TryGetBuffer(interactionEntity, out DynamicBuffer<InteractionOccupant> occupants))
+            for (int i = 0; i < occupants.Length; i++)
             {
-                for (int i = 0; i < occupants.Length; i++)
-                {
-                    Entity brainEntity = occupants[i].entity;
+                Entity brainEntity = occupants[i].entity;
 
-                    if (brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+                if (brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+                {
+                    if (unitActionLookup.HasComponent(brainLink.body))
                     {
                         unitActionLookup[brainLink.body] = new UnitAction
                         {
                             current = ActionType.None
                         };
                     }
-
-                    needsActionLookup.SetComponentEnabled(brainEntity, true);
                 }
 
-                occupants.Clear();
+                needsActionLookup.SetComponentEnabled(brainEntity, true);
             }
+
+            occupants.Clear();
 
             timer.elapsed = 0f;
             timerEnabled.ValueRW = false;
-            interactionProviderLookup.SetComponentEnabled(interactionEntity, true);
+            interactionProviderEnabled.ValueRW = true;
         }
     }
 }

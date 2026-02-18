@@ -1,28 +1,28 @@
-﻿using System.Collections.Generic;
-using Unity.Entities;
-using Unity.Mathematics;
+﻿using Unity.Entities;
 using UnityEngine;
 
-public class InteractionProviderAuthoring : MonoBehaviour
+public class InteractionAuthoring : MonoBehaviour
 {
-    [Header("Waypoint Settings")]
+    [Header("Interaction Settings")]
     [Tooltip("How close the NPC must be to start the action")]
     public float interactionRange = 1.5f;
-
-    [Tooltip("How far away NPCs can detect this waypoint (used by spatial hash query)")]
-    public float broadcastRadius = 20f;
     
-    public class Baker : Baker<InteractionProviderAuthoring>
+    [Tooltip("Interaction ActionEnum for when performed")]
+    public ActionType actionType = ActionType.Interact;
+
+    public class Baker : Baker<InteractionAuthoring>
     {
-        public override void Bake(InteractionProviderAuthoring authoring)
+        public override void Bake(InteractionAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-
-            AddComponent(entity, new InteractionProvider
+            
+            AddComponent(entity, new Interaction
             {
                 interactionRange = authoring.interactionRange,
-                broadcastRadius = authoring.broadcastRadius,
+                actionType = authoring.actionType,
             });
+
+            AddComponent(entity, new InteractionProvider());
             SetComponentEnabled<InteractionProvider>(entity, true);
 
             AddBuffer<InteractionOccupant>(entity);
@@ -32,8 +32,12 @@ public class InteractionProviderAuthoring : MonoBehaviour
 
 public struct InteractionProvider : IComponentData, IEnableableComponent
 {
+}
+
+public struct Interaction : IComponentData
+{
     public float interactionRange;
-    public float broadcastRadius;
+    public ActionType actionType;
 }
 
 public struct InteractionOccupant : IBufferElementData

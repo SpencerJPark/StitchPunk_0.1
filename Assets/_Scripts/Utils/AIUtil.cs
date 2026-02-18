@@ -62,7 +62,7 @@ public static class AIUtil
 
                 do
                 {
-                    if (!interactionLookup.TryGetComponent(candidate, out InteractionProvider interaction))
+                    if (!interactionLookup.HasComponent(candidate))
                         continue;
 
                     if (!transformLookup.TryGetComponent(candidate, out LocalTransform targetTransform))
@@ -70,7 +70,7 @@ public static class AIUtil
 
                     float distSq = math.distancesq(position, targetTransform.Position);
 
-                    if (distSq > rangeSq || distSq > interaction.broadcastRadius * interaction.broadcastRadius)
+                    if (distSq > rangeSq)
                         continue;
 
                     results.Add(candidate);

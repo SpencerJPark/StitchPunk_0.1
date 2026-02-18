@@ -76,7 +76,6 @@ partial struct ResetEventsSystem : ISystem
 
         DOTSEventsManager.Instance?.TriggerOnHealthDead(onHealthDeadEntityList);
     }
-
 }
 
 
@@ -111,41 +110,34 @@ public partial struct ResetHealthEventsJob : IJobEntity {
         health.onHealthChanged = false;
         health.onDead = false;
     }
-
 }
 
 
 [BurstCompile]
 [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
 public partial struct ResetSelectedEventsJob : IJobEntity {
-
-
+    
     public void Execute(ref Selected selected) {
         selected.onSelected = false;
         selected.onDeselected = false;
     }
-
 }
 
 
 [BurstCompile]
 public partial struct ResetMeleeAttackEventsJob : IJobEntity {
-
-
+    
     public void Execute(ref MeleeAttack meleeAttack) {
         meleeAttack.onAttacked = false;
     }
-
 }
 
 
 [BurstCompile]
 public partial struct ResetBuildingBarracksEventsJob : IJobEntity {
-
-
+    
     public NativeList<Entity>.ParallelWriter onUnitQueueChangedEntityList;
-
-
+    
     public void Execute(ref BuildingBarracks buildingBarracks, Entity entity) {
         if (buildingBarracks.onUnitQueueChanged) {
             onUnitQueueChangedEntityList.AddNoResize(entity);
