@@ -196,7 +196,7 @@ public static class AIUtil
                 {
                     unitActionLookup[brainLink.body] = new UnitAction
                     {
-                        current = ActionType.None
+                        current = ActionType.Idle
                     };
                 }
             }

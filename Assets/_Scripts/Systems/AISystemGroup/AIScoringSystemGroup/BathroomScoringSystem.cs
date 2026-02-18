@@ -70,9 +70,7 @@ public partial struct BathroomScoringSystem : ISystem
                 in waypointCells, in interactionProviderLookup, in transformLookup,
                 pos, awareness.range, cellSize, ref nearby);
 
-            float bestScore = float.MinValue;
-            Entity bestTarget = Entity.Null;
-
+            // Add ALL valid candidates to options, not just the best one
             for (int i = 0; i < nearby.Length; i++)
             {
                 Entity candidate = nearby[i];
@@ -86,16 +84,11 @@ public partial struct BathroomScoringSystem : ISystem
                 float score = AIUtil.ScoreInteraction(candidate, pos, bladder.value,
                     awareness.range, BATHROOM_MOTIVATION, ref scoringLibrary, ref transformLookup);
 
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestTarget = candidate;
-                }
+                // Add each valid option to the buffer
+                AIUtil.AddActionOption(ref options, ref candidate, score);
             }
 
             nearby.Dispose();
-
-            AIUtil.AddActionOption(ref options, ref bestTarget, bestScore);
         }
     }
 }

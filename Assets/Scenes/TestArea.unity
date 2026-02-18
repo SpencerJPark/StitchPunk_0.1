@@ -3120,6 +3120,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5811693445958410358, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7902485301888813566, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Name
       value: Lighting1

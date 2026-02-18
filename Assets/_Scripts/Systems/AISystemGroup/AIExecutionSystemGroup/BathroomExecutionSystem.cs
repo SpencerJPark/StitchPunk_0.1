@@ -121,7 +121,7 @@ public partial struct BathroomExecutionSystem : ISystem
             }
         }
     }
-
+    
     // -------------------------------------------------------
     // COMPLETION — tick timer, release NPCs when done, restore bladder
     // -------------------------------------------------------

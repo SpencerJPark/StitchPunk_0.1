@@ -19,17 +19,8 @@ public class SelectedActionAuthoring : MonoBehaviour
 
 public struct SelectedAction : IComponentData
 {
-    public ActionType current;
-    public ActionType previous;
-    public bool startedAction;
-    public float maxDuration;
-    public float timer;
-    public float stuckThreshold;
-    public float stuckTime;
-    public float stuckTimer;
-    public float3 lastPosition;
-    public float decisionInterval;
-    public float decisionTimer;
+    public Entity current;
+    public Entity previous;
 }
 
 public struct NeedsAction : IComponentData, IEnableableComponent
