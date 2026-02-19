@@ -35,6 +35,62 @@ public static class AIUtil
         return -needValue;
     }
 
+    /// <summary>
+    /// Query nearby interactions of a SPECIFIC motivation type.
+    /// Only returns interactions that have the specified motivation component.
+    /// </summary>
+    public static void QueryNearbyInteractionsByType(
+        in NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells,
+        in ComponentLookup<InteractionProvider> interactionProviderLookup,
+        in ComponentLookup<LocalTransform> transformLookup,
+        float3 position,
+        float range,
+        float cellSize,
+        MotivationType motivationType,
+        ref NativeList<Entity> results)
+    {
+        float rangeSq = range * range;
+
+        int2 minCell = new int2(
+            (int)math.floor((position.x - range) / cellSize),
+            (int)math.floor((position.z - range) / cellSize));
+        int2 maxCell = new int2(
+            (int)math.floor((position.x + range) / cellSize),
+            (int)math.floor((position.z + range) / cellSize));
+
+        for (int x = minCell.x; x <= maxCell.x; x++)
+        {
+            for (int y = minCell.y; y <= maxCell.y; y++)
+            {
+                var key = new SpatialInteractionKey(new int2(x, y), motivationType);
+
+                if (!interactionCells.TryGetFirstValue(key, out Entity candidate, out var iterator))
+                    continue;
+
+                do
+                {
+                    // Check if provider is enabled
+                    if (!interactionProviderLookup.IsComponentEnabled(candidate))
+                        continue;
+
+                    if (!transformLookup.TryGetComponent(candidate, out LocalTransform targetTransform))
+                        continue;
+
+                    float distSq = math.distancesq(position, targetTransform.Position);
+
+                    if (distSq > rangeSq)
+                        continue;
+
+                    results.Add(candidate);
+
+                } while (interactionCells.TryGetNextValue(out candidate, ref iterator));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Original query for ALL nearby interactions (kept for backwards compatibility).
+    /// </summary>
     public static void QueryNearbyInteractions(
         in NativeParallelMultiHashMap<int2, Entity> waypointCells,
         in ComponentLookup<InteractionProvider> interactionLookup,

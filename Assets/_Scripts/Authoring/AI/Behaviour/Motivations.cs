@@ -24,85 +24,85 @@ public enum MotivationType
 }
 
 // Motivations Range -100 to 100
-public struct Hunger : IComponentData
+public struct HungerMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Energy : IComponentData
+public struct EnergyMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Fun : IComponentData
+public struct FunMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Social : IComponentData
+public struct SocialMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Comfort : IComponentData
+public struct ComfortMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Bladder : IComponentData
+public struct BladderMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Safety : IComponentData
+public struct SafetyMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Movement : IComponentData
+public struct MovementMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
 
-public struct SelfPreservation : IComponentData
+public struct SelfPreservationMotivation : IComponentData
 {
-    public float healthThreshold;
+    [Range(-100, 100)] public int value;
 }
 
 
 
 // Randomly Picked
-public struct Bookworm : IComponentData
+public struct BookwormMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct Work : IComponentData
+public struct WorkMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct NightOwl : IComponentData
+public struct NightOwlMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
-public struct EarlyBird : IComponentData
-{
-    [Range(-100, 100)] public int value;
-}
-
-public struct Glutton : IComponentData
+public struct EarlyBirdMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
 
-public struct Grumpy : IComponentData
+public struct GluttonMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
 
-public struct Depressed : IComponentData
+public struct GrumpyMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
 
-public struct Lazy : IComponentData
+public struct DepressedMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }
 
-public struct Nervous : IComponentData
+public struct LazyMotivation : IComponentData
+{
+    [Range(-100, 100)] public int value;
+}
+
+public struct NervousMotivation : IComponentData
 {
     [Range(-100, 100)] public int value;
 }

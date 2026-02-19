@@ -13,19 +13,19 @@ public partial struct BathroomExecutionSystem : ISystem
     private ComponentLookup<BrainLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<Bladder> bladderLookup;
+    private ComponentLookup<BladderMotivation> bladderLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<BathroomInteraction>();
+        state.RequireForUpdate<BladderInteraction>();
 
         targetPositionLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
         brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        bladderLookup = state.GetComponentLookup<Bladder>(false);
+        bladderLookup = state.GetComponentLookup<BladderMotivation>(false);
     }
 
     [BurstCompile]
@@ -76,7 +76,7 @@ public partial struct BathroomExecutionSystem : ISystem
         public ComponentLookup<NeedsAction> needsActionLookup;
 
         public void Execute(
-            in BathroomInteraction bathroomInteraction,
+            in BladderInteraction bladderInteraction,
             in Interaction interaction,
             in LocalTransform interactionTransform,
             DynamicBuffer<InteractionOccupant> occupants,
@@ -105,7 +105,7 @@ public partial struct BathroomExecutionSystem : ISystem
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
 
         public void Execute(
-            in BathroomInteraction bathroomInteraction,
+            in BladderInteraction bladderInteraction,
             in Interaction interaction,
             in LocalTransform interactionTransform,
             in DynamicBuffer<InteractionOccupant> occupants,
@@ -133,10 +133,10 @@ public partial struct BathroomExecutionSystem : ISystem
         public ComponentLookup<NeedsAction> needsActionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
-        public ComponentLookup<Bladder> bladderLookup;
+        public ComponentLookup<BladderMotivation> bladderLookup;
 
         public void Execute(
-            in BathroomInteraction bathroomInteraction,
+            in BladderInteraction bladderInteraction,
             DynamicBuffer<InteractionOccupant> occupants,
             ref InteractionTimer timer,
             EnabledRefRW<InteractionTimer> timerEnabled,
@@ -153,7 +153,7 @@ public partial struct BathroomExecutionSystem : ISystem
 
                 if (bladderLookup.HasComponent(brainEntity))
                 {
-                    bladderLookup[brainEntity] = new Bladder { value = 100 };
+                    bladderLookup[brainEntity] = new BladderMotivation { value = 100 };
                 }
             }
 

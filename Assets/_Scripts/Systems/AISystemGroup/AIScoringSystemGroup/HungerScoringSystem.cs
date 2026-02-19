@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -6,86 +6,97 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
-public partial struct BathroomScoringSystem : ISystem
+public partial struct HungerScoringSystem : ISystem
 {
-    private const MotivationType BATHROOM_MOTIVATION = MotivationType.Bladder;
+    private const MotivationType MOTIVATION_TYPE = MotivationType.Hunger;
 
-    private ComponentLookup<BathroomInteraction> bathroomInteractionLookup;
     private ComponentLookup<InteractionProvider> interactionProviderLookup;
     private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<HungerInteraction> hungerInteractionLookup;
 
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<BathroomInteraction>();
+        state.RequireForUpdate<HungerInteraction>();
         state.RequireForUpdate<SpatialHashSingleton>();
         state.RequireForUpdate<ScoringLibrary>();
 
-        bathroomInteractionLookup = state.GetComponentLookup<BathroomInteraction>(true);
         interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(true);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        hungerInteractionLookup = state.GetComponentLookup<HungerInteraction>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        bathroomInteractionLookup.Update(ref state);
         interactionProviderLookup.Update(ref state);
         transformLookup.Update(ref state);
+        hungerInteractionLookup.Update(ref state);
 
         SpatialHashSingleton spatialHash = SystemAPI.GetSingleton<SpatialHashSingleton>();
         ScoringLibrary scoringLibrary = SystemAPI.GetSingleton<ScoringLibrary>();
 
-        state.Dependency = new BathroomScoringJob
+        state.Dependency = new HungerScoringJob
         {
-            bathroomInteractionLookup = bathroomInteractionLookup,
             interactionProviderLookup = interactionProviderLookup,
             transformLookup = transformLookup,
-            waypointCells = spatialHash.waypointCells,
+            hungerInteractionLookup = hungerInteractionLookup,
+            interactionCells = spatialHash.interactionCells,
             cellSize = SpatialHashSystem.CELL_SIZE,
             scoringLibrary = scoringLibrary.library
         }.ScheduleParallel(state.Dependency);
     }
 
     [BurstCompile]
-    public partial struct BathroomScoringJob : IJobEntity
+    public partial struct HungerScoringJob : IJobEntity
     {
-        [ReadOnly] public ComponentLookup<BathroomInteraction> bathroomInteractionLookup;
         [ReadOnly] public ComponentLookup<InteractionProvider> interactionProviderLookup;
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-        [ReadOnly] public NativeParallelMultiHashMap<int2, Entity> waypointCells;
+        [ReadOnly] public ComponentLookup<HungerInteraction> hungerInteractionLookup;
+        [ReadOnly] public NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells;
         [ReadOnly] public BlobAssetReference<AIScoringLibraryBlob> scoringLibrary;
         public float cellSize;
 
         public void Execute(
             ref DynamicBuffer<ActionOption> options,
-            in Bladder bladder,
+            in HungerMotivation hungerMotivation,
             in Awareness awareness,
             in LocalTransform transform,
             EnabledRefRO<NeedsAction> needsAction)
         {
+            if (!needsAction.ValueRO)
+                return;
+
             float3 pos = transform.Position;
 
             NativeList<Entity> nearby = new NativeList<Entity>(8, Allocator.Temp);
-            AIUtil.QueryNearbyInteractions(
-                in waypointCells, in interactionProviderLookup, in transformLookup,
-                pos, awareness.range, cellSize, ref nearby);
 
-            // Add ALL valid candidates to options, not just the best one
+            // Only queries interactions that have HungerInteraction component
+            AIUtil.QueryNearbyInteractionsByType(
+                in interactionCells,
+                in interactionProviderLookup,
+                in transformLookup,
+                pos,
+                awareness.range,
+                cellSize,
+                MOTIVATION_TYPE,
+                ref nearby);
+
             for (int i = 0; i < nearby.Length; i++)
             {
                 Entity candidate = nearby[i];
 
-                if (!bathroomInteractionLookup.HasComponent(candidate))
-                    continue;
+                // Get the interaction multiplier value
+                HungerInteraction interaction = hungerInteractionLookup[candidate];
+                float multiplier = interaction.value * 0.01f + 1f;
 
-                if (!interactionProviderLookup.IsComponentEnabled(candidate))
-                    continue;
+                float baseScore = AIUtil.ScoreInteraction(
+                    candidate, pos, hungerMotivation.value,
+                    awareness.range, MOTIVATION_TYPE,
+                    ref scoringLibrary, ref transformLookup);
 
-                float score = AIUtil.ScoreInteraction(candidate, pos, bladder.value,
-                    awareness.range, BATHROOM_MOTIVATION, ref scoringLibrary, ref transformLookup);
+                float finalScore = baseScore * multiplier;
 
-                // Add each valid option to the buffer
-                AIUtil.AddActionOption(ref options, ref candidate, score);
+                AIUtil.AddActionOption(ref options, ref candidate, finalScore);
             }
 
             nearby.Dispose();

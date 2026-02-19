@@ -78,11 +78,11 @@ public partial struct HungerDegradationJob : IJobEntity
     // Units per second of degradation
     private const float RATE = 2f;
 
-    public void Execute(ref Hunger hunger)
+    public void Execute(ref HungerMotivation hungerMotivation)
     {
-        float current = hunger.value;
+        float current = hungerMotivation.value;
         current -= RATE * deltaTime;
-        hunger.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        hungerMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }
 
@@ -96,11 +96,11 @@ public partial struct EnergyDegradationJob : IJobEntity
 
     private const float RATE = 1.5f;
 
-    public void Execute(ref Energy energy)
+    public void Execute(ref EnergyMotivation energyMotivation)
     {
-        float current = energy.value;
+        float current = energyMotivation.value;
         current -= RATE * deltaTime;
-        energy.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        energyMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }
 
@@ -114,11 +114,11 @@ public partial struct FunDegradationJob : IJobEntity
 
     private const float RATE = 1f;
 
-    public void Execute(ref Fun fun)
+    public void Execute(ref FunMotivation funMotivation)
     {
-        float current = fun.value;
+        float current = funMotivation.value;
         current -= RATE * deltaTime;
-        fun.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        funMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }
 
@@ -132,11 +132,11 @@ public partial struct SocialDegradationJob : IJobEntity
 
     private const float RATE = 0.8f;
 
-    public void Execute(ref Social social)
+    public void Execute(ref SocialMotivation socialMotivation)
     {
-        float current = social.value;
+        float current = socialMotivation.value;
         current -= RATE * deltaTime;
-        social.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        socialMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }
 
@@ -150,11 +150,11 @@ public partial struct ComfortDegradationJob : IJobEntity
 
     private const float RATE = 0.5f;
 
-    public void Execute(ref Comfort comfort)
+    public void Execute(ref ComfortMotivation comfortMotivation)
     {
-        float current = comfort.value;
+        float current = comfortMotivation.value;
         current -= RATE * deltaTime;
-        comfort.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        comfortMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }
 
@@ -168,11 +168,11 @@ public partial struct BladderDegradationJob : IJobEntity
 
     private const float RATE = 0.5f;
 
-    public void Execute(ref Bladder bladder)
+    public void Execute(ref BladderMotivation bladderMotivation)
     {
-        float current = bladder.value;
+        float current = bladderMotivation.value;
         current -= RATE * deltaTime;
-        bladder.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        bladderMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }
 
@@ -186,10 +186,10 @@ public partial struct MovementDegradationJob : IJobEntity
 
     private const float RATE = 3f;
 
-    public void Execute(ref Movement movement)
+    public void Execute(ref MovementMotivation movementMotivation)
     {
-        float current = movement.value;
+        float current = movementMotivation.value;
         current -= RATE * deltaTime;
-        movement.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
+        movementMotivation.value = (int)Unity.Mathematics.math.clamp(current, -100f, 100f);
     }
 }

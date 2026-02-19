@@ -32,15 +32,15 @@ public static class BrainBakeHelper
 
     public static void AddHumanMotivations<T>(Baker<T> baker, Entity entity) where T : UnityEngine.Component
     {
-        baker.AddComponent<Hunger>(entity);
-        baker.AddComponent<Energy>(entity);
-        baker.AddComponent<Fun>(entity);
-        baker.AddComponent<Social>(entity);
-        baker.AddComponent<Comfort>(entity);
-        baker.AddComponent<Bladder>(entity);
-        baker.AddComponent<Safety>(entity);
-        baker.AddComponent<Movement>(entity);
-        baker.AddComponent<SelfPreservation>(entity);
+        baker.AddComponent<HungerMotivation>(entity);
+        baker.AddComponent<EnergyMotivation>(entity);
+        baker.AddComponent<FunMotivation>(entity);
+        baker.AddComponent<SocialMotivation>(entity);
+        baker.AddComponent<ComfortMotivation>(entity);
+        baker.AddComponent<BladderMotivation>(entity);
+        baker.AddComponent<SafetyMotivation>(entity);
+        baker.AddComponent<MovementMotivation>(entity);
+        baker.AddComponent<SelfPreservationMotivation>(entity);
     }
     
     public static void AddRandomMotivations<TAuthoring>(this Baker<TAuthoring> baker, Entity entity, uint seed) 
@@ -48,15 +48,15 @@ public static class BrainBakeHelper
     {
         var traitPool = new List<System.Action<Baker<TAuthoring>, Entity>>
         {
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Bookworm { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Work { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new NightOwl { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new EarlyBird { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Glutton { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Grumpy { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Depressed { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Lazy { value = 0 }),
-            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new Nervous { value = 0 })
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new BookwormMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new WorkMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new NightOwlMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new EarlyBirdMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new GluttonMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new GrumpyMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new DepressedMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new LazyMotivation { value = 0 }),
+            (Baker<TAuthoring> bakerInstance, Entity targetEntity) => bakerInstance.AddComponent(targetEntity, new NervousMotivation { value = 0 })
         };
 
         // Initialize Unity Mathematics Random with the provided seed
