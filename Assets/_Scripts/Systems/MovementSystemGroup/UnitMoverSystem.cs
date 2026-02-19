@@ -14,6 +14,7 @@ partial struct UnitMoverSystem : ISystem
     
     float deltaTime;
     GridSystem.GridSystemData gridSystemData;
+    GridSystem.GridDataArrays gridDataArrays;
     PhysicsWorldSingleton physicsWorldSingleton;
     CollisionWorld collisionWorld;
 
@@ -21,20 +22,19 @@ partial struct UnitMoverSystem : ISystem
     ComponentLookup<FlowFieldPathRequest> flowFieldPathRequestComponentLookup;
     ComponentLookup<FlowFieldFollower> flowFieldFollowerComponentLookup;
     ComponentLookup<MoveOverride> moveOverrideComponentLookup;
-    ComponentLookup<GridSystem.GridNode> gridNodeComponentLookup;
     ComponentLookup<PhysicsCollider> physicsColliderLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GridSystem.GridSystemData>();
+        state.RequireForUpdate<GridSystem.GridDataArrays>();
         state.RequireForUpdate<PhysicsWorldSingleton>();
 
         targetPositionPathQueuedComponentLookup = SystemAPI.GetComponentLookup<TargetPositionPathQueued>(false);
         flowFieldPathRequestComponentLookup     = SystemAPI.GetComponentLookup<FlowFieldPathRequest>(false);
         flowFieldFollowerComponentLookup        = SystemAPI.GetComponentLookup<FlowFieldFollower>(false);
         moveOverrideComponentLookup             = SystemAPI.GetComponentLookup<MoveOverride>(false);
-        gridNodeComponentLookup                 = SystemAPI.GetComponentLookup<GridSystem.GridNode>(false);
         physicsColliderLookup                   = SystemAPI.GetComponentLookup<PhysicsCollider>(true);
     }
 
@@ -56,7 +56,8 @@ partial struct UnitMoverSystem : ISystem
 
     private void UpdateLocalData(ref SystemState state)
     {
-        gridSystemData = SystemAPI.GetSingleton<GridSystem.GridSystemData>(); 
+        gridSystemData = SystemAPI.GetSingleton<GridSystem.GridSystemData>();
+        gridDataArrays = SystemAPI.GetSingleton<GridSystem.GridDataArrays>();
         physicsWorldSingleton = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         collisionWorld = physicsWorldSingleton.CollisionWorld;
         deltaTime = SystemAPI.Time.DeltaTime;
@@ -68,7 +69,6 @@ partial struct UnitMoverSystem : ISystem
         flowFieldPathRequestComponentLookup.Update(ref state);
         flowFieldFollowerComponentLookup.Update(ref state);
         moveOverrideComponentLookup.Update(ref state);
-        gridNodeComponentLookup.Update(ref state);
         physicsColliderLookup.Update(ref state);
     }
     
@@ -80,7 +80,7 @@ partial struct UnitMoverSystem : ISystem
             gridNodeSize                            = gridSystemData.gridNodeSize,
             width                                   = gridSystemData.width,
             height                                  = gridSystemData.height,
-            costMap                                 = gridSystemData.costMap,
+            costMap                                 = gridDataArrays.costMap,
             flowFieldFollowerComponentLookup        = flowFieldFollowerComponentLookup,
             flowFieldPathRequestComponentLookup     = flowFieldPathRequestComponentLookup,
             moveOverrideComponentLookup             = moveOverrideComponentLookup,
@@ -101,15 +101,19 @@ partial struct UnitMoverSystem : ISystem
     
     private void RunFlowFieldFollower(ref SystemState state)
     {
+        int cellCount = gridSystemData.width * gridSystemData.height;
+        
         FlowFieldFollowerJob flowFieldFollowerJob = new FlowFieldFollowerJob
         {
-            width                          = gridSystemData.width,
-            height                         = gridSystemData.height,
-            gridNodeSize                   = gridSystemData.gridNodeSize,
-            gridNodeSizeDouble             = gridSystemData.gridNodeSize * 2f,
             flowFieldFollowerComponentLookup = flowFieldFollowerComponentLookup,
-            totalGridMapEntityArray        = gridSystemData.totalGridMapEntityArray,
-            gridNodeComponentLookup        = gridNodeComponentLookup,
+            gridNodeSize = gridSystemData.gridNodeSize,
+            gridNodeSizeDouble = gridSystemData.gridNodeSize * 2f,
+            width = gridSystemData.width,
+            height = gridSystemData.height,
+            cellCount = cellCount,
+            vectors = gridDataArrays.vectors,
+            costMap = gridDataArrays.costMap,
+            isValid = gridDataArrays.isValid
         };
         flowFieldFollowerJob.ScheduleParallel();
     }
@@ -377,14 +381,19 @@ public partial struct TestCanMoveStraightJob : IJobEntity
 [WithAll(typeof(FlowFieldFollower))]
 public partial struct FlowFieldFollowerJob : IJobEntity
 {
-    [NativeDisableParallelForRestriction] public ComponentLookup<FlowFieldFollower> flowFieldFollowerComponentLookup;
+    [NativeDisableParallelForRestriction] 
+    public ComponentLookup<FlowFieldFollower> flowFieldFollowerComponentLookup;
 
-    [ReadOnly] public ComponentLookup<GridSystem.GridNode> gridNodeComponentLookup;
-    [ReadOnly] public float                                gridNodeSize;
-    [ReadOnly] public float                                gridNodeSizeDouble;
-    [ReadOnly] public int                                  width;
-    [ReadOnly] public int                                  height;
-    [ReadOnly] public NativeArray<Entity>                  totalGridMapEntityArray;
+    [ReadOnly] public float gridNodeSize;
+    [ReadOnly] public float gridNodeSizeDouble;
+    [ReadOnly] public int width;
+    [ReadOnly] public int height;
+    [ReadOnly] public int cellCount;
+    
+    // Array-based data from GridSystem
+    [ReadOnly] public NativeArray<float2> vectors;
+    [ReadOnly] public NativeArray<byte> costMap;
+    [ReadOnly] public NativeArray<bool> isValid;
 
     public void Execute(
         in LocalTransform localTransform,
@@ -392,15 +401,32 @@ public partial struct FlowFieldFollowerJob : IJobEntity
         Entity entity)
     {
         FlowFieldFollower flowFieldFollower = flowFieldFollowerComponentLookup[entity];
+        
+        // Check if this flow field is still valid
+        if (!isValid[flowFieldFollower.gridIndex])
+        {
+            flowFieldFollowerComponentLookup.SetComponentEnabled(entity, false);
+            return;
+        }
 
-        int2 gridPosition   = GridSystem.GetGridPosition(localTransform.Position, gridNodeSize);
-        int  index          = GridSystem.CalculateIndex(gridPosition, width);
-        int  totalCount     = width * height;
-        Entity gridNodeEntity = totalGridMapEntityArray[totalCount * flowFieldFollower.gridIndex + index];
-        GridSystem.GridNode gridNode = gridNodeComponentLookup[gridNodeEntity];
-        float3 gridNodeMoveVector    = GridSystem.GetWorldMovementVector(gridNode.vector);
+        int2 gridPosition = GridSystem.GetGridPosition(localTransform.Position, gridNodeSize);
+        
+        // Bounds check
+        if (!GridSystem.IsValidGridPosition(gridPosition, width, height))
+        {
+            flowFieldFollowerComponentLookup.SetComponentEnabled(entity, false);
+            return;
+        }
+        
+        int localIndex = GridSystem.CalculateIndex(gridPosition, width);
+        int globalIndex = flowFieldFollower.gridIndex * cellCount + localIndex;
+        
+        // Get vector from the flat array
+        float2 flowVector = vectors[globalIndex];
+        float3 gridNodeMoveVector = GridSystem.GetWorldMovementVector(flowVector);
 
-        if (GridSystem.IsWall(gridNode))
+        // Check if current cell is a wall
+        if (costMap[localIndex] == GridSystem.WALL_COST)
         {
             gridNodeMoveVector = flowFieldFollower.lastMoveVector;
         }
@@ -415,7 +441,7 @@ public partial struct FlowFieldFollowerJob : IJobEntity
 
         if (math.distance(localTransform.Position, flowFieldFollower.targetPosition) < gridNodeSize)
         {
-            // Target destination
+            // Reached target destination
             unitMover.targetPosition = localTransform.Position;
             flowFieldFollowerComponentLookup.SetComponentEnabled(entity, false);
         }

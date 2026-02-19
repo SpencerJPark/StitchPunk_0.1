@@ -4,8 +4,8 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [UpdateInGroup(typeof(MovementSystemGroup))]
-partial struct MoveOverrideSystem : ISystem {
-
+partial struct MoveOverrideSystem : ISystem
+{
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
@@ -13,27 +13,30 @@ partial struct MoveOverrideSystem : ISystem {
     }
 
     [BurstCompile]
-    public void OnUpdate(ref SystemState state) {
-        foreach ((
-                     RefRO<LocalTransform> localTransform,
-                     RefRO<MoveOverride> moveOverride,
-                     EnabledRefRW<MoveOverride> moveOverrideEnabled,
-                     RefRW<UnitMover> unitMover)
-                 in SystemAPI.Query<
-                     RefRO<LocalTransform>,
-                     RefRO<MoveOverride>,
-                     EnabledRefRW<MoveOverride>,
-                     RefRW<UnitMover>>()) {
+    public void OnUpdate(ref SystemState state)
+    {
+        MoveOverrideJob moveOverrideJob = new MoveOverrideJob();
 
-            if (math.distancesq(localTransform.ValueRO.Position, moveOverride.ValueRO.targetPosition) > UnitMoverSystem.REACHED_TARGET_POSITION_DISTANCE_SQ) {
-                // Move closer
-                unitMover.ValueRW.targetPosition = moveOverride.ValueRO.targetPosition;
-            } else {
-                // Reached the move override position
-                moveOverrideEnabled.ValueRW = false;
-            }
+        state.Dependency = moveOverrideJob.ScheduleParallel(state.Dependency);
+    }
+}
+
+[BurstCompile]
+partial struct MoveOverrideJob : IJobEntity
+{
+    public void Execute(
+        in LocalTransform localTransform,
+        ref MoveOverride moveOverride,
+        EnabledRefRW<MoveOverride> moveOverrideEnabled,
+        ref UnitMover unitMover)
+    {
+        if (math.distancesq(localTransform.Position, moveOverride.targetPosition) > UnitMoverSystem.REACHED_TARGET_POSITION_DISTANCE_SQ)
+        {
+            unitMover.targetPosition = moveOverride.targetPosition;
+        }
+        else
+        {
+            moveOverrideEnabled.ValueRW = false;
         }
     }
-
-
 }

@@ -1,4 +1,3 @@
-using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -7,144 +6,148 @@ using Unity.Jobs;
 [UpdateInGroup(typeof(LateSimulationSystemGroup), OrderLast = true)]
 partial struct ResetEventsSystem : ISystem
 {
-    // Update count when adding more jobs
-    private const int NUMBER_OF_RESET_EVENT_JOBS = 4;
-    private NativeArray<JobHandle> jobHandleNativeArray;
-    
-    // Lists to pass Entities to GameObjects World
     private NativeList<Entity> onBarracksUnitQueueChangedEntityList;
     private NativeList<Entity> onHealthDeadEntityList;
 
-
-    [BurstCompile]
-    public void OnCreate(ref SystemState state) {
-        jobHandleNativeArray = new NativeArray<JobHandle>(NUMBER_OF_RESET_EVENT_JOBS, Allocator.Persistent);
-        onBarracksUnitQueueChangedEntityList = new NativeList<Entity>(Allocator.Persistent);
-        onHealthDeadEntityList = new NativeList<Entity>(Allocator.Persistent);
+    public void OnCreate(ref SystemState state)
+    {
+        onBarracksUnitQueueChangedEntityList = new NativeList<Entity>(64, Allocator.Persistent);
+        onHealthDeadEntityList = new NativeList<Entity>(64, Allocator.Persistent);
     }
-    
-    [BurstCompile]
-    public void OnDestroy(ref SystemState state) {
-        jobHandleNativeArray.Dispose();
+
+    public void OnDestroy(ref SystemState state)
+    {
         onBarracksUnitQueueChangedEntityList.Dispose();
         onHealthDeadEntityList.Dispose();
     }
 
-    public void OnUpdate(ref SystemState state) {
-
+    public void OnUpdate(ref SystemState state)
+    {
         EndGameCheck(ref state);
-        
-        ScheduleResetEventJobs(ref state);
-        
+
+        // Schedule all parallel jobs that don't need sync
+        JobHandle resetSelectedHandle = new ResetSelectedEventsJob().ScheduleParallel(state.Dependency);
+        JobHandle resetShootHandle = new ResetShootAttackEventsJob().ScheduleParallel(state.Dependency);
+        JobHandle resetMeleeHandle = new ResetMeleeAttackEventsJob().ScheduleParallel(state.Dependency);
+        JobHandle resetImageHandle = new ResetImageIndexUpdateJob().ScheduleParallel(state.Dependency);
+
+        // Combine independent jobs
+        JobHandle combinedResetJobs = JobHandle.CombineDependencies(
+            JobHandle.CombineDependencies(resetSelectedHandle, resetShootHandle),
+            JobHandle.CombineDependencies(resetMeleeHandle, resetImageHandle)
+        );
+
+        // Handle events that need to pass to GameObjects
         PassEventsToGameObjects(ref state);
 
-        // Run Jobs Array
-        state.Dependency = JobHandle.CombineDependencies(jobHandleNativeArray);
+        state.Dependency = combinedResetJobs;
     }
-    
+
     private void EndGameCheck(ref SystemState state)
     {
-        if (SystemAPI.HasSingleton<BuildingHQ>()) {
-            Health hqHealth = SystemAPI.GetComponent<Health>(SystemAPI.GetSingletonEntity<BuildingHQ>());
-            if (hqHealth.onDead) {
-                DOTSEventsManager.Instance?.TriggerOnHQDead();
-            }
+        if (!SystemAPI.HasSingleton<BuildingHQ>())
+        {
+            return;
+        }
+        
+        Entity hqEntity = SystemAPI.GetSingletonEntity<BuildingHQ>();
+        Health hqHealth = SystemAPI.GetComponent<Health>(hqEntity);
+        
+        if (hqHealth.onDead)
+        {
+            DOTSEventsManager.Instance?.TriggerOnHQDead();
         }
     }
 
-    private void ScheduleResetEventJobs(ref SystemState state)
-    {
-        jobHandleNativeArray[0] = new ResetSelectedEventsJob().ScheduleParallel(state.Dependency);
-        jobHandleNativeArray[1] = new ResetShootAttackEventsJob().ScheduleParallel(state.Dependency);
-        jobHandleNativeArray[2] = new ResetMeleeAttackEventsJob().ScheduleParallel(state.Dependency);
-        jobHandleNativeArray[3] = new ResetImageIndexUpdateJob().ScheduleParallel(state.Dependency);
-    }
-    
     private void PassEventsToGameObjects(ref SystemState state)
     {
+        // Barracks events - use single-threaded job to avoid parallel writer overhead
         onBarracksUnitQueueChangedEntityList.Clear();
-        new ResetBuildingBarracksEventsJob() {
-            onUnitQueueChangedEntityList = onBarracksUnitQueueChangedEntityList.AsParallelWriter(),
-        }.ScheduleParallel(state.Dependency).Complete();
+        new CollectBarracksEventsJob
+        {
+            OnUnitQueueChangedEntityList = onBarracksUnitQueueChangedEntityList
+        }.Schedule(state.Dependency).Complete();
 
         DOTSEventsManager.Instance?.TriggerOnBarracksUnitQueueChanged(onBarracksUnitQueueChangedEntityList);
-        
+
+        // Health events - use single-threaded job to avoid parallel writer overhead
         onHealthDeadEntityList.Clear();
-        new ResetHealthEventsJob() {
-            onHealthDeadEntityList = onHealthDeadEntityList.AsParallelWriter(),
-        }.ScheduleParallel(state.Dependency).Complete();
+        new CollectHealthEventsJob
+        {
+            OnHealthDeadEntityList = onHealthDeadEntityList
+        }.Schedule(state.Dependency).Complete();
 
         DOTSEventsManager.Instance?.TriggerOnHealthDead(onHealthDeadEntityList);
     }
 }
 
-
 [BurstCompile]
-public partial struct ResetImageIndexUpdateJob : IJobEntity {
-
-    public void Execute(ref ImageIndex imageIndex) {
+partial struct ResetImageIndexUpdateJob : IJobEntity
+{
+    public void Execute(ref ImageIndex imageIndex)
+    {
         imageIndex.onUpdate = false;
     }
 }
 
 [BurstCompile]
-public partial struct ResetShootAttackEventsJob : IJobEntity {
-
-    public void Execute(ref ShootAttack shootAttack) {
+partial struct ResetShootAttackEventsJob : IJobEntity
+{
+    public void Execute(ref ShootAttack shootAttack)
+    {
         shootAttack.onShoot.isTriggered = false;
     }
 }
 
-
 [BurstCompile]
-public partial struct ResetHealthEventsJob : IJobEntity {
+partial struct CollectHealthEventsJob : IJobEntity
+{
+    public NativeList<Entity> OnHealthDeadEntityList;
 
-    public NativeList<Entity>.ParallelWriter onHealthDeadEntityList;
-    
-    public void Execute(ref Health health, Entity entity) {
-        
-        if (health.onDead) {
-            onHealthDeadEntityList.AddNoResize(entity);
+    public void Execute(Entity entity, ref Health health)
+    {
+        if (health.onDead)
+        {
+            OnHealthDeadEntityList.Add(entity);
         }
-        
+
         health.onHealthChanged = false;
         health.onDead = false;
     }
 }
 
-
 [BurstCompile]
 [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
-public partial struct ResetSelectedEventsJob : IJobEntity {
-    
-    public void Execute(ref Selected selected) {
+partial struct ResetSelectedEventsJob : IJobEntity
+{
+    public void Execute(ref Selected selected)
+    {
         selected.onSelected = false;
         selected.onDeselected = false;
     }
 }
 
-
 [BurstCompile]
-public partial struct ResetMeleeAttackEventsJob : IJobEntity {
-    
-    public void Execute(ref MeleeAttack meleeAttack) {
+partial struct ResetMeleeAttackEventsJob : IJobEntity
+{
+    public void Execute(ref MeleeAttack meleeAttack)
+    {
         meleeAttack.onAttacked = false;
     }
 }
 
-
 [BurstCompile]
-public partial struct ResetBuildingBarracksEventsJob : IJobEntity {
-    
-    public NativeList<Entity>.ParallelWriter onUnitQueueChangedEntityList;
-    
-    public void Execute(ref BuildingBarracks buildingBarracks, Entity entity) {
-        if (buildingBarracks.onUnitQueueChanged) {
-            onUnitQueueChangedEntityList.AddNoResize(entity);
+partial struct CollectBarracksEventsJob : IJobEntity
+{
+    public NativeList<Entity> OnUnitQueueChangedEntityList;
+
+    public void Execute(Entity entity, ref BuildingBarracks buildingBarracks)
+    {
+        if (buildingBarracks.onUnitQueueChanged)
+        {
+            OnUnitQueueChangedEntityList.Add(entity);
         }
 
         buildingBarracks.onUnitQueueChanged = false;
-
     }
-
 }
