@@ -3,23 +3,38 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
 
+/// <summary>
+/// Generic fallback execution system that handles interactions NOT claimed by specific systems.
+/// 
+/// Runs LAST in the execution group. Only processes interactions where:
+/// - InteractionHandled is DISABLED (no specific system claimed it)
+/// - Provider is disabled (NPC is assigned)
+/// - Has occupants
+/// 
+/// Behavior:
+/// - Detects arrival
+/// - Waits 5 seconds (default)
+/// - Releases NPCs
+/// 
+/// This prevents NPCs from getting stuck on interactions that don't have
+/// custom execution systems yet.
+/// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIExecutionSystemGroup))]
-[UpdateBefore(typeof(GenericInteractionExecutionSystem))]
-public partial struct BladderExecutionSystem : ISystem
+[UpdateInGroup(typeof(AIExecutionSystemGroup), OrderLast = true)]
+public partial struct GenericInteractionExecutionSystem : ISystem
 {
-    private ComponentLookup<BladderMotivation> bladderLookup;
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<BrainLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
 
+    private const float DEFAULT_DURATION = 5f;
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<BladderInteraction>();
+        state.RequireForUpdate<Interaction>();
 
-        bladderLookup = state.GetComponentLookup<BladderMotivation>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
         brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
@@ -29,7 +44,6 @@ public partial struct BladderExecutionSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        bladderLookup.Update(ref state);
         transformLookup.Update(ref state);
         brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
@@ -37,16 +51,16 @@ public partial struct BladderExecutionSystem : ISystem
 
         float deltaTime = SystemAPI.Time.DeltaTime;
 
-        state.Dependency = new BladderArrivalJob
+        state.Dependency = new GenericArrivalJob
         {
             transformLookup = transformLookup,
-            brainLinkLookup = brainLinkLookup
+            brainLinkLookup = brainLinkLookup,
+            defaultDuration = DEFAULT_DURATION
         }.Schedule(state.Dependency);
 
-        state.Dependency = new BladderCompletionJob
+        state.Dependency = new GenericCompletionJob
         {
             deltaTime = deltaTime,
-            bladderLookup = bladderLookup,
             needsActionLookup = needsActionLookup,
             unitActionLookup = unitActionLookup,
             brainLinkLookup = brainLinkLookup
@@ -54,18 +68,20 @@ public partial struct BladderExecutionSystem : ISystem
     }
 
     // -------------------------------------------------------
-    // ARRIVAL — detect when the NPC reaches the interaction, start timer
+    // ARRIVAL — detect when NPC reaches interaction, start timer
+    // Only runs on interactions NOT handled by specific systems
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionTimer))]
     [WithDisabled(typeof(InteractionProvider))]
-    public partial struct BladderArrivalJob : IJobEntity
+    [WithDisabled(typeof(InteractionHandled))]
+    public partial struct GenericArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        public float defaultDuration;
 
         public void Execute(
-            in BladderInteraction bladderInteraction,
             in Interaction interaction,
             in LocalTransform interactionTransform,
             in DynamicBuffer<InteractionOccupant> occupants,
@@ -77,7 +93,7 @@ public partial struct BladderExecutionSystem : ISystem
                     ref brainLinkLookup, ref transformLookup))
             {
                 timer.elapsed = 0f;
-                timer.duration = timer.maxTime;
+                timer.duration = timer.maxTime > 0f ? timer.maxTime : defaultDuration;
                 timerEnabled.ValueRW = true;
                 interactionHandledEnabled.ValueRW = true;
             }
@@ -85,21 +101,21 @@ public partial struct BladderExecutionSystem : ISystem
     }
 
     // -------------------------------------------------------
-    // COMPLETION — tick timer, apply bladder effect, release NPCs
+    // COMPLETION — tick timer, release NPCs when done
+    // Processes any interaction that the generic arrival job claimed
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionProvider))]
     [WithAll(typeof(InteractionHandled))]
-    public partial struct BladderCompletionJob : IJobEntity
+    public partial struct GenericCompletionJob : IJobEntity
     {
         public float deltaTime;
-        public ComponentLookup<BladderMotivation> bladderLookup;
         public ComponentLookup<NeedsAction> needsActionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
         [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
 
         public void Execute(
-            in BladderInteraction bladderInteraction,
+            in Interaction interaction,
             DynamicBuffer<InteractionOccupant> occupants,
             ref InteractionTimer timer,
             EnabledRefRW<InteractionTimer> timerEnabled,
@@ -113,17 +129,6 @@ public partial struct BladderExecutionSystem : ISystem
 
             if (timer.elapsed < timer.duration)
                 return;
-
-            // Apply bladder restoration to all occupants
-            for (int i = 0; i < occupants.Length; i++)
-            {
-                Entity brainEntity = occupants[i].entity;
-
-                if (bladderLookup.HasComponent(brainEntity))
-                {
-                    bladderLookup[brainEntity] = new BladderMotivation { value = 100 };
-                }
-            }
 
             // Release and cleanup
             AIUtil.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup);

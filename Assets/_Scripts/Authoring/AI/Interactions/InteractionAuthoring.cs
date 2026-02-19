@@ -37,6 +37,9 @@ public class InteractionAuthoring : MonoBehaviour
             SetComponentEnabled<InteractionProvider>(entity, true);
 
             AddBuffer<InteractionOccupant>(entity);
+            
+            AddComponent(entity, new InteractionHandled());
+            SetComponentEnabled<InteractionHandled>(entity, false);
         }
     }
 }
@@ -62,5 +65,10 @@ public struct InteractionTimer : IComponentData, IEnableableComponent
 public struct InteractionOccupant : IBufferElementData
 {
     public Entity entity;
+    public MotivationType motivationType;
     public float score;
+}
+
+public struct InteractionHandled : IComponentData, IEnableableComponent
+{
 }
