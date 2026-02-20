@@ -71,7 +71,7 @@ public partial struct BladderScoringSystem : ISystem
             NativeList<Entity> nearby = new NativeList<Entity>(8, Allocator.Temp);
 
             // Only queries interactions that have BladderInteraction component
-            AIUtil.QueryNearbyInteractionsByType(
+            AIUtils.QueryNearbyInteractionsByType(
                 in interactionCells,
                 in interactionProviderLookup,
                 in transformLookup,
@@ -89,14 +89,14 @@ public partial struct BladderScoringSystem : ISystem
                 BladderInteraction interaction = bladderInteractionLookup[candidate];
                 float multiplier = interaction.value * 0.01f + 1f;
 
-                float baseScore = AIUtil.ScoreInteraction(
+                float baseScore = AIUtils.ScoreInteraction(
                     candidate, pos, bladderMotivation.value,
                     awareness.range, MOTIVATION_TYPE,
                     ref scoringLibrary, ref transformLookup);
 
                 float finalScore = baseScore * multiplier;
 
-                AIUtil.AddActionOption(ref options, ref candidate, finalScore);
+                AIUtils.AddActionOption(ref options, ref candidate, finalScore);
             }
 
             nearby.Dispose();

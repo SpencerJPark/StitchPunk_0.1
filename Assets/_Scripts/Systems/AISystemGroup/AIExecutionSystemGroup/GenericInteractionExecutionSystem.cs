@@ -89,7 +89,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
             EnabledRefRW<InteractionTimer> timerEnabled,
             EnabledRefRW<InteractionHandled> interactionHandledEnabled)
         {
-            if (AIUtil.CheckArrival(in occupants, in interactionTransform, interaction.interactionRange,
+            if (AIUtils.CheckArrival(in occupants, in interactionTransform, interaction.interactionRange,
                     ref brainLinkLookup, ref transformLookup))
             {
                 timer.elapsed = 0f;
@@ -131,7 +131,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
                 return;
 
             // Release and cleanup
-            AIUtil.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup);
+            AIUtils.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup);
 
             timer.elapsed = 0f;
             timerEnabled.ValueRW = false;

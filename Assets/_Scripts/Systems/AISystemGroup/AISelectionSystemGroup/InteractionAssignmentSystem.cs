@@ -64,8 +64,8 @@ public partial struct InteractionAssignmentJob : IJobEntity
         if (occupants.Length == 0)
             return;
 
-        AIUtil.SelectWinners(occupants, interaction.maxOccupants, ref needsActionLookup);
-        AIUtil.AssignWinners(in occupants, interactionTransform.Position, interaction.actionType,
+        AIUtils.SelectWinners(occupants, interaction.maxOccupants, ref needsActionLookup);
+        AIUtils.AssignWinners(in occupants, interactionTransform.Position, interaction.actionType,
             ref brainLinkLookup, ref targetPositionLookup, ref unitActionLookup);
 
         interactionProviderEnabled.ValueRW = false;

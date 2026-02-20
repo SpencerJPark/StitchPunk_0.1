@@ -57,7 +57,7 @@ public partial struct ActionSelectionSystem : ISystem
             // Sort AFTER filtering so top 3 selection is based on filtered list
             SortDescending(ref options);
 
-            Random random = EntityUtil.CreateRandom(entityIndex, time);
+            Random random = EntityUtils.CreateRandom(entityIndex, time);
 
             // Randomly pick from top 3 valid options (now based on filtered length)
             int topCount = math.min(options.Length, 3);

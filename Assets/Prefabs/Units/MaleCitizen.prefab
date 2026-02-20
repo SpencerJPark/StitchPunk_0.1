@@ -157,13 +157,10 @@ GameObject:
   - component: {fileID: 9215831187208810432}
   - component: {fileID: 3801419847962034913}
   - component: {fileID: 6575585675197493464}
-  - component: {fileID: 8635332958258473507}
-  - component: {fileID: 3064184537361583474}
   - component: {fileID: 3023686410222282756}
-  - component: {fileID: 8088709406222128485}
-  - component: {fileID: 6142933478762234054}
   - component: {fileID: 711091554357179147}
   - component: {fileID: 3004038991711854641}
+  - component: {fileID: 5949880546641695836}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -343,31 +340,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   healthAmount: 100
   healthAmountMax: 100
---- !u!114 &8635332958258473507
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c6e6565cb517f94489c4095816dc8ec4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetGameObject: {fileID: 0}
---- !u!114 &3064184537361583474
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1b844223105ef704f80e2d49c743761a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &3023686410222282756
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -378,30 +350,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 054e98a8ddfd428438ef48e363abb6f0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &8088709406222128485
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 827410abe2a3947488bc779b503ce97e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &6142933478762234054
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 75e078a3281d36d4685492c912466ccd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!114 &711091554357179147
@@ -455,6 +403,21 @@ MonoBehaviour:
     animation: 0
     speed: 1
     looping: 1
+--- !u!114 &5949880546641695836
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ea61ffb4a284fc8919112b83f306acd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PathfindingAuthoring
+  preferredMode: 0
+  repathInterval: 0.5
+  hordeFormationThreshold: 10
 --- !u!1 &5840296948594079509
 GameObject:
   m_ObjectHideFlags: 0

@@ -24,9 +24,9 @@ public partial struct UpdateBaseAnimationLayerJob : IJobEntity
 
         AnimationType targetAnimation = unitMover.isMoving ? unitAnimations.move : unitAnimations.idle;
         
-        if (!AnimationUtil.IsCurrentLayer(ref layers, AnimationLayerType.Base, targetAnimation))
+        if (!AnimationUtils.IsCurrentLayer(ref layers, AnimationLayerType.Base, targetAnimation))
         {
-            AnimationUtil.SetLayer(ref layers, AnimationLayerType.Base, targetAnimation);
+            AnimationUtils.SetLayer(ref layers, AnimationLayerType.Base, targetAnimation);
         }
     }
 }

@@ -71,7 +71,7 @@ public partial struct SocialScoringSystem : ISystem
             NativeList<Entity> nearby = new NativeList<Entity>(8, Allocator.Temp);
 
             // Only queries interactions that have SocialInteraction component
-            AIUtil.QueryNearbyInteractionsByType(
+            AIUtils.QueryNearbyInteractionsByType(
                 in interactionCells,
                 in interactionProviderLookup,
                 in transformLookup,
@@ -89,14 +89,14 @@ public partial struct SocialScoringSystem : ISystem
                 SocialInteraction interaction = socialInteractionLookup[candidate];
                 float multiplier = interaction.value * 0.01f + 1f;
 
-                float baseScore = AIUtil.ScoreInteraction(
+                float baseScore = AIUtils.ScoreInteraction(
                     candidate, pos, socialMotivation.value,
                     awareness.range, MOTIVATION_TYPE,
                     ref scoringLibrary, ref transformLookup);
 
                 float finalScore = baseScore * multiplier;
 
-                AIUtil.AddActionOption(ref options, ref candidate, finalScore);
+                AIUtils.AddActionOption(ref options, ref candidate, finalScore);
             }
 
             nearby.Dispose();

@@ -32,6 +32,22 @@ public partial class AISystemGroup : ComponentSystemGroup { }
 [UpdateBefore(typeof(AnimationSystemGroup))]
 public partial class MovementSystemGroup : ComponentSystemGroup { }
 
+        [UpdateInGroup(typeof(MovementSystemGroup))]
+        [UpdateBefore(typeof(MovementRoutingSystemGroup))]
+        public partial class MovementCoordinatorSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(MovementSystemGroup))]
+        [UpdateBefore(typeof(MovementFollowerSystemGroup))]
+        public partial class MovementRoutingSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(MovementSystemGroup))]
+        [UpdateBefore(typeof(MovementExecutionSystemGroup))]
+        public partial class MovementFollowerSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(MovementSystemGroup))]
+        [UpdateBefore(typeof(AnimationSystemGroup))]
+        public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial class AnimationSystemGroup : ComponentSystemGroup { }
 

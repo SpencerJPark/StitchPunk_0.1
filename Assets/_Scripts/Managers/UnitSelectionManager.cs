@@ -472,7 +472,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
 
         EntityQuery entityQuery = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<Selected>()
-            .WithPresent<MoveOverride, TargetOverride, TargetPositionPathQueued, FlowFieldPathRequest, FlowFieldFollower>()
+            .WithPresent<MoveOverride, TargetOverride, TargetPositionPathQueued, PathRequest, FlowFieldFollower>()
             .Build(entityManager);
 
         NativeArray<Entity> entityArray = entityQuery.ToEntityArray(Allocator.Temp);
@@ -497,7 +497,7 @@ public class UnitSelectionManager : Singleton<UnitSelectionManager>, IUpdateObse
             targetPositionPathQueuedArray[i] = targetPositionPathQueued;
             entityManager.SetComponentEnabled<TargetPositionPathQueued>(entityArray[i], true);
 
-            entityManager.SetComponentEnabled<FlowFieldPathRequest>(entityArray[i], false);
+            entityManager.SetComponentEnabled<PathRequest>(entityArray[i], false);
             entityManager.SetComponentEnabled<FlowFieldFollower>(entityArray[i], false);
         }
 
