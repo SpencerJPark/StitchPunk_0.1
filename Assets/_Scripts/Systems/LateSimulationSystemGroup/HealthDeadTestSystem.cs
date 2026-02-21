@@ -2,6 +2,8 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Collections;
 
+// Will change to a despawn system and dead system seperate since dead doesn't = despawn 
+
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 partial struct HealthDeadTestSystem : ISystem
 {

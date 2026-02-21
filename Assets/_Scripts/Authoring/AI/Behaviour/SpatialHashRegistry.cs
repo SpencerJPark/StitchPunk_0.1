@@ -2,7 +2,7 @@
 using Unity.Entities;
 using Unity.Mathematics;
 
-public struct SpatialHashSingleton : IComponentData
+public struct SpatialHashRegistry : IComponentData
 {
     // Original hash for general waypoint queries (if still needed)
     public NativeParallelMultiHashMap<int2, Entity> waypointCells;

@@ -45,10 +45,16 @@ public partial class MovementSystemGroup : ComponentSystemGroup { }
         public partial class MovementFollowerSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(MovementSystemGroup))]
-        [UpdateBefore(typeof(AnimationSystemGroup))]
         public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial class AnimationSystemGroup : ComponentSystemGroup { }
 
 
+// Late Simulation System Group
+[UpdateInGroup(typeof(LateSimulationSystemGroup))]
+[UpdateBefore(typeof(DespawnSystemGroup))]
+public partial class SpawnSystemGroup : ComponentSystemGroup { }
+
+[UpdateInGroup(typeof(LateSimulationSystemGroup))]
+public partial class DespawnSystemGroup : ComponentSystemGroup { }

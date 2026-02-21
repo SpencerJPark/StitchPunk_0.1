@@ -21,7 +21,7 @@ public partial struct SpatialHashSystem : ISystem
 
     public void OnCreate(ref SystemState state)
     {
-        state.EntityManager.CreateSingleton(new SpatialHashSingleton
+        state.EntityManager.CreateSingleton(new SpatialHashRegistry
         {
             waypointCells = new NativeParallelMultiHashMap<int2, Entity>(1024, Allocator.Persistent),
             interactionCells = new NativeParallelMultiHashMap<SpatialInteractionKey, Entity>(1024, Allocator.Persistent)
@@ -39,7 +39,7 @@ public partial struct SpatialHashSystem : ISystem
 
     public void OnDestroy(ref SystemState state)
     {
-        if (SystemAPI.TryGetSingleton<SpatialHashSingleton>(out var singleton))
+        if (SystemAPI.TryGetSingleton<SpatialHashRegistry>(out var singleton))
         {
             if (singleton.waypointCells.IsCreated)
                 singleton.waypointCells.Dispose();
@@ -60,7 +60,7 @@ public partial struct SpatialHashSystem : ISystem
         safetyLookup.Update(ref state);
         movementLookup.Update(ref state);
 
-        var singleton = SystemAPI.GetSingletonRW<SpatialHashSingleton>();
+        var singleton = SystemAPI.GetSingletonRW<SpatialHashRegistry>();
 
         singleton.ValueRW.waypointCells.Clear();
         singleton.ValueRW.interactionCells.Clear();

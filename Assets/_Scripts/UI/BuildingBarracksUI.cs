@@ -53,7 +53,7 @@ public class BuildingBarracksUI : MonoBehaviour {
     private void Start() {
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
 
-        UnitSelectionManager.Instance.OnSelectedEntitiesChanged += UnitSelectionManager_OnSelectedEntitiesChanged;
+     //   UnitSelectionManager.Instance.OnSelectedEntitiesChanged += UnitSelectionManager_OnSelectedEntitiesChanged;
         DOTSEventsManager.Instance.OnBarracksUnitQueueChanged += DOTSEventsManager_OnBarracksUnitQueueChanged;
 
         Hide();

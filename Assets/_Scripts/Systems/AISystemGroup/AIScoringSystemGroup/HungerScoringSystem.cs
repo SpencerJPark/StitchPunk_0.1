@@ -17,7 +17,7 @@ public partial struct HungerScoringSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<HungerInteraction>();
-        state.RequireForUpdate<SpatialHashSingleton>();
+        state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<ScoringLibrary>();
 
         interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(true);
@@ -32,7 +32,7 @@ public partial struct HungerScoringSystem : ISystem
         transformLookup.Update(ref state);
         hungerInteractionLookup.Update(ref state);
 
-        SpatialHashSingleton spatialHash = SystemAPI.GetSingleton<SpatialHashSingleton>();
+        SpatialHashRegistry spatialHash = SystemAPI.GetSingleton<SpatialHashRegistry>();
         ScoringLibrary scoringLibrary = SystemAPI.GetSingleton<ScoringLibrary>();
 
         state.Dependency = new HungerScoringJob

@@ -18,9 +18,5 @@ public class TargetOverrideAuthoring : MonoBehaviour {
 
 
 public struct TargetOverride : IComponentData {
-
-
     public Entity targetEntity;
-
-
 }

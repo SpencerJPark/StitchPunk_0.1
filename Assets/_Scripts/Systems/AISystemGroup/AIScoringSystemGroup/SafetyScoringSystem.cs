@@ -17,7 +17,7 @@ public partial struct SafetyScoringSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<SafetyInteraction>();
-        state.RequireForUpdate<SpatialHashSingleton>();
+        state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<ScoringLibrary>();
 
         interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(true);
@@ -32,7 +32,7 @@ public partial struct SafetyScoringSystem : ISystem
         transformLookup.Update(ref state);
         safetyInteractionLookup.Update(ref state);
 
-        SpatialHashSingleton spatialHash = SystemAPI.GetSingleton<SpatialHashSingleton>();
+        SpatialHashRegistry spatialHash = SystemAPI.GetSingleton<SpatialHashRegistry>();
         ScoringLibrary scoringLibrary = SystemAPI.GetSingleton<ScoringLibrary>();
 
         state.Dependency = new SafetyScoringJob
