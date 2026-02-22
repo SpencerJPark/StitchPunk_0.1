@@ -4,10 +4,6 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-/// <summary>
-/// Simple coordinator that routes path requests to the appropriate system.
-/// DStarLiteSystem handles the actual PathRequest consumption.
-/// </summary>
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
 [UpdateAfter(typeof(GridSystem))]
 public partial struct PathfindingCoordinatorSystem : ISystem
@@ -21,31 +17,52 @@ public partial struct PathfindingCoordinatorSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
+        GridSystem.GridConfig gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
         float deltaTime = SystemAPI.Time.DeltaTime;
         
-        // Just update repath timers and check for arrival
-        foreach (var (agent, transform, mover, entity) in 
-                 SystemAPI.Query<RefRW<PathfindingAgent>, RefRO<LocalTransform>, RefRO<UnitMover>>()
-                     .WithEntityAccess())
+        EndSimulationEntityCommandBufferSystem.Singleton ecbSingleton = 
+            SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+        EntityCommandBuffer.ParallelWriter ecb = 
+            ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged).AsParallelWriter();
+        
+        PathfindingCoordinatorJob job = new PathfindingCoordinatorJob
         {
-            if (!agent.ValueRO.isActive) continue;
+            deltaTime = deltaTime,
+            arrivalDistance = gridConfig.cellSize * 0.5f,
+            ecb = ecb
+        };
+        
+        state.Dependency = job.ScheduleParallel(state.Dependency);
+    }
+
+    [BurstCompile]
+    public partial struct PathfindingCoordinatorJob : IJobEntity
+    {
+        public float deltaTime;
+        public float arrivalDistance;
+        public EntityCommandBuffer.ParallelWriter ecb;
+
+        public void Execute(
+            ref PathfindingAgent agent,
+            in LocalTransform transform,
+            Entity entity,
+            [EntityIndexInQuery] int sortKey)
+        {
+            if (!agent.isActive) 
+                return;
             
-            agent.ValueRW.timeSinceLastRepath += deltaTime;
+            agent.timeSinceLastRepath += deltaTime;
             
-            // Check if reached destination
             float distToTarget = math.distance(
-                new float2(transform.ValueRO.Position.x, transform.ValueRO.Position.z),
-                new float2(agent.ValueRO.targetPosition.x, agent.ValueRO.targetPosition.z));
+                new float2(transform.Position.x, transform.Position.z),
+                new float2(agent.targetPosition.x, agent.targetPosition.z));
             
-            if (distToTarget < gridConfig.cellSize * 0.5f)
+            if (distToTarget < arrivalDistance)
             {
-                agent.ValueRW.isActive = false;
+                agent.isActive = false;
                 
-                if (SystemAPI.HasComponent<FlowFieldFollower>(entity))
-                    SystemAPI.SetComponentEnabled<FlowFieldFollower>(entity, false);
-                if (SystemAPI.HasComponent<DStarLiteFollower>(entity))
-                    SystemAPI.SetComponentEnabled<DStarLiteFollower>(entity, false);
+                ecb.SetComponentEnabled<FlowFieldFollower>(sortKey, entity, false);
+                ecb.SetComponentEnabled<DStarLiteFollower>(sortKey, entity, false);
             }
         }
     }
