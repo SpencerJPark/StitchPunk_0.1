@@ -9,65 +9,91 @@ using Unity.Transforms;
 [UpdateAfter(typeof(ActionSelectionSystem))]
 public partial struct InteractionAssignmentSystem : ISystem
 {
-    private ComponentLookup<TargetPositionPathQueued> targetPositionLookup;
-    private ComponentLookup<UnitAction> unitActionLookup;
     private ComponentLookup<BrainLink> brainLinkLookup;
+    private ComponentLookup<PathRequest> pathRequestLookup;
+    private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
+    private ComponentLookup<UnitAction> unitActionLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<UnitMover> unitMoverLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<Interaction>();
 
-        targetPositionLookup = state.GetComponentLookup<TargetPositionPathQueued>(false);
-        unitActionLookup = state.GetComponentLookup<UnitAction>(false);
         brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
+        pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
+        pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
+        unitActionLookup = state.GetComponentLookup<UnitAction>(false);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        targetPositionLookup.Update(ref state);
-        unitActionLookup.Update(ref state);
         brainLinkLookup.Update(ref state);
+        pathRequestLookup.Update(ref state);
+        pathfindingAgentLookup.Update(ref state);
+        unitActionLookup.Update(ref state);
         needsActionLookup.Update(ref state);
         transformLookup.Update(ref state);
+        unitMoverLookup.Update(ref state);
 
-        state.Dependency = new InteractionAssignmentJob
+        state.Dependency = new AssignmentJob
         {
-            targetPositionLookup = targetPositionLookup,
-            unitActionLookup = unitActionLookup,
             brainLinkLookup = brainLinkLookup,
-            needsActionLookup = needsActionLookup
+            pathRequestLookup = pathRequestLookup,
+            pathfindingAgentLookup = pathfindingAgentLookup,
+            unitActionLookup = unitActionLookup,
+            needsActionLookup = needsActionLookup,
+            transformLookup = transformLookup,
+            unitMoverLookup = unitMoverLookup
         }.Schedule(state.Dependency);
     }
-}
 
-[BurstCompile]
-public partial struct InteractionAssignmentJob : IJobEntity
-{
-    public ComponentLookup<TargetPositionPathQueued> targetPositionLookup;
-    public ComponentLookup<UnitAction> unitActionLookup;
-    [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
-    public ComponentLookup<NeedsAction> needsActionLookup;
-
-    public void Execute(
-        in BladderInteraction bladderInteraction,
-        in Interaction interaction,
-        in LocalTransform interactionTransform,
-        DynamicBuffer<InteractionOccupant> occupants,
-        EnabledRefRW<InteractionProvider> interactionProviderEnabled)
+    [BurstCompile]
+    [WithAll(typeof(InteractionProvider))]
+    public partial struct AssignmentJob : IJobEntity
     {
-        if (occupants.Length == 0)
-            return;
+        [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        public ComponentLookup<PathRequest> pathRequestLookup;
+        public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
+        public ComponentLookup<UnitAction> unitActionLookup;
+        public ComponentLookup<NeedsAction> needsActionLookup;
+        [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
+        public ComponentLookup<UnitMover> unitMoverLookup;
 
-        AIUtils.SelectWinners(occupants, interaction.maxOccupants, ref needsActionLookup);
-        AIUtils.AssignWinners(in occupants, interactionTransform.Position, interaction.actionType,
-            ref brainLinkLookup, ref targetPositionLookup, ref unitActionLookup);
+        public void Execute(
+            in Interaction interaction,
+            in LocalTransform interactionTransform,
+            DynamicBuffer<InteractionOccupant> occupants,
+            EnabledRefRW<InteractionProvider> providerEnabled)
+        {
+            if (occupants.Length == 0)
+                return;
 
-        interactionProviderEnabled.ValueRW = false;
+            // Select winners based on score
+            AIUtils.SelectWinners(occupants, interaction.maxOccupants, ref needsActionLookup);
+
+            if (occupants.Length == 0)
+                return;
+
+            // Assign winners to move toward interaction using new pathfinding
+            AIUtils.AssignWinners(
+                in occupants,
+                interactionTransform.Position,
+                interaction.actionType,
+                ref brainLinkLookup,
+                ref pathRequestLookup,
+                ref pathfindingAgentLookup,
+                ref unitActionLookup,
+                ref unitMoverLookup);
+
+            // Disable provider while being used
+            providerEnabled.ValueRW = false;
+        }
     }
 }

@@ -163,6 +163,9 @@ public partial struct GridSystem : ISystem
                 
                 state.Dependency = updateCostJob.Schedule(
                     gridConfig.layerCount * cellsPerLayer, 64, state.Dependency);
+                
+                // Complete the job immediately so downstream systems can safely read costs
+                state.CompleteDependency();
             }
         }
     }

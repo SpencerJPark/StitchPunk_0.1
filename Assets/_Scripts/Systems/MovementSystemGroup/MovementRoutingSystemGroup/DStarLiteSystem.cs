@@ -5,35 +5,31 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
-using UnityEngine;
 
 /// <summary>
 /// DOTS-compatible D* Lite pathfinding system.
-/// Optimized for individual NPCs with unique destinations.
 /// </summary>
 [UpdateInGroup(typeof(MovementRoutingSystemGroup))]
 public partial struct DStarLiteSystem : ISystem
 {
     public const int MAX_ACTIVE_PATHS = 256;
     public const int MAX_NODES_PER_PATH = 512;
-    public const float NODE_SIZE = 1f; // Grid resolution for D* Lite
     
     public struct DStarLiteData : IComponentData
     {
         public int width;
         public int height;
         public float nodeSize;
-        public NativeArray<byte> costMap;           // Shared with flow field system
-        public NativeArray<DStarNode> nodes;        // Node data for pathfinding
-        public NativeArray<PathData> activePaths;   // Active path computations
+        public NativeArray<DStarNode> nodes;
+        public NativeArray<PathData> activePaths;
         public int nextPathIndex;
     }
     
     public struct DStarNode
     {
-        public float g;      // Cost from start
-        public float rhs;    // One-step lookahead cost
-        public float2 key;   // Priority key (k1, k2)
+        public float g;
+        public float rhs;
+        public float2 key;
         public int2 position;
         public bool inOpenSet;
     }
@@ -45,7 +41,7 @@ public partial struct DStarLiteSystem : ISystem
         public Entity owner;
         public bool isValid;
         public bool needsUpdate;
-        public float km;     // Key modifier for incremental updates
+        public float km;
     }
     
     private NativeQueue<PathComputeRequest> pendingRequests;
@@ -56,6 +52,7 @@ public partial struct DStarLiteSystem : ISystem
         public Entity entity;
         public int2 startPosition;
         public int2 goalPosition;
+        public float3 targetWorldPosition;
     }
 
     [BurstCompile]
@@ -81,32 +78,30 @@ public partial struct DStarLiteSystem : ISystem
         }
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Initialize using grid system data if not already done
         if (!isInitialized)
         {
-            InitializeFromFlowFieldSystem(ref state);
+            InitializeFromGridSystem(ref state);
             isInitialized = true;
         }
+        
+        if (!SystemAPI.HasComponent<DStarLiteData>(state.SystemHandle))
+            return;
         
         var dstarData = SystemAPI.GetComponent<DStarLiteData>(state.SystemHandle);
         var gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
         
-        // Collect path requests from D* Lite followers
-        CollectPathRequests(ref state, ref dstarData);
+        // Collect and process path requests
+        CollectPathRequests(ref state, ref dstarData, gridCostMap);
         
-        // Process pending path computations
-        ProcessPathRequests(ref state, ref dstarData, gridCostMap);
-        
-        // Update followers with computed paths
-        UpdateFollowers(ref state, ref dstarData);
+        // Update followers with next waypoints
+        UpdateFollowers(ref state, ref dstarData, gridCostMap);
         
         SystemAPI.SetComponent(state.SystemHandle, dstarData);
     }
     
-    private void InitializeFromFlowFieldSystem(ref SystemState state)
+    private void InitializeFromGridSystem(ref SystemState state)
     {
         var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
         int cellCount = gridConfig.width * gridConfig.height;
@@ -121,7 +116,6 @@ public partial struct DStarLiteSystem : ISystem
             nextPathIndex = 0
         };
         
-        // Initialize nodes
         for (int i = 0; i < cellCount; i++)
         {
             int x = i % dstarData.width;
@@ -140,72 +134,71 @@ public partial struct DStarLiteSystem : ISystem
         state.EntityManager.SetComponentData(state.SystemHandle, dstarData);
     }
     
-    private void CollectPathRequests(ref SystemState state, ref DStarLiteData dstarData)
+    private void CollectPathRequests(ref SystemState state, ref DStarLiteData dstarData, GridSystem.GridCostMap gridCostMap)
     {
-        pendingRequests.Clear();
-        
-        foreach (var (agent, follower, request, requestEnabled, entity) in 
+        // Query ALL entities with PathRequest enabled that have PathfindingAgent set to DStarLite
+        foreach (var (agent, request, transform, mover, entity) in 
             SystemAPI.Query<
-                RefRO<PathfindingAgent>,
-                RefRW<DStarLiteFollower>,
+                RefRW<PathfindingAgent>,
                 RefRO<PathRequest>,
-                EnabledRefRW<PathRequest>>()
-            .WithAll<DStarLiteFollower>()
+                RefRO<LocalTransform>,
+                RefRW<UnitMover>>()
+            .WithAll<PathRequest>() // PathRequest must be enabled
+            .WithAll<DStarLiteFollower>() // Must have DStarLiteFollower component
             .WithEntityAccess())
         {
-            if (agent.ValueRO.currentMode != PathfindingMode.DStarLite)
-                continue;
-                
-            int2 startPos = WorldToGrid(follower.ValueRO.nextWaypoint, dstarData.nodeSize);
-            int2 goalPos = WorldToGrid(request.ValueRO.targetPosition, dstarData.nodeSize);
+            // Process this request
+            float3 currentPos = transform.ValueRO.Position;
+            float3 targetPos = request.ValueRO.targetPosition;
             
-            pendingRequests.Enqueue(new PathComputeRequest
-            {
-                entity = entity,
-                startPosition = startPos,
-                goalPosition = goalPos
-            });
+            int2 startGrid = WorldToGrid(currentPos, dstarData.nodeSize);
+            int2 goalGrid = WorldToGrid(targetPos, dstarData.nodeSize);
             
-            requestEnabled.ValueRW = false;
-        }
-    }
-    
-    private void ProcessPathRequests(ref SystemState state, ref DStarLiteData dstarData, 
-        GridSystem.GridCostMap gridCostMap)
-    {
-        while (pendingRequests.TryDequeue(out PathComputeRequest request))
-        {
             // Find or allocate path slot
-            int pathIndex = FindOrAllocatePathSlot(ref dstarData, request.entity);
-            if (pathIndex < 0) continue;
+            int pathIndex = FindOrAllocatePathSlot(ref dstarData, entity);
+            if (pathIndex < 0) 
+            {
+                SystemAPI.SetComponentEnabled<PathRequest>(entity, false);
+                continue;
+            }
             
-            // Update path data
+            // Set up path data
             var pathData = dstarData.activePaths[pathIndex];
-            pathData.startPosition = request.startPosition;
-            pathData.goalPosition = request.goalPosition;
-            pathData.owner = request.entity;
+            pathData.startPosition = startGrid;
+            pathData.goalPosition = goalGrid;
+            pathData.owner = entity;
             pathData.isValid = true;
             pathData.needsUpdate = true;
             pathData.km = 0;
             dstarData.activePaths[pathIndex] = pathData;
             
-            // Compute path using D* Lite algorithm
+            // Compute the path
             ComputeDStarLitePath(ref dstarData, pathIndex, gridCostMap.costs);
             
+            // Get next waypoint
+            int2 nextNode = GetNextNodeTowardGoal(ref dstarData, pathIndex, startGrid, gridCostMap.costs);
+            float3 nextWaypoint = GridToWorld(nextNode, dstarData.nodeSize);
+            
             // Update the follower component
-            if (SystemAPI.HasComponent<DStarLiteFollower>(request.entity))
-            {
-                var follower = SystemAPI.GetComponentRW<DStarLiteFollower>(request.entity);
-                follower.ValueRW.pathDataIndex = pathIndex;
-                follower.ValueRW.goalNodeIndex = CalculateIndex(request.goalPosition, dstarData.width);
-                follower.ValueRW.targetPosition = GridToWorld(request.goalPosition, dstarData.nodeSize);
-                
-                // Set initial waypoint
-                int2 nextNode = GetNextNodeTowardGoal(ref dstarData, pathIndex, request.startPosition, gridCostMap.costs);
-                follower.ValueRW.nextWaypoint = GridToWorld(nextNode, dstarData.nodeSize);
-                
-                SystemAPI.SetComponentEnabled<DStarLiteFollower>(request.entity, true);
-            }
+            var follower = SystemAPI.GetComponentRW<DStarLiteFollower>(entity);
+            follower.ValueRW.pathDataIndex = pathIndex;
+            follower.ValueRW.goalNodeIndex = CalculateIndex(goalGrid, dstarData.width);
+            follower.ValueRW.targetPosition = targetPos;
+            follower.ValueRW.nextWaypoint = nextWaypoint;
+            follower.ValueRW.currentNodeIndex = CalculateIndex(startGrid, dstarData.width);
+            
+            // Enable the follower
+            SystemAPI.SetComponentEnabled<DStarLiteFollower>(entity, true);
+            
+            // Set UnitMover target to the next waypoint
+            mover.ValueRW.targetPosition = nextWaypoint;
+            
+            // Update agent state
+            agent.ValueRW.currentMode = PathfindingMode.DStarLite;
+            agent.ValueRW.isActive = true;
+            
+            // Consume the path request
+            SystemAPI.SetComponentEnabled<PathRequest>(entity, false);
         }
     }
     
@@ -214,7 +207,7 @@ public partial struct DStarLiteSystem : ISystem
         var pathData = dstarData.activePaths[pathIndex];
         int cellCount = dstarData.width * dstarData.height;
         
-        // Reset nodes for this computation
+        // Reset all nodes
         for (int i = 0; i < cellCount; i++)
         {
             var node = dstarData.nodes[i];
@@ -224,19 +217,29 @@ public partial struct DStarLiteSystem : ISystem
             dstarData.nodes[i] = node;
         }
         
-        // Initialize goal node
+        // Check bounds
+        if (!IsValidPosition(pathData.goalPosition, dstarData.width, dstarData.height))
+            return;
+        if (!IsValidPosition(pathData.startPosition, dstarData.width, dstarData.height))
+            return;
+        
         int goalIndex = CalculateIndex(pathData.goalPosition, dstarData.width);
+        
+        // Check if goal is walkable
+        if (costMap[goalIndex] == GridSystem.WALL_COST)
+            return;
+        
+        // Initialize goal node
         var goalNode = dstarData.nodes[goalIndex];
         goalNode.rhs = 0;
-        goalNode.key = CalculateKey(pathData.goalPosition, pathData.startPosition, 0, 0, pathData.km);
+        goalNode.key = CalculateKey(pathData.goalPosition, pathData.startPosition, goalNode.g, 0, pathData.km);
         goalNode.inOpenSet = true;
         dstarData.nodes[goalIndex] = goalNode;
         
-        // Use a simple array-based priority queue
         var openSet = new NativeList<int>(256, Allocator.Temp);
         openSet.Add(goalIndex);
         
-        int maxIterations = 5000;
+        int maxIterations = 10000;
         int iterations = 0;
         
         while (openSet.Length > 0 && iterations++ < maxIterations)
@@ -261,10 +264,11 @@ public partial struct DStarLiteSystem : ISystem
             int startIndex = CalculateIndex(pathData.startPosition, dstarData.width);
             var startNode = dstarData.nodes[startIndex];
             
-            // Check termination conditions
-            if (!KeyLessThan(bestKey, CalculateKey(pathData.startPosition, pathData.startPosition, 
-                startNode.g, startNode.rhs, pathData.km)) && 
-                math.abs(startNode.rhs - startNode.g) < 0.001f)
+            // Check termination
+            float2 startKey = CalculateKey(pathData.startPosition, pathData.startPosition, 
+                startNode.g, startNode.rhs, pathData.km);
+            
+            if (!KeyLessThan(bestKey, startKey) && math.abs(startNode.rhs - startNode.g) < 0.001f)
             {
                 break;
             }
@@ -277,15 +281,12 @@ public partial struct DStarLiteSystem : ISystem
             {
                 currentNode.g = currentNode.rhs;
                 dstarData.nodes[currentIndex] = currentNode;
-                
-                // Update predecessors
                 UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap);
             }
             else
             {
                 currentNode.g = float.MaxValue;
                 dstarData.nodes[currentIndex] = currentNode;
-                
                 UpdateVertex(ref dstarData, currentIndex, ref openSet, pathData, costMap);
                 UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap);
             }
@@ -293,7 +294,6 @@ public partial struct DStarLiteSystem : ISystem
         
         openSet.Dispose();
         
-        // Mark path as valid
         pathData.needsUpdate = false;
         dstarData.activePaths[pathIndex] = pathData;
     }
@@ -303,7 +303,6 @@ public partial struct DStarLiteSystem : ISystem
     {
         int2 pos = dstarData.nodes[nodeIndex].position;
         
-        // Check all 8 neighbors
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
@@ -332,7 +331,6 @@ public partial struct DStarLiteSystem : ISystem
         
         if (nodeIndex != goalIndex)
         {
-            // Calculate minimum RHS from successors
             float minRhs = float.MaxValue;
             
             for (int dx = -1; dx <= 1; dx++)
@@ -407,6 +405,11 @@ public partial struct DStarLiteSystem : ISystem
                     continue;
                     
                 var neighborNode = dstarData.nodes[neighborIndex];
+                
+                // Skip unreachable nodes
+                if (neighborNode.g >= float.MaxValue * 0.5f)
+                    continue;
+                
                 float cost = CalculateMoveCost(dx, dy, costMap[neighborIndex]);
                 float score = cost + neighborNode.g;
                 
@@ -421,12 +424,15 @@ public partial struct DStarLiteSystem : ISystem
         return bestNeighbor;
     }
     
-    private void UpdateFollowers(ref SystemState state, ref DStarLiteData dstarData)
+    private void UpdateFollowers(ref SystemState state, ref DStarLiteData dstarData, GridSystem.GridCostMap gridCostMap)
     {
-        var gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
-        
-        foreach (var (follower, transform, entity) in 
-            SystemAPI.Query<RefRW<DStarLiteFollower>, RefRO<Unity.Transforms.LocalTransform>>()
+        foreach (var (follower, transform, mover, agent, entity) in 
+            SystemAPI.Query<
+                RefRW<DStarLiteFollower>, 
+                RefRO<LocalTransform>,
+                RefRW<UnitMover>,
+                RefRO<PathfindingAgent>>()
+            .WithAll<DStarLiteFollower>() // Only enabled followers
             .WithEntityAccess())
         {
             if (follower.ValueRO.pathDataIndex < 0 || 
@@ -437,24 +443,48 @@ public partial struct DStarLiteSystem : ISystem
             if (!pathData.isValid || pathData.owner != entity)
                 continue;
             
-            // Check if reached current waypoint
             float3 currentPos = transform.ValueRO.Position;
+            float3 nextWP = follower.ValueRO.nextWaypoint;
+            
             float distToWaypoint = math.distance(
                 new float2(currentPos.x, currentPos.z),
-                new float2(follower.ValueRO.nextWaypoint.x, follower.ValueRO.nextWaypoint.z));
-                
+                new float2(nextWP.x, nextWP.z));
+            
+            // Check if reached current waypoint
             if (distToWaypoint < dstarData.nodeSize * 0.5f)
             {
+                // Check if reached final goal
+                float distToGoal = math.distance(
+                    new float2(currentPos.x, currentPos.z),
+                    new float2(follower.ValueRO.targetPosition.x, follower.ValueRO.targetPosition.z));
+                
+                if (distToGoal < dstarData.nodeSize * 0.75f)
+                {
+                    // Reached destination
+                    mover.ValueRW.targetPosition = follower.ValueRO.targetPosition;
+                    SystemAPI.SetComponentEnabled<DStarLiteFollower>(entity, false);
+                    continue;
+                }
+                
                 // Get next waypoint
                 int2 currentGrid = WorldToGrid(currentPos, dstarData.nodeSize);
                 int2 nextNode = GetNextNodeTowardGoal(ref dstarData, follower.ValueRO.pathDataIndex, 
                     currentGrid, gridCostMap.costs);
-                    
-                follower.ValueRW.nextWaypoint = GridToWorld(nextNode, dstarData.nodeSize);
+                
+                float3 newWaypoint = GridToWorld(nextNode, dstarData.nodeSize);
+                follower.ValueRW.nextWaypoint = newWaypoint;
                 follower.ValueRW.currentNodeIndex = CalculateIndex(currentGrid, dstarData.width);
+                
+                // Update UnitMover target
+                mover.ValueRW.targetPosition = newWaypoint;
+            }
+            else
+            {
+                // Keep moving toward current waypoint
+                mover.ValueRW.targetPosition = nextWP;
             }
             
-            // Update last move direction
+            // Update direction
             float3 toWaypoint = follower.ValueRO.nextWaypoint - currentPos;
             if (math.lengthsq(toWaypoint) > 0.001f)
             {
@@ -512,7 +542,7 @@ public partial struct DStarLiteSystem : ISystem
     
     private static float CalculateMoveCost(int dx, int dy, byte terrainCost)
     {
-        float baseCost = (dx != 0 && dy != 0) ? 1.414f : 1f; // Diagonal vs cardinal
+        float baseCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
         return baseCost * terrainCost;
     }
     
@@ -532,13 +562,8 @@ public partial struct DStarLiteSystem : ISystem
     
     private static float Heuristic(int2 a, int2 b)
     {
-        // Octile distance
         int dx = math.abs(a.x - b.x);
         int dy = math.abs(a.y - b.y);
         return math.max(dx, dy) + 0.414f * math.min(dx, dy);
     }
 }
-
-
-
-

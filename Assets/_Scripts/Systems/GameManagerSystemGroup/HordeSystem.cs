@@ -11,21 +11,12 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(GameManagerSystemGroup))]
 public partial struct HordeSystem : ISystem
 {
-    private EntityQuery hordeQuery;
-    private EntityQuery memberQuery;
-    
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         // Create horde registry singleton
         var registryEntity = state.EntityManager.CreateEntity();
         state.EntityManager.AddComponent<HordeRegistry>(registryEntity);
         state.EntityManager.SetComponentData(registryEntity, new HordeRegistry { nextHordeId = 1 });
-        
-        hordeQuery = state.GetEntityQuery(ComponentType.ReadWrite<Horde>());
-        memberQuery = state.GetEntityQuery(
-            ComponentType.ReadOnly<HordeMembership>(),
-            ComponentType.ReadOnly<LocalTransform>());
     }
 
     [BurstCompile]
@@ -179,4 +170,3 @@ public partial struct HordeSystem : ISystem
         return -1;
     }
 }
-

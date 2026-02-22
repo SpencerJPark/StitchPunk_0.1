@@ -176,13 +176,81 @@ public static class AIUtils
         }
     }
 
+    /// <summary>
+    /// Assign winners to move toward interaction using the new PathRequest system.
+    /// </summary>
+    public static void AssignWinners(
+        in DynamicBuffer<InteractionOccupant> occupants,
+        float3 interactionPosition,
+        ActionType actionType,
+        ref ComponentLookup<BrainLink> brainLinkLookup,
+        ref ComponentLookup<PathRequest> pathRequestLookup,
+        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
+        ref ComponentLookup<UnitAction> unitActionLookup,
+        ref ComponentLookup<UnitMover> unitMoverLookup)
+    {
+        for (int i = 0; i < occupants.Length; i++)
+        {
+            Entity brainEntity = occupants[i].entity;
+
+            if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+                continue;
+
+            Entity body = brainLink.body;
+
+            // Set up path request
+            if (pathRequestLookup.HasComponent(body))
+            {
+                pathRequestLookup[body] = new PathRequest
+                {
+                    targetPosition = interactionPosition,
+                    requestedMode = pathfindingAgentLookup.HasComponent(body) 
+                        ? pathfindingAgentLookup[body].preferredMode 
+                        : PathfindingMode.DStarLite
+                };
+                pathRequestLookup.SetComponentEnabled(body, true);
+            }
+
+            // Update pathfinding agent if present
+            if (pathfindingAgentLookup.HasComponent(body))
+            {
+                var agent = pathfindingAgentLookup[body];
+                agent.targetPosition = interactionPosition;
+                agent.isActive = true;
+                agent.needsRepath = true;
+                pathfindingAgentLookup[body] = agent;
+            }
+            
+            // Set UnitMover target position
+            if (unitMoverLookup.HasComponent(body))
+            {
+                var mover = unitMoverLookup[body];
+                mover.targetPosition = interactionPosition;
+                unitMoverLookup[body] = mover;
+            }
+
+            // Set the action
+            if (unitActionLookup.HasComponent(body))
+            {
+                unitActionLookup[body] = new UnitAction
+                {
+                    current = actionType
+                };
+            }
+        }
+    }
+
+    /// <summary>
+    /// Legacy overload for backwards compatibility - converts to new system internally.
+    /// </summary>
     public static void AssignWinners(
         in DynamicBuffer<InteractionOccupant> occupants,
         float3 interactionPosition,
         ActionType actionType,
         ref ComponentLookup<BrainLink> brainLinkLookup,
         ref ComponentLookup<TargetPositionPathQueued> targetPositionLookup,
-        ref ComponentLookup<UnitAction> unitActionLookup)
+        ref ComponentLookup<UnitAction> unitActionLookup,
+        ref ComponentLookup<UnitMover> unitMoverLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
@@ -204,6 +272,14 @@ public static class AIUtils
                 targetPosition = interactionPosition
             };
             targetPositionLookup.SetComponentEnabled(body, true);
+
+            // Set UnitMover target position
+            if (unitMoverLookup.HasComponent(body))
+            {
+                var mover = unitMoverLookup[body];
+                mover.targetPosition = interactionPosition;
+                unitMoverLookup[body] = mover;
+            }
 
             unitActionLookup[body] = new UnitAction
             {
@@ -236,6 +312,9 @@ public static class AIUtils
         return distSq <= rangeSq;
     }
 
+    /// <summary>
+    /// Release occupants and reset their pathfinding state.
+    /// </summary>
     public static void ReleaseOccupants(
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
@@ -263,6 +342,61 @@ public static class AIUtils
         occupants.Clear();
     }
 
+    /// <summary>
+    /// Release occupants with full pathfinding cleanup.
+    /// </summary>
+    public static void ReleaseOccupants(
+        DynamicBuffer<InteractionOccupant> occupants,
+        ref ComponentLookup<NeedsAction> needsActionLookup,
+        ref ComponentLookup<UnitAction> unitActionLookup,
+        ref ComponentLookup<BrainLink> brainLinkLookup,
+        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
+        ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
+        ref ComponentLookup<DStarLiteFollower> dstarFollowerLookup)
+    {
+        for (int i = 0; i < occupants.Length; i++)
+        {
+            Entity brainEntity = occupants[i].entity;
+
+            if (brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+            {
+                Entity body = brainLink.body;
+
+                // Reset action
+                if (unitActionLookup.HasComponent(body))
+                {
+                    unitActionLookup[body] = new UnitAction
+                    {
+                        current = ActionType.Idle
+                    };
+                }
+
+                // Reset pathfinding agent
+                if (pathfindingAgentLookup.HasComponent(body))
+                {
+                    var agent = pathfindingAgentLookup[body];
+                    agent.isActive = false;
+                    pathfindingAgentLookup[body] = agent;
+                }
+
+                // Disable followers
+                if (flowFieldFollowerLookup.HasComponent(body))
+                {
+                    flowFieldFollowerLookup.SetComponentEnabled(body, false);
+                }
+
+                if (dstarFollowerLookup.HasComponent(body))
+                {
+                    dstarFollowerLookup.SetComponentEnabled(body, false);
+                }
+            }
+
+            needsActionLookup.SetComponentEnabled(brainEntity, true);
+        }
+
+        occupants.Clear();
+    }
+
     public static float ScoreInteraction(
         Entity candidate,
         float3 pos,
@@ -279,5 +413,73 @@ public static class AIUtils
         float distanceBonus = math.remap(0f, awarenessRange, 10f, 0f, distance);
 
         return math.clamp(baseScore + distanceBonus, -100f, 100f);
+    }
+
+    /// <summary>
+    /// Request a path for an entity using the new pathfinding system.
+    /// </summary>
+    public static void RequestPath(
+        Entity entity,
+        float3 targetPosition,
+        ref ComponentLookup<PathRequest> pathRequestLookup,
+        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
+        ref ComponentLookup<UnitMover> unitMoverLookup)
+    {
+        if (!pathRequestLookup.HasComponent(entity))
+            return;
+
+        PathfindingMode mode = PathfindingMode.DStarLite;
+        if (pathfindingAgentLookup.HasComponent(entity))
+        {
+            mode = pathfindingAgentLookup[entity].preferredMode;
+            
+            var agent = pathfindingAgentLookup[entity];
+            agent.targetPosition = targetPosition;
+            agent.isActive = true;
+            agent.needsRepath = true;
+            pathfindingAgentLookup[entity] = agent;
+        }
+
+        pathRequestLookup[entity] = new PathRequest
+        {
+            targetPosition = targetPosition,
+            requestedMode = mode
+        };
+        pathRequestLookup.SetComponentEnabled(entity, true);
+        
+        // Also set UnitMover target
+        if (unitMoverLookup.HasComponent(entity))
+        {
+            var mover = unitMoverLookup[entity];
+            mover.targetPosition = targetPosition;
+            unitMoverLookup[entity] = mover;
+        }
+    }
+
+    /// <summary>
+    /// Stop pathfinding for an entity.
+    /// </summary>
+    public static void StopPathfinding(
+        Entity entity,
+        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
+        ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
+        ref ComponentLookup<DStarLiteFollower> dstarFollowerLookup)
+    {
+        if (pathfindingAgentLookup.HasComponent(entity))
+        {
+            var agent = pathfindingAgentLookup[entity];
+            agent.isActive = false;
+            pathfindingAgentLookup[entity] = agent;
+        }
+
+        if (flowFieldFollowerLookup.HasComponent(entity))
+        {
+            flowFieldFollowerLookup.SetComponentEnabled(entity, false);
+        }
+
+        if (dstarFollowerLookup.HasComponent(entity))
+        {
+            dstarFollowerLookup.SetComponentEnabled(entity, false);
+        }
     }
 }
