@@ -21,7 +21,3 @@ public class BillboardAuthoring : MonoBehaviour {
 
 
 
-public struct Billboard : IComponentData
-{
-    public Entity parentEntity;
-}

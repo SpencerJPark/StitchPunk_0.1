@@ -3,7 +3,7 @@ using Unity.Entities;
 using Unity.Transforms;
 
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
-[UpdateBefore(typeof(ResetEventsSystem))]
+//[UpdateBefore(typeof(ResetEventsSystem))]
 partial struct SelectedVisualSystem : ISystem {
 
     [BurstCompile]

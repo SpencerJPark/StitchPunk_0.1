@@ -24,12 +24,3 @@ public class SelectedAuthoring : MonoBehaviour {
 }
 
 
-public struct Selected : IComponentData, IEnableableComponent {
-
-    public Entity visualEntity;
-    public float showScale;
-
-    public bool onSelected;
-    public bool onDeselected;
-
-}

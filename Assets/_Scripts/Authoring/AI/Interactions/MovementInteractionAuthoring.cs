@@ -17,7 +17,3 @@ public class MovementInteractionAuthoring : MonoBehaviour
     }
 }
 
-public struct MovementInteraction : IComponentData
-{
-    public int value;
-}

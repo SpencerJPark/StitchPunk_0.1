@@ -24,7 +24,7 @@ using Unity.Transforms;
 public partial struct GenericInteractionExecutionSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<BrainLink> brainLinkLookup;
+    private ComponentLookup<BodyLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
 
@@ -36,7 +36,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         state.RequireForUpdate<Interaction>();
 
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
+        brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
     }
@@ -78,7 +78,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
     public partial struct GenericArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-        [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
         public float defaultDuration;
 
         public void Execute(
@@ -112,7 +112,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         public float deltaTime;
         public ComponentLookup<NeedsAction> needsActionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
-        [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
 
         public void Execute(
             in Interaction interaction,

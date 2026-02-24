@@ -23,12 +23,3 @@ public class AIScoringLibraryAuthoring : MonoBehaviour
     }
 }
 
-public struct ScoringLibrary : IComponentData
-{
-    public BlobAssetReference<AIScoringLibraryBlob> library;
-}
-
-public struct ScoringLibraryReference : IComponentData
-{
-    public UnityObjectRef<AIScoringLibrarySO> library;
-}

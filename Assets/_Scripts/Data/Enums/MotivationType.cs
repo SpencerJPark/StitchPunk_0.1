@@ -1,0 +1,21 @@
+﻿public enum MotivationType
+{
+    Hunger,
+    Energy,
+    Fun,
+    Social,
+    Comfort,
+    Bladder,
+    Safety,
+    Movement,
+    SelfPreservation,
+    Bookworm,
+    Work,
+    NightOwl,
+    EarlyBird,
+    Glutton,
+    Grumpy,
+    Depressed,
+    Lazy,
+    Nervous,
+}

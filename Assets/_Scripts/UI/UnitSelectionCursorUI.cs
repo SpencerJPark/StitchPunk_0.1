@@ -197,3 +197,4 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
         cursorImageRectTransform.anchoredPosition = localPoint;
     }
 }
+

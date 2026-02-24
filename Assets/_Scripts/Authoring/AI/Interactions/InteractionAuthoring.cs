@@ -44,31 +44,3 @@ public class InteractionAuthoring : MonoBehaviour
     }
 }
 
-public struct InteractionProvider : IComponentData, IEnableableComponent
-{
-}
-
-public struct Interaction : IComponentData
-{
-    public float interactionRange;
-    public ActionType actionType;
-    public int maxOccupants;
-}
-
-public struct InteractionTimer : IComponentData, IEnableableComponent
-{
-    public float maxTime;
-    public float duration;
-    public float elapsed;
-}
-
-public struct InteractionOccupant : IBufferElementData
-{
-    public Entity entity;
-    public MotivationType motivationType;
-    public float score;
-}
-
-public struct InteractionHandled : IComponentData, IEnableableComponent
-{
-}

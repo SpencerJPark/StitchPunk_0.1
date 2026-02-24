@@ -149,7 +149,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             float3 moveVector = GridSystem.GetWorldMovementVector(flowVector);
 
             // Handle wall cells - use last valid direction
-            if (costs[localIndex] == GridSystem.WALL_COST)
+            if (costs[localIndex] == GlobalGameData.WALL_COST)
             {
                 moveVector = follower.lastMoveVector;
             }

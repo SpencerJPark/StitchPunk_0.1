@@ -17,7 +17,3 @@ public class PlayerAuthoring : MonoBehaviour {
     }
 }
 
-public struct Player : IComponentData {
-    
-    public Entity interactableEntity; // entity player can interact with
-}

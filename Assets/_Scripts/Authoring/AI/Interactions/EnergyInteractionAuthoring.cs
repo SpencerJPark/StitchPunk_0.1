@@ -17,6 +17,3 @@ public class EnergyInteractionAuthoring : MonoBehaviour {
     }
 }
 
-public struct EnergyInteraction : IComponentData {
-    public int value;
-}

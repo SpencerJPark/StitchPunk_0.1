@@ -17,7 +17,3 @@ public class SafetyInteractionAuthoring : MonoBehaviour
     }
 }
 
-public struct SafetyInteraction : IComponentData
-{
-    public int value;
-}

@@ -183,7 +183,7 @@ public static class AIUtils
         in DynamicBuffer<InteractionOccupant> occupants,
         float3 interactionPosition,
         ActionType actionType,
-        ref ComponentLookup<BrainLink> brainLinkLookup,
+        ref ComponentLookup<BodyLink> brainLinkLookup,
         ref ComponentLookup<PathRequest> pathRequestLookup,
         ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
@@ -193,7 +193,7 @@ public static class AIUtils
         {
             Entity brainEntity = occupants[i].entity;
 
-            if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+            if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
                 continue;
 
             Entity body = brainLink.body;
@@ -240,59 +240,12 @@ public static class AIUtils
         }
     }
 
-    /// <summary>
-    /// Legacy overload for backwards compatibility - converts to new system internally.
-    /// </summary>
-    public static void AssignWinners(
-        in DynamicBuffer<InteractionOccupant> occupants,
-        float3 interactionPosition,
-        ActionType actionType,
-        ref ComponentLookup<BrainLink> brainLinkLookup,
-        ref ComponentLookup<TargetPositionPathQueued> targetPositionLookup,
-        ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<UnitMover> unitMoverLookup)
-    {
-        for (int i = 0; i < occupants.Length; i++)
-        {
-            Entity brainEntity = occupants[i].entity;
-
-            if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
-                continue;
-
-            Entity body = brainLink.body;
-
-            if (!targetPositionLookup.HasComponent(body))
-                continue;
-
-            if (!unitActionLookup.HasComponent(body))
-                continue;
-
-            targetPositionLookup[body] = new TargetPositionPathQueued
-            {
-                targetPosition = interactionPosition
-            };
-            targetPositionLookup.SetComponentEnabled(body, true);
-
-            // Set UnitMover target position
-            if (unitMoverLookup.HasComponent(body))
-            {
-                var mover = unitMoverLookup[body];
-                mover.targetPosition = interactionPosition;
-                unitMoverLookup[body] = mover;
-            }
-
-            unitActionLookup[body] = new UnitAction
-            {
-                current = actionType
-            };
-        }
-    }
-
+    
     public static bool CheckArrival(
         in DynamicBuffer<InteractionOccupant> occupants,
         in LocalTransform interactionTransform,
         float interactionRange,
-        ref ComponentLookup<BrainLink> brainLinkLookup,
+        ref ComponentLookup<BodyLink> brainLinkLookup,
         ref ComponentLookup<LocalTransform> transformLookup)
     {
         if (occupants.Length == 0)
@@ -300,7 +253,7 @@ public static class AIUtils
 
         Entity brainEntity = occupants[0].entity;
 
-        if (!brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+        if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
             return false;
 
         if (!transformLookup.TryGetComponent(brainLink.body, out LocalTransform bodyTransform))
@@ -319,13 +272,13 @@ public static class AIUtils
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<BrainLink> brainLinkLookup)
+        ref ComponentLookup<BodyLink> brainLinkLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
             Entity brainEntity = occupants[i].entity;
 
-            if (brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+            if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
             {
                 if (unitActionLookup.HasComponent(brainLink.body))
                 {
@@ -349,7 +302,7 @@ public static class AIUtils
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<BrainLink> brainLinkLookup,
+        ref ComponentLookup<BodyLink> brainLinkLookup,
         ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
         ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
         ref ComponentLookup<DStarLiteFollower> dstarFollowerLookup)
@@ -358,7 +311,7 @@ public static class AIUtils
         {
             Entity brainEntity = occupants[i].entity;
 
-            if (brainLinkLookup.TryGetComponent(brainEntity, out BrainLink brainLink))
+            if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
             {
                 Entity body = brainLink.body;
 

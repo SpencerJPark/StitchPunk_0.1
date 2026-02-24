@@ -148,17 +148,16 @@ GameObject:
   - component: {fileID: 7273244649239706813}
   - component: {fileID: 3252298093452205623}
   - component: {fileID: 123114018271666235}
+  - component: {fileID: 6575585675197493464}
   - component: {fileID: 3325866980247311967}
   - component: {fileID: 5496935279846705089}
   - component: {fileID: 8570070412925931212}
   - component: {fileID: 3475789621352244214}
-  - component: {fileID: 757781151266987349}
-  - component: {fileID: 9215831187208810432}
-  - component: {fileID: 3801419847962034913}
-  - component: {fileID: 6575585675197493464}
-  - component: {fileID: 711091554357179147}
-  - component: {fileID: 3004038991711854641}
   - component: {fileID: 5949880546641695836}
+  - component: {fileID: 3004038991711854641}
+  - component: {fileID: 711091554357179147}
+  - component: {fileID: 757781151266987349}
+  - component: {fileID: 3801419847962034913}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -219,6 +218,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1901af463982af24580dbc12ae8f5b48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &6575585675197493464
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdc8a81fe2ca8894fab26858848604de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  healthAmount: 100
+  healthAmountMax: 100
 --- !u!114 &3325866980247311967
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -275,7 +288,7 @@ MonoBehaviour:
   attack: 0
   interact: 0
   overide: 0
---- !u!114 &757781151266987349
+--- !u!114 &5949880546641695836
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -284,62 +297,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 3094532311958105572}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
+  m_Script: {fileID: 11500000, guid: 8ea61ffb4a284fc8919112b83f306acd, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &9215831187208810432
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e56f3ff1228dad2489501c6c433aa3df, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &3801419847962034913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
-  brain: {fileID: 5840296948594079509}
---- !u!114 &6575585675197493464
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cdc8a81fe2ca8894fab26858848604de, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  healthAmount: 100
-  healthAmountMax: 100
---- !u!114 &711091554357179147
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ed0317c7c1d8bc84ebf4621ac95043a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  visualGameObject: {fileID: 400835017738712693}
-  showScale: 2
+  m_EditorClassIdentifier: Assembly-CSharp::PathfindingAuthoring
+  preferredMode: 0
+  repathInterval: 0.5
+  hordeFormationThreshold: 10
 --- !u!114 &3004038991711854641
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -377,7 +340,7 @@ MonoBehaviour:
     animation: 0
     speed: 1
     looping: 1
---- !u!114 &5949880546641695836
+--- !u!114 &711091554357179147
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -386,12 +349,36 @@ MonoBehaviour:
   m_GameObject: {fileID: 3094532311958105572}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8ea61ffb4a284fc8919112b83f306acd, type: 3}
+  m_Script: {fileID: 11500000, guid: ed0317c7c1d8bc84ebf4621ac95043a7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PathfindingAuthoring
-  preferredMode: 0
-  repathInterval: 0.5
-  hordeFormationThreshold: 10
+  m_EditorClassIdentifier: 
+  visualGameObject: {fileID: 400835017738712693}
+  showScale: 2
+--- !u!114 &757781151266987349
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &3801419847962034913
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3094532311958105572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
+  brain: {fileID: 5840296948594079509}
 --- !u!1 &5840296948594079509
 GameObject:
   m_ObjectHideFlags: 0
@@ -401,7 +388,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7925378716681516739}
-  - component: {fileID: 4255529005934916258}
   - component: {fileID: 7178743137103500623}
   m_Layer: 0
   m_Name: Brain
@@ -425,19 +411,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7273244649239706813}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4255529005934916258
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5840296948594079509}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f43523f3f3700e8428ced25da0bfc995, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BrainLinkAuthoring
-  body: {fileID: 3094532311958105572}
 --- !u!114 &7178743137103500623
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -450,6 +423,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42b941a8f1a24fa4be4e54bd83f7cf2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CitizenBrainAuthoring
+  body: {fileID: 3094532311958105572}
   awarenessRange: 20
 --- !u!1001 &4233715775177122149
 PrefabInstance:

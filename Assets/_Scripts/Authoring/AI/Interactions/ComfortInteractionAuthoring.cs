@@ -17,7 +17,3 @@ public class ComfortInteractionAuthoring : MonoBehaviour
     }
 }
 
-public struct ComfortInteraction : IComponentData
-{
-    public int value;
-}

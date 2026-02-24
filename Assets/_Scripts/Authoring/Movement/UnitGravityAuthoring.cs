@@ -17,8 +17,3 @@ public class UnitGravityAuthoring : MonoBehaviour {
 }
 
 
-public struct UnitGravity : IComponentData
-{
-    public float fallSpeed;
-    public float verticalVelocity;
-}

@@ -295,7 +295,7 @@ public struct CalculateFlowFieldJob : IJob
             return;
             
         int targetLocalIndex = GridSystem.CalculateIndex(targetGridPosition, width);
-        if (costs[targetLocalIndex] == GridSystem.WALL_COST)
+        if (costs[targetLocalIndex] == GlobalGameData.WALL_COST)
             return;
         
         // BFS queue (ring buffer)
@@ -336,7 +336,7 @@ public struct CalculateFlowFieldJob : IJob
                     int neighborLocalIndex = GridSystem.CalculateIndex(neighborPos, width);
                     byte neighborCost = costs[neighborLocalIndex];
                     
-                    if (neighborCost == GridSystem.WALL_COST)
+                    if (neighborCost == GlobalGameData.WALL_COST)
                         continue;
                     
                     // Diagonal costs more

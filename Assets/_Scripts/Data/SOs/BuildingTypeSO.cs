@@ -32,28 +32,28 @@ public class BuildingTypeSO : ScriptableObject {
         return buildingType == BuildingType.None;
     }
 
-    public Entity GetPrefabEntity(StructureLibrary structureLibrary) {
-        switch (buildingType) {
-            default:
-            case BuildingType.None:
-            case BuildingType.Tower:    return structureLibrary.buildingTowerPrefabEntity;
-            case BuildingType.Barracks: return structureLibrary.buildingBarracksPrefabEntity;
-            case BuildingType.IronHarvester: return structureLibrary.buildingIronHarvestorPrefabEntity;
-            case BuildingType.GoldHarvester: return structureLibrary.buildingGoldHarvestorPrefabEntity;
-            case BuildingType.OilHarvester: return structureLibrary.buildingOilHarvestorPrefabEntity;
-        }
-    }
-    
-    public Entity GetVisualPrefabEntity(StructureLibrary structureLibrary) {
-        switch (buildingType) {
-            default:
-            case BuildingType.None:
-            case BuildingType.Tower:    return structureLibrary.buildingTowerVisualPrefabEntity;
-            case BuildingType.Barracks: return structureLibrary.buildingBarracksVisualPrefabEntity;
-            case BuildingType.IronHarvester: return structureLibrary.buildingIronHarvestorVisualPrefabEntity;
-            case BuildingType.GoldHarvester: return structureLibrary.buildingGoldHarvestorVisualPrefabEntity;
-            case BuildingType.OilHarvester: return structureLibrary.buildingOilHarvestorVisualPrefabEntity;
-        }
-    }
+    // public Entity GetPrefabEntity(StructureLibrary structureLibrary) {
+    //     switch (buildingType) {
+    //         default:
+    //         case BuildingType.None:
+    //         case BuildingType.Tower:    return structureLibrary.buildingTowerPrefabEntity;
+    //         case BuildingType.Barracks: return structureLibrary.buildingBarracksPrefabEntity;
+    //         case BuildingType.IronHarvester: return structureLibrary.buildingIronHarvestorPrefabEntity;
+    //         case BuildingType.GoldHarvester: return structureLibrary.buildingGoldHarvestorPrefabEntity;
+    //         case BuildingType.OilHarvester: return structureLibrary.buildingOilHarvestorPrefabEntity;
+    //     }
+    // }
+    //
+    // public Entity GetVisualPrefabEntity(StructureLibrary structureLibrary) {
+    //     switch (buildingType) {
+    //         default:
+    //         case BuildingType.None:
+    //         case BuildingType.Tower:    return structureLibrary.buildingTowerVisualPrefabEntity;
+    //         case BuildingType.Barracks: return structureLibrary.buildingBarracksVisualPrefabEntity;
+    //         case BuildingType.IronHarvester: return structureLibrary.buildingIronHarvestorVisualPrefabEntity;
+    //         case BuildingType.GoldHarvester: return structureLibrary.buildingGoldHarvestorVisualPrefabEntity;
+    //         case BuildingType.OilHarvester: return structureLibrary.buildingOilHarvestorVisualPrefabEntity;
+    //     }
+    // }
 
 }

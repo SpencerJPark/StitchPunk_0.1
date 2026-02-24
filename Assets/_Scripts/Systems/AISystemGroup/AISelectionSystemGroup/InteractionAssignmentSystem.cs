@@ -9,7 +9,7 @@ using Unity.Transforms;
 [UpdateAfter(typeof(ActionSelectionSystem))]
 public partial struct InteractionAssignmentSystem : ISystem
 {
-    private ComponentLookup<BrainLink> brainLinkLookup;
+    private ComponentLookup<BodyLink> brainLinkLookup;
     private ComponentLookup<PathRequest> pathRequestLookup;
     private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
@@ -22,7 +22,7 @@ public partial struct InteractionAssignmentSystem : ISystem
     {
         state.RequireForUpdate<Interaction>();
 
-        brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
+        brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
         pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
         pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
@@ -58,7 +58,7 @@ public partial struct InteractionAssignmentSystem : ISystem
     [WithAll(typeof(InteractionProvider))]
     public partial struct AssignmentJob : IJobEntity
     {
-        [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
         public ComponentLookup<PathRequest> pathRequestLookup;
         public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
         public ComponentLookup<UnitAction> unitActionLookup;

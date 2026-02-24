@@ -34,20 +34,3 @@ public class HordeAuthoring : MonoBehaviour
     }
 }
 
-public struct Horde : IComponentData
-{
-    public int hordeId;
-    public float3 targetPosition;
-    public Entity targetEntity;
-    public int flowFieldIndex;
-    public int memberCount;
-    public bool isActive;
-    public bool needsPathUpdate;
-    public int behaviorFlags;
-}
-
-[InternalBufferCapacity(16)]
-public struct HordeMemberBuffer : IBufferElementData
-{
-    public Entity memberEntity;
-}

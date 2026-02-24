@@ -1,0 +1,27 @@
+{
+    "name": "StitchPunk.Systems",
+    "rootNamespace": "",
+    "references": [
+        "GUID:734d92eba21c94caba915361bd5ac177",
+        "GUID:8819f35a0fc84499b990e90a4ca1911f",
+        "GUID:7a450cf7ca9694b5a8bfa3fd83ec635a",
+        "GUID:2665a8d13d1b3f18800f46e256720795",
+        "GUID:e0cd26848372d4e5c891c569017e11f1",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:63afb046c8423dd448ae7aba042ea63d",
+        "GUID:a5baed0c9693541a5bd947d336ec7659",
+        "GUID:7ff523084e6eb6a4bab4fb71b3b9fcb3",
+        "GUID:8dfb72a3ac2144b4e9a720c0c1008aab",
+        "GUID:6df075a5896f0b74686d0aa5033bab69",
+        "GUID:f6d3133ab89495c40a933922769e2c5c"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

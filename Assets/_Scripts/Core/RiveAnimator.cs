@@ -3,7 +3,6 @@ using Rive;
 using Rive.Components;
 using System;
 using System.Collections.Generic;
-using Cysharp.Threading.Tasks;
 
 public class RiveAnimator
 {

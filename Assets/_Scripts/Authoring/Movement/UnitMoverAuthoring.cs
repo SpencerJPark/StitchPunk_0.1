@@ -20,14 +20,9 @@ public class UnitMoverAuthoring : MonoBehaviour
                 targetPosition         = float3.zero,
                 isMoving               = false,
             });
+            AddComponent(entity, new SetupUnitMoverDefaultPosition());
         }
     }
 }
 
-public struct UnitMover : IComponentData
-{
-    public float moveSpeed;
-    public float rotationSpeed;
-    public float3 targetPosition;
-    public bool isMoving;
-}
+

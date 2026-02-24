@@ -75,26 +75,3 @@ public class AnimatorAuthoring : MonoBehaviour
         }
     }
 }
-
-// =====================================
-// ANIMATION LAYER DATA
-// =====================================
-
-[InternalBufferCapacity(8)]
-public struct AnimationLayer : IBufferElementData
-{
-    public AnimationLayerType layer;
-    public AnimationType animation;
-    public float time;
-    public float speed;
-    public bool active;
-    public bool looping;
-}
-
-// Buffer of all body parts belonging to this animator
-[InternalBufferCapacity(32)]
-public struct AnimatorTarget : IBufferElementData
-{
-    public Entity entity;
-    public AnimationTarget target;
-}

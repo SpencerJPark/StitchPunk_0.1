@@ -24,11 +24,3 @@ public class AnimationLibraryAuthoring : MonoBehaviour
     }
 }
 
-public struct AnimationLibrary : IComponentData {
-    public BlobAssetReference<AnimationLibraryBlob> library;
-}
-
-public struct AnimationLibraryReference : IComponentData
-{
-    public UnityObjectRef<AnimationLibrarySO> library;
-}

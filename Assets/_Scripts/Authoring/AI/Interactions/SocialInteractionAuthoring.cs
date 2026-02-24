@@ -17,6 +17,3 @@ public class SocialInteractionAuthoring : MonoBehaviour {
     }
 }
 
-public struct SocialInteraction : IComponentData {
-    public int value;
-}

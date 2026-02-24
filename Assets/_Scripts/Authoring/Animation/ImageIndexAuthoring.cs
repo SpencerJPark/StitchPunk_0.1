@@ -1,5 +1,4 @@
 using Unity.Entities;
-using Unity.Rendering;
 using UnityEngine;
 
 public class ImageIndexAuthoring : MonoBehaviour {
@@ -23,18 +22,3 @@ public class ImageIndexAuthoring : MonoBehaviour {
     }
 }
 
-public struct ImageIndex : IComponentData
-{
-    public int index;
-    public bool onUpdate;
-}
-
-[MaterialProperty("_ImageIndex")]
-public struct ImageIndexOverride : IComponentData
-{
-    public float Value;
-}
-
-// Damage color bool propertyBlock
-// tint for effects
-// disolve

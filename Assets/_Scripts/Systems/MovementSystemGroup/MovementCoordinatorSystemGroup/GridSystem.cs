@@ -12,11 +12,7 @@ using Unity.Physics;
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
 public partial struct GridSystem : ISystem
 {
-    // Cost constants - shared across all pathfinding
-    public const byte WALL_COST = byte.MaxValue;
-    public const byte HEAVY_COST = 50;
-    public const byte DEFAULT_COST = 1;
-    public const byte STAIR_COST = 2; // Slightly higher cost for stairs
+    
     
     /// <summary>
     /// Core grid configuration - shared by all pathfinding systems.
@@ -88,7 +84,7 @@ public partial struct GridSystem : ISystem
         // Initialize to default walkable
         for (int i = 0; i < totalCells; i++)
         {
-            costMap.costs[i] = DEFAULT_COST;
+            costMap.costs[i] = GlobalGameData.DEFAULT_COST;
         }
         
         state.EntityManager.AddComponent<GridCostMap>(state.SystemHandle);
@@ -274,17 +270,17 @@ public partial struct GridSystem : ISystem
     /// <summary>Check if a cell is a wall.</summary>
     public static bool IsWall(int index, NativeArray<byte> costs)
     {
-        return costs[index] == WALL_COST;
+        return costs[index] == GlobalGameData.WALL_COST;
     }
     
     public static bool IsWall(int2 pos, int width, NativeArray<byte> costs)
     {
-        return costs[CalculateIndex(pos, width)] == WALL_COST;
+        return costs[CalculateIndex(pos, width)] == GlobalGameData.WALL_COST;
     }
     
     public static bool IsWall(int2 pos, int layer, int width, int height, NativeArray<byte> costs)
     {
-        return costs[CalculateIndex(pos, layer, width, height)] == WALL_COST;
+        return costs[CalculateIndex(pos, layer, width, height)] == GlobalGameData.WALL_COST;
     }
     
     /// <summary>Check if world position is walkable.</summary>
@@ -297,13 +293,13 @@ public partial struct GridSystem : ISystem
             return false;
             
         int index = CalculateIndex(gridPos, layer, config.width, config.height);
-        return costs[index] != WALL_COST;
+        return costs[index] != GlobalGameData.WALL_COST;
     }
     
     /// <summary>Get movement cost between two adjacent cells.</summary>
     public static float GetMovementCost(int dx, int dy, byte cellCost)
     {
-        if (cellCost == WALL_COST) return float.MaxValue;
+        if (cellCost == GlobalGameData.WALL_COST) return float.MaxValue;
         
         // Diagonal movement costs more
         float baseCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
@@ -361,7 +357,7 @@ public struct UpdateCostMapJob : IJobParallelFor
         var wallHits = new NativeList<DistanceHit>(Allocator.Temp);
         if (collisionWorld.OverlapSphere(worldPos, cellSizeHalf * 0.9f, ref wallHits, wallFilter))
         {
-            costs[index] = GridSystem.WALL_COST;
+            costs[index] = GlobalGameData.WALL_COST;
             wallHits.Dispose();
             return;
         }
@@ -371,13 +367,13 @@ public struct UpdateCostMapJob : IJobParallelFor
         var heavyHits = new NativeList<DistanceHit>(Allocator.Temp);
         if (collisionWorld.OverlapSphere(worldPos, cellSizeHalf * 0.9f, ref heavyHits, heavyFilter))
         {
-            costs[index] = GridSystem.HEAVY_COST;
+            costs[index] = GlobalGameData.HEAVY_COST;
             heavyHits.Dispose();
             return;
         }
         heavyHits.Dispose();
         
         // Default walkable
-        costs[index] = GridSystem.DEFAULT_COST;
+        costs[index] = GlobalGameData.DEFAULT_COST;
     }
 }

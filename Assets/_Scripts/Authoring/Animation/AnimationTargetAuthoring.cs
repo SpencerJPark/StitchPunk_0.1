@@ -35,31 +35,3 @@ public class AnimationTargetAuthoring : MonoBehaviour
         }
     }
 }
-
-public struct AnimationTargetTag : IComponentData
-{
-    public AnimationTarget target;
-}
-
-public struct ParentAnimator : IComponentData
-{
-    public Entity animator;
-}
-
-// Rest pose - set during authoring, doesn't change at runtime
-public struct AnimationTargetRestPose : IComponentData
-{
-    public float3 localPosition;
-    public float rotation;
-    public float2 scale;
-    public int baseImageIndex;
-}
-
-// Computed each frame by the animation system
-public struct AnimationTargetPose : IComponentData
-{
-    public float3 localPosition;
-    public float rotation;
-    public float2 scale;
-    public int imageIndex;
-}

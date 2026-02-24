@@ -17,7 +17,3 @@ public class BladderInteractionAuthoring : MonoBehaviour
     }
 }
 
-public struct BladderInteraction : IComponentData
-{
-    public int value;
-}

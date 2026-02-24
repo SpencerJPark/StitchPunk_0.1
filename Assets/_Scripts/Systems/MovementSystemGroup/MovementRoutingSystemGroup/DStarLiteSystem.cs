@@ -245,7 +245,7 @@ public partial struct DStarLiteSystem : ISystem
         
         int goalIndex = PathfindingUtils.CalculateIndex(pathData.goalPosition, dstarData.width);
         
-        if (costMap[goalIndex] == GridSystem.WALL_COST)
+        if (costMap[goalIndex] == GlobalGameData.WALL_COST)
             return;
         
         DStarNode goalNode = dstarData.nodes[goalIndex];
@@ -329,7 +329,7 @@ public partial struct DStarLiteSystem : ISystem
                     continue;
                     
                 int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, dstarData.width);
-                if (costMap[neighborIndex] == GridSystem.WALL_COST)
+                if (costMap[neighborIndex] == GlobalGameData.WALL_COST)
                     continue;
                     
                 UpdateVertex(ref dstarData, neighborIndex, ref openSet, pathData, costMap);
@@ -359,7 +359,7 @@ public partial struct DStarLiteSystem : ISystem
                         continue;
                         
                     int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, dstarData.width);
-                    if (costMap[neighborIndex] == GridSystem.WALL_COST)
+                    if (costMap[neighborIndex] == GlobalGameData.WALL_COST)
                         continue;
                         
                     DStarNode neighborNode = dstarData.nodes[neighborIndex];
@@ -413,7 +413,7 @@ public partial struct DStarLiteSystem : ISystem
                     continue;
                     
                 int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, dstarData.width);
-                if (costMap[neighborIndex] == GridSystem.WALL_COST)
+                if (costMap[neighborIndex] == GlobalGameData.WALL_COST)
                     continue;
                     
                 DStarNode neighborNode = dstarData.nodes[neighborIndex];
@@ -565,7 +565,7 @@ public partial struct DStarLiteSystem : ISystem
                         continue;
                         
                     int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, width);
-                    if (costs[neighborIndex] == GridSystem.WALL_COST)
+                    if (costs[neighborIndex] == GlobalGameData.WALL_COST)
                         continue;
                         
                     DStarNode neighborNode = nodes[neighborIndex];

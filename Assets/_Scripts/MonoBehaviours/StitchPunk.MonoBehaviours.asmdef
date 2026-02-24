@@ -1,0 +1,27 @@
+{
+    "name": "StitchPunk.MonoBehaviours",
+    "rootNamespace": "",
+    "references": [
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:734d92eba21c94caba915361bd5ac177",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:e0cd26848372d4e5c891c569017e11f1",
+        "GUID:a5baed0c9693541a5bd947d336ec7659",
+        "GUID:4307f53044263cf4b835bd812fc161a4",
+        "GUID:63afb046c8423dd448ae7aba042ea63d",
+        "GUID:21b0c8d1703a94250bfac916590cea4f",
+        "GUID:7ff523084e6eb6a4bab4fb71b3b9fcb3",
+        "GUID:8dfb72a3ac2144b4e9a720c0c1008aab",
+        "GUID:6df075a5896f0b74686d0aa5033bab69",
+        "GUID:f1045488f3cb5c5428ccaf14e6d565d4"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -16,6 +16,3 @@ public class HungerInteractionAuthoring : MonoBehaviour {
     }
 }
 
-public struct HungerInteraction : IComponentData {
-    public int value;
-}

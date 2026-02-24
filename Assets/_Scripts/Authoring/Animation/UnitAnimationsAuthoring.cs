@@ -25,13 +25,3 @@ public class UnitAnimationsAuthoring : MonoBehaviour {
         }
     }
 }
-
-
-public struct UnitAnimations : IComponentData
-{
-    public AnimationType idle;
-    public AnimationType move;
-    public AnimationType attack;
-    public AnimationType interact;
-    public AnimationType overide;
-}

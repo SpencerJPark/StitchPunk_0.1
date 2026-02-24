@@ -17,7 +17,3 @@ public class FunInteractionAuthoring : MonoBehaviour
     }
 }
 
-public struct FunInteraction : IComponentData
-{
-    public int value;
-}

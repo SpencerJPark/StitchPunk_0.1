@@ -10,7 +10,7 @@ public partial struct BladderExecutionSystem : ISystem
 {
     private ComponentLookup<BladderMotivation> bladderLookup;
     private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<BrainLink> brainLinkLookup;
+    private ComponentLookup<BodyLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
 
@@ -21,7 +21,7 @@ public partial struct BladderExecutionSystem : ISystem
 
         bladderLookup = state.GetComponentLookup<BladderMotivation>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        brainLinkLookup = state.GetComponentLookup<BrainLink>(true);
+        brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
     }
@@ -62,7 +62,7 @@ public partial struct BladderExecutionSystem : ISystem
     public partial struct BladderArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-        [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
 
         public void Execute(
             in BladderInteraction bladderInteraction,
@@ -96,7 +96,7 @@ public partial struct BladderExecutionSystem : ISystem
         public ComponentLookup<BladderMotivation> bladderLookup;
         public ComponentLookup<NeedsAction> needsActionLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
-        [ReadOnly] public ComponentLookup<BrainLink> brainLinkLookup;
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
 
         public void Execute(
             in BladderInteraction bladderInteraction,

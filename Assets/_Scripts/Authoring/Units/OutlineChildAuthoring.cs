@@ -19,13 +19,3 @@ public class OutlineChildAuthoring : MonoBehaviour {
 }
 
 
-public struct OutlineChild : IComponentData {
-    public Entity parentEntity;
-}
-
-/// <summary>
-/// When this component is present and enabled, the entity renders to the outline camera
-/// </summary>
-public struct OutlinedTag : IComponentData, IEnableableComponent
-{
-}
