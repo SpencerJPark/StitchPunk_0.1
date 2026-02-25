@@ -194,7 +194,7 @@ public class AnimationPreviewController : MonoBehaviour
         }
     }
     
-    private void RebuildLayers()
+    private void RebuildLayers(bool preserveTime = false)
     {
         if (!IsWorldValid())
         {
@@ -229,7 +229,7 @@ public class AnimationPreviewController : MonoBehaviour
                         {
                             layer = AnimationLayerType.Base,
                             animation = editClip.animationType,
-                            time = 0f,
+                            time = preserveTime ? (normalizedTime * (editClip?.duration ?? 0)) : 0f,
                             speed = 1f,
                             active = true,
                             looping = editClip.looping || loop
@@ -279,8 +279,8 @@ public class AnimationPreviewController : MonoBehaviour
             
             entities.Dispose();
             
-            normalizedTime = 0f;
-            lastSentNormalizedTime = -1f;
+            // normalizedTime = 0f;
+            // lastSentNormalizedTime = -1f;
         }
         catch (System.Exception e)
         {
@@ -382,18 +382,17 @@ public class AnimationPreviewController : MonoBehaviour
             
             worldInitialized = true;
             
+            RebuildLayers(preserveTime: true); 
+
+            // 2. Immediately push our current normalizedTime to the new ECS entities
             var timeControl = entityManager.GetComponentData<EditorAnimationTimeControl>(timeControlEntity);
+            timeControl.normalizedTime = normalizedTime; // Use the value we had in Editor
             timeControl.isPaused = !isPlaying;
-            timeControl.normalizedTime = normalizedTime;
-            timeControl.playbackSpeed = playbackSpeed;
-            timeControl.forceLoop = loop;
-            timeControl.soloLayerIndex = -1;
             entityManager.SetComponentData(timeControlEntity, timeControl);
+    
+            // 3. Force the layers to the correct time instantly
+            SyncTimeToLayers(normalizedTime);
             lastSentNormalizedTime = normalizedTime;
-            
-            if (showDebugLog) Debug.Log($"[PreviewController] Initialized. TimeControl entity found. {animCount} animator entities.");
-            
-            RebuildLayers();
         }
         catch (System.Exception e)
         {

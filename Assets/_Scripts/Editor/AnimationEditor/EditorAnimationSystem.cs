@@ -6,7 +6,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-[UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+[UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial struct EditorAnimationSystem : ISystem
 {
     private int lastSampledFrame;

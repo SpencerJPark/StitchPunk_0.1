@@ -2,12 +2,12 @@
     "name": "StitchPunk.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:734d92eba21c94caba915361bd5ac177",
-        "GUID:8819f35a0fc84499b990e90a4ca1911f",
-        "GUID:d8b63aba1907145bea998dd612889d6b",
-        "GUID:e0cd26848372d4e5c891c569017e11f1",
-        "GUID:7ff523084e6eb6a4bab4fb71b3b9fcb3",
-        "GUID:8dfb72a3ac2144b4e9a720c0c1008aab"
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Mathematics",
+        "Unity.Collections",
+        "StitchPunk.Data",
+        "StitchPunk.Components"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

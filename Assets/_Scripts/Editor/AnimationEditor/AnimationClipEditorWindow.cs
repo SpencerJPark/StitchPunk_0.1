@@ -15,6 +15,7 @@ public class AnimationClipEditorWindow : EditorWindow
     private AnimationPreviewController previewController;
     private int selectedTrackIndex = -1;
     private int selectedKeyframeIndex = -1;
+    private float cachedPlayheadTime = 0f;
     
     // UI State
     private Vector2 trackScrollPos;
@@ -70,9 +71,10 @@ public class AnimationClipEditorWindow : EditorWindow
     
     private void OnEditorUpdate()
     {
-        if (Application.isPlaying && previewController != null)
+        if (previewController != null)
         {
             Repaint();
+            EditorApplication.QueuePlayerLoopUpdate();
         }
     }
     
@@ -114,6 +116,10 @@ public class AnimationClipEditorWindow : EditorWindow
             {
                 previewController.SetEditClip(currentClip);
             }
+            
+            if (Application.isPlaying) {
+                previewController.SetTime(cachedPlayheadTime);
+            }
         }
         else if (Application.isPlaying)
         {
@@ -139,12 +145,6 @@ public class AnimationClipEditorWindow : EditorWindow
     
     private void OnGUI()
     {
-        // Force continuous repaint during playback
-        if (Application.isPlaying && previewController != null && previewController.isPlaying)
-        {
-            Repaint();
-        }
-        
         if (Application.isPlaying && previewController == null)
         {
             FindPreviewController();
@@ -323,10 +323,29 @@ public class AnimationClipEditorWindow : EditorWindow
         }
         
         // PLAYHEAD - Get time directly from preview controller
-        float playheadTime = 0f;
-        if (previewController != null)
+        float playheadTime;
+
+        if (isDraggingPlayhead)
         {
-            playheadTime = previewController.normalizedTime;
+            playheadTime = cachedPlayheadTime;
+        }
+        else if (previewController != null)
+        {
+            // If we are playing, trust the controller. 
+            // If paused, trust our cached value until the controller confirms change.
+            if (previewController.isPlaying)
+            {
+                playheadTime = previewController.normalizedTime;
+                cachedPlayheadTime = playheadTime;
+            }
+            else
+            {
+                playheadTime = cachedPlayheadTime;
+            }
+        }
+        else
+        {
+            playheadTime = cachedPlayheadTime;
         }
         
         float playheadX = timelineStartX + playheadTime * scaledWidth - timelineOffset;
@@ -377,15 +396,19 @@ public class AnimationClipEditorWindow : EditorWindow
     private void UpdatePlayheadFromMouse(float mouseX)
     {
         if (cachedScaledWidth <= 0) return;
-    
+
         float t = (mouseX - cachedTimelineStartX + timelineOffset) / cachedScaledWidth;
         t = Mathf.Clamp01(t);
     
+        // Update local cache immediately
+        cachedPlayheadTime = t;
+
         if (previewController != null)
         {
             previewController.SetTime(t);
-            Repaint();
         }
+
+        Repaint();
     }
     
     private void DrawTrackList()
