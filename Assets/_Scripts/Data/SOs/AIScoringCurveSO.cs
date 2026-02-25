@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-[CreateAssetMenu(fileName = "_ScoringCurve", menuName = "AI/Scoring Curve")]
+[CreateAssetMenu(fileName = "ScoringCurve", menuName = "ScoringSO/Scoring Curve")]
 public class AIScoringCurveSO : ScriptableObject
 {
     public MotivationType motivationType;

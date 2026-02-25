@@ -8,7 +8,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AnimationSystemGroup))]
+[UpdateInGroup(typeof(AnimationExecutionSystemGroup))]
 [UpdateAfter(typeof(AnimationTimeSystem))]
 public partial struct AnimationSamplingSystem : ISystem
 {

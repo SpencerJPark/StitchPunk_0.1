@@ -7,7 +7,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AnimationSystemGroup))]
+[UpdateInGroup(typeof(AnimationExecutionSystemGroup))]
 public partial struct AnimationTimeSystem : ISystem
 {
     [BurstCompile]

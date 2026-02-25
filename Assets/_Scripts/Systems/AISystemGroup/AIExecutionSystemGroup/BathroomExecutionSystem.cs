@@ -13,6 +13,9 @@ public partial struct BladderExecutionSystem : ISystem
     private ComponentLookup<BodyLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
+    private ComponentLookup<PathRequest> pathRequestLookup;
+    private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
+    private ComponentLookup<UnitMover> unitMoverLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -24,6 +27,9 @@ public partial struct BladderExecutionSystem : ISystem
         brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
+        pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
+        pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
+        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
     }
 
     [BurstCompile]
@@ -34,15 +40,29 @@ public partial struct BladderExecutionSystem : ISystem
         brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
         unitActionLookup.Update(ref state);
+        pathRequestLookup.Update(ref state);
+        pathfindingAgentLookup.Update(ref state);
+        unitMoverLookup.Update(ref state);
 
         float deltaTime = SystemAPI.Time.DeltaTime;
 
+        // Step 1: Request paths for newly assigned occupants
+        state.Dependency = new BladderPathRequestJob
+        {
+            brainLinkLookup = brainLinkLookup,
+            pathRequestLookup = pathRequestLookup,
+            pathfindingAgentLookup = pathfindingAgentLookup,
+            unitMoverLookup = unitMoverLookup
+        }.Schedule(state.Dependency);
+
+        // Step 2: Check for arrival
         state.Dependency = new BladderArrivalJob
         {
             transformLookup = transformLookup,
             brainLinkLookup = brainLinkLookup
         }.Schedule(state.Dependency);
 
+        // Step 3: Handle completion
         state.Dependency = new BladderCompletionJob
         {
             deltaTime = deltaTime,
@@ -54,11 +74,54 @@ public partial struct BladderExecutionSystem : ISystem
     }
 
     // -------------------------------------------------------
-    // ARRIVAL — detect when the NPC reaches the interaction, start timer
+    // PATH REQUEST — fires once when occupants are assigned
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionTimer))]
     [WithDisabled(typeof(InteractionProvider))]
+    [WithDisabled(typeof(InteractionHandled))]
+    public partial struct BladderPathRequestJob : IJobEntity
+    {
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
+        public ComponentLookup<PathRequest> pathRequestLookup;
+        public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
+        public ComponentLookup<UnitMover> unitMoverLookup;
+
+        public void Execute(
+            in BladderInteraction bladderInteraction,
+            in LocalTransform interactionTransform,
+            in DynamicBuffer<InteractionOccupant> occupants,
+            EnabledRefRW<InteractionHandled> interactionHandledEnabled)
+        {
+            if (occupants.Length == 0)
+                return;
+
+            for (int i = 0; i < occupants.Length; i++)
+            {
+                Entity brainEntity = occupants[i].entity;
+
+                if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+                    continue;
+
+                AIUtils.RequestPath(
+                    brainLink.body,
+                    interactionTransform.Position,
+                    ref pathRequestLookup,
+                    ref pathfindingAgentLookup,
+                    ref unitMoverLookup);
+            }
+
+            interactionHandledEnabled.ValueRW = true;
+        }
+    }
+
+    // -------------------------------------------------------
+    // ARRIVAL — detect when the NPC reaches the interaction
+    // -------------------------------------------------------
+    [BurstCompile]
+    [WithDisabled(typeof(InteractionTimer))]
+    [WithDisabled(typeof(InteractionProvider))]
+    [WithAll(typeof(InteractionHandled))]
     public partial struct BladderArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
@@ -70,8 +133,7 @@ public partial struct BladderExecutionSystem : ISystem
             in LocalTransform interactionTransform,
             in DynamicBuffer<InteractionOccupant> occupants,
             ref InteractionTimer timer,
-            EnabledRefRW<InteractionTimer> timerEnabled,
-            EnabledRefRW<InteractionHandled> interactionHandledEnabled)
+            EnabledRefRW<InteractionTimer> timerEnabled)
         {
             if (AIUtils.CheckArrival(in occupants, in interactionTransform, interaction.interactionRange,
                     ref brainLinkLookup, ref transformLookup))
@@ -79,13 +141,12 @@ public partial struct BladderExecutionSystem : ISystem
                 timer.elapsed = 0f;
                 timer.duration = timer.maxTime;
                 timerEnabled.ValueRW = true;
-                interactionHandledEnabled.ValueRW = true;
             }
         }
     }
 
     // -------------------------------------------------------
-    // COMPLETION — tick timer, apply bladder effect, release NPCs
+    // COMPLETION — tick timer, apply bladder effect, release
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionProvider))]
@@ -114,7 +175,7 @@ public partial struct BladderExecutionSystem : ISystem
             if (timer.elapsed < timer.duration)
                 return;
 
-            // Apply bladder restoration to all occupants
+            // Apply bladder restoration
             for (int i = 0; i < occupants.Length; i++)
             {
                 Entity brainEntity = occupants[i].entity;

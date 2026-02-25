@@ -1,18 +1,17 @@
-using Unity.Entities;
+﻿using Unity.Entities;
 using Unity.Transforms;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-public class AnimationTargetAuthoring : MonoBehaviour
+public class AnimationTargetNoIndexAuthoring : MonoBehaviour
 {
     public AnimationTarget animationTarget;
     public GameObject characterRoot;
-    public int baseImageIndex;
     
-    public class Baker : Baker<AnimationTargetAuthoring>
+    public class Baker : Baker<AnimationTargetNoIndexAuthoring>
     {
-        public override void Bake(AnimationTargetAuthoring authoring)
+        public override void Bake(AnimationTargetNoIndexAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.NonUniformScale);
             Entity characterEntity = GetEntity(authoring.characterRoot, TransformUsageFlags.Dynamic);
@@ -27,21 +26,11 @@ public class AnimationTargetAuthoring : MonoBehaviour
                 localPosition = transform.localPosition,
                 rotation = transform.localEulerAngles.z,
                 scale = new float2(transform.localScale.x, transform.localScale.y),
-                baseImageIndex = authoring.baseImageIndex,
+                baseImageIndex = 0,
             });
             
             AddComponent(entity, new AnimationTargetPose());
             AddComponent(entity, new PostTransformMatrix { Value = float4x4.identity });
-            
-            AddComponent(entity, new ImageIndex
-            {
-                index = authoring.baseImageIndex,
-                onUpdate = true
-            });
-            AddComponent(entity, new ImageIndexOverride
-            {
-                Value = 0
-            });
         }
     }
 }

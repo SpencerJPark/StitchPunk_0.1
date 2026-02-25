@@ -25,7 +25,7 @@ public class BuildingBarracksAuthoring : MonoBehaviour {
 
 public struct BuildingBarracksUnitEnqueue : IComponentData, IEnableableComponent {
 
-    public UnitTypeSO.UnitType unitType;
+    public UnitType unitType;
 
 }
 
@@ -33,7 +33,7 @@ public struct BuildingBarracks : IComponentData {
 
     public float progress;
     public float progressMax;
-    public UnitTypeSO.UnitType activeUnitType;
+    public UnitType activeUnitType;
     public float3 rallyPositionOffset;
     public bool onUnitQueueChanged;
 
@@ -42,6 +42,6 @@ public struct BuildingBarracks : IComponentData {
 [InternalBufferCapacity(10)]
 public struct SpawnUnitTypeBuffer : IBufferElementData {
 
-    public UnitTypeSO.UnitType unitType;
+    public UnitType unitType;
 
 }

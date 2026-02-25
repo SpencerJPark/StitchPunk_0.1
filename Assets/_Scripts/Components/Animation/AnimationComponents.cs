@@ -2,16 +2,6 @@
 using Unity.Mathematics;
 using Unity.Rendering;
 
-// Unit Body Components
-public struct UnitAnimations : IComponentData
-{
-    public AnimationType idle;
-    public AnimationType move;
-    public AnimationType attack;
-    public AnimationType interact;
-    public AnimationType overide;
-}
-
 [InternalBufferCapacity(8)]
 public struct AnimationLayer : IBufferElementData
 {

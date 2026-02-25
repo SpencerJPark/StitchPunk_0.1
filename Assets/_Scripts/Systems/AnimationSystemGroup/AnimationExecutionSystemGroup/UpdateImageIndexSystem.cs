@@ -2,7 +2,7 @@ using Unity.Burst;
 using Unity.Entities;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AnimationSystemGroup))]
+[UpdateInGroup(typeof(AnimationExecutionSystemGroup), OrderLast = true)]
 public partial struct UpdateImageIndexSystem : ISystem
 {
     [BurstCompile]

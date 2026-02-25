@@ -12,8 +12,6 @@ using Unity.Physics;
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
 public partial struct GridSystem : ISystem
 {
-    
-    
     /// <summary>
     /// Core grid configuration - shared by all pathfinding systems.
     /// </summary>

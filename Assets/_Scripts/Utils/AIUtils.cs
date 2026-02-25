@@ -34,11 +34,7 @@ public static class AIUtils
 
         return -needValue;
     }
-
-    /// <summary>
-    /// Query nearby interactions of a SPECIFIC motivation type.
-    /// Only returns interactions that have the specified motivation component.
-    /// </summary>
+    
     public static void QueryNearbyInteractionsByType(
         in NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells,
         in ComponentLookup<InteractionProvider> interactionProviderLookup,
@@ -88,58 +84,6 @@ public static class AIUtils
         }
     }
 
-    /// <summary>
-    /// Original query for ALL nearby interactions (kept for backwards compatibility).
-    /// </summary>
-    public static void QueryNearbyInteractions(
-        in NativeParallelMultiHashMap<int2, Entity> waypointCells,
-        in ComponentLookup<InteractionProvider> interactionLookup,
-        in ComponentLookup<LocalTransform> transformLookup,
-        float3 position,
-        float range,
-        float cellSize,
-        ref NativeList<Entity> results)
-    {
-        float rangeSq = range * range;
-
-        int2 minCell = new int2(
-            (int)math.floor((position.x - range) / cellSize),
-            (int)math.floor((position.z - range) / cellSize));
-        int2 maxCell = new int2(
-            (int)math.floor((position.x + range) / cellSize),
-            (int)math.floor((position.z + range) / cellSize));
-
-        for (int x = minCell.x; x <= maxCell.x; x++)
-        {
-            for (int y = minCell.y; y <= maxCell.y; y++)
-            {
-                if (!waypointCells.TryGetFirstValue(new int2(x, y), out Entity candidate, out var iterator))
-                    continue;
-
-                do
-                {
-                    if (!interactionLookup.HasComponent(candidate))
-                        continue;
-
-                    if (!transformLookup.TryGetComponent(candidate, out LocalTransform targetTransform))
-                        continue;
-
-                    float distSq = math.distancesq(position, targetTransform.Position);
-
-                    if (distSq > rangeSq)
-                        continue;
-
-                    results.Add(candidate);
-
-                } while (waypointCells.TryGetNextValue(out candidate, ref iterator));
-            }
-        }
-    }
-
-    // -------------------------------------------------------
-    // SHARED EXECUTION HELPERS
-    // -------------------------------------------------------
-
     public static void SelectWinners(
         DynamicBuffer<InteractionOccupant> occupants,
         int maxOccupants,
@@ -175,61 +119,23 @@ public static class AIUtils
             occupants.RemoveAt(i);
         }
     }
-
-    /// <summary>
-    /// Assign winners to move toward interaction using the new PathRequest system.
-    /// </summary>
+    
     public static void AssignWinners(
         in DynamicBuffer<InteractionOccupant> occupants,
-        float3 interactionPosition,
         ActionType actionType,
-        ref ComponentLookup<BodyLink> brainLinkLookup,
-        ref ComponentLookup<PathRequest> pathRequestLookup,
-        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
-        ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<UnitMover> unitMoverLookup)
+        ref ComponentLookup<BodyLink> bodyLinkLookup,
+        ref ComponentLookup<UnitAction> unitActionLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
             Entity brainEntity = occupants[i].entity;
 
-            if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+            if (!bodyLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
                 continue;
 
             Entity body = brainLink.body;
 
-            // Set up path request
-            if (pathRequestLookup.HasComponent(body))
-            {
-                pathRequestLookup[body] = new PathRequest
-                {
-                    targetPosition = interactionPosition,
-                    requestedMode = pathfindingAgentLookup.HasComponent(body) 
-                        ? pathfindingAgentLookup[body].preferredMode 
-                        : PathfindingMode.DStarLite
-                };
-                pathRequestLookup.SetComponentEnabled(body, true);
-            }
-
-            // Update pathfinding agent if present
-            if (pathfindingAgentLookup.HasComponent(body))
-            {
-                var agent = pathfindingAgentLookup[body];
-                agent.targetPosition = interactionPosition;
-                agent.isActive = true;
-                agent.needsRepath = true;
-                pathfindingAgentLookup[body] = agent;
-            }
-            
-            // Set UnitMover target position
-            if (unitMoverLookup.HasComponent(body))
-            {
-                var mover = unitMoverLookup[body];
-                mover.targetPosition = interactionPosition;
-                unitMoverLookup[body] = mover;
-            }
-
-            // Set the action
+            // Set the action only
             if (unitActionLookup.HasComponent(body))
             {
                 unitActionLookup[body] = new UnitAction

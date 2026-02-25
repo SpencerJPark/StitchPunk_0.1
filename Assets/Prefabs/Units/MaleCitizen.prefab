@@ -152,7 +152,6 @@ GameObject:
   - component: {fileID: 3325866980247311967}
   - component: {fileID: 5496935279846705089}
   - component: {fileID: 8570070412925931212}
-  - component: {fileID: 3475789621352244214}
   - component: {fileID: 5949880546641695836}
   - component: {fileID: 3004038991711854641}
   - component: {fileID: 711091554357179147}
@@ -271,23 +270,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fallSpeed: 16
---- !u!114 &3475789621352244214
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e49addbf14a04b599c33702a3d698625, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitBaseAnimationsAuthoring
-  idle: 1
-  move: 2
-  attack: 0
-  interact: 0
-  overide: 0
 --- !u!114 &5949880546641695836
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -453,6 +435,10 @@ PrefabInstance:
       propertyPath: characterRoot
       value: 
       objectReference: {fileID: 3094532311958105572}
+    - target: {fileID: 3163088766351882176, guid: ada906bd99e76b343b6555d92932bee9, type: 3}
+      propertyPath: characterRoot
+      value: 
+      objectReference: {fileID: 3094532311958105572}
     - target: {fileID: 3223813769709816223, guid: ada906bd99e76b343b6555d92932bee9, type: 3}
       propertyPath: characterRoot
       value: 
@@ -605,7 +591,8 @@ PrefabInstance:
       propertyPath: characterRoot
       value: 
       objectReference: {fileID: 3094532311958105572}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 9114459922437673077, guid: ada906bd99e76b343b6555d92932bee9, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

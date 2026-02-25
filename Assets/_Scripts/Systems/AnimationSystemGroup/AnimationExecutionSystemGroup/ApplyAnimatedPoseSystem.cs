@@ -8,7 +8,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AnimationSystemGroup))]
+[UpdateInGroup(typeof(AnimationExecutionSystemGroup))]
 [UpdateAfter(typeof(AnimationSamplingSystem))]
 public partial struct ApplyAnimatedPoseSystem : ISystem
 {

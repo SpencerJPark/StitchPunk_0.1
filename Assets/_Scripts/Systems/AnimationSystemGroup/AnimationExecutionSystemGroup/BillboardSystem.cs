@@ -5,7 +5,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-[UpdateInGroup(typeof(AnimationSystemGroup))]
+[UpdateInGroup(typeof(AnimationExecutionSystemGroup))]
 [UpdateAfter(typeof(ApplyAnimatedPoseSystem))]
 partial struct BillboardSystem : ISystem {
 

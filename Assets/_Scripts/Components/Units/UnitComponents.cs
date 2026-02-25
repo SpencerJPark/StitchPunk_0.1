@@ -1,5 +1,10 @@
 ﻿using Unity.Entities;
 
+public struct UnitData : IComponentData
+{
+    public UnitType unitType;
+    public int libraryIndex;
+}
 
 public struct Health : IComponentData {
     

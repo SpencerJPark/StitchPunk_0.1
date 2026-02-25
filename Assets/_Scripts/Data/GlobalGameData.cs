@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class GlobalGameData : MonoBehaviour
 {
@@ -31,6 +32,6 @@ public class GlobalGameData : MonoBehaviour
     public const byte DEFAULT_COST = 1;
     public const byte STAIR_COST = 2; // Slightly higher cost for stairs
 
-    public UnitTypeListSO unitTypeListSO;
+    [FormerlySerializedAs("unitTypeListSO")] public UnitLibrarySO unitLibrarySo;
     public BuildingTypeListSO buildingTypeListSO;
 }

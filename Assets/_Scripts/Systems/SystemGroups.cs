@@ -50,6 +50,11 @@ public partial class MovementSystemGroup : ComponentSystemGroup { }
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial class AnimationSystemGroup : ComponentSystemGroup { }
 
+        [UpdateInGroup(typeof(AnimationSystemGroup), OrderFirst = true)]
+        public partial class AnimationAssignmentSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(AnimationSystemGroup), OrderLast = true)]
+        public partial class AnimationExecutionSystemGroup : ComponentSystemGroup { }
 
 // Late Simulation System Group
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]

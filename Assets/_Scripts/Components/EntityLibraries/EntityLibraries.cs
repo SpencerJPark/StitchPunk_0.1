@@ -19,3 +19,13 @@ public struct AnimationLibraryReference : IComponentData
     public UnityObjectRef<AnimationLibrarySO> library;
 }
 
+
+public struct UnitLibrary : IComponentData
+{
+    public BlobAssetReference<UnitLibraryBlob> library;
+}
+
+public struct UnitLibraryReference : IComponentData
+{
+    public UnityObjectRef<UnitLibrarySO> library;
+}

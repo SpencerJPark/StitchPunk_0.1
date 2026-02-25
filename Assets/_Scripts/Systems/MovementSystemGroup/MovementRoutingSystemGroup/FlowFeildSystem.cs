@@ -178,26 +178,27 @@ public partial struct FlowFieldSystem : ISystem
     private void CollectRequests(ref SystemState state, GridSystem.GridConfig gridConfig)
     {
         foreach (var (agent, pathRequest, pathRequestEnabled, follower, entity) in 
-            SystemAPI.Query<
-                RefRO<PathfindingAgent>,
-                RefRW<PathRequest>,
-                EnabledRefRW<PathRequest>,
-                RefRW<FlowFieldFollower>>()
+                 SystemAPI.Query<
+        RefRW<PathfindingAgent>,  // Changed to RefRW
+            RefRO<PathRequest>,
+        EnabledRefRW<PathRequest>,
+            RefRW<FlowFieldFollower>>()
             .WithPresent<FlowFieldFollower>()
             .WithEntityAccess())
         {
             // Only handle flow field requests
             if (pathRequest.ValueRO.requestedMode != PathfindingMode.FlowField)
                 continue;
-            
-            if (agent.ValueRO.currentMode != PathfindingMode.FlowField)
-                continue;
-            
+        
             int2 targetGridPos = GridSystem.GetGridPosition(pathRequest.ValueRO.targetPosition, gridConfig.cellSize);
             int targetLayer = GridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig.layerHeight);
-            
+        
+            // Set current mode
+            agent.ValueRW.currentMode = PathfindingMode.FlowField;
+            agent.ValueRW.isActive = true;
+        
             pathRequestEnabled.ValueRW = false;
-            
+        
             pendingRequests.Enqueue(new FlowFieldRequest
             {
                 targetGridPosition = targetGridPos,
