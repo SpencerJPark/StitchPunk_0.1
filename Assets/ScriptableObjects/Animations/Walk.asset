@@ -13,161 +13,12 @@ MonoBehaviour:
   m_Name: Walk
   m_EditorClassIdentifier: Assembly-CSharp::AnimationClipSO
   animationType: 2
-  duration: 6
+  duration: 1.6
   looping: 1
   allowBlendIn: 1
   allowBlendOut: 1
   partTracks:
-  - animationTarget: 9
-    blendMode: 1
-    animatedProperties: 8
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.5
-      position: {x: 0, y: 0, z: 0}
-      rotation: 2.38
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 1
-    blendMode: 0
-    animatedProperties: 8
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.49868417
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0.23
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 3
-    blendMode: 0
-    animatedProperties: 8
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 1.61
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.50065786
-      position: {x: 0, y: 0, z: 0}
-      rotation: -2.39
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 1.61
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 2
-    blendMode: 0
-    animatedProperties: 8
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 4
-    blendMode: 0
-    animatedProperties: 8
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0.00068072486
-      position: {x: 0, y: 0, z: 0}
-      rotation: 18.79
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.5
-      position: {x: 0, y: 0, z: 0}
-      rotation: 10.88
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 18.79
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 16
-    blendMode: 0
-    animatedProperties: 8
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.39748424
-      position: {x: 0, y: 0, z: 0}
-      rotation: -3.47
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 10
+  - animationTarget: 0
     blendMode: 0
     animatedProperties: 127
     interpolation: 0
@@ -179,98 +30,24 @@ MonoBehaviour:
       imageIndex: -1
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 1
+    - normalizedTime: 0.25
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1.1}
+      imageIndex: -1
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.5
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
       imageIndex: -1
       overrideInterpolation: 0
       interpolationOverride: 0
-  - animationTarget: 11
-    blendMode: 0
-    animatedProperties: 127
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
+    - normalizedTime: 0.75
       position: {x: 0, y: 0, z: 0}
       rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 12
-    blendMode: 0
-    animatedProperties: 11
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 13
-    blendMode: 0
-    animatedProperties: 11
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 14
-    blendMode: 0
-    animatedProperties: 11
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 1
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-  - animationTarget: 15
-    blendMode: 0
-    animatedProperties: 11
-    interpolation: 0
-    keyframes:
-    - normalizedTime: 0
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
+      scale: {x: 1, y: 1.1}
       imageIndex: -1
       overrideInterpolation: 0
       interpolationOverride: 0

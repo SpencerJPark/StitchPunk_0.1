@@ -2580,7 +2580,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animationFrameRate: 24
-  unitTypeListSO: {fileID: 0}
+  unitLibrarySo: {fileID: 0}
   buildingTypeListSO: {fileID: 0}
 --- !u!1001 &674468687415718875
 PrefabInstance:

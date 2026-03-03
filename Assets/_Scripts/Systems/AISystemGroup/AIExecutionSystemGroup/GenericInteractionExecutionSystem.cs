@@ -12,6 +12,7 @@ using Unity.Transforms;
 /// - Has occupants
 /// 
 /// Behavior:
+/// - Requests path to interaction
 /// - Detects arrival
 /// - Waits 5 seconds (default)
 /// - Releases NPCs
@@ -27,6 +28,9 @@ public partial struct GenericInteractionExecutionSystem : ISystem
     private ComponentLookup<BodyLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
+    private ComponentLookup<PathRequest> pathRequestLookup;
+    private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
+    private ComponentLookup<UnitMover> unitMoverLookup;
 
     private const float DEFAULT_DURATION = 5f;
 
@@ -39,6 +43,9 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
+        pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
+        pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
+        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
     }
 
     [BurstCompile]
@@ -48,9 +55,22 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
         unitActionLookup.Update(ref state);
+        pathRequestLookup.Update(ref state);
+        pathfindingAgentLookup.Update(ref state);
+        unitMoverLookup.Update(ref state);
 
         float deltaTime = SystemAPI.Time.DeltaTime;
 
+        // Step 1: Request paths for newly assigned occupants
+        state.Dependency = new GenericPathRequestJob
+        {
+            brainLinkLookup = brainLinkLookup,
+            pathRequestLookup = pathRequestLookup,
+            pathfindingAgentLookup = pathfindingAgentLookup,
+            unitMoverLookup = unitMoverLookup
+        }.Schedule(state.Dependency);
+
+        // Step 2: Check for arrival
         state.Dependency = new GenericArrivalJob
         {
             transformLookup = transformLookup,
@@ -58,6 +78,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
             defaultDuration = DEFAULT_DURATION
         }.Schedule(state.Dependency);
 
+        // Step 3: Handle completion
         state.Dependency = new GenericCompletionJob
         {
             deltaTime = deltaTime,
@@ -68,13 +89,53 @@ public partial struct GenericInteractionExecutionSystem : ISystem
     }
 
     // -------------------------------------------------------
-    // ARRIVAL — detect when NPC reaches interaction, start timer
-    // Only runs on interactions NOT handled by specific systems
+    // PATH REQUEST — fires once when occupants are assigned
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionTimer))]
     [WithDisabled(typeof(InteractionProvider))]
     [WithDisabled(typeof(InteractionHandled))]
+    public partial struct GenericPathRequestJob : IJobEntity
+    {
+        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
+        public ComponentLookup<PathRequest> pathRequestLookup;
+        public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
+        public ComponentLookup<UnitMover> unitMoverLookup;
+
+        public void Execute(
+            in LocalTransform interactionTransform,
+            in DynamicBuffer<InteractionOccupant> occupants,
+            EnabledRefRW<InteractionHandled> interactionHandledEnabled)
+        {
+            if (occupants.Length == 0)
+                return;
+
+            for (int i = 0; i < occupants.Length; i++)
+            {
+                Entity brainEntity = occupants[i].entity;
+
+                if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+                    continue;
+
+                AIUtils.RequestPath(
+                    brainLink.body,
+                    interactionTransform.Position,
+                    ref pathRequestLookup,
+                    ref pathfindingAgentLookup,
+                    ref unitMoverLookup);
+            }
+
+            interactionHandledEnabled.ValueRW = true;
+        }
+    }
+
+    // -------------------------------------------------------
+    // ARRIVAL — detect when NPC reaches interaction, start timer
+    // -------------------------------------------------------
+    [BurstCompile]
+    [WithDisabled(typeof(InteractionTimer))]
+    [WithDisabled(typeof(InteractionProvider))]
+    [WithAll(typeof(InteractionHandled))]
     public partial struct GenericArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
@@ -86,8 +147,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
             in LocalTransform interactionTransform,
             in DynamicBuffer<InteractionOccupant> occupants,
             ref InteractionTimer timer,
-            EnabledRefRW<InteractionTimer> timerEnabled,
-            EnabledRefRW<InteractionHandled> interactionHandledEnabled)
+            EnabledRefRW<InteractionTimer> timerEnabled)
         {
             if (AIUtils.CheckArrival(in occupants, in interactionTransform, interaction.interactionRange,
                     ref brainLinkLookup, ref transformLookup))
@@ -95,14 +155,12 @@ public partial struct GenericInteractionExecutionSystem : ISystem
                 timer.elapsed = 0f;
                 timer.duration = timer.maxTime > 0f ? timer.maxTime : defaultDuration;
                 timerEnabled.ValueRW = true;
-                interactionHandledEnabled.ValueRW = true;
             }
         }
     }
 
     // -------------------------------------------------------
     // COMPLETION — tick timer, release NPCs when done
-    // Processes any interaction that the generic arrival job claimed
     // -------------------------------------------------------
     [BurstCompile]
     [WithDisabled(typeof(InteractionProvider))]

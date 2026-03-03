@@ -170,6 +170,29 @@ public static class AIUtils
 
         return distSq <= rangeSq;
     }
+    
+    public static void StartInteractionAnimation(
+        ActionType actionType,
+        in DynamicBuffer<InteractionOccupant> occupants,
+        ref ComponentLookup<UnitAction> unitActionLookup,
+        ref ComponentLookup<BodyLink> brainLinkLookup)
+    {
+        for (int i = 0; i < occupants.Length; i++)
+        {
+            Entity brainEntity = occupants[i].entity;
+
+            if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+            {
+                if (unitActionLookup.HasComponent(brainLink.body))
+                {
+                    unitActionLookup[brainLink.body] = new UnitAction
+                    {
+                        current = actionType
+                    };
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Release occupants and reset their pathfinding state.
