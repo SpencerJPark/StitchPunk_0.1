@@ -55,8 +55,7 @@ public enum AnimationTarget : byte // keep under 256
     Head,
     LeftEyebrow,
     RightEyebrow,
-    LeftEye,
-    RightEye,
+    Eyes,
     Mouth,
     Hair,
     Mustache,
@@ -73,19 +72,6 @@ public enum AnimationTarget : byte // keep under 256
     FaceDetails,
     FaceWare,
 }
-
-public enum DesignTarget : byte
-{
-    Hair,
-    LeftEyebrow,
-    RightEyebrow,
-    Mustache,
-    
-    Head,
-    Nose,
-    Ear,
-}
-
 
 
 public enum InterpolationMode : byte

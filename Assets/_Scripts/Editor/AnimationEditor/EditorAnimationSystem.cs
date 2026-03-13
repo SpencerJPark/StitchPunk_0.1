@@ -1,5 +1,5 @@
 ﻿// =====================================
-// EDITOR ANIMATION SYSTEM (FULL DEBUG VERSION)
+// EDITOR ANIMATION SYSTEM (Live SO Sampling with Layers)
 // =====================================
 
 using Unity.Entities;
@@ -9,84 +9,52 @@ using UnityEngine;
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial struct EditorAnimationSystem : ISystem
 {
-    private int frameCount;
+    private int lastSampledFrame;
+    private float accumulatedTime;
     
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<AnimationEditorActive>();
         state.RequireForUpdate<EditorAnimationTimeControl>();
-        frameCount = 0;
+        
+        lastSampledFrame = -1;
+        accumulatedTime = 0f;
     }
     
     public void OnUpdate(ref SystemState state)
     {
-        frameCount++;
-        bool log = frameCount % 120 == 1; // Log every 2 seconds
-        
-        if (log) Debug.Log("=== [EditorAnim] FRAME START ===");
-        
         try
         {
-            // Step 1: Get time control entity
             Entity timeControlEntity = SystemAPI.GetSingletonEntity<EditorAnimationTimeControl>();
-            if (log) Debug.Log($"[EditorAnim] Step 1: Found timeControlEntity: {timeControlEntity}");
             
-            // Step 2: Check for library
             if (!state.EntityManager.HasComponent<EditorAnimationLibraryManaged>(timeControlEntity))
             {
-                if (log) Debug.LogError("[EditorAnim] Step 2: FAILED - No EditorAnimationLibraryManaged!");
                 return;
             }
             
             var libraryManaged = state.EntityManager.GetComponentObject<EditorAnimationLibraryManaged>(timeControlEntity);
+            
             if (libraryManaged?.library == null)
             {
-                if (log) Debug.LogError("[EditorAnim] Step 2: FAILED - Library is null!");
                 return;
             }
-            if (log) Debug.Log($"[EditorAnim] Step 2: Library OK, has {libraryManaged.library.clips?.Count ?? 0} clips");
             
-            // Step 3: Get time control data
             var timeControl = SystemAPI.GetSingleton<EditorAnimationTimeControl>();
-            if (log) Debug.Log($"[EditorAnim] Step 3: TimeControl - paused={timeControl.isPaused}, time={timeControl.normalizedTime:F3}");
-            
             float dt = SystemAPI.Time.DeltaTime;
+            
             int frameRate = GlobalGameData.Instance != null ? GlobalGameData.Instance.animationFrameRate : 24;
             
-            // Step 4: Count entities with AnimationLayer
-            int layerEntityCount = 0;
-            foreach (var layers in SystemAPI.Query<DynamicBuffer<AnimationLayer>>())
-            {
-                layerEntityCount++;
-            }
-            if (log) Debug.Log($"[EditorAnim] Step 4: Found {layerEntityCount} entities with AnimationLayer");
+            // Frame rate limiting
+            accumulatedTime += dt;
+            int currentFrame = (int)(accumulatedTime * frameRate);
             
-            // Step 5: Count entities with AnimationLayer AND AnimatorTarget
-            int animatorEntityCount = 0;
-            int totalTargets = 0;
-            foreach (var (layers, targets) in SystemAPI.Query<DynamicBuffer<AnimationLayer>, DynamicBuffer<AnimatorTarget>>())
+            bool shouldSample = currentFrame != lastSampledFrame;
+            if (shouldSample)
             {
-                animatorEntityCount++;
-                totalTargets += targets.Length;
-                
-                if (log)
-                {
-                    Debug.Log($"[EditorAnim] Step 5: Animator entity has {layers.Length} layers, {targets.Length} targets");
-                    for (int i = 0; i < layers.Length; i++)
-                    {
-                        Debug.Log($"[EditorAnim]   Layer[{i}]: {layers[i].animation}, time={layers[i].time:F3}, active={layers[i].active}");
-                    }
-                }
-            }
-            if (log) Debug.Log($"[EditorAnim] Step 5: Found {animatorEntityCount} animator entities, {totalTargets} total targets");
-            
-            if (animatorEntityCount == 0)
-            {
-                if (log) Debug.LogError("[EditorAnim] Step 5: FAILED - No entities with both AnimationLayer AND AnimatorTarget!");
-                return;
+                lastSampledFrame = currentFrame;
             }
             
-            // Step 6: Update layer times (if not paused)
+            // Update layer times
             if (!timeControl.isPaused)
             {
                 foreach (var (layers, entity) in SystemAPI.Query<DynamicBuffer<AnimationLayer>>().WithEntityAccess())
@@ -120,39 +88,23 @@ public partial struct EditorAnimationSystem : ISystem
                     }
                 }
             }
-            if (log) Debug.Log("[EditorAnim] Step 6: Layer times updated");
             
-            // Step 7: Get component lookups
+            // Only sample on frame boundaries
+            if (!shouldSample) return;
+            
+            // Sample and apply poses
             var animatedPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetPose>(false);
             var restPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetRestPose>(true);
-            if (log) Debug.Log("[EditorAnim] Step 7: Got component lookups");
-            
-            // Step 8: Sample and apply poses
-            int posesApplied = 0;
-            int posesSkippedNoPose = 0;
-            int posesSkippedNoRest = 0;
             
             foreach (var (layers, targets) in SystemAPI.Query<DynamicBuffer<AnimationLayer>, DynamicBuffer<AnimatorTarget>>())
             {
-                if (log) Debug.Log($"[EditorAnim] Step 8: Processing animator with {targets.Length} targets");
-                
                 for (int i = 0; i < targets.Length; i++)
                 {
                     Entity targetEntity = targets[i].entity;
                     AnimationTarget partType = targets[i].target;
                     
-                    if (!animatedPoseLookup.HasComponent(targetEntity))
-                    {
-                        posesSkippedNoPose++;
-                        if (log) Debug.LogWarning($"[EditorAnim] Target {partType} (entity {targetEntity}) missing AnimationTargetPose!");
-                        continue;
-                    }
-                    if (!restPoseLookup.HasComponent(targetEntity))
-                    {
-                        posesSkippedNoRest++;
-                        if (log) Debug.LogWarning($"[EditorAnim] Target {partType} (entity {targetEntity}) missing AnimationTargetRestPose!");
-                        continue;
-                    }
+                    if (!animatedPoseLookup.HasComponent(targetEntity)) continue;
+                    if (!restPoseLookup.HasComponent(targetEntity)) continue;
                     
                     var restPose = restPoseLookup[targetEntity];
                     
@@ -163,48 +115,23 @@ public partial struct EditorAnimationSystem : ISystem
                     
                     AnimatedProperties appliedProperties = AnimatedProperties.None;
                     
-                    // Process layers
+                    // Process layers in reverse order (highest priority first)
                     for (int layerIdx = layers.Length - 1; layerIdx >= 0; layerIdx--)
                     {
                         var layer = layers[layerIdx];
                         if (!layer.active) continue;
                         
+                        // Solo mode - only process the solo layer
                         if (timeControl.soloLayerIndex >= 0 && layerIdx != timeControl.soloLayerIndex)
+                        {
                             continue;
+                        }
                         
                         AnimationClipSO clipSO = libraryManaged.library.GetClip(layer.animation);
-                        if (clipSO == null)
-                        {
-                            if (log) Debug.LogWarning($"[EditorAnim] No clip found for animation: {layer.animation}");
-                            continue;
-                        }
-                        if (clipSO.duration <= 0) continue;
-                        
-                        // Check if clip has this part
-                        bool hasTrack = false;
-                        if (clipSO.partTracks != null)
-                        {
-                            foreach (var track in clipSO.partTracks)
-                            {
-                                if (track.animationTarget == partType)
-                                {
-                                    hasTrack = true;
-                                    if (log) Debug.Log($"[EditorAnim] Found track for {partType} in {clipSO.name}, {track.keyframes?.Count ?? 0} keyframes");
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (!hasTrack && log)
-                        {
-                            Debug.Log($"[EditorAnim] No track for {partType} in {clipSO.name}");
-                        }
+                        if (clipSO == null || clipSO.duration <= 0) continue;
                         
                         float normalizedTime = layer.time / clipSO.duration;
                         float quantizedTime = QuantizeTime(normalizedTime, clipSO.duration, frameRate);
-                        
-                        float3 beforePos = finalPosition;
-                        float beforeRot = finalRotation;
                         
                         SampleClipSO(
                             clipSO,
@@ -215,14 +142,8 @@ public partial struct EditorAnimationSystem : ISystem
                             ref finalScale,
                             ref finalImageIndex,
                             ref appliedProperties);
-                        
-                        if (log && (math.any(beforePos != finalPosition) || math.abs(beforeRot - finalRotation) > 0.01f))
-                        {
-                            Debug.Log($"[EditorAnim] {partType} CHANGED: pos {beforePos} -> {finalPosition}, rot {beforeRot:F1} -> {finalRotation:F1}");
-                        }
                     }
                     
-                    // WRITE THE POSE
                     animatedPoseLookup[targetEntity] = new AnimationTargetPose
                     {
                         localPosition = finalPosition,
@@ -230,13 +151,10 @@ public partial struct EditorAnimationSystem : ISystem
                         scale = finalScale,
                         imageIndex = finalImageIndex
                     };
-                    posesApplied++;
                 }
             }
             
-            if (log) Debug.Log($"[EditorAnim] Step 8 DONE: Applied {posesApplied} poses, skipped {posesSkippedNoPose} (no pose), {posesSkippedNoRest} (no rest)");
-            
-            // Step 9: Update time control for UI
+            // Update normalized time for UI (based on base layer or solo layer)
             if (!timeControl.isPaused)
             {
                 foreach (var layers in SystemAPI.Query<DynamicBuffer<AnimationLayer>>())
@@ -263,8 +181,6 @@ public partial struct EditorAnimationSystem : ISystem
                     break;
                 }
             }
-            
-            if (log) Debug.Log("=== [EditorAnim] FRAME END ===");
         }
         catch (System.Exception e)
         {

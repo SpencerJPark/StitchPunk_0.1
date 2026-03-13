@@ -29,4 +29,3 @@ public struct Selected : IComponentData, IEnableableComponent {
     public bool onSelected;
     public bool onDeselected;
 }
-

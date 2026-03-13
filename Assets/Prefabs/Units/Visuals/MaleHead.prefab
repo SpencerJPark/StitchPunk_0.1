@@ -476,7 +476,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2703968514089672712}
-  - component: {fileID: 5471609062404775214}
   m_Layer: 0
   m_Name: LeftEyeBrowControl
   m_TagString: Untagged
@@ -500,21 +499,6 @@ Transform:
   - {fileID: 2038491756199979346}
   m_Father: {fileID: 4317130726070887260}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5471609062404775214
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1960111798381478285}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
-  animationTarget: 17
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &3027091633359333806
 GameObject:
   m_ObjectHideFlags: 0
@@ -528,7 +512,6 @@ GameObject:
   - component: {fileID: 4147480600457988876}
   - component: {fileID: 2926293193408630753}
   - component: {fileID: 5938309408336826309}
-  - component: {fileID: 6013407779402435927}
   m_Layer: 0
   m_Name: LeftEye
   m_TagString: Untagged
@@ -644,21 +627,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TextureArrayPreview
   imageIndex: 1
   propertyName: _ImageIndex
---- !u!114 &6013407779402435927
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3027091633359333806}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
-  animationTarget: 19
-  characterRoot: {fileID: 0}
-  baseImageIndex: 1
 --- !u!1 &4069155982383259097
 GameObject:
   m_ObjectHideFlags: 0
@@ -694,8 +662,8 @@ Transform:
   - {fileID: 4887846171443248281}
   - {fileID: 5786624764052292924}
   - {fileID: 2703968514089672712}
-  - {fileID: 9037077314431963492}
   - {fileID: 589464124836267160}
+  - {fileID: 9037077314431963492}
   - {fileID: 3269737299026871554}
   - {fileID: 882548197521397808}
   m_Father: {fileID: 0}
@@ -1180,7 +1148,6 @@ GameObject:
   - component: {fileID: 6381892169497311384}
   - component: {fileID: 2591108440707107851}
   - component: {fileID: 2930180075517510499}
-  - component: {fileID: 1765113683597422072}
   m_Layer: 0
   m_Name: RightEye
   m_TagString: Untagged
@@ -1296,21 +1263,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TextureArrayPreview
   imageIndex: 0
   propertyName: _ImageIndex
---- !u!114 &1765113683597422072
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6586163910455404941}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
-  animationTarget: 20
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &8286601595651460679
 GameObject:
   m_ObjectHideFlags: 0
@@ -1320,7 +1272,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9037077314431963492}
-  - component: {fileID: 6418825347127599723}
   m_Layer: 0
   m_Name: RightEyeBrowControl
   m_TagString: Untagged
@@ -1344,18 +1295,3 @@ Transform:
   - {fileID: 2619963211210907958}
   m_Father: {fileID: 4317130726070887260}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6418825347127599723
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8286601595651460679}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
-  animationTarget: 18
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0

@@ -20,11 +20,13 @@ public struct AnimatorTarget : IBufferElementData
     public AnimationTarget target;
 }
 
+// Unit Visual Components
 public struct Billboard : IComponentData
 {
     public Entity parentEntity;
 }
 
+// Animation Targets
 public struct AnimationTargetTag : IComponentData
 {
     public AnimationTarget target;
@@ -49,34 +51,6 @@ public struct AnimationTargetPose : IComponentData
     public float rotation;
     public float2 scale;
     public int imageIndex;
-}
-
-
-
-
-[InternalBufferCapacity(8)]
-public struct DesignLayer : IBufferElementData
-{
-    public AnimationLayerType layer;
-    public AnimationType animation;
-
-}
-
-[InternalBufferCapacity(32)]
-public struct DesignerTarget : IBufferElementData
-{
-    public Entity entity;
-    public AnimationTarget target;
-}
-
-public struct DesignTargetTag : IComponentData
-{
-    public DesignTarget target;
-}
-
-public struct ParentDesigner : IComponentData
-{
-    public Entity designer;
 }
 
 public struct ImageIndex : IComponentData
