@@ -10,6 +10,7 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<UnitLibrary>();
+        state.RequireForUpdate<GameSceneTag>();
     }
 
     [BurstCompile]
