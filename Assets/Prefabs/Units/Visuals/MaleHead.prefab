@@ -255,7 +255,7 @@ Transform:
   m_GameObject: {fileID: 623915023641802521}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.0184, y: 0.00060002506, z: -0.002}
+  m_LocalPosition: {x: 0.018400013, y: 0.00060003996, z: -0.002000004}
   m_LocalScale: {x: 0.125, y: 0.125, z: 0.125}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -476,6 +476,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2703968514089672712}
+  - component: {fileID: 2692564434920352092}
   m_Layer: 0
   m_Name: LeftEyeBrowControl
   m_TagString: Untagged
@@ -499,6 +500,21 @@ Transform:
   - {fileID: 2038491756199979346}
   m_Father: {fileID: 4317130726070887260}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2692564434920352092
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960111798381478285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
+  animationTarget: 17
+  characterRoot: {fileID: 0}
+  baseImageIndex: 0
 --- !u!1 &3027091633359333806
 GameObject:
   m_ObjectHideFlags: 0
@@ -923,7 +939,7 @@ Transform:
   m_GameObject: {fileID: 6009702415340860188}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.022, y: -0.002, z: -0.001}
+  m_LocalPosition: {x: -0.022, y: -0.0020000339, z: -0.0009999871}
   m_LocalScale: {x: 0.125, y: 0.125, z: 0.125}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1272,6 +1288,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9037077314431963492}
+  - component: {fileID: 1179743223110080957}
   m_Layer: 0
   m_Name: RightEyeBrowControl
   m_TagString: Untagged
@@ -1295,3 +1312,18 @@ Transform:
   - {fileID: 2619963211210907958}
   m_Father: {fileID: 4317130726070887260}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1179743223110080957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8286601595651460679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
+  animationTarget: 18
+  characterRoot: {fileID: 0}
+  baseImageIndex: 0

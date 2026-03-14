@@ -20,7 +20,28 @@ public enum AnimationType : ushort
     East,
     West,
     
-    BlinkNormal,
+    // Eyes
+    HumanBlinkNormal,
+    HumanBlinkAngry,
+    HumanBlinkSad,
+    
+    CrazyBlinkNormal,
+    CrazyBlinkAngry,
+    CrazyBlinkSad,
+    
+    FleshAutomatonBlinkNormal,
+    FleshAutomatonBlinkAngry,
+    FleshAutomatonBlinkSad,
+    
+    ZombieBlinkNormal,
+    ZombieBlinkAngry,
+    ZombieBlinkSad,
+    
+    MetalAutomatonBlink,
+    
+    DeathEyes,
+    LoveEyes,
+    ResurectionEyes
 }
 
 public enum AnimationLayerType
@@ -29,7 +50,7 @@ public enum AnimationLayerType
     Direction,
     Action,    // Attack, Jump - temporary actions
     Face,      // Expressions
-    Eyes,      // Blink, look direction
+    Eyes,      // HumanBlink, look direction
     Mouth,     // Talking, reactions
     Override  // Highest priority - screams, damage reactions
 }
@@ -55,7 +76,8 @@ public enum AnimationTarget : byte // keep under 256
     Head,
     LeftEyebrow,
     RightEyebrow,
-    Eyes,
+    LeftEye,
+    RightEye,
     Mouth,
     Hair,
     Mustache,

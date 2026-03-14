@@ -170,19 +170,14 @@ public class AnimationPreviewController : MonoBehaviour
             using var query = entityManager.CreateEntityQuery(typeof(AnimationLayer));
             var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
             
-            Debug.Log($"[PreviewController] === STATE ===");
-            Debug.Log($"[PreviewController] Mode: {mode}, IsPlaying: {isPlaying}, Time: {normalizedTime:F3}");
-            Debug.Log($"[PreviewController] EditClip: {editClip?.name ?? "null"}, PreviewLayers: {previewLayers.Count}");
             
             foreach (var entity in entities)
             {
                 var layers = entityManager.GetBuffer<AnimationLayer>(entity);
-                Debug.Log($"[PreviewController] Entity has {layers.Length} layers:");
                 
                 for (int i = 0; i < layers.Length; i++)
                 {
                     var layer = layers[i];
-                    Debug.Log($"  [{i}] {layer.layer}: {layer.animation}, active={layer.active}, time={layer.time:F3}, speed={layer.speed}");
                 }
             }
             
