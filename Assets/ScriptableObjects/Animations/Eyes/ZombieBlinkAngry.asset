@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 05caac7ba5e4d3b46a66177e63d06ed8, type: 3}
   m_Name: ZombieBlinkAngry
   m_EditorClassIdentifier: Assembly-CSharp::AnimationClipSO
-  animationType: 22
+  animationType: 28
   duration: 5
   looping: 1
   allowBlendIn: 1
@@ -79,63 +79,63 @@ MonoBehaviour:
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 29
+      imageIndex: 41
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.44
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 31
+      imageIndex: 43
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.4615873
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 33
+      imageIndex: 45
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.48
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 35
+      imageIndex: 47
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.5
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 53
+      imageIndex: 47
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.52
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 35
+      imageIndex: 47
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.54
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 33
+      imageIndex: 45
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.56
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 31
+      imageIndex: 43
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.58
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 29
+      imageIndex: 41
       overrideInterpolation: 0
       interpolationOverride: 0
   - animationTarget: 20
@@ -147,62 +147,62 @@ MonoBehaviour:
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 28
+      imageIndex: 40
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.44
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 30
+      imageIndex: 42
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.4615873
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 32
+      imageIndex: 44
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.48
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 34
+      imageIndex: 46
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.5
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 52
+      imageIndex: 46
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 0.52
+    - normalizedTime: 0.52151513
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 34
+      imageIndex: 46
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.54
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 32
+      imageIndex: 44
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.56
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 30
+      imageIndex: 42
       overrideInterpolation: 0
       interpolationOverride: 0
     - normalizedTime: 0.58
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 28
+      imageIndex: 40
       overrideInterpolation: 0
       interpolationOverride: 0
