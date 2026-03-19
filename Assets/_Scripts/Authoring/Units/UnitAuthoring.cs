@@ -2,16 +2,16 @@ using Unity.Entities;
 using UnityEngine;
 
 public class UnitAuthoring : MonoBehaviour {
-    
+
+    public UnitType unitType;
+
     public class Baker : Baker<UnitAuthoring> {
 
         public override void Bake(UnitAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new Unit {
-            });
+            AddComponent(entity, new Unit());
+            AddComponent(entity, new UnitData { unitType = authoring.unitType });
         }
     }
 }
 
-public struct Unit : IComponentData {
-}

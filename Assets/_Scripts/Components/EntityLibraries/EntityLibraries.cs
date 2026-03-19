@@ -29,3 +29,14 @@ public struct UnitLibraryReference : IComponentData
 {
     public UnityObjectRef<UnitLibrarySO> library;
 }
+
+
+public struct AttackLibrary : IComponentData
+{
+    public BlobAssetReference<AttackLibraryBlob> library;
+}
+
+public struct AttackLibraryReference : IComponentData
+{
+    public UnityObjectRef<AttackLibrarySO> library;
+}

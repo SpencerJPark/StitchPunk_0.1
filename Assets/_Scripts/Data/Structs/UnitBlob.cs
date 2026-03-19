@@ -11,6 +11,7 @@ public struct UnitDataBlob
     public BlobArray<ActionAnimationMappingBlob> actionAnimations;
     public AnimationType idleAnimation;
     public AnimationType movingAnimation;
+    public AttackType attackType;
 }
 
 public struct ActionAnimationMappingBlob

@@ -23,22 +23,22 @@ MonoBehaviour:
     animatedProperties: 127
     interpolation: 0
     keyframes:
-    - normalizedTime: 0.0008217116
-      position: {x: 0, y: 0.01, z: 0}
-      rotation: 24.45
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.5
+    - normalizedTime: 0
       position: {x: 0, y: -0.005, z: 0}
       rotation: 24.45
       scale: {x: 1, y: 1}
       imageIndex: -1
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 1
+    - normalizedTime: 0.5
       position: {x: 0, y: 0.01, z: 0}
+      rotation: 24.45
+      scale: {x: 1, y: 1}
+      imageIndex: -1
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 1
+      position: {x: 0, y: -0.005, z: 0}
       rotation: 24.45
       scale: {x: 1, y: 1}
       imageIndex: -1
@@ -50,21 +50,21 @@ MonoBehaviour:
     interpolation: 0
     keyframes:
     - normalizedTime: 0
-      position: {x: 0, y: 0.004, z: 0}
-      rotation: -22.23
-      scale: {x: 1, y: 1}
-      imageIndex: -1
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.5
       position: {x: 0, y: -0.01, z: 0}
       rotation: -22.23
       scale: {x: 1, y: 1}
       imageIndex: -1
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 1
+    - normalizedTime: 0.5
       position: {x: 0, y: 0.004, z: 0}
+      rotation: -22.23
+      scale: {x: 1, y: 1}
+      imageIndex: -1
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 1
+      position: {x: 0, y: -0.01, z: 0}
       rotation: -22.23
       scale: {x: 1, y: 1}
       imageIndex: -1
@@ -79,63 +79,63 @@ MonoBehaviour:
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 29
+      imageIndex: 53
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 0.44
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 31
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.4615873
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 33
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.48
+    - normalizedTime: 0.02
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
       imageIndex: 35
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 0.5
+    - normalizedTime: 0.04
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 33
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.06
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 31
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.08
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 29
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.94
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 31
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.96
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 33
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.98
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 35
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 1
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
       imageIndex: 53
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.52
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 35
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.54
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 33
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.56
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 31
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.58
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 29
       overrideInterpolation: 0
       interpolationOverride: 0
   - animationTarget: 20
@@ -147,62 +147,62 @@ MonoBehaviour:
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
-      imageIndex: 28
+      imageIndex: 52
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 0.44
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 30
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.4615873
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 32
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.48
+    - normalizedTime: 0.02
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
       imageIndex: 34
       overrideInterpolation: 0
       interpolationOverride: 0
-    - normalizedTime: 0.5
+    - normalizedTime: 0.04
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 32
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.06
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 30
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.08
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 28
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.94
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 30
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.96
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 32
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 0.98
+      position: {x: 0, y: 0, z: 0}
+      rotation: 0
+      scale: {x: 1, y: 1}
+      imageIndex: 34
+      overrideInterpolation: 0
+      interpolationOverride: 0
+    - normalizedTime: 1
       position: {x: 0, y: 0, z: 0}
       rotation: 0
       scale: {x: 1, y: 1}
       imageIndex: 52
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.52
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 34
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.54
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 32
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.56
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 30
-      overrideInterpolation: 0
-      interpolationOverride: 0
-    - normalizedTime: 0.58
-      position: {x: 0, y: 0, z: 0}
-      rotation: 0
-      scale: {x: 1, y: 1}
-      imageIndex: 28
       overrideInterpolation: 0
       interpolationOverride: 0

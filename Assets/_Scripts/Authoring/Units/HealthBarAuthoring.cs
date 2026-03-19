@@ -24,9 +24,3 @@ public class HealthBarAuthoring : MonoBehaviour {
 
 
 
-public struct HealthBar : IComponentData {
-
-    public Entity barVisualEntity;
-    public Entity healthEntity;
-
-}

@@ -1,17 +1,22 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 
-public struct Item : IComponentData { }
-
-public struct Socket : IComponentData
+public struct UnitEquipt : IComponentData // goes on parent entity
 {
-    public float3 LocalPosition;
-    public quaternion LocalRotation;
-    public Entity AttachedItem;
+    public Entity equiptItemEntity;
+}
+public struct EquiptSocket : IComponentData // goes on Socket
+{
+    public Entity attachedItem;
 }
 
-public struct AttachedToSocket : IComponentData
+
+public struct Item : IComponentData { }
+public struct EquiptBy : IComponentData // goes on item
 {
-    public Entity SocketOwner;
-    public int SocketIndex;
+    public Entity owner;
+}
+public struct AttachedTo : IComponentData // goes on item
+{
+    public Entity socket;
 }

@@ -6,17 +6,55 @@
     Run,
     Jump,
     Interact,
+    Repair,
+    Build,
     Eat,
     Sleep,
-    Work,
-    Socialize,
+    Talk,
     Smoke,
     Drink,
-    Roam,
     Attack,
     Patrol,
     Flee,
     SeekEntertainment,
     UseBathroom,
     Sit
+}
+
+public enum AttackType // Animation Guide
+{
+    None,
+    Instant,
+    Punch,
+    Claw,
+    Throw,
+    Kick,
+    ForwardSlash,
+    BackSlash,
+    Stab,
+    Swing,
+    ShootOneHand,
+    ShootTwoHand,
+    Explode,
+}
+
+public enum AttackDelivery // attack delivery behaviour
+{
+    None,
+    Melee,
+    Throw,
+    Shoot,
+    Projectile,
+    Hitscan,
+    Beam
+}
+
+public enum DamageBehaviour // attack effect behaviour
+{
+    None,
+    SinlgeTarget,
+    AreaOfEffect,
+    Cone,
+    Line,
+    Chain,
 }

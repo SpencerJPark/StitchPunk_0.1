@@ -15,8 +15,15 @@ public struct PlayerInputData : IComponentData
     public ActionMaps activeActionMap;
     
     public bool sneakToggle;
-    
     public bool onAttackInput;
     public bool onInteractInput;
     public bool onRollInput;
 }
+
+public struct PlayerAttackInput: IComponentData, IEnableableComponent {}
+
+public struct PlayerInteractInput: IComponentData, IEnableableComponent {}
+
+public struct PlayerRollInput: IComponentData, IEnableableComponent {}
+
+public struct PlayerSneakToggle: IComponentData, IEnableableComponent {}

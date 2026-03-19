@@ -2,8 +2,6 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Collections;
 
-// Will change to a despawn system and dead system seperate since dead doesn't = despawn 
-
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 partial struct HealthDeadTestSystem : ISystem
 {
@@ -21,12 +19,8 @@ partial struct HealthDeadTestSystem : ISystem
                 .CreateCommandBuffer(state.WorldUnmanaged)
                 .AsParallelWriter();
 
-        HealthDeadTestJob healthDeadTestJob = new HealthDeadTestJob
-        {
-            EntityCommandBuffer = entityCommandBuffer
-        };
-
-        state.Dependency = healthDeadTestJob.ScheduleParallel(state.Dependency);
+        new HealthDeadTestJob { EntityCommandBuffer = entityCommandBuffer }
+            .ScheduleParallel(state.Dependency).Complete();
     }
 }
 
@@ -35,12 +29,15 @@ partial struct HealthDeadTestJob : IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter EntityCommandBuffer;
 
-    public void Execute([ChunkIndexInQuery] int chunkIndexInQuery, Entity entity, ref Health health)
+    // Only runs on entities that still have Alive enabled
+    public void Execute([ChunkIndexInQuery] int chunkIndexInQuery, Entity entity,
+        ref Health health, ref UnitStateData unitState)
     {
         if (health.healthAmount <= 0)
         {
-            health.onDead = true;
-            EntityCommandBuffer.DestroyEntity(chunkIndexInQuery, entity);
+           //health.onDead = true;
+            unitState.state = UnitState.Dead;
+            EntityCommandBuffer.SetComponentEnabled<Alive>(chunkIndexInQuery, entity, false);
         }
     }
 }

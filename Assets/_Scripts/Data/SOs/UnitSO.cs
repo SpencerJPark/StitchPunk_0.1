@@ -6,10 +6,16 @@ using System;
 public class UnitSO : ScriptableObject
 {
     public UnitType unitType;
+    
+    [Tooltip("Animation Data")]
     public ActionAnimationMapping[] actionAnimations;
     public AnimationType idleAnimation;
     public AnimationType movingAnimation;
+
+    [Tooltip("Default Attack")] 
+    public AttackType attackType;
     
+    [Tooltip("Spawn Cost")]
     public ResourceAmount[] spawnCostResourceAmountArray;
     public float progressMax;
     public Sprite sprite;

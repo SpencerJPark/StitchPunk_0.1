@@ -61,9 +61,9 @@ public partial struct HealthBarJob : IJobEntity {
 
         Health health = healthComponentLookup[healthBar.healthEntity];
 
-        if (!health.onHealthChanged) {
-            return;
-        }
+        // if (!health.onHealthChanged) {
+        //     return;
+        // }
 
         float healthNormalized = (float)health.healthAmount / health.healthAmountMax;
 

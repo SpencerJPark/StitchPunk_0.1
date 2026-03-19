@@ -5,8 +5,9 @@
 [UpdateBefore(typeof(AISystemGroup))]
 public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(MovementSystemGroup))]
+[UpdateBefore(typeof(ItemSystemGroup))]
 public partial class AISystemGroup : ComponentSystemGroup { }
 
         // SubGroups
@@ -28,6 +29,19 @@ public partial class AISystemGroup : ComponentSystemGroup { }
         [UpdateAfter(typeof(AISelectionSystemGroup))]
         public partial class AIExecutionSystemGroup : ComponentSystemGroup { }
 
+
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(MovementSystemGroup))]
+public partial class ItemSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(ItemSystemGroup), OrderFirst = true)]
+        public partial class ItemEquiptSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(ItemSystemGroup))]
+        public partial class ItemAttackSystemGroup : ComponentSystemGroup { }
+
+
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(AnimationSystemGroup))]
 public partial class MovementSystemGroup : ComponentSystemGroup { }
@@ -47,6 +61,7 @@ public partial class MovementSystemGroup : ComponentSystemGroup { }
         [UpdateInGroup(typeof(MovementSystemGroup))]
         public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }
 
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial class AnimationSystemGroup : ComponentSystemGroup { }
 
@@ -55,6 +70,8 @@ public partial class AnimationSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(AnimationSystemGroup), OrderLast = true)]
         public partial class AnimationExecutionSystemGroup : ComponentSystemGroup { }
+
+
 
 // Late Simulation System Group
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]

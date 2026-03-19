@@ -31,11 +31,7 @@ public struct ActionOption : IBufferElementData
     public float score;
 }
 
-public struct Hurt : IBufferElementData
-{
-    public Entity attackerEntity;
-    public float distance;
-}
+
 
 
 // Body Components
@@ -46,7 +42,3 @@ public struct BrainLink : IComponentData
     public Entity brain;
 }
 
-public struct UnitAction : IComponentData
-{
-    public ActionType current;    
-}

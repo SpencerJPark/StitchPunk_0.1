@@ -35,10 +35,11 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         in UnitMover unitMover,
         in UnitAction unitAction)
     {
-        if (unitData.libraryIndex < 0 || unitData.libraryIndex >= library.Value.units.Length)
+        int unitIndex = (int)unitData.unitType;
+        if (unitIndex < 0 || unitIndex >= library.Value.units.Length)
             return;
 
-        ref UnitDataBlob unitBlob = ref library.Value.units[unitData.libraryIndex];
+        ref UnitDataBlob unitBlob = ref library.Value.units[unitIndex];
 
         AnimationType targetAnimation = GetAnimationForAction(
             unitAction.current,

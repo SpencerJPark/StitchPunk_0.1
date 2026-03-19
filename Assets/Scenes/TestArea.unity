@@ -168,8 +168,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0af04103e7c59d448e2a8da15e9f11c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buildingTypeSO: {fileID: 11400000, guid: 3c42c0e31cd8ca143bd9ff30a08e1fc0, type: 2}
-  ghostMaterial: {fileID: 2100000, guid: eba5a8266e823ff409d0e9fa8d2ed19f, type: 2}
 --- !u!1 &155692907
 GameObject:
   m_ObjectHideFlags: 0
@@ -1136,9 +1134,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e98373261b4b2774b8dc005f11e40b48, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buildingContainer: {fileID: 245804755}
-  buildingTemplate: {fileID: 2025466354}
-  buildingTypeListSO: {fileID: 11400000, guid: 2b35da6bdaa3395408d1ff4c39abb8c4, type: 2}
 --- !u!1 &785971300
 GameObject:
   m_ObjectHideFlags: 0
@@ -1892,8 +1887,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4199fd1eaf70f7e49afbfa4bfb4b6726, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cursorUI: {fileID: 1558628102}
-  playerInput: {fileID: 552462645}
 --- !u!1001 &1521804940
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2027,7 +2020,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a323671d6bfa54349ac0d67164a41d33, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  riveWidget: {fileID: 785971302}
 --- !u!114 &1558628101
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2487,8 +2479,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 156bce46b9433fd49a9c7d1ce7aae662, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  iconImage: {fileID: 813224536}
-  selectedImage: {fileID: 840347166}
 --- !u!114 &2025466356
 MonoBehaviour:
   m_ObjectHideFlags: 0
