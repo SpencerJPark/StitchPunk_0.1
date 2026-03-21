@@ -5,7 +5,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-[UpdateInGroup(typeof(LateSimulationSystemGroup))]
+[UpdateInGroup(typeof(HealthSystemGroup), OrderLast = true)]
 partial struct HealthBarSystem : ISystem {
 
 

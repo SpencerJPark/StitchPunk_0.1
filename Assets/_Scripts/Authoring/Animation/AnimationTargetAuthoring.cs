@@ -20,7 +20,7 @@ public class AnimationTargetAuthoring : MonoBehaviour
             var transform = authoring.transform;
             
             AddComponent(entity, new AnimationTargetTag { target = authoring.animationTarget });
-            AddComponent(entity, new ParentAnimator { animator = characterEntity });
+            AddComponent(entity, new BaseParent { baseParentEntity = characterEntity });
             
             AddComponent(entity, new AnimationTargetRestPose
             {

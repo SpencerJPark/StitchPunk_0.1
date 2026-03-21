@@ -16,6 +16,9 @@ public class HealthAuthoring : MonoBehaviour {
             AddComponent(entity, new UnitStateData { state = UnitState.Alive });
             AddComponent<Alive>(entity);
             SetComponentEnabled<Alive>(entity, true);
+            AddComponent<Dead>(entity);
+            SetComponentEnabled<Dead>(entity, false);
+            AddBuffer<Hurt>(entity);
         }
 
     }

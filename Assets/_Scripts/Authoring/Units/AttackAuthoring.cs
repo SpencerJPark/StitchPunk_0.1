@@ -10,7 +10,11 @@ public class AttackAuthoring : MonoBehaviour
         public override void Bake(AttackAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new Attack { attackType = authoring.baseAttack});
+            AddComponent<Attack>(entity);
+            SetComponentEnabled<Attack>(entity, false);
+            AddComponent(entity, new AttackData { attackType = authoring.baseAttack });
+            AddComponent(entity, new CombatTarget { entity = Unity.Entities.Entity.Null });
+            AddComponent(entity, new AttackCooldown { timer = 0f });
         }
     }
 }

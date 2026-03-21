@@ -117,9 +117,9 @@ public partial struct CharacterBodyPartBakingSystem : ISystem
         EntityCommandBuffer entityCommandBuffer = new EntityCommandBuffer(Allocator.Temp);
         
         foreach (var (partTag, parentChar, entity) in 
-            SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<ParentAnimator>>().WithEntityAccess())
+            SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<BaseParent>>().WithEntityAccess())
         {
-            Entity characterEntity = parentChar.ValueRO.animator;
+            Entity characterEntity = parentChar.ValueRO.baseParentEntity;
             
             if (SystemAPI.HasBuffer<AnimatorTarget>(characterEntity))
             {

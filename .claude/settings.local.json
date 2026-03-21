@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/ItemSystemGroup/ItemEquiptSystemGroup\")",
+      "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/CombatSystemGroup/CombatResolutionSystemGroup\")",
+      "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/CombatSystemGroup/CombatReactionSystemGroup\")"
+    ]
+  }
+}

@@ -32,9 +32,9 @@ public struct AnimationTargetTag : IComponentData
     public AnimationTarget target;
 }
 
-public struct ParentAnimator : IComponentData
+public struct BaseParent : IComponentData
 {
-    public Entity animator;
+    public Entity baseParentEntity;
 }
 
 public struct AnimationTargetRestPose : IComponentData

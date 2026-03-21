@@ -33,21 +33,16 @@ public enum HairColor
     Red
 }
 
-public enum HairType
+public enum HeadShape
 {
-    Combed,
-    Spiked,
-    Buzzed,
-    Curly,
-    PonyTail,
-    BobCut,
-    Kinky,
-    HairDown
+    Default,
+    Square,
 }
 
-public enum FacialHairType
+public enum NoseShape
 {
-    None,
+    Default,
+    
 }
 
 public enum HatType

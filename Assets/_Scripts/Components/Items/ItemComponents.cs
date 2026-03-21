@@ -20,3 +20,5 @@ public struct AttachedTo : IComponentData // goes on item
 {
     public Entity socket;
 }
+
+public struct EquipRequest : IComponentData, IEnableableComponent { }

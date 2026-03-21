@@ -1,9 +1,16 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 
-public struct Player : IComponentData {
-    
-    public Entity interactableEntity; // entity player can interact with
+public struct Player : IComponentData
+{
+    public Entity interactableEntity;
+}
+
+public struct PlayerData : IComponentData
+{
+    public float rollTime;
+    public float rollTimeMax;
+    public float rollSpeed;
 }
 
 public struct PlayerInputData : IComponentData

@@ -29,6 +29,15 @@ public partial struct UnitLibraryBakingSystem : ISystem
         ecb.Dispose();
     }
 
+    public void OnDestroy(ref SystemState state)
+    {
+        foreach (var holder in SystemAPI.Query<RefRW<UnitLibrary>>())
+        {
+            if (holder.ValueRO.library.IsCreated)
+                holder.ValueRW.library.Dispose();
+        }
+    }
+
     private BlobAssetReference<UnitLibraryBlob> CreateUnitLibraryBlob(UnitLibrarySO librarySO)
     {
         BlobBuilder builder = new BlobBuilder(Allocator.Temp);

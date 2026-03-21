@@ -37,13 +37,9 @@ public partial class ItemSystemGroup : ComponentSystemGroup { }
         [UpdateInGroup(typeof(ItemSystemGroup), OrderFirst = true)]
         public partial class ItemEquiptSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(ItemSystemGroup))]
-        public partial class ItemAttackSystemGroup : ComponentSystemGroup { }
-
-
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(AnimationSystemGroup))]
+[UpdateBefore(typeof(CombatSystemGroup))]
 public partial class MovementSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(MovementSystemGroup))]
@@ -60,6 +56,24 @@ public partial class MovementSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(MovementSystemGroup))]
         public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }
+
+
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(HealthSystemGroup))]
+public partial class CombatSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(CombatSystemGroup))]
+        [UpdateBefore(typeof(CombatReactionSystemGroup))]
+        public partial class CombatResolutionSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(CombatSystemGroup))]
+        [UpdateAfter(typeof(CombatResolutionSystemGroup))]
+        public partial class CombatReactionSystemGroup : ComponentSystemGroup { }
+
+
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(AnimationSystemGroup))]
+public partial class HealthSystemGroup : ComponentSystemGroup { }
 
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
