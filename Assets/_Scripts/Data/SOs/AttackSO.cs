@@ -17,7 +17,7 @@ public class AttackSO : ScriptableObject
     public int damageAmount;
 
     [Tooltip("How close to perform attack")]
-    public int range;
+    public float range;
 
     [Tooltip("Seconds between attacks")]
     public float cooldown;
