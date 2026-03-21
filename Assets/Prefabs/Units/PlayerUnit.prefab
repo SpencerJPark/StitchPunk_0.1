@@ -434,7 +434,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eac3572dda70d0347839927c6dea14cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  testSelectGameObject: {fileID: 0}
+  rollTimeMax: 5
+  rollSpeed: 5
 --- !u!114 &1794824144110468912
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -447,7 +448,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab0a596492bcf9c4c998b809821e2689, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::AttackAuthoring
-  baseAttack: 2
+  baseAttack: 6
 --- !u!4 &7251753861634515709 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1637979671052500160, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
