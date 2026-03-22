@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::UnitSO
   unitType: 1
   prefab: {fileID: 3898859768826041075, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+  brainPrefab: {fileID: 4270300297337098239, guid: 54075400f19ddfb4c99ca217173f2781, type: 3}
   actionAnimations:
   - action: 1
     animation: 1

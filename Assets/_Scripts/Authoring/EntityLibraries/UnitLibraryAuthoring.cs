@@ -4,33 +4,36 @@ using UnityEngine;
 public class UnitLibraryAuthoring : MonoBehaviour
 {
     public UnitLibrarySO unitLibrary;
-}
 
-public class UnitLibraryBaker : Baker<UnitLibraryAuthoring>
-{
-    public override void Bake(UnitLibraryAuthoring authoring)
+    public class UnitLibraryBaker : Baker<UnitLibraryAuthoring>
     {
-        Entity entity = GetEntity(TransformUsageFlags.None);
-
-        AddComponent(entity, new UnitDataLibraryReference
+        public override void Bake(UnitLibraryAuthoring authoring)
         {
-            library = authoring.unitLibrary
-        });
+            Entity entity = GetEntity(TransformUsageFlags.None);
 
-        // Bake prefab entities into a buffer so the spawner can call Instantiate() at runtime.
-        // Entities can't go in BlobAssets — this buffer is the DOTS-safe alternative.
-        var prefabBuffer = AddBuffer<UnitPrefabEntry>(entity);
-        if (authoring.unitLibrary != null && authoring.unitLibrary.units != null)
-        {
-            foreach (var unitSO in authoring.unitLibrary.units)
+            AddComponent(entity, new UnitDataLibraryReference
             {
-                if (unitSO == null || unitSO.prefab == null) continue;
-                prefabBuffer.Add(new UnitPrefabEntry
-                {
-                    unitType = unitSO.unitType,
-                    prefab = GetEntity(unitSO.prefab, TransformUsageFlags.Dynamic)
-                });
-            }
+                library = authoring.unitLibrary
+            });
+
+            // Read prefab GameObjects directly from the UnitSO entries so no extra
+            // Inspector field is needed — the SO is the single source of truth.
+            // Body and brain are baked as separate prefab entities so the spawner can
+            // instantiate them independently (fixes IEnableableComponent bit copying
+            // and enables runtime brain-swapping).
+            var maleCitizenSO = authoring.unitLibrary != null
+                ? authoring.unitLibrary.GetUnitSO(UnitType.MaleCitizen)
+                : null;
+
+            AddComponent(entity, new UnitPrefabEntry
+            {
+                maleCitizenPrefab = maleCitizenSO?.prefab != null
+                    ? GetEntity(maleCitizenSO.prefab, TransformUsageFlags.Dynamic)
+                    : Entity.Null,
+                maleCitizenBrainPrefab = maleCitizenSO?.brainPrefab != null
+                    ? GetEntity(maleCitizenSO.brainPrefab, TransformUsageFlags.Dynamic)
+                    : Entity.Null,
+            });
         }
     }
 }

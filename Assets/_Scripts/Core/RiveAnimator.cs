@@ -4,7 +4,7 @@ using Rive.Components;
 using System;
 using System.Collections.Generic;
 
-public class RiveAnimator
+public class RiveAnimatorHelper
 {
     public RiveWidget riveWidget;
     public ViewModelInstance viewModel;

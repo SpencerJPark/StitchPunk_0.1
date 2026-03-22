@@ -1,17 +1,11 @@
 using Unity.Collections;
 using Unity.Entities;
 
-// Rebuilds AnimatorTarget on newly instantiated unit entities.
+// Rebuilds the AnimatorTarget buffer on newly instantiated unit entities.
 //
-// Why this is needed:
-//   Entity references inside DynamicBuffer elements are not reliably remapped
-//   during ECB.Instantiate, so the AnimatorTarget buffer on a freshly spawned
-//   entity may point to the original prefab's child entities rather than the
-//   new instance's children. This causes AnimationSamplingSystem to write poses
-//   to the wrong entities and the spawned character never animates.
-//
-//   BaseParent (IComponentData) IS remapped correctly — we use it to find the
-//   real runtime child entities and rebuild the buffer from scratch.
+// Entity refs inside DynamicBuffer<AnimatorTarget> are NOT reliably remapped by
+// ECB.Instantiate, so the buffer is cleared and rebuilt from BaseParent lookups
+// (BaseParent is IComponentData and IS remapped correctly by ECB.Instantiate).
 [UpdateInGroup(typeof(SpawnSystemGroup))]
 [UpdateAfter(typeof(UnitSpawnerSystem))]
 public partial struct AnimatorTargetInitSystem : ISystem
@@ -62,7 +56,6 @@ public partial struct AnimatorTargetInitSystem : ISystem
             });
         }
 
-        // Remove the init tag so this only runs once per entity.
         var ecb = new EntityCommandBuffer(Allocator.Temp);
         var rootsArray = roots.ToNativeArray(Allocator.Temp);
         for (int i = 0; i < rootsArray.Length; i++)

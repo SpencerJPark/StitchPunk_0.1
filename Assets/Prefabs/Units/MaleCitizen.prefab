@@ -973,52 +973,6 @@ MonoBehaviour:
   animationTarget: 20
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!1 &1943912419332291025
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7950805241431657278}
-  - component: {fileID: 2790207554126622731}
-  m_Layer: 0
-  m_Name: Brain
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7950805241431657278
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1943912419332291025}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 5881378729410220941}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2790207554126622731
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1943912419332291025}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 42b941a8f1a24fa4be4e54bd83f7cf2e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CitizenBrainAuthoring
-  body: {fileID: 3898859768826041075}
-  awarenessRange: 20
 --- !u!1 &2166349261869968865
 GameObject:
   m_ObjectHideFlags: 0
@@ -1972,7 +1926,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7950805241431657278}
   - {fileID: 6712789760888027518}
   - {fileID: 5510897213417328720}
   m_Father: {fileID: 0}
@@ -2143,7 +2096,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
-  brain: {fileID: 1943912419332291025}
+  brain: {fileID: 0}
 --- !u!114 &7433833384928893244
 MonoBehaviour:
   m_ObjectHideFlags: 0
