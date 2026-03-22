@@ -3,6 +3,7 @@ using Unity.Entities;
 
 [BurstCompile]
 [UpdateInGroup(typeof(HealthSystemGroup))]
+[UpdateBefore(typeof(ReviveSystem))]
 public partial struct DeathSystem : ISystem
 {
     [BurstCompile]

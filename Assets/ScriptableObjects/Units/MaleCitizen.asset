@@ -13,9 +13,15 @@ MonoBehaviour:
   m_Name: MaleCitizen
   m_EditorClassIdentifier: StitchPunk.Data::UnitSO
   unitType: 1
-  actionAnimations: []
+  prefab: {fileID: 3898859768826041075, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+  actionAnimations:
+  - action: 1
+    animation: 1
+  - action: 2
+    animation: 2
   idleAnimation: 1
   movingAnimation: 2
+  attackType: 2
   spawnCostResourceAmountArray: []
   progressMax: 0
   sprite: {fileID: 0}

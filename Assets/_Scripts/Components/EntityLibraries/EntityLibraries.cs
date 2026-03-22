@@ -20,12 +20,12 @@ public struct AnimationLibraryReference : IComponentData
 }
 
 
-public struct UnitLibrary : IComponentData
+public struct UnitDataLibrary : IComponentData
 {
     public BlobAssetReference<UnitLibraryBlob> library;
 }
 
-public struct UnitLibraryReference : IComponentData
+public struct UnitDataLibraryReference : IComponentData
 {
     public UnityObjectRef<UnitLibrarySO> library;
 }
@@ -39,4 +39,13 @@ public struct AttackLibrary : IComponentData
 public struct AttackLibraryReference : IComponentData
 {
     public UnityObjectRef<AttackLibrarySO> library;
+}
+
+
+// Entities cannot be stored in BlobAssets, so prefab entity references live in a DynamicBuffer.
+// Baked by UnitLibraryBaker; consumed by UnitSpawnerSystem at runtime.
+public struct UnitPrefabEntry : IBufferElementData
+{
+    public UnitType unitType;
+    public Entity prefab;
 }

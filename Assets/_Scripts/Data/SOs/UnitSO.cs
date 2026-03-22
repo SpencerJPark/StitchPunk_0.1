@@ -6,6 +6,7 @@ using System;
 public class UnitSO : ScriptableObject
 {
     public UnitType unitType;
+    public GameObject prefab;
     
     [Tooltip("Animation Data")]
     public ActionAnimationMapping[] actionAnimations;

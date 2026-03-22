@@ -30,7 +30,17 @@ public class AnimationTargetAuthoring : MonoBehaviour
                 baseImageIndex = authoring.baseImageIndex,
             });
             
-            AddComponent(entity, new AnimationTargetPose());
+            // Initialize to rest pose so ApplyPoseJob produces correct positions
+            // on the very first frame — before AnimationSamplingSystem has run.
+            // Without this, instantiated prefabs collapse all quads to (0,0,0) local space
+            // for the first animation frame (~42ms at 24fps).
+            AddComponent(entity, new AnimationTargetPose
+            {
+                localPosition = transform.localPosition,
+                rotation = transform.localEulerAngles.z,
+                scale = new float2(transform.localScale.x, transform.localScale.y),
+                imageIndex = authoring.baseImageIndex,
+            });
             AddComponent(entity, new PostTransformMatrix { Value = float4x4.identity });
             
             AddComponent(entity, new ImageIndex

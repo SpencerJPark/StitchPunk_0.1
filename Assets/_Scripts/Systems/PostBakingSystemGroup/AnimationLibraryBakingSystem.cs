@@ -114,13 +114,22 @@ public partial struct CharacterBodyPartBakingSystem : ISystem
 {
     public void OnUpdate(ref SystemState state)
     {
-        EntityCommandBuffer entityCommandBuffer = new EntityCommandBuffer(Allocator.Temp);
-        
-        foreach (var (partTag, parentChar, entity) in 
-            SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<BaseParent>>().WithEntityAccess())
+        // Clear first to prevent duplicate entries on incremental rebakes.
+        foreach (var buffer in SystemAPI.Query<DynamicBuffer<AnimatorTarget>>())
+        {
+            buffer.Clear();
+        }
+
+        // Populate for subscene (non-prefab) entities only.
+        // Prefab-referenced entities (e.g. baked via UnitLibraryAuthoring) are handled
+        // at runtime by AnimatorTargetInitSystem, which uses BaseParent lookups to build
+        // the buffer with correct entity references after Instantiate.
+        foreach (var (partTag, parentChar, entity) in
+            SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<BaseParent>>()
+                .WithEntityAccess())
         {
             Entity characterEntity = parentChar.ValueRO.baseParentEntity;
-            
+
             if (SystemAPI.HasBuffer<AnimatorTarget>(characterEntity))
             {
                 var buffer = SystemAPI.GetBuffer<AnimatorTarget>(characterEntity);
@@ -131,8 +140,5 @@ public partial struct CharacterBodyPartBakingSystem : ISystem
                 });
             }
         }
-        
-        entityCommandBuffer.Playback(state.EntityManager);
-        entityCommandBuffer.Dispose();
     }
 }

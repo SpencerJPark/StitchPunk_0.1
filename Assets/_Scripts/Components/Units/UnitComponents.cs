@@ -9,7 +9,7 @@ public struct UnitStateData : IComponentData
 {
     public UnitState state;
 }
-public struct Undead : IComponentData, IEnableableComponent { }
+
 
 
 public struct UnitAction : IComponentData
@@ -67,13 +67,14 @@ public struct AttackData : IComponentData
 // interact
 
 // Player actions
-public struct Selected : IComponentData, IEnableableComponent {
-
+public struct Undead : IComponentData, IEnableableComponent { }
+public struct Revive : IComponentData, IEnableableComponent { }
+public struct Minion: IComponentData, IEnableableComponent { }
+public struct Selected : IComponentData, IEnableableComponent 
+{
     public Entity visualEntity;
     public float showScale;
 
     public bool onSelected;
     public bool onDeselected;
 }
-
-// Design

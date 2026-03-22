@@ -9,13 +9,13 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<UnitLibrary>();
+        state.RequireForUpdate<UnitDataLibrary>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        BlobAssetReference<UnitLibraryBlob> library = SystemAPI.GetSingleton<UnitLibrary>().library;
+        BlobAssetReference<UnitLibraryBlob> library = SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
         new UnitAnimationAssignmentJob
         {

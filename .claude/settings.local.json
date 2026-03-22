@@ -3,7 +3,10 @@
     "allow": [
       "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/ItemSystemGroup/ItemEquiptSystemGroup\")",
       "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/CombatSystemGroup/CombatResolutionSystemGroup\")",
-      "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/CombatSystemGroup/CombatReactionSystemGroup\")"
+      "Bash(mkdir -p \"C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/_Scripts/Systems/CombatSystemGroup/CombatReactionSystemGroup\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(grep -r \"Ownership\\\\|Owner\\\\|Team\\\\|Allegiance\\\\|Faction\" C:UsersspencDocumentsGitHubStitch_PunkAssets_ScriptsComponents --include=*.cs)"
     ]
   }
 }
