@@ -882,6 +882,26 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 72970762-c23a-4cc2-8e17-7fc56797d353
     m_ActionName: 'ControlUnits/Command[/Mouse/rightButton]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 01853b94-c9f8-4159-8e6f-86f13c5e1115
+    m_ActionName: 'Player/Roll[/Keyboard/space]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnEquipt3
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: a0947f8d-82bf-413d-af4c-7720e20bbd07
+    m_ActionName: 'Player/Revive[/Keyboard/r]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player

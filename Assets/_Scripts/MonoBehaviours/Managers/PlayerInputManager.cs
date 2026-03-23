@@ -161,6 +161,18 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentData(inputEntity, data);
     }
     
+    public void OnEquipt3(InputAction.CallbackContext context)
+    {
+        if (!context.performed)
+        {
+            return;
+        }
+
+        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
+        data.onEquipt3 = true;
+        entityManager.SetComponentData(inputEntity, data);
+    }
+    
     public void OnCursorMovement(InputAction.CallbackContext context)
     {
         float2 value = float2.zero;

@@ -25,6 +25,11 @@ public struct PlayerInputData : IComponentData
     public bool onAttackInput;
     public bool onInteractInput;
     public bool onRollInput;
+
+    public bool onEquipt1;
+    public bool onEquipt2;
+    public bool onEquipt3;
+    public bool onEquipt4;
 }
 
 public struct PlayerAttackInput: IComponentData, IEnableableComponent {}
