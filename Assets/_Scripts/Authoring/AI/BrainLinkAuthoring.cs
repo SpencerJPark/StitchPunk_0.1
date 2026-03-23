@@ -16,7 +16,7 @@ public class BrainLinkAuthoring : MonoBehaviour
 
             AddComponent(entity, new BrainLink { brain = brainEntity });
             
-            if (brainEntity != Entity.Null)
+            //if (brainEntity != Entity.Null)
                 AddComponent<HasBrain>(entity);
         }
     }

@@ -35,7 +35,7 @@ public struct ActionOption : IBufferElementData
 
 
 // Body Components
-public struct HasBrain : IComponentData { }
+public struct HasBrain : IComponentData, IEnableableComponent { }
 
 public struct BrainLink : IComponentData
 {

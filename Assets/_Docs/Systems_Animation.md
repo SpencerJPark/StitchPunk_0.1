@@ -45,7 +45,7 @@ Systems never touch SOs at runtime — always use the blob.
 | `Mouth` | Mouth shape / talking |
 | `Override` | Force-overrides everything (cutscenes, death) |
 
-Each entity has one `AnimationLayer` component per active layer.
+Each entity has one `AnimationLayer` buffer element per active layer. Buffer capacity is 8.
 
 ---
 
@@ -71,6 +71,32 @@ AnimationExecutionSystemGroup
   UpdateImageIndexSystem         — writes texture array index to MaterialPropertyBlock
   BillboardSystem                — rotates root quad to always face camera
 ```
+
+### File Paths (relative to `_Scripts/Systems/AnimationSystemGroup/`)
+
+| System | File |
+|---|---|
+| `UnitAnimationAssignmentSystem` | `AnimationAssignmentSystemGroup/UnitAnimationAssignmentSystem.cs` |
+| `UnitFaceDirectionSystem` | `AnimationAssignmentSystemGroup/UnitFaceDirectionSystem.cs` |
+| `AnimationTimeSystem` | `AnimationExecutionSystemGroup/AnimationTimeSystem.cs` |
+| `AnimationSamplingSystem` | `AnimationExecutionSystemGroup/AnimationSamplingSystem.cs` |
+| `ApplyAnimatedPoseSystem` | `AnimationExecutionSystemGroup/ApplyAnimatedPoseSystem.cs` |
+| `UpdateImageIndexSystem` | `AnimationExecutionSystemGroup/UpdateImageIndexSystem.cs` |
+| `BillboardSystem` | `AnimationExecutionSystemGroup/BillboardSystem.cs` |
+
+---
+
+## AnimatorTarget Buffer — Spawn Gotcha
+
+`DynamicBuffer<AnimatorTarget>` holds entity refs to the quad child entities. **These entity refs are NOT reliably remapped by `ECB.Instantiate`.**
+
+**Two-part fix:**
+
+1. `AnimatorAuthoring.Baker` populates `AnimatorTarget` at bake time via `GetComponentsInChildren`. This gives scene entities a correct buffer permanently (they never get `NeedsAnimatorInit`).
+
+2. For spawned (prefab) entities: `UnitSpawnerSystem` adds `NeedsAnimatorInit`. `AnimatorTargetInitSystem` clears and rebuilds the buffer using `DynamicBuffer<LinkedEntityGroup>` — the exact remapping table `ECB.Instantiate` produces. This is guaranteed correct regardless of how `characterRoot` is set in the inspector or how deep the prefab is nested.
+
+`AnimationSystemGroup` runs before `SpawnSystemGroup`, so spawned entities have an unreliable `AnimatorTarget` on their spawn frame. From frame 2 onward the buffer is correct.
 
 ---
 

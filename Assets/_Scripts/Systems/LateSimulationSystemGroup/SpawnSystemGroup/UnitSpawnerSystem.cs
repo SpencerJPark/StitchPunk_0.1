@@ -120,6 +120,12 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.AddComponent(newBody, new PoolOwner { unitType = targetType });
                 // Signal AnimatorTargetInitSystem to rebuild the AnimatorTarget buffer.
                 ecb.AddComponent<NeedsAnimatorInit>(newBody);
+                // ECB.Instantiate does not reliably copy IEnableableComponent enabled bits.
+                // Explicitly disable all pathfinding followers/requests so they start clean.
+                ecb.SetComponentEnabled<PathRequest>(newBody, false);
+                ecb.SetComponentEnabled<DStarLiteFollower>(newBody, false);
+                ecb.SetComponentEnabled<FlowFieldFollower>(newBody, false);
+                ecb.SetComponentEnabled<HordeMembership>(newBody, false);
 
                 if (brainPrefab != Entity.Null)
                 {
@@ -137,7 +143,10 @@ public partial struct UnitSpawnerSystem : ISystem
                     // so these deferred-entity references are safe to use here.
                     // AddComponent for BrainLink because MaleCitizen.prefab has no BrainLinkAuthoring,
                     // so the component does not exist on the baked body entity.
+                    // HasBrain is baked by BrainLinkAuthoring but that baker runs on the brain prefab,
+                    // not the body prefab — add it explicitly here.
                     ecb.AddComponent(newBody,  new BrainLink { brain = newBrain });
+                    ecb.AddComponent<HasBrain>(newBody);
                     ecb.SetComponent(newBrain, new BodyLink  { body  = newBody  });
                     ecb.AddComponent(newBrain, new PoolOwner { unitType = targetType });
                 }

@@ -219,7 +219,8 @@ public partial struct DStarLiteSystem : ISystem
             RefRW<PathfindingAgent> agent = SystemAPI.GetComponentRW<PathfindingAgent>(entity);
             agent.ValueRW.currentMode = PathfindingMode.DStarLite;
             agent.ValueRW.isActive = true;
-            
+            agent.ValueRW.needsRepath = false;
+
             SystemAPI.SetComponentEnabled<PathRequest>(entity, false);
         }
     }
@@ -460,7 +461,6 @@ public partial struct DStarLiteSystem : ISystem
     
     [BurstCompile]
     [WithAll(typeof(PathRequest))]
-    [WithAll(typeof(DStarLiteFollower))]
     public partial struct CollectPathRequestsJob : IJobEntity
     {
         public NativeList<PathComputeRequest>.ParallelWriter pendingRequests;
@@ -470,6 +470,10 @@ public partial struct DStarLiteSystem : ISystem
             in LocalTransform transform,
             Entity entity)
         {
+            // Only handle DStarLite requests; FlowField requests are handled by FlowFieldSystem.
+            if (request.requestedMode != PathfindingMode.DStarLite)
+                return;
+
             pendingRequests.AddNoResize(new PathComputeRequest
             {
                 entity = entity,

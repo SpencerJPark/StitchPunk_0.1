@@ -71,7 +71,6 @@ public partial struct FlowFieldFollowerSystem : ISystem
             in LocalTransform localTransform,
             ref UnitMover unitMover,
             ref FlowFieldFollower follower,
-            ref PathfindingAgent agent,
             EnabledRefRW<FlowFieldFollower> followerEnabled)
         {
             RaycastInput raycastInput = new RaycastInput
@@ -91,7 +90,6 @@ public partial struct FlowFieldFollowerSystem : ISystem
                 // Clear line of sight - move directly to target
                 unitMover.targetPosition = follower.targetPosition;
                 followerEnabled.ValueRW = false;
-                agent.isActive = false;
             }
         }
     }
@@ -116,7 +114,6 @@ public partial struct FlowFieldFollowerSystem : ISystem
             in LocalTransform localTransform,
             ref UnitMover unitMover,
             ref FlowFieldFollower follower,
-            ref PathfindingAgent agent,
             EnabledRefRW<FlowFieldFollower> followerEnabled)
         {
             // Validate flow field
@@ -169,7 +166,6 @@ public partial struct FlowFieldFollowerSystem : ISystem
             {
                 unitMover.targetPosition = follower.targetPosition;
                 followerEnabled.ValueRW = false;
-                agent.isActive = false;
             }
         }
     }

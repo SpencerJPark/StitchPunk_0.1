@@ -27,6 +27,24 @@ MovementExecutionSystemGroup    — applies final velocity to transforms
   SetupUnitMoverDefaultPositionSystem — initialises position on first frame
 ```
 
+### File Paths (relative to `_Scripts/Systems/MovementSystemGroup/`)
+
+| System | File |
+|---|---|
+| `FlowFieldSystem` | `MovementRoutingSystemGroup/FlowFeildSystem.cs` ⚠ typo in filename |
+| `DStarLiteSystem` | `MovementRoutingSystemGroup/DStarLiteSystem.cs` |
+| `PathfindingCoordinatorSystem` | `MovementCoordinatorSystemGroup/PathfindingCoordinatorSystem.cs` |
+| `GridSystem` | `MovementCoordinatorSystemGroup/GridSystem.cs` |
+| `FlowFieldFollowerSystem` | `MovementFollowerSystemGroup/FlowFieldFollowerSystem.cs` |
+| `DStarLiteFollowerSystem` | `MovementFollowerSystemGroup/DStarLiteFollowerSystem.cs` |
+| `PlayerFollowerSystem` | `MovementFollowerSystemGroup/PlayerFollowerSystem.cs` |
+| `UnitMoverSystem` | `MovementExecutionSystemGroup/UnitMoverSystem.cs` |
+| `UnitGravitySystem` | `MovementExecutionSystemGroup/UnitGravitySystem.cs` |
+| `StairTransitionSystem` | `MovementExecutionSystemGroup/StairTransitionSystem.cs` |
+| `SetupUnitMoverDefaultPositionSystem` | `MovementExecutionSystemGroup/SetupUnitMoverDefaultPositionSystem.cs` |
+
+> ⚠ `FlowFeildSystem.cs` has a typo in the filename ("Feild" not "Field"). Do not rename without updating all references.
+
 ---
 
 ## Horde vs Individual Movement
@@ -34,18 +52,24 @@ MovementExecutionSystemGroup    — applies final velocity to transforms
 - **Horde movement** (most units): FlowField. A shared vector grid points every cell toward the target. Units sample the cell they occupy. Cheap for large groups.
 - **Individual movement** (player, special units): D* Lite. Incremental A* variant that replans efficiently when obstacles change.
 
-Units are assigned to a `Horde` entity via `HordeAuthoring`. The horde holds the target destination; individual members hold a formation offset added on top.
+Units are assigned to a `Horde` entity. The horde holds the target destination; individual members hold a `formationOffset` (in `HordeMembership`) added on top.
+
+The system switches a unit between `FlowFieldFollower` and `DStarLiteFollower` (both `IEnableableComponent`) based on `PathfindingAgent.currentMode`.
 
 ---
 
 ## Key Components
 
-| Component | Purpose |
-|---|---|
-| `UnitMover` | Current velocity, move speed, is-grounded flag |
-| `PathfindingData` | D* Lite state (open list, path buffer) |
-| `HordeAuthoring` / horde entity | Shared target + flowfield reference |
-| `UnitGravity` | Gravity scale, vertical velocity |
+| Component | File | Purpose |
+|---|---|---|
+| `UnitMover` | `MovementComponents.cs` | moveSpeed, rotationSpeed, targetPosition, isMoving |
+| `UnitGravity` | `MovementComponents.cs` | fallSpeed, verticalVelocity |
+| `HordeMembership` | `MovementComponents.cs` | hordeId, hordeEntity, formationOffset, priority |
+| `Horde` | `MovementComponents.cs` | Shared target + flowfield index + member count |
+| `HordeMemberBuffer` | `MovementComponents.cs` | Buffer of member entities on the horde entity |
+| `PathfindingAgent` | `PathfindingComponents.cs` | Mode, repath interval, target, active flag |
+| `DStarLiteFollower` | `PathfindingComponents.cs` | Per-unit D* Lite state (enableable) |
+| `FlowFieldFollower` | `PathfindingComponents.cs` | Per-unit flowfield state (enableable) |
 
 ---
 

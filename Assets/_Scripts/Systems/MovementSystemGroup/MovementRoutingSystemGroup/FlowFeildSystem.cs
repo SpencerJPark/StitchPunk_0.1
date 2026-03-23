@@ -196,7 +196,8 @@ public partial struct FlowFieldSystem : ISystem
             // Set current mode
             agent.ValueRW.currentMode = PathfindingMode.FlowField;
             agent.ValueRW.isActive = true;
-        
+            agent.ValueRW.needsRepath = false;
+
             pathRequestEnabled.ValueRW = false;
         
             pendingRequests.Enqueue(new FlowFieldRequest

@@ -1,7 +1,8 @@
 # Stitch Punk — CLAUDE.md
 
-This file is the entry point for Claude Code. **Before working in any folder, read the relevant CONTEXT.md listed below.**
+This file is the entry point for Claude Code. **Before working in any folder, read the relevant CONTEXT.md listed below. Be sure to keep these updated in the _Docs directory as these are meant to bee tools for you, so if you can or create a new directorty/script, make sure the docs reflect that to help you further down the line**
 
+**You are going to help me by playing the role of an expert when it comes to coding and dots**
 ---
 
 ## Game Overview
@@ -53,8 +54,13 @@ The Brain holds different AI behaviour sets per unit type — a living Citizen a
 
 ---
 
-## Current Blocker (as of 2026-03-22)
+## Current Status (as of 2026-03-22)
 
-Newly spawned units **do not activate animations** and **do not seek waypoint interactions**. Waypoint interactions are the backbone of the AI system — units should always be seeking and executing interactions when idle. This is the primary in-progress problem.
+**Animation fix shipped.** Root cause: `AnimatorTargetInitSystem` used `BaseParent` matching to rebuild the `AnimatorTarget` buffer after spawn. This silently skipped any quad whose `characterRoot` inspector field didn't point to the exact body root GO. Only the eyebrow (the one correctly configured quad) animated.
 
-Relevant files: `UnitSpawnerSystem.cs`, `AnimatorTargetInitSystem.cs`, `InteractionAssignmentSystem.cs`, `MotivationDegregationSystem.cs`.
+**Fixes applied:**
+- `AnimatorAuthoring.Baker` now populates `AnimatorTarget` at bake time via `GetComponentsInChildren` — fixes scene entities permanently.
+- `AnimatorTargetInitSystem` now uses `DynamicBuffer<LinkedEntityGroup>` instead of `BaseParent` matching — reliable for all prefab hierarchies.
+- `AnimationTargetNoIndexAuthoring.Baker` now initialises `AnimationTargetPose` to rest pose (was zeros — caused quads to snap to local origin on spawn frame).
+
+**AI behaviors** — needs verification. All wiring looks correct (motivation components, `NeedsAction` explicitly enabled by spawner, `BodyLink`/`BrainLink` cross-links set by spawner). If units still don't seek interactions after the animation fix, check: (1) `awarenessRange` on `CitizenBrainAuthoring` in the brain prefab inspector — must be > 0; (2) motivation starting values vs the `AIScoringCurveSO` curve shape (units with all motivations at 0 may need time to deplete before scores are non-zero).

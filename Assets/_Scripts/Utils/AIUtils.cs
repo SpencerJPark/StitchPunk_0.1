@@ -314,7 +314,7 @@ public static class AIUtils
         if (pathfindingAgentLookup.HasComponent(entity))
         {
             mode = pathfindingAgentLookup[entity].preferredMode;
-            
+
             var agent = pathfindingAgentLookup[entity];
             agent.targetPosition = targetPosition;
             agent.isActive = true;

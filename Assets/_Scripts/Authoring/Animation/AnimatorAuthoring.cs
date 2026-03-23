@@ -6,7 +6,7 @@ public class AnimatorAuthoring : MonoBehaviour
 {
     [Header("Starting Animations")]
     public List<StartingLayer> startingLayers = new List<StartingLayer>();
-    
+
     [System.Serializable]
     public class StartingLayer
     {
@@ -15,7 +15,7 @@ public class AnimatorAuthoring : MonoBehaviour
         public float speed = 1f;
         public bool looping = true;
     }
-    
+
     private void Reset()
     {
         // Default setup when component is added
@@ -30,15 +30,15 @@ public class AnimatorAuthoring : MonoBehaviour
             }
         };
     }
-    
+
     public class Baker : Baker<AnimatorAuthoring>
     {
         public override void Bake(AnimatorAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            
+
             var layers = AddBuffer<AnimationLayer>(entity);
-            
+
             foreach (var startingLayer in authoring.startingLayers)
             {
                 layers.Add(new AnimationLayer
@@ -51,13 +51,12 @@ public class AnimatorAuthoring : MonoBehaviour
                     looping = startingLayer.looping
                 });
             }
-            
-            // Sort by layer priority
+
             SortLayers(ref layers);
-            
+
             AddBuffer<AnimatorTarget>(entity);
         }
-        
+
         private void SortLayers(ref DynamicBuffer<AnimationLayer> layers)
         {
             for (int i = 0; i < layers.Length - 1; i++)

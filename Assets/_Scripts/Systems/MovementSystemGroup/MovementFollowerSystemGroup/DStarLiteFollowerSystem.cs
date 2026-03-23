@@ -15,31 +15,27 @@ using UnityEngine;
 public partial struct DStarLiteFollowerSystem : ISystem
 {
     private ComponentLookup<DStarLiteFollower> dstarFollowerLookup;
-    private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<PhysicsWorldSingleton>();
-        
+
         dstarFollowerLookup = state.GetComponentLookup<DStarLiteFollower>(false);
-        pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
-        
+
         dstarFollowerLookup.Update(ref state);
-        pathfindingAgentLookup.Update(ref state);
-        
+
         // Check line of sight to final target
         var lineOfSightJob = new DStarLineOfSightJob
         {
             collisionWorld = physicsWorld.CollisionWorld,
-            dstarFollowerLookup = dstarFollowerLookup,
-            pathfindingAgentLookup = pathfindingAgentLookup
+            dstarFollowerLookup = dstarFollowerLookup
         };
         state.Dependency = lineOfSightJob.ScheduleParallel(state.Dependency);
         
@@ -51,6 +47,10 @@ public partial struct DStarLiteFollowerSystem : ISystem
 
 /// <summary>
 /// Checks if D* Lite follower has clear line of sight to final target.
+/// When LOS is clear, collapses the remaining path to a single direct waypoint
+/// so DStarMoveJob drives the unit straight to the goal. DStarLiteFollower
+/// stays enabled so that UpdateFollowersJob and PathfindingCoordinatorSystem
+/// can detect arrival and handle cleanup normally.
 /// </summary>
 [BurstCompile]
 [WithAll(typeof(DStarLiteFollower))]
@@ -58,15 +58,12 @@ public partial struct DStarLineOfSightJob : IJobEntity
 {
     [NativeDisableParallelForRestriction]
     public ComponentLookup<DStarLiteFollower> dstarFollowerLookup;
-    
-    [NativeDisableParallelForRestriction]
-    public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
-    
+
     [ReadOnly] public CollisionWorld collisionWorld;
 
     public void Execute(
         in LocalTransform localTransform,
-        ref UnitMover unitMover,
+        in UnitMover unitMover,
         Entity entity)
     {
         DStarLiteFollower follower = dstarFollowerLookup[entity];
@@ -85,16 +82,11 @@ public partial struct DStarLineOfSightJob : IJobEntity
 
         if (!collisionWorld.CastRay(raycastInput))
         {
-            // Clear line of sight - move directly to target
-            unitMover.targetPosition = follower.targetPosition;
-            dstarFollowerLookup.SetComponentEnabled(entity, false);
-            
-            if (pathfindingAgentLookup.HasComponent(entity))
-            {
-                var agent = pathfindingAgentLookup[entity];
-                agent.isActive = false;
-                pathfindingAgentLookup[entity] = agent;
-            }
+            // Clear line of sight — skip intermediate waypoints and aim directly at
+            // the final target. DStarMoveJob will pick up this updated nextWaypoint.
+            // DStarLiteFollower remains enabled so arrival detection works normally.
+            follower.nextWaypoint = follower.targetPosition;
+            dstarFollowerLookup[entity] = follower;
         }
     }
 }
