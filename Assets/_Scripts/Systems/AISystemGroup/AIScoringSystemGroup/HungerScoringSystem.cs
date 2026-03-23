@@ -47,6 +47,7 @@ public partial struct HungerScoringSystem : ISystem
     }
 
     [BurstCompile]
+    [WithAll(typeof(ActiveBrain))]
     public partial struct HungerScoringJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<InteractionProvider> interactionProviderLookup;

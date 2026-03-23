@@ -1,4 +1,4 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 using UnityEngine;
 
 public class BrainLinkAuthoring : MonoBehaviour
@@ -15,9 +15,7 @@ public class BrainLinkAuthoring : MonoBehaviour
                 : Entity.Null;
 
             AddComponent(entity, new BrainLink { brain = brainEntity });
-            
-            //if (brainEntity != Entity.Null)
-                AddComponent<HasBrain>(entity);
+            AddComponent<HasBrain>(entity);
         }
     }
 }

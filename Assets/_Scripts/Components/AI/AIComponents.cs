@@ -4,6 +4,7 @@ using UnityEngine;
 
 // Brain Components
 public struct IsBrain : IComponentData { }
+public struct ActiveBrain : IComponentData, IEnableableComponent { }
 
 public struct BodyLink : IComponentData
 {

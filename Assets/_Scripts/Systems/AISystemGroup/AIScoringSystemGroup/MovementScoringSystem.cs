@@ -47,6 +47,7 @@ public partial struct MovementScoringSystem : ISystem
     }
 
     [BurstCompile]
+    [WithAll(typeof(ActiveBrain))]
     public partial struct MovementScoringJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<InteractionProvider> interactionProviderLookup;

@@ -71,6 +71,7 @@ partial struct MotivationDegradationSystem : ISystem
 // HUNGER — degrades steadily, you get hungrier over time
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct HungerDegradationJob : IJobEntity
 {
     public float deltaTime;
@@ -90,6 +91,7 @@ public partial struct HungerDegradationJob : IJobEntity
 // ENERGY — slow drain, you get tired over time
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct EnergyDegradationJob : IJobEntity
 {
     public float deltaTime;
@@ -108,6 +110,7 @@ public partial struct EnergyDegradationJob : IJobEntity
 // FUN — boredom creeps in
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct FunDegradationJob : IJobEntity
 {
     public float deltaTime;
@@ -126,6 +129,7 @@ public partial struct FunDegradationJob : IJobEntity
 // SOCIAL — loneliness builds
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct SocialDegradationJob : IJobEntity
 {
     public float deltaTime;
@@ -144,6 +148,7 @@ public partial struct SocialDegradationJob : IJobEntity
 // COMFORT — discomfort grows
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct ComfortDegradationJob : IJobEntity
 {
     public float deltaTime;
@@ -162,6 +167,7 @@ public partial struct ComfortDegradationJob : IJobEntity
 // BLADDER — fills up over time
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct BladderDegradationJob : IJobEntity
 {
     public float deltaTime;
@@ -180,6 +186,7 @@ public partial struct BladderDegradationJob : IJobEntity
 // MOVEMENT — restlessness builds from being sedentary
 // -------------------------------------------------------
 [BurstCompile]
+[WithAll(typeof(ActiveBrain))]
 public partial struct MovementDegradationJob : IJobEntity
 {
     public float deltaTime;

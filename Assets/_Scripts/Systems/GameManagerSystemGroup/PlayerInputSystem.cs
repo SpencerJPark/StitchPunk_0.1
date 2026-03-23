@@ -17,8 +17,6 @@ public partial struct PlayerInputSystem : ISystem
     {
         PlayerInputData inputData = SystemAPI.GetSingleton<PlayerInputData>();
 
-        Debug.Log($"[PlayerInputSystem] Running. actionMap={inputData.activeActionMap} onAttackInput={inputData.onAttackInput}");
-
         if (inputData.activeActionMap != ActionMaps.Player)
         {
             ClearOneShotFlags(ref inputData);
@@ -70,7 +68,6 @@ public partial struct PlayerInputSystem : ISystem
             {
                 if (inputData.onAttackInput)
                 {
-                    Debug.Log("[PlayerInputSystem] Enabling PlayerAttackInput on player entity");
                     attackEnabled.ValueRW = true;
                 }
 

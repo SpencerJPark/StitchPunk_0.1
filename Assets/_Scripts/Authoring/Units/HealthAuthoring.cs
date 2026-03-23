@@ -13,7 +13,6 @@ public class HealthAuthoring : MonoBehaviour {
                 healthAmount = authoring.healthAmount,
                 healthAmountMax = authoring.healthAmountMax,
             });
-            AddComponent(entity, new UnitStateData { state = UnitState.Alive });
             AddComponent<Alive>(entity);
             SetComponentEnabled<Alive>(entity, true);
             AddComponent<Dead>(entity);

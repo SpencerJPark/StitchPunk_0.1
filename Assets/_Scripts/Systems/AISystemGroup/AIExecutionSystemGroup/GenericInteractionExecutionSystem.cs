@@ -27,6 +27,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<BodyLink> brainLinkLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
+    private ComponentLookup<Dead> deadLookup;
     private ComponentLookup<UnitAction> unitActionLookup;
     private ComponentLookup<PathRequest> pathRequestLookup;
     private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
@@ -42,6 +43,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
         brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
+        deadLookup = state.GetComponentLookup<Dead>(true);
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
         pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
         pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
@@ -54,6 +56,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         transformLookup.Update(ref state);
         brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
+        deadLookup.Update(ref state);
         unitActionLookup.Update(ref state);
         pathRequestLookup.Update(ref state);
         pathfindingAgentLookup.Update(ref state);
@@ -83,6 +86,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         {
             deltaTime = deltaTime,
             needsActionLookup = needsActionLookup,
+            deadLookup = deadLookup,
             unitActionLookup = unitActionLookup,
             brainLinkLookup = brainLinkLookup
         }.Schedule(state.Dependency);
@@ -169,6 +173,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
     {
         public float deltaTime;
         public ComponentLookup<NeedsAction> needsActionLookup;
+        [ReadOnly] public ComponentLookup<Dead> deadLookup;
         public ComponentLookup<UnitAction> unitActionLookup;
         [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
 
@@ -188,8 +193,8 @@ public partial struct GenericInteractionExecutionSystem : ISystem
             if (timer.elapsed < timer.duration)
                 return;
 
-            // Release and cleanup
-            AIUtils.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup);
+            // Release and cleanup — dead units are cleared but NeedsAction is not re-enabled.
+            AIUtils.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup, ref deadLookup);
 
             timer.elapsed = 0f;
             timerEnabled.ValueRW = false;

@@ -47,6 +47,7 @@ public partial struct FunScoringSystem : ISystem
     }
 
     [BurstCompile]
+    [WithAll(typeof(ActiveBrain))]
     public partial struct FunScoringJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<InteractionProvider> interactionProviderLookup;

@@ -47,6 +47,7 @@ public partial struct BladderScoringSystem : ISystem
     }
 
     [BurstCompile]
+    [WithAll(typeof(ActiveBrain))]
     public partial struct BladderScoringJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<InteractionProvider> interactionProviderLookup;

@@ -31,6 +31,22 @@ Pattern:
 3. Write a baking system in `Systems/PostBakingSystemGroup/` that reads the SO and writes the blob.
 4. Systems access the blob via a singleton entity component, never the SO directly.
 
+## Job Field Attributes — `[ReadOnly]` and `[NativeDisableParallelForRestriction]`
+
+`[ReadOnly]` on a job struct field comes from `Unity.Collections`, **not** `Unity.Entities`. Always add `using Unity.Collections;` whenever a file uses `[ReadOnly]`, even if nothing else from that namespace is needed. Missing this import compiles silently in some editor versions but breaks Burst.
+
+Rules for annotating `ComponentLookup`, `BufferLookup`, and `NativeContainer` fields on job structs:
+
+| Intent | Attribute |
+|---|---|
+| Read-only access to a lookup or container | `[ReadOnly]` — requires `using Unity.Collections;` |
+| Write access from a parallel job to a lookup where each worker writes to a **different** entity (e.g. each body touches its own unique brain) | `[NativeDisableParallelForRestriction]` |
+| Write access from a `.Schedule()` (single-threaded) job | No attribute needed — single-threaded writes are always safe |
+
+Never omit `[ReadOnly]` on a lookup that isn't written to. Burst uses it to validate that parallel jobs don't race, and Unity's safety system uses it to detect scheduling conflicts at edit time.
+
+---
+
 ## General
 
 - No `#region` blocks — organise with clear method/field ordering instead.

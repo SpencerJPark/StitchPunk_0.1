@@ -5,12 +5,6 @@ public struct UnitData : IComponentData
 {
     public UnitType unitType;
 }
-public struct UnitStateData : IComponentData
-{
-    public UnitState state;
-}
-
-
 
 public struct UnitAction : IComponentData
 {

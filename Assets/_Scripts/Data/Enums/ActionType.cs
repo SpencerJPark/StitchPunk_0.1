@@ -18,7 +18,8 @@
     Flee,
     SeekEntertainment,
     UseBathroom,
-    Sit
+    Sit,
+    Death
 }
 
 public enum AttackType // Animation Guide

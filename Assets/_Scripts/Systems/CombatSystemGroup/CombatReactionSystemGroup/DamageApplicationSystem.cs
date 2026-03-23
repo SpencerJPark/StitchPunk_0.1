@@ -20,9 +20,10 @@ public partial struct DamageApplicationSystem : ISystem
 
 // Drains each entity's Hurt buffer, sums incoming damage, applies it to Health
 [BurstCompile]
+[WithDisabled(typeof(Dead))]
 public partial struct DamageApplicationJob : IJobEntity
 {
-    public void Execute(ref Health health, ref DynamicBuffer<Hurt> hurtBuffer)
+    public void Execute(ref Health health, ref DynamicBuffer<Hurt> hurtBuffer, EnabledRefRW<Dead> deadEnabled)
     {
         if (hurtBuffer.Length == 0)
             return;
@@ -33,5 +34,10 @@ public partial struct DamageApplicationJob : IJobEntity
 
         health.healthAmount -= totalDamage;
         hurtBuffer.Clear();
+
+        if (health.healthAmount <= 0)
+        {
+            deadEnabled.ValueRW = true;
+        }
     }
 }

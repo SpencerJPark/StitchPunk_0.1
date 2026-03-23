@@ -196,16 +196,20 @@ public static class AIUtils
 
     /// <summary>
     /// Release occupants and reset their pathfinding state.
+    /// Dead units (body has Dead enabled) are cleared from the buffer
+    /// but do NOT have NeedsAction re-enabled.
     /// </summary>
     public static void ReleaseOccupants(
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<BodyLink> brainLinkLookup)
+        ref ComponentLookup<BodyLink> brainLinkLookup,
+        ref ComponentLookup<Dead> deadLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
             Entity brainEntity = occupants[i].entity;
+            bool bodyIsDead = false;
 
             if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
             {
@@ -216,9 +220,13 @@ public static class AIUtils
                         current = ActionType.Idle
                     };
                 }
+
+                bodyIsDead = deadLookup.HasComponent(brainLink.body) &&
+                             deadLookup.IsComponentEnabled(brainLink.body);
             }
 
-            needsActionLookup.SetComponentEnabled(brainEntity, true);
+            if (!bodyIsDead)
+                needsActionLookup.SetComponentEnabled(brainEntity, true);
         }
 
         occupants.Clear();
@@ -226,12 +234,15 @@ public static class AIUtils
 
     /// <summary>
     /// Release occupants with full pathfinding cleanup.
+    /// Dead units (body has Dead enabled) are cleared from the buffer
+    /// but do NOT have NeedsAction re-enabled.
     /// </summary>
     public static void ReleaseOccupants(
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
         ref ComponentLookup<BodyLink> brainLinkLookup,
+        ref ComponentLookup<Dead> deadLookup,
         ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
         ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
         ref ComponentLookup<DStarLiteFollower> dstarFollowerLookup)
@@ -239,10 +250,13 @@ public static class AIUtils
         for (int i = 0; i < occupants.Length; i++)
         {
             Entity brainEntity = occupants[i].entity;
+            bool bodyIsDead = false;
 
             if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
             {
                 Entity body = brainLink.body;
+
+                bodyIsDead = deadLookup.HasComponent(body) && deadLookup.IsComponentEnabled(body);
 
                 // Reset action
                 if (unitActionLookup.HasComponent(body))
@@ -263,17 +277,14 @@ public static class AIUtils
 
                 // Disable followers
                 if (flowFieldFollowerLookup.HasComponent(body))
-                {
                     flowFieldFollowerLookup.SetComponentEnabled(body, false);
-                }
 
                 if (dstarFollowerLookup.HasComponent(body))
-                {
                     dstarFollowerLookup.SetComponentEnabled(body, false);
-                }
             }
 
-            needsActionLookup.SetComponentEnabled(brainEntity, true);
+            if (!bodyIsDead)
+                needsActionLookup.SetComponentEnabled(brainEntity, true);
         }
 
         occupants.Clear();

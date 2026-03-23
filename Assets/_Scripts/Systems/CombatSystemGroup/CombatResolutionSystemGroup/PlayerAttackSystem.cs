@@ -54,8 +54,6 @@ public partial struct PlayerAttackSystem : ISystem
             float rangeSq = range * range;
             bool isMelee = attackBlob.attackDelivery == AttackDelivery.Melee;
 
-            Debug.Log($"[PlayerAttackSystem] attackType={attackType} delivery={attackBlob.attackDelivery} range={range} facing={facingDir} pos={playerPos}");
-
             Entity bestTarget = Entity.Null;
             float bestDistSq = float.MaxValue;
             float bestDot = float.MinValue;
@@ -74,7 +72,6 @@ public partial struct PlayerAttackSystem : ISystem
 
                 if (distSq < 0.0001f || distSq > rangeSq)
                 {
-                    Debug.Log($"[PlayerAttackSystem] {enemyEntity} rejected — dist={math.sqrt(distSq):F2} range={range:F2}");
                     continue;
                 }
 
@@ -93,7 +90,6 @@ public partial struct PlayerAttackSystem : ISystem
                     float dot = math.dot(facingDir, toEnemy * math.rsqrt(distSq));
                     if (dot < cosHalfAngle)
                     {
-                        Debug.Log($"[PlayerAttackSystem] {enemyEntity} rejected — outside cone dot={dot:F2} required={cosHalfAngle:F2}");
                         continue;
                     }
                     if (dot > bestDot)
@@ -104,20 +100,13 @@ public partial struct PlayerAttackSystem : ISystem
                 }
             }
 
-            Debug.Log($"[PlayerAttackSystem] Scanned {candidateCount} candidates. bestTarget={bestTarget}");
-
             if (bestTarget == Entity.Null)
             {
-                Debug.LogWarning("[PlayerAttackSystem] No valid target found — Attack NOT enabled");
                 continue;
             }
-
-            Debug.Log($"[PlayerAttackSystem] Target found {bestTarget} — enabling Attack");
+            
             combatTarget.ValueRW = new CombatTarget { entity = bestTarget };
             attackEnabled.ValueRW = true;
         }
-
-        if (playerQueryCount == 0)
-            Debug.LogWarning("[PlayerAttackSystem] PlayerAttackInput is enabled but no player entity matched the query (needs Player + AttackData + CombatTarget + Attack + PlayerAttackInput)");
     }
 }

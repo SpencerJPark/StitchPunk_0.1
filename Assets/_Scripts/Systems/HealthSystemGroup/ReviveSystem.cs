@@ -20,8 +20,8 @@ public partial struct ReviveSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(Undead))]
-[WithAll(typeof(Alive))]
+[WithDisabled(typeof(Alive))]
+[WithPresent(typeof(Undead))]
 public partial struct ReviveJob : IJobEntity
 {
     public void Execute(ref Health health, EnabledRefRW<Revive> reviveEnabled, EnabledRefRW<Undead> undeadEnabled, EnabledRefRW<Dead> deadEnabled, EnabledRefRW<Alive> aliveEnabled)

@@ -34,8 +34,6 @@ partial struct HealthBarSystem : ISystem {
         };
         healthBarJob.ScheduleParallel();
     }
-
-
 }
 
 

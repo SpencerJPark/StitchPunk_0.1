@@ -36,7 +36,12 @@ public partial struct ActionSelectionSystem : ISystem
         }.Schedule(state.Dependency);
     }
 
+    // [WithAll(typeof(NeedsAction))] is required — NeedsAction is IEnableableComponent.
+    // Without it the query uses WithPresent (runs on all brains) and FilterPreviousEntity
+    // re-enables NeedsAction on dead/inactive brains that have 0 options, creating an infinite loop.
     [BurstCompile]
+    [WithAll(typeof(ActiveBrain))]
+    [WithAll(typeof(NeedsAction))]
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
