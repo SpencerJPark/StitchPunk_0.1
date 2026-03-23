@@ -33,10 +33,10 @@ public partial struct UnitSpawnerSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
-        // UnitPrefabEntry exists on both the library entity and baked prefab entities,
-        // so GetSingleton would fail. Resolve via the UnitDataLibrary singleton instead.
+        // UnitPrefabEntry is a DynamicBuffer on the UnitDataLibrary singleton entity.
+        // Look up by entity to avoid ambiguity with any other entity that may carry this buffer.
         Entity libraryEntity = SystemAPI.GetSingletonEntity<UnitDataLibrary>();
-        var prefabs = SystemAPI.GetComponent<UnitPrefabEntry>(libraryEntity);
+        var prefabs = SystemAPI.GetBuffer<UnitPrefabEntry>(libraryEntity);
 
         // --- Collect spawner data before any structural changes ---
         var spawnerEntities  = new NativeList<Entity>(Allocator.Temp);
@@ -77,8 +77,8 @@ public partial struct UnitSpawnerSystem : ISystem
             float3 center       = spawnerPositions[s];
             float range         = spawnerRanges[s];
 
-            Entity bodyPrefab  = GetBodyPrefabForType(ref prefabs, targetType);
-            Entity brainPrefab = GetBrainPrefabForType(ref prefabs, targetType);
+            Entity bodyPrefab  = GetBodyPrefabForType(prefabs, targetType);
+            Entity brainPrefab = GetBrainPrefabForType(prefabs, targetType);
             if (bodyPrefab == Entity.Null) continue;
 
             int spawned = 0;
@@ -167,22 +167,18 @@ public partial struct UnitSpawnerSystem : ISystem
         spawnerCounts.Dispose(); spawnerPositions.Dispose(); spawnerRanges.Dispose();
     }
 
-    private static Entity GetBodyPrefabForType(ref UnitPrefabEntry prefabs, UnitType type)
+    private static Entity GetBodyPrefabForType(DynamicBuffer<UnitPrefabEntry> prefabs, UnitType type)
     {
-        return type switch
-        {
-            UnitType.MaleCitizen => prefabs.maleCitizenPrefab,
-            _ => Entity.Null
-        };
+        for (int i = 0; i < prefabs.Length; i++)
+            if (prefabs[i].unitType == type) return prefabs[i].bodyPrefab;
+        return Entity.Null;
     }
 
-    private static Entity GetBrainPrefabForType(ref UnitPrefabEntry prefabs, UnitType type)
+    private static Entity GetBrainPrefabForType(DynamicBuffer<UnitPrefabEntry> prefabs, UnitType type)
     {
-        return type switch
-        {
-            UnitType.MaleCitizen => prefabs.maleCitizenBrainPrefab,
-            _ => Entity.Null
-        };
+        for (int i = 0; i < prefabs.Length; i++)
+            if (prefabs[i].unitType == type) return prefabs[i].brainPrefab;
+        return Entity.Null;
     }
 
     private static float3 RandomPositionInRange(float3 center, float range, ref Random random)
