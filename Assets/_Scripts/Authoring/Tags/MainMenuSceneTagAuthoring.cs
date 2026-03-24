@@ -1,11 +1,11 @@
 using Unity.Entities;
 using UnityEngine;
 
-public class MainMenuTagAuthoring : MonoBehaviour {
+public class MainMenuSceneTagAuthoring : MonoBehaviour {
     
-    public class Baker : Baker<MainMenuTagAuthoring> {
+    public class Baker : Baker<MainMenuSceneTagAuthoring> {
         
-        public override void Bake(MainMenuTagAuthoring authoring) {
+        public override void Bake(MainMenuSceneTagAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new MainMenuTag());
         }

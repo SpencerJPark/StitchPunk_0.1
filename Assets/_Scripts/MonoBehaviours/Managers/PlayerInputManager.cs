@@ -7,110 +7,91 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 {
     #region Fields
     [SerializeField] private PlayerInput playerInput;
-    
+
     private EntityManager entityManager;
-    private Entity inputEntity;
+    private EntityQuery playerQuery;
+    private Entity playerEntity;
+    private bool playerEntityResolved;
 
     private ActionMaps targetActionMap;
     private bool hasPendingMapSwitch;
 
-    // ActionMaps
     private const string PLAYER_ACTION_MAP_NAME = "Player";
     private const string CONTROL_UNITS_ACTION_MAP_NAME = "ControlUnits";
+    private const float ROLL_DURATION = 0.5f;
     #endregion
-    
+
     #region Initialization
     private void Awake()
     {
-        // Setup Input
         if (playerInput == null)
-        {
             playerInput = GetComponent<PlayerInput>();
-        }
 
         if (playerInput == null)
-        {
             Debug.LogError("PlayerInputManager: No PlayerInput component found on this GameObject.");
-        }
-        
+
         playerInput.actions.Disable();
         playerInput.SwitchCurrentActionMap(PLAYER_ACTION_MAP_NAME);
 
-
-        // Setup Entities
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-        EntityArchetype archetype = entityManager.CreateArchetype(typeof(PlayerInputData));
-        inputEntity = entityManager.CreateEntity(archetype);
-        
-        PlayerInputData initialData = new PlayerInputData
-        {
-            moveInput = float2.zero,
-            lookInput = float2.zero,
-            activeActionMap = ActionMaps.Player,
-            sneakToggle = false,
-            onAttackInput = false,
-            onInteractInput = false,
-            onRollInput = false
-        };
-        entityManager.SetComponentData(inputEntity, initialData);
-        
+        playerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
+
         hasPendingMapSwitch = false;
-        
+        playerEntityResolved = false;
     }
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
     private void OnDisable() => UpdateManager.UnregisterObserver(this);
     #endregion
-    
+
+    private bool TryResolvePlayerEntity()
+    {
+        if (playerEntityResolved) return true;
+        if (playerQuery.IsEmpty) return false;
+        playerEntity = playerQuery.GetSingletonEntity();
+        playerEntityResolved = true;
+        return true;
+    }
+
     public void ObservedUpdate()
     {
-        if (!hasPendingMapSwitch)
+        if (hasPendingMapSwitch && TryResolvePlayerEntity())
         {
-            return;
+            ApplyActionMapSwitch(targetActionMap);
+            hasPendingMapSwitch = false;
         }
-        
-        ApplyActionMapSwitch(targetActionMap);
-        hasPendingMapSwitch = false;
     }
 
     private void ApplyActionMapSwitch(ActionMaps newMap)
     {
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
+        // Clear continuous inputs on mode change
+        entityManager.SetComponentEnabled<MovePlayerInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<LookPlayerInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<ZoomPlayerInput>(playerEntity, false);
 
-        // Always clear transient input on mode change
-        data.moveInput = float2.zero;
-        data.lookInput = float2.zero;
+        PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+        actionMap.activeActionMap = newMap;
+        entityManager.SetComponentData(playerEntity, actionMap);
 
         if (newMap == ActionMaps.Player)
         {
-            data.activeActionMap = ActionMaps.Player;
-
-            if (playerInput != null)
-            {
-                playerInput.SwitchCurrentActionMap(PLAYER_ACTION_MAP_NAME);
-            }
-
+            playerInput?.SwitchCurrentActionMap(PLAYER_ACTION_MAP_NAME);
             CameraManager.Instance.SwitchCamera(CinemachineCameraType.Player);
         }
         else if (newMap == ActionMaps.ControlUnits)
         {
-            data.activeActionMap = ActionMaps.ControlUnits;
-
-            if (playerInput != null)
-            {
-                playerInput.SwitchCurrentActionMap(CONTROL_UNITS_ACTION_MAP_NAME);
-            }
-
+            playerInput?.SwitchCurrentActionMap(CONTROL_UNITS_ACTION_MAP_NAME);
             CameraManager.Instance.SwitchCamera(CinemachineCameraType.ControlUnits);
         }
-
-        entityManager.SetComponentData(inputEntity, data);
     }
 
     #region Input System callback methods
-    
+
     public void OnMove(InputAction.CallbackContext context)
     {
+        if (!TryResolvePlayerEntity()) return;
+
         float2 value = float2.zero;
         if (context.performed || context.canceled)
         {
@@ -118,13 +99,14 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             value = new float2(v.x, v.y);
         }
 
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.moveInput = value;
-        entityManager.SetComponentData(inputEntity, data);
+        entityManager.SetComponentData(playerEntity, new MovePlayerInput { moveInput = value });
+        entityManager.SetComponentEnabled<MovePlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
-    
+
     public void OnLook(InputAction.CallbackContext context)
     {
+        if (!TryResolvePlayerEntity()) return;
+
         float2 value = float2.zero;
         if (context.performed || context.canceled)
         {
@@ -132,49 +114,14 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             value = new float2(v.x, v.y);
         }
 
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.lookInput = value;
-        entityManager.SetComponentData(inputEntity, data);
-    }
-    
-    public void OnAttack(InputAction.CallbackContext context)
-    {
-        if (!context.performed)
-        {
-            return;
-        }
-
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.onAttackInput = true;
-        entityManager.SetComponentData(inputEntity, data);
+        entityManager.SetComponentData(playerEntity, new LookPlayerInput { lookInput = value });
+        entityManager.SetComponentEnabled<LookPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
 
-    public void OnInteract(InputAction.CallbackContext context)
-    {
-        if (!context.performed)
-        {
-            return;
-        }
-
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.onInteractInput = true;
-        entityManager.SetComponentData(inputEntity, data);
-    }
-    
-    public void OnEquipt3(InputAction.CallbackContext context)
-    {
-        if (!context.performed)
-        {
-            return;
-        }
-
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.onEquipt3 = true;
-        entityManager.SetComponentData(inputEntity, data);
-    }
-    
     public void OnCursorMovement(InputAction.CallbackContext context)
     {
+        if (!TryResolvePlayerEntity()) return;
+
         float2 value = float2.zero;
         if (context.performed || context.canceled)
         {
@@ -182,13 +129,14 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             value = new float2(v.x, v.y);
         }
 
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.cursorInput = value;
-        entityManager.SetComponentData(inputEntity, data);
+        entityManager.SetComponentData(playerEntity, new CursorPlayerInput { cursorInput = value });
+        entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
-    
+
     public void OnZoom(InputAction.CallbackContext context)
     {
+        if (!TryResolvePlayerEntity()) return;
+
         float value = 0f;
         if (context.performed || context.canceled)
         {
@@ -196,34 +144,53 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             value = v.y;
         }
 
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-        data.zoomInput = value;
-        entityManager.SetComponentData(inputEntity, data);
+        entityManager.SetComponentData(playerEntity, new ZoomPlayerInput { zoomInput = value });
+        entityManager.SetComponentEnabled<ZoomPlayerInput>(playerEntity, value != 0f);
     }
-    
+
+    public void OnAttack(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<OnAttackPlayerInput>(playerEntity, true);
+    }
+
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<OnInteractPlayerInput>(playerEntity, true);
+    }
+
+    public void OnRoll(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnRollPlayerInput { rollTime = ROLL_DURATION });
+        entityManager.SetComponentEnabled<OnRollPlayerInput>(playerEntity, true);
+    }
+
+    public void OnSneak(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<OnSneakPlayerInput>(playerEntity, true);
+    }
+
+    public void OnEquipt3(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnItemSlotPlayerInput { itemSlot = 3 });
+        entityManager.SetComponentEnabled<OnItemSlotPlayerInput>(playerEntity, true);
+    }
+
     public void OnSwitchControls(InputAction.CallbackContext context)
     {
-        if (!context.performed)
-        {
-            return;
-        }
+        if (!context.performed || !TryResolvePlayerEntity()) return;
 
-        // Read the *real* current mode from ECS, not a local field
-        PlayerInputData data = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-
-        if (data.activeActionMap == ActionMaps.Player)
-        {
-            targetActionMap = ActionMaps.ControlUnits;
-        }
-        else
-        {
-            targetActionMap = ActionMaps.Player;
-        }
+        PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+        targetActionMap = actionMap.activeActionMap == ActionMaps.Player
+            ? ActionMaps.ControlUnits
+            : ActionMaps.Player;
 
         hasPendingMapSwitch = true;
     }
-    // etc. for sneak, roll …
+
     #endregion
 }
-
-

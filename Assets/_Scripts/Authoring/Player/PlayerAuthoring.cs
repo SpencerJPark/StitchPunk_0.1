@@ -3,27 +3,41 @@ using UnityEngine;
 
 public class PlayerAuthoring : MonoBehaviour
 {
-    public float rollTimeMax = 5f;
-    public float rollSpeed = 5f;
-    
     public class Baker : Baker<PlayerAuthoring> {
 
         public override void Bake(PlayerAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new Player());
-            AddComponent(entity, new PlayerData
-            {
-                rollTimeMax = authoring.rollTimeMax,
-                rollSpeed = authoring.rollSpeed,
-            });
-            AddComponent(entity, new PlayerAttackInput());
-            SetComponentEnabled<PlayerAttackInput>(entity, false);
-            AddComponent(entity, new PlayerInteractInput());
-            SetComponentEnabled<PlayerInteractInput>(entity, false);
-            AddComponent(entity, new PlayerRollInput());
-            SetComponentEnabled<PlayerRollInput>(entity, false);
-            AddComponent(entity, new PlayerSneakToggle());
-            SetComponentEnabled<PlayerSneakToggle>(entity, false);
+            
+            AddComponent(entity, new PlayerActionMap{ activeActionMap = ActionMaps.Player});
+            
+            AddComponent(entity, new MovePlayerInput());
+            SetComponentEnabled<MovePlayerInput>(entity, false);
+            
+            AddComponent(entity, new LookPlayerInput());
+            SetComponentEnabled<LookPlayerInput>(entity, false);
+            
+            AddComponent(entity, new CursorPlayerInput());
+            SetComponentEnabled<CursorPlayerInput>(entity, false);
+            
+            AddComponent(entity, new ZoomPlayerInput());
+            SetComponentEnabled<ZoomPlayerInput>(entity, false);
+            
+            AddComponent(entity, new OnAttackPlayerInput());
+            SetComponentEnabled<OnAttackPlayerInput>(entity, false);
+            
+            AddComponent(entity, new OnInteractPlayerInput());
+            SetComponentEnabled<OnInteractPlayerInput>(entity, false);
+            
+            AddComponent(entity, new OnRollPlayerInput());
+            SetComponentEnabled<OnRollPlayerInput>(entity, false);
+            
+            AddComponent(entity, new OnSneakPlayerInput());
+            SetComponentEnabled<OnSneakPlayerInput>(entity, false);
+            
+            AddComponent(entity, new OnItemSlotPlayerInput());
+            SetComponentEnabled<OnItemSlotPlayerInput>(entity, false);
+            AddComponent(entity, new PlayerItemSlots());
         }
     }
 }

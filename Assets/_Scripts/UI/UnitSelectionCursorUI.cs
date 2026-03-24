@@ -1,16 +1,15 @@
 using UnityEngine;
-using UnityEngine.UI;
 using Unity.Entities;
 using Unity.Mathematics;
 
 public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 {
     [Header("References")]
-    [SerializeField] private RectTransform cursorImageRectTransform; // assign MusicCursorImage
-    [SerializeField] private Canvas uiCanvas;                        // the canvas this lives on
+    [SerializeField] private RectTransform cursorImageRectTransform;
+    [SerializeField] private Canvas uiCanvas;
 
     [Header("Movement")]
-    [SerializeField] private float controllerSpeed = 900f;           // pixels per second
+    [SerializeField] private float controllerSpeed = 900f;
 
     public bool IsActive { get; private set; }
 
@@ -23,41 +22,32 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 
     // ECS
     private EntityManager entityManager;
-    private EntityQuery inputQuery;
-    private Entity inputEntity;
-    private bool hasInputEntity;
+    private EntityQuery playerQuery;
+    private Entity playerEntity;
+    private bool hasPlayer;
 
     private void Awake()
     {
         if (cursorImageRectTransform == null)
-        {
             Debug.LogError("UnitSelectionCursorUI: cursorImageRectTransform is not assigned.");
-        }
 
         if (uiCanvas == null)
-        {
             uiCanvas = GetComponentInParent<Canvas>();
-        }
 
         if (uiCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
-        {
             Debug.LogWarning("UnitSelectionCursorUI: For HUD-style cursor, Canvas should be Screen Space - Overlay.");
-        }
 
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-        inputQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerInputData>());
+        playerQuery = entityManager.CreateEntityQuery(
+            ComponentType.ReadOnly<Player>(),
+            ComponentType.ReadOnly<PlayerActionMap>());
 
-        // Start hidden
         SetVisible(false);
         Cursor.visible = true;
-
-        hasInputEntity = false;
+        hasPlayer = false;
     }
 
-    private void OnEnable()
-    {
-        UpdateManager.RegisterObserver(this);
-    }
+    private void OnEnable()  => UpdateManager.RegisterObserver(this);
 
     private void OnDisable()
     {
@@ -67,80 +57,48 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        if (!EnsureInputEntity())
+        if (!EnsurePlayerEntity())
         {
-            if (IsActive)
-            {
-                Deactivate();
-            }
+            if (IsActive) Deactivate();
             return;
         }
 
-        PlayerInputData inputData = entityManager.GetComponentData<PlayerInputData>(inputEntity);
+        PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+        bool shouldBeActive = actionMap.activeActionMap == ActionMaps.ControlUnits;
 
-        // Decide if the fake cursor *should* be active in this frame
-        bool shouldBeActive = (inputData.activeActionMap == ActionMaps.ControlUnits);
-
-        // Handle visibility toggling based on ECS state
         if (shouldBeActive && !IsActive)
-        {
             ActivateFromInput();
-        }
         else if (!shouldBeActive && IsActive)
-        {
             Deactivate();
-        }
 
-        if (!IsActive)
-        {
-            return;
-        }
+        if (!IsActive) return;
 
-        // When active in ControlUnits mode, move the cursor
-        UpdatePosition(inputData);
+        UpdatePosition();
         ApplyPositionToUI();
     }
 
-    private bool EnsureInputEntity()
+    private bool EnsurePlayerEntity()
     {
-        if (hasInputEntity)
+        if (hasPlayer)
         {
-            if (entityManager.Exists(inputEntity))
-            {
-                return true;
-            }
-
-            hasInputEntity = false;
+            if (entityManager.Exists(playerEntity)) return true;
+            hasPlayer = false;
         }
 
-        if (inputQuery.IsEmpty)
-        {
-            return false;
-        }
+        if (playerQuery.IsEmpty) return false;
 
-        inputEntity = inputQuery.GetSingletonEntity();
-        hasInputEntity = true;
+        playerEntity = playerQuery.GetSingletonEntity();
+        hasPlayer = true;
         return true;
     }
 
-    /// <summary>
-    /// Activate the fake cursor and initialize its position.
-    /// </summary>
     private void ActivateFromInput()
     {
         IsActive = true;
         SetVisible(true);
-
-        // Start at current mouse pos if available, so transition feels natural
-        if (Input.mousePresent)
-        {
-            cursorScreenPosition = Input.mousePosition;
-        }
-        else
-        {
-            cursorScreenPosition = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-        }
-
+        cursorScreenPosition = Input.mousePresent
+            ? (Vector2)Input.mousePosition
+            : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
         Cursor.visible = false;
     }
 
@@ -154,47 +112,31 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
     private void SetVisible(bool visible)
     {
         if (cursorImageRectTransform != null)
-        {
             cursorImageRectTransform.gameObject.SetActive(visible);
-        }
     }
 
-    /// <summary>
-    /// Move the cursor in screen space based on PlayerInputData.cursorInput.
-    /// cursorInput should be driven by mouse delta or right stick in PlayerInputManager.
-    /// </summary>
-    private void UpdatePosition(PlayerInputData inputData)
+    private void UpdatePosition()
     {
-        float2 cursorInput = inputData.cursorInput;
-
-        // Debug to see if we're actually getting input
-        // Debug.Log($"CursorInput: {cursorInput}");
+        float2 cursorInput = float2.zero;
+        if (entityManager.IsComponentEnabled<CursorPlayerInput>(playerEntity))
+            cursorInput = entityManager.GetComponentData<CursorPlayerInput>(playerEntity).cursorInput;
 
         Vector2 delta = new Vector2(cursorInput.x, cursorInput.y) * controllerSpeed * Time.deltaTime;
-
         cursorScreenPosition += delta;
-
-        // Clamp to screen bounds
         cursorScreenPosition.x = Mathf.Clamp(cursorScreenPosition.x, 0f, Screen.width);
         cursorScreenPosition.y = Mathf.Clamp(cursorScreenPosition.y, 0f, Screen.height);
     }
 
     private void ApplyPositionToUI()
     {
-        if (cursorImageRectTransform == null)
-        {
-            return;
-        }
-
-        RectTransform canvasRect = uiCanvas.transform as RectTransform;
+        if (cursorImageRectTransform == null) return;
 
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            canvasRect,
+            uiCanvas.transform as RectTransform,
             cursorScreenPosition,
-            null, // null because ScreenSpaceOverlay
+            null,
             out Vector2 localPoint);
 
         cursorImageRectTransform.anchoredPosition = localPoint;
     }
 }
-

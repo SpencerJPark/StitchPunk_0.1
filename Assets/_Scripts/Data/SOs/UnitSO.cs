@@ -17,6 +17,10 @@ public class UnitSO : ScriptableObject
     [Tooltip("Default Attack")] 
     public AttackType attackType;
     
+    [Header("Movement")]
+    public float moveSpeed = 5f;
+    public float rotationSpeed = 10f;
+    
     [Tooltip("Spawn Cost")]
     public ResourceAmount[] spawnCostResourceAmountArray;
     public float progressMax;

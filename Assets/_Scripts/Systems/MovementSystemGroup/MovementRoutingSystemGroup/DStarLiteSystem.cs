@@ -172,7 +172,7 @@ public partial struct DStarLiteSystem : ISystem
             
             if (!SystemAPI.HasComponent<DStarLiteFollower>(entity))
                 continue;
-            if (!SystemAPI.HasComponent<UnitMover>(entity))
+            if (!SystemAPI.HasComponent<Movement>(entity))
                 continue;
             if (!SystemAPI.HasComponent<PathfindingAgent>(entity))
                 continue;
@@ -213,7 +213,7 @@ public partial struct DStarLiteSystem : ISystem
             
             SystemAPI.SetComponentEnabled<DStarLiteFollower>(entity, true);
             
-            RefRW<UnitMover> mover = SystemAPI.GetComponentRW<UnitMover>(entity);
+            RefRW<Movement> mover = SystemAPI.GetComponentRW<Movement>(entity);
             mover.ValueRW.targetPosition = nextWaypoint;
             
             RefRW<PathfindingAgent> agent = SystemAPI.GetComponentRW<PathfindingAgent>(entity);
@@ -499,7 +499,7 @@ public partial struct DStarLiteSystem : ISystem
 
         public void Execute(
             ref DStarLiteFollower follower,
-            ref UnitMover mover,
+            ref Movement mover,
             in LocalTransform transform,
             in PathfindingAgent agent,
             Entity entity,

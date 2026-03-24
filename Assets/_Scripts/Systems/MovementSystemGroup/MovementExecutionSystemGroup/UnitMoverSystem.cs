@@ -48,24 +48,24 @@ public partial struct UnitMoverJob : IJobEntity
 
     public void Execute(
         ref LocalTransform localTransform, 
-        ref UnitMover unitMover,
+        ref Movement movement,
         in PhysicsCollider physicsCollider)
     {
         if (deltaTime <= 0f) return;
 
         float3 currentPosition = localTransform.Position;
-        float3 toTarget = unitMover.targetPosition - currentPosition;
+        float3 toTarget = movement.targetPosition - currentPosition;
         float distSq = math.lengthsq(toTarget);
 
         // Already at target
         if (distSq < 0.0001f)
         {
-            unitMover.isMoving = false;
+            movement.isMoving = false;
             return;
         }
 
         float dist = math.sqrt(distSq);
-        float moveDist = math.min(dist, unitMover.moveSpeed * deltaTime);
+        float moveDist = math.min(dist, movement.moveSpeed * deltaTime);
         float3 moveDir = toTarget / dist;
         float3 desiredMove = moveDir * moveDist;
 
@@ -82,7 +82,7 @@ public partial struct UnitMoverJob : IJobEntity
         }
 
         // Update rotation to face movement direction
-        if (unitMover.rotationSpeed > 0f && math.lengthsq(moveDir) > 0.001f)
+        if (movement.rotationSpeed > 0f && math.lengthsq(moveDir) > 0.001f)
         {
             float3 flatDir = math.normalize(new float3(moveDir.x, 0f, moveDir.z));
             if (math.lengthsq(flatDir) > 0.001f)
@@ -91,12 +91,12 @@ public partial struct UnitMoverJob : IJobEntity
                 localTransform.Rotation = math.slerp(
                     localTransform.Rotation, 
                     targetRotation, 
-                    unitMover.rotationSpeed * deltaTime);
+                    movement.rotationSpeed * deltaTime);
             }
         }
 
         float3 actualMove = localTransform.Position - currentPosition;
-        unitMover.isMoving = math.lengthsq(actualMove) > 1e-6f;
+        movement.isMoving = math.lengthsq(actualMove) > 1e-6f;
     }
 
     private unsafe float3 CalculateMovementWithCollision(

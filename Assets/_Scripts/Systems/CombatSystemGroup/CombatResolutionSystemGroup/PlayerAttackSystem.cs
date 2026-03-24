@@ -1,7 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
 
 [UpdateInGroup(typeof(CombatResolutionSystemGroup))]
 [UpdateBefore(typeof(AttackResolutionSystem))]
@@ -13,34 +12,28 @@ public partial struct PlayerAttackSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<AttackLibrary>();
-        state.RequireForUpdate<PlayerInputData>();
         state.RequireForUpdate<Player>();
     }
 
     public void OnUpdate(ref SystemState state)
     {
-        PlayerInputData inputData = SystemAPI.GetSingleton<PlayerInputData>();
-        if (inputData.activeActionMap != ActionMaps.Player)
-            return;
-
         BlobAssetReference<AttackLibraryBlob> attackLibrary = SystemAPI.GetSingleton<AttackLibrary>().library;
         float cosHalfAngle = math.cos(math.radians(RANGED_CONE_HALF_ANGLE_DEG));
-        int playerQueryCount = 0;
 
-        foreach (var (transform, attackData, combatTarget, attackEnabled, attackInputEnabled) in
+        foreach (var (transform, attackData, combatTarget, attackEnabled, attackInputEnabled, actionMap) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
                 RefRO<AttackData>,
                 RefRW<CombatTarget>,
                 EnabledRefRW<Attack>,
-                EnabledRefRW<PlayerAttackInput>>()
+                EnabledRefRW<OnAttackPlayerInput>,
+                RefRO<PlayerActionMap>>()
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            if (!attackInputEnabled.ValueRO)
-                continue;
+            if (actionMap.ValueRO.activeActionMap != ActionMaps.Player) continue;
+            if (!attackInputEnabled.ValueRO) continue;
 
-            playerQueryCount++;
             attackInputEnabled.ValueRW = false;
 
             float3 playerPos = transform.ValueRO.Position;
@@ -57,7 +50,6 @@ public partial struct PlayerAttackSystem : ISystem
             Entity bestTarget = Entity.Null;
             float bestDistSq = float.MaxValue;
             float bestDot = float.MinValue;
-            int candidateCount = 0;
 
             foreach (var (enemyTransform, enemyEntity) in
                 SystemAPI.Query<RefRO<LocalTransform>>()
@@ -65,19 +57,14 @@ public partial struct PlayerAttackSystem : ISystem
                     .WithNone<Player, PlayerImmune>()
                     .WithEntityAccess())
             {
-                candidateCount++;
                 float3 toEnemy = enemyTransform.ValueRO.Position - playerPos;
                 toEnemy.y = 0f;
                 float distSq = math.lengthsq(toEnemy);
 
-                if (distSq < 0.0001f || distSq > rangeSq)
-                {
-                    continue;
-                }
+                if (distSq < 0.0001f || distSq > rangeSq) continue;
 
                 if (isMelee)
                 {
-                    // Melee: closest target in range wins, no cone required
                     if (distSq < bestDistSq)
                     {
                         bestDistSq = distSq;
@@ -86,12 +73,8 @@ public partial struct PlayerAttackSystem : ISystem
                 }
                 else
                 {
-                    // Ranged: most forward-aligned target within cone wins
                     float dot = math.dot(facingDir, toEnemy * math.rsqrt(distSq));
-                    if (dot < cosHalfAngle)
-                    {
-                        continue;
-                    }
+                    if (dot < cosHalfAngle) continue;
                     if (dot > bestDot)
                     {
                         bestDot = dot;
@@ -100,11 +83,8 @@ public partial struct PlayerAttackSystem : ISystem
                 }
             }
 
-            if (bestTarget == Entity.Null)
-            {
-                continue;
-            }
-            
+            if (bestTarget == Entity.Null) continue;
+
             combatTarget.ValueRW = new CombatTarget { entity = bestTarget };
             attackEnabled.ValueRW = true;
         }

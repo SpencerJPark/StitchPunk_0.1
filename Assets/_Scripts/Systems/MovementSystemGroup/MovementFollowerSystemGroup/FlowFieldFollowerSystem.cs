@@ -69,7 +69,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
 
         public void Execute(
             in LocalTransform localTransform,
-            ref UnitMover unitMover,
+            ref Movement movement,
             ref FlowFieldFollower follower,
             EnabledRefRW<FlowFieldFollower> followerEnabled)
         {
@@ -88,7 +88,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             if (!collisionWorld.CastRay(raycastInput))
             {
                 // Clear line of sight - move directly to target
-                unitMover.targetPosition = follower.targetPosition;
+                movement.targetPosition = follower.targetPosition;
                 followerEnabled.ValueRW = false;
             }
         }
@@ -112,7 +112,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
 
         public void Execute(
             in LocalTransform localTransform,
-            ref UnitMover unitMover,
+            ref Movement movement,
             ref FlowFieldFollower follower,
             EnabledRefRW<FlowFieldFollower> followerEnabled)
         {
@@ -156,7 +156,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             }
 
             // Set target position ahead in flow direction
-            unitMover.targetPosition =
+            movement.targetPosition =
                 GridSystem.GetWorldCenterPosition(gridPosition.x, gridPosition.y, cellSize) +
                 moveVector * cellSizeDouble;
 
@@ -164,7 +164,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             float distToTarget = math.distance(localTransform.Position, follower.targetPosition);
             if (distToTarget < cellSize)
             {
-                unitMover.targetPosition = follower.targetPosition;
+                movement.targetPosition = follower.targetPosition;
                 followerEnabled.ValueRW = false;
             }
         }

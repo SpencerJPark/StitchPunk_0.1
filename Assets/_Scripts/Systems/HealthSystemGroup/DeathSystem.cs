@@ -50,7 +50,7 @@ public partial struct DeathJob : IJobEntity
         in Health health,
         in LocalTransform transform,
         ref UnitAction unitAction,
-        ref UnitMover mover,
+        ref Movement mover,
         in BrainLink brainLink,
         EnabledRefRW<Alive> aliveEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,

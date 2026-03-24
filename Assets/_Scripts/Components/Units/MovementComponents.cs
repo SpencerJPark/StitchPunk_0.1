@@ -1,7 +1,7 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 
-public struct UnitMover : IComponentData
+public struct Movement : IComponentData
 {
     public float moveSpeed;
     public float rotationSpeed;
@@ -9,7 +9,7 @@ public struct UnitMover : IComponentData
     public bool isMoving;
 }
 
-public struct UnitGravity : IComponentData
+public struct Gravity : IComponentData
 {
     public float fallSpeed;
     public float verticalVelocity;

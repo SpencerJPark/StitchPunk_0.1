@@ -32,7 +32,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
     public void Execute(
         ref DynamicBuffer<AnimationLayer> layers,
         in UnitData unitData,
-        in UnitMover unitMover,
+        in Movement movement,
         in UnitAction unitAction)
     {
         int unitIndex = (int)unitData.unitType;
@@ -44,7 +44,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         AnimationType targetAnimation = GetAnimationForAction(
             unitAction.current,
             ref unitBlob,
-            unitMover.isMoving);
+            movement.isMoving);
 
         if (!AnimationUtils.IsCurrentLayer(ref layers, AnimationLayerType.Base, targetAnimation))
         {

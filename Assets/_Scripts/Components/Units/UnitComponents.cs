@@ -58,7 +58,15 @@ public struct AttackData : IComponentData
 {
     public AttackType attackType;
 }
-// interact
+
+public struct UpdateTarget : IComponentData, IEnableableComponent
+{
+    public Entity targetEntity;
+}
+public struct Target : IComponentData
+{
+    public Entity targetEntity;
+}
 
 // Player actions
 public struct Undead : IComponentData, IEnableableComponent { }

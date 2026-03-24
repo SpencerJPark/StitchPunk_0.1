@@ -10,47 +10,41 @@ partial struct PlayerMoveSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<PlayerInputData>();
         state.RequireForUpdate<Player>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        PlayerInputData inputData = SystemAPI.GetSingleton<PlayerInputData>();
-        
-        // Early out if different action mode
-        if (inputData.activeActionMap != ActionMaps.Player)
+        foreach (var (transform, unitMover, moveInput, moveEnabled, actionMap) in
+            SystemAPI.Query<
+                RefRO<LocalTransform>,
+                RefRW<Movement>,
+                RefRO<MovePlayerInput>,
+                EnabledRefRO<MovePlayerInput>,
+                RefRO<PlayerActionMap>>()
+                    .WithAll<Player>()
+                    .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            return;
-        }
+            if (actionMap.ValueRO.activeActionMap != ActionMaps.Player)
+            {
+                unitMover.ValueRW.targetPosition = transform.ValueRO.Position;
+                continue;
+            }
 
-        // Convert 2D input into 3D world-space direction (XZ plane)
-        float3 moveDir = new float3(inputData.moveInput.x, 0f, inputData.moveInput.y);
-
-        bool hasMoveInput = math.lengthsq(moveDir) > 0.0001f;
-        if (hasMoveInput)
-        {
-            moveDir = math.normalize(moveDir);
-        }
-
-        foreach (var (transform, unitMover) in
-                 SystemAPI.Query<RefRO<LocalTransform>, RefRW<UnitMover>>()
-                     .WithAll<Player>())
-        {
             float3 currentPos = transform.ValueRO.Position;
 
-            if (hasMoveInput)
+            if (!moveEnabled.ValueRO)
             {
-                // For continuous WASD-style movement, just target “far ahead”
-                // so UnitMoverJob keeps moving in that direction.
-                unitMover.ValueRW.targetPosition = currentPos + moveDir * 50f;
-            }
-            else
-            {
-                // No input: target current position so UnitMoverJob will stop
                 unitMover.ValueRW.targetPosition = currentPos;
+                continue;
             }
+
+            float3 moveDir = new float3(moveInput.ValueRO.moveInput.x, 0f, moveInput.ValueRO.moveInput.y);
+            if (math.lengthsq(moveDir) > 0.0001f)
+                unitMover.ValueRW.targetPosition = currentPos + math.normalize(moveDir) * 50f;
+            else
+                unitMover.ValueRW.targetPosition = currentPos;
         }
     }
 }

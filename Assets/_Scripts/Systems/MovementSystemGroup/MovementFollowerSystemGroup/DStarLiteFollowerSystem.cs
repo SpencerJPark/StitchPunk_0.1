@@ -63,7 +63,7 @@ public partial struct DStarLineOfSightJob : IJobEntity
 
     public void Execute(
         in LocalTransform localTransform,
-        in UnitMover unitMover,
+        in Movement movement,
         Entity entity)
     {
         DStarLiteFollower follower = dstarFollowerLookup[entity];
@@ -101,11 +101,11 @@ public partial struct DStarMoveJob : IJobEntity
     public void Execute(
         in DStarLiteFollower follower,
         in PathfindingAgent agent,
-        ref UnitMover unitMover)
+        ref Movement movement)
     {
         if (agent.currentMode != PathfindingMode.DStarLite)
             return;
         
-        unitMover.targetPosition = follower.nextWaypoint;
+        movement.targetPosition = follower.nextWaypoint;
     }
 }

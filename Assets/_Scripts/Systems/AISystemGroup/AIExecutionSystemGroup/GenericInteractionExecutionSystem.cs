@@ -31,7 +31,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
     private ComponentLookup<UnitAction> unitActionLookup;
     private ComponentLookup<PathRequest> pathRequestLookup;
     private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
-    private ComponentLookup<UnitMover> unitMoverLookup;
+    private ComponentLookup<Movement> unitMoverLookup;
 
     private const float DEFAULT_DURATION = 5f;
 
@@ -47,7 +47,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         unitActionLookup = state.GetComponentLookup<UnitAction>(false);
         pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
         pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
-        unitMoverLookup = state.GetComponentLookup<UnitMover>(false);
+        unitMoverLookup = state.GetComponentLookup<Movement>(false);
     }
 
     [BurstCompile]
@@ -104,7 +104,7 @@ public partial struct GenericInteractionExecutionSystem : ISystem
         [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
         public ComponentLookup<PathRequest> pathRequestLookup;
         public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
-        public ComponentLookup<UnitMover> unitMoverLookup;
+        public ComponentLookup<Movement> unitMoverLookup;
 
         public void Execute(
             in LocalTransform interactionTransform,

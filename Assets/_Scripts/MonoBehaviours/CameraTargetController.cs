@@ -11,22 +11,14 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
     private Entity _playerEntity;
     private bool _hasPlayer;
 
-    private EntityQuery _inputQuery;
-    private Entity _inputEntity;
-    private bool _hasInput;
-
     private void Awake()
     {
         _entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
 
-        // Player entity (position/rotation comes from here)
         _playerQuery = _entityManager.CreateEntityQuery(
             ComponentType.ReadOnly<Player>(),
-            ComponentType.ReadOnly<LocalTransform>());
-
-        // Player input singleton (activeActionMap, moveInput, etc.)
-        _inputQuery = _entityManager.CreateEntityQuery(
-            ComponentType.ReadOnly<PlayerInputData>());
+            ComponentType.ReadOnly<LocalTransform>(),
+            ComponentType.ReadOnly<PlayerActionMap>());
     }
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
@@ -34,12 +26,9 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        // --- Bind player entity lazily ---
         if (!_hasPlayer)
         {
-            if (_playerQuery.IsEmpty)
-                return; // no player yet
-
+            if (_playerQuery.IsEmpty) return;
             _playerEntity = _playerQuery.GetSingletonEntity();
             _hasPlayer = true;
         }
@@ -50,28 +39,9 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
             return;
         }
 
-        // --- Bind input entity lazily ---
-        if (!_hasInput)
-        {
-            if (_inputQuery.IsEmpty)
-                return; // no input singleton yet
+        PlayerActionMap actionMap = _entityManager.GetComponentData<PlayerActionMap>(_playerEntity);
 
-            _inputEntity = _inputQuery.GetSingletonEntity();
-            _hasInput = true;
-        }
-
-        if (!_entityManager.Exists(_inputEntity))
-        {
-            _hasInput = false;
-            return;
-        }
-
-        // Get current input state (including active action map)
-        PlayerInputData playerInputData = _entityManager.GetComponentData<PlayerInputData>(_inputEntity);
-        
-
-        // Branch camera behavior by current action map
-        switch (playerInputData.activeActionMap)
+        switch (actionMap.activeActionMap)
         {
             case ActionMaps.Player:
             case ActionMaps.Vehicle:
@@ -79,11 +49,10 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
                 break;
 
             case ActionMaps.ControlUnits:
-                FreeMovement(playerInputData);
+                FreeMovement();
                 break;
 
             case ActionMaps.MapUI:
-                // maybe free movement or special behaviour
                 CenterOnPlayer();
                 break;
         }
@@ -92,26 +61,22 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
     private void PlayerFollowMove()
     {
         LocalTransform playerTransform = _entityManager.GetComponentData<LocalTransform>(_playerEntity);
-
-        // You might want smooth follow here, but for now: direct match
         transform.position = playerTransform.Position;
         transform.rotation = playerTransform.Rotation;
     }
 
-    private void FreeMovement(PlayerInputData inputData)
+    private void FreeMovement()
     {
-        float moveSpeed = 10f;
-        Vector3 move = new Vector3(inputData.moveInput.x, 0f, inputData.moveInput.y);
+        if (!_entityManager.IsComponentEnabled<MovePlayerInput>(_playerEntity)) return;
 
-        transform.position += move * moveSpeed * Time.deltaTime;
+        MovePlayerInput moveInput = _entityManager.GetComponentData<MovePlayerInput>(_playerEntity);
+        Vector3 move = new Vector3(moveInput.moveInput.x, 0f, moveInput.moveInput.y);
+        transform.position += move * 10f * Time.deltaTime;
     }
 
     private void CenterOnPlayer()
     {
         LocalTransform playerTransform = _entityManager.GetComponentData<LocalTransform>(_playerEntity);
-
-        // Snap or lerp back to the player
         transform.position = playerTransform.Position;
-        // rotation optional for map mode – maybe fixed top-down instead
     }
 }

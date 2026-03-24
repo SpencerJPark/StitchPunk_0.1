@@ -58,7 +58,7 @@ public partial struct UnitGravityJob : IJobEntity
 
     public void Execute(
         ref LocalTransform transform,
-        ref UnitGravity gravity)
+        ref Gravity gravity)
     {
         float3 pos = transform.Position;
 

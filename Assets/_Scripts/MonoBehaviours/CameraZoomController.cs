@@ -1,4 +1,4 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -13,13 +13,13 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
     [SerializeField] private float defaultOffset = -16.5f;
     [SerializeField] private float closestOffset = 1f;
     [SerializeField] private float farthestOffset = -50f;
-    [SerializeField] private float zoomStep = 6f; 
+    [SerializeField] private float zoomStep = 6f;
     [SerializeField] private float smoothTime = 0.15f;
 
     private EntityManager entityManager;
-    private EntityQuery inputQuery;
-    private Entity inputEntity;
-    private bool hasInput;
+    private EntityQuery playerQuery;
+    private Entity playerEntity;
+    private bool hasPlayer;
 
     private float currentOffset;
     private float targetOffset;
@@ -27,20 +27,18 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
     private float lastZoomInput;
     private ActionMaps lastActionMap;
 
-    
-
     private void Awake()
     {
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-        inputQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerInputData>());
-        
+        playerQuery = entityManager.CreateEntityQuery(
+            ComponentType.ReadOnly<Player>(),
+            ComponentType.ReadOnly<PlayerActionMap>());
+
         currentOffset = defaultOffset;
         targetOffset = defaultOffset;
 
         if (cameraOffset == null)
-        {
-            Debug.LogError("CameraZoomController: ControlUnits camera not assigned!");
-        }
+            Debug.LogError("CameraZoomController: CameraOffset not assigned!");
     }
 
     private void OnEnable()
@@ -56,19 +54,31 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        if (Conditions(out var inputData)) return;
-        
-        CalculateOffset(inputData);
+        if (!EnsurePlayerEntity()) return;
+        if (cameraOffset == null) return;
 
-        // Smooth zoom to target
+        PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+
+        if (actionMap.activeActionMap != lastActionMap)
+        {
+            lastActionMap = actionMap.activeActionMap;
+            ResetOffset();
+        }
+
+        if (actionMap.activeActionMap != ActionMaps.ControlUnits) return;
+
+        float rawZoom = 0f;
+        if (entityManager.IsComponentEnabled<ZoomPlayerInput>(playerEntity))
+            rawZoom = entityManager.GetComponentData<ZoomPlayerInput>(playerEntity).zoomInput;
+
+        CalculateOffset(rawZoom);
+
         currentOffset = Mathf.SmoothDamp(currentOffset, targetOffset, ref offsetVelocity, smoothTime);
-
         ApplyOffsetToCamera(currentOffset);
     }
 
-    private void CalculateOffset(PlayerInputData inputData)
+    private void CalculateOffset(float rawZoom)
     {
-        float rawZoom = inputData.zoomInput;
         if (Mathf.Abs(rawZoom) > 0.01f && Mathf.Abs(lastZoomInput) < 0.01f)
         {
             float direction = -Mathf.Sign(rawZoom);
@@ -78,46 +88,18 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
         lastZoomInput = rawZoom;
     }
 
-    private bool Conditions(out PlayerInputData inputData)
+    private bool EnsurePlayerEntity()
     {
-        inputData = new PlayerInputData();
-    
-        if (cameraOffset == null)
-            return true;
-
-        if (!EnsureInputEntity())
-            return true;
-
-        inputData = entityManager.GetComponentData<PlayerInputData>(inputEntity);
-
-        // Track map changes FIRST
-        if (inputData.activeActionMap != lastActionMap)
+        if (hasPlayer)
         {
-            lastActionMap = inputData.activeActionMap;
-            ResetOffset();
+            if (entityManager.Exists(playerEntity)) return true;
+            hasPlayer = false;
         }
 
-        if (inputData.activeActionMap != ActionMaps.ControlUnits)
-            return true;
+        if (playerQuery.IsEmpty) return false;
 
-        return false;
-    }
-
-    private bool EnsureInputEntity()
-    {
-        if (hasInput)
-        {
-            if (entityManager.Exists(inputEntity))
-                return true;
-
-            hasInput = false;
-        }
-
-        if (inputQuery.IsEmpty)
-            return false;
-
-        inputEntity = inputQuery.GetSingletonEntity();
-        hasInput = true;
+        playerEntity = playerQuery.GetSingletonEntity();
+        hasPlayer = true;
         return true;
     }
 
@@ -125,13 +107,13 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
     {
         cameraOffset.Offset = new Vector3(0, 0, offset);
     }
-    
+
     public void ResetOffset()
     {
         targetOffset = defaultOffset;
         lastZoomInput = 0f;
     }
-    
+
     public void SetOffsetInstant(float offset)
     {
         offset = Mathf.Clamp(offset, farthestOffset, closestOffset);

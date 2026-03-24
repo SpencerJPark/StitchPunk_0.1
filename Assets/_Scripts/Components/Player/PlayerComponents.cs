@@ -6,36 +6,56 @@ public struct Player : IComponentData
     public Entity interactableEntity;
 }
 
-public struct PlayerData : IComponentData
+public struct PlayerSettings : IComponentData
 {
-    public float rollTime;
-    public float rollTimeMax;
-    public float rollSpeed;
+    
 }
 
-public struct PlayerInputData : IComponentData
+// Controls
+public struct PlayerActionMap : IComponentData
+{
+    public ActionMaps activeActionMap;
+}
+
+public struct MovePlayerInput : IComponentData, IEnableableComponent
 {
     public float2 moveInput;
-    public float2 lookInput;
-    public float2 cursorInput;
-    public float zoomInput;
-    public ActionMaps activeActionMap;
-    
-    public bool sneakToggle;
-    public bool onAttackInput;
-    public bool onInteractInput;
-    public bool onRollInput;
-
-    public bool onEquipt1;
-    public bool onEquipt2;
-    public bool onEquipt3;
-    public bool onEquipt4;
 }
 
-public struct PlayerAttackInput: IComponentData, IEnableableComponent {}
+public struct LookPlayerInput : IComponentData, IEnableableComponent
+{
+    public float2 lookInput;
+}
 
-public struct PlayerInteractInput: IComponentData, IEnableableComponent {}
+public struct CursorPlayerInput : IComponentData, IEnableableComponent
+{
+    public float2 cursorInput;
+}
 
-public struct PlayerRollInput: IComponentData, IEnableableComponent {}
+public struct ZoomPlayerInput : IComponentData, IEnableableComponent
+{
+    public float zoomInput;
+}
 
-public struct PlayerSneakToggle: IComponentData, IEnableableComponent {}
+public struct OnAttackPlayerInput: IComponentData, IEnableableComponent {}
+
+public struct OnInteractPlayerInput: IComponentData, IEnableableComponent {}
+
+public struct OnRollPlayerInput : IComponentData, IEnableableComponent
+{
+    public float rollTime;
+}
+
+public struct OnSneakPlayerInput: IComponentData, IEnableableComponent {}
+
+public struct OnItemSlotPlayerInput : IComponentData, IEnableableComponent
+{
+    public int itemSlot;
+}
+public struct PlayerItemSlots : IComponentData
+{
+    public ItemType itemSlot1;
+    public ItemType itemSlot2;
+    public ItemType itemSlot3;
+    public ItemType itemSlot4;
+}

@@ -316,7 +316,7 @@ public static class AIUtils
         float3 targetPosition,
         ref ComponentLookup<PathRequest> pathRequestLookup,
         ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
-        ref ComponentLookup<UnitMover> unitMoverLookup)
+        ref ComponentLookup<Movement> unitMoverLookup)
     {
         if (!pathRequestLookup.HasComponent(entity))
             return;

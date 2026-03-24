@@ -1,14 +1,14 @@
 using Unity.Entities;
 using UnityEngine;
 
-public class UnitGravityAuthoring : MonoBehaviour {
+public class GravityAuthoring : MonoBehaviour {
 
     public float fallSpeed;
 
-    public class Baker : Baker<UnitGravityAuthoring> {
-        public override void Bake(UnitGravityAuthoring authoring) {
+    public class Baker : Baker<GravityAuthoring> {
+        public override void Bake(GravityAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new UnitGravity
+            AddComponent(entity, new Gravity
             {
                 fallSpeed = authoring.fallSpeed,
             });

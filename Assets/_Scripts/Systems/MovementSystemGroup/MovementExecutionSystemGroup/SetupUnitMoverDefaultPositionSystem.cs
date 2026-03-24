@@ -19,12 +19,12 @@ partial struct SetupUnitMoverDefaultPositionSystem : ISystem {
 
         foreach ((
             RefRO<LocalTransform> localTransform,
-            RefRW<UnitMover> unitMover,
+            RefRW<Movement> unitMover,
             RefRO<SetupUnitMoverDefaultPosition> setupUnitMoverDefaultPosition,
             Entity entity)
             in SystemAPI.Query<
                 RefRO<LocalTransform>,
-                RefRW<UnitMover>,
+                RefRW<Movement>,
                 RefRO<SetupUnitMoverDefaultPosition>>().WithEntityAccess()) {
 
             unitMover.ValueRW.targetPosition = localTransform.ValueRO.Position;

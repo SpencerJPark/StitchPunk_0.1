@@ -81,7 +81,7 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
     public void Execute(
         ref LocalTransform localTransform,
         ref FlowFieldFollower follower,
-        ref UnitMover unitMover)
+        ref Movement movement)
     {
         float3 position = localTransform.Position;
         int2 gridPos = GridSystem.GetGridPosition(position, cellSize);
@@ -110,13 +110,13 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
             {
                 follower.currentLayer = stair.toLayer;
                 localTransform.Position = stair.exitWorldPosition;
-                unitMover.targetPosition = stair.exitWorldPosition;
+                movement.targetPosition = stair.exitWorldPosition;
             }
             else // atExit (bidirectional going back)
             {
                 follower.currentLayer = stair.fromLayer;
                 localTransform.Position = stair.entryWorldPosition;
-                unitMover.targetPosition = stair.entryWorldPosition;
+                movement.targetPosition = stair.entryWorldPosition;
             }
             
             break;
@@ -139,7 +139,7 @@ public partial struct StairTransitionDStarJob : IJobEntity
     public void Execute(
         ref LocalTransform localTransform,
         ref DStarLiteFollower follower,
-        ref UnitMover unitMover)
+        ref Movement movement)
     {
         float3 position = localTransform.Position;
         int2 gridPos = GridSystem.GetGridPosition(position, cellSize);
@@ -165,13 +165,13 @@ public partial struct StairTransitionDStarJob : IJobEntity
             {
                 follower.currentLayer = stair.toLayer;
                 localTransform.Position = stair.exitWorldPosition;
-                unitMover.targetPosition = stair.exitWorldPosition;
+                movement.targetPosition = stair.exitWorldPosition;
             }
             else
             {
                 follower.currentLayer = stair.fromLayer;
                 localTransform.Position = stair.entryWorldPosition;
-                unitMover.targetPosition = stair.entryWorldPosition;
+                movement.targetPosition = stair.entryWorldPosition;
             }
             
             break;
