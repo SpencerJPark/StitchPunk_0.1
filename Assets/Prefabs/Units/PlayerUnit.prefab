@@ -198,6 +198,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 123114018271666235, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+      propertyPath: unitType
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 323965059727601240, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       propertyPath: m_Layer
       value: 12
@@ -435,8 +439,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eac3572dda70d0347839927c6dea14cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rollTimeMax: 5
-  rollSpeed: 5
 --- !u!114 &1794824144110468912
 MonoBehaviour:
   m_ObjectHideFlags: 0

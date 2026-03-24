@@ -274,7 +274,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 79e2801046be45b3aecfb6523feef66e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::UnitSpawnerAuthoring
-  unitType: 1
+  unitType: 2
   spawnCount: 1
   range: 2
 --- !u!4 &526580278
@@ -1170,6 +1170,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1499230434120723341, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: unitType
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 3643317712540831892, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: brain
       value: 
@@ -1180,6 +1184,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3898859768826041075, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4360691298283947048, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: outlined
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4715563417410410598, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}

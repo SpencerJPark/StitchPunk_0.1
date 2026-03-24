@@ -122,10 +122,15 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.AddComponent<NeedsAnimatorInit>(newBody);
                 // ECB.Instantiate does not reliably copy IEnableableComponent enabled bits.
                 // Explicitly disable all pathfinding followers/requests so they start clean.
-                ecb.SetComponentEnabled<PathRequest>(newBody, false);
-                ecb.SetComponentEnabled<DStarLiteFollower>(newBody, false);
-                ecb.SetComponentEnabled<FlowFieldFollower>(newBody, false);
-                ecb.SetComponentEnabled<HordeMembership>(newBody, false);
+                // Guard each against prefabs that don't carry the component.
+                if (state.EntityManager.HasComponent<PathRequest>(bodyPrefab))
+                    ecb.SetComponentEnabled<PathRequest>(newBody, false);
+                if (state.EntityManager.HasComponent<DStarLiteFollower>(bodyPrefab))
+                    ecb.SetComponentEnabled<DStarLiteFollower>(newBody, false);
+                if (state.EntityManager.HasComponent<FlowFieldFollower>(bodyPrefab))
+                    ecb.SetComponentEnabled<FlowFieldFollower>(newBody, false);
+                if (state.EntityManager.HasComponent<HordeMembership>(bodyPrefab))
+                    ecb.SetComponentEnabled<HordeMembership>(newBody, false);
 
                 if (brainPrefab != Entity.Null)
                 {

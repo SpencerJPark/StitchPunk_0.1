@@ -76,7 +76,10 @@ partial struct OutlineSystem : ISystem
    [BurstCompile]
     private void FindNextOutlined(ref SystemState state)
     {
-        nextEntity = SystemAPI.GetComponent<Player>(playerEntity).interactableEntity;
+        bool hasTarget = state.EntityManager.IsComponentEnabled<Target>(playerEntity);
+        nextEntity = hasTarget
+            ? state.EntityManager.GetComponentData<Target>(playerEntity).entity
+            : Entity.Null;
     }
 
     private void ResetPreviousChildrenOutline(ref SystemState state)
