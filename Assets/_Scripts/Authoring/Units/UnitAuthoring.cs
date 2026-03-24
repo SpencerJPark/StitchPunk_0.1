@@ -11,6 +11,9 @@ public class UnitAuthoring : MonoBehaviour {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new Unit());
             AddComponent(entity, new UnitData { unitType = authoring.unitType });
+            AddComponent(entity, new UnitAction());
+            AddComponent<Target>(entity);
+            SetComponentEnabled<Target>(entity, false);
         }
     }
 }

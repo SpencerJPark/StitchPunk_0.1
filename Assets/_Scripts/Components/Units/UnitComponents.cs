@@ -5,37 +5,32 @@ public struct UnitData : IComponentData
 {
     public UnitType unitType;
 }
-
 public struct UnitAction : IComponentData
 {
     public ActionType current;    
 }
+public struct Target : IComponentData, IEnableableComponent
+{
+    public Entity entity;
+}
 
+// Health
 public struct Alive : IComponentData, IEnableableComponent { }
 public struct Dead : IComponentData, IEnableableComponent { }
-
-
-
 public struct Hurt : IBufferElementData
 {
     public Entity attackerEntity;
     public float distance;
     public int damageAmount;
 }
-
-public struct CombatTarget : IComponentData
-{
-    public Entity entity;
-}
-
-public struct AttackCooldown : IComponentData
-{
-    public float timer;
-}
 public struct Health : IComponentData {
     
     public int healthAmount;
     public int healthAmountMax; // SHould be able to move
+}
+public struct Heal : IComponentData, IEnableableComponent
+{
+    public int healAmount;
 }
 public struct HealthBar : IComponentData {
     public Entity barVisualEntity;
@@ -44,13 +39,10 @@ public struct HealthBar : IComponentData {
 
 // Prevents the player from targeting this entity with attacks.
 // Use on friendly vehicles, allied units, or anything else that shouldn't take player damage.
-public struct PlayerImmune : IComponentData { }
+public struct PlayerImmune : IComponentData, IEnableableComponent { }
 
 // Actions
-public struct Heal : IComponentData, IEnableableComponent
-{
-    public int healAmount;
-}
+
 
 
 public struct Attack : IComponentData, IEnableableComponent { }
@@ -58,15 +50,12 @@ public struct AttackData : IComponentData
 {
     public AttackType attackType;
 }
+public struct AttackCooldown : IComponentData
+{
+    public float timer;
+}
 
-public struct UpdateTarget : IComponentData, IEnableableComponent
-{
-    public Entity targetEntity;
-}
-public struct Target : IComponentData
-{
-    public Entity targetEntity;
-}
+
 
 // Player actions
 public struct Undead : IComponentData, IEnableableComponent { }

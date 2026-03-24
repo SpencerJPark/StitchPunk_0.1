@@ -20,11 +20,11 @@ public partial struct PlayerAttackSystem : ISystem
         BlobAssetReference<AttackLibraryBlob> attackLibrary = SystemAPI.GetSingleton<AttackLibrary>().library;
         float cosHalfAngle = math.cos(math.radians(RANGED_CONE_HALF_ANGLE_DEG));
 
-        foreach (var (transform, attackData, combatTarget, attackEnabled, attackInputEnabled, actionMap) in
+        foreach (var (transform, attackData, target, attackEnabled, attackInputEnabled, actionMap) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
                 RefRO<AttackData>,
-                RefRW<CombatTarget>,
+                RefRW<Target>,
                 EnabledRefRW<Attack>,
                 EnabledRefRW<OnAttackPlayerInput>,
                 RefRO<PlayerActionMap>>()
@@ -85,7 +85,7 @@ public partial struct PlayerAttackSystem : ISystem
 
             if (bestTarget == Entity.Null) continue;
 
-            combatTarget.ValueRW = new CombatTarget { entity = bestTarget };
+            target.ValueRW = new Target { entity = bestTarget };
             attackEnabled.ValueRW = true;
         }
     }

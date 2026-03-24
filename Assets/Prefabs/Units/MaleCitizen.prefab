@@ -1894,18 +1894,17 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5881378729410220941}
-  - component: {fileID: 7197699493342335644}
   - component: {fileID: 5637220999366806047}
   - component: {fileID: 1499230434120723341}
+  - component: {fileID: 7197699493342335644}
   - component: {fileID: 4194241504189190309}
-  - component: {fileID: 8508333175906807453}
   - component: {fileID: 6463397720600201936}
   - component: {fileID: 1285401989474882221}
   - component: {fileID: 6740547309548362299}
   - component: {fileID: 1006556263781156094}
   - component: {fileID: 7433833384928893244}
-  - component: {fileID: 2109917504735642924}
   - component: {fileID: 3643317712540831892}
+  - component: {fileID: 2109917504735642924}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -1930,20 +1929,6 @@ Transform:
   - {fileID: 5510897213417328720}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7197699493342335644
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3898859768826041075}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cdc8a81fe2ca8894fab26858848604de, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  healthAmount: 100
-  healthAmountMax: 100
 --- !u!136 &5637220999366806047
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1980,6 +1965,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   unitType: 1
+--- !u!114 &7197699493342335644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3898859768826041075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdc8a81fe2ca8894fab26858848604de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  healthAmount: 100
+  healthAmountMax: 100
 --- !u!114 &4194241504189190309
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1993,18 +1992,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::AttackAuthoring
   baseAttack: 2
---- !u!114 &8508333175906807453
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3898859768826041075}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1bf2f7fcad444f0e9d931b87fe651c36, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UnitActionAuthoring
 --- !u!114 &6463397720600201936
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2096,21 +2083,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c54af9d021a1964f82eaff2b9be0288, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::UndeadAuthoring
+  startMinion: 0
   startUndead: 0
   selectedVisual: {fileID: 1774981320125413578}
   showScale: 2
---- !u!114 &2109917504735642924
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3898859768826041075}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &3643317712540831892
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2124,6 +2100,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BrainLinkAuthoring
   brain: {fileID: 0}
+--- !u!114 &2109917504735642924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3898859768826041075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &4022584403464093948
 GameObject:
   m_ObjectHideFlags: 0

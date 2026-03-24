@@ -82,7 +82,7 @@ public partial struct AttackResolutionJob : IJobEntity
 
     public void Execute(
         Entity attackerEntity,
-        in CombatTarget combatTarget,
+        in Target target,
         in LocalTransform attackerTransform,
         ref AttackCooldown cooldown,
         EnabledRefRW<Attack> attackEnabled)
@@ -90,7 +90,7 @@ public partial struct AttackResolutionJob : IJobEntity
         if (cooldown.timer > 0f)
             return;
 
-        if (combatTarget.entity == Entity.Null)
+        if (target.entity == Entity.Null)
             return;
 
         // Item AttackData takes priority over unit's base AttackData
@@ -108,7 +108,7 @@ public partial struct AttackResolutionJob : IJobEntity
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[(int)attackData.attackType];
 
         // Range check
-        if (!transformLookup.TryGetComponent(combatTarget.entity, out LocalTransform targetTransform))
+        if (!transformLookup.TryGetComponent(target.entity, out LocalTransform targetTransform))
             return;
 
         float distanceSq = math.distancesq(attackerTransform.Position, targetTransform.Position);
@@ -116,10 +116,10 @@ public partial struct AttackResolutionJob : IJobEntity
             return;
 
         // Write hit to target's Hurt buffer
-        if (!hurtBufferLookup.HasBuffer(combatTarget.entity))
+        if (!hurtBufferLookup.HasBuffer(target.entity))
             return;
 
-        hurtBufferLookup[combatTarget.entity].Add(new Hurt
+        hurtBufferLookup[target.entity].Add(new Hurt
         {
             attackerEntity = attackerEntity,
             distance = math.sqrt(distanceSq),

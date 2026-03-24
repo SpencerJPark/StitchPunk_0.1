@@ -5,7 +5,7 @@ using Unity.Mathematics;
 /// Component that enables outline rendering on an entity.
 /// Add this component to any entity that should have an outline.
 /// </summary>
-public struct Outline : IComponentData
+public struct Outline : IComponentData, IEnableableComponent
 {
     public float4 outlineColor;
     public float outlineWidth;

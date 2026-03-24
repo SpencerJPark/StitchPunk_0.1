@@ -13,7 +13,6 @@ public class AttackAuthoring : MonoBehaviour
             AddComponent<Attack>(entity);
             SetComponentEnabled<Attack>(entity, false);
             AddComponent(entity, new AttackData { attackType = authoring.baseAttack });
-            AddComponent(entity, new CombatTarget { entity = Unity.Entities.Entity.Null });
             AddComponent(entity, new AttackCooldown { timer = 0f });
         }
     }

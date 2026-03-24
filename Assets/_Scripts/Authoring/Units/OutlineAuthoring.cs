@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class OutlineAuthoring : MonoBehaviour
 {
+    public bool outlined = false;
     
     [SerializeField] 
     private Color outlineColor = Color.white;
@@ -26,6 +27,7 @@ public class OutlineAuthoring : MonoBehaviour
                     authoring.outlineColor.a),
                 outlineWidth = authoring.outlineWidth,
             });
+            SetComponentEnabled<Outline>(entity, authoring.outlined);
         }
     }
 }

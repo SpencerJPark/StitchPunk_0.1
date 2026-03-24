@@ -18,6 +18,8 @@ public class HealthAuthoring : MonoBehaviour {
             AddComponent<Dead>(entity);
             SetComponentEnabled<Dead>(entity, false);
             AddBuffer<Hurt>(entity);
+            AddComponent<Heal>(entity);
+            SetComponentEnabled<Heal>(entity, false);
         }
 
     }
