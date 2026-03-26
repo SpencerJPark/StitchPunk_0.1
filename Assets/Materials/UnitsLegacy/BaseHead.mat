@@ -105,13 +105,14 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _DstBlendAlpha: 0
-    - _EdgeDiffuse: 0.1
-    - _EdgeDistanceAttenuation: 0.5
-    - _EdgeRimAttenuation: 0.3
-    - _EdgeRimOffset: 0.5
-    - _EdgeShadowAttenuation: 0.5
-    - _EdgeSpecular: 0.1
-    - _EdgeSpecularOffset: 0.1
+    - _ENUM: 0
+    - _EdgeDiffuse: 0.31
+    - _EdgeDistanceAttenuation: 1.38
+    - _EdgeRimAttenuation: -0.44
+    - _EdgeRimOffset: 1.89
+    - _EdgeShadowAttenuation: 1.21
+    - _EdgeSpecular: -0.04
+    - _EdgeSpecularOffset: -0.69
     - _EnvironmentReflections: 1
     - _GlossMapScale: 0
     - _Glossiness: 0
@@ -125,10 +126,10 @@ Material:
     - _ReceiveShadows: 1
     - _RimIntensity: 0.5
     - _RimSmooth: 0.1
-    - _RimThreshold: 0.1
+    - _RimThreshold: 0.01
     - _ShadowSmoothness: 0.05
     - _ShadowThreshold: 0.5
-    - _Smoothness: 0
+    - _Smoothness: 0.09
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SpecularSize: 0.95

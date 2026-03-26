@@ -43,9 +43,10 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 2048
     outlineColor: {r: 1, g: 1, b: 1, a: 1}
-    outlineThickness: 1.6
-    edgeThreshold: 0.1
-    silhouetteBufferScale: 0.9
+    outlineThickness: 10
+    edgeThreshold: 0.732
+    innerLineWidth: 0.1
+    outerGlowOpacity: 0.446
     disableInSceneView: 0
     renderPassEvent: 500
     showSilhouetteBuffer: 0

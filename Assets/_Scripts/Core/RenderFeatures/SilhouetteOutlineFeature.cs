@@ -19,11 +19,12 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
         public float outlineThickness = 1.0f;
         [Range(0.01f, 1f)]
         public float edgeThreshold = 0.1f;
-        
-        [Header("Performance")]
-        [Range(0.25f, 1f)]
-        [Tooltip("Lower = faster but softer outlines")]
-        public float silhouetteBufferScale = 0.5f;
+        [Range(0.1f, 0.9f)]
+        [Tooltip("Fraction of thickness occupied by the hard inner line. Remainder fades as a gradient.")]
+        public float innerLineWidth = 0.35f;
+        [Range(0f, 1f)]
+        [Tooltip("Maximum opacity of the outer gradient region.")]
+        public float outerGlowOpacity = 0.6f;
         
         [Tooltip("Skip rendering in scene view")]
         public bool disableInSceneView = true;
@@ -54,7 +55,6 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
     class SilhouetteCapturePass : ScriptableRenderPass
     {
         private LayerMask m_LayerMask;
-        private float m_RenderScale;
         private List<ShaderTagId> m_ShaderTagIdList = new List<ShaderTagId>();
         
         private static readonly ShaderTagId[] s_ShaderTags = new ShaderTagId[]
@@ -71,17 +71,15 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
             public RendererListHandle transparentListHandle;
         }
 
-        public SilhouetteCapturePass(LayerMask layerMask, float renderScale)
+        public SilhouetteCapturePass(LayerMask layerMask)
         {
             m_LayerMask = layerMask;
-            m_RenderScale = renderScale;
             m_ShaderTagIdList.AddRange(s_ShaderTags);
         }
 
-        public void UpdateSettings(LayerMask layerMask, float renderScale)
+        public void UpdateSettings(LayerMask layerMask)
         {
             m_LayerMask = layerMask;
-            m_RenderScale = renderScale;
         }
 
         private RendererListHandle CreateRendererList(
@@ -111,12 +109,12 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
         {
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
+            UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
 
-            // Calculate scaled resolution
-            int scaledWidth = Mathf.Max(64, Mathf.CeilToInt(cameraData.cameraTargetDescriptor.width * m_RenderScale));
-            int scaledHeight = Mathf.Max(64, Mathf.CeilToInt(cameraData.cameraTargetDescriptor.height * m_RenderScale));
+            // Full resolution required — must match the scene depth buffer dimensions
+            int scaledWidth = cameraData.cameraTargetDescriptor.width;
+            int scaledHeight = cameraData.cameraTargetDescriptor.height;
 
-            // Single channel - we only need alpha for edge detection
             var silhouetteDesc = new TextureDesc(scaledWidth, scaledHeight)
             {
                 colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
@@ -130,17 +128,6 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
 
             TextureHandle silhouetteTexture = renderGraph.CreateTexture(silhouetteDesc);
 
-            var depthDesc = new TextureDesc(scaledWidth, scaledHeight)
-            {
-                colorFormat = GraphicsFormat.None,
-                depthBufferBits = DepthBits.Depth16, // 16-bit is enough for silhouette sorting
-                msaaSamples = MSAASamples.None,
-                name = "SilhouetteDepth",
-                clearBuffer = true
-            };
-
-            TextureHandle depthTexture = renderGraph.CreateTexture(depthDesc);
-
             var outlineData = frameData.Create<OutlineData>();
             outlineData.silhouetteTexture = silhouetteTexture;
             outlineData.scaledWidth = scaledWidth;
@@ -153,7 +140,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
                     RenderQueueRange.opaque,
                     SortingCriteria.CommonOpaque
                 );
-                
+
                 passData.transparentListHandle = CreateRendererList(
                     frameData, renderGraph,
                     RenderQueueRange.transparent,
@@ -163,7 +150,9 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
                 builder.UseRendererList(passData.opaqueListHandle);
                 builder.UseRendererList(passData.transparentListHandle);
                 builder.SetRenderAttachment(silhouetteTexture, 0);
-                builder.SetRenderAttachmentDepth(depthTexture, AccessFlags.Write);
+                // Read-only scene depth: silhouette pixels fail the depth test wherever
+                // another scene object is closer, so the outline is naturally occluded.
+                builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture, AccessFlags.Read);
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
                 {
@@ -178,7 +167,6 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
     {
         private Material m_OutlineMaterial;
         private Settings m_Settings;
-        
         // Cached property IDs
         private static readonly int s_SilhouetteTextureId = Shader.PropertyToID("_SilhouetteTexture");
         private static readonly int s_MainTexId = Shader.PropertyToID("_MainTex");
@@ -187,15 +175,21 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
         private static readonly int s_EdgeThresholdId = Shader.PropertyToID("_EdgeThreshold");
         private static readonly int s_DebugSilhouetteId = Shader.PropertyToID("_DebugSilhouette");
         private static readonly int s_SilhouetteTexelSizeId = Shader.PropertyToID("_SilhouetteTexture_TexelSize");
+        private static readonly int s_SceneDepthId = Shader.PropertyToID("_SceneDepth");
+        private static readonly int s_InnerLineWidthId = Shader.PropertyToID("_InnerLineWidth");
+        private static readonly int s_OuterGlowOpacityId = Shader.PropertyToID("_OuterGlowOpacity");
 
         private class PassData
         {
             public Material material;
             public TextureHandle silhouetteTexture;
             public TextureHandle cameraColorCopy;
+            public TextureHandle sceneDepth;
             public Color outlineColor;
             public float outlineThickness;
             public float edgeThreshold;
+            public float innerLineWidth;
+            public float outerGlowOpacity;
             public float debugSilhouette;
             public Vector4 silhouetteTexelSize;
         }
@@ -255,9 +249,12 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
                 passData.material = m_OutlineMaterial;
                 passData.silhouetteTexture = outlineData.silhouetteTexture;
                 passData.cameraColorCopy = cameraColorCopy;
+                passData.sceneDepth = resourceData.activeDepthTexture;
                 passData.outlineColor = m_Settings.outlineColor;
                 passData.outlineThickness = m_Settings.outlineThickness;
                 passData.edgeThreshold = m_Settings.edgeThreshold;
+                passData.innerLineWidth = m_Settings.innerLineWidth;
+                passData.outerGlowOpacity = m_Settings.outerGlowOpacity;
                 passData.debugSilhouette = m_Settings.showSilhouetteBuffer ? 1f : 0f;
                 passData.silhouetteTexelSize = new Vector4(
                     1f / outlineData.scaledWidth,
@@ -268,15 +265,19 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
 
                 builder.UseTexture(outlineData.silhouetteTexture, AccessFlags.Read);
                 builder.UseTexture(cameraColorCopy, AccessFlags.Read);
+                builder.UseTexture(resourceData.activeDepthTexture, AccessFlags.Read);
                 builder.SetRenderAttachment(resourceData.activeColorTexture, 0);
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
                 {
                     data.material.SetTexture(s_SilhouetteTextureId, data.silhouetteTexture);
                     data.material.SetTexture(s_MainTexId, data.cameraColorCopy);
+                    data.material.SetTexture(s_SceneDepthId, data.sceneDepth);
                     data.material.SetColor(s_OutlineColorId, data.outlineColor);
                     data.material.SetFloat(s_OutlineThicknessId, data.outlineThickness);
                     data.material.SetFloat(s_EdgeThresholdId, data.edgeThreshold);
+                    data.material.SetFloat(s_InnerLineWidthId, data.innerLineWidth);
+                    data.material.SetFloat(s_OuterGlowOpacityId, data.outerGlowOpacity);
                     data.material.SetFloat(s_DebugSilhouetteId, data.debugSilhouette);
                     data.material.SetVector(s_SilhouetteTexelSizeId, data.silhouetteTexelSize);
 
@@ -302,7 +303,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
 
         m_OutlineMaterial = CoreUtils.CreateEngineMaterial(m_OutlineShader);
 
-        m_SilhouettePass = new SilhouetteCapturePass(settings.layerMask, settings.silhouetteBufferScale);
+        m_SilhouettePass = new SilhouetteCapturePass(settings.layerMask);
         m_SilhouettePass.renderPassEvent = settings.renderPassEvent;
 
         m_CompositePass = new OutlineCompositePass(m_OutlineMaterial, settings);
@@ -322,7 +323,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
         if (renderingData.cameraData.isPreviewCamera)
             return;
 
-        m_SilhouettePass.UpdateSettings(settings.layerMask, settings.silhouetteBufferScale);
+        m_SilhouettePass.UpdateSettings(settings.layerMask);
         m_CompositePass.UpdateSettings(settings);
 
         renderer.EnqueuePass(m_SilhouettePass);

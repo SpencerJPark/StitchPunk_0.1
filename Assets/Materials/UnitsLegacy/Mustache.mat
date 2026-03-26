@@ -105,6 +105,7 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _DstBlendAlpha: 0
+    - _ENUM: 0
     - _EdgeDiffuse: 0.1
     - _EdgeDistanceAttenuation: 0.5
     - _EdgeRimAttenuation: 0.3
@@ -128,7 +129,7 @@ Material:
     - _RimThreshold: 0.1
     - _ShadowSmoothness: 0.05
     - _ShadowThreshold: 0.5
-    - _Smoothness: 0
+    - _Smoothness: 2.87
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SpecularSize: 0.95

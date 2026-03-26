@@ -11,9 +11,9 @@ Material:
   m_Shader: {fileID: -6465566751694194690, guid: 6de63fabd6bf77a41bdb92021c57de0a, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _SPECULAR_SETUP
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -130,13 +130,13 @@ Material:
     - _DetailStrength: 0
     - _DstBlend: 0
     - _DstBlendAlpha: 0
-    - _EdgeDiffuse: 0.1
+    - _EdgeDiffuse: 0.01
     - _EdgeDistanceAttenuation: 0.5
-    - _EdgeRimAttenuation: 0.3
-    - _EdgeRimOffset: 0.5
-    - _EdgeShadowAttenuation: 0.5
-    - _EdgeSpecular: 0.1
-    - _EdgeSpecularOffset: 0.1
+    - _EdgeRimAttenuation: 0.07
+    - _EdgeRimOffset: 0.62
+    - _EdgeShadowAttenuation: 3.4
+    - _EdgeSpecular: 0.06
+    - _EdgeSpecularOffset: 0.46
     - _EnvironmentReflections: 1
     - _GlobalSkewFactor: 7.32
     - _GlossMapScale: 0
@@ -153,7 +153,7 @@ Material:
     - _ReceiveShadows: 1
     - _RimIntensity: 0.5
     - _RimSmooth: 0.1
-    - _RimThreshold: 0.1
+    - _RimThreshold: 2.1
     - _SHADOWS_SOFT: 0
     - _SampleGI: 0
     - _ShadowSmoothness: 0.05

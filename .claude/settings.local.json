@@ -12,7 +12,10 @@
       "Bash(mv \"Assets/_Scripts/Authoring/CONTEXT.md\" \"Assets/_Docs/Authoring.md\")",
       "Bash(mv \"Assets/_Scripts/Components/CONTEXT.md\" \"Assets/_Docs/Components.md\")",
       "Bash(mv \"Assets/_Scripts/Systems/CONTEXT.md\" \"Assets/_Docs/Systems.md\")",
-      "Bash(mv \"Assets/_Scripts/Systems/AISystemGroup/CONTEXT.md\" \"Assets/_Docs/Systems_AI.md\")"
+      "Bash(mv \"Assets/_Scripts/Systems/AISystemGroup/CONTEXT.md\" \"Assets/_Docs/Systems_AI.md\")",
+      "Bash(xargs grep:*)",
+      "Bash(find C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *Renderer*.asset -o -name *Pipeline*.asset)",
+      "Bash(find C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *.shader -o -name *.hlsl)"
     ]
   }
 }

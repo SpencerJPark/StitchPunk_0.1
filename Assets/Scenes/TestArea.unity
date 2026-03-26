@@ -3058,19 +3058,23 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.b
-      value: 0.77254903
+      value: 0.86694556
       objectReference: {fileID: 0}
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.g
-      value: 0.8156863
+      value: 0.9043922
       objectReference: {fileID: 0}
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.r
-      value: 0.88235295
+      value: 0.9622642
       objectReference: {fileID: 0}
     - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Intensity
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1133286212248314795, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
+      propertyPath: m_Shadows.m_Type
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 1494549704306582904, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Color.b
@@ -3162,7 +3166,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5811693445958410358, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7902485301888813566, guid: b1af9fa623fbc3b42a52a93d828d7a21, type: 3}
       propertyPath: m_Name
