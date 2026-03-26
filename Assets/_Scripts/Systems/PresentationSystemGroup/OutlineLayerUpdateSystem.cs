@@ -9,22 +9,14 @@ using Unity.Entities.Graphics;
 [UpdateInGroup(typeof(PresentationSystemGroup))]
 partial struct OutlineLayerUpdateSystem : ISystem
 {
-    private ComponentTypeHandle<OutlinedTag> outlinedTagHandle;
-    private EntityQuery enabledQuery;
-    private EntityQuery disabledQuery;
-    
+    private EntityQuery outlineChildQuery;
+
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<OutlinedTag>();
-        
-        // Query for entities where OutlinedTag was just enabled
-        enabledQuery = state.GetEntityQuery(new EntityQueryDesc
-        {
-            All = new ComponentType[] { typeof(OutlinedTag) },
-            Options = EntityQueryOptions.IgnoreComponentEnabledState
-        });
-        
-        disabledQuery = state.GetEntityQuery(new EntityQueryDesc
+        state.RequireForUpdate<Player>();
+        state.RequireForUpdate<OutlineChild>();
+
+        outlineChildQuery = state.GetEntityQuery(new EntityQueryDesc
         {
             All = new ComponentType[] { typeof(OutlinedTag) },
             Options = EntityQueryOptions.IgnoreComponentEnabledState
@@ -36,7 +28,7 @@ partial struct OutlineLayerUpdateSystem : ISystem
         EntityManager entityManager = state.EntityManager;
         
         // Process all entities with OutlinedTag
-        NativeArray<Entity> entities = enabledQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+        NativeArray<Entity> entities = outlineChildQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
         
         foreach (Entity entity in entities)
         {
