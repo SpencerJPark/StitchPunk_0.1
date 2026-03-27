@@ -1,6 +1,5 @@
 ﻿using Unity.Entities;
-using Unity.Mathematics;
-using UnityEngine;
+using Unity.Rendering;
 
 // Building Blocks
 public struct InteractionProvider : IComponentData, IEnableableComponent
@@ -12,6 +11,12 @@ public struct Interaction : IComponentData
     public float interactionRange;
     public ActionType actionType;
     public int maxOccupants;
+}
+
+[MaterialProperty("_IsInteractable")]
+public struct InteractableVisual : IComponentData
+{
+    public float Value; // 0 = not interactable, 1 = interactable
 }
 
 public struct InteractionTimer : IComponentData, IEnableableComponent
@@ -31,6 +36,7 @@ public struct InteractionOccupant : IBufferElementData
 public struct InteractionHandled : IComponentData, IEnableableComponent
 {
 }
+
 
 // Interaction Types
 public struct SocialInteraction : IComponentData {

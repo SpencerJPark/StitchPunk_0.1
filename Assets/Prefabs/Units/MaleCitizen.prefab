@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 772840126288862364}
   - component: {fileID: 4165306421033631954}
   - component: {fileID: 4707220071859976829}
-  - component: {fileID: 7414143554164409234}
+  - component: {fileID: 1385029829117158543}
+  - component: {fileID: 8301292318117457760}
   m_Layer: 0
   m_Name: RightUpperArm
   m_TagString: Untagged
@@ -108,7 +109,7 @@ MonoBehaviour:
   animationTarget: 2
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &7414143554164409234
+--- !u!114 &1385029829117158543
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -117,10 +118,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 369647088844406493}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &8301292318117457760
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 369647088844406493}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &439465136208342977
 GameObject:
   m_ObjectHideFlags: 0
@@ -133,7 +146,8 @@ GameObject:
   - component: {fileID: 6602823546209812058}
   - component: {fileID: 3736611322524778032}
   - component: {fileID: 1925059388335315762}
-  - component: {fileID: 9088055651893849716}
+  - component: {fileID: 5526337737488263868}
+  - component: {fileID: 5494879165797371697}
   m_Layer: 0
   m_Name: Neck
   m_TagString: Untagged
@@ -229,7 +243,7 @@ MonoBehaviour:
   animationTarget: 32
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &9088055651893849716
+--- !u!114 &5526337737488263868
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -238,10 +252,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 439465136208342977}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &5494879165797371697
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 439465136208342977}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &462860244165001726
 GameObject:
   m_ObjectHideFlags: 0
@@ -254,7 +280,8 @@ GameObject:
   - component: {fileID: 2767775907026824263}
   - component: {fileID: 6929998370467565119}
   - component: {fileID: 8334752475763204817}
-  - component: {fileID: 5788396155597541945}
+  - component: {fileID: 2958431263643187712}
+  - component: {fileID: 685690940003024083}
   m_Layer: 0
   m_Name: RightEyeBrow
   m_TagString: Untagged
@@ -349,7 +376,7 @@ MonoBehaviour:
   animationTarget: 18
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &5788396155597541945
+--- !u!114 &2958431263643187712
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -358,10 +385,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 462860244165001726}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &685690940003024083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 462860244165001726}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &1001718462998985091
 GameObject:
   m_ObjectHideFlags: 0
@@ -406,7 +445,8 @@ GameObject:
   - component: {fileID: 727739489966706506}
   - component: {fileID: 5386335483161557767}
   - component: {fileID: 4299934565492678804}
-  - component: {fileID: 1658146867815937490}
+  - component: {fileID: 2819303330147663405}
+  - component: {fileID: 5106224728151776052}
   m_Layer: 0
   m_Name: Faceware
   m_TagString: Untagged
@@ -501,7 +541,7 @@ MonoBehaviour:
   animationTarget: 34
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &1658146867815937490
+--- !u!114 &2819303330147663405
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -510,10 +550,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 1003216849012201395}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &5106224728151776052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1003216849012201395}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &1294307710198705145
 GameObject:
   m_ObjectHideFlags: 0
@@ -526,7 +578,8 @@ GameObject:
   - component: {fileID: 6532067955918968636}
   - component: {fileID: 8201153111142842580}
   - component: {fileID: 8936123178664619748}
-  - component: {fileID: 8549629789324479266}
+  - component: {fileID: 5529999155691368297}
+  - component: {fileID: 3232476775264574330}
   m_Layer: 0
   m_Name: LeftHand
   m_TagString: Untagged
@@ -621,7 +674,7 @@ MonoBehaviour:
   animationTarget: 5
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &8549629789324479266
+--- !u!114 &5529999155691368297
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -630,10 +683,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 1294307710198705145}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &3232476775264574330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1294307710198705145}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &1375400848835490126
 GameObject:
   m_ObjectHideFlags: 0
@@ -646,7 +711,8 @@ GameObject:
   - component: {fileID: 3779256892215254943}
   - component: {fileID: 8241659985491254998}
   - component: {fileID: 1324960984446632458}
-  - component: {fileID: 5086853451490246904}
+  - component: {fileID: 7262712050121260525}
+  - component: {fileID: 8533029954324623553}
   m_Layer: 0
   m_Name: Eyes
   m_TagString: Untagged
@@ -741,7 +807,7 @@ MonoBehaviour:
   animationTarget: 19
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &5086853451490246904
+--- !u!114 &7262712050121260525
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -750,10 +816,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 1375400848835490126}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &8533029954324623553
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1375400848835490126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &1515011212746910160
 GameObject:
   m_ObjectHideFlags: 0
@@ -766,7 +844,8 @@ GameObject:
   - component: {fileID: 3208609376975680659}
   - component: {fileID: 7108129479899272705}
   - component: {fileID: 7843285876261070870}
-  - component: {fileID: 9142710312518659453}
+  - component: {fileID: 8191118944930553684}
+  - component: {fileID: 2597790626717503147}
   m_Layer: 0
   m_Name: LeftLowerLeg
   m_TagString: Untagged
@@ -862,7 +941,7 @@ MonoBehaviour:
   animationTarget: 12
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &9142710312518659453
+--- !u!114 &8191118944930553684
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -871,10 +950,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 1515011212746910160}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &2597790626717503147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1515011212746910160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &1774981320125413578
 GameObject:
   m_ObjectHideFlags: 0
@@ -977,7 +1068,8 @@ GameObject:
   - component: {fileID: 3732128368761584277}
   - component: {fileID: 1708161256143373228}
   - component: {fileID: 5896503669091003365}
-  - component: {fileID: 7053157474363942323}
+  - component: {fileID: 494239687565517080}
+  - component: {fileID: 4006276093181133718}
   m_Layer: 0
   m_Name: Mouth
   m_TagString: Untagged
@@ -1072,7 +1164,7 @@ MonoBehaviour:
   animationTarget: 20
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &7053157474363942323
+--- !u!114 &494239687565517080
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1081,10 +1173,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 1891037297181036305}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &4006276093181133718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1891037297181036305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &2166349261869968865
 GameObject:
   m_ObjectHideFlags: 0
@@ -1097,7 +1201,8 @@ GameObject:
   - component: {fileID: 4641409750954715930}
   - component: {fileID: 1208477334517786673}
   - component: {fileID: 3432473828960837207}
-  - component: {fileID: 4280973655391149839}
+  - component: {fileID: 5752131744996727084}
+  - component: {fileID: 3861933990906123970}
   m_Layer: 0
   m_Name: BaseHead
   m_TagString: Untagged
@@ -1202,7 +1307,7 @@ MonoBehaviour:
   animationTarget: 16
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &4280973655391149839
+--- !u!114 &5752131744996727084
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1211,10 +1316,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 2166349261869968865}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &3861933990906123970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2166349261869968865}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &2478132277415189224
 GameObject:
   m_ObjectHideFlags: 0
@@ -1227,7 +1344,8 @@ GameObject:
   - component: {fileID: 5835124888075223942}
   - component: {fileID: 5514432440277599755}
   - component: {fileID: 8134649279204042242}
-  - component: {fileID: 2171900840056910563}
+  - component: {fileID: 8692532322304667372}
+  - component: {fileID: 8323518723891848283}
   m_Layer: 0
   m_Name: RightJacket
   m_TagString: Untagged
@@ -1323,7 +1441,7 @@ MonoBehaviour:
   animationTarget: 28
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &2171900840056910563
+--- !u!114 &8692532322304667372
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1332,10 +1450,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 2478132277415189224}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &8323518723891848283
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2478132277415189224}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &2571857207997648719
 GameObject:
   m_ObjectHideFlags: 0
@@ -1348,7 +1478,8 @@ GameObject:
   - component: {fileID: 6955118229992267846}
   - component: {fileID: 1380115969616429700}
   - component: {fileID: 5315643850526566085}
-  - component: {fileID: 396813074579802530}
+  - component: {fileID: 3157177878453230131}
+  - component: {fileID: 7637960826423801757}
   m_Layer: 0
   m_Name: Facedetails
   m_TagString: Untagged
@@ -1443,7 +1574,7 @@ MonoBehaviour:
   animationTarget: 0
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &396813074579802530
+--- !u!114 &3157177878453230131
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1452,10 +1583,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 2571857207997648719}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &7637960826423801757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2571857207997648719}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &2683949861766939733
 GameObject:
   m_ObjectHideFlags: 0
@@ -1468,7 +1611,8 @@ GameObject:
   - component: {fileID: 5341339020231633911}
   - component: {fileID: 4682407640867552549}
   - component: {fileID: 1507462530167495958}
-  - component: {fileID: 6069383561134971992}
+  - component: {fileID: 2110254583559485614}
+  - component: {fileID: 2650922091851116992}
   m_Layer: 0
   m_Name: LeftFoot
   m_TagString: Untagged
@@ -1563,7 +1707,7 @@ MonoBehaviour:
   animationTarget: 14
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &6069383561134971992
+--- !u!114 &2110254583559485614
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1572,10 +1716,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 2683949861766939733}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &2650922091851116992
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2683949861766939733}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &2859762244317463142
 GameObject:
   m_ObjectHideFlags: 0
@@ -1588,7 +1744,8 @@ GameObject:
   - component: {fileID: 1491087820282599034}
   - component: {fileID: 6396396752715213553}
   - component: {fileID: 2260859930009439600}
-  - component: {fileID: 468673820999493327}
+  - component: {fileID: 5754655567207989342}
+  - component: {fileID: 8041235237710683448}
   m_Layer: 0
   m_Name: Mustache
   m_TagString: Untagged
@@ -1683,7 +1840,7 @@ MonoBehaviour:
   animationTarget: 22
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &468673820999493327
+--- !u!114 &5754655567207989342
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1692,10 +1849,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 2859762244317463142}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &8041235237710683448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2859762244317463142}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &2898996621922469231
 GameObject:
   m_ObjectHideFlags: 0
@@ -1708,7 +1877,8 @@ GameObject:
   - component: {fileID: 2774305117455954444}
   - component: {fileID: 8364750465701960478}
   - component: {fileID: 5379557663801593530}
-  - component: {fileID: 2374245538652996113}
+  - component: {fileID: 6166983028708303704}
+  - component: {fileID: 1397509316387473020}
   m_Layer: 0
   m_Name: LeftJacket
   m_TagString: Untagged
@@ -1803,7 +1973,7 @@ MonoBehaviour:
   animationTarget: 23
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &2374245538652996113
+--- !u!114 &6166983028708303704
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1812,10 +1982,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 2898996621922469231}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &1397509316387473020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2898996621922469231}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &3018644106892521862
 GameObject:
   m_ObjectHideFlags: 0
@@ -1828,7 +2010,8 @@ GameObject:
   - component: {fileID: 3421544740828703544}
   - component: {fileID: 3468224922514053543}
   - component: {fileID: 8806579340244066197}
-  - component: {fileID: 3828721930707399088}
+  - component: {fileID: 7961849843548200203}
+  - component: {fileID: 3046973576844690816}
   m_Layer: 0
   m_Name: LeftLowerArm
   m_TagString: Untagged
@@ -1924,7 +2107,7 @@ MonoBehaviour:
   animationTarget: 3
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &3828721930707399088
+--- !u!114 &7961849843548200203
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1933,10 +2116,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 3018644106892521862}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &3046973576844690816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3018644106892521862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &3639368511859928072
 GameObject:
   m_ObjectHideFlags: 0
@@ -1947,6 +2142,7 @@ GameObject:
   m_Component:
   - component: {fileID: 208065744623941558}
   - component: {fileID: 76993003846349820}
+  - component: {fileID: 5403029572079727892}
   m_Layer: 0
   m_Name: MaleUnitVisual
   m_TagString: Untagged
@@ -1986,6 +2182,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetNoIndexAuthoring
   animationTarget: 0
   characterRoot: {fileID: 3898859768826041075}
+--- !u!114 &5403029572079727892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3639368511859928072}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &3764557376495411786
 GameObject:
   m_ObjectHideFlags: 0
@@ -1998,7 +2207,8 @@ GameObject:
   - component: {fileID: 7574238509255307536}
   - component: {fileID: 8394390646370386597}
   - component: {fileID: 5122379448122103476}
-  - component: {fileID: 7704485720885890708}
+  - component: {fileID: 7102497410544448698}
+  - component: {fileID: 2405920296172452370}
   m_Layer: 0
   m_Name: Pelvis
   m_TagString: Untagged
@@ -2096,7 +2306,7 @@ MonoBehaviour:
   animationTarget: 9
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &7704485720885890708
+--- !u!114 &7102497410544448698
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2105,10 +2315,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 3764557376495411786}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &2405920296172452370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3764557376495411786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &3898859768826041075
 GameObject:
   m_ObjectHideFlags: 0
@@ -2364,7 +2586,8 @@ GameObject:
   - component: {fileID: 8873222138264645117}
   - component: {fileID: 2979072144718209160}
   - component: {fileID: 2984640150198683698}
-  - component: {fileID: 2919498605875447486}
+  - component: {fileID: 7296631723081664038}
+  - component: {fileID: 547069286586482857}
   m_Layer: 0
   m_Name: LeftUpperArm
   m_TagString: Untagged
@@ -2460,7 +2683,7 @@ MonoBehaviour:
   animationTarget: 1
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &2919498605875447486
+--- !u!114 &7296631723081664038
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2469,10 +2692,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 4022584403464093948}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &547069286586482857
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4022584403464093948}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &4420677917874049762
 GameObject:
   m_ObjectHideFlags: 0
@@ -2485,7 +2720,8 @@ GameObject:
   - component: {fileID: 4742678522849556199}
   - component: {fileID: 6465489416276917815}
   - component: {fileID: 2172963477382976168}
-  - component: {fileID: 6952789910848379566}
+  - component: {fileID: 8301789330414112436}
+  - component: {fileID: 8588030890784338354}
   m_Layer: 0
   m_Name: LeftEyeBrow
   m_TagString: Untagged
@@ -2580,7 +2816,7 @@ MonoBehaviour:
   animationTarget: 17
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &6952789910848379566
+--- !u!114 &8301789330414112436
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2589,10 +2825,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 4420677917874049762}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &8588030890784338354
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4420677917874049762}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &4548190842808236587
 GameObject:
   m_ObjectHideFlags: 0
@@ -2605,7 +2853,8 @@ GameObject:
   - component: {fileID: 2072117685199015967}
   - component: {fileID: 6439767374542541704}
   - component: {fileID: 6499326662831168283}
-  - component: {fileID: 9019741202028459210}
+  - component: {fileID: 4535761624552524688}
+  - component: {fileID: 6519415795300347607}
   m_Layer: 0
   m_Name: LeftUpperLeg
   m_TagString: Untagged
@@ -2701,7 +2950,7 @@ MonoBehaviour:
   animationTarget: 10
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &9019741202028459210
+--- !u!114 &4535761624552524688
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2710,10 +2959,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 4548190842808236587}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &6519415795300347607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4548190842808236587}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &4820780758815063570
 GameObject:
   m_ObjectHideFlags: 0
@@ -2774,7 +3035,8 @@ GameObject:
   - component: {fileID: 8338780049799391453}
   - component: {fileID: 7135744628620069984}
   - component: {fileID: 7867702528942031483}
-  - component: {fileID: 759177980628025075}
+  - component: {fileID: 3214917248805766422}
+  - component: {fileID: 740565673107906628}
   m_Layer: 0
   m_Name: Hair
   m_TagString: Untagged
@@ -2869,7 +3131,7 @@ MonoBehaviour:
   animationTarget: 21
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &759177980628025075
+--- !u!114 &3214917248805766422
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2878,10 +3140,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5173472696413843708}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &740565673107906628
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5173472696413843708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &5197569062465289830
 GameObject:
   m_ObjectHideFlags: 0
@@ -2894,7 +3168,8 @@ GameObject:
   - component: {fileID: 9025141021852500670}
   - component: {fileID: 6428087205144896757}
   - component: {fileID: 8049565091315869047}
-  - component: {fileID: 6075654806293305999}
+  - component: {fileID: 1945707939078892726}
+  - component: {fileID: 3107801435824712012}
   m_Layer: 0
   m_Name: Torso
   m_TagString: Untagged
@@ -2994,7 +3269,7 @@ MonoBehaviour:
   animationTarget: 26
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &6075654806293305999
+--- !u!114 &1945707939078892726
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3003,10 +3278,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5197569062465289830}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &3107801435824712012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5197569062465289830}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &5230250045204637290
 GameObject:
   m_ObjectHideFlags: 0
@@ -3019,7 +3306,8 @@ GameObject:
   - component: {fileID: 2999863853764680943}
   - component: {fileID: 5940547277164624268}
   - component: {fileID: 1623771974777762008}
-  - component: {fileID: 9077570115529134342}
+  - component: {fileID: 3254344330443017128}
+  - component: {fileID: 6737944561327194480}
   m_Layer: 0
   m_Name: RightLowerLeg
   m_TagString: Untagged
@@ -3115,7 +3403,7 @@ MonoBehaviour:
   animationTarget: 13
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &9077570115529134342
+--- !u!114 &3254344330443017128
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3124,10 +3412,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5230250045204637290}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &6737944561327194480
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5230250045204637290}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &5407039115034996653
 GameObject:
   m_ObjectHideFlags: 0
@@ -3140,7 +3440,8 @@ GameObject:
   - component: {fileID: 7231378174564429763}
   - component: {fileID: 4575034215491632304}
   - component: {fileID: 2154012215612698682}
-  - component: {fileID: 2896213340010096012}
+  - component: {fileID: 5965468838601656772}
+  - component: {fileID: 7510346306506088725}
   m_Layer: 0
   m_Name: RightUpperLeg
   m_TagString: Untagged
@@ -3236,7 +3537,7 @@ MonoBehaviour:
   animationTarget: 11
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &2896213340010096012
+--- !u!114 &5965468838601656772
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3245,10 +3546,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5407039115034996653}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &7510346306506088725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5407039115034996653}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &5413291952666722601
 GameObject:
   m_ObjectHideFlags: 0
@@ -3261,7 +3574,8 @@ GameObject:
   - component: {fileID: 4143559388402407519}
   - component: {fileID: 6464848447281414729}
   - component: {fileID: 2649755683787329830}
-  - component: {fileID: 537909239106585594}
+  - component: {fileID: 6992132948931497991}
+  - component: {fileID: 6181710096512634504}
   m_Layer: 0
   m_Name: Nose
   m_TagString: Untagged
@@ -3356,7 +3670,7 @@ MonoBehaviour:
   animationTarget: 23
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &537909239106585594
+--- !u!114 &6992132948931497991
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3365,10 +3679,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5413291952666722601}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &6181710096512634504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5413291952666722601}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &5634633271843595871
 GameObject:
   m_ObjectHideFlags: 0
@@ -3381,7 +3707,8 @@ GameObject:
   - component: {fileID: 4461324298632327283}
   - component: {fileID: 4968701080754380209}
   - component: {fileID: 3646487321673030958}
-  - component: {fileID: 2257030698344719782}
+  - component: {fileID: 8308830624362076249}
+  - component: {fileID: 3643676930625375991}
   m_Layer: 0
   m_Name: Buldge
   m_TagString: Untagged
@@ -3476,7 +3803,7 @@ MonoBehaviour:
   animationTarget: 31
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &2257030698344719782
+--- !u!114 &8308830624362076249
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3485,10 +3812,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5634633271843595871}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &3643676930625375991
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5634633271843595871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &5941693375940522686
 GameObject:
   m_ObjectHideFlags: 0
@@ -3501,7 +3840,8 @@ GameObject:
   - component: {fileID: 6426593194788613615}
   - component: {fileID: 5241555270206384617}
   - component: {fileID: 7526047211441869540}
-  - component: {fileID: 7788771759679843949}
+  - component: {fileID: 4492663939513669034}
+  - component: {fileID: 2796002978133956320}
   m_Layer: 0
   m_Name: RightFoot
   m_TagString: Untagged
@@ -3596,7 +3936,7 @@ MonoBehaviour:
   animationTarget: 15
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &7788771759679843949
+--- !u!114 &4492663939513669034
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3605,10 +3945,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 5941693375940522686}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &2796002978133956320
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5941693375940522686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &6236285825122524330
 GameObject:
   m_ObjectHideFlags: 0
@@ -3621,7 +3973,8 @@ GameObject:
   - component: {fileID: 4097268627683977638}
   - component: {fileID: 8973952851630702531}
   - component: {fileID: 5434197121865129007}
-  - component: {fileID: 2480908658080481776}
+  - component: {fileID: 6216677976732439760}
+  - component: {fileID: 1741922028140653928}
   m_Layer: 0
   m_Name: Ear
   m_TagString: Untagged
@@ -3716,7 +4069,7 @@ MonoBehaviour:
   animationTarget: 24
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &2480908658080481776
+--- !u!114 &6216677976732439760
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3725,10 +4078,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 6236285825122524330}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &1741922028140653928
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6236285825122524330}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &6692293200249043468
 GameObject:
   m_ObjectHideFlags: 0
@@ -3831,7 +4196,8 @@ GameObject:
   - component: {fileID: 8927975963480887876}
   - component: {fileID: 1389986032435347247}
   - component: {fileID: 6192351088993017162}
-  - component: {fileID: 9100430749145570662}
+  - component: {fileID: 5758577650865155227}
+  - component: {fileID: 6615185739413803055}
   m_Layer: 0
   m_Name: RightJacketInside
   m_TagString: Untagged
@@ -3926,7 +4292,7 @@ MonoBehaviour:
   animationTarget: 29
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &9100430749145570662
+--- !u!114 &5758577650865155227
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3935,10 +4301,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 7400162938181216639}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &6615185739413803055
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7400162938181216639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &7672287113113097581
 GameObject:
   m_ObjectHideFlags: 0
@@ -3951,7 +4329,8 @@ GameObject:
   - component: {fileID: 6673186556922040210}
   - component: {fileID: 4629341811745436363}
   - component: {fileID: 4266460704674690828}
-  - component: {fileID: 692764275128977282}
+  - component: {fileID: 3562313739808822918}
+  - component: {fileID: 182561972695007995}
   m_Layer: 0
   m_Name: RightHand
   m_TagString: Untagged
@@ -4046,7 +4425,7 @@ MonoBehaviour:
   animationTarget: 6
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &692764275128977282
+--- !u!114 &3562313739808822918
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -4055,10 +4434,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 7672287113113097581}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &182561972695007995
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7672287113113097581}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &7784580602629314044
 GameObject:
   m_ObjectHideFlags: 0
@@ -4161,7 +4552,8 @@ GameObject:
   - component: {fileID: 2559683744755123615}
   - component: {fileID: 6648960221601824077}
   - component: {fileID: 853947742771145835}
-  - component: {fileID: 8941903866813678328}
+  - component: {fileID: 915974394758226466}
+  - component: {fileID: 2560867134846818145}
   m_Layer: 0
   m_Name: RightLowerArm
   m_TagString: Untagged
@@ -4257,7 +4649,7 @@ MonoBehaviour:
   animationTarget: 4
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &8941903866813678328
+--- !u!114 &915974394758226466
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -4266,10 +4658,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 7956537174107523816}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &2560867134846818145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7956537174107523816}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &8072294903154456637
 GameObject:
   m_ObjectHideFlags: 0
@@ -4282,7 +4686,8 @@ GameObject:
   - component: {fileID: 8163801334446857803}
   - component: {fileID: 2676040390341358662}
   - component: {fileID: 3040845967852691584}
-  - component: {fileID: 7530080882630758590}
+  - component: {fileID: 8193633851875672707}
+  - component: {fileID: 5250278888882331519}
   m_Layer: 0
   m_Name: Belt
   m_TagString: Untagged
@@ -4377,7 +4782,7 @@ MonoBehaviour:
   animationTarget: 30
   characterRoot: {fileID: 3898859768826041075}
   baseImageIndex: 0
---- !u!114 &7530080882630758590
+--- !u!114 &8193633851875672707
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -4386,10 +4791,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 8072294903154456637}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9848a4d4a6f5a83478e75866e3815196, type: 3}
+  m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::OutlineChildAuthoring
-  outlineParent: {fileID: 3898859768826041075}
+  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
+--- !u!114 &5250278888882331519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8072294903154456637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
+  parentEntity: {fileID: 3898859768826041075}
 --- !u!1 &8155765824082823002
 GameObject:
   m_ObjectHideFlags: 0
