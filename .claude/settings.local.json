@@ -15,7 +15,13 @@
       "Bash(mv \"Assets/_Scripts/Systems/AISystemGroup/CONTEXT.md\" \"Assets/_Docs/Systems_AI.md\")",
       "Bash(xargs grep:*)",
       "Bash(find C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *Renderer*.asset -o -name *Pipeline*.asset)",
-      "Bash(find C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *.shader -o -name *.hlsl)"
+      "Bash(find C:/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *.shader -o -name *.hlsl)",
+      "Bash(ls -la \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\GameManagerSystemGroup\"\" | grep -E \"Interaction)",
+      "Bash(Targeting \")",
+      "Bash(grep:*)",
+      "Bash(find /c/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *Citizen* -o -name *NPC* -o -name *npc*)",
+      "Bash(find C:UsersspencDocumentsGitHubStitch_PunkAssets_ScriptsAuthoringItems -type f -name *.cs)",
+      "Bash(find C:UsersspencDocumentsGitHubStitch_PunkAssets_ScriptsComponentsItems -type f -name *.cs)"
     ]
   }
 }

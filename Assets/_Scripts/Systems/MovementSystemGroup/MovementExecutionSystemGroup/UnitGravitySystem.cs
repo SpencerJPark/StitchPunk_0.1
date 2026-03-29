@@ -78,7 +78,7 @@ public partial struct UnitGravityJob : IJobEntity
         if (hitGround)
         {
             float3 hitPoint = math.lerp(input.Start, input.End, hit.Fraction);
-            float groundY = hitPoint.y;
+            float groundY = hitPoint.y + gravity.groundOffset;
 
             float distToGround = pos.y - groundY;
 
@@ -87,18 +87,21 @@ public partial struct UnitGravityJob : IJobEntity
                 // We're above ground by more than tolerance → apply gravity
                 gravity.verticalVelocity -= gravity.fallSpeed * deltaTime;
                 pos.y += gravity.verticalVelocity * deltaTime;
+                gravity.isGrounded = false;
             }
             else if (distToGround < -snapTolerance)
             {
                 // We somehow ended up inside ground → snap up
                 pos.y = groundY;
                 gravity.verticalVelocity = 0f;
+                gravity.isGrounded = true;
             }
             else
             {
                 // We're close enough: snap & zero
                 pos.y = groundY;
                 gravity.verticalVelocity = 0f;
+                gravity.isGrounded = true;
             }
         }
         else
@@ -106,6 +109,7 @@ public partial struct UnitGravityJob : IJobEntity
             // No ground below within range → freefall
             gravity.verticalVelocity -= gravity.fallSpeed * deltaTime;
             pos.y += gravity.verticalVelocity * deltaTime;
+            gravity.isGrounded = false;
         }
 
         transform.Position = pos;

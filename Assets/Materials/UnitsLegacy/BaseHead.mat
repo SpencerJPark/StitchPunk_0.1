@@ -120,8 +120,8 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _ImageIndex: 0
-    - _InteractableHighlight: 1.3
-    - _IsInteractable: 0
+    - _InteractableHighlight: 0.03
+    - _IsInteractable: 1
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005

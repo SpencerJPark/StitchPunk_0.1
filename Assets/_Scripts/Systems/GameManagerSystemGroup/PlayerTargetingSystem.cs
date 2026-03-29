@@ -6,7 +6,6 @@ using Unity.Transforms;
 /// <summary>
 /// Finds the nearest targetable entity within range of the player each frame.
 /// Enables Target on the player when found, disables it when nothing is in range.
-/// Runs before OutlineSystem reads Target to drive the outline highlight.
 /// </summary>
 [UpdateInGroup(typeof(GameManagerSystemGroup))]
 [BurstCompile]
@@ -36,8 +35,7 @@ public partial struct PlayerTargetingSystem : ISystem
 
             foreach (var (enemyTransform, enemyEntity) in
                 SystemAPI.Query<RefRO<LocalTransform>>()
-                    .WithAll<Health, Alive>()
-                    .WithNone<Player, PlayerImmune>()
+                    .WithAll<PlayerInteractable>()
                     .WithEntityAccess())
             {
                 float3 toEnemy = enemyTransform.ValueRO.Position - playerPos;

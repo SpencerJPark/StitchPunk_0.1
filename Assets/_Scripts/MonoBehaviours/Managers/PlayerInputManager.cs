@@ -156,7 +156,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     public void OnInteract(InputAction.CallbackContext context)
     {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
+        if (!context.started || !TryResolvePlayerEntity()) return;
         entityManager.SetComponentEnabled<OnInteractPlayerInput>(playerEntity, true);
     }
 
@@ -178,6 +178,20 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (!context.performed || !TryResolvePlayerEntity()) return;
         entityManager.SetComponentData(playerEntity, new OnItemSlotPlayerInput { itemSlot = 3 });
         entityManager.SetComponentEnabled<OnItemSlotPlayerInput>(playerEntity, true);
+    }
+
+    public void OnDrop(InputAction.CallbackContext context)
+    {
+        if (!context.started || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<OnDropPlayerInput>(playerEntity, true);
+    }
+
+    public void OnAim(InputAction.CallbackContext context)
+    {
+        if (!TryResolvePlayerEntity()) return;
+        float value = context.ReadValue<float>();
+        entityManager.SetComponentData(playerEntity, new AimPlayerInput { aimValue = value });
+        entityManager.SetComponentEnabled<AimPlayerInput>(playerEntity, value > 0.1f);
     }
 
     public void OnSwitchControls(InputAction.CallbackContext context)

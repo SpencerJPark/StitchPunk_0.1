@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 2100000, guid: b3e54b5c647db2945a1581368c9ef588, type: 2}
+  m_SkyboxMaterial: {fileID: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -731,7 +731,19 @@ MonoBehaviour:
     m_ActionId: 852140f2-7766-474d-8707-702459ba45f3
     m_ActionName: 'Player/Interact[/Keyboard/e]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnSneak
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: 27c5f898-bc57-4ee1-8800-db469aca5fe3
     m_ActionName: 'Player/Sneak[/Keyboard/c]'
   - m_PersistentCalls:
@@ -883,7 +895,19 @@ MonoBehaviour:
     m_ActionId: 72970762-c23a-4cc2-8e17-7fc56797d353
     m_ActionName: 'ControlUnits/Command[/Mouse/rightButton]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnRoll
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: 01853b94-c9f8-4159-8e6f-86f13c5e1115
     m_ActionName: 'Player/Roll[/Keyboard/space]'
   - m_PersistentCalls:
@@ -902,6 +926,50 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: a0947f8d-82bf-413d-af4c-7720e20bbd07
     m_ActionName: 'Player/Revive[/Keyboard/r]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 6de0b639-e8ca-4fc1-9cdc-c8efc225606f
+    m_ActionName: 'Player/Equipt1[/Keyboard/1]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: f51383ac-1ca4-4875-ac55-0ec314da4122
+    m_ActionName: 'Player/Equipt2[/Keyboard/2]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 76983577-6ba2-4975-9950-a7c1290708bb
+    m_ActionName: 'Player/Equipt4[/Keyboard/4]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnDrop
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: d9a7b12d-99dd-4213-8c38-db1a4ccd8978
+    m_ActionName: 'Player/Unequipt[/XInputControllerWindows/rightShoulder]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnAim
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: 248e38f7-9b18-40e8-aa46-8e4ff3704eff
+    m_ActionName: 'Player/Throw[/XInputControllerWindows/leftShoulder]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player

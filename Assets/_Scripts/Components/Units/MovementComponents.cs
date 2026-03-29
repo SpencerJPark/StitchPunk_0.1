@@ -13,6 +13,11 @@ public struct Gravity : IComponentData
 {
     public float fallSpeed;
     public float verticalVelocity;
+    // Distance from entity origin down to the floor contact point.
+    // 0 for units (origin at feet). Set to half-height for center-origin meshes (e.g. 0.5 for a 1x1x1 cube).
+    public float groundOffset;
+    // Set by UnitGravitySystem each frame. Read by ThrownItemSystem to stop horizontal movement on landing.
+    public bool isGrounded;
 }
 
 public struct SetupUnitMoverDefaultPosition : IComponentData {

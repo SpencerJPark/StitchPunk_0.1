@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class PlayerAuthoring : MonoBehaviour
 {
+    [Tooltip("Drag the empty hand socket child (EquiptSocketAuthoring) here.")]
+    public GameObject handSocket;
+
     public class Baker : Baker<PlayerAuthoring> {
 
         public override void Bake(PlayerAuthoring authoring) {
@@ -38,6 +41,17 @@ public class PlayerAuthoring : MonoBehaviour
             AddComponent(entity, new OnItemSlotPlayerInput());
             SetComponentEnabled<OnItemSlotPlayerInput>(entity, false);
             AddComponent(entity, new PlayerItemSlots());
+
+            AddComponent(entity, new OnDropPlayerInput());
+            SetComponentEnabled<OnDropPlayerInput>(entity, false);
+
+            AddComponent(entity, new AimPlayerInput());
+            SetComponentEnabled<AimPlayerInput>(entity, false);
+
+            Entity socketEntity = authoring.handSocket != null
+                ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
+                : Entity.Null;
+            AddComponent(entity, new UnitEquipt { socketEntity = socketEntity });
         }
     }
 }

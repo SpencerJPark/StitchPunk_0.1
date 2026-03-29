@@ -75,6 +75,7 @@ partial struct InteractionHighlightSystem : ISystem
 
     private void ResetPreviousChildren(ref SystemState state)
     {
+        // Reset children
         for (int i = 0; i < highlightChildrenList.Length; i++)
         {
             Entity child = highlightChildrenList[i];
@@ -84,6 +85,15 @@ partial struct InteractionHighlightSystem : ISystem
             var visual = state.EntityManager.GetComponentData<InteractableVisual>(child);
             visual.Value = 0f;
             state.EntityManager.SetComponentData(child, visual);
+        }
+
+        // Also reset the entity itself if it has InteractableVisual directly (e.g. simple objects, not unit hierarchies)
+        if (state.EntityManager.Exists(previousEntity) &&
+            state.EntityManager.HasComponent<InteractableVisual>(previousEntity))
+        {
+            var visual = state.EntityManager.GetComponentData<InteractableVisual>(previousEntity);
+            visual.Value = 0f;
+            state.EntityManager.SetComponentData(previousEntity, visual);
         }
     }
 
@@ -108,6 +118,7 @@ partial struct InteractionHighlightSystem : ISystem
 
     private void SetNextChildren(ref SystemState state)
     {
+        // Highlight children (unit hierarchy pattern)
         for (int i = 0; i < highlightChildrenList.Length; i++)
         {
             Entity child = highlightChildrenList[i];
@@ -117,6 +128,15 @@ partial struct InteractionHighlightSystem : ISystem
             var visual = state.EntityManager.GetComponentData<InteractableVisual>(child);
             visual.Value = 1f;
             state.EntityManager.SetComponentData(child, visual);
+        }
+
+        // Also highlight the entity itself if it has InteractableVisual directly (e.g. simple objects, not unit hierarchies)
+        if (state.EntityManager.Exists(nextEntity) &&
+            state.EntityManager.HasComponent<InteractableVisual>(nextEntity))
+        {
+            var visual = state.EntityManager.GetComponentData<InteractableVisual>(nextEntity);
+            visual.Value = 1f;
+            state.EntityManager.SetComponentData(nextEntity, visual);
         }
     }
 }

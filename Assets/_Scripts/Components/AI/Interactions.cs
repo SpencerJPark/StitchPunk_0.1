@@ -6,6 +6,13 @@ public struct InteractionProvider : IComponentData, IEnableableComponent
 {
 }
 
+// Marks this interaction entity as targetable by the player's targeting system.
+// Add to any interactable object/NPC the player should be able to interact with directly.
+// Disable (not remove) when the entity is no longer interactable (e.g. item picked up).
+public struct PlayerInteractable : IComponentData, IEnableableComponent
+{
+}
+
 public struct Interaction : IComponentData
 {
     public float interactionRange;

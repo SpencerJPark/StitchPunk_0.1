@@ -59,3 +59,12 @@ public struct PlayerItemSlots : IComponentData
     public ItemType itemSlot3;
     public ItemType itemSlot4;
 }
+
+// Left bumper — drop the currently equipped item.
+public struct OnDropPlayerInput : IComponentData, IEnableableComponent { }
+
+// Right trigger axis — held while aiming. When enabled + OnAttackPlayerInput fires, throws instead of attacks.
+public struct AimPlayerInput : IComponentData, IEnableableComponent
+{
+    public float aimValue; // 0–1 trigger axis
+}

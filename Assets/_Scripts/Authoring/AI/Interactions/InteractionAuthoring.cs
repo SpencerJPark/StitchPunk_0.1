@@ -15,6 +15,10 @@ public class InteractionAuthoring : MonoBehaviour
     [Tooltip("Interaction ActionEnum for when performed")]
     public ActionType actionType = ActionType.Interact;
 
+    [Header("Player")]
+    [Tooltip("Whether the player can directly target and interact with this entity.")]
+    public bool playerInteractable;
+
     [Header("Motivation Types Provided")]
     [Tooltip("Which NPC motivations this interaction satisfies. Must have at least one for the AI scoring systems to find it.")]
     public bool providesMovement;
@@ -52,6 +56,8 @@ public class InteractionAuthoring : MonoBehaviour
 
             AddComponent(entity, new InteractionHandled());
             SetComponentEnabled<InteractionHandled>(entity, false);
+
+            if (authoring.playerInteractable) AddComponent(entity, new PlayerInteractable());
 
             // Motivation-type tags — SpatialHashSystem only registers this entity
             // in interactionCells for motivations it actually has a component for.
