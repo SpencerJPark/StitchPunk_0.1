@@ -7,8 +7,9 @@ All game logic lives here. Read the CONTEXT.md in each sub-group before working 
 ## System Group Execution Order
 
 ```
-PostBakingSystemGroup        — SOs → BlobAssets (runs once at bake time)
-GameManagerSystemGroup       — world-level: floating origin, player input, horde state
+PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component distribution (runs once at bake time)
+GameManagerSystemGroup       — world-level: floating origin, player input, aim, horde state
+ItemSystemGroup              — thrown item movement, proximity hit detection
 AISystemGroup
   ├── AIAwarenessSystemGroup — motivation decay, spatial hashing (perception)
   ├── AIScoringSystemGroup   — 9 systems write scores to ActionOption buffer
@@ -26,10 +27,10 @@ BuildingsSystemGroup         — construction, harvesting, destruction
 CombatSystemGroup
   ├── CombatResolutionSystemGroup — attack resolution, player attacks
   └── CombatReactionSystemGroup  — damage application
-HealthSystemGroup            — death, heal, revive, health bar updates
+HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — spawn new units, rebuild animator targets
-  └── (loose systems)        — pool return, event resets
+  └── (loose systems)        — pool return, event resets, FakeRagdollSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
 PresentationSystemGroup      — selection outlines (runs after transforms settled)
 ```
 
@@ -41,7 +42,7 @@ System group definitions live in `SystemGroups.cs`.
 ## All Systems — File Map
 
 ### PostBakingSystemGroup (`Systems/PostBakingSystemGroup/`)
-Runs once at bake time. Converts ScriptableObject data into BlobAssets.
+Runs once at bake time. Converts ScriptableObject data into BlobAssets, and distributes components that bakers cannot add cross-entity.
 
 | System | File | What it bakes |
 |---|---|---|
@@ -49,6 +50,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets.
 | `UnitLibraryBakingSystem` | `UnitLibraryBakingSystem.cs` | UnitLibrarySO → UnitLibraryBlob + UnitPrefabEntry |
 | `ScoringLibraryBakingSystem` | `ScoringLibraryBakingSystem.cs` | AIScoringLibrarySO → AIScoringLibraryBlob |
 | `AttackLibraryBakingSystem` | `AttackLibraryBakingSystem.cs` | AttackLibrarySO → AttackLibraryBlob |
+| `FakeRagdollBakingSystem` | `FakeRagdollBakingSystem.cs` | Adds `FakeRagdoll` (disabled) to visual root child, `FakeRagdollJoint` (disabled) to each joint pivot — cannot be done in baker because they are other GOs' entities |
 
 ---
 
@@ -59,6 +61,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets.
 | `FloatingWorldOriginSystem` | `FloatingWorldOriginSystem.cs` | Recenters world origin to prevent float precision loss |
 | `HordeSystem` | `HordeSystem.cs` | Creates/destroys horde entities, manages membership |
 | `PlayerInputSystem` | `PlayerInputSystem.cs` | Reads `PlayerInputData` singleton, enables input tag components |
+| `PlayerAimSystem` | `PlayerAimSystem.cs` | While `AimPlayerInput` is enabled: reads `LookPlayerInput`, updates `AimDirection`, rotates player, shows/hides aim indicator |
 
 ---
 
@@ -71,6 +74,16 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets.
 ---
 
 ### MovementSystemGroup — see [Systems_Movement.md](Systems_Movement.md)
+
+---
+
+### ItemSystemGroup (`Systems/ItemSystemGroup/`)
+
+| System | File | Purpose |
+|---|---|---|
+| `ThrownItemHitSystem` | `ThrownItemHitSystem.cs` | Proximity-based hit detection for thrown items (no physics collider required). XZ-only distance check; on hit writes to `Hurt` buffer, disables `ThrownItem`, enables `PlayerInteractable` |
+
+> Thrown items skip the `thrower` entity stored on `ThrownItem` to prevent self-hit on the throw frame.
 
 ---
 
@@ -89,9 +102,13 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets.
 | System | File | Purpose |
 |---|---|---|
 | `DeathSystem` | `DeathSystem.cs` | Detects zero health, enables `Dead`, disables `Alive` |
+| `FakeRagdollInitSystem` | `FakeRagdollInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Hurt` buffer to determine fall direction (away from attacker), enables and resets `FakeRagdoll` + `FakeRagdollJoint` components with randomised flail velocity |
 | `HealSystem` | `HealSystem.cs` | Applies `Heal` component when enabled |
 | `ReviveSystem` | `ReviveSystem.cs` | Handles `Revive` — re-enables unit from dead state |
+| `FakeRagdollReviveSystem` | `FakeRagdollReviveSystem.cs` | Runs after `ReviveSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
+
+> ⚠ **`FakeRagdollSystem` does NOT run in HealthSystemGroup** — it is in `LateSimulationSystemGroup` so it runs *after* `ApplyAnimatedPoseSystem`, which would otherwise overwrite the ragdoll transforms every frame.
 
 ---
 
@@ -105,6 +122,7 @@ Runs at end of frame. Safe zone for spawn/despawn and event cleanup.
 | `AnimatorTargetInitSystem` | `SpawnSystemGroup/AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer on newly spawned bodies |
 | `UnitPoolReturnSystem` | `UnitPoolReturnSystem.cs` | Disables dead units and returns them to pool |
 | `ResetEventsSystem` | `ResetEventsSystem.cs` | Clears one-frame event flags (onSelected, onDeselected, etc.) |
+| `FakeRagdollSystem` | `HealthSystemGroup/FakeRagdollSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88° (direction from `fallSideSign`), decays joint angular velocity, clamps joints to ±75°, ground-clamps joint world Y against root Y + buffer |
 
 > `SpawnSystemGroup` is a sub-group nested inside `LateSimulationSystemGroup`.
 

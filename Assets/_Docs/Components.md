@@ -30,7 +30,8 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `MovementComponents.cs` | `Components/Movement/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
 | `PathfindingComponents.cs` | `Components/Movement/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
 | `SpawnerComponents.cs` | `Components/Spawners/` | `UnitSpawner`, `PoolOwner`, `NeedsAnimatorInit` |
-| `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components |
+| `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef` |
+| `FakeRagdollComponents.cs` | `Components/Units/` | `FakeRagdoll` (enableable, on visual root child), `FakeRagdollJoint` (enableable, on joint pivot entities), `FakeRagdollConfig` (static config on root body), `FakeRagdollJointRef` buffer |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipRequest` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `UnitPrefabEntry` |
 | `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
@@ -302,4 +303,41 @@ PlayerAttackInput (enableable)
 PlayerInteractInput (enableable)
 PlayerRollInput (enableable)
 PlayerSneakToggle (enableable)
+AimPlayerInput (enableable)     tag — hold-aim is active; locks movement, enables aim indicator
+LookPlayerInput (enableable)    tag — right-stick / mouse aim direction is being read
+AimDirection                    float3 direction — current XZ aim direction, updated by PlayerAimSystem
+AimIndicatorRef                 Entity visualEntity — the arrow indicator child entity (shown at scale 1 while aiming, 0 while not)
 ```
+
+---
+
+## Fake Ragdoll Components (`Components/Units/FakeRagdollComponents.cs`)
+
+Visual-only death ragdoll for quad-based characters. All components are `IEnableableComponent` — they stay on the entity permanently and are toggled to support revive.
+
+```
+FakeRagdoll (enableable, on visual root child entity)
+    float       fallSpeed           — authored, used as fall speed reference
+    float       bodyZAngle          — current Z tilt (simulation state, reset each death)
+    quaternion  initialRotation     — captured from LocalTransform at death (used by revive to restore)
+    float       fallSideSign        — +1 fall right / -1 fall left (set from Hurt buffer attacker X position)
+
+FakeRagdollJoint (enableable, on joint pivot entities)
+    float       groundBuffer        — how far above root.Y to stop the joint (prevents ground clip)
+    float       zAngularVelocity    — current angular speed in deg/s (set randomly 120–360 on death)
+    float       currentZAngle       — current Z rotation offset from rest (simulation state)
+    quaternion  initialLocalRotation — captured at death (used by revive to restore)
+
+FakeRagdollConfig (static, on root body entity — never toggled)
+    Entity      visualRoot          — the visual child entity that tilts on Z
+    float       groundBuffer        — authored default, propagated to joints at death
+    float       fallSpeed           — authored, passed through to FakeRagdoll
+
+FakeRagdollJointRef (buffer, capacity 8, on root body entity)
+    Entity      joint               — each joint pivot entity
+```
+
+**Entity placement:**
+- `FakeRagdollConfig` + `FakeRagdollJointRef` buffer → **root body entity** (baked by `FakeRagdollRootAuthoring`)
+- `FakeRagdoll` → **visual root child** (added disabled by `FakeRagdollBakingSystem`)
+- `FakeRagdollJoint` → **each joint pivot entity** (added disabled by `FakeRagdollBakingSystem`)

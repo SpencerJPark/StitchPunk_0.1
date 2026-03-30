@@ -10,7 +10,7 @@ These are `RegulatorSingleton<T>` or `PersistentSingleton<T>` instances that liv
 
 | Manager | Responsibility |
 |---|---|
-| `PlayerInputManager` | Reads Unity Input System actions; fires events to ECS via `DOTSEventsManager` |
+| `PlayerInputManager` | Reads Unity Input System actions; fires events to ECS via `DOTSEventsManager`. Also handles mouse aim direction each update: while `AimPlayerInput` is enabled and scheme is Keyboard&Mouse, converts mouse world position to XZ aim direction and writes `LookPlayerInput` directly to ECS |
 | `DOTSEventsManager` | Bridge — writes player intent (click targets, selections) into ECS singleton components |
 | `UnitSelectionManager` | Tracks which units are selected; updates `Selected` component on body entities |
 | `CameraManager` | Controls cinemachine camera state, target switching |
