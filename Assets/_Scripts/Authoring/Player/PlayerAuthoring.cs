@@ -6,6 +6,9 @@ public class PlayerAuthoring : MonoBehaviour
     [Tooltip("Drag the empty hand socket child (EquiptSocketAuthoring) here.")]
     public GameObject handSocket;
 
+    [Tooltip("Child GameObject that acts as the aim arrow visual (shown while aiming).")]
+    public GameObject aimIndicator;
+
     public class Baker : Baker<PlayerAuthoring> {
 
         public override void Bake(PlayerAuthoring authoring) {
@@ -47,6 +50,13 @@ public class PlayerAuthoring : MonoBehaviour
 
             AddComponent(entity, new AimPlayerInput());
             SetComponentEnabled<AimPlayerInput>(entity, false);
+
+            AddComponent(entity, new AimDirection { direction = new Unity.Mathematics.float3(0f, 0f, 1f) });
+
+            Entity indicatorEntity = authoring.aimIndicator != null
+                ? GetEntity(authoring.aimIndicator, TransformUsageFlags.Dynamic)
+                : Entity.Null;
+            AddComponent(entity, new AimIndicatorRef { visualEntity = indicatorEntity });
 
             Entity socketEntity = authoring.handSocket != null
                 ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)

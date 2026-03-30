@@ -905,6 +905,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemAuthoring
   itemType: 2
   gripPoint: {fileID: 1822350936}
+  throwSpeed: 10
+  throwArc: 1.6
+  throwDamage: 20
 --- !u!114 &1551899777
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1436,6 +1439,18 @@ PrefabInstance:
       propertyPath: unitType
       value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 3008632362273537346, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: duration
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3008632362273537346, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: groundBuffer
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 3008632362273537346, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: bodyFallSpeed
+      value: 200
+      objectReference: {fileID: 0}
     - target: {fileID: 3643317712540831892, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: brain
       value: 
@@ -1446,7 +1461,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3898859768826041075, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4360691298283947048, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: outlined

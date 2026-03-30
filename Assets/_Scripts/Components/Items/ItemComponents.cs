@@ -36,6 +36,10 @@ public struct AttachRequest : IComponentData, IEnableableComponent { }
 public struct ThrownItem : IComponentData, IEnableableComponent
 {
     public float3 velocity;
+    public float throwSpeed;    // set per-item in ItemAuthoring
+    public float throwArc;      // set per-item in ItemAuthoring
+    public int throwDamage;     // set per-item in ItemAuthoring
+    public Entity thrower;      // set at throw time — excluded from hit detection
 }
 
 // Stored on the item root. Points to the child entity whose transform is the

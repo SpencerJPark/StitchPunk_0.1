@@ -2352,6 +2352,7 @@ GameObject:
   - component: {fileID: 3643317712540831892}
   - component: {fileID: 4360691298283947048}
   - component: {fileID: 2109917504735642924}
+  - component: {fileID: 3008632362273537346}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -2466,6 +2467,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fallSpeed: 16
+  groundOffset: 0
 --- !u!114 &6740547309548362299
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2574,6 +2576,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &3008632362273537346
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3898859768826041075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14d360c5a6f8d4d4cbd374a60bdfa72a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::FakeRagdollRootAuthoring
+  visualChild: {fileID: 3639368511859928072}
+  joints:
+  - {fileID: 5407039115034996653}
+  - {fileID: 5230250045204637290}
+  - {fileID: 4548190842808236587}
+  - {fileID: 1515011212746910160}
+  - {fileID: 1515011212746910160}
+  - {fileID: 2166349261869968865}
+  - {fileID: 4022584403464093948}
+  - {fileID: 3018644106892521862}
+  - {fileID: 369647088844406493}
+  - {fileID: 7956537174107523816}
+  duration: 3
+  bodyFallSpeed: 180
+  groundBuffer: 0.15
 --- !u!1 &4022584403464093948
 GameObject:
   m_ObjectHideFlags: 0

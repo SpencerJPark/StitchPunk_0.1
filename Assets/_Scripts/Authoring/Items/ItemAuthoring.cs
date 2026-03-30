@@ -8,6 +8,15 @@ public class ItemAuthoring : MonoBehaviour
     [Tooltip("Drag the child GameObject that has ItemAttachPointAuthoring here.")]
     public GameObject gripPoint;
 
+    [Tooltip("How fast the item travels when thrown (units/sec).")]
+    public float throwSpeed = 10f;
+
+    [Tooltip("Initial upward velocity when thrown (controls arc height).")]
+    public float throwArc = 4f;
+
+    [Tooltip("Damage dealt to a health entity when the thrown item hits it.")]
+    public int throwDamage = 10;
+
     public class Baker : Baker<ItemAuthoring>
     {
         public override void Bake(ItemAuthoring authoring)
@@ -23,7 +32,7 @@ public class ItemAuthoring : MonoBehaviour
             AddComponent(entity, new AttachRequest());
             SetComponentEnabled<AttachRequest>(entity, false);
 
-            AddComponent(entity, new ThrownItem());
+            AddComponent(entity, new ThrownItem { throwSpeed = authoring.throwSpeed, throwArc = authoring.throwArc, throwDamage = authoring.throwDamage });
             SetComponentEnabled<ThrownItem>(entity, false);
 
             if (authoring.gripPoint != null)

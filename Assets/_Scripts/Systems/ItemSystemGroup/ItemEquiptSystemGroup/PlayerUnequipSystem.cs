@@ -12,8 +12,6 @@ using Unity.Transforms;
 [UpdateBefore(typeof(ItemEquipSystem))]
 public partial struct PlayerUnequipSystem : ISystem
 {
-    private const float THROW_SPEED = 10f;
-    private const float THROW_ARC   = 4f;
 
     public void OnCreate(ref SystemState state)
     {
@@ -87,9 +85,14 @@ public partial struct PlayerUnequipSystem : ISystem
             float3 forward = playerTransform.Forward();
 
             // ThrownItem owns X/Z only — Gravity owns Y
+            ThrownItem thrownItem = state.EntityManager.GetComponentData<ThrownItem>(itemEntity);
             state.EntityManager.SetComponentData(itemEntity, new ThrownItem
             {
-                velocity = new float3(forward.x, 0f, forward.z) * THROW_SPEED
+                velocity    = new float3(forward.x, 0f, forward.z) * thrownItem.throwSpeed,
+                throwSpeed  = thrownItem.throwSpeed,
+                throwArc    = thrownItem.throwArc,
+                throwDamage = thrownItem.throwDamage,
+                thrower     = playerEntity
             });
             state.EntityManager.SetComponentEnabled<ThrownItem>(itemEntity, true);
 
@@ -97,7 +100,7 @@ public partial struct PlayerUnequipSystem : ISystem
             if (state.EntityManager.HasComponent<Gravity>(itemEntity))
             {
                 Gravity gravity = state.EntityManager.GetComponentData<Gravity>(itemEntity);
-                gravity.verticalVelocity = THROW_ARC;
+                gravity.verticalVelocity = thrownItem.throwArc;
                 gravity.isGrounded       = false;
                 state.EntityManager.SetComponentData(itemEntity, gravity);
             }

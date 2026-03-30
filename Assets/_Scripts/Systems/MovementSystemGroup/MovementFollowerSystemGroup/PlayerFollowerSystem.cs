@@ -16,13 +16,14 @@ partial struct PlayerMoveSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (transform, unitMover, moveInput, moveEnabled, actionMap) in
+        foreach (var (transform, unitMover, moveInput, moveEnabled, actionMap, aimEnabled) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
                 RefRW<Movement>,
                 RefRO<MovePlayerInput>,
                 EnabledRefRO<MovePlayerInput>,
-                RefRO<PlayerActionMap>>()
+                RefRO<PlayerActionMap>,
+                EnabledRefRO<AimPlayerInput>>()
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
@@ -33,6 +34,13 @@ partial struct PlayerMoveSystem : ISystem
             }
 
             float3 currentPos = transform.ValueRO.Position;
+
+            // Lock movement while aiming
+            if (aimEnabled.ValueRO)
+            {
+                unitMover.ValueRW.targetPosition = currentPos;
+                continue;
+            }
 
             if (!moveEnabled.ValueRO)
             {

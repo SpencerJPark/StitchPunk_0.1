@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine.InputSystem;
 
 public class PlayerInputManager : MonoBehaviour, IUpdateObserver
@@ -59,6 +60,33 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         {
             ApplyActionMapSwitch(targetActionMap);
             hasPendingMapSwitch = false;
+        }
+
+        UpdateMouseAimDirection();
+    }
+
+    // When aiming with a mouse, compute the world-space direction from the player to the
+    // cursor and write it into LookPlayerInput so PlayerAimSystem can use it identically
+    // to the gamepad right-stick path.
+    private void UpdateMouseAimDirection()
+    {
+        if (!TryResolvePlayerEntity()) return;
+        if (!entityManager.IsComponentEnabled<AimPlayerInput>(playerEntity)) return;
+        if (playerInput.currentControlScheme != "Keyboard&Mouse") return;
+        if (MouseWorldPosition.Instance == null) return;
+
+        LocalTransform playerTransform = entityManager.GetComponentData<LocalTransform>(playerEntity);
+        Vector3 mouseWorld = MouseWorldPosition.Instance.GetPosition();
+
+        float dx = mouseWorld.x - playerTransform.Position.x;
+        float dz = mouseWorld.z - playerTransform.Position.z;
+        float2 dir = new float2(dx, dz);
+
+        if (math.lengthsq(dir) > 0.01f)
+        {
+            dir = math.normalize(dir);
+            entityManager.SetComponentData(playerEntity, new LookPlayerInput { lookInput = dir });
+            entityManager.SetComponentEnabled<LookPlayerInput>(playerEntity, true);
         }
     }
 

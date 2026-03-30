@@ -68,3 +68,15 @@ public struct AimPlayerInput : IComponentData, IEnableableComponent
 {
     public float aimValue; // 0–1 trigger axis
 }
+
+// Current XZ direction the player is aiming (normalized). Updated each frame by PlayerAimSystem.
+public struct AimDirection : IComponentData
+{
+    public float3 direction;
+}
+
+// Points to the child entity used as the aim arrow visual.
+public struct AimIndicatorRef : IComponentData
+{
+    public Entity visualEntity;
+}

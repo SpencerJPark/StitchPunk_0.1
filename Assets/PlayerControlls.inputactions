@@ -43,15 +43,6 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Sneak",
-                    "type": "Button",
-                    "id": "27c5f898-bc57-4ee1-8800-db469aca5fe3",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
                     "name": "SwitchControls",
                     "type": "Button",
                     "id": "54126885-5dc1-4b31-897a-d4bc839504de",
@@ -106,7 +97,16 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Unequipt",
+                    "name": "Sneak",
+                    "type": "Button",
+                    "id": "27c5f898-bc57-4ee1-8800-db469aca5fe3",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Drop",
                     "type": "Button",
                     "id": "d9a7b12d-99dd-4213-8c38-db1a4ccd8978",
                     "expectedControlType": "",
@@ -118,6 +118,24 @@
                     "name": "Aim",
                     "type": "PassThrough",
                     "id": "248e38f7-9b18-40e8-aa46-8e4ff3704eff",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Focus",
+                    "type": "Button",
+                    "id": "0051733f-8562-4c02-9d81-7482efc65d7d",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "QuickCommand",
+                    "type": "Button",
+                    "id": "0d5618bd-cfbd-48d0-86e0-5b81c2027cf3",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -473,7 +491,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "Unequipt",
+                    "action": "Drop",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -484,14 +502,14 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "Unequipt",
+                    "action": "Drop",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
                     "id": "f4040057-9713-47b0-af7d-6b7f4369432d",
-                    "path": "<Gamepad>/leftShoulder",
+                    "path": "<Gamepad>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -507,6 +525,28 @@
                     "processors": "",
                     "groups": "",
                     "action": "Aim",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "0baaecef-30e3-4c8f-9c20-6d788368d73e",
+                    "path": "<Gamepad>/leftTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Focus",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "18da1c5e-0b0d-4421-9228-93effb9f3c50",
+                    "path": "<Gamepad>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
+                    "action": "QuickCommand",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
