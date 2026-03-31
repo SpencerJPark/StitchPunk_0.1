@@ -34,9 +34,10 @@ public partial struct FakeRagdollBakingSystem : ISystem
                 if (joint == Entity.Null) continue;
                 if (em.HasComponent<FakeRagdollJoint>(joint)) continue;
 
+                float buf = joints[i].groundBuffer > 0f ? joints[i].groundBuffer : config.ValueRO.groundBuffer;
                 jointParts.Add((joint, new FakeRagdollJoint
                 {
-                    groundBuffer         = config.ValueRO.groundBuffer,
+                    groundBuffer         = buf,
                     zAngularVelocity     = 0f,
                     currentZAngle        = 0f,
                     initialLocalRotation = quaternion.identity

@@ -32,9 +32,13 @@ public partial struct DamageApplicationJob : IJobEntity
         for (int i = 0; i < hurtBuffer.Length; i++)
             totalDamage += hurtBuffer[i].damageAmount;
 
-        health.healthAmount -= totalDamage;
+        // Capture the killing blow data before clearing — used by FakeRagdollInitSystem
+        // after the buffer is gone.
+        health.killSourceX      = hurtBuffer[hurtBuffer.Length - 1].hitSourceX;
+        health.killRagdollForce = hurtBuffer[hurtBuffer.Length - 1].ragdollForce;
         hurtBuffer.Clear();
 
+        health.healthAmount -= totalDamage;
         if (health.healthAmount <= 0)
         {
             deadEnabled.ValueRW = true;

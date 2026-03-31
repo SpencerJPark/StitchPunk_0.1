@@ -36,6 +36,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder[i].damageAmount    = 0;
             attacksBuilder[i].range           = 0f;
             attacksBuilder[i].cooldown        = 1f;
+            attacksBuilder[i].ragdollForce    = 1f;
         }
 
         foreach (var attackSO in librarySO.attacks)
@@ -49,6 +50,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder[index].damageAmount    = attackSO.damageAmount;
             attacksBuilder[index].range           = attackSO.range;
             attacksBuilder[index].cooldown        = attackSO.cooldown;
+            attacksBuilder[index].ragdollForce    = attackSO.ragdollForce;
         }
 
         var blobRef = builder.CreateBlobAssetReference<AttackLibraryBlob>(Allocator.Persistent);

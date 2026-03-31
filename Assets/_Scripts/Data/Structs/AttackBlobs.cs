@@ -8,6 +8,7 @@ public struct AttackBlob
     public int damageAmount;
     public float range;
     public float cooldown;
+    public float ragdollForce;
 }
 
 public struct AttackLibraryBlob

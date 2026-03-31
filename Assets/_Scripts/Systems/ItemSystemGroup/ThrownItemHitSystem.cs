@@ -85,7 +85,9 @@ public partial struct ThrownItemHitSystem : ISystem
                 {
                     attackerEntity = Entity.Null,
                     distance       = math.sqrt(distSq),
-                    damageAmount   = thrownItem.ValueRO.throwDamage
+                    damageAmount   = thrownItem.ValueRO.throwDamage,
+                    hitSourceX     = itemPos.x,
+                    ragdollForce   = thrownItem.ValueRO.ragdollForce
                 });
 
                 thrownEnabled.ValueRW       = false;

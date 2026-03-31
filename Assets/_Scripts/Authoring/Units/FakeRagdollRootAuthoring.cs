@@ -14,16 +14,17 @@ public class FakeRagdollRootAuthoring : MonoBehaviour
     [Tooltip("The direct visual child of root that holds the whole character (this is what tilts on Z).")]
     public GameObject visualChild;
 
-    [Tooltip("All joint pivot GameObjects (upper/lower arm bends, upper/lower leg bends, etc.)")]
-    public List<GameObject> joints = new();
-
-    [Tooltip("How long the ragdoll plays before disabling (seconds).")]
-    public float duration = 3f;
+    [Tooltip("Each joint pivot GO plus an optional per-joint ground buffer override. " +
+             "Set groundBuffer > 0 to override the global buffer for that joint. " +
+             "Rule of thumb: set it to the length of the longest limb segment below that pivot " +
+             "so the limb tip can never reach the ground plane.")]
+    public List<FakeRagdollJointEntry> joints = new();
 
     [Tooltip("Initial Z tilt speed of the body falling over (deg/s).")]
     public float bodyFallSpeed = 180f;
 
-    [Tooltip("How far above root.Y to clamp joints. Increase if quad corners clip through ground.")]
+    [Tooltip("Global ground buffer: how far above root.Y to clamp all joints unless overridden per-joint. " +
+             "Also lifts the visual body child off the ground by this amount.")]
     public float groundBuffer = 0.15f;
 
     public class Baker : Baker<FakeRagdollRootAuthoring>
@@ -48,14 +49,26 @@ public class FakeRagdollRootAuthoring : MonoBehaviour
             });
 
             var jointBuffer = AddBuffer<FakeRagdollJointRef>(rootEntity);
-            foreach (var joint in authoring.joints)
+            foreach (var entry in authoring.joints)
             {
-                if (joint == null) continue;
+                if (entry.joint == null) continue;
+                float buf = entry.groundBuffer > 0f ? entry.groundBuffer : authoring.groundBuffer;
                 jointBuffer.Add(new FakeRagdollJointRef
                 {
-                    joint = GetEntity(joint, TransformUsageFlags.Dynamic)
+                    joint        = GetEntity(entry.joint, TransformUsageFlags.Dynamic),
+                    groundBuffer = buf
                 });
             }
         }
     }
+}
+
+[System.Serializable]
+public struct FakeRagdollJointEntry
+{
+    public GameObject joint;
+    [Tooltip("Per-joint ground buffer. 0 = use the global buffer on this authoring component. " +
+             "For shoulder/hip pivots, set this to roughly the limb length so the hand/foot " +
+             "can never reach the ground even at full flail.")]
+    public float groundBuffer;
 }

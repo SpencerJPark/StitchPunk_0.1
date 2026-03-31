@@ -1,9 +1,11 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class MouseWorldPosition : PersistentSingleton<MouseWorldPosition> {
 
     public Vector3 GetPosition() {
-        Ray mouseCameraRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Vector2 screenPos = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+        Ray mouseCameraRay = Camera.main.ScreenPointToRay(screenPos);
 
         Plane plane = new Plane(Vector3.up, Vector3.zero);
 

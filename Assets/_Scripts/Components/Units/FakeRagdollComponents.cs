@@ -10,6 +10,9 @@ public struct FakeRagdoll : IComponentData, IEnableableComponent
     // Authored (preserved across deaths, used to reset simulation state each death)
     public float fallSpeed;
 
+    // Authored (copied from FakeRagdollConfig at init)
+    public float groundBuffer;
+
     // Simulation state (reset by FakeRagdollInitSystem each death)
     public float bodyZAngle;
     public quaternion initialRotation;
@@ -42,4 +45,6 @@ public struct FakeRagdollConfig : IComponentData
 public struct FakeRagdollJointRef : IBufferElementData
 {
     public Entity joint;
+    // Per-joint ground buffer baked from authoring. 0 = fall back to FakeRagdollConfig.groundBuffer.
+    public float groundBuffer;
 }

@@ -22,11 +22,20 @@ public struct Hurt : IBufferElementData
     public Entity attackerEntity;
     public float distance;
     public int damageAmount;
+    // World-X of the hit source baked at the moment of impact.
+    // Used by ragdoll init for fall direction — works even when attackerEntity is Null (thrown items).
+    public float hitSourceX;
+    // Scales ragdoll violence (joint flail speed, body fall speed). 1 = baseline.
+    public float ragdollForce;
 }
-public struct Health : IComponentData {
-    
+public struct Health : IComponentData
+{
     public int healthAmount;
-    public int healthAmountMax; // SHould be able to move
+    public int healthAmountMax;
+    // Written by DamageApplicationJob before the Hurt buffer is cleared,
+    // then read by FakeRagdollInitSystem.
+    public float killSourceX;
+    public float killRagdollForce;
 }
 public struct Heal : IComponentData, IEnableableComponent
 {

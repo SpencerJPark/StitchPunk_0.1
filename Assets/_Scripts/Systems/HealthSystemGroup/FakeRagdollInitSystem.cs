@@ -27,11 +27,11 @@ public partial struct FakeRagdollInitSystem : ISystem
         ragdollLookup.Update(ref state);
         transformLookup.Update(ref state);
 
-        foreach (var (config, joints, hurtBuffer, entity) in
+        foreach (var (config, joints, health, entity) in
             SystemAPI.Query<
                 RefRO<FakeRagdollConfig>,
                 DynamicBuffer<FakeRagdollJointRef>,
-                DynamicBuffer<Hurt>>()
+                RefRO<Health>>()
                     .WithAll<Dead>()
                     .WithEntityAccess())
         {
@@ -41,25 +41,24 @@ public partial struct FakeRagdollInitSystem : ISystem
             // Skip if already ragdolling (Dead stays enabled until revived)
             if (ragdollLookup.IsComponentEnabled(visualRoot)) continue;
 
-            // Determine fall direction from the last hit's attacker position.
-            // Unit falls away from attacker: attacker on left (+X) → fall right (positive tilt),
-            // attacker on right (-X) → fall left (negative tilt). Default to +1 if unknown.
-            float fallSideSign = 1f;
-            if (hurtBuffer.Length > 0 && transformLookup.HasComponent(entity))
+            // Determine fall direction from the kill source baked by DamageApplicationJob.
+            // The Hurt buffer is already cleared by the time we run, so we read Health.killSourceX.
+            // Positive Z rotation tilts the character top to the LEFT:
+            //   source left of unit  → fall right → negative Z → fallSideSign = -1
+            //   source right of unit → fall left  → positive Z → fallSideSign = +1
+            float fallSideSign = -1f;
+            if (transformLookup.HasComponent(entity))
             {
-                Entity attackerEntity = hurtBuffer[hurtBuffer.Length - 1].attackerEntity;
-                if (attackerEntity != Entity.Null && transformLookup.HasComponent(attackerEntity))
-                {
-                    float3 unitPos     = transformLookup[entity].Position;
-                    float3 attackerPos = transformLookup[attackerEntity].Position;
-                    // Attacker left of unit (lower X) → unit falls right (+tilt), sign = +1
-                    // Attacker right of unit (higher X) → unit falls left (-tilt), sign = -1
-                    fallSideSign = attackerPos.x < unitPos.x ? 1f : -1f;
-                }
+                float unitX = transformLookup[entity].Position.x;
+                fallSideSign = health.ValueRO.killSourceX < unitX ? -1f : 1f;
             }
 
-            // Reset and enable body tilt
+            float ragdollForce = math.max(0.1f, health.ValueRO.killRagdollForce);
+
+            // Reset and enable body tilt — fallSpeed scales how fast the body tips over
             ref FakeRagdoll ragdoll = ref ragdollLookup.GetRefRW(visualRoot).ValueRW;
+            ragdoll.groundBuffer    = config.ValueRO.groundBuffer;
+            ragdoll.fallSpeed       = config.ValueRO.fallSpeed * ragdollForce;
             ragdoll.bodyZAngle      = 0f;
             ragdoll.fallSideSign    = fallSideSign;
             ragdoll.initialRotation = transformLookup.HasComponent(visualRoot)
@@ -67,7 +66,7 @@ public partial struct FakeRagdollInitSystem : ISystem
                 : quaternion.identity;
             ragdollLookup.SetComponentEnabled(visualRoot, true);
 
-            // Reset and enable each joint with a randomised flail velocity
+            // Reset and enable each joint — flail velocity scales with ragdollForce
             var rng = new Unity.Mathematics.Random((uint)(entity.Index + 1));
 
             for (int i = 0; i < joints.Length; i++)
@@ -80,10 +79,11 @@ public partial struct FakeRagdollInitSystem : ISystem
                     ? transformLookup[jointEntity]
                     : LocalTransform.Identity;
 
+                float buf = joints[i].groundBuffer > 0f ? joints[i].groundBuffer : config.ValueRO.groundBuffer;
                 state.EntityManager.SetComponentData(jointEntity, new FakeRagdollJoint
                 {
-                    groundBuffer         = config.ValueRO.groundBuffer,
-                    zAngularVelocity     = rng.NextFloat(120f, 360f) * (rng.NextBool() ? 1f : -1f),
+                    groundBuffer         = buf,
+                    zAngularVelocity     = rng.NextFloat(120f, 360f) * (rng.NextBool() ? 1f : -1f) * ragdollForce,
                     currentZAngle        = 0f,
                     initialLocalRotation = jointTransform.Rotation
                 });

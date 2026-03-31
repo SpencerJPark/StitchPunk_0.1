@@ -20,8 +20,12 @@ public partial struct FakeRagdollSystem : ISystem
     private const float MAX_TILT_DEG    = 88f;
     // Joint angular velocity decay rate. Higher = arms settle sooner.
     private const float JOINT_DAMPING   = 3.0f;
-    // Max degrees a joint can swing from its rest pose (each direction).
+    // Max degrees a joint can swing from its rest pose when the pivot is well above the floor.
     private const float MAX_JOINT_ANGLE = 75f;
+    // Height above the per-joint clamp boundary at which full flail range is allowed.
+    // Below this height the allowed range scales linearly to 0 at the boundary.
+    // Increase if arms still clip near the floor; decrease if they freeze too early.
+    private const float JOINT_HEIGHT_FULL_RANGE = 0.5f;
 
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<LocalToWorld>   localToWorldLookup;
@@ -47,11 +51,12 @@ public partial struct FakeRagdollSystem : ISystem
             SystemAPI.Query<RefRW<LocalTransform>, RefRW<FakeRagdoll>>())
         {
             float targetAngle = MAX_TILT_DEG * ragdoll.ValueRO.fallSideSign;
-            float angle = math.lerp(ragdoll.ValueRO.bodyZAngle, targetAngle, BODY_FALL_SPEED * dt);
+            float angle = math.lerp(ragdoll.ValueRO.bodyZAngle, targetAngle, ragdoll.ValueRO.fallSpeed * dt);
             ragdoll.ValueRW.bodyZAngle = angle;
 
             quaternion tilt = quaternion.Euler(0f, 0f, math.radians(angle));
             transform.ValueRW.Rotation = math.mul(ragdoll.ValueRO.initialRotation, tilt);
+            transform.ValueRW.Position.y = ragdoll.ValueRO.groundBuffer;
         }
 
         // ── Joint pivots: Z flail with angle and ground clamp ────────────────
@@ -66,32 +71,52 @@ public partial struct FakeRagdollSystem : ISystem
 
             float nextAngle = joint.ValueRO.currentZAngle + joint.ValueRO.zAngularVelocity * dt;
 
-            if (nextAngle > MAX_JOINT_ANGLE)
-            {
-                nextAngle = MAX_JOINT_ANGLE;
-                joint.ValueRW.zAngularVelocity = 0f;
-            }
-            else if (nextAngle < -MAX_JOINT_ANGLE)
-            {
-                nextAngle = -MAX_JOINT_ANGLE;
-                joint.ValueRW.zAngularVelocity = 0f;
-            }
-
-            // Ground clamp — compare the JOINT's world Y against root's world Y + buffer.
-            // Root has no parent so LocalTransform.Position.y == world Y.
+            // Ground-aware flail limit.
+            // LocalToWorld is 1 frame stale (TransformSystemGroup ran before us with last frame's
+            // body rotation), so we use a two-stage approach rather than a hard per-frame snap:
+            //
+            //   Stage 1 — dynamic limit: as the pivot descends toward the per-joint clamp
+            //             boundary, linearly shrink MAX_JOINT_ANGLE to 0. Arms start losing
+            //             range before they reach the floor so even with the 1-frame lag the
+            //             flail naturally settles rather than punching through.
+            //
+            //   Stage 2 — hard lock: if the pivot IS at or below the clamp boundary, freeze
+            //             completely. This is the backstop for edge cases.
             Entity rootEntity = baseParent.ValueRO.baseParentEntity;
             if (transformLookup.HasComponent(rootEntity) &&
                 localToWorldLookup.HasComponent(jointEntity))
             {
                 float rootWorldY  = transformLookup[rootEntity].Position.y;
-                float clampY      = rootWorldY + joint.ValueRO.groundBuffer;
                 float jointWorldY = localToWorldLookup[jointEntity].Position.y;
-                if (jointWorldY < clampY)
+                float clampY      = rootWorldY + joint.ValueRO.groundBuffer;
+
+                // Stage 1: dynamic limit
+                float heightAboveClamp = jointWorldY - clampY;
+                float angleFraction    = math.saturate(heightAboveClamp / JOINT_HEIGHT_FULL_RANGE);
+                float effectiveMax     = MAX_JOINT_ANGLE * angleFraction;
+
+                if (nextAngle > effectiveMax)
+                {
+                    nextAngle = effectiveMax;
+                    joint.ValueRW.zAngularVelocity = 0f;
+                }
+                else if (nextAngle < -effectiveMax)
+                {
+                    nextAngle = -effectiveMax;
+                    joint.ValueRW.zAngularVelocity = 0f;
+                }
+
+                // Stage 2: hard lock at the boundary
+                if (jointWorldY <= clampY)
                 {
                     joint.ValueRW.zAngularVelocity = 0f;
-                    // Nudge angle back so the joint sits at the clamp boundary rather than clipping
-                    nextAngle = joint.ValueRO.currentZAngle * 0.5f;
+                    nextAngle = 0f;
                 }
+            }
+            else
+            {
+                // Fallback when lookups unavailable: static clamp only
+                nextAngle = math.clamp(nextAngle, -MAX_JOINT_ANGLE, MAX_JOINT_ANGLE);
             }
 
             joint.ValueRW.currentZAngle = nextAngle;
