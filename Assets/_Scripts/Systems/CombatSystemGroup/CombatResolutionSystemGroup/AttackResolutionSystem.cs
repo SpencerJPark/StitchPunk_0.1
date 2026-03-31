@@ -122,10 +122,13 @@ public partial struct AttackResolutionJob : IJobEntity
         hurtBufferLookup[target.entity].Add(new Hurt
         {
             attackerEntity = attackerEntity,
+            attackType     = attackBlob.attackType,
             distance       = math.sqrt(distanceSq),
             damageAmount   = attackBlob.damageAmount,
             hitSourceX     = attackerTransform.Position.x,
-            ragdollForce   = attackBlob.ragdollForce
+            ragdollForce   = attackBlob.ragdollForce,
+            launchForceY   = attackBlob.launchForceY,
+            launchForceX   = attackBlob.launchForceX
         });
 
         // Reset cooldown and clear intent flag

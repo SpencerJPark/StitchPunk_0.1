@@ -20,6 +20,13 @@ public class ItemAuthoring : MonoBehaviour
     [Tooltip("Scales ragdoll violence when this item kills on impact. 1 = baseline (sword). 2+ = heavy/explosive.")]
     public float throwRagdollForce = 1f;
 
+    [Header("Launch Arc")]
+    [Tooltip("Direct upward launch velocity (units/s) when this item kills on impact. 0 = no arc.")]
+    public float throwLaunchForceY = 0f;
+
+    [Tooltip("Direct sideways launch velocity (units/s) when this item kills on impact. 0 = no drift.")]
+    public float throwLaunchForceX = 0f;
+
     public class Baker : Baker<ItemAuthoring>
     {
         public override void Bake(ItemAuthoring authoring)
@@ -35,7 +42,7 @@ public class ItemAuthoring : MonoBehaviour
             AddComponent(entity, new AttachRequest());
             SetComponentEnabled<AttachRequest>(entity, false);
 
-            AddComponent(entity, new ThrownItem { throwSpeed = authoring.throwSpeed, throwArc = authoring.throwArc, throwDamage = authoring.throwDamage, ragdollForce = authoring.throwRagdollForce });
+            AddComponent(entity, new ThrownItem { throwSpeed = authoring.throwSpeed, throwArc = authoring.throwArc, throwDamage = authoring.throwDamage, ragdollForce = authoring.throwRagdollForce, launchForceY = authoring.throwLaunchForceY, launchForceX = authoring.throwLaunchForceX });
             SetComponentEnabled<ThrownItem>(entity, false);
 
             if (authoring.gripPoint != null)

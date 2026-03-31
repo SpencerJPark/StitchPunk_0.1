@@ -20,22 +20,29 @@ public struct Dead : IComponentData, IEnableableComponent { }
 public struct Hurt : IBufferElementData
 {
     public Entity attackerEntity;
+    public AttackType attackType;
     public float distance;
     public int damageAmount;
-    // World-X of the hit source baked at the moment of impact.
-    // Used by ragdoll init for fall direction — works even when attackerEntity is Null (thrown items).
+    // World-X of the hit source — used by ragdoll init for fall direction.
+    // Works even when attackerEntity is Null (thrown items).
     public float hitSourceX;
     // Scales ragdoll violence (joint flail speed, body fall speed). 1 = baseline.
     public float ragdollForce;
+    // Per-attack launch arc forces. 0 = no arc (character just tips over).
+    public float launchForceY;
+    public float launchForceX;
 }
 public struct Health : IComponentData
 {
     public int healthAmount;
     public int healthAmountMax;
-    // Written by DamageApplicationJob before the Hurt buffer is cleared,
-    // then read by FakeRagdollInitSystem.
+    // Snapshot of the killing blow — written by DamageApplicationJob before
+    // the Hurt buffer is cleared, then read by FakeRagdollInitSystem.
     public float killSourceX;
     public float killRagdollForce;
+    public float killLaunchForceY;
+    public float killLaunchForceX;
+    public AttackType killAttackType;
 }
 public struct Heal : IComponentData, IEnableableComponent
 {

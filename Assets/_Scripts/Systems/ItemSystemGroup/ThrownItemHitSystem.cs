@@ -84,10 +84,13 @@ public partial struct ThrownItemHitSystem : ISystem
                 hurtBufferLookup[t.entity].Add(new Hurt
                 {
                     attackerEntity = Entity.Null,
+                    attackType     = AttackType.Throw,
                     distance       = math.sqrt(distSq),
                     damageAmount   = thrownItem.ValueRO.throwDamage,
                     hitSourceX     = itemPos.x,
-                    ragdollForce   = thrownItem.ValueRO.ragdollForce
+                    ragdollForce   = thrownItem.ValueRO.ragdollForce,
+                    launchForceY   = thrownItem.ValueRO.launchForceY,
+                    launchForceX   = thrownItem.ValueRO.launchForceX
                 });
 
                 thrownEnabled.ValueRW       = false;

@@ -34,8 +34,12 @@ public partial struct DamageApplicationJob : IJobEntity
 
         // Capture the killing blow data before clearing — used by FakeRagdollInitSystem
         // after the buffer is gone.
-        health.killSourceX      = hurtBuffer[hurtBuffer.Length - 1].hitSourceX;
-        health.killRagdollForce = hurtBuffer[hurtBuffer.Length - 1].ragdollForce;
+        Hurt killingBlow        = hurtBuffer[hurtBuffer.Length - 1];
+        health.killSourceX      = killingBlow.hitSourceX;
+        health.killRagdollForce = killingBlow.ragdollForce;
+        health.killLaunchForceY = killingBlow.launchForceY;
+        health.killLaunchForceX = killingBlow.launchForceX;
+        health.killAttackType   = killingBlow.attackType;
         hurtBuffer.Clear();
 
         health.healthAmount -= totalDamage;

@@ -10,12 +10,17 @@ public partial struct FakeRagdollBakingSystem : ISystem
     {
         var em = state.EntityManager;
 
-        var visualRoots = new NativeList<(Entity entity, FakeRagdoll data)>(Allocator.Temp);
-        var jointParts  = new NativeList<(Entity entity, FakeRagdollJoint data)>(Allocator.Temp);
+        var visualRoots  = new NativeList<(Entity entity, FakeRagdoll data)>(Allocator.Temp);
+        var jointParts   = new NativeList<(Entity entity, FakeRagdollJoint data)>(Allocator.Temp);
+        var launchRoots  = new NativeList<Entity>(Allocator.Temp);
 
-        foreach (var (config, joints) in
-            SystemAPI.Query<RefRO<FakeRagdollConfig>, DynamicBuffer<FakeRagdollJointRef>>())
+        foreach (var (config, joints, rootEntity) in
+            SystemAPI.Query<RefRO<FakeRagdollConfig>, DynamicBuffer<FakeRagdollJointRef>>()
+                .WithEntityAccess())
         {
+            if (!em.HasComponent<FakeRagdollLaunch>(rootEntity))
+                launchRoots.Add(rootEntity);
+
             Entity visualRoot = config.ValueRO.visualRoot;
 
             if (visualRoot != Entity.Null && !em.HasComponent<FakeRagdoll>(visualRoot))
@@ -57,7 +62,14 @@ public partial struct FakeRagdollBakingSystem : ISystem
             em.SetComponentEnabled<FakeRagdollJoint>(jointParts[i].entity, false);
         }
 
+        for (int i = 0; i < launchRoots.Length; i++)
+        {
+            em.AddComponentData(launchRoots[i], new FakeRagdollLaunch());
+            em.SetComponentEnabled<FakeRagdollLaunch>(launchRoots[i], false);
+        }
+
         visualRoots.Dispose();
         jointParts.Dispose();
+        launchRoots.Dispose();
     }
 }

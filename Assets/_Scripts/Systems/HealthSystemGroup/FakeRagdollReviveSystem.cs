@@ -12,15 +12,17 @@ using Unity.Transforms;
 [UpdateAfter(typeof(ReviveSystem))]
 public partial struct FakeRagdollReviveSystem : ISystem
 {
-    private ComponentLookup<FakeRagdoll>      ragdollLookup;
-    private ComponentLookup<FakeRagdollJoint> jointLookup;
-    private ComponentLookup<LocalTransform>   transformLookup;
+    private ComponentLookup<FakeRagdoll>       ragdollLookup;
+    private ComponentLookup<FakeRagdollJoint>  jointLookup;
+    private ComponentLookup<FakeRagdollLaunch> launchLookup;
+    private ComponentLookup<LocalTransform>    transformLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         ragdollLookup   = state.GetComponentLookup<FakeRagdoll>(false);
         jointLookup     = state.GetComponentLookup<FakeRagdollJoint>(false);
+        launchLookup    = state.GetComponentLookup<FakeRagdollLaunch>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(false);
     }
 
@@ -28,19 +30,30 @@ public partial struct FakeRagdollReviveSystem : ISystem
     {
         ragdollLookup.Update(ref state);
         jointLookup.Update(ref state);
+        launchLookup.Update(ref state);
         transformLookup.Update(ref state);
 
-        foreach (var (config, joints) in
+        foreach (var (config, joints, rootEntity) in
             SystemAPI.Query<
                 RefRO<FakeRagdollConfig>,
                 DynamicBuffer<FakeRagdollJointRef>>()
-                    .WithDisabled<Dead>())
+                    .WithDisabled<Dead>()
+                    .WithEntityAccess())
         {
             Entity visualRoot = config.ValueRO.visualRoot;
             if (!ragdollLookup.HasComponent(visualRoot)) continue;
 
             // Nothing to clean up if ragdoll was never activated
             if (!ragdollLookup.IsComponentEnabled(visualRoot)) continue;
+
+            // Reset root entity position to the ground anchor and disable launch
+            if (launchLookup.HasComponent(rootEntity) && launchLookup.IsComponentEnabled(rootEntity))
+            {
+                float groundY = launchLookup[rootEntity].groundY;
+                launchLookup.SetComponentEnabled(rootEntity, false);
+                if (transformLookup.HasComponent(rootEntity))
+                    transformLookup.GetRefRW(rootEntity).ValueRW.Position.y = groundY;
+            }
 
             // Reset and disable body tilt
             FakeRagdoll ragdoll = ragdollLookup[visualRoot];

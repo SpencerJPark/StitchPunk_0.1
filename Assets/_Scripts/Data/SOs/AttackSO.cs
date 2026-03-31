@@ -24,4 +24,11 @@ public class AttackSO : ScriptableObject
 
     [Tooltip("Scales ragdoll violence on kill. 1 = baseline (sword). 0.5 = weak/glancing. 2+ = heavy/explosive.")]
     public float ragdollForce = 1f;
+
+    [Header("Launch Arc")]
+    [Tooltip("Direct upward launch velocity (units/s). 0 = no arc. 5 = solid knock-up. 15+ = explosive.")]
+    public float launchForceY = 0f;
+
+    [Tooltip("Direct sideways launch velocity (units/s), away from attacker. 0 = no sideways drift.")]
+    public float launchForceX = 0f;
 }

@@ -9,6 +9,8 @@ public struct AttackBlob
     public float range;
     public float cooldown;
     public float ragdollForce;
+    public float launchForceY;
+    public float launchForceX;
 }
 
 public struct AttackLibraryBlob

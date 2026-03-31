@@ -14,8 +14,6 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 public partial struct FakeRagdollSystem : ISystem
 {
-    // How fast the visual child lerps toward MAX_TILT_DEG. Higher = snappier fall.
-    private const float BODY_FALL_SPEED  = 3.5f;
     // Target Z tilt in degrees. 90 = fully flat.
     private const float MAX_TILT_DEG    = 88f;
     // Joint angular velocity decay rate. Higher = arms settle sooner.
@@ -26,6 +24,9 @@ public partial struct FakeRagdollSystem : ISystem
     // Below this height the allowed range scales linearly to 0 at the boundary.
     // Increase if arms still clip near the floor; decrease if they freeze too early.
     private const float JOINT_HEIGHT_FULL_RANGE = 0.5f;
+    // Arc launch physics
+    private const float LAUNCH_GRAVITY = 20f;   // units/s² downward
+    private const float LAUNCH_X_DRAG  = 2.5f;  // exponential sideways deceleration
 
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<LocalToWorld>   localToWorldLookup;
@@ -46,12 +47,38 @@ public partial struct FakeRagdollSystem : ISystem
 
         float dt = SystemAPI.Time.DeltaTime;
 
+        // ── Root entity: arc launch physics ──────────────────────────────────
+        // Runs first so the updated root position is available to the joint clamp
+        // lookup this same frame (via transformLookup, which reads LocalTransform directly).
+        foreach (var (transform, launch) in
+            SystemAPI.Query<RefRW<LocalTransform>, RefRW<FakeRagdollLaunch>>())
+        {
+            launch.ValueRW.velocityX *= math.max(0f, 1f - LAUNCH_X_DRAG * dt);
+            launch.ValueRW.velocityY -= LAUNCH_GRAVITY * dt;
+
+            float3 pos = transform.ValueRO.Position;
+            pos.x += launch.ValueRO.velocityX * dt;
+            pos.y += launch.ValueRO.velocityY * dt;
+
+            if (pos.y <= launch.ValueRO.groundY)
+            {
+                pos.y = launch.ValueRO.groundY;
+                launch.ValueRW.velocityX = 0f;
+                launch.ValueRW.velocityY = 0f;
+            }
+
+            transform.ValueRW.Position = pos;
+        }
+
         // ── Visual child: whole-body Z tilt ─────────────────────────────────
         foreach (var (transform, ragdoll) in
             SystemAPI.Query<RefRW<LocalTransform>, RefRW<FakeRagdoll>>())
         {
             float targetAngle = MAX_TILT_DEG * ragdoll.ValueRO.fallSideSign;
-            float angle = math.lerp(ragdoll.ValueRO.bodyZAngle, targetAngle, ragdoll.ValueRO.fallSpeed * dt);
+            float current     = ragdoll.ValueRO.bodyZAngle;
+            float step        = ragdoll.ValueRO.fallSpeed * dt;
+            float diff        = targetAngle - current;
+            float angle       = math.abs(diff) <= step ? targetAngle : current + math.sign(diff) * step;
             ragdoll.ValueRW.bodyZAngle = angle;
 
             quaternion tilt = quaternion.Euler(0f, 0f, math.radians(angle));

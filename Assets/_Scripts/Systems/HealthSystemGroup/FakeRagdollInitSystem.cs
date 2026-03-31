@@ -12,19 +12,22 @@ using Unity.Transforms;
 [UpdateAfter(typeof(DeathSystem))]
 public partial struct FakeRagdollInitSystem : ISystem
 {
-    private ComponentLookup<FakeRagdoll>    ragdollLookup;
-    private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<FakeRagdoll>       ragdollLookup;
+    private ComponentLookup<FakeRagdollLaunch> launchLookup;
+    private ComponentLookup<LocalTransform>    transformLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         ragdollLookup   = state.GetComponentLookup<FakeRagdoll>(false);
+        launchLookup    = state.GetComponentLookup<FakeRagdollLaunch>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
     }
 
     public void OnUpdate(ref SystemState state)
     {
         ragdollLookup.Update(ref state);
+        launchLookup.Update(ref state);
         transformLookup.Update(ref state);
 
         foreach (var (config, joints, health, entity) in
@@ -33,6 +36,7 @@ public partial struct FakeRagdollInitSystem : ISystem
                 DynamicBuffer<FakeRagdollJointRef>,
                 RefRO<Health>>()
                     .WithAll<Dead>()
+                    .WithPresent<FakeRagdollLaunch>()
                     .WithEntityAccess())
         {
             Entity visualRoot = config.ValueRO.visualRoot;
@@ -65,6 +69,20 @@ public partial struct FakeRagdollInitSystem : ISystem
                 ? transformLookup[visualRoot].Rotation
                 : quaternion.identity;
             ragdollLookup.SetComponentEnabled(visualRoot, true);
+
+            // Enable arc launch on the root entity.
+            // launchForceY/X are direct velocities (units/s) authored per-attack — no scaling.
+            if (launchLookup.HasComponent(entity))
+            {
+                float groundY = transformLookup.HasComponent(entity) ? transformLookup[entity].Position.y : 0f;
+                launchLookup.GetRefRW(entity).ValueRW = new FakeRagdollLaunch
+                {
+                    velocityX = -fallSideSign * health.ValueRO.killLaunchForceX,
+                    velocityY = health.ValueRO.killLaunchForceY,
+                    groundY   = groundY
+                };
+                launchLookup.SetComponentEnabled(entity, true);
+            }
 
             // Reset and enable each joint — flail velocity scales with ragdollForce
             var rng = new Unity.Mathematics.Random((uint)(entity.Index + 1));

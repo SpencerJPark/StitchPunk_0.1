@@ -20,12 +20,13 @@ public class FakeRagdollRootAuthoring : MonoBehaviour
              "so the limb tip can never reach the ground plane.")]
     public List<FakeRagdollJointEntry> joints = new();
 
-    [Tooltip("Initial Z tilt speed of the body falling over (deg/s).")]
+    [Tooltip("Angular speed at which the body tips over (deg/s). 180 = reaches 90° in ~0.5s.")]
     public float bodyFallSpeed = 180f;
 
     [Tooltip("Global ground buffer: how far above root.Y to clamp all joints unless overridden per-joint. " +
              "Also lifts the visual body child off the ground by this amount.")]
     public float groundBuffer = 0.15f;
+
 
     public class Baker : Baker<FakeRagdollRootAuthoring>
     {

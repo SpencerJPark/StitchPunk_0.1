@@ -41,6 +41,14 @@ public struct FakeRagdollConfig : IComponentData
     public float fallSpeed;
 }
 
+// ── On the root body entity — enabled on death, drives the arc trajectory ───
+public struct FakeRagdollLaunch : IComponentData, IEnableableComponent
+{
+    public float velocityX;
+    public float velocityY;
+    public float groundY;   // root Y at death — clamp target when landing
+}
+
 [InternalBufferCapacity(8)]
 public struct FakeRagdollJointRef : IBufferElementData
 {

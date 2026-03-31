@@ -45,7 +45,8 @@ public partial struct UnitGravitySystem : ISystem
 }
 
 [BurstCompile]
-[WithNone(typeof(Parent))] // only roots, not visual children
+[WithNone(typeof(Parent))]  // only roots, not visual children
+[WithNone(typeof(Dead))]    // dead units are driven by FakeRagdollSystem / FakeRagdollLaunch
 public partial struct UnitGravityJob : IJobEntity
 {
     public float deltaTime;

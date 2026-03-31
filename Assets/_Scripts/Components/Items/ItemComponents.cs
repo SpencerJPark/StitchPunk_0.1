@@ -40,6 +40,8 @@ public struct ThrownItem : IComponentData, IEnableableComponent
     public float throwArc;        // set per-item in ItemAuthoring
     public int throwDamage;       // set per-item in ItemAuthoring
     public float ragdollForce;    // set per-item in ItemAuthoring
+    public float launchForceY;    // set per-item in ItemAuthoring
+    public float launchForceX;    // set per-item in ItemAuthoring
     public Entity thrower;        // set at throw time — excluded from hit detection
 }
 

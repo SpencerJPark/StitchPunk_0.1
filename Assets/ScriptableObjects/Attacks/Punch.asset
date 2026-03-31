@@ -18,3 +18,6 @@ MonoBehaviour:
   damageAmount: 5
   range: 1.5
   cooldown: 0.25
+  ragdollForce: 1.2
+  launchForceY: 0
+  launchForceX: 0
