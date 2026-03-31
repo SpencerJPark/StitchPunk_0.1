@@ -5,13 +5,13 @@ using UnityEngine.Serialization;
 public class AttackSO : ScriptableObject
 {
     [Tooltip("Attack Name")]
-    public AttackType attackType;
+    [SearchableEnum] public AttackType attackType;
 
     [Tooltip("Attack Delivery Behaviour")]
-    public AttackDelivery attackDelivery;
+    [SearchableEnum] public AttackDelivery attackDelivery;
 
     [FormerlySerializedAs("attackEffect")] [Tooltip("Damage Behaviour")]
-    public DamageBehaviour damageBehaviour;
+    [SearchableEnum] public DamageBehaviour damageBehaviour;
 
     [Tooltip("Damage dealt to target(s)")]
     public int damageAmount;

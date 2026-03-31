@@ -19,7 +19,8 @@
     SeekEntertainment,
     UseBathroom,
     Sit,
-    Death
+    Death,
+    Resurrection
 }
 
 public enum AttackType // Animation Guide

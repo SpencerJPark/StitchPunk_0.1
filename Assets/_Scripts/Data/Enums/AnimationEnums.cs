@@ -44,6 +44,7 @@ public enum AnimationType : ushort
     ResurectionEyes,
     
     MaleDeath,
+    MaleResurrection,
 }
 
 public enum AnimationLayerType

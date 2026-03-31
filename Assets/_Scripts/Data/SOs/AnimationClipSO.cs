@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 [CreateAssetMenu(fileName = "AnimationClip", menuName = "AnimationSO/Clip")]
 public class AnimationClipSO : ScriptableObject
 {
-    public AnimationType animationType;
+    [SearchableEnum] public AnimationType animationType;
     public float duration = 1f;
     public bool looping = true;
     public bool allowBlendIn = true;

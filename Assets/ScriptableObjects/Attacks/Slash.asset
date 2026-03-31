@@ -20,4 +20,4 @@ MonoBehaviour:
   cooldown: 0.25
   ragdollForce: 1
   launchForceY: 5
-  launchForceX: 14
+  launchForceX: 6

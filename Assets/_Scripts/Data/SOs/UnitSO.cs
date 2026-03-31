@@ -5,17 +5,17 @@ using System;
 [CreateAssetMenu(fileName = "Unit", menuName = "UnitSO/Unit")]
 public class UnitSO : ScriptableObject
 {
-    public UnitType unitType;
+    [SearchableEnum] public UnitType unitType;
     public GameObject prefab;
     public GameObject brainPrefab;
     
     [Tooltip("Animation Data")]
     public ActionAnimationMapping[] actionAnimations;
-    public AnimationType idleAnimation;
-    public AnimationType movingAnimation;
+    [SearchableEnum] public AnimationType idleAnimation;
+    [SearchableEnum] public AnimationType movingAnimation;
 
     [Tooltip("Default Attack")] 
-    public AttackType attackType;
+    [SearchableEnum] public AttackType attackType;
     
     [Header("Movement")]
     public float moveSpeed = 5f;
