@@ -12,13 +12,11 @@ partial struct BillboardSystem : ISystem {
 
     private ComponentLookup<LocalTransform> localTransformComponentLookup;
     private ComponentLookup<Dead>           deadLookup;
-    private ComponentLookup<Movement>       movementLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state) {
         localTransformComponentLookup = state.GetComponentLookup<LocalTransform>();
         deadLookup                    = state.GetComponentLookup<Dead>(true);
-        movementLookup                = state.GetComponentLookup<Movement>(true);
     }
 
     //[BurstCompile]
@@ -30,12 +28,10 @@ partial struct BillboardSystem : ISystem {
 
         localTransformComponentLookup.Update(ref state);
         deadLookup.Update(ref state);
-        movementLookup.Update(ref state);
         BillboardJob billboardJob = new BillboardJob {
             cameraForward                 = cameraForward,
             localTransformComponentLookup = localTransformComponentLookup,
             deadLookup                    = deadLookup,
-            movementLookup                = movementLookup,
         };
         billboardJob.ScheduleParallel();
     }
@@ -47,8 +43,7 @@ partial struct BillboardSystem : ISystem {
 [BurstCompile]
 public partial struct BillboardJob : IJobEntity {
 
-    [ReadOnly] public ComponentLookup<Dead>      deadLookup;
-    [ReadOnly] public ComponentLookup<Movement>  movementLookup;
+    [ReadOnly] public ComponentLookup<Dead> deadLookup;
 
     [NativeDisableParallelForRestriction] public ComponentLookup<LocalTransform> localTransformComponentLookup;
 
@@ -57,8 +52,7 @@ public partial struct BillboardJob : IJobEntity {
     public void Execute(in Billboard billboard, Entity entity) {
         Entity parent = billboard.parentEntity;
 
-        bool isDead   = deadLookup.HasComponent(parent) && deadLookup.IsComponentEnabled(parent);
-        bool isMoving = movementLookup.TryGetComponent(parent, out Movement movement) && movement.isMoving;
+        bool isDead = deadLookup.HasComponent(parent) && deadLookup.IsComponentEnabled(parent);
 
         LocalTransform        parentTransform = localTransformComponentLookup[parent];
         RefRW<LocalTransform> localTransform  = localTransformComponentLookup.GetRefRW(entity);
@@ -67,14 +61,14 @@ public partial struct BillboardJob : IJobEntity {
         quaternion targetLocal = parentTransform.InverseTransformRotation(
             quaternion.LookRotation(cameraForward, math.up()));
 
-        if (!isDead && isMoving)
+        if (!isDead)
         {
-            // Moving: full billboard — track camera on all axes
+            // Alive: full billboard — always track camera on all axes
             localTransform.ValueRW.Rotation = targetLocal;
             return;
         }
 
-        // Not moving / dead: freeze Y (no horizontal spin) but keep camera pitch (X tilt).
+        // Dead: freeze Y (no horizontal spin) but keep camera pitch (X tilt).
         // Decompose target into yaw (Y) and pitch (X), then substitute the entity's current yaw.
 
         // Target yaw = horizontal component of the billboard target
