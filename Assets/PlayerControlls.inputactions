@@ -79,7 +79,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Equipt3",
+                    "name": "Resurrect",
                     "type": "Button",
                     "id": "a0947f8d-82bf-413d-af4c-7720e20bbd07",
                     "expectedControlType": "",
@@ -403,7 +403,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "Equipt3",
+                    "action": "Resurrect",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -414,7 +414,18 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Equipt3",
+                    "action": "Resurrect",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "bae27791-da34-41b5-9c41-c77cacc82e2b",
+                    "path": "<Keyboard>/r",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Resurrect",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

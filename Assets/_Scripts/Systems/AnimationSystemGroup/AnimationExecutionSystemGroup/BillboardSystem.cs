@@ -11,14 +11,14 @@ partial struct BillboardSystem : ISystem {
 
 
     private ComponentLookup<LocalTransform> localTransformComponentLookup;
-    private ComponentLookup<Health> healthComponentLookup;
-    private ComponentLookup<PostTransformMatrix> postTransformMatrixComponentLookup;
+    private ComponentLookup<Dead>           deadLookup;
+    private ComponentLookup<Movement>       movementLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state) {
         localTransformComponentLookup = state.GetComponentLookup<LocalTransform>();
-        healthComponentLookup = state.GetComponentLookup<Health>(true);
-        postTransformMatrixComponentLookup = state.GetComponentLookup<PostTransformMatrix>(false);
+        deadLookup                    = state.GetComponentLookup<Dead>(true);
+        movementLookup                = state.GetComponentLookup<Movement>(true);
     }
 
     //[BurstCompile]
@@ -29,13 +29,13 @@ partial struct BillboardSystem : ISystem {
         }
 
         localTransformComponentLookup.Update(ref state);
-        healthComponentLookup.Update(ref state);
-        postTransformMatrixComponentLookup.Update(ref state);
+        deadLookup.Update(ref state);
+        movementLookup.Update(ref state);
         BillboardJob billboardJob = new BillboardJob {
-            cameraForward = cameraForward,
+            cameraForward                 = cameraForward,
             localTransformComponentLookup = localTransformComponentLookup,
-            healthComponentLookup = healthComponentLookup,
-            postTransformMatrixComponentLookup = postTransformMatrixComponentLookup,
+            deadLookup                    = deadLookup,
+            movementLookup                = movementLookup,
         };
         billboardJob.ScheduleParallel();
     }
@@ -47,19 +47,51 @@ partial struct BillboardSystem : ISystem {
 [BurstCompile]
 public partial struct BillboardJob : IJobEntity {
 
-
-    [ReadOnly] public ComponentLookup<Health> healthComponentLookup;
+    [ReadOnly] public ComponentLookup<Dead>      deadLookup;
+    [ReadOnly] public ComponentLookup<Movement>  movementLookup;
 
     [NativeDisableParallelForRestriction] public ComponentLookup<LocalTransform> localTransformComponentLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<PostTransformMatrix> postTransformMatrixComponentLookup;
-
 
     public float3 cameraForward;
 
-
     public void Execute(in Billboard billboard, Entity entity) {
-        RefRW<LocalTransform> localTransform = localTransformComponentLookup.GetRefRW(entity);
-        LocalTransform parentLocalTransform = localTransformComponentLookup[billboard.parentEntity];
-        localTransform.ValueRW.Rotation = parentLocalTransform.InverseTransformRotation(quaternion.LookRotation(cameraForward, math.up()));
+        Entity parent = billboard.parentEntity;
+
+        bool isDead   = deadLookup.HasComponent(parent) && deadLookup.IsComponentEnabled(parent);
+        bool isMoving = movementLookup.TryGetComponent(parent, out Movement movement) && movement.isMoving;
+
+        LocalTransform        parentTransform = localTransformComponentLookup[parent];
+        RefRW<LocalTransform> localTransform  = localTransformComponentLookup.GetRefRW(entity);
+
+        // Full billboard target (local space)
+        quaternion targetLocal = parentTransform.InverseTransformRotation(
+            quaternion.LookRotation(cameraForward, math.up()));
+
+        if (!isDead && isMoving)
+        {
+            // Moving: full billboard — track camera on all axes
+            localTransform.ValueRW.Rotation = targetLocal;
+            return;
+        }
+
+        // Not moving / dead: freeze Y (no horizontal spin) but keep camera pitch (X tilt).
+        // Decompose target into yaw (Y) and pitch (X), then substitute the entity's current yaw.
+
+        // Target yaw = horizontal component of the billboard target
+        float3 targetFwd     = math.rotate(targetLocal, math.forward());
+        float3 targetFlatFwd = math.normalizesafe(new float3(targetFwd.x, 0f, targetFwd.z));
+        if (math.lengthsq(targetFlatFwd) < 0.001f) return; // camera pointing straight up/down — skip
+        quaternion targetYaw   = quaternion.LookRotationSafe(targetFlatFwd, math.up());
+        quaternion targetPitch = math.mul(math.inverse(targetYaw), targetLocal); // pitch relative to yaw
+
+        // Current yaw = entity's current horizontal facing direction
+        float3 currentFwd     = math.rotate(localTransform.ValueRO.Rotation, math.forward());
+        float3 currentFlatFwd = math.normalizesafe(new float3(currentFwd.x, 0f, currentFwd.z));
+        quaternion currentYaw = math.lengthsq(currentFlatFwd) > 0.001f
+            ? quaternion.LookRotationSafe(currentFlatFwd, math.up())
+            : targetYaw; // no valid current forward — fall back to camera yaw
+
+        // Keep current Y, apply camera pitch
+        localTransform.ValueRW.Rotation = math.mul(currentYaw, targetPitch);
     }
 }
