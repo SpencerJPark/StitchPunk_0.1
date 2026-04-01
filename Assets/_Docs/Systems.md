@@ -30,7 +30,7 @@ CombatSystemGroup
 HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — spawn new units, rebuild animator targets
-  └── (loose systems)        — pool return, event resets, FakeRagdollSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
+  └── (loose systems)        — pool return, event resets, Ragdoll2DSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
 PresentationSystemGroup      — selection outlines (runs after transforms settled)
 ```
 
@@ -50,7 +50,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `UnitLibraryBakingSystem` | `UnitLibraryBakingSystem.cs` | UnitLibrarySO → UnitLibraryBlob + UnitPrefabEntry |
 | `ScoringLibraryBakingSystem` | `ScoringLibraryBakingSystem.cs` | AIScoringLibrarySO → AIScoringLibraryBlob |
 | `AttackLibraryBakingSystem` | `AttackLibraryBakingSystem.cs` | AttackLibrarySO → AttackLibraryBlob |
-| `FakeRagdollBakingSystem` | `FakeRagdollBakingSystem.cs` | Adds `FakeRagdoll` (disabled) to visual root child, `FakeRagdollJoint` (disabled) to each joint pivot — cannot be done in baker because they are other GOs' entities |
+| `Ragdoll2DBakingSystem` | `Ragdoll2DBakingSystem.cs` | Adds `Ragdoll2D` (disabled) to visual root child, `Ragdoll2DJoint` (disabled) to each joint pivot — cannot be done in baker because they are other GOs' entities |
 
 ---
 
@@ -102,13 +102,13 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | System | File | Purpose |
 |---|---|---|
 | `DeathSystem` | `DeathSystem.cs` | Detects zero health, enables `Dead`, disables `Alive` |
-| `FakeRagdollInitSystem` | `FakeRagdollInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Hurt` buffer to determine fall direction (away from attacker), enables and resets `FakeRagdoll` + `FakeRagdollJoint` components with randomised flail velocity |
+| `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Hurt` buffer to determine fall direction (away from attacker), enables and resets `Ragdoll2D` + `Ragdoll2DJoint` components with randomised flail velocity |
 | `HealSystem` | `HealSystem.cs` | Applies `Heal` component when enabled |
 | `ReviveSystem` | `ReviveSystem.cs` | Handles `Revive` — re-enables unit from dead state |
-| `FakeRagdollReviveSystem` | `FakeRagdollReviveSystem.cs` | Runs after `ReviveSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
+| `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
 
-> ⚠ **`FakeRagdollSystem` does NOT run in HealthSystemGroup** — it is in `LateSimulationSystemGroup` so it runs *after* `ApplyAnimatedPoseSystem`, which would otherwise overwrite the ragdoll transforms every frame.
+> ⚠ **`Ragdoll2DSystem` does NOT run in HealthSystemGroup** — it is in `LateSimulationSystemGroup` so it runs *after* `ApplyAnimatedPoseSystem`, which would otherwise overwrite the ragdoll transforms every frame.
 
 ---
 
@@ -122,7 +122,7 @@ Runs at end of frame. Safe zone for spawn/despawn and event cleanup.
 | `AnimatorTargetInitSystem` | `SpawnSystemGroup/AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer on newly spawned bodies |
 | `UnitPoolReturnSystem` | `UnitPoolReturnSystem.cs` | Disables dead units and returns them to pool |
 | `ResetEventsSystem` | `ResetEventsSystem.cs` | Clears one-frame event flags (onSelected, onDeselected, etc.) |
-| `FakeRagdollSystem` | `HealthSystemGroup/FakeRagdollSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88° (direction from `fallSideSign`), decays joint angular velocity, clamps joints to ±75°, ground-clamps joint world Y against root Y + buffer |
+| `Ragdoll2DSystem` | `HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88° (direction from `fallSideSign`), decays joint angular velocity, clamps joints to ±75°, ground-clamps joint world Y against root Y + buffer |
 
 > `SpawnSystemGroup` is a sub-group nested inside `LateSimulationSystemGroup`.
 

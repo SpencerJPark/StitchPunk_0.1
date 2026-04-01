@@ -55,7 +55,7 @@ They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, whi
 | `InteractionAuthoring.cs` | Marks an object as a waypoint interaction target |
 | `UnitSpawnerAuthoring.cs` | Configures the spawner with prefab references |
 | `UnitLibraryAuthoring.cs` | Bakes all UnitSOs into a unified BlobAsset |
-| `FakeRagdollRootAuthoring.cs` | Place on root body entity only. Drag in `visualChild` and `joints` list. Baker writes `FakeRagdollConfig` + `FakeRagdollJointRef` buffer to root; `FakeRagdollBakingSystem` then adds ragdoll components to the child entities |
+| `Ragdoll2DRootAuthoring.cs` | Place on root body entity only. Drag in `visualChild` and `joints` list. Baker writes `Ragdoll2DConfig` + `Ragdoll2DJointRef` buffer to root; `Ragdoll2DBakingSystem` then adds ragdoll components to the child entities |
 | `ItemAuthoring.cs` | Bakes item identity + `ThrownItem` with per-item `throwSpeed`, `throwArc`, `throwDamage` |
 | `PlayerAuthoring.cs` | Bakes player entity; assign `aimIndicator` child GO for the aim arrow visual |
 
@@ -71,4 +71,4 @@ A Baker can **only** call `AddComponent` / `AddBuffer` on the entity returned by
 2. A `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]` system in `PostBakingSystemGroup` reads the config, iterates child entities, and calls `em.AddComponentData` on them.
 3. Collect adds into a `NativeList` during the query — **do not call `em.AddComponentData` inside `SystemAPI.Query` iteration** (structural change during query = exception).
 
-`FakeRagdollRootAuthoring` + `FakeRagdollBakingSystem` is the reference implementation of this pattern.
+`Ragdoll2DRootAuthoring` + `Ragdoll2DBakingSystem` is the reference implementation of this pattern.

@@ -32,7 +32,7 @@ public partial struct DamageApplicationJob : IJobEntity
         for (int i = 0; i < hurtBuffer.Length; i++)
             totalDamage += hurtBuffer[i].damageAmount;
 
-        // Capture the killing blow data before clearing — used by FakeRagdollInitSystem
+        // Capture the killing blow data before clearing — used by Ragdoll2DInitSystem
         // after the buffer is gone.
         Hurt killingBlow        = hurtBuffer[hurtBuffer.Length - 1];
         health.killSourceX      = killingBlow.hitSourceX;

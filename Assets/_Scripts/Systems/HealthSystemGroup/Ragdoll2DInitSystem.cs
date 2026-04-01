@@ -4,23 +4,23 @@ using Unity.Transforms;
 
 /// <summary>
 /// Detects freshly dead units and enables/resets the fake ragdoll components.
-/// Dead stays enabled until revived — FakeRagdollReviveSystem handles cleanup.
+/// Dead stays enabled until revived — Ragdoll2DReviveSystem handles cleanup.
 /// Reads the Hurt buffer to determine which side the killing blow came from
 /// so the body falls away from the attacker.
 /// </summary>
 [UpdateInGroup(typeof(HealthSystemGroup))]
 [UpdateAfter(typeof(DeathSystem))]
-public partial struct FakeRagdollInitSystem : ISystem
+public partial struct Ragdoll2DInitSystem : ISystem
 {
-    private ComponentLookup<FakeRagdoll>       ragdollLookup;
-    private ComponentLookup<FakeRagdollLaunch> launchLookup;
+    private ComponentLookup<Ragdoll2D>       ragdollLookup;
+    private ComponentLookup<Ragdoll2DLaunch> launchLookup;
     private ComponentLookup<LocalTransform>    transformLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        ragdollLookup   = state.GetComponentLookup<FakeRagdoll>(false);
-        launchLookup    = state.GetComponentLookup<FakeRagdollLaunch>(false);
+        ragdollLookup   = state.GetComponentLookup<Ragdoll2D>(false);
+        launchLookup    = state.GetComponentLookup<Ragdoll2DLaunch>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
     }
 
@@ -30,13 +30,14 @@ public partial struct FakeRagdollInitSystem : ISystem
         launchLookup.Update(ref state);
         transformLookup.Update(ref state);
 
-        foreach (var (config, joints, health, entity) in
+        foreach (var (config, joints, zones, health, entity) in
             SystemAPI.Query<
-                RefRO<FakeRagdollConfig>,
-                DynamicBuffer<FakeRagdollJointRef>,
+                RefRO<Ragdoll2DConfig>,
+                DynamicBuffer<Ragdoll2DJointRef>,
+                DynamicBuffer<Ragdoll2DJointZone>,
                 RefRO<Health>>()
                     .WithAll<Dead>()
-                    .WithPresent<FakeRagdollLaunch>()
+                    .WithPresent<Ragdoll2DLaunch>()
                     .WithEntityAccess())
         {
             Entity visualRoot = config.ValueRO.visualRoot;
@@ -60,8 +61,13 @@ public partial struct FakeRagdollInitSystem : ISystem
             float ragdollForce = math.max(0.1f, health.ValueRO.killRagdollForce);
 
             // Reset and enable body tilt — fallSpeed scales how fast the body tips over
-            ref FakeRagdoll ragdoll = ref ragdollLookup.GetRefRW(visualRoot).ValueRW;
-            ragdoll.groundBuffer    = config.ValueRO.groundBuffer;
+            ref Ragdoll2D ragdoll = ref ragdollLookup.GetRefRW(visualRoot).ValueRW;
+            ragdoll.groundBuffer    = fallSideSign >= 0f
+                ? config.ValueRO.groundBufferForward
+                : config.ValueRO.groundBufferBackward;
+            ragdoll.tiltOffset      = fallSideSign >= 0f
+                ? config.ValueRO.tiltOffsetForward
+                : config.ValueRO.tiltOffsetBackward;
             ragdoll.fallSpeed       = config.ValueRO.fallSpeed * ragdollForce;
             ragdoll.bodyZAngle      = 0f;
             ragdoll.fallSideSign    = fallSideSign;
@@ -75,7 +81,7 @@ public partial struct FakeRagdollInitSystem : ISystem
             if (launchLookup.HasComponent(entity))
             {
                 float groundY = transformLookup.HasComponent(entity) ? transformLookup[entity].Position.y : 0f;
-                launchLookup.GetRefRW(entity).ValueRW = new FakeRagdollLaunch
+                launchLookup.GetRefRW(entity).ValueRW = new Ragdoll2DLaunch
                 {
                     velocityX = -fallSideSign * health.ValueRO.killLaunchForceX,
                     velocityY = health.ValueRO.killLaunchForceY,
@@ -84,28 +90,37 @@ public partial struct FakeRagdollInitSystem : ISystem
                 launchLookup.SetComponentEnabled(entity, true);
             }
 
-            // Reset and enable each joint — flail velocity scales with ragdollForce
+            // Reset and enable each joint — pick a random target angle from the authored landing zones
             var rng = new Unity.Mathematics.Random((uint)(entity.Index + 1));
 
             for (int i = 0; i < joints.Length; i++)
             {
                 Entity jointEntity = joints[i].joint;
                 if (jointEntity == Entity.Null) continue;
-                if (!state.EntityManager.HasComponent<FakeRagdollJoint>(jointEntity)) continue;
+                if (!state.EntityManager.HasComponent<Ragdoll2DJoint>(jointEntity)) continue;
 
                 LocalTransform jointTransform = transformLookup.HasComponent(jointEntity)
                     ? transformLookup[jointEntity]
                     : LocalTransform.Identity;
 
-                float buf = joints[i].groundBuffer > 0f ? joints[i].groundBuffer : config.ValueRO.groundBuffer;
-                state.EntityManager.SetComponentData(jointEntity, new FakeRagdollJoint
+                // Pick a random zone then a random angle within it
+                float targetAngle = 0f;
+                int zoneCount = joints[i].zoneCount;
+                if (zoneCount > 0)
                 {
-                    groundBuffer         = buf,
-                    zAngularVelocity     = rng.NextFloat(120f, 360f) * (rng.NextBool() ? 1f : -1f) * ragdollForce,
+                    int zoneIdx = joints[i].zoneStart + rng.NextInt(0, zoneCount);
+                    var zone = zones[zoneIdx];
+                    targetAngle = rng.NextFloat(zone.min, zone.max);
+                }
+
+                state.EntityManager.SetComponentData(jointEntity, new Ragdoll2DJoint
+                {
+                    settleSpeed          = joints[i].settleSpeed,
+                    targetAngle          = targetAngle,
                     currentZAngle        = 0f,
                     initialLocalRotation = jointTransform.Rotation
                 });
-                state.EntityManager.SetComponentEnabled<FakeRagdollJoint>(jointEntity, true);
+                state.EntityManager.SetComponentEnabled<Ragdoll2DJoint>(jointEntity, true);
             }
         }
     }

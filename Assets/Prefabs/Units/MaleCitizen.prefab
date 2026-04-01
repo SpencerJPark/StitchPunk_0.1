@@ -2587,7 +2587,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 14d360c5a6f8d4d4cbd374a60bdfa72a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::FakeRagdollRootAuthoring
+  m_EditorClassIdentifier: StitchPunk.Authoring::Ragdoll2DRootAuthoring
   visualChild: {fileID: 3639368511859928072}
   joints:
   - {fileID: 5407039115034996653}

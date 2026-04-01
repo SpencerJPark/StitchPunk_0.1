@@ -107,7 +107,7 @@ InvalidOperationException: Entity doesn't belong to the current authoring compon
 
 **Fix:** Write only config + entity refs to the root entity in the Baker. Use a `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]` system in `PostBakingSystemGroup` to distribute components to child entities after bake.
 
-See `FakeRagdollRootAuthoring` + `FakeRagdollBakingSystem` as the reference implementation.
+See `Ragdoll2DRootAuthoring` + `Ragdoll2DBakingSystem` as the reference implementation.
 
 ### Structural changes are not allowed during SystemAPI.Query iteration
 Calling `em.AddComponentData` or `em.AddComponent` inside a `foreach (... in SystemAPI.Query<>())` loop throws:
@@ -122,7 +122,7 @@ InvalidOperationException: Structural changes are not allowed while iterating ov
 ## Fake Ragdoll — Known Issues (WIP)
 
 ### Ground clamp must compare JOINT world Y, not root world Y
-The ground clamp logic in `FakeRagdollSystem` needs to compare the **joint entity's** `LocalToWorld.Position.y` against `rootWorldY + groundBuffer`. An earlier version compared `root.LocalToWorld.y` against the same expression — since both sides derived from the root, the condition was always true and velocity was zeroed every frame (joints never moved).
+The ground clamp logic in `Ragdoll2DSystem` needs to compare the **joint entity's** `LocalToWorld.Position.y` against `rootWorldY + groundBuffer`. An earlier version compared `root.LocalToWorld.y` against the same expression — since both sides derived from the root, the condition was always true and velocity was zeroed every frame (joints never moved).
 
 **Always use `.WithEntityAccess()` on the joint query and check `localToWorldLookup[jointEntity].Position.y`.**
 

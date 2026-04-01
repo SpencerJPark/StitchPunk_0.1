@@ -37,7 +37,7 @@ public struct Health : IComponentData
     public int healthAmount;
     public int healthAmountMax;
     // Snapshot of the killing blow — written by DamageApplicationJob before
-    // the Hurt buffer is cleared, then read by FakeRagdollInitSystem.
+    // the Hurt buffer is cleared, then read by Ragdoll2DInitSystem.
     public float killSourceX;
     public float killRagdollForce;
     public float killLaunchForceY;
