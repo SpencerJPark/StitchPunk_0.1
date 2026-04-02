@@ -80,7 +80,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
                 Filter = new CollisionFilter
                 {
                     BelongsTo = ~0u,
-                    CollidesWith = 1u << GlobalGameData.WALLS_LAYER,
+                    CollidesWith = 1u << ConstGameData.WALLS_LAYER,
                     GroupIndex = 0
                 }
             };
@@ -146,7 +146,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             float3 moveVector = GridSystem.GetWorldMovementVector(flowVector);
 
             // Handle wall cells - use last valid direction
-            if (costs[localIndex] == GlobalGameData.WALL_COST)
+            if (costs[localIndex] == ConstGameData.WALL_COST)
             {
                 moveVector = follower.lastMoveVector;
             }

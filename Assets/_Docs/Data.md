@@ -70,3 +70,51 @@ Runtime systems never access SOs. Instead, `PostBakingSystemGroup` bakes each SO
 ## UnitSO vs UnitLibrarySO
 
 `UnitSO` is a per-unit-type data asset (stats, prefab refs, default motivation values). `UnitLibrarySO` is the registry that holds all `UnitSO`s and bakes them together into `UnitLibraryBlob`. When adding a new unit type, you need both.
+
+---
+
+## Global Constants (`Data/GlobalGameData.cs`)
+
+`GlobalGameData` is a **plain `static class`** — no MonoBehaviour, no scene instance. All values are `const` and are inlined by the compiler, making them safe in Burst jobs.
+
+```csharp
+// Physics layers
+GlobalGameData.GROUND_LAYER             // 3
+GlobalGameData.UNITS_LAYER              // 6
+GlobalGameData.WALLS_LAYER              // 8
+// ... (see file for full list)
+
+// Pathfinding costs
+GlobalGameData.WALL_COST                // byte.MaxValue
+GlobalGameData.DEFAULT_COST             // 1
+
+// AI
+GlobalGameData.SCORING_CURVE_RESOLUTION // 32
+```
+
+Designer-tweakable values (e.g. `animationFrameRate`) are **not** here — they live in `GameSettings` on the GameData entity and are saved/loaded per slot.
+
+---
+
+## Save File DTOs (`Data/Structs/SaveFile.cs`)
+
+Plain C# classes with `[Serializable]` for `JsonUtility`. **Never put ECS types** (`float3`, `quaternion`, `Entity`) in these — flatten to primitives.
+
+```
+SaveFile
+    int              version
+    PlayerSaveData   player
+    SettingsSaveData settings
+
+PlayerSaveData
+    float  posX/Y/Z, rotX/Y/Z/W     — position + rotation
+    int    currentHp, maxHp
+    double totalPlaySeconds
+    int    equippedItemType          — int cast of ItemType enum (restore TODO: needs spawn/equip integration)
+    int    itemSlot1–4               — int cast of ItemType enum
+
+SettingsSaveData
+    int    animationFrameRate
+```
+
+Save files are written to `Application.persistentDataPath/save_slot_N.json`. Use `SavePaths.GetSlotPath(slot)` to resolve the path.

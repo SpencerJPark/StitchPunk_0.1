@@ -3,7 +3,7 @@
 /// Accessible from ECS systems, MonoBehaviours, and Burst jobs — const values are inlined by the compiler.
 /// Tweakable designer values (animationFrameRate, etc.) live in GameSettings / GameDataAuthoring instead.
 /// </summary>
-public static class GlobalGameData
+public static class ConstGameData
 {
     // Physics layers
     public const int DEFAULT_LAYER           = 0;

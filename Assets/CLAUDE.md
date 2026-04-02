@@ -43,18 +43,29 @@ The Brain holds different AI behaviour sets per unit type — a living Citizen a
 |---|---|---|
 | `_Scripts/` | [RULES.md](_Docs/RULES.md) | Hard technical rules for the whole codebase |
 | `_Scripts/Authoring/` | [Authoring.md](_Docs/Authoring.md) | Baker pattern, unit prefab setup, how to wire new units |
+| `_Scripts/Authoring/Save/` | [Authoring.md](_Docs/Authoring.md) | `GameDataAuthoring` — bakes the GameData singleton entity (save, settings) |
 | `_Scripts/Components/` | [Components.md](_Docs/Components.md) | IComponentData / IBufferElementData conventions |
+| `_Scripts/Components/Save/` | [Components.md](_Docs/Components.md) | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
 | `_Scripts/Systems/` | [Systems.md](_Docs/Systems.md) | System group order, ISystem rules, Burst |
 | `_Scripts/Systems/AISystemGroup/` | [Systems_AI.md](_Docs/Systems_AI.md) | Motivation scoring, waypoint interactions, Brain/Body |
 | `_Scripts/Systems/AnimationSystemGroup/` | [Systems_Animation.md](_Docs/Systems_Animation.md) | Layered quad animation, clip SO pipeline |
 | `_Scripts/Systems/MovementSystemGroup/` | [Systems_Movement.md](_Docs/Systems_Movement.md) | Flowfield, D* Lite, horde formation |
-| `_Scripts/Data/` | [Data.md](_Docs/Data.md) | ScriptableObject pattern, BlobAsset baking, enums |
+| `_Scripts/Systems/SaveSystemGroup/` | [Systems.md](_Docs/Systems.md) | Play time tracking, auto-save timer, save/load to JSON on disk |
+| `_Scripts/Data/` | [Data.md](_Docs/Data.md) | ScriptableObject pattern, BlobAsset baking, enums, save DTOs |
 | `_Scripts/Core/` | [Core.md](_Docs/Core.md) | Singletons, legacy files, what to avoid |
 | `_Scripts/MonoBehaviours/` | [MonoBehaviours.md](_Docs/MonoBehaviours.md) | Managers, input, camera (non-ECS layer) |
 
 ---
 
-## Current Status (as of 2026-03-22)
+## Current Status (as of 2026-04-01)
+
+**Save system added.** `SaveSystemGroup` (OrderLast in `LateSimulationSystemGroup`) handles auto-save, manual save, and load via `SaveRequest` / `LoadRequest` enableable components on the GameData entity. Save files are JSON at `Application.persistentDataPath/save_slot_N.json`. See `Systems/SaveSystemGroup/`.
+
+**GameData singleton entity** (`GameDataAuthoring`) is the single baked entity that carries all persistent game data components: `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings`. Place one `GameDataAuthoring` GO in every game scene.
+
+**`GlobalGameData` is now a static class** — no MonoBehaviour, no scene instance needed. All values are `const` (layer indices, pathfinding costs, scoring resolution). Designer-tweakable values (e.g. `animationFrameRate`) live in `GameSettings` on the GameData entity instead.
+
+**Throw system fix.** Items now ignore units within 1.2 units of the throw origin — prevents standing next to a dead body from immediately blocking the throw. Walls are unaffected (no `Health` component).
 
 **Animation fix shipped.** Root cause: `AnimatorTargetInitSystem` used `BaseParent` matching to rebuild the `AnimatorTarget` buffer after spawn. This silently skipped any quad whose `characterRoot` inspector field didn't point to the exact body root GO. Only the eyebrow (the one correctly configured quad) animated.
 

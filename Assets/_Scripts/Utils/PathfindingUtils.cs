@@ -89,7 +89,7 @@ public static class PathfindingUtils
     public static bool IsWalkable(int2 pos, int width, NativeArray<byte> costMap)
     {
         int index = CalculateIndex(pos, width);
-        return costMap[index] != GlobalGameData.WALL_COST;
+        return costMap[index] != ConstGameData.WALL_COST;
     }
     
     /// <summary>
@@ -235,7 +235,7 @@ public static class PathfindingUtils
             return float2.zero;
             
         int localIndex = x + y * width;
-        if (costMap[localIndex] == GlobalGameData.WALL_COST)
+        if (costMap[localIndex] == ConstGameData.WALL_COST)
             return float2.zero;
             
         return vectors[gridIndex * cellCount + localIndex];
@@ -342,7 +342,7 @@ public static class PathfindingUtils
                 if (!IsValidPosition(neighborPos, width, height))
                     continue;
                     
-                if (costMap[CalculateIndex(neighborPos, width)] == GlobalGameData.WALL_COST)
+                if (costMap[CalculateIndex(neighborPos, width)] == ConstGameData.WALL_COST)
                     continue;
                     
                 neighbors.Add(neighborPos);
@@ -366,7 +366,7 @@ public static class PathfindingUtils
             if (!IsValidPosition(neighborPos, width, height))
                 continue;
                 
-            if (costMap[CalculateIndex(neighborPos, width)] == GlobalGameData.WALL_COST)
+            if (costMap[CalculateIndex(neighborPos, width)] == ConstGameData.WALL_COST)
                 continue;
                 
             neighbors.Add(neighborPos);
@@ -396,7 +396,7 @@ public static class PathfindingUtils
             if (!IsValidPosition(current, width, height))
                 return false;
                 
-            if (costMap[CalculateIndex(current, width)] == GlobalGameData.WALL_COST)
+            if (costMap[CalculateIndex(current, width)] == ConstGameData.WALL_COST)
                 return false;
             
             int e2 = 2 * err;

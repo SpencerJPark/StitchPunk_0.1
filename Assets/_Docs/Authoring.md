@@ -58,6 +58,7 @@ They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, whi
 | `Ragdoll2DRootAuthoring.cs` | Place on root body entity only. Drag in `visualChild` and `joints` list. Baker writes `Ragdoll2DConfig` + `Ragdoll2DJointRef` buffer to root; `Ragdoll2DBakingSystem` then adds ragdoll components to the child entities |
 | `ItemAuthoring.cs` | Bakes item identity + `ThrownItem` with per-item `throwSpeed`, `throwArc`, `throwDamage` |
 | `PlayerAuthoring.cs` | Bakes player entity; assign `aimIndicator` child GO for the aim arrow visual |
+| `GameDataAuthoring.cs` | Bakes the GameData singleton entity — place one in every game scene. Inspector exposes `autoSaveIntervalSeconds` and `animationFrameRate`. Adds `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
 
 ---
 

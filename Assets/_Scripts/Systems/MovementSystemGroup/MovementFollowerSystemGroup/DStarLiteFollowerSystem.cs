@@ -75,7 +75,7 @@ public partial struct DStarLineOfSightJob : IJobEntity
             Filter = new CollisionFilter
             {
                 BelongsTo = ~0u,
-                CollidesWith = 1u << GlobalGameData.WALLS_LAYER,
+                CollidesWith = 1u << ConstGameData.WALLS_LAYER,
                 GroupIndex = 0
             }
         };

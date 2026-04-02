@@ -36,6 +36,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `UnitPrefabEntry` |
 | `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
 | `SceneTags.cs` | `Components/Tags/` | `MainMenuTag`, `GameSceneTag` |
+| `GameDataComponents.cs` | `Components/Save/` | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
 
 ---
 
@@ -307,6 +308,29 @@ AimPlayerInput (enableable)     tag — hold-aim is active; locks movement, enab
 LookPlayerInput (enableable)    tag — right-stick / mouse aim direction is being read
 AimDirection                    float3 direction — current XZ aim direction, updated by PlayerAimSystem
 AimIndicatorRef                 Entity visualEntity — the arrow indicator child entity (shown at scale 1 while aiming, 0 while not)
+```
+
+---
+
+## Save / Game Data Components (`Components/Save/GameDataComponents.cs`)
+
+All live on the single **GameData entity** (identified by `GameDataTag`). Access via `SystemAPI.GetSingleton<T>()`.
+
+```
+GameDataTag             singleton identity — use GetSingletonEntity<GameDataTag>() to find the entity
+
+SaveRequest (enableable)    int slot    — enable to trigger a save (slot 0 = auto, 1–3 = manual)
+LoadRequest (enableable)    int slot    — enable to trigger a load
+
+AutoSaveTimer
+    float elapsedSeconds    — time since last auto-save
+    float intervalSeconds   — authored interval (default 300s); set in GameDataAuthoring inspector
+
+PlayTimeTracker
+    double totalSeconds     — accumulated play time; double for long-session precision
+
+GameSettings
+    int animationFrameRate  — flipbook playback rate shared by all animated units; saved/loaded per slot
 ```
 
 ---

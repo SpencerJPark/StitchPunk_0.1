@@ -26,8 +26,8 @@ public partial struct UnitGravitySystem : ISystem
         CollisionFilter filter = new CollisionFilter
         {
             BelongsTo    = ~0u,
-            CollidesWith = (1u << GlobalGameData.GROUND_LAYER) |
-                           (1u << GlobalGameData.STRUCTURES_LAYER),
+            CollidesWith = (1u << ConstGameData.GROUND_LAYER) |
+                           (1u << ConstGameData.STRUCTURES_LAYER),
             GroupIndex   = 0,
         };
 

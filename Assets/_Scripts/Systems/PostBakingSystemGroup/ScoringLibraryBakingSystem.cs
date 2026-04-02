@@ -36,7 +36,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
             ref AIScoringCurveEntryBlob entryBlob = ref curvesBuilder[i];
             entryBlob.motivationType = curveAsset.motivationType;
 
-            int res = GlobalGameData.SCORING_CURVE_RESOLUTION;
+            int res = ConstGameData.SCORING_CURVE_RESOLUTION;
             entryBlob.curve.resolution = res;
 
             var samplesBuilder = builder.Allocate(ref entryBlob.curve.samples, res);

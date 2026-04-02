@@ -84,7 +84,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 |---|---|---|
 | `ThrownItemHitSystem` | `ThrownItemHitSystem.cs` | Proximity-based hit detection for thrown items (no physics collider required). XZ-only distance check; on hit writes to `Hurt` buffer, disables `ThrownItem`, enables `PlayerInteractable` |
 
-> Thrown items skip the `thrower` entity stored on `ThrownItem` to prevent self-hit on the throw frame.
+> Thrown items skip the `thrower` entity and ignore all hits until the item has traveled **1.2 units** from `ThrownItem.throwOrigin` — prevents a body right next to the player from immediately blocking the throw. Walls are unaffected (no `Health` component).
 
 ---
 
@@ -131,7 +131,7 @@ Runs at end of frame. Safe zone for spawn/despawn and event cleanup.
 
 ### SaveSystemGroup (`Systems/SaveSystemGroup/`)
 
-Runs `OrderLast` inside `LateSimulationSystemGroup` — after all spawns, despawns, and events have settled. Systems that need to trigger a save or load enable `SaveRequest` / `LoadRequest` (both `IEnableableComponent`) on the save entity (identified by `SaveTag`).
+Runs `OrderLast` inside `LateSimulationSystemGroup` — after all spawns, despawns, and events have settled. Systems that need to trigger a save or load enable `SaveRequest` / `LoadRequest` (both `IEnableableComponent`) on the GameData entity (identified by `GameDataTag`).
 
 | System | File | Purpose |
 |---|---|---|
