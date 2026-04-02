@@ -94,3 +94,8 @@ public partial class SpawnSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 public partial class DespawnSystemGroup : ComponentSystemGroup { }
+
+
+// Runs last in LateSimulationSystemGroup — all spawns, despawns, and game logic are settled.
+[UpdateInGroup(typeof(LateSimulationSystemGroup), OrderLast = true)]
+public partial class SaveSystemGroup : ComponentSystemGroup { }

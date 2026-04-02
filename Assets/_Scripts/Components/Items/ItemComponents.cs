@@ -43,6 +43,7 @@ public struct ThrownItem : IComponentData, IEnableableComponent
     public float launchForceY;    // set per-item in ItemAuthoring
     public float launchForceX;    // set per-item in ItemAuthoring
     public Entity thrower;        // set at throw time — excluded from hit detection
+    public float3 throwOrigin;    // world position at throw time — used to skip hits until item clears nearby units
 }
 
 // Stored on the item root. Points to the child entity whose transform is the

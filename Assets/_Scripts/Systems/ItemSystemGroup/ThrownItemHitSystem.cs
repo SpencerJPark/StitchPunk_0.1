@@ -63,6 +63,15 @@ public partial struct ThrownItemHitSystem : ISystem
             const float hitRadius = 0.6f;
             float hitRadiusSq = hitRadius * hitRadius;
 
+            // Skip hit detection until item has traveled past nearby units.
+            // Prevents standing next to a body from immediately blocking the throw.
+            // Walls are not entities with Health so they are unaffected.
+            const float minTravelDist = 1.2f;
+            float3 originDelta = itemPos - thrownItem.ValueRO.throwOrigin;
+            float travelDistSq = originDelta.x * originDelta.x + originDelta.z * originDelta.z;
+            if (travelDistSq < minTravelDist * minTravelDist)
+                continue;
+
             for (int i = 0; i < targets.Length; i++)
             {
                 TargetData t = targets[i];

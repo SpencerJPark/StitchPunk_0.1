@@ -92,7 +92,8 @@ public partial struct PlayerUnequipSystem : ISystem
                 throwSpeed  = thrownItem.throwSpeed,
                 throwArc    = thrownItem.throwArc,
                 throwDamage = thrownItem.throwDamage,
-                thrower     = playerEntity
+                thrower     = playerEntity,
+                throwOrigin = worldPos
             });
             state.EntityManager.SetComponentEnabled<ThrownItem>(itemEntity, true);
 

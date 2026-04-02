@@ -30,7 +30,8 @@ CombatSystemGroup
 HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — spawn new units, rebuild animator targets
-  └── (loose systems)        — pool return, event resets, Ragdoll2DSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
+  ├── (loose systems)        — pool return, event resets, Ragdoll2DSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
+  └── SaveSystemGroup        — play time tracking, auto-save timer, save/load (OrderLast)
 PresentationSystemGroup      — selection outlines (runs after transforms settled)
 ```
 
@@ -125,6 +126,23 @@ Runs at end of frame. Safe zone for spawn/despawn and event cleanup.
 | `Ragdoll2DSystem` | `HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88° (direction from `fallSideSign`), decays joint angular velocity, clamps joints to ±75°, ground-clamps joint world Y against root Y + buffer |
 
 > `SpawnSystemGroup` is a sub-group nested inside `LateSimulationSystemGroup`.
+
+---
+
+### SaveSystemGroup (`Systems/SaveSystemGroup/`)
+
+Runs `OrderLast` inside `LateSimulationSystemGroup` — after all spawns, despawns, and events have settled. Systems that need to trigger a save or load enable `SaveRequest` / `LoadRequest` (both `IEnableableComponent`) on the save entity (identified by `SaveTag`).
+
+| System | File | Purpose |
+|---|---|---|
+| `PlayTimeTrackerSystem` | `PlayTimeTrackerSystem.cs` | Accumulates `DeltaTime` into `PlayTimeTracker.totalSeconds` each frame |
+| `AutoSaveTimerSystem` | `AutoSaveTimerSystem.cs` | Ticks `AutoSaveTimer`; enables `SaveRequest { slot = 0 }` when interval elapses |
+| `SaveSystem` | `SaveSystem.cs` | Consumes `SaveRequest`; snapshots player components → `SaveFile` DTO → JSON on disk |
+| `LoadSystem` | `LoadSystem.cs` | Consumes `LoadRequest`; reads JSON → restores player transform, health, item slots |
+
+**Slot convention:** slot `0` = auto-save, slots `1–3` = manual slots.  
+**Save path:** `Application.persistentDataPath/save_slot_{N}.json` (see `SavePaths.cs`).  
+**No `[BurstCompile]`** on `SaveSystem` / `LoadSystem` — `JsonUtility` and `System.IO` are managed. `PlayTimeTrackerSystem` and `AutoSaveTimerSystem` are fully Burst-compiled.
 
 ---
 
