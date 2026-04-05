@@ -27,6 +27,9 @@ public class UndeadAuthoring : MonoBehaviour
             
             AddComponent<Revive>(entity);
             SetComponentEnabled<Revive>(entity, false);
+
+            AddComponent<SwapBrainRequest>(entity);
+            SetComponentEnabled<SwapBrainRequest>(entity, false);
             
             AddComponent(entity, new Selected {
                 visualEntity = GetEntity(authoring.selectedVisual, TransformUsageFlags.Dynamic),

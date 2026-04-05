@@ -31,6 +31,8 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `PathfindingComponents.cs` | `Components/Movement/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
 | `SpawnerComponents.cs` | `Components/Spawners/` | `UnitSpawner`, `PoolOwner`, `NeedsAnimatorInit` |
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef` |
+| `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
+| `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
 | `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, on visual root child), `Ragdoll2DJoint` (enableable, on joint pivot entities), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DJointRef` buffer |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipRequest` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `UnitPrefabEntry` |
@@ -54,6 +56,15 @@ Awareness                   float range
 SelectedAction              Entity current, Entity previous
 NeedsAction (enableable)    tag — set enabled to trigger the AI scoring/selection pipeline
 ActionOption (buffer)       Entity interactableEntity, float score
+
+PlayerControlled (enableable)   tag — on brain entity. When enabled, ActionSelectionSystem is bypassed.
+                                MinionAutoCounterSystem disables this when the minion takes damage.
+                                ⚠ Must be baked (disabled) on ALL brain types via BrainBakeHelper.AddRequirements.
+                                  ActionSelectionJob uses [WithDisabled], which requires the component to be present —
+                                  brains that lack it entirely are silently excluded from the AI pipeline.
+PlayerOrder                     float3 destination, Entity targetEntity — on brain entity.
+                                Written by MinionCommandSystem. Drives SelectedAction / PathRequest
+                                while PlayerControlled is enabled.
 ```
 
 ### `Brains.cs` — Brain personality type tags
@@ -296,18 +307,33 @@ UnitPrefabEntry         Entity maleCitizenPrefab, Entity maleCitizenBrainPrefab
 
 ```
 Player              Entity interactableEntity
-PlayerData          float rollTime, float rollTimeMax, float rollSpeed
-PlayerInputData     float2 moveInput, float2 lookInput, float2 cursorInput, float zoomInput,
-                    ActionMaps activeActionMap, bool sneakToggle,
-                    bool onAttackInput, bool onInteractInput, bool onRollInput
-PlayerAttackInput (enableable)
-PlayerInteractInput (enableable)
-PlayerRollInput (enableable)
-PlayerSneakToggle (enableable)
-AimPlayerInput (enableable)     tag — hold-aim is active; locks movement, enables aim indicator
-LookPlayerInput (enableable)    tag — right-stick / mouse aim direction is being read
-AimDirection                    float3 direction — current XZ aim direction, updated by PlayerAimSystem
-AimIndicatorRef                 Entity visualEntity — the arrow indicator child entity (shown at scale 1 while aiming, 0 while not)
+PlayerSettings      (reserved)
+PlayerActionMap     ActionMaps activeActionMap
+
+-- Input events (all IEnableableComponent, baked disabled, written each frame by PlayerInputManager) --
+MovePlayerInput         float2 moveInput
+LookPlayerInput         float2 lookInput
+CursorPlayerInput       float2 cursorInput
+ZoomPlayerInput         float zoomInput
+OnAttackPlayerInput     tag
+OnInteractPlayerInput   tag
+OnRollPlayerInput       float rollTime
+OnSneakPlayerInput      tag
+OnEquipmentSlotPlayerInput  int slot
+OnDropPlayerInput       tag
+AimPlayerInput          float aimValue (0–1 trigger axis)
+
+-- Equipment --
+PlayerEquipmentSlots    ItemType itemSlot1/2/3/4
+OnPlayerReviverEquipt (enableable)  ItemType itemType — fired by PlayerEquipmentInputSystem
+
+-- Minion commands (written by UnitSelectionManager, consumed by MinionCommandSystem) --
+OnMinionMoveCommand (enableable)    float3 destination
+OnMinionInteractCommand (enableable) Entity targetEntity
+
+-- Aim --
+AimDirection            float3 direction — current XZ aim direction, updated by PlayerAimSystem
+AimIndicatorRef         Entity visualEntity — arrow indicator (scale 1 while aiming, 0 while not)
 ```
 
 ---

@@ -32,7 +32,17 @@ public struct ActionOption : IBufferElementData
     public float score;
 }
 
+// When enabled, ActionSelectionSystem is bypassed — brain receives orders from MinionCommandSystem instead.
+// MinionAutoCounterSystem disables this when the minion takes damage.
+public struct PlayerControlled : IComponentData, IEnableableComponent { }
 
+// Written by MinionCommandSystem while PlayerControlled is enabled.
+// Drives SelectedAction / PathRequest for the brain.
+public struct PlayerOrder : IComponentData
+{
+    public float3 destination;
+    public Entity targetEntity;
+}
 
 
 // Body Components

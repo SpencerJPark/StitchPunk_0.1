@@ -9,12 +9,15 @@ All game logic lives here. Read the CONTEXT.md in each sub-group before working 
 ```
 PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component distribution (runs once at bake time)
 GameManagerSystemGroup       — world-level: floating origin, player input, aim, horde state
-ItemSystemGroup              — thrown item movement, proximity hit detection
+PlayerSystemGroup            — all player-driven logic
+  ├── PlayerInputSystemGroup (OrderFirst) — input events → ECS components, targeting, equipment dispatch
+  └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions, minion commands
 AISystemGroup
   ├── AIAwarenessSystemGroup — motivation decay, spatial hashing (perception)
   ├── AIScoringSystemGroup   — 9 systems write scores to ActionOption buffer
-  ├── AISelectionSystemGroup — picks action, assigns interaction targets
+  ├── AISelectionSystemGroup — picks action; skips PlayerControlled brains
   └── AIExecutionSystemGroup — executes the chosen action
+ItemSystemGroup              — thrown item movement, proximity hit detection
 AnimationSystemGroup
   ├── AnimationAssignmentSystemGroup — decides which clip to play per layer
   └── AnimationExecutionSystemGroup — advances time, samples keyframes, applies pose
@@ -26,7 +29,7 @@ MovementSystemGroup
 BuildingsSystemGroup         — construction, harvesting, destruction
 CombatSystemGroup
   ├── CombatResolutionSystemGroup — attack resolution, player attacks
-  └── CombatReactionSystemGroup  — damage application
+  └── CombatReactionSystemGroup  — damage application; MinionAutoCounterSystem releases PlayerControlled on hit
 HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — spawn new units, rebuild animator targets
@@ -66,6 +69,28 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 
 ---
 
+### PlayerSystemGroup (`Systems/PlayerSystemGroup/`)
+
+Runs inside `SimulationSystemGroup`, before `AISystemGroup`. Contains two sub-groups:
+
+#### PlayerInputSystemGroup (OrderFirst)
+
+| System | File | Purpose |
+|---|---|---|
+| `PlayerRollInputSystem` | `PlayerInputSystemGroup/PlayerRollInputSystem.cs` | Ticks down `OnRollPlayerInput.rollTime`, disables when expired |
+| `PlayerTargetingSystem` | `PlayerInputSystemGroup/PlayerTargetingSystem.cs` | Finds nearest `PlayerInteractable` in range; enables/disables `Target` on the player |
+| `PlayerAimSystem` | `PlayerInputSystemGroup/PlayerAimSystem.cs` | Reads `LookPlayerInput` while aiming; updates `AimDirection`, rotates player, shows/hides aim indicator |
+| `PlayerEquipmentInputSystem` | `PlayerInputSystemGroup/PlayerEquipmentInputSystem.cs` | Resolves `OnEquipmentSlotPlayerInput.slot` → `ItemType` via `PlayerEquipmentSlots`; fires the matching equipment event (`OnPlayerReviverEquipt` etc.) |
+
+#### PlayerEquipmentSystemGroup (OrderLast)
+
+| System | File | Purpose |
+|---|---|---|
+| `PlayerReviverSystem` | `PlayerEquipmentSystemGroup/PlayerReviverSystem.cs` | When `OnPlayerReviverEquipt` is enabled and `Target` is valid: enables `Revive` on the target entity |
+| `MinionCommandSystem` | `PlayerEquipmentSystemGroup/MinionCommandSystem.cs` | Reads `OnMinionMoveCommand`/`OnMinionInteractCommand` from player; writes `PlayerOrder` + enables `PlayerControlled` on each Selected+Minion brain; writes `PathRequest` on bodies for move commands |
+
+---
+
 ### AISystemGroup — see [Systems_AI.md](Systems_AI.md)
 
 ---
@@ -95,6 +120,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `AttackResolutionSystem` | `CombatResolutionSystemGroup/AttackResolutionSystem.cs` | Resolves unit-vs-unit attack hits, writes to `Hurt` buffer |
 | `PlayerAttackSystem` | `CombatResolutionSystemGroup/PlayerAttackSystem.cs` | Handles player attack input, finds targets |
 | `DamageApplicationSystem` | `CombatReactionSystemGroup/DamageApplicationSystem.cs` | Reads `Hurt` buffer, applies damage to `Health` |
+| `MinionAutoCounterSystem` | `CombatReactionSystemGroup/MinionAutoCounterSystem.cs` | Detects when a `PlayerControlled` minion body takes damage; disables `PlayerControlled` on the linked brain so the AI (SelfPreservation) takes over and counter-attacks |
 
 ---
 

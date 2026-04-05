@@ -24,6 +24,10 @@ AIScoringSystemGroup           — one system per motivation, each writes Action
 
 AISelectionSystemGroup
   ActionSelectionSystem        — picks from top 3 scored options (adds randomness)
+                                 ⚠ Skips brains with PlayerControlled enabled ([WithDisabled(typeof(PlayerControlled))])
+                                 ⚠ [WithDisabled] requires the component to be PRESENT. Every brain type must have
+                                   PlayerControlled baked (disabled) via BrainBakeHelper.AddRequirements — otherwise
+                                   brains without the component are excluded from the query entirely.
   InteractionAssignmentSystem  — assigns the unit to a specific interaction slot
 
 AIExecutionSystemGroup

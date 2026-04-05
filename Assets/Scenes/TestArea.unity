@@ -1958,6 +1958,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1484175829}
+  - component: {fileID: 1484175830}
   m_Layer: 1
   m_Name: UnitSelectionManager
   m_TagString: Untagged
@@ -1980,6 +1981,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 163677902}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1484175830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1484175828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4199fd1eaf70f7e49afbfa4bfb4b6726, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::UnitSelectionManager
+  playerInput: {fileID: 552462645}
 --- !u!1001 &1521804940
 PrefabInstance:
   m_ObjectHideFlags: 0

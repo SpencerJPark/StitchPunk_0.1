@@ -63,7 +63,7 @@ Preference using EntityJobs were it make sense in systems
 
 ---
 
-## Current Status (as of 2026-04-01)
+## Current Status (as of 2026-04-04)
 
 **Save system added.** `SaveSystemGroup` (OrderLast in `LateSimulationSystemGroup`) handles auto-save, manual save, and load via `SaveRequest` / `LoadRequest` enableable components on the GameData entity. Save files are JSON at `Application.persistentDataPath/save_slot_N.json`. See `Systems/SaveSystemGroup/`.
 
@@ -80,4 +80,24 @@ Preference using EntityJobs were it make sense in systems
 - `AnimatorTargetInitSystem` now uses `DynamicBuffer<LinkedEntityGroup>` instead of `BaseParent` matching — reliable for all prefab hierarchies.
 - `AnimationTargetNoIndexAuthoring.Baker` now initialises `AnimationTargetPose` to rest pose (was zeros — caused quads to snap to local origin on spawn frame).
 
-**AI behaviors** — needs verification. All wiring looks correct (motivation components, `NeedsAction` explicitly enabled by spawner, `BodyLink`/`BrainLink` cross-links set by spawner). If units still don't seek interactions after the animation fix, check: (1) `awarenessRange` on `CitizenBrainAuthoring` in the brain prefab inspector — must be > 0; (2) motivation starting values vs the `AIScoringCurveSO` curve shape (units with all motivations at 0 may need time to deplete before scores are non-zero).
+**Revival mechanic wired.** Player can equip a Reviver (`ItemType.Reviver`) in a slot. `PlayerEquipmentInputSystem` → `OnPlayerReviverEquipt` → `PlayerReviverSystem` enables `Revive` on the player's current `Target`. `ReviveSystem` (HealthSystemGroup) restores health and flips Dead/Alive/Undead. `PlayerEquipmentAuthoring` bakes the enableable event components onto the player entity.
+
+**Minion command system — COMPLETE.** All 6 steps shipped:
+1. `PlayerControlled` + `PlayerOrder` in `AIComponents.cs`; `ZombieBrainAuthoring` bakes them disabled
+2. `PlayerMinionCommandComponents.cs` (`OnMinionMoveCommand`, `OnMinionInteractCommand`) baked disabled on player via `PlayerAuthoring`
+3. `UnitSelectionManager` rewritten — box/click selects `Minion`-enabled bodies only; writes command components to player entity on right-click
+4. `MinionCommandSystem` in `PlayerEquipmentSystemGroup` — fans orders to selected brains, issues `PathRequest` on bodies
+5. `[WithDisabled(typeof(PlayerControlled))]` added to `ActionSelectionJob`
+6. `MinionAutoCounterSystem` in `CombatReactionSystemGroup` — releases `PlayerControlled` when minion takes a hit
+
+**Brain swap on revive — COMPLETE.** `SwapBrainSystem` (HealthSystemGroup, after ReviveSystem): destroys old citizen brain, instantiates zombie brain prefab from `UnitPrefabEntry` (keyed by `UnitType.MaleZombie` / `FemaleZombie`), cross-links body ↔ new brain, enables `Minion` on body. `SwapBrainRequest` (enableable) is baked disabled on all units with `UndeadAuthoring`; `PlayerReviverSystem` enables it alongside `Revive`.
+
+**⚠ BUG — NPC AI broken after minion command system.** Citizens no longer seek interactions from the start.
+- **Root cause:** `[WithDisabled(typeof(PlayerControlled))]` on `ActionSelectionJob` only matches entities that *have* `PlayerControlled` present AND disabled. Citizens never had `PlayerControlled` baked → they are excluded from the query entirely.
+- **Fix:** Add `PlayerControlled` (disabled) to `BrainBakeHelper.AddRequirements` so every brain type has the component. `ActionSelectionJob`'s filter will then correctly pass citizens (disabled) and skip player-controlled minions (enabled).
+
+**⚠ NEEDED — Rive update + minion selection UI.**
+- Rive package needs updating to the newest version before `UnitSelectionBoxUI` can be verified.
+- Minion selection indicator UI needs work so players can see which minions are selected and issue commands clearly. Wire up `Selected` visual and verify `SelectedVisualSystem` works with minion bodies.
+
+**AI behaviors** — needs verification. All wiring looks correct (motivation components, `NeedsAction` explicitly enabled by spawner, `BodyLink`/`BrainLink` cross-links set by spawner). After the `PlayerControlled` bake fix above is applied, re-verify: (1) `awarenessRange` on `CitizenBrainAuthoring` in the brain prefab inspector — must be > 0; (2) motivation starting values vs the `AIScoringCurveSO` curve shape (units with all motivations at 0 may need time to deplete before scores are non-zero).

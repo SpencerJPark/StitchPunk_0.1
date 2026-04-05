@@ -1,91 +1,60 @@
-// using UnityEngine;
-// using Rive;
-// using Rive.Components;
-//
-// public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver {
-//     
-//     // Rive Setup
-//     public RiveWidget riveWidget;
-//     private RiveAnimator selectionRiveVisual;
-//     
-//     // Values to Pass
-//     private bool visable = false;
-//     private float lineAmount;
-//     private float musiceNoteAmount;
-//     
-//     // Constant Variables
-//     private const float lineWidth = 100f;
-//     private const float musicNoteWidth = 90f;
-//     private const float musicNoteExtra = 22f;
-//     private const float minMusicNoteSpace = musicNoteWidth + musicNoteExtra;
-//     
-//
-//     private void Start() {
-//        // UnitSelectionManager.Instance.OnSelectionAreaStart += UnitSelectionManager_OnSelectionAreaStart;
-//        // UnitSelectionManager.Instance.OnSelectionAreaEnd += UnitSelectionManager_OnSelectionAreaEnd;
-//         
-//         selectionRiveVisual = new RiveAnimator();
-//         selectionRiveVisual.Initialize(riveWidget);
-//         
-//         selectionRiveVisual.SetNumber("Visable", 0f);
-//         visable = false;
-//     }
-//     
-//     
-//     private void OnEnable() => UpdateManager.RegisterObserver(this);
-//     private void OnDisable() => UpdateManager.UnregisterObserver(this);
-//
-//     
-//     public void ObservedUpdate() {
-//         if (visable) {
-//             UpdateVisual();
-//         }
-//     }
-//
-//     private void UnitSelectionManager_OnSelectionAreaStart(object sender, System.EventArgs e) {
-//         selectionRiveVisual.SetNumber("Visable", 1f);
-//         visable = true;
-//
-//         UpdateVisual();
-//     }
-//
-//     private void UnitSelectionManager_OnSelectionAreaEnd(object sender, System.EventArgs e) {
-//         selectionRiveVisual.SetNumber("Visable", 0f);
-//         visable = false;
-//     }
-//
-//     private void UpdateVisual() {
-//         Rect selectionAreaRect = UnitSelectionManager.Instance.GetSelectionAreaRect();
-//
-//         CalculateLineAmount(selectionAreaRect.height);
-//         CalculateMusiceNoteAmount(selectionAreaRect.width);
-//         
-//         selectionRiveVisual.SetNumber("PositionX", selectionAreaRect.x);
-//         selectionRiveVisual.SetNumber("PositionY", selectionAreaRect.y);
-//         
-//         selectionRiveVisual.SetNumber("SelectionAreaWidth", selectionAreaRect.width);
-//         selectionRiveVisual.SetNumber("SelectionAreaHeight", selectionAreaRect.height);
-//         
-//         // Debug.Log("Line Amount: " + lineAmount);
-//         // Debug.Log("Music Note Amount: " + musiceNoteAmount);
-//         
-//         selectionRiveVisual.SetNumber("LineAmount", lineAmount);
-//         selectionRiveVisual.SetNumber("MusicNoteAmount", musiceNoteAmount);
-//     }
-//
-//     private void CalculateLineAmount(float selectionAreaHeight)
-//     {
-//         lineAmount = Mathf.Floor(selectionAreaHeight / lineWidth);
-//     }
-//
-//     private void CalculateMusiceNoteAmount(float selectionAreaWidth)
-//     {
-//         if (selectionAreaWidth < minMusicNoteSpace)
-//         {
-//             musiceNoteAmount = 0;
-//             return;
-//         }
-//         musiceNoteAmount = Mathf.Floor((selectionAreaWidth - musicNoteExtra) / musicNoteWidth) * lineAmount;
-//     }
-//
-// }
+using UnityEngine;
+using Rive.Components;
+
+public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
+{
+    [SerializeField] private RiveWidget riveWidget;
+
+    private RiveAnimatorHelper selectionRive;
+    private bool wasSelecting;
+
+    private const float LINE_WIDTH        = 100f;
+    private const float MUSIC_NOTE_WIDTH  = 90f;
+    private const float MUSIC_NOTE_EXTRA  = 22f;
+
+    private void Start()
+    {
+        selectionRive = new RiveAnimatorHelper();
+        selectionRive.Initialize(riveWidget);
+        selectionRive.SetNumber("Visable", 0f);
+        wasSelecting = false;
+    }
+
+    private void OnEnable()  => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
+
+    public void ObservedUpdate()
+    {
+        if (UnitSelectionManager.Instance == null) return;
+
+        bool isSelecting = UnitSelectionManager.Instance.IsSelecting;
+
+        if (isSelecting && !wasSelecting)
+            selectionRive.SetNumber("Visable", 1f);
+        else if (!isSelecting && wasSelecting)
+            selectionRive.SetNumber("Visable", 0f);
+
+        wasSelecting = isSelecting;
+
+        if (isSelecting)
+            UpdateVisual(UnitSelectionManager.Instance.GetSelectionAreaRect());
+    }
+
+    private void UpdateVisual(Rect rect)
+    {
+        selectionRive.SetNumber("PositionX",            rect.x);
+        selectionRive.SetNumber("PositionY",            rect.y);
+        selectionRive.SetNumber("SelectionAreaWidth",   rect.width);
+        selectionRive.SetNumber("SelectionAreaHeight",  rect.height);
+        selectionRive.SetNumber("LineAmount",           Mathf.Floor(rect.height / LINE_WIDTH));
+        selectionRive.SetNumber("MusicNoteAmount",      CalculateMusicNotes(rect.width, rect.height));
+    }
+
+    private static float CalculateMusicNotes(float width, float height)
+    {
+        float minSpace = MUSIC_NOTE_WIDTH + MUSIC_NOTE_EXTRA;
+        if (width < minSpace) return 0f;
+        float lines = Mathf.Floor(height / LINE_WIDTH);
+        return Mathf.Floor((width - MUSIC_NOTE_EXTRA) / MUSIC_NOTE_WIDTH) * lines;
+    }
+}

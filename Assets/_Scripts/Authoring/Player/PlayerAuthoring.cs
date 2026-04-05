@@ -70,6 +70,12 @@ public class PlayerAuthoring : MonoBehaviour
                 : Entity.Null;
             AddComponent(entity, new AimIndicatorRef { visualEntity = indicatorEntity });
 
+            AddComponent(entity, new OnMinionMoveCommand());
+            SetComponentEnabled<OnMinionMoveCommand>(entity, false);
+
+            AddComponent(entity, new OnMinionInteractCommand());
+            SetComponentEnabled<OnMinionInteractCommand>(entity, false);
+
             Entity socketEntity = authoring.handSocket != null
                 ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;

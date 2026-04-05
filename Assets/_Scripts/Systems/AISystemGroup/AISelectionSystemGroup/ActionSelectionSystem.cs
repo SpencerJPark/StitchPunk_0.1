@@ -42,6 +42,7 @@ public partial struct ActionSelectionSystem : ISystem
     [BurstCompile]
     [WithAll(typeof(ActiveBrain))]
     [WithAll(typeof(NeedsAction))]
+    [WithDisabled(typeof(PlayerControlled))]
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
