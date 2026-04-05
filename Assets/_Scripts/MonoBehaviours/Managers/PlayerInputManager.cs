@@ -201,13 +201,6 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<OnSneakPlayerInput>(playerEntity, true);
     }
 
-    public void OnEquipt3(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnItemSlotPlayerInput { itemSlot = 3 });
-        entityManager.SetComponentEnabled<OnItemSlotPlayerInput>(playerEntity, true);
-    }
-
     public void OnDrop(InputAction.CallbackContext context)
     {
         if (!context.started || !TryResolvePlayerEntity()) return;
@@ -232,6 +225,38 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             : ActionMaps.Player;
 
         hasPendingMapSwitch = true;
+    }
+
+    public void OnItemSlot1(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        
+        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 1 });
+        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
+    }
+    
+    public void OnItemSlot2(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        
+        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 2 });
+        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
+    }
+    
+    public void OnItemSlot3(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        
+        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 3 });
+        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
+    }
+    
+    public void OnItemSlot4(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        
+        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 4 });
+        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
     }
 
     #endregion

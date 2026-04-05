@@ -48,11 +48,11 @@ public struct OnRollPlayerInput : IComponentData, IEnableableComponent
 
 public struct OnSneakPlayerInput: IComponentData, IEnableableComponent {}
 
-public struct OnItemSlotPlayerInput : IComponentData, IEnableableComponent
+public struct OnEquipmentSlotPlayerInput : IComponentData, IEnableableComponent
 {
-    public int itemSlot;
+    public int slot;
 }
-public struct PlayerItemSlots : IComponentData
+public struct PlayerEquipmentSlots : IComponentData
 {
     public ItemType itemSlot1;
     public ItemType itemSlot2;

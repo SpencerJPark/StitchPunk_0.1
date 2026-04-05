@@ -1,10 +1,19 @@
 ﻿using Unity.Entities;
 
 // main groups
-[UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(AISystemGroup))]
+[UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+[UpdateBefore(typeof(PlayerInputSystemGroup))]
 public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(AISystemGroup))]
+public partial class PlayerSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(PlayerSystemGroup), OrderFirst = true)]
+        public partial class PlayerInputSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(PlayerSystemGroup), OrderLast = true)]
+        public partial class PlayerEquipmentSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(ItemSystemGroup))]

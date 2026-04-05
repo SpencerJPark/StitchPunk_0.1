@@ -61,42 +61,6 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Equipt1",
-                    "type": "Button",
-                    "id": "6de0b639-e8ca-4fc1-9cdc-c8efc225606f",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "Equipt2",
-                    "type": "Button",
-                    "id": "f51383ac-1ca4-4875-ac55-0ec314da4122",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "Resurrect",
-                    "type": "Button",
-                    "id": "a0947f8d-82bf-413d-af4c-7720e20bbd07",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "Equipt4",
-                    "type": "Button",
-                    "id": "76983577-6ba2-4975-9950-a7c1290708bb",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
                     "name": "Sneak",
                     "type": "Button",
                     "id": "27c5f898-bc57-4ee1-8800-db469aca5fe3",
@@ -136,6 +100,42 @@
                     "name": "QuickCommand",
                     "type": "Button",
                     "id": "0d5618bd-cfbd-48d0-86e0-5b81c2027cf3",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ItemSlot1",
+                    "type": "Button",
+                    "id": "6de0b639-e8ca-4fc1-9cdc-c8efc225606f",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ItemSlot2",
+                    "type": "Button",
+                    "id": "f51383ac-1ca4-4875-ac55-0ec314da4122",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ItemSlot3",
+                    "type": "Button",
+                    "id": "9259c2f1-5889-4932-8218-94dace8deb71",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ItemSlot4",
+                    "type": "Button",
+                    "id": "76983577-6ba2-4975-9950-a7c1290708bb",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -398,45 +398,12 @@
                 },
                 {
                     "name": "",
-                    "id": "aa48e53e-5b55-4aac-9958-8ba865529960",
-                    "path": "<Gamepad>/dpad/down",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Gamepad",
-                    "action": "Resurrect",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "db82f106-b242-4eca-b8a6-30089dff3d9f",
-                    "path": "<Keyboard>/3",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Keyboard&Mouse",
-                    "action": "Resurrect",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "bae27791-da34-41b5-9c41-c77cacc82e2b",
-                    "path": "<Keyboard>/r",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Keyboard&Mouse",
-                    "action": "Resurrect",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "d3f7b3f4-3447-4c8c-9aba-f10a07746e69",
                     "path": "<Gamepad>/dpad/left",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "Equipt4",
+                    "action": "ItemSlot4",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -447,7 +414,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Equipt4",
+                    "action": "ItemSlot4",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -458,7 +425,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "Equipt1",
+                    "action": "ItemSlot1",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -469,7 +436,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Equipt1",
+                    "action": "ItemSlot1",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -480,7 +447,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "Equipt2",
+                    "action": "ItemSlot2",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -491,7 +458,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "Equipt2",
+                    "action": "ItemSlot2",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -558,6 +525,28 @@
                     "processors": "",
                     "groups": ";Gamepad",
                     "action": "QuickCommand",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e780d52d-dc65-4b95-98b1-a4317c1d64a8",
+                    "path": "<Gamepad>/dpad/down",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
+                    "action": "ItemSlot3",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7a05f287-e068-4401-9488-74baeae5e97c",
+                    "path": "<Keyboard>/3",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ItemSlot3",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

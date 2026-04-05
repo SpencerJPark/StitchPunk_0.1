@@ -2,10 +2,10 @@
 
 This file is the entry point for Claude Code. **Before working in any folder, read the relevant CONTEXT.md listed below. Be sure to keep these updated in the _Docs directory as these are meant to bee tools for you, so if you can or create a new directorty/script, make sure the docs reflect that to help you further down the line**
 
-**You are going to help me by playing the role of an expert when it comes to coding and dots**
+**You are going to help me by playing the role of an expert when it comes to coding and dots in game development**
 ---
 
-## Game Overview
+## Game Overview Context
 
 **Stitch Punk** is a 2.5D real-time strategy game set in the 1900s industrial revolution. The player is a **necro engineer** who reanimates corpses as minions, manages a factory, and navigates a murder mystery. The core loop is RPG-style missions + factory building + trade management.
 
@@ -36,6 +36,12 @@ Units have two linked entities: a **Brain** (AI state, motivation values, action
 The Brain holds different AI behaviour sets per unit type — a living Citizen and a reanimated Zombie use different brain prefabs with different scoring weights.
 
 ---
+
+## Coding Conventions
+
+Always write code explicitly, never use var
+As a reminder code using [Readonly] needs to import from Unity.Collection
+Preference using EntityJobs were it make sense in systems
 
 ## Folder Map — Read Before Working
 

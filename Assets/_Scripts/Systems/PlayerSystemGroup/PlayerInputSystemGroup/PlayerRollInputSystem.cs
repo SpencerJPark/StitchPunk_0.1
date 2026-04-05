@@ -1,8 +1,8 @@
 using Unity.Burst;
 using Unity.Entities;
 
-[UpdateInGroup(typeof(GameManagerSystemGroup), OrderFirst = true)]
-public partial struct PlayerInputSystem : ISystem
+[UpdateInGroup(typeof(PlayerInputSystemGroup))]
+public partial struct PlayerRollInputSystem : ISystem
 {
     [BurstCompile]
     public void OnCreate(ref SystemState state)

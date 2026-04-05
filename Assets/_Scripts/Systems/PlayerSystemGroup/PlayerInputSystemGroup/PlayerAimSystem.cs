@@ -12,7 +12,7 @@ using Unity.Transforms;
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(GameManagerSystemGroup))]
-[UpdateAfter(typeof(PlayerInputSystem))]
+[UpdateAfter(typeof(PlayerInputSystemGroup))]
 public partial struct PlayerAimSystem : ISystem
 {
     [BurstCompile]

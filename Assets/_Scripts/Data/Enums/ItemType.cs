@@ -5,4 +5,5 @@ public enum ItemType
     Rock,
     Gun,
     Bomb,
+    Reviver,
 }

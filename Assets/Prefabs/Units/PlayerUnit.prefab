@@ -275,6 +275,9 @@ PrefabInstance:
       addedObject: {fileID: 8246590131629711007}
     - targetCorrespondingSourceObject: {fileID: 3094532311958105572, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 8658708134968392578}
+    - targetCorrespondingSourceObject: {fileID: 3094532311958105572, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 1794824144110468912}
   m_SourcePrefab: {fileID: 100100000, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
 --- !u!4 &6156346193418944387 stripped
@@ -300,6 +303,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   handSocket: {fileID: 4959147049819655531}
+  aimIndicator: {fileID: 0}
+--- !u!114 &8658708134968392578
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6406896981973988313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3098c1eb8f156346b57ee89260dcbd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::PlayerEquipmentAuthoring
 --- !u!114 &1794824144110468912
 MonoBehaviour:
   m_ObjectHideFlags: 0

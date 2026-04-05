@@ -7,8 +7,7 @@ using Unity.Transforms;
 /// Finds the nearest targetable entity within range of the player each frame.
 /// Enables Target on the player when found, disables it when nothing is in range.
 /// </summary>
-[UpdateInGroup(typeof(GameManagerSystemGroup))]
-[BurstCompile]
+[UpdateInGroup(typeof(PlayerInputSystemGroup))]
 public partial struct PlayerTargetingSystem : ISystem
 {
     private const float TARGET_RANGE = 5f;

@@ -1255,6 +1255,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8246590131629711007, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
+      propertyPath: debugSlot1
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 8531742815680229477, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
       propertyPath: m_Layer
       value: 0

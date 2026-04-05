@@ -914,7 +914,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 552462646}
         m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
-        m_MethodName: OnEquipt3
+        m_MethodName: OnItemSlot1
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -924,18 +924,38 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-    m_ActionId: a0947f8d-82bf-413d-af4c-7720e20bbd07
-    m_ActionName: 'Player/Revive[/Keyboard/r]'
-  - m_PersistentCalls:
-      m_Calls: []
     m_ActionId: 6de0b639-e8ca-4fc1-9cdc-c8efc225606f
     m_ActionName: 'Player/Equipt1[/Keyboard/1]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnItemSlot2
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: f51383ac-1ca4-4875-ac55-0ec314da4122
     m_ActionName: 'Player/Equipt2[/Keyboard/2]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnItemSlot4
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: 76983577-6ba2-4975-9950-a7c1290708bb
     m_ActionName: 'Player/Equipt4[/Keyboard/4]'
   - m_PersistentCalls:
@@ -970,6 +990,30 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: 248e38f7-9b18-40e8-aa46-8e4ff3704eff
     m_ActionName: 'Player/Throw[/XInputControllerWindows/leftShoulder]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 0051733f-8562-4c02-9d81-7482efc65d7d
+    m_ActionName: Player/Focus
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 0d5618bd-cfbd-48d0-86e0-5b81c2027cf3
+    m_ActionName: Player/QuickCommand
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 552462646}
+        m_TargetAssemblyTypeName: PlayerInputManager, StitchPunk.MonoBehaviours
+        m_MethodName: OnItemSlot3
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: 9259c2f1-5889-4932-8218-94dace8deb71
+    m_ActionName: 'Player/ItemSlot3[/Keyboard/3]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
@@ -2661,53 +2705,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!1 &2128192921
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2128192922}
-  - component: {fileID: 2128192923}
-  m_Layer: 1
-  m_Name: GameAssets
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2128192922
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2128192921}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2128192923
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2128192921}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8ee91155b4991994e87b4e308aa5029e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  animationFrameRate: 24
-  unitLibrarySo: {fileID: 0}
-  buildingTypeListSO: {fileID: 0}
 --- !u!1001 &674468687415718875
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2939,7 +2936,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: field of view
-      value: 50
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_FOVAxisMode
@@ -2947,7 +2944,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: orthographic size
-      value: 3.04
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 3784433980711489709, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_BackGroundColor.b
@@ -2967,31 +2964,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.00022816658
+      value: -0.00000071525574
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.715912
+      value: 26.28247
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -6.0820045
+      value: -28.721838
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.9927685
+      value: 0.934715
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.11966825
+      value: 0.35539827
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.009429316
+      value: 0.000000027335227
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.0011366092
+      value: -0.000000010393428
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -3315,7 +3312,6 @@ SceneRoots:
   - {fileID: 843865708}
   - {fileID: 948460074}
   - {fileID: 1154694571}
-  - {fileID: 2128192922}
   - {fileID: 488662807}
   - {fileID: 1960211021}
   - {fileID: 1245800568}

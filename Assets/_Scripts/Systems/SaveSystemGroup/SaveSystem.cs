@@ -36,7 +36,7 @@ public partial struct SaveSystem : ISystem
         Entity playerEntity           = SystemAPI.GetSingletonEntity<Player>();
         LocalTransform playerTransform = state.EntityManager.GetComponentData<LocalTransform>(playerEntity);
         Health playerHealth           = state.EntityManager.GetComponentData<Health>(playerEntity);
-        PlayerItemSlots playerItemSlots = state.EntityManager.GetComponentData<PlayerItemSlots>(playerEntity);
+        PlayerEquipmentSlots playerEquipmentSlots = state.EntityManager.GetComponentData<PlayerEquipmentSlots>(playerEntity);
         UnitEquipt unitEquipt         = state.EntityManager.GetComponentData<UnitEquipt>(playerEntity);
 
         int equippedItemType = (int)ItemType.None;
@@ -66,10 +66,10 @@ public partial struct SaveSystem : ISystem
                 maxHp             = playerHealth.healthAmountMax,
                 totalPlaySeconds  = playTimeTracker.totalSeconds,
                 equippedItemType  = equippedItemType,
-                itemSlot1         = (int)playerItemSlots.itemSlot1,
-                itemSlot2         = (int)playerItemSlots.itemSlot2,
-                itemSlot3         = (int)playerItemSlots.itemSlot3,
-                itemSlot4         = (int)playerItemSlots.itemSlot4
+                itemSlot1         = (int)playerEquipmentSlots.itemSlot1,
+                itemSlot2         = (int)playerEquipmentSlots.itemSlot2,
+                itemSlot3         = (int)playerEquipmentSlots.itemSlot3,
+                itemSlot4         = (int)playerEquipmentSlots.itemSlot4
             }
         };
 

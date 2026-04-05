@@ -87,7 +87,7 @@ public partial struct LoadSystem : ISystem
         });
 
         // Restore item slot assignments
-        state.EntityManager.SetComponentData(playerEntity, new PlayerItemSlots
+        state.EntityManager.SetComponentData(playerEntity, new PlayerEquipmentSlots
         {
             itemSlot1 = (ItemType)playerData.itemSlot1,
             itemSlot2 = (ItemType)playerData.itemSlot2,
