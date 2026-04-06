@@ -59,7 +59,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     private void OnDisable()
     {
         UpdateManager.UnregisterObserver(this);
-        if (playerInput?.actions == null) return;
+        if (playerInput == null || playerInput.actions == null) return;
 
         InputAction select  = playerInput.actions.FindAction(SELECT_ACTION);
         InputAction command = playerInput.actions.FindAction(COMMAND_ACTION);
@@ -114,6 +114,25 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             HandleSelectionComplete();
             IsSelecting = false;
             selectReleased = false;
+        }
+
+        if (!TryResolvePlayerEntity()) return;
+
+        if (IsSelecting)
+        {
+            Rect rect = GetSelectionAreaRect();
+            entityManager.SetComponentData(playerEntity, new SelectionBoxData
+            {
+                PositionX = rect.x,
+                PositionY  = rect.y,
+                Width      = rect.width,
+                Height     = rect.height,
+            });
+            entityManager.SetComponentEnabled<SelectionBoxData>(playerEntity, true);
+        }
+        else
+        {
+            entityManager.SetComponentEnabled<SelectionBoxData>(playerEntity, false);
         }
 
         if (commandPressed)
@@ -267,9 +286,8 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             }
         }
 
-        // No hostile target — move to ground position.
-        if (MouseWorldPosition.Instance == null) return;
-        Vector3 worldPos = MouseWorldPosition.Instance.GetPosition();
+        // No hostile target — move to ground position under the cursor.
+        Vector3 worldPos = CursorToWorldPosition(GetPointerScreenPosition());
         entityManager.SetComponentData(playerEntity, new OnMinionMoveCommand { destination = worldPos });
         entityManager.SetComponentEnabled<OnMinionMoveCommand>(playerEntity, true);
     }
@@ -293,8 +311,13 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         return entityManager.GetComponentData<PlayerActionMap>(playerEntity).activeActionMap == ActionMaps.ControlUnits;
     }
 
-    private static Vector2 GetPointerScreenPosition()
+    private Vector2 GetPointerScreenPosition()
     {
+        if (playerEntityResolved && IsControlUnitsMode())
+        {
+            Unity.Mathematics.float2 pos = entityManager.GetComponentData<CursorScreenPosition>(playerEntity).Value;
+            return new Vector2(pos.x, pos.y);
+        }
         return Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
     }
 
@@ -305,6 +328,16 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             Mathf.Min(start.y, end.y),
             Mathf.Abs(end.x - start.x),
             Mathf.Abs(end.y - start.y));
+    }
+
+    private static Vector3 CursorToWorldPosition(Vector2 screenPos)
+    {
+        if (Camera.main == null) return Vector3.zero;
+        UnityEngine.Ray ray = Camera.main.ScreenPointToRay(screenPos);
+        UnityEngine.Plane groundPlane = new UnityEngine.Plane(Vector3.up, Vector3.zero);
+        if (groundPlane.Raycast(ray, out float distance))
+            return ray.GetPoint(distance);
+        return Vector3.zero;
     }
 
     #endregion

@@ -11,8 +11,7 @@ using Unity.Transforms;
 /// - Shows/hides the aim indicator child entity by setting its scale.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(GameManagerSystemGroup))]
-[UpdateAfter(typeof(PlayerInputSystemGroup))]
+[UpdateInGroup(typeof(PlayerInputSystemGroup))]
 public partial struct PlayerAimSystem : ISystem
 {
     [BurstCompile]

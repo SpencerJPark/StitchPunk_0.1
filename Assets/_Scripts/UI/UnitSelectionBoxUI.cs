@@ -1,23 +1,44 @@
 using UnityEngine;
+using Unity.Entities;
 using Rive.Components;
 
 public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
 {
     [SerializeField] private RiveWidget riveWidget;
 
-    private RiveAnimatorHelper selectionRive;
-    private bool wasSelecting;
+    private RivePropertyCache selectionRive;
 
-    private const float LINE_WIDTH        = 100f;
-    private const float MUSIC_NOTE_WIDTH  = 90f;
-    private const float MUSIC_NOTE_EXTRA  = 22f;
+    private EntityManager entityManager;
+    private EntityQuery playerQuery;
+    private Entity playerEntity;
+    private bool hasPlayer;
+    private bool wasEnabled = true; // start true so the first update always forces a sync
+
+    private const float LINE_WIDTH       = 100f;
+    private const float MUSIC_NOTE_WIDTH = 90f;
+    private const float MUSIC_NOTE_EXTRA = 22f;
 
     private void Start()
     {
-        selectionRive = new RiveAnimatorHelper();
-        selectionRive.Initialize(riveWidget);
+        entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+        playerQuery   = new Unity.Entities.EntityQueryBuilder(Unity.Collections.Allocator.Temp)
+            .WithAll<Player>()
+            .WithPresent<SelectionBoxData>()
+            .Build(entityManager);
+
+        RiveUtils.OnLoaded(riveWidget, OnRiveLoaded);
+    }
+
+    private void OnRiveLoaded()
+    {
+        selectionRive = RiveUtils.GetPropertyCache(riveWidget);
+        if (selectionRive == null)
+        {
+            Debug.LogError("UnitSelectionBoxUI: RiveWidget has no ViewModelInstance. " +
+                           "Set the widget's Binding Mode to 'Auto Bind Default' in the inspector.");
+            return;
+        }
         selectionRive.SetNumber("Visable", 0f);
-        wasSelecting = false;
     }
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
@@ -25,29 +46,44 @@ public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
 
     public void ObservedUpdate()
     {
-        if (UnitSelectionManager.Instance == null) return;
+        if (selectionRive == null) return;
 
-        bool isSelecting = UnitSelectionManager.Instance.IsSelecting;
+        bool isEnabled = EnsurePlayerEntity() &&
+                         entityManager.IsComponentEnabled<SelectionBoxData>(playerEntity);
 
-        if (isSelecting && !wasSelecting)
-            selectionRive.SetNumber("Visable", 1f);
-        else if (!isSelecting && wasSelecting)
-            selectionRive.SetNumber("Visable", 0f);
+        if (isEnabled != wasEnabled)
+        {
+            selectionRive.SetNumber("Visable", isEnabled ? 1f : 0f);
+            wasEnabled = isEnabled;
+        }
 
-        wasSelecting = isSelecting;
+        if (!isEnabled) return;
 
-        if (isSelecting)
-            UpdateVisual(UnitSelectionManager.Instance.GetSelectionAreaRect());
+        SelectionBoxData data = entityManager.GetComponentData<SelectionBoxData>(playerEntity);
+        UpdateVisual(data);
     }
 
-    private void UpdateVisual(Rect rect)
+    private bool EnsurePlayerEntity()
     {
-        selectionRive.SetNumber("PositionX",            rect.x);
-        selectionRive.SetNumber("PositionY",            rect.y);
-        selectionRive.SetNumber("SelectionAreaWidth",   rect.width);
-        selectionRive.SetNumber("SelectionAreaHeight",  rect.height);
-        selectionRive.SetNumber("LineAmount",           Mathf.Floor(rect.height / LINE_WIDTH));
-        selectionRive.SetNumber("MusicNoteAmount",      CalculateMusicNotes(rect.width, rect.height));
+        if (hasPlayer)
+        {
+            if (entityManager.Exists(playerEntity)) return true;
+            hasPlayer = false;
+        }
+        if (playerQuery.IsEmpty) return false;
+        playerEntity = playerQuery.GetSingletonEntity();
+        hasPlayer    = true;
+        return true;
+    }
+
+    private void UpdateVisual(SelectionBoxData data)
+    {
+        selectionRive.SetNumber("PositionX",           data.PositionX);
+        selectionRive.SetNumber("PositionY",           data.PositionY);
+        selectionRive.SetNumber("SelectionAreaWidth",  data.Width);
+        selectionRive.SetNumber("SelectionAreaHeight", data.Height);
+        selectionRive.SetNumber("LineAmount",          Mathf.Floor(data.Height / LINE_WIDTH));
+        selectionRive.SetNumber("MusicNoteAmount",     CalculateMusicNotes(data.Width, data.Height));
     }
 
     private static float CalculateMusicNotes(float width, float height)

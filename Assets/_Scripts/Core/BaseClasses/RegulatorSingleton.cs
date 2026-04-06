@@ -35,6 +35,7 @@ public class RegulatorSingleton<T> : MonoBehaviour where T : Component
     {
         if (!Application.isPlaying) return;
         InitializationTime = Time.time;
+        transform.SetParent(null);
         DontDestroyOnLoad(gameObject);
 
         T[] oldInstances = FindObjectsByType<T>(FindObjectsSortMode.None);

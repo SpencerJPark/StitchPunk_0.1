@@ -1,11 +1,12 @@
 {
   "dependencies": {
     "app.rive.rive-unity": {
-      "version": "https://github.com/rive-app/rive-unity.git?path=package#v0.3.8",
+      "version": "file:app.rive.rive-unity",
       "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "b75674e95ffe033064106ef178c9098ccba7a20a"
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.shadergraph": "14.0.11"
+      }
     },
     "com.autodesk.fbx": {
       "version": "5.1.2",
@@ -85,7 +86,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.26",
+      "version": "1.8.27",
       "depth": 1,
       "source": "registry",
       "dependencies": {
@@ -95,7 +96,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.cinemachine": {
-      "version": "3.1.5",
+      "version": "3.1.6",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -105,46 +106,46 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.collections": {
-      "version": "2.6.3",
-      "depth": 2,
+      "version": "2.6.5",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.25",
+        "com.unity.burst": "1.8.27",
         "com.unity.mathematics": "1.3.2",
         "com.unity.test-framework": "1.4.6",
-        "com.unity.nuget.mono-cecil": "1.11.5",
+        "com.unity.nuget.mono-cecil": "1.11.6",
         "com.unity.test-framework.performance": "3.0.3"
       },
       "url": "https://packages.unity.com"
     },
     "com.unity.entities": {
-      "version": "1.4.3",
-      "depth": 1,
+      "version": "1.4.5",
+      "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.25",
-        "com.unity.collections": "2.6.3",
+        "com.unity.burst": "1.8.27",
+        "com.unity.collections": "2.6.5",
         "com.unity.mathematics": "1.3.2",
         "com.unity.modules.audio": "1.0.0",
-        "com.unity.serialization": "3.1.2",
-        "com.unity.profiling.core": "1.0.2",
+        "com.unity.serialization": "3.1.3",
+        "com.unity.profiling.core": "1.0.3",
         "com.unity.modules.physics": "1.0.0",
-        "com.unity.nuget.mono-cecil": "1.11.5",
+        "com.unity.nuget.mono-cecil": "1.11.6",
         "com.unity.modules.uielements": "1.0.0",
         "com.unity.modules.assetbundle": "1.0.0",
         "com.unity.modules.unityanalytics": "1.0.0",
         "com.unity.modules.unitywebrequest": "1.0.0",
-        "com.unity.scriptablebuildpipeline": "1.21.25",
+        "com.unity.scriptablebuildpipeline": "1.23.1",
         "com.unity.test-framework.performance": "3.0.3"
       },
       "url": "https://packages.unity.com"
     },
     "com.unity.entities.graphics": {
-      "version": "1.4.16",
+      "version": "1.4.18",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.entities": "1.4.3",
+        "com.unity.entities": "1.4.5",
         "com.unity.render-pipelines.core": "14.0.10",
         "com.unity.modules.particlesystem": "1.0.0"
       },
@@ -167,20 +168,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ide.rider": {
-      "version": "3.0.38",
+      "version": "3.0.39",
       "depth": 0,
       "source": "registry",
       "dependencies": {
         "com.unity.ext.nunit": "1.0.6"
-      },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.ide.visualstudio": {
-      "version": "2.0.25",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.test-framework": "1.1.31"
       },
       "url": "https://packages.unity.com"
     },
@@ -216,13 +208,13 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.physics": {
-      "version": "1.4.2",
+      "version": "1.4.5",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.23",
-        "com.unity.entities": "1.4.2",
-        "com.unity.collections": "2.6.2",
+        "com.unity.burst": "1.8.27",
+        "com.unity.entities": "1.4.5",
+        "com.unity.collections": "2.6.5",
         "com.unity.mathematics": "1.3.2",
         "com.unity.modules.imgui": "1.0.0",
         "com.unity.test-framework": "1.4.6",

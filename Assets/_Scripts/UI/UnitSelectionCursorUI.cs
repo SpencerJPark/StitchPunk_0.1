@@ -129,6 +129,12 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 
     private void ApplyPositionToUI()
     {
+        if (hasPlayer)
+            entityManager.SetComponentData(playerEntity, new CursorScreenPosition
+            {
+                Value = new Unity.Mathematics.float2(cursorScreenPosition.x, cursorScreenPosition.y)
+            });
+
         if (cursorImageRectTransform == null) return;
 
         RectTransformUtility.ScreenPointToLocalPointInRectangle(

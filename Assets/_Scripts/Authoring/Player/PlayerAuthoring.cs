@@ -76,6 +76,11 @@ public class PlayerAuthoring : MonoBehaviour
             AddComponent(entity, new OnMinionInteractCommand());
             SetComponentEnabled<OnMinionInteractCommand>(entity, false);
 
+            AddComponent(entity, new SelectionBoxData());
+            SetComponentEnabled<SelectionBoxData>(entity, false);
+
+            AddComponent(entity, new CursorScreenPosition());
+
             Entity socketEntity = authoring.handSocket != null
                 ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;

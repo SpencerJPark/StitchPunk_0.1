@@ -1124,6 +1124,7 @@ MonoBehaviour:
   m_customRenderTargetStrategy: {fileID: 0}
   m_updateMode: 0
   m_disableEditorPreview: 0
+  m_multiTouchSupport: 1
 --- !u!114 &728536945
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1292,7 +1293,7 @@ MonoBehaviour:
   m_asset: {fileID: -4516626237390682484, guid: 1c1a7fa17843f2747bd76722c6332e2d, type: 3}
   m_artboardName: ScreenSpaceSelection
   m_stateMachineName: State Machine 1
-  m_fit: 0
+  m_fit: 7
   m_alignment:
     m_x: 0
     m_y: 0
@@ -1305,6 +1306,7 @@ MonoBehaviour:
   m_speed: 1
   m_dataBindingMode: 0
   m_viewModelInstanceName: 
+  m_customAudioProvider: {fileID: 0}
 --- !u!1 &795723639
 GameObject:
   m_ObjectHideFlags: 0
@@ -2085,6 +2087,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1558628099}
   - component: {fileID: 1558628102}
+  - component: {fileID: 1558628103}
   - component: {fileID: 1558628101}
   m_Layer: 5
   m_Name: UnitSelectionManagerUI
@@ -2105,8 +2108,8 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 728536943}
   - {fileID: 583630790}
+  - {fileID: 728536943}
   m_Father: {fileID: 843865708}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2141,6 +2144,19 @@ MonoBehaviour:
   cursorImageRectTransform: {fileID: 2074009644}
   uiCanvas: {fileID: 843865707}
   controllerSpeed: 300
+--- !u!114 &1558628103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1558628098}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a323671d6bfa54349ac0d67164a41d33, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.UI::UnitSelectionBoxUI
+  riveWidget: {fileID: 785971302}
 --- !u!1 &1621683000
 GameObject:
   m_ObjectHideFlags: 0
