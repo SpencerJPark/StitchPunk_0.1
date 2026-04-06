@@ -71,3 +71,8 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 Building1.blend
+
+# Local package cache (downloaded by Package Manager, not source-controlled)
+/[Pp]ackages/*/
+!/[Pp]ackages/manifest.json
+!/[Pp]ackages/packages-lock.json
