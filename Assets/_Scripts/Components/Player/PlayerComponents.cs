@@ -100,8 +100,20 @@ public struct OnCycleGroupInput : IComponentData, IEnableableComponent
     public int delta; // +1 or -1
 }
 
-// Fired when the player quick-selects a group via D-pad.
-public struct OnQuickSelectGroupInput : IComponentData, IEnableableComponent
+// Fired when the player presses a D-pad direction to issue a quick command to the active group.
+public struct OnQuickCommandInput : IComponentData, IEnableableComponent
 {
-    public int groupIndex; // 1–4
+    public int commandIndex; // 1 = up, 2 = right, 3 = down, 4 = left
 }
+
+// Fired when the player presses or releases the select button in ControlUnits mode.
+public struct OnSelectPlayerInput : IComponentData, IEnableableComponent
+{
+    public bool isReleased; // false = pressed/started, true = released/canceled
+}
+
+// Fired when the player issues a move/interact command to selected minions (right-click / right trigger).
+public struct OnCommandPlayerInput : IComponentData, IEnableableComponent { }
+
+// Fired when the player snaps the control units camera back to the player.
+public struct OnSnapCameraBackInput : IComponentData, IEnableableComponent { }

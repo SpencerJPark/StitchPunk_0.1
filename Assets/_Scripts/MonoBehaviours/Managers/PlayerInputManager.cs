@@ -98,7 +98,10 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, false);
         entityManager.SetComponentEnabled<ZoomPlayerInput>(playerEntity, false);
         entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
-        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<OnSnapCameraBackInput>(playerEntity, false);
 
         PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
         actionMap.activeActionMap = newMap;
@@ -116,7 +119,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         }
     }
 
-    #region Input System callback methods
+    #region PlayerControl
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -147,36 +150,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentData(playerEntity, new LookPlayerInput { lookInput = value });
         entityManager.SetComponentEnabled<LookPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
-
-    public void OnCursorMovement(InputAction.CallbackContext context)
-    {
-        if (!TryResolvePlayerEntity()) return;
-
-        float2 value = float2.zero;
-        if (context.performed || context.canceled)
-        {
-            Vector2 v = context.ReadValue<Vector2>();
-            value = new float2(v.x, v.y);
-        }
-
-        entityManager.SetComponentData(playerEntity, new CursorPlayerInput { cursorInput = value });
-        entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
-    }
-
-    public void OnZoom(InputAction.CallbackContext context)
-    {
-        if (!TryResolvePlayerEntity()) return;
-
-        float value = 0f;
-        if (context.performed || context.canceled)
-        {
-            Vector2 v = context.ReadValue<Vector2>();
-            value = v.y;
-        }
-
-        entityManager.SetComponentData(playerEntity, new ZoomPlayerInput { zoomInput = value });
-        entityManager.SetComponentEnabled<ZoomPlayerInput>(playerEntity, value != 0f);
-    }
+   
 
     public void OnAttack(InputAction.CallbackContext context)
     {
@@ -261,6 +235,64 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
     }
 
+    #endregion
+
+    #region UnitControl
+
+    public void OnCursorMovement(InputAction.CallbackContext context)
+    {
+        if (!TryResolvePlayerEntity()) return;
+
+        float2 value = float2.zero;
+        if (context.performed || context.canceled)
+        {
+            Vector2 v = context.ReadValue<Vector2>();
+            value = new float2(v.x, v.y);
+        }
+
+        entityManager.SetComponentData(playerEntity, new CursorPlayerInput { cursorInput = value });
+        entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
+    }
+
+    public void OnZoom(InputAction.CallbackContext context)
+    {
+        if (!TryResolvePlayerEntity()) return;
+
+        float value = 0f;
+        if (context.performed || context.canceled)
+            value = context.ReadValue<float>();
+
+        entityManager.SetComponentData(playerEntity, new ZoomPlayerInput { zoomInput = value });
+        entityManager.SetComponentEnabled<ZoomPlayerInput>(playerEntity, value != 0f);
+    }
+
+    public void OnSelect(InputAction.CallbackContext context)
+    {
+        if (!TryResolvePlayerEntity()) return;
+        if (context.started)
+        {
+            entityManager.SetComponentData(playerEntity, new OnSelectPlayerInput { isReleased = false });
+            entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, true);
+        }
+        else if (context.canceled)
+        {
+            entityManager.SetComponentData(playerEntity, new OnSelectPlayerInput { isReleased = true });
+            entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, true);
+        }
+    }
+    
+    public void OnCommand(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, true);
+    }
+
+    public void OnSnapCameraBack(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<OnSnapCameraBackInput>(playerEntity, true);
+    }
+
     public void OnCycleGroupUp(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
@@ -275,32 +307,32 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, true);
     }
 
-    public void OnSelectGroup1(InputAction.CallbackContext context)
+    public void OnQuickCommand1(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 1 });
-        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 1 });
+        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
     }
 
-    public void OnSelectGroup2(InputAction.CallbackContext context)
+    public void OnQuickCommand2(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 2 });
-        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 2 });
+        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
     }
 
-    public void OnSelectGroup3(InputAction.CallbackContext context)
+    public void OnQuickCommand3(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 3 });
-        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 3 });
+        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
     }
 
-    public void OnSelectGroup4(InputAction.CallbackContext context)
+    public void OnQuickCommand4(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 4 });
-        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 4 });
+        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
     }
 
     #endregion

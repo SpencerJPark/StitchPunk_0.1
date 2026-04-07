@@ -120,9 +120,37 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.AddComponent(newBody, new PoolOwner { unitType = targetType });
                 // Signal AnimatorTargetInitSystem to rebuild the AnimatorTarget buffer.
                 ecb.AddComponent<NeedsAnimatorInit>(newBody);
+                // Signal Ragdoll2DSpawnInitSystem to force-disable ragdoll components on
+                // child entities — ECB.Instantiate enabled-bit copy is not reliable for children.
+                if (state.EntityManager.HasComponent<Ragdoll2DConfig>(bodyPrefab))
+                    ecb.AddComponent<NeedsRagdollInit>(newBody);
+
                 // ECB.Instantiate does not reliably copy IEnableableComponent enabled bits.
-                // Explicitly disable all pathfinding followers/requests so they start clean.
-                // Guard each against prefabs that don't carry the component.
+                // Explicitly reset every enableable component to its correct spawn state.
+
+                // Health / life state — must start alive.
+                if (state.EntityManager.HasComponent<Alive>(bodyPrefab))
+                    ecb.SetComponentEnabled<Alive>(newBody, true);
+                if (state.EntityManager.HasComponent<Dead>(bodyPrefab))
+                    ecb.SetComponentEnabled<Dead>(newBody, false);
+
+                // Ragdoll root component — disabled until death.
+                if (state.EntityManager.HasComponent<Ragdoll2DLaunch>(bodyPrefab))
+                    ecb.SetComponentEnabled<Ragdoll2DLaunch>(newBody, false);
+
+                // Undead / minion state — citizens start as neither.
+                if (state.EntityManager.HasComponent<Undead>(bodyPrefab))
+                    ecb.SetComponentEnabled<Undead>(newBody, false);
+                if (state.EntityManager.HasComponent<Minion>(bodyPrefab))
+                    ecb.SetComponentEnabled<Minion>(newBody, false);
+                if (state.EntityManager.HasComponent<Revive>(bodyPrefab))
+                    ecb.SetComponentEnabled<Revive>(newBody, false);
+                if (state.EntityManager.HasComponent<SwapBrainRequest>(bodyPrefab))
+                    ecb.SetComponentEnabled<SwapBrainRequest>(newBody, false);
+                if (state.EntityManager.HasComponent<Selected>(bodyPrefab))
+                    ecb.SetComponentEnabled<Selected>(newBody, false);
+
+                // Pathfinding — disabled until a path is requested.
                 if (state.EntityManager.HasComponent<PathRequest>(bodyPrefab))
                     ecb.SetComponentEnabled<PathRequest>(newBody, false);
                 if (state.EntityManager.HasComponent<DStarLiteFollower>(bodyPrefab))

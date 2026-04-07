@@ -84,8 +84,17 @@ public class PlayerAuthoring : MonoBehaviour
             AddComponent(entity, new OnCycleGroupInput());
             SetComponentEnabled<OnCycleGroupInput>(entity, false);
 
-            AddComponent(entity, new OnQuickSelectGroupInput());
-            SetComponentEnabled<OnQuickSelectGroupInput>(entity, false);
+            AddComponent(entity, new OnQuickCommandInput());
+            SetComponentEnabled<OnQuickCommandInput>(entity, false);
+
+            AddComponent(entity, new OnSelectPlayerInput());
+            SetComponentEnabled<OnSelectPlayerInput>(entity, false);
+
+            AddComponent(entity, new OnCommandPlayerInput());
+            SetComponentEnabled<OnCommandPlayerInput>(entity, false);
+
+            AddComponent(entity, new OnSnapCameraBackInput());
+            SetComponentEnabled<OnSnapCameraBackInput>(entity, false);
 
             // Minion group data — one group unlocked by default
             AddComponent(entity, new PlayerMinionGroupsData

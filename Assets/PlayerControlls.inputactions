@@ -557,10 +557,28 @@
             "id": "e36238af-d082-4c75-90ff-d7ba8c8e6fa8",
             "actions": [
                 {
+                    "name": "MoveCamera",
+                    "type": "Value",
+                    "id": "dfc90286-1bd2-4b08-8a6e-8fdadc01aebd",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
                     "name": "CursorMovement",
                     "type": "Value",
                     "id": "4be313f1-5fe5-43e2-93ee-c324250406cd",
                     "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "Zoom",
+                    "type": "Value",
+                    "id": "084bb69f-531b-405a-8c6b-32a0d8a69c7f",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
@@ -582,24 +600,6 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
-                },
-                {
-                    "name": "MoveCamera",
-                    "type": "Value",
-                    "id": "dfc90286-1bd2-4b08-8a6e-8fdadc01aebd",
-                    "expectedControlType": "Vector2",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": true
-                },
-                {
-                    "name": "Zoom",
-                    "type": "Value",
-                    "id": "084bb69f-531b-405a-8c6b-32a0d8a69c7f",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": true
                 },
                 {
                     "name": "SwitchControls",
@@ -629,36 +629,45 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectGroup1",
+                    "name": "SnapCameraBack",
                     "type": "Button",
-                    "id": "a1b2c3d4-0001-0001-0001-000000000003",
+                    "id": "f5d6aa5c-50b8-4d38-8eb1-899938e3e519",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectGroup2",
+                    "name": "QuickCommand1",
                     "type": "Button",
-                    "id": "a1b2c3d4-0001-0001-0001-000000000004",
+                    "id": "c558d452-fb69-401a-843c-cffdfe503f23",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectGroup3",
+                    "name": "QuickCommand2",
                     "type": "Button",
-                    "id": "a1b2c3d4-0001-0001-0001-000000000005",
+                    "id": "b5472ce9-51cb-49dc-9013-b50c1b21cfb5",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "SelectGroup4",
+                    "name": "QuickCommand3",
                     "type": "Button",
-                    "id": "a1b2c3d4-0001-0001-0001-000000000006",
+                    "id": "4ffa3026-bfa2-4d74-9571-1ff27abe6ad9",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "QuickCommand4",
+                    "type": "Button",
+                    "id": "15c0faf9-5f8d-41c1-bdae-8b26036de9b7",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -812,7 +821,7 @@
                 {
                     "name": "",
                     "id": "cea319cf-9cb9-423f-a34a-bf809172af68",
-                    "path": "<Mouse>/scroll",
+                    "path": "<Mouse>/scroll/y",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -878,7 +887,7 @@
                 {
                     "name": "",
                     "id": "69d03002-5f07-4c42-847c-1759df17ef37",
-                    "path": "<Mouse>/leftButton",
+                    "path": "<Mouse>/rightButton",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -900,7 +909,7 @@
                 {
                     "name": "",
                     "id": "62595649-ae0f-4aa3-b91b-87f4cd1c39fb",
-                    "path": "<Mouse>/rightButton",
+                    "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -922,7 +931,7 @@
                 {
                     "name": "",
                     "id": "b1b2c3d4-0001-0001-0001-000000000001",
-                    "path": "<Gamepad>/buttonSouth",
+                    "path": "<Gamepad>/buttonNorth",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -944,7 +953,7 @@
                 {
                     "name": "",
                     "id": "b1b2c3d4-0001-0001-0001-000000000003",
-                    "path": "<Gamepad>/buttonNorth",
+                    "path": "<Gamepad>/buttonWest",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -965,89 +974,111 @@
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000005",
-                    "path": "<Gamepad>/dpad/up",
+                    "id": "1315b218-2b40-4dd1-9521-e99df1714851",
+                    "path": "<Gamepad>/buttonSouth",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "SelectGroup1",
+                    "action": "SnapCameraBack",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000006",
+                    "id": "406090cd-f95f-428f-a230-b1c805b12006",
+                    "path": "<Keyboard>/space",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "SnapCameraBack",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "73e67960-b8ec-4c99-bdbc-d56e53a6e181",
                     "path": "<Keyboard>/1",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "SelectGroup1",
+                    "action": "QuickCommand1",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000007",
-                    "path": "<Gamepad>/dpad/right",
+                    "id": "1fc3331f-6991-45e2-9e0d-255f1076c1ec",
+                    "path": "<Gamepad>/dpad/up",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "SelectGroup2",
+                    "action": "QuickCommand1",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000008",
+                    "id": "f5d38bd4-9c53-4344-b351-a129a99fba29",
                     "path": "<Keyboard>/2",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "SelectGroup2",
+                    "action": "QuickCommand2",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000009",
-                    "path": "<Gamepad>/dpad/down",
+                    "id": "3e06c069-5721-44d5-984a-4153efdbe21b",
+                    "path": "<Gamepad>/dpad/right",
                     "interactions": "",
                     "processors": "",
-                    "groups": ";Gamepad",
-                    "action": "SelectGroup3",
+                    "groups": "",
+                    "action": "QuickCommand2",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000010",
+                    "id": "269aaaf8-eb2f-4a44-b1da-1ee0b0e8849f",
                     "path": "<Keyboard>/3",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "SelectGroup3",
+                    "action": "QuickCommand3",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000011",
-                    "path": "<Gamepad>/dpad/left",
+                    "id": "10a967e5-bc07-4df5-ba74-878fdc44238a",
+                    "path": "<Gamepad>/dpad/down",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "SelectGroup4",
+                    "action": "QuickCommand3",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000012",
+                    "id": "2abafdb6-cb79-4f30-a59f-51cfa088310d",
                     "path": "<Keyboard>/4",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
-                    "action": "SelectGroup4",
+                    "action": "QuickCommand4",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "bf0a5a41-6e9e-49d5-a28c-24e3bcf95edf",
+                    "path": "<Gamepad>/dpad/left",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
+                    "action": "QuickCommand4",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

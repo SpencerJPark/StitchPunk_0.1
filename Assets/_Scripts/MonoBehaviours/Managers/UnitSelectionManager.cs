@@ -4,12 +4,9 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IUpdateObserver
 {
-    [SerializeField] private PlayerInput playerInput;
-
     private EntityManager entityManager;
     private EntityQuery playerQuery;
     private EntityQuery physicsQuery;
@@ -19,81 +16,19 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     public bool IsSelecting { get; private set; }
 
     private Vector2 selectionStartScreenPosition;
-    private bool selectPressed;
-    private bool selectReleased;
-    private bool commandPressed;
-
-    private const string SELECT_ACTION  = "Select";
-    private const string COMMAND_ACTION = "Command";
 
     #region Unity Lifecycle
 
     protected override void Awake()
     {
         base.Awake();
-        if (playerInput == null)
-            playerInput = GetComponent<PlayerInput>();
-
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
         playerQuery   = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
         physicsQuery  = entityManager.CreateEntityQuery(typeof(PhysicsWorldSingleton));
     }
 
-    private void OnEnable()
-    {
-        UpdateManager.RegisterObserver(this);
-        if (playerInput?.actions == null) return;
-
-        InputAction select  = playerInput.actions.FindAction(SELECT_ACTION);
-        InputAction command = playerInput.actions.FindAction(COMMAND_ACTION);
-
-        if (select != null)
-        {
-            select.started  += OnSelectStarted;
-            select.canceled += OnSelectCanceled;
-        }
-        if (command != null)
-            command.started += OnCommandStarted;
-    }
-
-    private void OnDisable()
-    {
-        UpdateManager.UnregisterObserver(this);
-        if (playerInput == null || playerInput.actions == null) return;
-
-        InputAction select  = playerInput.actions.FindAction(SELECT_ACTION);
-        InputAction command = playerInput.actions.FindAction(COMMAND_ACTION);
-
-        if (select != null)
-        {
-            select.started  -= OnSelectStarted;
-            select.canceled -= OnSelectCanceled;
-        }
-        if (command != null)
-            command.started -= OnCommandStarted;
-    }
-
-    #endregion
-
-    #region Input Callbacks
-
-    private void OnSelectStarted(InputAction.CallbackContext ctx)
-    {
-        if (!IsControlUnitsMode()) return;
-        selectPressed = true;
-    }
-
-    private void OnSelectCanceled(InputAction.CallbackContext ctx)
-    {
-        if (!IsControlUnitsMode()) return;
-        selectReleased = true;
-    }
-
-    private void OnCommandStarted(InputAction.CallbackContext ctx)
-    {
-        if (!IsControlUnitsMode()) return;
-        commandPressed = true;
-    }
+    private void OnEnable()  => UpdateManager.RegisterObserver(this);
+    private void OnDisable() => UpdateManager.UnregisterObserver(this);
 
     #endregion
 
@@ -101,22 +36,25 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     public void ObservedUpdate()
     {
-        if (selectPressed)
-        {
-            selectionStartScreenPosition = GetPointerScreenPosition();
-            IsSelecting = true;
-            DeselectAll();
-            selectPressed = false;
-        }
-
-        if (selectReleased)
-        {
-            HandleSelectionComplete();
-            IsSelecting = false;
-            selectReleased = false;
-        }
-
         if (!TryResolvePlayerEntity()) return;
+
+        if (entityManager.IsComponentEnabled<OnSelectPlayerInput>(playerEntity))
+        {
+            OnSelectPlayerInput selectInput = entityManager.GetComponentData<OnSelectPlayerInput>(playerEntity);
+            entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, false);
+
+            if (!selectInput.isReleased)
+            {
+                selectionStartScreenPosition = GetCursorScreenPosition();
+                IsSelecting = true;
+                DeselectAll();
+            }
+            else
+            {
+                HandleSelectionComplete();
+                IsSelecting = false;
+            }
+        }
 
         if (IsSelecting)
         {
@@ -124,9 +62,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentData(playerEntity, new SelectionBoxData
             {
                 PositionX = rect.x,
-                PositionY  = rect.y,
-                Width      = rect.width,
-                Height     = rect.height,
+                PositionY = rect.y,
+                Width     = rect.width,
+                Height    = rect.height,
             });
             entityManager.SetComponentEnabled<SelectionBoxData>(playerEntity, true);
         }
@@ -135,10 +73,10 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentEnabled<SelectionBoxData>(playerEntity, false);
         }
 
-        if (commandPressed)
+        if (entityManager.IsComponentEnabled<OnCommandPlayerInput>(playerEntity))
         {
             HandleCommand();
-            commandPressed = false;
+            entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
         }
 
         if (entityManager.IsComponentEnabled<OnCycleGroupInput>(playerEntity))
@@ -146,13 +84,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             OnCycleGroupInput cycleInput = entityManager.GetComponentData<OnCycleGroupInput>(playerEntity);
             HandleCycleGroup(cycleInput.delta);
             entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
-        }
-
-        if (entityManager.IsComponentEnabled<OnQuickSelectGroupInput>(playerEntity))
-        {
-            OnQuickSelectGroupInput quickInput = entityManager.GetComponentData<OnQuickSelectGroupInput>(playerEntity);
-            HandleQuickSelectGroup(quickInput.groupIndex);
-            entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, false);
         }
     }
 
@@ -162,7 +93,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private void HandleSelectionComplete()
     {
-        Vector2 endPos = GetPointerScreenPosition();
+        Vector2 endPos = GetCursorScreenPosition();
         Rect rect = BuildSelectionRect(selectionStartScreenPosition, endPos);
 
         if (rect.width + rect.height > 40f)
@@ -170,8 +101,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         else
             SelectAtCursor();
 
-        // If in group assignment mode, assign selected minions to the group horde.
-        if (!TryResolvePlayerEntity()) return;
+        // If in group assignment mode, assign selected minions to the active group horde.
         PlayerMinionGroupsData groupData = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity);
         if (groupData.assignmentGroupIndex > 0)
             AssignSelectedToGroup(groupData.assignmentGroupIndex);
@@ -181,7 +111,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     {
         if (physicsQuery.IsEmpty) return;
         PhysicsWorldSingleton physics = physicsQuery.GetSingleton<PhysicsWorldSingleton>();
-        UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetPointerScreenPosition());
+        UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetCursorScreenPosition());
 
         RaycastInput rayInput = new RaycastInput
         {
@@ -196,9 +126,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         };
 
         if (!physics.CollisionWorld.CastRay(rayInput, out Unity.Physics.RaycastHit hit)) return;
-        if (!entityManager.HasComponent<Minion>(hit.Entity))   return;
-        if (!entityManager.IsComponentEnabled<Minion>(hit.Entity)) return;
-        if (!entityManager.HasComponent<Selected>(hit.Entity)) return;
+        if (!entityManager.HasComponent<Minion>(hit.Entity))        return;
+        if (!entityManager.IsComponentEnabled<Minion>(hit.Entity))  return;
+        if (!entityManager.HasComponent<Selected>(hit.Entity))      return;
 
         SetSelected(hit.Entity, true);
     }
@@ -248,7 +178,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     private void SetSelected(Entity entity, bool selected)
     {
         entityManager.SetComponentEnabled<Selected>(entity, selected);
-        Selected s  = entityManager.GetComponentData<Selected>(entity);
+        Selected s   = entityManager.GetComponentData<Selected>(entity);
         s.onSelected = selected;
         entityManager.SetComponentData(entity, s);
     }
@@ -256,7 +186,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     // Called by UI to draw the drag box.
     public Rect GetSelectionAreaRect()
     {
-        return BuildSelectionRect(selectionStartScreenPosition, GetPointerScreenPosition());
+        return BuildSelectionRect(selectionStartScreenPosition, GetCursorScreenPosition());
     }
 
     #endregion
@@ -265,45 +195,15 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private void HandleCycleGroup(int delta)
     {
-        if (!TryResolvePlayerEntity()) return;
         PlayerMinionGroupsData groupData = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity);
-        int total = groupData.unlockedGroupCount + 1; // +1 for "no group" (index 0)
+        int total = groupData.unlockedGroupCount + 1; // +1 for index 0 = no group
         int next  = ((groupData.assignmentGroupIndex + delta) % total + total) % total;
         groupData.assignmentGroupIndex = next;
         entityManager.SetComponentData(playerEntity, groupData);
     }
 
-    private void HandleQuickSelectGroup(int groupIndex)
-    {
-        if (!TryResolvePlayerEntity()) return;
-        DynamicBuffer<PlayerHordeSlot> slots = entityManager.GetBuffer<PlayerHordeSlot>(playerEntity);
-        int slotIndex = groupIndex - 1;
-        if (slotIndex < 0 || slotIndex >= slots.Length) return;
-        Entity targetHorde = slots[slotIndex].hordeEntity;
-
-        DeselectAll();
-
-        EntityQuery query = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<Minion, HordeMembership>()
-            .WithPresent<Selected>()
-            .Build(entityManager);
-
-        NativeArray<Entity>          entities    = query.ToEntityArray(Allocator.Temp);
-        NativeArray<HordeMembership> memberships = query.ToComponentDataArray<HordeMembership>(Allocator.Temp);
-
-        for (int i = 0; i < entities.Length; i++)
-        {
-            if (memberships[i].hordeEntity == targetHorde)
-                SetSelected(entities[i], true);
-        }
-
-        entities.Dispose();
-        memberships.Dispose();
-    }
-
     private void AssignSelectedToGroup(int groupIndex)
     {
-        if (!TryResolvePlayerEntity()) return;
         DynamicBuffer<PlayerHordeSlot> slots = entityManager.GetBuffer<PlayerHordeSlot>(playerEntity);
         int slotIndex = groupIndex - 1;
         if (slotIndex < 0 || slotIndex >= slots.Length) return;
@@ -330,8 +230,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private void HandleCommand()
     {
-        if (!TryResolvePlayerEntity()) return;
-
         // Only issue commands if at least one minion is selected.
         EntityQuery selectedMinions = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<Selected, Minion>()
@@ -340,7 +238,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         if (physicsQuery.IsEmpty) return;
         PhysicsWorldSingleton physics = physicsQuery.GetSingleton<PhysicsWorldSingleton>();
-        UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetPointerScreenPosition());
+        UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetCursorScreenPosition());
 
         RaycastInput rayInput = new RaycastInput
         {
@@ -356,12 +254,12 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         if (physics.CollisionWorld.CastRay(rayInput, out Unity.Physics.RaycastHit hit))
         {
-            Entity target = hit.Entity;
-            bool isHostile = entityManager.HasComponent<Alive>(target)
-                          && entityManager.IsComponentEnabled<Alive>(target)
-                          && !entityManager.HasComponent<PlayerImmune>(target)
-                          && (!entityManager.HasComponent<Minion>(target)
-                              || !entityManager.IsComponentEnabled<Minion>(target));
+            Entity target    = hit.Entity;
+            bool   isHostile = entityManager.HasComponent<Alive>(target)
+                            && entityManager.IsComponentEnabled<Alive>(target)
+                            && !entityManager.HasComponent<PlayerImmune>(target)
+                            && (!entityManager.HasComponent<Minion>(target)
+                                || !entityManager.IsComponentEnabled<Minion>(target));
 
             if (isHostile)
             {
@@ -372,7 +270,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         }
 
         // No hostile target — move to ground position under the cursor.
-        Vector3 worldPos = CursorToWorldPosition(GetPointerScreenPosition());
+        Vector3 worldPos = CursorToWorldPosition(GetCursorScreenPosition());
         entityManager.SetComponentData(playerEntity, new OnMinionMoveCommand { destination = worldPos });
         entityManager.SetComponentEnabled<OnMinionMoveCommand>(playerEntity, true);
     }
@@ -390,20 +288,10 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         return true;
     }
 
-    private bool IsControlUnitsMode()
+    private Vector2 GetCursorScreenPosition()
     {
-        if (!TryResolvePlayerEntity()) return false;
-        return entityManager.GetComponentData<PlayerActionMap>(playerEntity).activeActionMap == ActionMaps.ControlUnits;
-    }
-
-    private Vector2 GetPointerScreenPosition()
-    {
-        if (playerEntityResolved && IsControlUnitsMode())
-        {
-            Unity.Mathematics.float2 pos = entityManager.GetComponentData<CursorScreenPosition>(playerEntity).Value;
-            return new Vector2(pos.x, pos.y);
-        }
-        return Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+        float2 pos = entityManager.GetComponentData<CursorScreenPosition>(playerEntity).Value;
+        return new Vector2(pos.x, pos.y);
     }
 
     private static Rect BuildSelectionRect(Vector2 start, Vector2 end)

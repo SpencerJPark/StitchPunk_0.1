@@ -65,7 +65,7 @@ public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
             int groupIndex = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity).assignmentGroupIndex;
             if (groupIndex != lastGroupIndex)
             {
-                selectionRive.SetColor("SelectionColor", GroupIndexToColor(groupIndex));
+                selectionRive.SetEnum("SelectionColor", GroupIndexToColorEnum(groupIndex));
                 lastGroupIndex = groupIndex;
             }
         }
@@ -107,17 +107,17 @@ public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
         return Mathf.Floor((width - MUSIC_NOTE_EXTRA) / MUSIC_NOTE_WIDTH) * lines;
     }
 
-    // Maps a group assignment index to its display color.
-    // NOTE: The Rive artboard must expose a color property named "SelectionColor".
-    private static Color GroupIndexToColor(int groupIndex)
+    // Maps a group assignment index to its Rive enum string.
+    // Must match the enum values in the Rive file: Blue, Red, Green, Yellow.
+    private static string GroupIndexToColorEnum(int groupIndex)
     {
         return groupIndex switch
         {
-            1 => new Color(1f,    0.25f, 0.25f), // red
-            2 => new Color(0.25f, 0.5f,  1f),    // blue
-            3 => new Color(0.25f, 1f,    0.45f), // green
-            4 => new Color(1f,    0.9f,  0.15f), // yellow
-            _ => Color.white,                    // 0 = no group
+            1 => "Red",
+            2 => "Blue",
+            3 => "Green",
+            4 => "Yellow",
+            _ => "Blue", // 0 = no group, fall back to default
         };
     }
 }

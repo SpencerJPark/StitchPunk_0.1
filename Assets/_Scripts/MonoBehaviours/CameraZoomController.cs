@@ -62,7 +62,7 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
         if (actionMap.activeActionMap != lastActionMap)
         {
             lastActionMap = actionMap.activeActionMap;
-            ResetOffset();
+            SetOffsetInstant(defaultOffset);
         }
 
         if (actionMap.activeActionMap != ActionMaps.ControlUnits) return;
