@@ -37,6 +37,12 @@ public static class BrainBakeHelper
         baker.AddBuffer<Hurt>(entity);
     }
 
+    public static void AddPlayerControllable<T>(Baker<T> baker, Entity entity) where T : UnityEngine.Component
+    {
+        baker.AddComponent<PlayerControlled>(entity);
+        baker.SetComponentEnabled<PlayerControlled>(entity, false);
+    }
+
     public static void AddHumanMotivations<T>(Baker<T> baker, Entity entity) where T : UnityEngine.Component
     {
         baker.AddComponent<HungerMotivation>(entity);

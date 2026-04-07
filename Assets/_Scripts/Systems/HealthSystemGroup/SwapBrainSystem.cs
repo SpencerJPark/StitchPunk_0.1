@@ -72,6 +72,19 @@ public partial struct SwapBrainSystem : ISystem
             // Mark the body as a player minion.
             ecb.SetComponentEnabled<Minion>(bodyEntity, true);
 
+            // Clear movement state so the body idles in place rather than
+            // continuing toward the citizen's last interaction destination.
+            ecb.SetComponentEnabled<PathRequest>(bodyEntity, false);
+            ecb.SetComponentEnabled<DStarLiteFollower>(bodyEntity, false);
+            ecb.SetComponentEnabled<FlowFieldFollower>(bodyEntity, false);
+            ecb.SetComponent(bodyEntity, new Movement
+            {
+                moveSpeed   = SystemAPI.GetComponent<Movement>(bodyEntity).moveSpeed,
+                rotationSpeed = SystemAPI.GetComponent<Movement>(bodyEntity).rotationSpeed,
+                targetPosition = transform.ValueRO.Position,
+                isMoving    = false,
+            });
+
             // Disable the request so it doesn't fire again next frame.
             ecb.SetComponentEnabled<SwapBrainRequest>(bodyEntity, false);
         }
