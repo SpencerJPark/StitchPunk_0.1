@@ -72,6 +72,18 @@ public partial struct SwapBrainSystem : ISystem
             // Mark the body as a player minion.
             ecb.SetComponentEnabled<Minion>(bodyEntity, true);
 
+            // Ensure the body has HordeMembership so it can be assigned to a group later.
+            // Added disabled — the minion starts ungrouped.
+            if (SystemAPI.HasComponent<HordeMembership>(bodyEntity))
+            {
+                ecb.SetComponentEnabled<HordeMembership>(bodyEntity, false);
+            }
+            else
+            {
+                ecb.AddComponent(bodyEntity, new HordeMembership { hordeId = 0, hordeEntity = Entity.Null });
+                ecb.SetComponentEnabled<HordeMembership>(bodyEntity, false);
+            }
+
             // Clear movement state so the body idles in place rather than
             // continuing toward the citizen's last interaction destination.
             ecb.SetComponentEnabled<PathRequest>(bodyEntity, false);

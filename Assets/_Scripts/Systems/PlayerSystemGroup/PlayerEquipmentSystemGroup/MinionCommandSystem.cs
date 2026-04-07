@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -67,34 +68,65 @@ public partial struct MinionCommandSystem : ISystem
 
         Entity orderTarget = hasInteractCmd ? interactTarget : Entity.Null;
 
+        // Collect unique horde entities touched by this command so we can update
+        // their shared target in one pass rather than once per member.
+        NativeHashSet<Entity> dirtyHordes = new NativeHashSet<Entity>(8, Allocator.Temp);
+
         // ── Fan order to every Selected + Minion body ─────────────────────────
-        foreach (var (brainLink, agent, pathRequest, pathRequestEnabled) in
+        // WithPresent<HordeMembership> includes both grouped (enabled) and
+        // ungrouped (disabled) zombie bodies; all zombies have the component
+        // after SwapBrainSystem runs.
+        foreach (var (brainLink, agent, pathRequest, pathRequestEnabled, membership, entity) in
             SystemAPI.Query<
                 RefRO<BrainLink>,
                 RefRO<PathfindingAgent>,
                 RefRW<PathRequest>,
-                EnabledRefRW<PathRequest>>()
+                EnabledRefRW<PathRequest>,
+                RefRO<HordeMembership>>()
             .WithAll<Selected, Minion>()
-            .WithPresent<PathRequest>())
+            .WithPresent<PathRequest, HordeMembership>()
+            .WithEntityAccess())
         {
             Entity brain = brainLink.ValueRO.brain;
             if (brain == Entity.Null) continue;
 
-            // Take control of the brain.
+            // Take control of the brain (same for all selected minions).
             SystemAPI.SetComponentEnabled<PlayerControlled>(brain, true);
             SystemAPI.SetComponent(brain, new PlayerOrder
             {
                 destination  = destination,
                 targetEntity = orderTarget,
             });
-            // Prevent the AI from overwriting SelectedAction while player-controlled.
             SystemAPI.SetComponentEnabled<NeedsAction>(brain, false);
 
-            // Start pathfinding on the body.
-            pathRequest.ValueRW.targetPosition = destination;
-            pathRequest.ValueRW.requestedMode  = agent.ValueRO.preferredMode;
-            pathRequestEnabled.ValueRW = true;
+            bool inHorde = SystemAPI.IsComponentEnabled<HordeMembership>(entity);
+            if (inHorde)
+            {
+                // HordeSystem will generate a shared flow field once we update the
+                // horde target — do not issue an individual PathRequest here.
+                dirtyHordes.Add(membership.ValueRO.hordeEntity);
+            }
+            else
+            {
+                // Ungrouped minion: individual pathfinding.
+                pathRequest.ValueRW.targetPosition = destination;
+                pathRequest.ValueRW.requestedMode  = agent.ValueRO.preferredMode;
+                pathRequestEnabled.ValueRW = true;
+            }
         }
+
+        // ── Update each affected horde's target (triggers new flow field) ──────
+        foreach (Entity hordeEntity in dirtyHordes)
+        {
+            if (!SystemAPI.HasComponent<Horde>(hordeEntity)) continue;
+            Horde horde          = SystemAPI.GetComponent<Horde>(hordeEntity);
+            horde.targetPosition = destination;
+            horde.targetEntity   = orderTarget;
+            horde.needsPathUpdate = true;
+            SystemAPI.SetComponent(hordeEntity, horde);
+        }
+
+        dirtyHordes.Dispose();
     }
 
     [BurstCompile]

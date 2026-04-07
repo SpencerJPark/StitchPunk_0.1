@@ -80,3 +80,28 @@ public struct AimIndicatorRef : IComponentData
 {
     public Entity visualEntity;
 }
+
+// Minion group / horde control — lives on the player entity.
+public struct PlayerMinionGroupsData : IComponentData
+{
+    public int unlockedGroupCount;    // 1–4; future upgrade system writes this
+    public int assignmentGroupIndex; // 0 = normal selection, 1–4 = assigning to this group
+}
+
+// One slot per unlocked group. Buffer index 0 = group 1, index 1 = group 2, etc.
+public struct PlayerHordeSlot : IBufferElementData
+{
+    public Entity hordeEntity;
+}
+
+// Fired when the player cycles the active assignment group (LB / RB).
+public struct OnCycleGroupInput : IComponentData, IEnableableComponent
+{
+    public int delta; // +1 or -1
+}
+
+// Fired when the player quick-selects a group via D-pad.
+public struct OnQuickSelectGroupInput : IComponentData, IEnableableComponent
+{
+    public int groupIndex; // 1–4
+}

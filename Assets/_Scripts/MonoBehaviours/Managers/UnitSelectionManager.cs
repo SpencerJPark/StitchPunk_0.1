@@ -140,6 +140,20 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             HandleCommand();
             commandPressed = false;
         }
+
+        if (entityManager.IsComponentEnabled<OnCycleGroupInput>(playerEntity))
+        {
+            OnCycleGroupInput cycleInput = entityManager.GetComponentData<OnCycleGroupInput>(playerEntity);
+            HandleCycleGroup(cycleInput.delta);
+            entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
+        }
+
+        if (entityManager.IsComponentEnabled<OnQuickSelectGroupInput>(playerEntity))
+        {
+            OnQuickSelectGroupInput quickInput = entityManager.GetComponentData<OnQuickSelectGroupInput>(playerEntity);
+            HandleQuickSelectGroup(quickInput.groupIndex);
+            entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, false);
+        }
     }
 
     #endregion
@@ -155,6 +169,12 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             SelectInRect(rect);
         else
             SelectAtCursor();
+
+        // If in group assignment mode, assign selected minions to the group horde.
+        if (!TryResolvePlayerEntity()) return;
+        PlayerMinionGroupsData groupData = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity);
+        if (groupData.assignmentGroupIndex > 0)
+            AssignSelectedToGroup(groupData.assignmentGroupIndex);
     }
 
     private void SelectAtCursor()
@@ -237,6 +257,71 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     public Rect GetSelectionAreaRect()
     {
         return BuildSelectionRect(selectionStartScreenPosition, GetPointerScreenPosition());
+    }
+
+    #endregion
+
+    #region Group Control
+
+    private void HandleCycleGroup(int delta)
+    {
+        if (!TryResolvePlayerEntity()) return;
+        PlayerMinionGroupsData groupData = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity);
+        int total = groupData.unlockedGroupCount + 1; // +1 for "no group" (index 0)
+        int next  = ((groupData.assignmentGroupIndex + delta) % total + total) % total;
+        groupData.assignmentGroupIndex = next;
+        entityManager.SetComponentData(playerEntity, groupData);
+    }
+
+    private void HandleQuickSelectGroup(int groupIndex)
+    {
+        if (!TryResolvePlayerEntity()) return;
+        DynamicBuffer<PlayerHordeSlot> slots = entityManager.GetBuffer<PlayerHordeSlot>(playerEntity);
+        int slotIndex = groupIndex - 1;
+        if (slotIndex < 0 || slotIndex >= slots.Length) return;
+        Entity targetHorde = slots[slotIndex].hordeEntity;
+
+        DeselectAll();
+
+        EntityQuery query = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Minion, HordeMembership>()
+            .WithPresent<Selected>()
+            .Build(entityManager);
+
+        NativeArray<Entity>          entities    = query.ToEntityArray(Allocator.Temp);
+        NativeArray<HordeMembership> memberships = query.ToComponentDataArray<HordeMembership>(Allocator.Temp);
+
+        for (int i = 0; i < entities.Length; i++)
+        {
+            if (memberships[i].hordeEntity == targetHorde)
+                SetSelected(entities[i], true);
+        }
+
+        entities.Dispose();
+        memberships.Dispose();
+    }
+
+    private void AssignSelectedToGroup(int groupIndex)
+    {
+        if (!TryResolvePlayerEntity()) return;
+        DynamicBuffer<PlayerHordeSlot> slots = entityManager.GetBuffer<PlayerHordeSlot>(playerEntity);
+        int slotIndex = groupIndex - 1;
+        if (slotIndex < 0 || slotIndex >= slots.Length) return;
+        Entity targetHorde = slots[slotIndex].hordeEntity;
+
+        EntityQuery selectedQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Selected, Minion>()
+            .Build(entityManager);
+
+        NativeArray<Entity> selected = selectedQuery.ToEntityArray(Allocator.Temp);
+        for (int i = 0; i < selected.Length; i++)
+        {
+            Entity body = selected[i];
+            if (entityManager.IsComponentEnabled<HordeMembership>(body))
+                HordeUtils.LeaveHorde(entityManager, body);
+            HordeUtils.JoinHorde(entityManager, body, targetHorde, 0);
+        }
+        selected.Dispose();
     }
 
     #endregion

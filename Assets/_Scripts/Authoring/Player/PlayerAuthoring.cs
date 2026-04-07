@@ -15,6 +15,10 @@ public class PlayerAuthoring : MonoBehaviour
     [SearchableEnum] public ItemType debugSlot3 = ItemType.None;
     [SearchableEnum] public ItemType debugSlot4 = ItemType.None;
 
+    [Header("Minion Groups")]
+    [Tooltip("Number of group slots available at start (1–4). Upgrade system will write this at runtime.")]
+    [Range(1, 4)] public int startingGroupCount = 1;
+
     public class Baker : Baker<PlayerAuthoring> {
 
         public override void Bake(PlayerAuthoring authoring) {
@@ -75,6 +79,40 @@ public class PlayerAuthoring : MonoBehaviour
 
             AddComponent(entity, new OnMinionInteractCommand());
             SetComponentEnabled<OnMinionInteractCommand>(entity, false);
+
+            // Minion group input components
+            AddComponent(entity, new OnCycleGroupInput());
+            SetComponentEnabled<OnCycleGroupInput>(entity, false);
+
+            AddComponent(entity, new OnQuickSelectGroupInput());
+            SetComponentEnabled<OnQuickSelectGroupInput>(entity, false);
+
+            // Minion group data — one group unlocked by default
+            AddComponent(entity, new PlayerMinionGroupsData
+            {
+                unlockedGroupCount = authoring.startingGroupCount,
+                assignmentGroupIndex = 0
+            });
+
+            // Create 4 persistent horde entities (one per group slot) and store refs in buffer
+            DynamicBuffer<PlayerHordeSlot> hordeSlots = AddBuffer<PlayerHordeSlot>(entity);
+            for (int i = 0; i < 4; i++)
+            {
+                Entity hordeEntity = CreateAdditionalEntity(TransformUsageFlags.None);
+                AddComponent(hordeEntity, new Horde
+                {
+                    hordeId = i + 1,
+                    targetPosition = new Unity.Mathematics.float3(0f, 0f, 0f),
+                    targetEntity = Entity.Null,
+                    flowFieldIndex = -1,
+                    memberCount = 0,
+                    isActive = true,
+                    needsPathUpdate = false,
+                    behaviorFlags = 0
+                });
+                AddBuffer<HordeMemberBuffer>(hordeEntity);
+                hordeSlots.Add(new PlayerHordeSlot { hordeEntity = hordeEntity });
+            }
 
             AddComponent(entity, new SelectionBoxData());
             SetComponentEnabled<SelectionBoxData>(entity, false);

@@ -18,6 +18,8 @@ public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
     private const float MUSIC_NOTE_WIDTH = 90f;
     private const float MUSIC_NOTE_EXTRA = 22f;
 
+    private int lastGroupIndex = -1; // -1 forces a sync on the first frame
+
     private void Start()
     {
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
@@ -57,6 +59,17 @@ public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
             wasEnabled = isEnabled;
         }
 
+        // Keep box color in sync with the active assignment group regardless of visibility.
+        if (hasPlayer && entityManager.HasComponent<PlayerMinionGroupsData>(playerEntity))
+        {
+            int groupIndex = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity).assignmentGroupIndex;
+            if (groupIndex != lastGroupIndex)
+            {
+                selectionRive.SetColor("SelectionColor", GroupIndexToColor(groupIndex));
+                lastGroupIndex = groupIndex;
+            }
+        }
+
         if (!isEnabled) return;
 
         SelectionBoxData data = entityManager.GetComponentData<SelectionBoxData>(playerEntity);
@@ -92,5 +105,19 @@ public class UnitSelectionBoxUI : MonoBehaviour, IUpdateObserver
         if (width < minSpace) return 0f;
         float lines = Mathf.Floor(height / LINE_WIDTH);
         return Mathf.Floor((width - MUSIC_NOTE_EXTRA) / MUSIC_NOTE_WIDTH) * lines;
+    }
+
+    // Maps a group assignment index to its display color.
+    // NOTE: The Rive artboard must expose a color property named "SelectionColor".
+    private static Color GroupIndexToColor(int groupIndex)
+    {
+        return groupIndex switch
+        {
+            1 => new Color(1f,    0.25f, 0.25f), // red
+            2 => new Color(0.25f, 0.5f,  1f),    // blue
+            3 => new Color(0.25f, 1f,    0.45f), // green
+            4 => new Color(1f,    0.9f,  0.15f), // yellow
+            _ => Color.white,                    // 0 = no group
+        };
     }
 }

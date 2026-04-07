@@ -97,6 +97,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<LookPlayerInput>(playerEntity, false);
         entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, false);
         entityManager.SetComponentEnabled<ZoomPlayerInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
+        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, false);
 
         PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
         actionMap.activeActionMap = newMap;
@@ -254,9 +256,51 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     public void OnItemSlot4(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        
+
         entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 4 });
         entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
+    }
+
+    public void OnCycleGroupUp(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnCycleGroupInput { delta = 1 });
+        entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, true);
+    }
+
+    public void OnCycleGroupDown(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnCycleGroupInput { delta = -1 });
+        entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, true);
+    }
+
+    public void OnSelectGroup1(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 1 });
+        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+    }
+
+    public void OnSelectGroup2(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 2 });
+        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+    }
+
+    public void OnSelectGroup3(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 3 });
+        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
+    }
+
+    public void OnSelectGroup4(InputAction.CallbackContext context)
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentData(playerEntity, new OnQuickSelectGroupInput { groupIndex = 4 });
+        entityManager.SetComponentEnabled<OnQuickSelectGroupInput>(playerEntity, true);
     }
 
     #endregion

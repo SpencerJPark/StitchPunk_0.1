@@ -22,7 +22,8 @@
       "Bash(find /c/Users/spenc/Documents/GitHub/Stitch_Punk/Assets -name *Citizen* -o -name *NPC* -o -name *npc*)",
       "Bash(find C:UsersspencDocumentsGitHubStitch_PunkAssets_ScriptsAuthoringItems -type f -name *.cs)",
       "Bash(find C:UsersspencDocumentsGitHubStitch_PunkAssets_ScriptsComponentsItems -type f -name *.cs)",
-      "Bash(git -C \"C:/Users/spenc/Documents/GitHub/Stitch_Punk\" show HEAD:Assets/_Scripts/Core/RiveAnimator.cs)"
+      "Bash(git -C \"C:/Users/spenc/Documents/GitHub/Stitch_Punk\" show HEAD:Assets/_Scripts/Core/RiveAnimator.cs)",
+      "Bash(ls:*)"
     ]
   }
 }
