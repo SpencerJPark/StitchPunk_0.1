@@ -98,8 +98,12 @@ public partial class AnimationSystemGroup : ComponentSystemGroup { }
 
 // Late Simulation System Group
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
-[UpdateBefore(typeof(DespawnSystemGroup))]
+[UpdateBefore(typeof(SpawnInitSystemGroup))]
 public partial class SpawnSystemGroup : ComponentSystemGroup { }
+
+[UpdateInGroup(typeof(LateSimulationSystemGroup))]
+[UpdateBefore(typeof(DespawnSystemGroup))]
+public partial class SpawnInitSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 public partial class DespawnSystemGroup : ComponentSystemGroup { }

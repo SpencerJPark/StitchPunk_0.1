@@ -32,7 +32,8 @@ CombatSystemGroup
   └── CombatReactionSystemGroup  — damage application; MinionAutoCounterSystem releases PlayerControlled on hit
 HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
 LateSimulationSystemGroup
-  ├── SpawnSystemGroup       — spawn new units, rebuild animator targets
+  ├── SpawnSystemGroup       — UnitSpawnerSystem only: instantiate/reclaim, enable NewlySpawned
+  ├── SpawnInitSystemGroup   — all spawn-frame init systems filter on [WithAll<NewlySpawned>]
   ├── (loose systems)        — pool return, event resets, Ragdoll2DSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
   └── SaveSystemGroup        — play time tracking, auto-save timer, save/load (OrderLast)
 PresentationSystemGroup      — selection outlines (runs after transforms settled)
@@ -143,15 +144,40 @@ Runs inside `SimulationSystemGroup`, before `AISystemGroup`. Contains two sub-gr
 
 Runs at end of frame. Safe zone for spawn/despawn and event cleanup.
 
+Sub-group execution order:
+```
+SpawnSystemGroup       → SpawnInitSystemGroup → DespawnSystemGroup → SaveSystemGroup (OrderLast)
+```
+
+#### SpawnSystemGroup (`SpawnSystemGroup/`)
+
 | System | File | Purpose |
 |---|---|---|
-| `UnitSpawnerSystem` | `SpawnSystemGroup/UnitSpawnerSystem.cs` | Spawns units from pool or instantiates new ones |
-| `AnimatorTargetInitSystem` | `SpawnSystemGroup/AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer on newly spawned bodies |
-| `UnitPoolReturnSystem` | `UnitPoolReturnSystem.cs` | Disables dead units and returns them to pool |
-| `ResetEventsSystem` | `ResetEventsSystem.cs` | Clears one-frame event flags (onSelected, onDeselected, etc.) |
-| `Ragdoll2DSystem` | `HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88° (direction from `fallSideSign`), decays joint angular velocity, clamps joints to ±75°, ground-clamps joint world Y against root Y + buffer |
+| `UnitSpawnerSystem` | `UnitSpawnerSystem.cs` | Instantiates new or reclaims pooled body+brain entities; enables `NewlySpawned` on every body; cross-links `BrainLink`/`BodyLink` |
 
-> `SpawnSystemGroup` is a sub-group nested inside `LateSimulationSystemGroup`.
+#### SpawnInitSystemGroup (`SpawnInitSystemGroup/`)
+
+Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlySpawned>]` — no-op on frames with no spawning.
+
+| System | File | Purpose |
+|---|---|---|
+| `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Alive`→on, `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off |
+| `AnimatorTargetInitSystem` | `AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer — ECB.Instantiate does not reliably remap refs inside dynamic buffers |
+| `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
+| `SpawnInitCleanupSystem` | `SpawnInitCleanupSystem.cs` | `[OrderLast]` Disables `NewlySpawned`; component persists on entity for re-enablement on next pool reclaim |
+
+#### DespawnSystemGroup (`DespawnSystemGroup/`)
+
+| System | File | Purpose |
+|---|---|---|
+| `UnitPoolReturnSystem` | `../UnitPoolReturnSystem.cs` | Adds `Disabled` to units > 200 units from the player; returns them to the pool |
+
+#### Loose systems (LateSimulationSystemGroup)
+
+| System | File | Purpose |
+|---|---|---|
+| `ResetEventsSystem` | `ResetEventsSystem.cs` | Clears one-frame event flags (onSelected, onDeselected, etc.) |
+| `Ragdoll2DSystem` | `../HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88°, decays joint angular velocity, ground-clamps joints. Runs here (not HealthSystemGroup) so it fires AFTER `ApplyAnimatedPoseSystem` |
 
 ---
 
@@ -180,6 +206,49 @@ Runs after all transforms have settled.
 | `OutlineSystem` | `OutlineSystem.cs` | Drives outline render feature for selected units |
 | `OutlineLayerUpdateSystem` | `OutlineLayerUpdateSystem.cs` | Updates per-layer outline state |
 | `SelectedVisualSystem` | `SelectedVisualSystem.cs` | Shows/hides selection circle visual under units |
+
+---
+
+## Spawn Init Pattern
+
+Every body entity has `NewlySpawned : IComponentData, IEnableableComponent` baked **disabled** by `UnitAuthoring.Baker`. `UnitSpawnerSystem` enables it at spawn time (new instantiation and pool reclaim). `SpawnInitCleanupSystem` disables it `[OrderLast]` so it persists across pool cycles.
+
+### How to add a new component with a spawn-frame default state
+
+Root-entity enableable component (e.g., a new state flag):
+1. Add a `ComponentLookup<T>` field to `SpawnStateInitSystem`
+2. Update it in `OnUpdate` with `.Update(ref state)`
+3. Add `if (_lookup.HasComponent(entity)) _lookup.SetComponentEnabled(entity, true/false);` to the `foreach` body
+4. **No edit to `UnitSpawnerSystem` needed.**
+
+### How to add a new spawn-frame init system
+
+Any logic that must run once on a freshly spawned entity:
+```csharp
+[UpdateInGroup(typeof(SpawnInitSystemGroup))]
+public partial struct MySpawnInitSystem : ISystem
+{
+    public void OnUpdate(ref SystemState state)
+    {
+        foreach (var (...) in
+            SystemAPI.Query<...>()
+                .WithAll<NewlySpawned>()  // ← required filter
+                .WithAll<MyComponent>()   // ← filter for entities relevant to this system
+                .WithEntityAccess())
+        {
+            // init logic
+            // do NOT disable NewlySpawned here — SpawnInitCleanupSystem handles it
+        }
+    }
+}
+```
+
+### Rules
+
+- **Never add per-system signal components** (e.g., `NeedsMyInit`). `NewlySpawned` is the single shared signal.
+- **Never remove `NewlySpawned`** — only disable it (done by `SpawnInitCleanupSystem`). Removal would break pool reclaim.
+- **Child entity component resets** (anything not on the root body entity) must use `DynamicBuffer<LinkedEntityGroup>` scanning, not stored entity refs from baked components. `LinkedEntityGroup` is always correctly remapped by `ECB.Instantiate`; baked entity refs in `IComponentData` / buffers may not be.
+- **Structural changes** (AddComponent, RemoveComponent, Instantiate) cannot happen in `SpawnInitSystemGroup` — these require ECB and belong in `UnitSpawnerSystem`.
 
 ---
 

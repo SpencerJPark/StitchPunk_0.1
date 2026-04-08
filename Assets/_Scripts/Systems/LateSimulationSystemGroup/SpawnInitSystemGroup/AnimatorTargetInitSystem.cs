@@ -1,13 +1,15 @@
 using Unity.Collections;
 using Unity.Entities;
 
-// Rebuilds the AnimatorTarget buffer on newly instantiated unit entities.
+// Rebuilds the AnimatorTarget buffer on newly spawned unit entities.
 //
 // Entity refs inside DynamicBuffer<AnimatorTarget> are NOT reliably remapped by
 // ECB.Instantiate, so the buffer is cleared and rebuilt from BaseParent lookups
 // (BaseParent is IComponentData and IS remapped correctly by ECB.Instantiate).
-[UpdateInGroup(typeof(SpawnSystemGroup))]
-[UpdateAfter(typeof(UnitSpawnerSystem))]
+//
+// Filters on [WithAll<NewlySpawned>] — runs only on spawn frames.
+// SpawnInitCleanupSystem handles disabling NewlySpawned at end of SpawnSystemGroup.
+[UpdateInGroup(typeof(SpawnInitSystemGroup))]
 public partial struct AnimatorTargetInitSystem : ISystem
 {
     public void OnCreate(ref SystemState state)
@@ -20,7 +22,7 @@ public partial struct AnimatorTargetInitSystem : ISystem
         // Collect roots that need initialisation this frame.
         var roots = new NativeHashSet<Entity>(8, Allocator.Temp);
         foreach (var (_, entity) in
-            SystemAPI.Query<RefRO<NeedsAnimatorInit>>().WithEntityAccess())
+            SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
         {
             roots.Add(entity);
         }
@@ -56,14 +58,6 @@ public partial struct AnimatorTargetInitSystem : ISystem
             });
         }
 
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
-        var rootsArray = roots.ToNativeArray(Allocator.Temp);
-        for (int i = 0; i < rootsArray.Length; i++)
-            ecb.RemoveComponent<NeedsAnimatorInit>(rootsArray[i]);
-
-        rootsArray.Dispose();
         roots.Dispose();
-        ecb.Playback(state.EntityManager);
-        ecb.Dispose();
     }
 }

@@ -93,6 +93,7 @@ public partial struct UnitSpawnerSystem : ISystem
                 // Re-enable and reposition. ECB is FIFO, so Remove runs before SetComponent.
                 ecb.RemoveComponent<Disabled>(pooledEntities[i]);
                 ecb.SetComponent(pooledEntities[i], LocalTransform.FromPosition(pos));
+                ecb.SetComponentEnabled<NewlySpawned>(pooledEntities[i], true);
                 // Re-enable the brain so AI wakes back up after pooling.
                 if (SystemAPI.HasComponent<BrainLink>(pooledEntities[i]))
                 {
@@ -118,47 +119,11 @@ public partial struct UnitSpawnerSystem : ISystem
                 Entity newBody = ecb.Instantiate(bodyPrefab);
                 ecb.SetComponent(newBody, LocalTransform.FromPosition(pos));
                 ecb.AddComponent(newBody, new PoolOwner { unitType = targetType });
-                // Signal AnimatorTargetInitSystem to rebuild the AnimatorTarget buffer.
-                ecb.AddComponent<NeedsAnimatorInit>(newBody);
-                // Signal Ragdoll2DSpawnInitSystem to force-disable ragdoll components on
-                // child entities — ECB.Instantiate enabled-bit copy is not reliable for children.
-                if (state.EntityManager.HasComponent<Ragdoll2DConfig>(bodyPrefab))
-                    ecb.AddComponent<NeedsRagdollInit>(newBody);
-
-                // ECB.Instantiate does not reliably copy IEnableableComponent enabled bits.
-                // Explicitly reset every enableable component to its correct spawn state.
-
-                // Health / life state — must start alive.
-                if (state.EntityManager.HasComponent<Alive>(bodyPrefab))
-                    ecb.SetComponentEnabled<Alive>(newBody, true);
-                if (state.EntityManager.HasComponent<Dead>(bodyPrefab))
-                    ecb.SetComponentEnabled<Dead>(newBody, false);
-
-                // Ragdoll root component — disabled until death.
-                if (state.EntityManager.HasComponent<Ragdoll2DLaunch>(bodyPrefab))
-                    ecb.SetComponentEnabled<Ragdoll2DLaunch>(newBody, false);
-
-                // Undead / minion state — citizens start as neither.
-                if (state.EntityManager.HasComponent<Undead>(bodyPrefab))
-                    ecb.SetComponentEnabled<Undead>(newBody, false);
-                if (state.EntityManager.HasComponent<Minion>(bodyPrefab))
-                    ecb.SetComponentEnabled<Minion>(newBody, false);
-                if (state.EntityManager.HasComponent<Revive>(bodyPrefab))
-                    ecb.SetComponentEnabled<Revive>(newBody, false);
-                if (state.EntityManager.HasComponent<SwapBrainRequest>(bodyPrefab))
-                    ecb.SetComponentEnabled<SwapBrainRequest>(newBody, false);
-                if (state.EntityManager.HasComponent<Selected>(bodyPrefab))
-                    ecb.SetComponentEnabled<Selected>(newBody, false);
-
-                // Pathfinding — disabled until a path is requested.
-                if (state.EntityManager.HasComponent<PathRequest>(bodyPrefab))
-                    ecb.SetComponentEnabled<PathRequest>(newBody, false);
-                if (state.EntityManager.HasComponent<DStarLiteFollower>(bodyPrefab))
-                    ecb.SetComponentEnabled<DStarLiteFollower>(newBody, false);
-                if (state.EntityManager.HasComponent<FlowFieldFollower>(bodyPrefab))
-                    ecb.SetComponentEnabled<FlowFieldFollower>(newBody, false);
-                if (state.EntityManager.HasComponent<HordeMembership>(bodyPrefab))
-                    ecb.SetComponentEnabled<HordeMembership>(newBody, false);
+                // Signal all downstream init systems (SpawnStateInitSystem,
+                // AnimatorTargetInitSystem, Ragdoll2DSpawnInitSystem) that this
+                // entity needs spawn-frame initialization.
+                // SpawnInitCleanupSystem disables this at the end of SpawnSystemGroup.
+                ecb.SetComponentEnabled<NewlySpawned>(newBody, true);
 
                 if (brainPrefab != Entity.Null)
                 {

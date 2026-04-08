@@ -92,6 +92,15 @@ Preference using EntityJobs were it make sense in systems
 
 **Brain swap on revive — COMPLETE.** `SwapBrainSystem` (HealthSystemGroup, after ReviveSystem): destroys old citizen brain, instantiates zombie brain prefab from `UnitPrefabEntry` (keyed by `UnitType.MaleZombie` / `FemaleZombie`), cross-links body ↔ new brain, enables `Minion` on body. `SwapBrainRequest` (enableable) is baked disabled on all units with `UndeadAuthoring`; `PlayerReviverSystem` enables it alongside `Revive`.
 
+**Spawn init pattern — COMPLETE.** All spawn-frame initialization now flows through `SpawnInitSystemGroup` (runs after `SpawnSystemGroup`, before `DespawnSystemGroup`).
+- `NewlySpawned : IComponentData, IEnableableComponent` is baked **disabled** on every body prefab by `UnitAuthoring.Baker`.
+- `UnitSpawnerSystem` enables it on new instantiation and pool reclaim. Nothing else.
+- `SpawnStateInitSystem` resets root-entity enableable components (Alive, Dead, pathfinding, etc.) to correct defaults.
+- `Ragdoll2DSpawnInitSystem` force-disables `Ragdoll2D`/`RagdollJoint` on child entities by scanning `DynamicBuffer<LinkedEntityGroup>` — more reliable than stored entity refs in `Ragdoll2DConfig`/`Ragdoll2DJointRef` which may not be remapped correctly after `ECB.Instantiate`.
+- `AnimatorTargetInitSystem` rebuilds the `AnimatorTarget` buffer from `BaseParent` lookups.
+- `SpawnInitCleanupSystem` (`[OrderLast]`) disables `NewlySpawned` — component stays on entity for pool reclaim cycles.
+- **To add a new spawning init behavior:** Create a new system in `SpawnInitSystemGroup` with `[WithAll<NewlySpawned>]` filter. See `Spawn Init Pattern` section in `_Docs/Systems.md`.
+
 **⚠ BUG — NPC AI broken after minion command system.** Citizens no longer seek interactions from the start.
 - **Root cause:** `[WithDisabled(typeof(PlayerControlled))]` on `ActionSelectionJob` only matches entities that *have* `PlayerControlled` present AND disabled. Citizens never had `PlayerControlled` baked → they are excluded from the query entirely.
 - **Fix:** Add `PlayerControlled` (disabled) to `BrainBakeHelper.AddRequirements` so every brain type has the component. `ActionSelectionJob`'s filter will then correctly pass citizens (disabled) and skip player-controlled minions (enabled).

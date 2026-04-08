@@ -56,7 +56,11 @@ public class Ragdoll2DAuthoring : MonoBehaviour
             Entity rootEntity       = GetEntity(TransformUsageFlags.Dynamic);
             Entity visualRootEntity = GetEntity(authoring.visualChild, TransformUsageFlags.Dynamic);
 
-            // Only write to rootEntity — Ragdoll2DBakingSystem handles the child entities
+            // Only write to rootEntity — Ragdoll2DBakingSystem handles the child entities.
+            // Ragdoll2DLaunch is on the root entity so we can bake it here directly.
+            AddComponent<Ragdoll2DLaunch>(rootEntity);
+            SetComponentEnabled<Ragdoll2DLaunch>(rootEntity, false);
+
             float bwd = authoring.groundBufferBackward > 0f ? authoring.groundBufferBackward : authoring.groundBufferForward;
             AddComponent(rootEntity, new Ragdoll2DConfig
             {

@@ -14,14 +14,10 @@ public struct PoolOwner : IComponentData
     public UnitType unitType;
 }
 
-// Added to a newly instantiated root entity so AnimatorTargetInitSystem rebuilds
-// its AnimatorTarget buffer from live BaseParent lookups.
-// Removed by AnimatorTargetInitSystem on the same frame it is processed.
-public struct NeedsAnimatorInit : IComponentData { }
-
-// Added to a newly instantiated body entity that carries Ragdoll2DConfig.
-// Ragdoll2DSpawnInitSystem uses it to force-disable Ragdoll2D on the visual child
-// and Ragdoll2DJoint on every joint — ECB.Instantiate does not reliably copy
-// IEnableableComponent enabled bits on child entities.
-// Removed by Ragdoll2DSpawnInitSystem on the same frame it is processed.
-public struct NeedsRagdollInit : IComponentData { }
+// Baked disabled on all unit body prefabs by UnitAuthoring.
+// Enabled by UnitSpawnerSystem whenever a body entity is freshly instantiated
+// or reclaimed from the pool. Downstream init systems in SpawnSystemGroup filter
+// on [WithAll<NewlySpawned>] to run only on that frame's new arrivals.
+// Disabled (not removed) by SpawnInitCleanupSystem at the end of SpawnSystemGroup
+// so the component persists across pool cycles.
+public struct NewlySpawned : IComponentData, IEnableableComponent { }

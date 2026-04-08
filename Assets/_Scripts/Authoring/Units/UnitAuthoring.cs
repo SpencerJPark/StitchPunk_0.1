@@ -14,6 +14,8 @@ public class UnitAuthoring : MonoBehaviour {
             AddComponent(entity, new UnitAction());
             AddComponent<Target>(entity);
             SetComponentEnabled<Target>(entity, false);
+            AddComponent<NewlySpawned>(entity);
+            SetComponentEnabled<NewlySpawned>(entity, false);
         }
     }
 }
