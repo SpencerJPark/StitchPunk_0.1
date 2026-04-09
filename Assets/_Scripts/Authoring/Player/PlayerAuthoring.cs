@@ -19,6 +19,9 @@ public class PlayerAuthoring : MonoBehaviour
     [Tooltip("Number of group slots available at start (1–4). Upgrade system will write this at runtime.")]
     [Range(1, 4)] public int startingGroupCount = 1;
 
+    [Tooltip("One scene-object marker per group slot (index 0 = group 1). Shown at the order destination, hidden on arrival or overwrite.")]
+    public GameObject[] groupOrderMarkers = new GameObject[4];
+
     public class Baker : Baker<PlayerAuthoring> {
 
         public override void Bake(PlayerAuthoring authoring) {
@@ -80,6 +83,15 @@ public class PlayerAuthoring : MonoBehaviour
             AddComponent(entity, new OnMinionInteractCommand());
             SetComponentEnabled<OnMinionInteractCommand>(entity, false);
 
+            AddComponent(entity, new OnMinionAttackCommand());
+            SetComponentEnabled<OnMinionAttackCommand>(entity, false);
+
+            AddComponent(entity, new OnMinionDefendCommand());
+            SetComponentEnabled<OnMinionDefendCommand>(entity, false);
+
+            AddComponent(entity, new OnMinionFollowCommand());
+            SetComponentEnabled<OnMinionFollowCommand>(entity, false);
+
             // Minion group input components
             AddComponent(entity, new OnCycleGroupInput());
             SetComponentEnabled<OnCycleGroupInput>(entity, false);
@@ -105,19 +117,29 @@ public class PlayerAuthoring : MonoBehaviour
 
             // Create 4 persistent horde entities (one per group slot) and store refs in buffer
             DynamicBuffer<PlayerHordeSlot> hordeSlots = AddBuffer<PlayerHordeSlot>(entity);
-            for (int i = 0; i < 4; i++)
+            for (int slotIndex = 0; slotIndex < 4; slotIndex++)
             {
                 Entity hordeEntity = CreateAdditionalEntity(TransformUsageFlags.None);
+
+                Entity markerEntity = Entity.Null;
+                if (authoring.groupOrderMarkers != null
+                    && slotIndex < authoring.groupOrderMarkers.Length
+                    && authoring.groupOrderMarkers[slotIndex] != null)
+                {
+                    markerEntity = GetEntity(authoring.groupOrderMarkers[slotIndex], TransformUsageFlags.Dynamic);
+                }
+
                 AddComponent(hordeEntity, new Horde
                 {
-                    hordeId = i + 1,
+                    hordeId        = slotIndex + 1,
                     targetPosition = new Unity.Mathematics.float3(0f, 0f, 0f),
-                    targetEntity = Entity.Null,
+                    targetEntity   = Entity.Null,
                     flowFieldIndex = -1,
-                    memberCount = 0,
-                    isActive = true,
+                    memberCount    = 0,
+                    isActive       = true,
                     needsPathUpdate = false,
-                    behaviorFlags = 0
+                    behaviorFlags  = 0,
+                    markerEntity   = markerEntity,
                 });
                 AddBuffer<HordeMemberBuffer>(hordeEntity);
                 hordeSlots.Add(new PlayerHordeSlot { hordeEntity = hordeEntity });

@@ -7,3 +7,13 @@ public enum ItemType
     Bomb,
     Reviver,
 }
+
+public enum GalvanicOrgans
+{
+    NerveString,
+    Windpipe,
+    Spinello,
+    Bonehorn,
+    Ribcordion,
+    Organ
+} 

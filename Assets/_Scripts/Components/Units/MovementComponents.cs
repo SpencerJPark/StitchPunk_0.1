@@ -42,6 +42,12 @@ public struct Horde : IComponentData
     public bool isActive;
     public bool needsPathUpdate;
     public int behaviorFlags;
+    // Controls how members arrange around the horde's targetPosition.
+    // Offsets are computed by FormationOffsetSystem and stored in HordeMembership.formationOffset.
+    public FormationType formationType;
+    // Scene entity for the destination marker visual (particle/quad).
+    // Shown by MinionCommandSystem when an order is issued; hidden by OrderMarkerSystem on completion.
+    public Entity markerEntity;
 }
 
 [InternalBufferCapacity(16)]

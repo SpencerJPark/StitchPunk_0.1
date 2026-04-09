@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Entities;
+using Unity.Collections;
 
 // When a player-controlled minion body takes a hit, release PlayerControlled on
 // its brain so the AI (SelfPreservation scoring) takes over and counter-attacks.
@@ -13,6 +14,7 @@ public partial struct MinionAutoCounterSystem : ISystem
 {
     private ComponentLookup<PlayerControlled> playerControlledLookup;
     private ComponentLookup<NeedsAction>      needsActionLookup;
+    private ComponentLookup<PlayerOrder>      playerOrderLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -20,6 +22,7 @@ public partial struct MinionAutoCounterSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         playerControlledLookup = state.GetComponentLookup<PlayerControlled>(false);
         needsActionLookup      = state.GetComponentLookup<NeedsAction>(false);
+        playerOrderLookup      = state.GetComponentLookup<PlayerOrder>(true);
     }
 
     [BurstCompile]
@@ -27,11 +30,13 @@ public partial struct MinionAutoCounterSystem : ISystem
     {
         playerControlledLookup.Update(ref state);
         needsActionLookup.Update(ref state);
+        playerOrderLookup.Update(ref state);
 
         state.Dependency = new MinionAutoCounterJob
         {
             playerControlledLookup = playerControlledLookup,
             needsActionLookup      = needsActionLookup,
+            playerOrderLookup      = playerOrderLookup,
         }.Schedule(state.Dependency);
     }
 
@@ -49,6 +54,7 @@ public partial struct MinionAutoCounterJob : IJobEntity
 {
     public ComponentLookup<PlayerControlled> playerControlledLookup;
     public ComponentLookup<NeedsAction>      needsActionLookup;
+    [ReadOnly] public ComponentLookup<PlayerOrder> playerOrderLookup;
 
     public void Execute(RefRO<BrainLink> brainLink, in DynamicBuffer<Hurt> hurtBuffer)
     {
@@ -60,7 +66,13 @@ public partial struct MinionAutoCounterJob : IJobEntity
         if (!playerControlledLookup.HasComponent(brain))       return;
         if (!playerControlledLookup.IsComponentEnabled(brain)) return;
 
-        // Release player control — AI takes over from here.
+        // Attack orders intentionally keep control even while taking damage —
+        // the minion is supposed to fight through it.
+        if (playerOrderLookup.HasComponent(brain)
+            && playerOrderLookup[brain].commandType == CommandType.Attack)
+            return;
+
+        // Release player control — AI takes over and counter-attacks.
         playerControlledLookup.SetComponentEnabled(brain, false);
 
         // Wake the AI scoring pipeline so it reacts immediately.

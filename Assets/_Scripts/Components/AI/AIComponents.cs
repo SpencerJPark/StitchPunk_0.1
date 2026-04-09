@@ -42,6 +42,7 @@ public struct PlayerOrder : IComponentData
 {
     public float3 destination;
     public Entity targetEntity;
+    public CommandType commandType;
 }
 
 

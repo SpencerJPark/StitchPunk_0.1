@@ -4534,6 +4534,7 @@ GameObject:
   - component: {fileID: 3547184892287536240}
   - component: {fileID: 6968009521234229065}
   - component: {fileID: 3485874398458451963}
+  - component: {fileID: 4090640193069371708}
   - component: {fileID: 1822333382599755793}
   - component: {fileID: 6836798298145647292}
   - component: {fileID: 81547783365101107}
@@ -4718,8 +4719,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c54af9d021a1964f82eaff2b9be0288, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::UndeadAuthoring
-  startMinion: 0
   startUndead: 0
+--- !u!114 &4090640193069371708
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ae8a8617ae9c704ab914b3490ad1ae9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::MinionAuthoring
+  startMinion: 0
   selectedVisual: {fileID: 6702309609326996383}
   showScale: 2
 --- !u!114 &1822333382599755793

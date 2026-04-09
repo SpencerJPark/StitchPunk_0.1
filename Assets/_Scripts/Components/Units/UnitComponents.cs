@@ -1,4 +1,6 @@
 ﻿using Unity.Entities;
+using Unity.Mathematics;
+using Unity.Rendering;
 
 public struct Unit : IComponentData { }
 public struct UnitData : IComponentData
@@ -77,11 +79,23 @@ public struct AttackCooldown : IComponentData
 public struct Undead : IComponentData, IEnableableComponent { }
 public struct Revive : IComponentData, IEnableableComponent { }
 public struct Minion: IComponentData, IEnableableComponent { }
-public struct Selected : IComponentData, IEnableableComponent 
+public struct Selected : IComponentData, IEnableableComponent
 {
     public Entity visualEntity;
     public float showScale;
+    // Updated by MinionCommandSystem when a new order is issued.
+    // Read by SelectedVisualSystem to drive ring color.
+    public CommandType commandType;
 
     public bool onSelected;
     public bool onDeselected;
 }
+
+// Lives on the selection ring visual entity. Drives the _SelectionColor shader property.
+// Add this component (alongside LocalTransform) to the selection ring prefab quad.
+[MaterialProperty("_SelectionColor")]
+public struct SelectionColor : IComponentData
+{
+    public float4 Value; // RGBA
+}
+

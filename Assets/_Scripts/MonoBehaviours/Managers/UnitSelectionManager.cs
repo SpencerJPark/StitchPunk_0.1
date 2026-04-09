@@ -4,6 +4,7 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IUpdateObserver
 {
@@ -85,6 +86,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             HandleCycleGroup(cycleInput.delta);
             entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
         }
+
+        if (Keyboard.current[Key.Tab].wasPressedThisFrame)
+            CycleFormationForSelectedHordes();
     }
 
     #endregion
@@ -202,6 +206,31 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         entityManager.SetComponentData(playerEntity, groupData);
     }
 
+    private void CycleFormationForSelectedHordes()
+    {
+        EntityQuery selectedQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Selected, Minion, HordeMembership>()
+            .Build(entityManager);
+
+        NativeArray<HordeMembership> memberships = selectedQuery.ToComponentDataArray<HordeMembership>(Allocator.Temp);
+        NativeHashSet<Entity> visited = new NativeHashSet<Entity>(4, Allocator.Temp);
+
+        for (int i = 0; i < memberships.Length; i++)
+        {
+            Entity hordeEntity = memberships[i].hordeEntity;
+            if (hordeEntity == Entity.Null || !visited.Add(hordeEntity)) continue;
+            if (!entityManager.HasComponent<Horde>(hordeEntity)) continue;
+
+            Horde horde = entityManager.GetComponentData<Horde>(hordeEntity);
+            horde.formationType = (FormationType)(((byte)horde.formationType + 1) % 4);
+            horde.needsPathUpdate = true;
+            entityManager.SetComponentData(hordeEntity, horde);
+        }
+
+        memberships.Dispose();
+        visited.Dispose();
+    }
+
     private void AssignSelectedToGroup(int groupIndex)
     {
         DynamicBuffer<PlayerHordeSlot> slots = entityManager.GetBuffer<PlayerHordeSlot>(playerEntity);
@@ -236,6 +265,13 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             .Build(entityManager);
         if (selectedMinions.IsEmpty) return;
 
+        // F key → follow player regardless of cursor position.
+        if (Keyboard.current[Key.F].isPressed)
+        {
+            entityManager.SetComponentEnabled<OnMinionFollowCommand>(playerEntity, true);
+            return;
+        }
+
         if (physicsQuery.IsEmpty) return;
         PhysicsWorldSingleton physics = physicsQuery.GetSingleton<PhysicsWorldSingleton>();
         UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetCursorScreenPosition());
@@ -263,14 +299,36 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
             if (isHostile)
             {
+                // Right-click hostile → attack command (minion retains control even if hit).
+                entityManager.SetComponentData(playerEntity, new OnMinionAttackCommand { targetEntity = target });
+                entityManager.SetComponentEnabled<OnMinionAttackCommand>(playerEntity, true);
+                return;
+            }
+
+            // Right-click interactable entity (non-hostile, non-minion) → interact command.
+            if (entityManager.HasComponent<Interaction>(target))
+            {
                 entityManager.SetComponentData(playerEntity, new OnMinionInteractCommand { targetEntity = target });
                 entityManager.SetComponentEnabled<OnMinionInteractCommand>(playerEntity, true);
                 return;
             }
         }
 
-        // No hostile target — move to ground position under the cursor.
         Vector3 worldPos = CursorToWorldPosition(GetCursorScreenPosition());
+
+        // Shift + right-click on ground → defend position.
+        if (Keyboard.current[Key.LeftShift].isPressed || Keyboard.current[Key.RightShift].isPressed)
+        {
+            entityManager.SetComponentData(playerEntity, new OnMinionDefendCommand
+            {
+                position = worldPos,
+                radius   = 5f,
+            });
+            entityManager.SetComponentEnabled<OnMinionDefendCommand>(playerEntity, true);
+            return;
+        }
+
+        // Default: move to ground position under the cursor.
         entityManager.SetComponentData(playerEntity, new OnMinionMoveCommand { destination = worldPos });
         entityManager.SetComponentEnabled<OnMinionMoveCommand>(playerEntity, true);
     }
