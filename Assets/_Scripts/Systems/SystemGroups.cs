@@ -12,6 +12,11 @@ public partial class PlayerSystemGroup : ComponentSystemGroup { }
         [UpdateInGroup(typeof(PlayerSystemGroup), OrderFirst = true)]
         public partial class PlayerInputSystemGroup : ComponentSystemGroup { }
 
+        [UpdateInGroup(typeof(PlayerSystemGroup))]
+        [UpdateAfter(typeof(PlayerInputSystemGroup))]
+        [UpdateBefore(typeof(PlayerEquipmentSystemGroup))]
+        public partial class DialogueSystemGroup : ComponentSystemGroup { }
+
         [UpdateInGroup(typeof(PlayerSystemGroup), OrderLast = true)]
         public partial class PlayerEquipmentSystemGroup : ComponentSystemGroup { }
 

@@ -50,6 +50,7 @@ public class AnimationClipEditorWindow : EditorWindow
     private Rect lastTrackAreaRect;
     
     [MenuItem("Window/Animation/Clip Editor")]
+    [MenuItem("Window/Stitch Punk/Animation Clip Editor")]
     public static void ShowWindow()
     {
         var window = GetWindow<AnimationClipEditorWindow>("Animation Clip Editor");

@@ -42,6 +42,9 @@ public class GameDataAuthoring : MonoBehaviour
             {
                 animationFrameRate = authoring.animationFrameRate
             });
+
+            // Dialogue persistent state
+            AddBuffer<PlayedDialogue>(entity);
         }
     }
 }
