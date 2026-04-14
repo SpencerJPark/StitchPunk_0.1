@@ -12,8 +12,6 @@ public class CitizenBrainAuthoring : MonoBehaviour
         public override void Bake(CitizenBrainAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-
-            AddComponent<CitizenBrain>(entity);
             
             BrainBakeHelper.AddRequirements(this, entity, authoring.body, authoring.awarenessRange);
             BrainBakeHelper.AddHumanMotivations(this, entity);

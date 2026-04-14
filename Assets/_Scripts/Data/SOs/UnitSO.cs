@@ -7,7 +7,6 @@ public class UnitSO : ScriptableObject
 {
     [SearchableEnum] public UnitType unitType;
     public GameObject prefab;
-    public GameObject brainPrefab;
     
     [Tooltip("Animation Data")]
     public ActionAnimationMapping[] actionAnimations;

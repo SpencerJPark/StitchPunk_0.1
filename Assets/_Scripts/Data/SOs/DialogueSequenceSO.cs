@@ -12,7 +12,7 @@ using UnityEngine;
 /// conversation. Connect nodes left-to-right to define the flow.
 ///
 /// After a sequence plays in full it is marked in the PlayedDialogue buffer.
-/// On the next trigger the refresherSequence plays instead (if assigned) and can replay freely.
+/// On the next trigger the runtime starts from the Refresher node instead of Start (if one is present).
 /// </summary>
 [CreateAssetMenu(fileName = "Dialogue_New", menuName = "Stitch Punk/Dialogue/Dialogue Sequence")]
 public class DialogueSequenceSO : ScriptableObject
@@ -30,9 +30,6 @@ public class DialogueSequenceSO : ScriptableObject
              "complete conversation flow. Managed automatically by the Dialogue Editor.")]
     public List<DialogueConnectionData> connections = new List<DialogueConnectionData>();
 
-    [Tooltip("An alternate shorter sequence shown on repeat visits after this primary sequence " +
-             "has played once. Leave empty if this NPC has no repeat dialogue.")]
-    public DialogueSequenceSO refresherSequence;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +59,18 @@ public abstract class DialogueNodeData
 /// </summary>
 [Serializable]
 public class DialogueStartNodeData : DialogueNodeData
+{
+    // Output port name: "out"
+    // No input ports.
+}
+
+/// <summary>
+/// Alternate entry point used on repeat visits after the primary sequence has already played once.
+/// If no Refresher node is present the manager defaults to Start as usual.
+/// Connect its single output port to the first Line, Decision, or Event node of the shorter repeat path.
+/// </summary>
+[Serializable]
+public class DialogueRefresherNodeData : DialogueNodeData
 {
     // Output port name: "out"
     // No input ports.

@@ -14,6 +14,11 @@ public partial class PlayerSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(PlayerSystemGroup))]
         [UpdateAfter(typeof(PlayerInputSystemGroup))]
+        [UpdateBefore(typeof(DialogueSystemGroup))]
+        public partial class NarrativeSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(PlayerSystemGroup))]
+        [UpdateAfter(typeof(NarrativeSystemGroup))]
         [UpdateBefore(typeof(PlayerEquipmentSystemGroup))]
         public partial class DialogueSystemGroup : ComponentSystemGroup { }
 
@@ -53,8 +58,14 @@ public partial class ItemSystemGroup : ComponentSystemGroup { }
 
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(CombatSystemGroup))]
+[UpdateBefore(typeof(BuildingsSystemGroup))]
 public partial class MovementSystemGroup : ComponentSystemGroup { }
+
+
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(MovementSystemGroup))]
+[UpdateBefore(typeof(CombatSystemGroup))]
+public partial class BuildingsSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(MovementSystemGroup))]
         [UpdateBefore(typeof(MovementRoutingSystemGroup))]

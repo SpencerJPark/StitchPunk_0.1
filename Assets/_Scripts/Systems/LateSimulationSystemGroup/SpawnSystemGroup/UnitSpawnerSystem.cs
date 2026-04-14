@@ -78,7 +78,7 @@ public partial struct UnitSpawnerSystem : ISystem
             float range         = spawnerRanges[s];
 
             Entity bodyPrefab  = GetBodyPrefabForType(prefabs, targetType);
-            Entity brainPrefab = GetBrainPrefabForType(prefabs, targetType);
+            
             if (bodyPrefab == Entity.Null) continue;
 
             int spawned = 0;
@@ -94,16 +94,7 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.RemoveComponent<Disabled>(pooledEntities[i]);
                 ecb.SetComponent(pooledEntities[i], LocalTransform.FromPosition(pos));
                 ecb.SetComponentEnabled<NewlySpawned>(pooledEntities[i], true);
-                // Re-enable the brain so AI wakes back up after pooling.
-                if (SystemAPI.HasComponent<BrainLink>(pooledEntities[i]))
-                {
-                    Entity brain = SystemAPI.GetComponent<BrainLink>(pooledEntities[i]).brain;
-                    if (brain != Entity.Null)
-                    {
-                        ecb.RemoveComponent<Disabled>(brain);
-                        ecb.SetComponentEnabled<NeedsAction>(brain, true);
-                    }
-                }
+               
                 reclaimed.Set(i, true);
                 spawned++;
             }
@@ -112,42 +103,13 @@ public partial struct UnitSpawnerSystem : ISystem
             for (int i = spawned; i < needed; i++)
             {
                 float3 pos = RandomPositionInRange(center, range, ref _random);
-
-                // Instantiate body and brain as independent root entities.
-                // This guarantees IEnableableComponent bits are copied reliably
-                // (LinkedEntityGroup member copy is not trustworthy for enabled bits).
+                
                 Entity newBody = ecb.Instantiate(bodyPrefab);
                 ecb.SetComponent(newBody, LocalTransform.FromPosition(pos));
                 ecb.AddComponent(newBody, new PoolOwner { unitType = targetType });
-                // Signal all downstream init systems (SpawnStateInitSystem,
-                // AnimatorTargetInitSystem, Ragdoll2DSpawnInitSystem) that this
-                // entity needs spawn-frame initialization.
-                // SpawnInitCleanupSystem disables this at the end of SpawnSystemGroup.
+
                 ecb.SetComponentEnabled<NewlySpawned>(newBody, true);
-
-                if (brainPrefab != Entity.Null)
-                {
-                    Entity newBrain = ecb.Instantiate(brainPrefab);
-
-                    // Brain must share the body's world position so spatial-hash
-                    // range queries in the scoring systems return correct results.
-                    ecb.SetComponent(newBrain, LocalTransform.FromPosition(pos));
-
-                    // ECB.Instantiate does not reliably copy IEnableableComponent enabled bits.
-                    // Force NeedsAction on so the AI scoring systems process this brain immediately.
-                    ecb.SetComponentEnabled<NeedsAction>(newBrain, true);
-
-                    // Cross-link body ↔ brain. ECB entity IDs are resolved at playback,
-                    // so these deferred-entity references are safe to use here.
-                    // AddComponent for BrainLink because MaleCitizen.prefab has no BrainLinkAuthoring,
-                    // so the component does not exist on the baked body entity.
-                    // HasBrain is baked by BrainLinkAuthoring but that baker runs on the brain prefab,
-                    // not the body prefab — add it explicitly here.
-                    ecb.AddComponent(newBody,  new BrainLink { brain = newBrain });
-                    ecb.AddComponent<HasBrain>(newBody);
-                    ecb.SetComponent(newBrain, new BodyLink  { body  = newBody  });
-                    ecb.AddComponent(newBrain, new PoolOwner { unitType = targetType });
-                }
+                ecb.SetComponentEnabled<NeedsAction>(newBody, true);
             }
 
             // Spawner has done its job — disable it until something re-activates it.
@@ -169,13 +131,6 @@ public partial struct UnitSpawnerSystem : ISystem
     {
         for (int i = 0; i < prefabs.Length; i++)
             if (prefabs[i].unitType == type) return prefabs[i].bodyPrefab;
-        return Entity.Null;
-    }
-
-    private static Entity GetBrainPrefabForType(DynamicBuffer<UnitPrefabEntry> prefabs, UnitType type)
-    {
-        for (int i = 0; i < prefabs.Length; i++)
-            if (prefabs[i].unitType == type) return prefabs[i].brainPrefab;
         return Entity.Null;
     }
 

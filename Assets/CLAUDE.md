@@ -58,5 +58,61 @@ Vault Structure — `_Vault/`
 
 Current Status
 
-We are working on the dialogue editor window. You can click on the nodes on the right to add them to the editor, but I would like to also be able to drag and drop. I noticed a bug where if I press on the different dialogue trees it deletes the connections and then if I do it again it deletes the actual tree. also if I press start twice it creates two starts and both can't be deleted properly. so we need to fix those bugs
-and we need to add the ability to create new dialogue trees, add in the ability to set up refresher paths to the editor (my idea is that it will show up in the same area and will still use and end, but instead of start we use refresher. if none is present it just defaults to start. and I would like to better understand events and how to set them. I possibly will want to be able to pick my own custome dots based events or something like that that uses enableable components and i can pick which ones get enabled.
+**Dialogue system + Narrative event system are built and wired.**
+
+Dialogue editor is complete:
+- Drag-and-drop node placement from palette
+- Create-new-sequence button (left panel header)
+- Refresher node in palette (teal, one-per-tree enforced)
+- Bugs fixed: switching trees no longer corrupts connections; duplicate Start/Refresher blocked
+
+Refresher path runtime is complete:
+- One `DialogueSequenceSO` holds both paths — Start node for first visit, Refresher node for repeat visits
+- `DialogueUIManager` picks the entry point based on `PlayedDialogue` buffer
+- `DialogueStartSystem` simplified: always passes primary `sequenceId`; no separate refresher SO needed
+
+Narrative event system is complete:
+- ECS: `NarrativeProximitySystem` (proximity triggers), `NarrativeDialogueBridgeSystem` (dialogue→narrative bridge)
+- `NarrativeEventSO` with 5 action types: DialogueTrigger, MoveNPC, PlayAnimation, EnableComponent, and custom enableable component toggle
+- `NarrativeEventManager` (MonoBehaviour) drives async event execution via UniTask
+- `NarrativeIds.cs` registry is ready — populate Events/Entities constants as you build scenes
+
+**Unified AI Brain System — Phase 1 (data layer) complete:**
+
+Architecture: single entity per unit, brain type as a `BrainType` enum on a `Brain` component. All brain configs live in `BrainLibraryBlob` keyed by enum value. Brain swap = cheap value change, no entity destruction.
+
+New data layer:
+- `Brain` component (BrainType enum) + `MotivationState` (9 floats) on every AI unit
+- `BrainConfigSO` — one per brain type, inline motivation + behavior config (no sub-assets)
+- `BrainLibrarySO` → `BrainLibraryBlob` baked by `BrainLibraryBakingSystem`
+- `ActionOption` buffer redesigned: `score`, `ActionCategory`, `targetEntity`, `targetPosition`
+- `SwapBrainSystem` — no entity ops, just changes `Brain.activeBrain` + resets `MotivationState`
+- `BrainAuthoring` — single authoring component for all unit types
+
+Brain types defined: Citizen, Guard, FeralZombie, PlayerZombie, Panic, Merchant, Character.
+
+**Phase 2 next:** Rewrite scoring systems (MotivationDecaySystem, InteractionScoringSystem, ChaseScoringSystem, AttackScoringSystem, FleeScoringSystem, ActionSelectionSystem).
+
+**Factory System Phase 1 is built (ECS data layer + production loop):**
+
+Grid + station data layer:
+- `FactoryGridConfig` singleton + `FactoryGridCell` buffer — baked by `FactoryGridAuthoring`
+- `FactoryStation`, `StationInputSlot`/`StationOutputSlot` buffers, `ProductionProgress` (enableable), `StationWorkerSlot` buffer — baked by `FactoryStationAuthoring`
+- `FactoryLibrarySO` → `FactoryLibraryBlob` baked by `FactoryLibraryBakingSystem` (PostBakingSystemGroup)
+
+Production loop:
+- `ProductionSystem` in `BuildingsSystemGroup` — `StartProductionJob` checks inputs+workers and starts cycles; `TickProductionJob` ticks elapsed time and writes outputs on completion
+- `BuildingsSystemGroup` is now declared in `SystemGroups.cs` (after Movement, before Combat)
+
+Station types for demo: `PrepTable`, `AssemblyBench`, `GalvanicCharger`, `OutputBay`
+Item types: `CorpseBody`, `MechScrap`, `ElectricCharge`, `FleshAutomaton`
+
+**Next steps:**
+- Create `ProductionRecipeSO` assets for each station (define inputs → outputs + duration)
+- Create a `_FactoryLibrary` SO asset pointing to all recipes
+- Test: add `FactoryGridAuthoring` + `FactoryLibraryAuthoring` + test stations to a scene; manually populate `StationInputSlot` in ECS inspector and confirm production runs
+- Phase 2: Grid placement UI (MonoBehaviour `FactoryPlacementManager`) + camera switching
+- Phase 3: Worker carry tasks (`CarryTask` component + `WorkerCarrySystem`) + conveyor belt entities
+- Create `ChaseBehaviorSO` + `MeleeAttackBehaviorSO` SO assets in the project
+- Create a `FeralZombieConfig` `BrainConfigSO` asset
+- Populate `NarrativeIds` and create first `NarrativeEventSO` assets

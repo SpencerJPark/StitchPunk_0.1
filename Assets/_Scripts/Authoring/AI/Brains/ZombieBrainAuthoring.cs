@@ -12,8 +12,6 @@ public class ZombieBrainAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            AddComponent<ZombieBrain>(entity);
-
             BrainBakeHelper.AddRequirements(this, entity, authoring.body, authoring.awarenessRange);
             BrainBakeHelper.AddPlayerControllable(this, entity);
 

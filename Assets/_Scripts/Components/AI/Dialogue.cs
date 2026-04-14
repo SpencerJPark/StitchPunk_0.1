@@ -7,16 +7,11 @@ using Unity.Entities;
 /// <summary>
 /// Marks an NPC entity as having dialogue the player can trigger.
 /// Baked by DialogueProviderAuthoring.
-/// Disable (do not remove) after a sequence ends if no refresher exists,
-/// or leave enabled so the refresher can be triggered again.
 /// </summary>
 public struct DialogueProvider : IComponentData, IEnableableComponent
 {
     /// <summary>Primary sequence ID. Maps to a constant in DialogueIds.Sequences.</summary>
     public int sequenceId;
-
-    /// <summary>Refresher sequence ID. -1 if none.</summary>
-    public int refresherSequenceId;
 }
 
 // ---------------------------------------------------------------------------

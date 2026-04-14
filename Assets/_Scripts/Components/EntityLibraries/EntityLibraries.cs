@@ -34,7 +34,6 @@ public struct UnitPrefabEntry : IBufferElementData
 {
     public UnitType unitType;
     public Entity bodyPrefab;
-    public Entity brainPrefab;
 }
 
 
@@ -46,6 +45,17 @@ public struct AttackLibrary : IComponentData
 public struct AttackLibraryReference : IComponentData
 {
     public UnityObjectRef<AttackLibrarySO> library;
+}
+
+
+public struct FactoryLibrary : IComponentData
+{
+    public BlobAssetReference<FactoryLibraryBlob> blob;
+}
+
+public struct FactoryLibraryReference : IComponentData
+{
+    public UnityObjectRef<FactoryLibrarySO> library;
 }
 
 

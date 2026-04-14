@@ -6,5 +6,5 @@
         Vehicle,
         ControlUnits,
         Map,
-        // add more as you need…
+        Cinematic,
     }

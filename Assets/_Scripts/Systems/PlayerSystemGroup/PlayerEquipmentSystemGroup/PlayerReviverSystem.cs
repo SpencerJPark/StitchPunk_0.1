@@ -32,7 +32,7 @@ public partial struct PlayerReviverSystem : ISystem
 
                 if (SystemAPI.HasComponent<SwapBrainRequest>(targetEntity))
                 {
-                    SystemAPI.SetComponent<SwapBrainRequest>(targetEntity, new SwapBrainRequest { newBrainType = BrainType.Zombie });
+                    SystemAPI.SetComponent<SwapBrainRequest>(targetEntity, new SwapBrainRequest { newBrain = BrainType.PlayerZombie });
                     SystemAPI.SetComponentEnabled<SwapBrainRequest>(targetEntity, true);
                 }
             }

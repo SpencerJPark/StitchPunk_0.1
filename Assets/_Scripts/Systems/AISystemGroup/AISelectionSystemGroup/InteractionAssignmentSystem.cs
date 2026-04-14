@@ -6,7 +6,6 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AISelectionSystemGroup))]
-[UpdateAfter(typeof(ActionSelectionSystem))]
 public partial struct InteractionAssignmentSystem : ISystem
 {
     private ComponentLookup<BodyLink> bodyLinkLookup;

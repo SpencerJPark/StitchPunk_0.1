@@ -33,9 +33,6 @@ public class UnitLibraryAuthoring : MonoBehaviour
                     bodyPrefab  = unitSO.prefab != null
                         ? GetEntity(unitSO.prefab, TransformUsageFlags.Dynamic)
                         : Entity.Null,
-                    brainPrefab = unitSO.brainPrefab != null
-                        ? GetEntity(unitSO.brainPrefab, TransformUsageFlags.Dynamic)
-                        : Entity.Null,
                 });
             }
         }

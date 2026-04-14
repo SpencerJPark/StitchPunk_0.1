@@ -5,105 +5,127 @@ related: "[[Systems]], [[Components]], [[Systems_Movement]]"
 
 # AISystemGroup — Context
 
-The AI system is **motivation-based scoring**. Units do not follow a behaviour tree or state machine — they score every possible action every tick and execute the highest scorer. Part of the larger [[Systems]] execution pipeline.
+The AI system is **unified behavior scoring**. Every unit has a `Brain` component (a `BrainType` enum) that points to a config entry in `BrainLibraryBlob`. That config defines which motivations decay, which behaviors score action options, and what weights apply. One system per behavior type runs for ALL brain types — a weight of 0 simply skips the entity.
+
+No separate brain entity. No body entity. All AI state lives on the single unit entity.
 
 ---
 
-## Pipeline
+## Architecture
+
+### Single Entity per Unit
+- Citizens, enemies, guards, minions — all single entities
+- Brain type is `Brain.activeBrain` (BrainType enum)
+- No `BodyLink`, `BrainLink`, `IsBrain`, `HasBrain` (legacy stubs kept for compilation, removed in Phase 4)
+
+### Brain Config in Blob
+- `BrainLibraryBlob` keyed by `(int)BrainType` → `BrainConfigBlob`
+- Each `BrainConfigBlob` has: motivation decay rates / initial values / urgency thresholds + behavior configs (weight=0 = inactive)
+- Baked from `BrainLibrarySO` (list of `BrainConfigSO` assets) by `BrainLibraryBakingSystem`
+
+### Brain Swap
+- Enable `SwapBrainRequest.newBrain` on any unit entity
+- `SwapBrainSystem` changes `Brain.activeBrain`, resets `MotivationState` from blob, clears `ActionOption` buffer
+- No entity destruction or instantiation
+
+---
+
+## Pipeline (Phase 2 — being built)
 
 ```
 AIAwarenessSystemGroup
-  MotivationDegregationSystem  — ticks down all 9 motivation values over time
-  SpatialHashSystem            — indexes nearby entities for range checks
+  MotivationDecaySystem        — reads Brain → blob decay rates → ticks MotivationState
+  SpatialHashSystem            — spatial index (unchanged)
+  FactionRegistrySystem        — faction spatial map (unchanged)
 
-AIScoringSystemGroup           — one system per motivation, each writes ActionOption
-  HungerScoringSystem          — scores Eat interactions by hunger need
-  EnergyScoringSystem          — scores Sleep/Rest interactions
-  ComfortScoringSystem
-  BladderScoringSystem
-  FunScoringSystem
-  SocialScoringSystem
-  SafetyScoringSystem
-  MovementScoringSystem
-  SelfPreservationSystem       — scores flee/defend based on health + threat
+AIScoringSystemGroup           — all run; each checks brain behavior weight upfront (0 = skip)
+  InteractionScoringSystem     — scores waypoints by motivation urgency × interaction value
+  ChaseScoringSystem           — scores hostile targets for brains with chase.weight > 0
+  AttackScoringSystem          — scores current CombatTarget if in attack range from blob
+  FleeScoringSystem            — scores flee destinations for brains with flee.weight > 0
 
 AISelectionSystemGroup
-  ActionSelectionSystem        — picks from top 3 scored options (adds randomness)
-                                 ⚠ Skips brains with PlayerControlled enabled ([WithDisabled(typeof(PlayerControlled))])
-                                 ⚠ [WithDisabled] requires the component to be PRESENT. Every brain type must have
-                                   PlayerControlled baked (disabled) via BrainBakeHelper.AddRequirements — otherwise
-                                   brains without the component are excluded from the query entirely.
-  InteractionAssignmentSystem  — assigns the unit to a specific interaction slot
+  ActionSelectionSystem        — keeps top 3 ActionOptions by score, writes SelectedAction
+                                 [WithDisabled(typeof(PlayerControlled))] — skips player minions
 
 AIExecutionSystemGroup
-  GenericInteractionExecutionSystem — moves unit to waypoint, triggers interaction
-  BathroomExecutionSystem           — specialised execution for bladder interaction
+  InteractionExecutionSystem   — navigate to waypoint, trigger interaction
+  AttackExecutionSystem        — sets AttackData.attackType (from blob key), Target.entity, enables Attack
+                                  → AttackResolutionSystem handles damage + cooldown via AttackLibraryBlob
+  FleeExecutionSystem          — PathRequest away from threat source
+  WanderExecutionSystem        — idle/wander when no urgent options
 ```
 
-### File Paths (relative to `_Scripts/Systems/AISystemGroup/`)
+---
 
-| System | File |
-|---|---|
-| `MotivationDegregationSystem` | `AIAwarenessSystemGroup/MotivationDegregationSystem.cs` |
-| `SpatialHashSystem` | `AIAwarenessSystemGroup/SpatialHashSystem.cs` |
-| `HungerScoringSystem` | `AIScoringSystemGroup/HungerScoringSystem.cs` |
-| `EnergyScoringSystem` | `AIScoringSystemGroup/EnergyScoringSystem.cs` |
-| `ComfortScoringSystem` | `AIScoringSystemGroup/ComfortScoringSystem.cs` |
-| `BladderScoringSystem` | `AIScoringSystemGroup/BladderScoringSystem.cs` |
-| `FunScoringSystem` | `AIScoringSystemGroup/FunScoringSystem.cs` |
-| `SocialScoringSystem` | `AIScoringSystemGroup/SocialScoringSystem.cs` |
-| `SafetyScoringSystem` | `AIScoringSystemGroup/SafetyScoringSystem.cs` |
-| `MovementScoringSystem` | `AIScoringSystemGroup/MovementScoringSystem.cs` |
-| `SelfPreservationSystem` | `AIScoringSystemGroup/SelfPreservationSystem.cs` |
-| `ActionSelectionSystem` | `AISelectionSystemGroup/ActionSelectionSystem.cs` |
-| `InteractionAssignmentSystem` | `AISelectionSystemGroup/InteractionAssignmentSystem.cs` |
-| `GenericInteractionExecutionSystem` | `AIExecutionSystemGroup/GenericInteractionExecutionSystem.cs` |
-| `BathroomExecutionSystem` | `AIExecutionSystemGroup/BathroomExecutionSystem.cs` |
+## ActionOption Buffer
+
+```csharp
+public struct ActionOption : IBufferElementData
+{
+    public float score;
+    public ActionCategory category;   // Wander, Interact, Attack, Flee
+    public Entity targetEntity;
+    public float3 targetPosition;
+}
+```
+
+All scoring systems write to this buffer. `ActionSelectionSystem` trims to top 3 and writes `SelectedAction`.
 
 ---
 
-## Motivations (MotivationType enum)
+## MotivationState
 
-9 values: `Hunger`, `Energy`, `Comfort`, `Bladder`, `Fun`, `Social`, `Safety`, `Movement`, `SelfPreservation`.
+Single component, 9 named float fields (0–100 range):
+`hunger, energy, fun, social, comfort, bladder, safety, movement, selfPreservation`
 
-Each degrades over time (rate configured in `AIScoringCurveSO` — see [[Data]]). When a motivation drops low enough its scoring system gives high scores to relevant interactions, pulling the unit toward satisfying it.
-
-> ⚠ **Each motivation is a separate `IComponentData` struct** (e.g. `HungerMotivation`, `EnergyMotivation`). There is no single unified "Motivations" component. Each scoring system queries for exactly one motivation struct. Full list in [[Components]].
-
----
-
-## Waypoint Interactions — Backbone of AI
-
-**Interactions are the core of how units behave.** An interaction is any object in the world with `InteractionAuthoring` — a bed, toilet, chair, workbench, etc. Each interaction has:
-- A `MotivationType` it satisfies
-- One or more `InteractionSlot`s (capacity)
-- A position the unit must walk to (movement handled by [[Systems_Movement]])
-
-Units should **always** have an active interaction target when idle. If a newly spawned unit is not seeking interactions, check:
-1. `InteractionAssignmentSystem` — is the unit's entity being queried? Does it have `NeedsAction` **enabled**?
-2. `MotivationDegregationSystem` — are motivations initialised with non-zero values so scoring produces results?
-3. `AnimatorTargetInitSystem` — are animation targets initialised before the animation system runs?
-4. `UnitSpawnerSystem` — confirms `NeedsAction` is explicitly enabled after ECB.Instantiate (enabled bits are not reliably copied).
+Decay rates, initial values, and urgency thresholds per brain type live in `BrainLibraryBlob`.
+`MotivationDecaySystem` ticks values down by `decayRate * deltaTime`, clamped to [0, 100].
 
 ---
 
-## Brain / Body Split
+## Brain Types
 
-- **Brain entity** — holds `IsBrain` tag, motivation components, `ActionOption` buffer, `SelectedAction`, `NeedsAction`, AI state flags, `BodyLink` (points to body entity).
-- **Body entity** — holds `HasBrain` tag, transform, animation layers, health, movement, `BrainLink` (points to brain entity).
-
-> ⚠ `BrainLink` is **not baked**. The body prefab has no `BrainLinkAuthoring`. `BrainLink` is added via ECB by `UnitSpawnerSystem` at spawn time. Do not assume it exists on prefab entities. See [[Gotchas]] for the full trap.
-
-Scoring systems query Brain entities. Execution systems use `BrainLink`/`BodyLink` to reach the other side when needed.
-
-This split *may be merged* in a future refactor. Keep cross-entity lookups isolated so collapsing them is easy.
+| BrainType | Motivations | Behaviors |
+|---|---|---|
+| Citizen | All 9, normal decay | Interaction (high), Flee (low) |
+| Guard | Safety, SelfPreservation | Chase Undead, Attack, Flee (low) |
+| FeralZombie | None (static) | Chase Player+Human, Attack |
+| PlayerZombie | None | PlayerControlled enabled → scoring bypassed |
+| Panic | SelfPreservation (fast decay) | Flee (very high) |
+| Merchant | Social, Work | Interaction |
+| Character | Per narrative | Via narrative system |
 
 ---
 
 ## Adding a New Brain Type
 
-1. Create a new authoring script based on `CitizenBrainAuthoring.cs` — see [[Authoring]].
-2. Adjust default motivation values and scoring weights for the new unit personality.
-3. Create a new brain prefab and assign it in the unit spawner.
-4. The body prefab is shared — only the brain prefab changes per AI personality.
-5. **Critical:** Ensure `BrainBakeHelper.AddRequirements` is called to bake `PlayerControlled` (disabled) onto the new brain type — otherwise `ActionSelectionSystem`'s `[WithDisabled]` filter will silently exclude it from the AI pipeline.
+1. Add a value to `BrainType` enum.
+2. Create `BrainConfigSO` asset (`AI/Brains/`) — set brainType, configure motivations and behaviors inline.
+3. Add to the `BrainLibrarySO` asset's brains list.
+4. Done — no new systems, no new components, no new authoring.
+
+---
+
+## Player-Controlled Minions
+
+- `PlayerControlled` is baked (disabled) on ALL unit entities via `BrainAuthoring`
+- `ActionSelectionSystem` uses `[WithDisabled(typeof(PlayerControlled))]` — minions are skipped
+- When `PlayerControlled` is enabled: `MinionCommandSystem` writes `SelectedAction` directly
+- `SwapBrainSystem` enables `PlayerControlled` when brain swaps to `BrainType.PlayerZombie`
+
+---
+
+## Key Files
+
+| File | Path | Role |
+|---|---|---|
+| `BrainAuthoring.cs` | `Authoring/AI/Brains/` | Per-unit brain setup — replaces CitizenBrainAuthoring / ZombieBrainAuthoring |
+| `BrainLibraryAuthoring.cs` | `Authoring/EntityLibraries/` | Singleton — references BrainLibrarySO |
+| `BrainLibraryBakingSystem.cs` | `Systems/PostBakingSystemGroup/` | Builds BrainLibraryBlob from BrainLibrarySO |
+| `SwapBrainSystem.cs` | `Systems/HealthSystemGroup/` | Brain swap — cheap value change, no entity ops |
+| `BrainConfigSO.cs` | `Data/SOs/` | One per brain type — inline motivation + behavior config |
+| `BrainLibrarySO.cs` | `Data/SOs/` | List of all BrainConfigSOs |
+| `BrainBlobs.cs` | `Data/Structs/` | BrainLibraryBlob, BrainConfigBlob, MotivationValues9 |
+| `Brains.cs` | `Components/AI/` | Brain, MotivationState, BrainType, SwapBrainRequest |
+| `AIComponents.cs` | `Components/AI/` | ActionCategory, ActionOption, SelectedAction, NeedsAction, PlayerControlled |

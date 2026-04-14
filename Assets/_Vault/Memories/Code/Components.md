@@ -28,8 +28,9 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `Motivations.cs` | `Components/AI/` | One struct per motivation (9 core + personality traits) |
 | `Interactions.cs` | `Components/AI/` | `Interaction`, `InteractionTimer`, `InteractionOccupant` buffer, interaction-type components |
 | `SpatialHashRegistry.cs` | `Components/AI/` | `SpatialHashRegistry` singleton (two NativeParallelMultiHashMaps) |
+| `CombatAI.cs` | `Components/AI/` | `Faction`, `ThreatEntry` buffer, `CombatTarget` (enableable), `ChaseConfig`, `MeleeAttackConfig`, `FactionRegistry` singleton |
 | `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimatorTarget` buffer, `AnimationTargetTag`, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent` |
-| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Alive`, `Dead`, `Hurt` buffer, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `CombatTarget`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
+| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Alive`, `Dead`, `Hurt` buffer, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
 | `UnitDesignComponents.cs` | `Components/Units/` | `UnitSkinColor`, `UnitHairColor`, `UnitHeadShape`, `UnitNoseShape`, `RandomizeDesign`, design tags |
 | `UnitVisualComponents.cs` | `Components/Units/` | `Outline`, `OutlineChild`, `OutlinedTag` |
 | `MovementComponents.cs` | `Components/Movement/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
@@ -40,7 +41,8 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
 | `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, on visual root child), `Ragdoll2DJoint` (enableable, on joint pivot entities), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DJointRef` buffer |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipRequest` |
-| `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `UnitPrefabEntry` |
+| `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `UnitPrefabEntry` |
+| `FactoryComponents.cs` | `Components/Structures/` | `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer, `FactoryGridConfig` singleton, `FactoryGridCell` buffer |
 | `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
 | `SceneTags.cs` | `Components/Tags/` | `MainMenuTag`, `GameSceneTag` |
 | `GameDataComponents.cs` | `Components/Save/` | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
@@ -370,6 +372,40 @@ PlayTimeTracker
 GameSettings
     int animationFrameRate  — flipbook playback rate shared by all animated units; saved/loaded per slot
 ```
+
+---
+
+## Narrative Components (`Components/Narrative/NarrativeComponents.cs`)
+
+All components live on three entity types: the **NarrativeEvent singleton** (baked by `NarrativeEventAuthoring`), **trigger zone entities** (baked by `NarrativeEventTriggerAuthoring`), and **addressable NPC/waypoint entities** (baked by `NarrativeEntityIdAuthoring`).
+
+```
+-- NarrativeEvent singleton entity --
+NarrativeEventTag               singleton identity — GetSingletonEntity<NarrativeEventTag>()
+
+OnNarrativeEvent (enableable)
+    int eventId                 — which narrative event to run; maps to NarrativeIds.Events
+    ⚠ Enabled by ECS systems (NarrativeProximitySystem or NarrativeDialogueBridgeSystem).
+      Consumed and disabled by NarrativeEventManager (MonoBehaviour) in the same Update() frame.
+
+ActiveNarrativeEvent (enableable)
+    tag — enabled by NarrativeEventManager while an event is executing.
+    NarrativeProximitySystem checks this to block new triggers until the event finishes.
+
+-- Trigger zone entities --
+NarrativeTrigger (enableable)
+    int   eventId              — which event to fire; maps to NarrativeIds.Events
+    float range                — player proximity radius in world units
+    bool  repeatable           — when true, NarrativeEventManager re-enables after event ends
+
+-- Addressable NPC / waypoint entities --
+NarrativeEntityId
+    int id                     — unique entity ID; maps to NarrativeIds.Entities
+    Used by NarrativeEventManager to build a Dictionary<int, Entity> at startup for O(1) lookup.
+```
+
+**ID registry:** All event IDs, entity IDs, and dialogue bridge pairs live in `NarrativeIds.cs` (`NarrativeIds.Events`, `NarrativeIds.Entities`, `NarrativeIds.DialogueBridge.Pairs`).
+**SO data:** `NarrativeEventSO` defines the action groups. `NarrativeToggleType` enum lists known toggleable component types. Both live in `Data/SOs/NarrativeEventSO.cs`.
 
 ---
 

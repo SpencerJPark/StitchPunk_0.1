@@ -22,15 +22,9 @@ public class DialogueProviderAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            int primaryId = authoring.dialogueSequence != null ? authoring.dialogueSequence.sequenceId : -1;
-            int refresherId = (authoring.dialogueSequence != null && authoring.dialogueSequence.refresherSequence != null)
-                ? authoring.dialogueSequence.refresherSequence.sequenceId
-                : -1;
-
             AddComponent(entity, new DialogueProvider
             {
-                sequenceId          = primaryId,
-                refresherSequenceId = refresherId,
+                sequenceId = authoring.dialogueSequence != null ? authoring.dialogueSequence.sequenceId : -1,
             });
             SetComponentEnabled<DialogueProvider>(entity, true);
 

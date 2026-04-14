@@ -16,15 +16,12 @@ public static class BrainBakeHelper
     
     public static void AddRequirements<T>(Baker<T> baker, Entity entity, GameObject body, float awarenessRange) where T : UnityEngine.Component
     {
-        baker.AddComponent<IsBrain>(entity);
         baker.AddComponent<ActiveBrain>(entity);
         baker.SetComponentEnabled<ActiveBrain>(entity, true);
         
         Entity bodyEntity = body != null 
             ? baker.GetEntity(body, TransformUsageFlags.Dynamic) 
             : Entity.Null;
-
-        baker.AddComponent(entity, new BodyLink { body = bodyEntity });
         
         baker.AddBuffer<ActionOption>(entity);
         baker.AddComponent<SelectedAction>(entity);

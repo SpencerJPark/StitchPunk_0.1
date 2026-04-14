@@ -15,8 +15,9 @@ All game logic lives here. Read the context file for each sub-group before worki
 PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component distribution (runs once at bake time)
 GameManagerSystemGroup       — world-level: floating origin, player input, aim, horde state
 PlayerSystemGroup            — all player-driven logic
-  ├── PlayerInputSystemGroup (OrderFirst) — input events → ECS components, targeting, equipment dispatch
-  ├── DialogueSystemGroup    — dialogue start detection and event relay (runs after Input, before Equipment)
+  ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, equipment dispatch
+  ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
+  ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
   └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions, minion commands
 AISystemGroup                — see [[Systems_AI]]
   ├── AIAwarenessSystemGroup — motivation decay, spatial hashing (perception)
@@ -32,7 +33,8 @@ MovementSystemGroup          — see [[Systems_Movement]]
   ├── MovementCoordinatorSystemGroup — horde formation offsets
   ├── MovementFollowerSystemGroup    — smooth path following
   └── MovementExecutionSystemGroup  — writes final position/rotation to transforms
-BuildingsSystemGroup         — construction, harvesting, destruction
+BuildingsSystemGroup         — factory production loop (Phase 1 complete)
+  └── ProductionSystem       — checks inputs+workers, ticks progress, writes outputs
 CombatSystemGroup
   ├── CombatResolutionSystemGroup — attack resolution, player attacks
   └── CombatReactionSystemGroup  — damage application; MinionAutoCounterSystem releases PlayerControlled on hit
@@ -61,6 +63,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `UnitLibraryBakingSystem` | `UnitLibraryBakingSystem.cs` | UnitLibrarySO → UnitLibraryBlob + UnitPrefabEntry |
 | `ScoringLibraryBakingSystem` | `ScoringLibraryBakingSystem.cs` | AIScoringLibrarySO → AIScoringLibraryBlob |
 | `AttackLibraryBakingSystem` | `AttackLibraryBakingSystem.cs` | AttackLibrarySO → AttackLibraryBlob |
+| `FactoryLibraryBakingSystem` | `FactoryLibraryBakingSystem.cs` | FactoryLibrarySO → FactoryLibraryBlob (recipes blob for ProductionSystem) |
 | `Ragdoll2DBakingSystem` | `Ragdoll2DBakingSystem.cs` | Adds `Ragdoll2D` (disabled) to visual root child, `Ragdoll2DJoint` (disabled) to each joint pivot — cannot be done in baker because they are other GOs' entities |
 
 ---
@@ -89,7 +92,18 @@ Runs inside `SimulationSystemGroup`, before `AISystemGroup`. Contains two sub-gr
 | `PlayerAimSystem` | `PlayerInputSystemGroup/PlayerAimSystem.cs` | Reads `LookPlayerInput` while aiming; updates `AimDirection`, rotates player, shows/hides aim indicator |
 | `PlayerEquipmentInputSystem` | `PlayerInputSystemGroup/PlayerEquipmentInputSystem.cs` | Resolves `OnEquipmentSlotPlayerInput.slot` → `ItemType` via `PlayerEquipmentSlots`; fires the matching equipment event (`OnPlayerReviverEquipt` etc.) |
 
-#### DialogueSystemGroup (after PlayerInputSystemGroup, before PlayerEquipmentSystemGroup)
+#### NarrativeSystemGroup (after PlayerInputSystemGroup, before DialogueSystemGroup)
+
+| System | File | Purpose |
+|---|---|---|
+| `NarrativeDialogueBridgeSystem` | `NarrativeSystemGroup/NarrativeDialogueBridgeSystem.cs` | `[OrderFirst]` — reads `OnDialogueEvent` and maps it to `OnNarrativeEvent` via `NarrativeIds.DialogueBridge.Pairs`. Runs before proximity system so bridge events take priority. |
+| `NarrativeProximitySystem` | `NarrativeSystemGroup/NarrativeProximitySystem.cs` | Checks player distance to all enabled `NarrativeTrigger` entities. When player enters range: enables `OnNarrativeEvent`, disables the trigger. No-ops when `ActiveNarrativeEvent` is enabled. |
+
+`NarrativeEventManager` (MonoBehaviour) reads `OnNarrativeEvent` each `Update()`, looks up the `NarrativeEventSO` by ID, and runs action groups via UniTask (`async/await`). Groups execute sequentially; actions within a group run in parallel via `UniTask.WhenAll`. Re-enables repeatable triggers on event completion.
+
+---
+
+#### DialogueSystemGroup (after NarrativeSystemGroup, before PlayerEquipmentSystemGroup)
 
 | System | File | Purpose |
 |---|---|---|
@@ -118,6 +132,23 @@ Runs inside `SimulationSystemGroup`, before `AISystemGroup`. Contains two sub-gr
 ---
 
 ### MovementSystemGroup — see [[Systems_Movement]]
+
+---
+
+### BuildingsSystemGroup (`Systems/BuildingsSystemGroup/`)
+
+Runs after `MovementSystemGroup`, before `CombatSystemGroup`. Handles factory production. Requires a `FactoryLibrary` singleton entity (baked by `FactoryLibraryAuthoring`) to be present in the scene.
+
+| System | File | Purpose |
+|---|---|---|
+| `ProductionSystem` | `ProductionSystem.cs` | Checks idle stations for inputs+workers (`StartProductionJob`); ticks active cycles and writes outputs (`TickProductionJob`) |
+
+**Key components:** `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer — see [[Components]].
+
+**Setup per scene with a factory floor:**
+1. Add a GO with `FactoryGridAuthoring` (defines grid size + origin) — creates the grid singleton entity
+2. Add a GO with `FactoryLibraryAuthoring` pointing to `_FactoryLibrary` SO — creates the library singleton
+3. Add station GOs with `FactoryStationAuthoring` (stationType, gridX/Z, workerSlots)
 
 ---
 

@@ -117,3 +117,17 @@ Grouped by demo phase. Check off when the asset is in Unity and set up. See [[De
 - [ ] Notebook / journal UI art — cover, pages, photo frame, suspect card design
 - [ ] Inventory UI art — key item slots
 - [ ] RTS UI design — unit icons, summon buttons, resource display
+
+---
+
+## Cinematic Camera Scene Setup
+
+Each scene that uses a cinematic shot (05, 08, 10, 11, 18) needs these two GameObjects added in the scene hierarchy:
+
+- [ ] **Scene 05** — Add `CinemachineCamera` (assign to `CameraManager.cinematicCam`) + empty `CinematicTarget` Transform (assign to `CameraManager.cinematicTarget`). Set the camera's **Follow** and **LookAt** to the `CinematicTarget`. Configure body/aim in Cinemachine inspector for the shot feel.
+- [ ] **Scene 08** — Same setup as above.
+- [ ] **Scene 10** — Same setup as above.
+- [ ] **Scene 11** — Same setup as above.
+- [ ] **Scene 18** — Same setup as above.
+
+> The cinematic cam and target are already wired in code — this is purely editor scene work.

@@ -13,7 +13,7 @@ using UnityEngine.UI;
 ///   and enables ActiveDialogue on the manager entity with the sequence ID to play.
 ///
 ///   Each Update() this MonoBehaviour checks whether ActiveDialogue just became enabled.
-///   When a new sequence starts it builds two lookup tables from the SO, finds the Start
+///   When a new sequence starts it builds two lookup tables from the SO, finds the entry
 ///   node, then calls DisplayNode() to walk through the graph:
 ///
 ///   - Line node:      Show speaker name + subtitle text. Wait for the player to press
@@ -24,9 +24,14 @@ using UnityEngine.UI;
 ///                     "out" without waiting for player input.
 ///   - End node:       Close the dialogue panel and mark the sequence as played.
 ///
+/// Entry point selection:
+///   On first play the Start node is used. If the sequence has been played before AND a
+///   Refresher node exists in the tree, execution starts from the Refresher node instead.
+///   A sequence is only marked as played when it ends naturally via an End node.
+///
 /// Registry:
 ///   Populate sequenceAssets in the inspector with every DialogueSequenceSO used in
-///   this scene (including refreshers). A Dictionary is built at Awake for O(1) lookup.
+///   this scene. A Dictionary is built at Awake for O(1) lookup.
 ///
 /// Choice buttons:
 ///   Wire up as many Button + Label pairs in choiceButtons / choiceButtonLabels as the
@@ -216,9 +221,12 @@ public class DialogueUIManager : MonoBehaviour
 
         BuildLookupTables(sequence);
 
-        // Find the Start node and follow its "out" connection.
-        string startNodeId = FindStartNodeId();
-        if (startNodeId == null)
+        // Use the Refresher node if the sequence has been played before and one exists.
+        bool alreadyPlayed = HasBeenPlayed(sequenceId);
+        string refresherNodeId = alreadyPlayed ? FindRefresherNodeId() : null;
+        string entryNodeId     = refresherNodeId ?? FindStartNodeId();
+
+        if (entryNodeId == null)
         {
             Debug.LogError($"DialogueUIManager: Sequence '{sequence.name}' has no Start node. " +
                            "Open it in the Dialogue Editor and add a Start node.");
@@ -227,7 +235,18 @@ public class DialogueUIManager : MonoBehaviour
         }
 
         dialoguePanel.SetActive(true);
-        AdvanceFromCurrentNode_FromNode(startNodeId, "out");
+        AdvanceFromCurrentNode_FromNode(entryNodeId, "out");
+    }
+
+    private bool HasBeenPlayed(int sequenceId)
+    {
+        DynamicBuffer<PlayedDialogue> playedDialogues = entityManager.GetBuffer<PlayedDialogue>(gameDataEntity);
+        for (int bufferIndex = 0; bufferIndex < playedDialogues.Length; bufferIndex++)
+        {
+            if (playedDialogues[bufferIndex].sequenceId == sequenceId)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -261,6 +280,16 @@ public class DialogueUIManager : MonoBehaviour
         return null;
     }
 
+    private string FindRefresherNodeId()
+    {
+        foreach (DialogueNodeData node in nodeById.Values)
+        {
+            if (node is DialogueRefresherNodeData)
+                return node.nodeId;
+        }
+        return null;
+    }
+
     /// <summary>
     /// Follows the output port named portId from currentNodeId and displays the next node.
     /// </summary>
@@ -284,32 +313,10 @@ public class DialogueUIManager : MonoBehaviour
 
     private void EndSequence(bool markAsPlayed)
     {
-        if (markAsPlayed && currentSequence != null)
+        if (markAsPlayed && currentSequence != null && !HasBeenPlayed(currentSequence.sequenceId))
         {
-            // Only mark the primary sequence (not refreshers) as played.
-            ActiveDialogue activeDialogue = entityManager.GetComponentData<ActiveDialogue>(managerEntity);
-            bool isPrimary = true;
-            if (entityManager.HasComponent<DialogueProvider>(activeDialogue.speakerEntity))
-            {
-                DialogueProvider provider = entityManager.GetComponentData<DialogueProvider>(activeDialogue.speakerEntity);
-                isPrimary = activeDialogue.sequenceId == provider.sequenceId;
-            }
-
-            if (isPrimary)
-            {
-                DynamicBuffer<PlayedDialogue> playedBuffer = entityManager.GetBuffer<PlayedDialogue>(gameDataEntity);
-                bool alreadyMarked = false;
-                for (int bufferIndex = 0; bufferIndex < playedBuffer.Length; bufferIndex++)
-                {
-                    if (playedBuffer[bufferIndex].sequenceId == currentSequence.sequenceId)
-                    {
-                        alreadyMarked = true;
-                        break;
-                    }
-                }
-                if (!alreadyMarked)
-                    playedBuffer.Add(new PlayedDialogue { sequenceId = currentSequence.sequenceId });
-            }
+            DynamicBuffer<PlayedDialogue> playedBuffer = entityManager.GetBuffer<PlayedDialogue>(gameDataEntity);
+            playedBuffer.Add(new PlayedDialogue { sequenceId = currentSequence.sequenceId });
         }
 
         entityManager.SetComponentEnabled<ActiveDialogue>(managerEntity, false);
@@ -360,8 +367,9 @@ public class DialogueUIManager : MonoBehaviour
                 break;
 
             case DialogueStartNodeData _:
-                // Start node should never be reached mid-sequence.
-                Debug.LogWarning("DialogueUIManager: Execution reached a Start node mid-sequence. Check your connections.");
+            case DialogueRefresherNodeData _:
+                // Entry nodes should never be reached mid-sequence.
+                Debug.LogWarning($"DialogueUIManager: Execution reached a {node.GetType().Name} node mid-sequence. Check your connections.");
                 EndSequence(markAsPlayed: true);
                 break;
 

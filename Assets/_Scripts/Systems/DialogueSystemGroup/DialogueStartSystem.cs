@@ -6,7 +6,8 @@ using Unity.Entities;
 /// Starts a dialogue sequence when the player presses Interact while targeting an NPC
 /// that has an enabled DialogueProvider.
 ///
-/// Picks the refresher sequence if the primary has already been played (entry in PlayedDialogue buffer).
+/// Always passes the primary sequenceId — the UIManager picks the Refresher entry node
+/// if the sequence has already been played.
 /// Consumes OnInteractPlayerInput so no other interact system fires on the same frame.
 /// Does nothing when a dialogue is already active.
 /// </summary>
@@ -19,19 +20,15 @@ public partial struct DialogueStartSystem : ISystem
     {
         state.RequireForUpdate<Player>();
         state.RequireForUpdate<DialogueManagerTag>();
-        state.RequireForUpdate<GameDataTag>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        Entity managerEntity  = SystemAPI.GetSingletonEntity<DialogueManagerTag>();
-        Entity gameDataEntity = SystemAPI.GetSingletonEntity<GameDataTag>();
+        Entity managerEntity = SystemAPI.GetSingletonEntity<DialogueManagerTag>();
 
         // Skip if a dialogue is already running.
         if (SystemAPI.IsComponentEnabled<ActiveDialogue>(managerEntity)) return;
-
-        DynamicBuffer<PlayedDialogue> playedDialogues = SystemAPI.GetBuffer<PlayedDialogue>(gameDataEntity);
 
         foreach (var (interactEnabled, target, targetEnabled) in
             SystemAPI.Query<
@@ -52,23 +49,9 @@ public partial struct DialogueStartSystem : ISystem
             DialogueProvider provider = SystemAPI.GetComponent<DialogueProvider>(targetEntity);
             if (provider.sequenceId == -1) continue;
 
-            // Use refresher if the primary sequence has been played before.
-            int chosenSequenceId = provider.sequenceId;
-            if (provider.refresherSequenceId != -1)
-            {
-                for (int bufferIndex = 0; bufferIndex < playedDialogues.Length; bufferIndex++)
-                {
-                    if (playedDialogues[bufferIndex].sequenceId == provider.sequenceId)
-                    {
-                        chosenSequenceId = provider.refresherSequenceId;
-                        break;
-                    }
-                }
-            }
-
             SystemAPI.SetComponent<ActiveDialogue>(managerEntity, new ActiveDialogue
             {
-                sequenceId    = chosenSequenceId,
+                sequenceId    = provider.sequenceId,
                 speakerEntity = targetEntity,
             });
             SystemAPI.SetComponentEnabled<ActiveDialogue>(managerEntity, true);

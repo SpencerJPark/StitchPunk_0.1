@@ -39,6 +39,13 @@ public class DialogueSequenceEditorWindow : EditorWindow
         window.minSize = new Vector2(900f, 600f);
     }
 
+    public static void OpenWith(DialogueSequenceSO sequence)
+    {
+        DialogueSequenceEditorWindow window = GetWindow<DialogueSequenceEditorWindow>("Dialogue Editor");
+        window.minSize = new Vector2(900f, 600f);
+        window.LoadSequence(sequence);
+    }
+
     // -------------------------------------------------------------------------
     // State
     // -------------------------------------------------------------------------
@@ -113,15 +120,34 @@ public class DialogueSequenceEditorWindow : EditorWindow
         panel.style.flexDirection = FlexDirection.Column;
         panel.style.backgroundColor = new Color(0.17f, 0.17f, 0.17f);
 
-        // Header
+        // Header row: label + create-new button
+        VisualElement headerRow = new VisualElement();
+        headerRow.style.flexDirection = FlexDirection.Row;
+        headerRow.style.alignItems = Align.Center;
+        headerRow.style.paddingTop = 7;
+        headerRow.style.paddingBottom = 5;
+
         Label header = new Label("Dialogue Trees");
         header.style.paddingLeft = 8;
-        header.style.paddingTop = 7;
-        header.style.paddingBottom = 5;
+        header.style.flexGrow = 1;
         header.style.unityFontStyleAndWeight = FontStyle.Bold;
         header.style.color = new Color(0.85f, 0.85f, 0.85f);
         header.tooltip = "All DialogueSequenceSO assets found in the project, sorted by sequenceId.";
-        panel.Add(header);
+        headerRow.Add(header);
+
+        Button createBtn = new Button(CreateNewSequence);
+        createBtn.text = "+";
+        createBtn.tooltip = "Create a new DialogueSequenceSO asset and load it immediately.";
+        createBtn.style.width = 24;
+        createBtn.style.height = 20;
+        createBtn.style.marginRight = 6;
+        createBtn.style.fontSize = 14;
+        createBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
+        createBtn.style.paddingLeft = 0;
+        createBtn.style.paddingRight = 0;
+        headerRow.Add(createBtn);
+
+        panel.Add(headerRow);
 
         // Search field
         searchField = new TextField();
@@ -288,7 +314,17 @@ public class DialogueSequenceEditorWindow : EditorWindow
             "Entry point for the dialogue sequence.\n\n" +
             "Every tree needs exactly one Start node. " +
             "Connect its output port to the first Line, Decision, or Event node.",
-            () => DropNode(new DialogueStartNodeData())));
+            () => new DialogueStartNodeData()));
+
+        panel.Add(BuildPaletteButton(
+            "Refresher",
+            new Color(0.08f, 0.42f, 0.46f),
+            "Alternate entry point used on repeat visits.\n\n" +
+            "When the player triggers this NPC again after the primary sequence has already played, " +
+            "the runtime starts from this node instead of Start. " +
+            "Build a shorter repeat path that still ends with an End node. " +
+            "Only one Refresher node is allowed per tree.",
+            () => new DialogueRefresherNodeData()));
 
         panel.Add(BuildPaletteButton(
             "Line",
@@ -296,7 +332,7 @@ public class DialogueSequenceEditorWindow : EditorWindow
             "A single line of dialogue.\n\n" +
             "Enter the speaker name (shown above the subtitle) and the subtitle text. " +
             "The player presses Interact to advance to the next node.",
-            () => DropNode(new DialogueLineNodeData())));
+            () => new DialogueLineNodeData()));
 
         panel.Add(BuildPaletteButton(
             "Decision",
@@ -305,7 +341,7 @@ public class DialogueSequenceEditorWindow : EditorWindow
             "Add branches using the '+ Add Branch' button that appears on the node. " +
             "Each branch becomes a labeled choice button and a separate output port. " +
             "Connect each port to the next step for that choice.",
-            () => DropNode(new DialogueDecisionNodeData())));
+            () => new DialogueDecisionNodeData()));
 
         panel.Add(BuildPaletteButton(
             "Event",
@@ -314,7 +350,7 @@ public class DialogueSequenceEditorWindow : EditorWindow
             "The player does not see this node — it is invisible to them. " +
             "Use it to trigger camera changes, unlock systems, or update game data mid-dialogue. " +
             "The Event ID must match a constant in DialogueIds.Events.",
-            () => DropNode(new DialogueEventNodeData())));
+            () => new DialogueEventNodeData()));
 
         panel.Add(BuildPaletteButton(
             "End",
@@ -322,14 +358,14 @@ public class DialogueSequenceEditorWindow : EditorWindow
             "Exit point for the dialogue sequence.\n\n" +
             "Connect any terminal node's output here to close the conversation. " +
             "A tree can have multiple End nodes — one per path that should end the dialogue.",
-            () => DropNode(new DialogueEndNodeData())));
+            () => new DialogueEndNodeData()));
 
         return panel;
     }
 
-    private VisualElement BuildPaletteButton(string label, Color headerColor, string tooltip, Action onClick)
+    private VisualElement BuildPaletteButton(string label, Color headerColor, string tooltip, Func<DialogueNodeData> nodeFactory)
     {
-        Button btn = new Button(onClick);
+        Button btn = new Button(() => DropNode(nodeFactory()));
         btn.text = label;
         btn.tooltip = tooltip;
         btn.style.marginBottom = 8;
@@ -346,6 +382,30 @@ public class DialogueSequenceEditorWindow : EditorWindow
         btn.style.borderBottomWidth = 0;
         btn.style.borderLeftWidth = 0;
         btn.style.borderRightWidth = 0;
+
+        // Drag-to-canvas: drag the button onto the graph to place the node at the drop position
+        Vector2 dragStartPos = Vector2.zero;
+        bool dragLaunched = false;
+
+        btn.RegisterCallback<MouseDownEvent>(evt =>
+        {
+            if (evt.button != 0) return;
+            dragStartPos = evt.mousePosition;
+            dragLaunched = false;
+        });
+
+        btn.RegisterCallback<MouseMoveEvent>(evt =>
+        {
+            if (evt.pressedButtons == 0 || dragLaunched) return;
+            if ((evt.mousePosition - dragStartPos).magnitude > 5f)
+            {
+                dragLaunched = true;
+                DragAndDrop.PrepareStartDrag();
+                DragAndDrop.SetGenericData("DialoguePaletteNode", nodeFactory);
+                DragAndDrop.StartDrag(label);
+            }
+        });
+
         return btn;
     }
 
@@ -367,7 +427,26 @@ public class DialogueSequenceEditorWindow : EditorWindow
         AssetDatabase.SaveAssets();
     }
 
-    private void DropNode(DialogueNodeData nodeData)
+    private void CreateNewSequence()
+    {
+        string path = EditorUtility.SaveFilePanelInProject(
+            "New Dialogue Sequence",
+            "Dialogue_New",
+            "asset",
+            "Choose where to save the new DialogueSequenceSO asset.",
+            "Assets/_Scripts/Data/SOs");
+
+        if (string.IsNullOrEmpty(path)) return;
+
+        DialogueSequenceSO newSequence = ScriptableObject.CreateInstance<DialogueSequenceSO>();
+        AssetDatabase.CreateAsset(newSequence, path);
+        AssetDatabase.SaveAssets();
+
+        RefreshAssetList();
+        LoadSequence(newSequence);
+    }
+
+    public void DropNode(DialogueNodeData nodeData, Vector2? position = null)
     {
         if (loadedSequence == null)
         {
@@ -375,8 +454,19 @@ public class DialogueSequenceEditorWindow : EditorWindow
             return;
         }
 
-        // Place the new node at the current center of the visible canvas.
-        nodeData.editorPosition = graphView?.GetVisibleCenter() ?? Vector2.zero;
+        if (nodeData is DialogueStartNodeData && loadedSequence.nodes.Any(n => n is DialogueStartNodeData))
+        {
+            Debug.LogWarning("Dialogue Editor: A Start node already exists in this sequence.");
+            return;
+        }
+
+        if (nodeData is DialogueRefresherNodeData && loadedSequence.nodes.Any(n => n is DialogueRefresherNodeData))
+        {
+            Debug.LogWarning("Dialogue Editor: A Refresher node already exists in this sequence.");
+            return;
+        }
+
+        nodeData.editorPosition = position ?? graphView?.GetVisibleCenter() ?? Vector2.zero;
 
         Undo.RecordObject(loadedSequence, "Add Dialogue Node");
         loadedSequence.nodes.Add(nodeData);
@@ -430,6 +520,10 @@ public class DialogueGraphView : GraphView
 
         // Respond to edge creation, edge deletion, node deletion, and node movement.
         graphViewChanged = OnGraphViewChanged;
+
+        // Palette drag-to-canvas
+        RegisterCallback<DragUpdatedEvent>(OnPaletteDragUpdated);
+        RegisterCallback<DragPerformEvent>(OnPaletteDragPerform);
     }
 
     // -------------------------------------------------------------------------
@@ -465,8 +559,9 @@ public class DialogueGraphView : GraphView
 
     public void LoadSequence(DialogueSequenceSO sequence)
     {
-        loadedSequence = sequence;
+        loadedSequence = null; // Clear first so OnGraphViewChanged ignores deletion events
         DeleteElements(graphElements.ToList());
+        loadedSequence = sequence;
 
         if (sequence == null) return;
 
@@ -513,12 +608,13 @@ public class DialogueGraphView : GraphView
     {
         DialogueNodeViewBase view = nodeData switch
         {
-            DialogueStartNodeData    d => new DialogueStartNodeView(d, sequence, this),
-            DialogueEndNodeData      d => new DialogueEndNodeView(d, sequence, this),
-            DialogueLineNodeData     d => new DialogueLineNodeView(d, sequence, this),
-            DialogueDecisionNodeData d => new DialogueDecisionNodeView(d, sequence, this),
-            DialogueEventNodeData    d => new DialogueEventNodeView(d, sequence, this),
-            _                          => null
+            DialogueStartNodeData      d => new DialogueStartNodeView(d, sequence, this),
+            DialogueRefresherNodeData  d => new DialogueRefresherNodeView(d, sequence, this),
+            DialogueEndNodeData        d => new DialogueEndNodeView(d, sequence, this),
+            DialogueLineNodeData       d => new DialogueLineNodeView(d, sequence, this),
+            DialogueDecisionNodeData   d => new DialogueDecisionNodeView(d, sequence, this),
+            DialogueEventNodeData      d => new DialogueEventNodeView(d, sequence, this),
+            _                            => null
         };
 
         if (view != null)
@@ -621,6 +717,24 @@ public class DialogueGraphView : GraphView
             conn.toPortId   == toPort);
     }
 
+    // -------------------------------------------------------------------------
+    // Palette drag-to-canvas handlers
+    // -------------------------------------------------------------------------
+
+    private void OnPaletteDragUpdated(DragUpdatedEvent evt)
+    {
+        if (DragAndDrop.GetGenericData("DialoguePaletteNode") is Func<DialogueNodeData>)
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+    }
+
+    private void OnPaletteDragPerform(DragPerformEvent evt)
+    {
+        if (DragAndDrop.GetGenericData("DialoguePaletteNode") is not Func<DialogueNodeData> factory) return;
+        DragAndDrop.AcceptDrag();
+        Vector2 graphPos = contentViewContainer.WorldToLocal(this.LocalToWorld(evt.localMousePosition));
+        ownerWindow.DropNode(factory(), graphPos);
+    }
+
     // Exposed so Decision node can remove edges for a deleted branch.
     public void DeleteEdgesForPort(Port port)
     {
@@ -704,6 +818,46 @@ public class DialogueStartNodeView : DialogueNodeViewBase
         inputContainer.RemoveFromHierarchy();
 
         capabilities &= ~Capabilities.Deletable; // Prevent accidental delete of Start nodes
+
+        RefreshExpandedState();
+        RefreshPorts();
+    }
+}
+
+// ===========================================================================
+//  Refresher node  (teal)
+// ===========================================================================
+
+public class DialogueRefresherNodeView : DialogueNodeViewBase
+{
+    private static readonly Color HEADER = new Color(0.08f, 0.42f, 0.46f);
+
+    public DialogueRefresherNodeView(DialogueRefresherNodeData data,
+                                     DialogueSequenceSO sequence,
+                                     DialogueGraphView graphView)
+    {
+        NodeData     = data;
+        Sequence     = sequence;
+        GraphViewRef = graphView;
+
+        title   = "Refresher";
+        tooltip = "Alternate entry point used on repeat visits.\n\n" +
+                  "When the player triggers this NPC again after the primary sequence has already played, " +
+                  "the runtime starts from this node instead of Start. " +
+                  "Build a shorter repeat path that still ends with an End node.\n\n" +
+                  "Only one Refresher node is allowed per tree. " +
+                  "If none is present the runtime defaults to Start.";
+
+        SetHeaderColor(HEADER);
+
+        // Output port only — no input port (same shape as Start)
+        StandardOutputPort = MakePort(UnityEditor.Experimental.GraphView.Direction.Output, Port.Capacity.Single, "out",
+            new Color(0.30f, 0.90f, 0.95f));
+        outputContainer.Add(StandardOutputPort);
+
+        inputContainer.RemoveFromHierarchy();
+
+        capabilities &= ~Capabilities.Deletable;
 
         RefreshExpandedState();
         RefreshPorts();
@@ -1063,23 +1217,53 @@ public class DialogueEventNodeView : DialogueNodeViewBase
         body.style.paddingBottom = 8;
         body.style.minWidth = 240;
 
-        // Event ID
-        body.Add(MakeFieldLabel("Event ID",
-            "Must match a constant in DialogueIds.Events. Use -1 for no event (node passes through silently)."));
+        // Event ID — dropdown populated from DialogueIds.Events constants via reflection
+        body.Add(MakeFieldLabel("Event",
+            "Pick the event fired when dialogue passes through this node. " +
+            "Constants come from DialogueIds.Events. Add new entries there to extend this list."));
 
-        IntegerField eventIdField = new IntegerField();
-        eventIdField.value   = eventData.eventId;
-        eventIdField.tooltip = "The event ID fired when dialogue passes through this node. " +
-                               "Must match a constant in DialogueIds.Events. " +
-                               "Use -1 to pass through without triggering anything.";
-        eventIdField.style.marginBottom = 6;
-        eventIdField.RegisterValueChangedCallback(evt =>
+        System.Reflection.FieldInfo[] eventFields =
+            typeof(DialogueIds.Events).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+
+        if (eventFields.Length > 0)
         {
-            Undo.RecordObject(Sequence, "Edit Event ID");
-            eventData.eventId = evt.newValue;
-            MarkDirty();
-        });
-        body.Add(eventIdField);
+            List<string> choices = eventFields.Select(f => f.Name).ToList();
+            List<int>    values  = eventFields.Select(f => (int)f.GetValue(null)).ToList();
+
+            int currentIndex = values.IndexOf(eventData.eventId);
+            if (currentIndex < 0) currentIndex = 0;
+
+            DropdownField dropdown = new DropdownField(choices, currentIndex);
+            dropdown.tooltip = "The event ID fired when dialogue passes through this node. " +
+                               "Add constants to DialogueIds.Events to extend the list.";
+            dropdown.style.marginBottom = 6;
+            dropdown.RegisterValueChangedCallback(evt =>
+            {
+                int selectedIndex = choices.IndexOf(evt.newValue);
+                if (selectedIndex < 0) return;
+                Undo.RecordObject(Sequence, "Edit Event ID");
+                eventData.eventId = values[selectedIndex];
+                MarkDirty();
+            });
+            body.Add(dropdown);
+        }
+        else
+        {
+            // Fallback: no constants defined yet, use raw int field
+            IntegerField eventIdField = new IntegerField();
+            eventIdField.value   = eventData.eventId;
+            eventIdField.tooltip = "The event ID fired when dialogue passes through this node. " +
+                                   "Must match a constant in DialogueIds.Events. " +
+                                   "Use -1 to pass through without triggering anything.";
+            eventIdField.style.marginBottom = 6;
+            eventIdField.RegisterValueChangedCallback(evt =>
+            {
+                Undo.RecordObject(Sequence, "Edit Event ID");
+                eventData.eventId = evt.newValue;
+                MarkDirty();
+            });
+            body.Add(eventIdField);
+        }
 
         // Description (editor note only)
         body.Add(MakeFieldLabel("Description  (editor note — not used at runtime)",
