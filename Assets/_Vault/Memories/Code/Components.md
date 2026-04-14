@@ -23,7 +23,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 
 | File | Path | Contains |
 |---|---|---|
-| `AIComponents.cs` | `Components/AI/` | `IsBrain`, `HasBrain`, `BodyLink`, `BrainLink`, `Awareness`, `SelectedAction`, `NeedsAction`, `ActionOption` buffer |
+| `AIComponents.cs` | `Components/AI/` | `Brain` (BrainType enum), `ActiveBrain` (enableable), `Awareness`, `SelectedAction`, `NeedsAction` (enableable), `ActionOption` buffer, `Behaviour` buffer, `PlayerControlled` (enableable), `PlayerOrder` |
 | `Brains.cs` | `Components/AI/` | Brain-type tags: `CitizenBrain`, `ZombieBrain` |
 | `Motivations.cs` | `Components/AI/` | One struct per motivation (9 core + personality traits) |
 | `Interactions.cs` | `Components/AI/` | `Interaction`, `InteractionTimer`, `InteractionOccupant` buffer, interaction-type components |
@@ -54,18 +54,22 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 
 Used by [[Systems_AI]].
 
-### `AIComponents.cs` — Brain / Body identity and AI state
+### `AIComponents.cs` — AI state (all on the single unit entity)
+
+> No separate brain entity. No BodyLink/BrainLink. Everything is on the same entity.
 
 ```
-IsBrain                     tag — present on brain entities
-HasBrain                    tag — present on body entities
-BodyLink                    brain → body:  Entity body
-BrainLink                   body → brain:  Entity brain
-                            ⚠ BrainLink is NOT baked. Added by UnitSpawnerSystem via ECB.
+Brain                       BrainType activeBrain
+ActiveBrain (enableable)    tag — disabled on dead/inactive units
 Awareness                   float range
-SelectedAction              Entity current, Entity previous
-NeedsAction (enableable)    tag — set enabled to trigger the AI scoring/selection pipeline
-ActionOption (buffer)       Entity interactableEntity, float score
+SelectedAction              ActionCategory category, Entity targetEntity, float3 targetPosition
+NeedsAction (enableable)    tag — enable to trigger AI scoring/selection pipeline
+ActionOption (buffer)       float score, ActionCategory category, Entity targetEntity, float3 targetPosition
+Behaviour (buffer)          BehaviourType behaviourType, MotivationType targetMotivation,
+                            ActionType actionType, int value, AttackType attackType,
+                            FactionType hostileFaction, float range
+PlayerControlled (enableable) tag — enabled when minion is under player command
+PlayerOrder                 float3 destination, Entity targetEntity, CommandType commandType
 
 PlayerControlled (enableable)   tag — on brain entity. When enabled, ActionSelectionSystem is bypassed.
                                 MinionAutoCounterSystem disables this when the minion takes damage.

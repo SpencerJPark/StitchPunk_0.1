@@ -353,7 +353,6 @@ Transform:
   - {fileID: 506652775}
   - {fileID: 2113325574}
   - {fileID: 1106686507}
-  - {fileID: 1948372533}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &899217116
@@ -1130,51 +1129,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1551899775}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1948372532
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1948372533}
-  - component: {fileID: 1948372534}
-  m_Layer: 0
-  m_Name: BrainLibrary
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1948372533
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1948372532}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 795723640}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1948372534
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1948372532}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0eb356b2b33cf0849a177dfd629c06fc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BrainLibraryAuthoring
-  library: {fileID: 0}
 --- !u!4 &2113325574 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2150324160611221942, guid: 5891c2fa51a8b1c45998c5ad25b57f55, type: 3}

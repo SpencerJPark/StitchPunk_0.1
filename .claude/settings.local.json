@@ -25,7 +25,8 @@
       "Bash(git -C \"C:/Users/spenc/Documents/GitHub/Stitch_Punk\" show HEAD:Assets/_Scripts/Core/RiveAnimator.cs)",
       "Bash(ls:*)",
       "Bash(python3 -c ':*)",
-      "Bash(dir \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\BuildingsSystemGroup\")"
+      "Bash(dir \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\BuildingsSystemGroup\")",
+      "Bash(find:*)"
     ]
   }
 }

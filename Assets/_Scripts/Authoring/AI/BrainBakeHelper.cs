@@ -14,14 +14,10 @@ using System.Collections.Generic;
 public static class BrainBakeHelper
 {
     
-    public static void AddRequirements<T>(Baker<T> baker, Entity entity, GameObject body, float awarenessRange) where T : UnityEngine.Component
+    public static void AddRequirements<T>(Baker<T> baker, Entity entity, float awarenessRange) where T : UnityEngine.Component
     {
         baker.AddComponent<ActiveBrain>(entity);
         baker.SetComponentEnabled<ActiveBrain>(entity, true);
-        
-        Entity bodyEntity = body != null 
-            ? baker.GetEntity(body, TransformUsageFlags.Dynamic) 
-            : Entity.Null;
         
         baker.AddBuffer<ActionOption>(entity);
         baker.AddComponent<SelectedAction>(entity);
@@ -31,7 +27,7 @@ public static class BrainBakeHelper
         {
             range = awarenessRange
         });
-        baker.AddBuffer<Hurt>(entity);
+        //baker.AddBuffer<Hurt>(entity);
     }
 
     public static void AddPlayerControllable<T>(Baker<T> baker, Entity entity) where T : UnityEngine.Component

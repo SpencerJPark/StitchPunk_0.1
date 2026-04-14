@@ -5,48 +5,41 @@ using Unity.Transforms;
 using Unity.Collections;
 
 /// <summary>
-/// Watches brains under PlayerControlled and reacts when the minion body
-/// has arrived at its ordered destination or target.
+/// Watches units under PlayerControlled and reacts when the minion has arrived
+/// at its ordered destination or target.
 ///
 /// Move commands  (PlayerOrder.targetEntity == Null):
-///   Body arrives within ARRIVE_RANGE of destination → release brain back to AI.
+///   Unit arrives within ARRIVE_RANGE of destination → release back to AI.
 ///
 /// Interact commands (PlayerOrder.targetEntity != Null):
-///   Target gone or dead        → release brain back to AI.
-///   Body arrives in INTERACT_RANGE:
-///     Target alive             → enable Attack + Target on body; task execution takes over.
-///     (Future: ResourceNode    → harvest; Item → pick up for transport.)
-///     No matching task         → release brain back to AI.
+///   Target gone or dead        → release back to AI.
+///   Unit arrives in INTERACT_RANGE:
+///     Target alive             → enable Attack + Target; attack system takes over.
+///     No matching task         → release back to AI.
 ///
-/// Attack / harvest systems own the brain while their task runs
-/// (PlayerControlled stays enabled, NeedsAction stays disabled).
-/// They are responsible for releasing PlayerControlled when done.
+/// In the single-entity model, PlayerControlled/NeedsAction/PlayerOrder/LocalTransform/
+/// Attack/Target all live on the same unit entity — no BodyLink lookup needed.
 ///
 /// Runs in AIExecutionSystemGroup after AISelectionSystemGroup so orders issued
-/// this frame by MinionCommandSystem (PlayerEquipmentSystemGroup, before AISystemGroup)
-/// are handled within the same tick.
+/// this frame by MinionCommandSystem are handled within the same tick.
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIExecutionSystemGroup))]
 public partial struct MinionOrderExecutionSystem : ISystem
 {
-    private ComponentLookup<LocalTransform>   transformLookup;
-    private ComponentLookup<Alive>            aliveLookup;
-    private ComponentLookup<Attack>           attackLookup;
-    private ComponentLookup<Target>           targetLookup;
-    private ComponentLookup<PlayerControlled> playerControlledLookup;
-    private ComponentLookup<NeedsAction>      needsActionLookup;
+    private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<Alive>          aliveLookup;
+    private ComponentLookup<Attack>         attackLookup;
+    private ComponentLookup<Target>         targetLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        transformLookup        = state.GetComponentLookup<LocalTransform>(true);
-        aliveLookup            = state.GetComponentLookup<Alive>(true);
-        attackLookup           = state.GetComponentLookup<Attack>(false);
-        targetLookup           = state.GetComponentLookup<Target>(false);
-        playerControlledLookup = state.GetComponentLookup<PlayerControlled>(false);
-        needsActionLookup      = state.GetComponentLookup<NeedsAction>(false);
+        transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        aliveLookup     = state.GetComponentLookup<Alive>(true);
+        attackLookup    = state.GetComponentLookup<Attack>(false);
+        targetLookup    = state.GetComponentLookup<Target>(false);
     }
 
     [BurstCompile]
@@ -56,19 +49,15 @@ public partial struct MinionOrderExecutionSystem : ISystem
         aliveLookup.Update(ref state);
         attackLookup.Update(ref state);
         targetLookup.Update(ref state);
-        playerControlledLookup.Update(ref state);
-        needsActionLookup.Update(ref state);
 
         state.Dependency = new MinionOrderExecutionJob
         {
-            transformLookup        = transformLookup,
-            aliveLookup            = aliveLookup,
-            attackLookup           = attackLookup,
-            targetLookup           = targetLookup,
-            playerControlledLookup = playerControlledLookup,
-            needsActionLookup      = needsActionLookup,
-            arriveRangeSq          = ARRIVE_RANGE  * ARRIVE_RANGE,
-            interactRangeSq        = INTERACT_RANGE * INTERACT_RANGE,
+            transformLookup = transformLookup,
+            aliveLookup     = aliveLookup,
+            attackLookup    = attackLookup,
+            targetLookup    = targetLookup,
+            arriveRangeSq   = ARRIVE_RANGE   * ARRIVE_RANGE,
+            interactRangeSq = INTERACT_RANGE * INTERACT_RANGE,
         }.Schedule(state.Dependency);
     }
 
@@ -79,99 +68,106 @@ public partial struct MinionOrderExecutionSystem : ISystem
     private const float INTERACT_RANGE = 1.5f;
 }
 
-// Iterates brain entities where PlayerControlled is enabled.
-// Cross-entity reads (body transform, target alive) and writes (Attack/Target on body,
-// PlayerControlled/NeedsAction on brain) are safe with Schedule (single-threaded).
+// Iterates unit entities where PlayerControlled is enabled.
+// All AI-state components (PlayerControlled, NeedsAction, PlayerOrder, LocalTransform)
+// are on the same entity. Attack/Target are accessed via lookup because not all
+// player-controlled units are guaranteed to have combat components.
 [BurstCompile]
 [WithAll(typeof(PlayerControlled))]
 public partial struct MinionOrderExecutionJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<LocalTransform>   transformLookup;
-    [ReadOnly] public ComponentLookup<Alive>            aliveLookup;
-    public            ComponentLookup<Attack>           attackLookup;
-    public            ComponentLookup<Target>           targetLookup;
-    public            ComponentLookup<PlayerControlled> playerControlledLookup;
-    public            ComponentLookup<NeedsAction>      needsActionLookup;
-    public            float                             arriveRangeSq;
-    public            float                             interactRangeSq;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
+    [ReadOnly] public ComponentLookup<Alive>          aliveLookup;
+    public            ComponentLookup<Attack>         attackLookup;
+    public            ComponentLookup<Target>         targetLookup;
+    public            float                           arriveRangeSq;
+    public            float                           interactRangeSq;
 
-    public void Execute(Entity brainEntity, in BodyLink bodyLink, in PlayerOrder order)
+    public void Execute(
+        Entity entity,
+        in PlayerOrder order,
+        in LocalTransform transform,
+        EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        EnabledRefRW<NeedsAction> needsActionEnabled)
     {
-        Entity body = bodyLink.body;
-        if (body == Entity.Null) return;
-
-        if (!transformLookup.TryGetComponent(body, out LocalTransform bodyTransform))
+        // Already executing an attack — attack system owns completion.
+        if (attackLookup.HasComponent(entity) && attackLookup.IsComponentEnabled(entity))
             return;
 
-        float3 bodyPos = bodyTransform.Position;
+        float3 unitPos = transform.Position;
 
         if (order.targetEntity != Entity.Null)
-            HandleInteractOrder(brainEntity, body, bodyPos, order.targetEntity);
+            HandleInteractOrder(entity, unitPos, order.targetEntity,
+                ref playerControlledEnabled, ref needsActionEnabled);
         else
-            HandleMoveOrder(brainEntity, bodyPos, order.destination);
+            HandleMoveOrder(unitPos, order.destination,
+                ref playerControlledEnabled, ref needsActionEnabled);
     }
 
     // ── INTERACT ─────────────────────────────────────────────────────────────
 
-    private void HandleInteractOrder(Entity brain, Entity body, float3 bodyPos, Entity target)
+    private void HandleInteractOrder(
+        Entity entity,
+        float3 unitPos,
+        Entity orderTarget,
+        ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        ref EnabledRefRW<NeedsAction> needsActionEnabled)
     {
-        // Body is already executing an attack — attack system owns completion.
-        if (attackLookup.HasComponent(body) && attackLookup.IsComponentEnabled(body))
-            return;
-
         // Target gone or dead → give up.
-        bool targetAlive = aliveLookup.HasComponent(target) && aliveLookup.IsComponentEnabled(target);
+        bool targetAlive = aliveLookup.HasComponent(orderTarget) &&
+                           aliveLookup.IsComponentEnabled(orderTarget);
         if (!targetAlive)
         {
-            ReleaseBrain(brain);
+            ReleaseBrain(ref playerControlledEnabled, ref needsActionEnabled);
             return;
         }
 
-        if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform))
+        if (!transformLookup.TryGetComponent(orderTarget, out LocalTransform targetTransform))
         {
-            ReleaseBrain(brain);
+            ReleaseBrain(ref playerControlledEnabled, ref needsActionEnabled);
             return;
         }
 
         // Still walking toward target — nothing to do yet.
-        float distSq = math.distancesq(bodyPos, targetTransform.Position);
-        if (distSq > interactRangeSq)
-            return;
+        float distSq = math.distancesq(unitPos, targetTransform.Position);
+        if (distSq > interactRangeSq) return;
 
-        // Arrived — route to task.
-        // Target is alive → hand off to attack execution system.
-        if (attackLookup.HasComponent(body) && targetLookup.HasComponent(body))
+        // Arrived — target is alive → hand off to attack execution system.
+        if (attackLookup.HasComponent(entity) && targetLookup.HasComponent(entity))
         {
-            targetLookup[body] = new Target { entity = target };
-            targetLookup.SetComponentEnabled(body, true);
-            attackLookup.SetComponentEnabled(body, true);
+            targetLookup[entity] = new Target { entity = orderTarget };
+            targetLookup.SetComponentEnabled(entity, true);
+            attackLookup.SetComponentEnabled(entity, true);
             // PlayerControlled stays enabled, NeedsAction stays disabled.
-            // AttackExecutionSystem will call ReleaseBrain when the target is dead.
+            // MinionAttackExecutionSystem releases when the target is dead.
         }
         else
         {
-            // Body has no task components for this target type — fall back.
-            ReleaseBrain(brain);
+            // No combat components on this entity — fall back.
+            ReleaseBrain(ref playerControlledEnabled, ref needsActionEnabled);
         }
     }
 
     // ── MOVE ─────────────────────────────────────────────────────────────────
 
-    private void HandleMoveOrder(Entity brain, float3 bodyPos, float3 destination)
+    private void HandleMoveOrder(
+        float3 unitPos,
+        float3 destination,
+        ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        ref EnabledRefRW<NeedsAction> needsActionEnabled)
     {
-        float distSq = math.distancesq(bodyPos, destination);
+        float distSq = math.distancesq(unitPos, destination);
         if (distSq <= arriveRangeSq)
-            ReleaseBrain(brain);
+            ReleaseBrain(ref playerControlledEnabled, ref needsActionEnabled);
     }
 
     // ── HELPERS ──────────────────────────────────────────────────────────────
 
-    private void ReleaseBrain(Entity brain)
+    private static void ReleaseBrain(
+        ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        ref EnabledRefRW<NeedsAction> needsActionEnabled)
     {
-        if (playerControlledLookup.HasComponent(brain))
-            playerControlledLookup.SetComponentEnabled(brain, false);
-
-        if (needsActionLookup.HasComponent(brain))
-            needsActionLookup.SetComponentEnabled(brain, true);
+        playerControlledEnabled.ValueRW = false;
+        needsActionEnabled.ValueRW      = true;
     }
 }

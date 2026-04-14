@@ -1,5 +1,4 @@
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
 
@@ -10,13 +9,11 @@ public partial struct DeathSystem : ISystem
 {
     private ComponentLookup<ActiveBrain> activeBrainLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
-    
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
-        
         activeBrainLookup = state.GetComponentLookup<ActiveBrain>(false);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
     }
@@ -44,22 +41,21 @@ public partial struct DeathJob : IJobEntity
 {
     public ComponentLookup<ActiveBrain> activeBrainLookup;
     public ComponentLookup<NeedsAction> needsActionLookup;
-    
+
     public void Execute(
+        Entity entity,
         in Dead dead,
         in Health health,
         in LocalTransform transform,
         ref UnitAction unitAction,
         ref Movement mover,
-        in BrainLink brainLink,
         EnabledRefRW<Alive> aliveEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarEnabled,
         EnabledRefRW<FlowFieldFollower> flowFieldEnabled,
         EnabledRefRW<HordeMembership> hordeMembershipEnabled)
     {
-
-        // 1. Flip life/death state flags on THIS entity
+        // 1. Flip life/death state flags on this entity
         unitAction.current = ActionType.Death;
         aliveEnabled.ValueRW = false;
         pathRequestEnabled.ValueRW = false;
@@ -70,14 +66,13 @@ public partial struct DeathJob : IJobEntity
         // 2. Stop movement and snap target
         mover.isMoving = false;
         mover.targetPosition = transform.Position;
-        
-        // 3. Stop Brain
-        if (activeBrainLookup.EntityExists(brainLink.brain))
-        {
-            activeBrainLookup.SetComponentEnabled(brainLink.brain, false);
-            needsActionLookup.SetComponentEnabled(brainLink.brain, false);
-        }
-        
-        
+
+        // 3. Stop AI state — lives on the same entity in the single-entity model.
+        //    Use lookups so units without AI components (e.g. player) are handled safely.
+        if (activeBrainLookup.HasComponent(entity))
+            activeBrainLookup.SetComponentEnabled(entity, false);
+
+        if (needsActionLookup.HasComponent(entity))
+            needsActionLookup.SetComponentEnabled(entity, false);
     }
 }

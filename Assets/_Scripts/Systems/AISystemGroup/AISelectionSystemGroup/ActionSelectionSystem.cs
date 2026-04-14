@@ -1,8 +1,7 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using UnityEngine;
 using Random = Unity.Mathematics.Random;
 
 [BurstCompile]
@@ -10,14 +9,14 @@ using Random = Unity.Mathematics.Random;
 public partial struct ActionSelectionSystem : ISystem
 {
     private BufferLookup<InteractionOccupant> occupantBufferLookup;
-    private ComponentLookup<Interaction> interactionLookup;
+    private ComponentLookup<Interaction>      interactionLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<SelectedAction>();
 
         occupantBufferLookup = state.GetBufferLookup<InteractionOccupant>(false);
-        interactionLookup = state.GetComponentLookup<Interaction>(true);
+        interactionLookup    = state.GetComponentLookup<Interaction>(true);
     }
 
     [BurstCompile]
@@ -30,15 +29,15 @@ public partial struct ActionSelectionSystem : ISystem
 
         state.Dependency = new ActionSelectionJob
         {
-            time = time,
+            time                 = time,
             occupantBufferLookup = occupantBufferLookup,
-            interactionLookup = interactionLookup
+            interactionLookup    = interactionLookup,
         }.Schedule(state.Dependency);
     }
 
     // [WithAll(typeof(NeedsAction))] is required — NeedsAction is IEnableableComponent.
-    // Without it the query uses WithPresent (runs on all brains) and FilterPreviousEntity
-    // re-enables NeedsAction on dead/inactive brains that have 0 options, creating an infinite loop.
+    // Without it the query uses WithPresent (runs on all units) and FilterPreviousEntity
+    // re-enables NeedsAction on dead/inactive units that have 0 options, creating an infinite loop.
     [BurstCompile]
     [WithAll(typeof(ActiveBrain))]
     [WithAll(typeof(NeedsAction))]
@@ -55,50 +54,56 @@ public partial struct ActionSelectionSystem : ISystem
             Entity npcEntity,
             [EntityIndexInQuery] int entityIndex)
         {
-            // Filter out previous entity first
+            // Filter out previous entity first to avoid re-selecting the same target.
             if (FilterPreviousEntity(selectedAction, ref options, needsActionEnabled))
                 return;
 
-            // Sort AFTER filtering so top 3 selection is based on filtered list
+            // Sort AFTER filtering so the top-3 pick is based on the filtered list.
             SortDescending(ref options);
 
-            Random random = EntityUtils.CreateRandom(entityIndex, time);
+            Random random    = EntityUtils.CreateRandom(entityIndex, time);
+            int    topCount  = math.min(options.Length, 3);
+            int    startIndex = random.NextInt(0, topCount);
 
-            // Randomly pick from top 3 valid options (now based on filtered length)
-            int topCount = math.min(options.Length, 3);
-            int startIndex = random.NextInt(0, topCount);
-
-            // Try from random start, then wrap around through all options
+            // Try from random start, wrap through all options.
             for (int attempt = 0; attempt < options.Length; attempt++)
             {
-                int i = (startIndex + attempt) % options.Length;
+                int          i         = (startIndex + attempt) % options.Length;
                 ActionOption candidate = options[i];
 
-                if (!occupantBufferLookup.TryGetBuffer(candidate.interactableEntity,
-                    out DynamicBuffer<InteractionOccupant> occupantBuffer))
-                    continue;
-
-                if (!interactionLookup.TryGetComponent(candidate.interactableEntity,
-                    out Interaction interaction))
-                    continue;
-
-                if (occupantBuffer.Length >= interaction.maxOccupants)
-                    continue;
-
-                occupantBuffer.Add(new InteractionOccupant
+                // ── Interaction options: enforce occupancy cap ─────────────────
+                if (candidate.category == ActionCategory.Interaction)
                 {
-                    entity = npcEntity,
-                    score = candidate.score
-                });
+                    if (!occupantBufferLookup.TryGetBuffer(candidate.targetEntity,
+                        out DynamicBuffer<InteractionOccupant> occupantBuffer))
+                        continue;
 
-                selectedAction.previous = selectedAction.current;
-                selectedAction.current = candidate.interactableEntity;
-                needsActionEnabled.ValueRW = false;
+                    if (!interactionLookup.TryGetComponent(candidate.targetEntity,
+                        out Interaction interaction))
+                        continue;
+
+                    if (occupantBuffer.Length >= interaction.maxOccupants)
+                        continue;
+
+                    occupantBuffer.Add(new InteractionOccupant
+                    {
+                        entity = npcEntity,
+                        score  = candidate.score,
+                    });
+                }
+                // ── Behaviour / combat options: no occupancy check ─────────────
+                // (Chase, Attack, Flee, Wander don't own world-object slots.)
+
+                // Commit selection.
+                selectedAction.category      = candidate.category;
+                selectedAction.targetEntity  = candidate.targetEntity;
+                selectedAction.targetPosition = candidate.targetPosition;
+                needsActionEnabled.ValueRW   = false;
                 options.Clear();
                 return;
             }
 
-            // No valid option found, try again next frame
+            // No valid option found — try again next frame.
             needsActionEnabled.ValueRW = true;
             options.Clear();
         }
@@ -111,17 +116,14 @@ public partial struct ActionSelectionSystem : ISystem
             if (options.Length == 0)
                 return true;
 
-            // Remove all options matching the previous entity
+            // Remove all options matching the previously selected target.
             for (int i = options.Length - 1; i >= 0; i--)
             {
-                if (options[i].interactableEntity == selectedAction.previous ||
-                    options[i].interactableEntity == selectedAction.current)
-                {
+                if (options[i].targetEntity == selectedAction.targetEntity)
                     options.RemoveAt(i);
-                }
             }
 
-            // If no options remain after filtering, wait for next frame
+            // If no options remain after filtering, wait for next frame.
             if (options.Length == 0)
             {
                 needsActionEnabled.ValueRW = true;
@@ -140,8 +142,8 @@ public partial struct ActionSelectionSystem : ISystem
                     if (options[j].score > options[i].score)
                     {
                         ActionOption temp = options[i];
-                        options[i] = options[j];
-                        options[j] = temp;
+                        options[i]        = options[j];
+                        options[j]        = temp;
                     }
                 }
             }

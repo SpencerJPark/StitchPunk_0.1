@@ -16,7 +16,7 @@ No separate brain entity. No body entity. All AI state lives on the single unit 
 ### Single Entity per Unit
 - Citizens, enemies, guards, minions — all single entities
 - Brain type is `Brain.activeBrain` (BrainType enum)
-- No `BodyLink`, `BrainLink`, `IsBrain`, `HasBrain` (legacy stubs kept for compilation, removed in Phase 4)
+- No `BodyLink`, `BrainLink` — **fully removed**. All AI state (Brain, motivations, ActionOptions, PlayerControlled, NeedsAction) is on the unit entity directly.
 
 ### Brain Config in Blob
 - `BrainLibraryBlob` keyed by `(int)BrainType` → `BrainConfigBlob`
@@ -30,23 +30,27 @@ No separate brain entity. No body entity. All AI state lives on the single unit 
 
 ---
 
-## Pipeline (Phase 2 — being built)
+## Pipeline (Phase 2 — in progress)
 
 ```
 AIAwarenessSystemGroup
-  MotivationDecaySystem        — reads Brain → blob decay rates → ticks MotivationState
-  SpatialHashSystem            — spatial index (unchanged)
-  FactionRegistrySystem        — faction spatial map (unchanged)
+  MotivationDegradationSystem  — per-motivation component decay (HungerMotivation etc.), [WithAll(ActiveBrain)]
+  SpatialHashSystem            — spatial index for interaction discovery
+  FactionRegistrySystem        — NativeParallelMultiHashMap<byte,Entity> rebuilt each frame
 
-AIScoringSystemGroup           — all run; each checks brain behavior weight upfront (0 = skip)
-  InteractionScoringSystem     — scores waypoints by motivation urgency × interaction value
-  ChaseScoringSystem           — scores hostile targets for brains with chase.weight > 0
-  AttackScoringSystem          — scores current CombatTarget if in attack range from blob
-  FleeScoringSystem            — scores flee destinations for brains with flee.weight > 0
+AIScoringSystemGroup           — all systems write to ActionOption buffer on the entity
+  HungerScoringSystem          — spatial hash → HungerInteraction entities → score vs HungerMotivation
+  EnergyScoringSystem          — (and 6 more motivation-interaction scoring systems...)
+  BehaviourScoringSystem       — scores Behaviour buffer entries:
+                                   Wander   → flat score 10f, ActionCategory.Wander
+                                   Chase    → FactionRegistry lookup, ActionCategory.Chase
+                                   MeleeAttack → CombatTarget in range, ActionCategory.Attack
+                                   Flee     → ThreatEntry buffer, ActionCategory.Flee
 
 AISelectionSystemGroup
-  ActionSelectionSystem        — keeps top 3 ActionOptions by score, writes SelectedAction
-                                 [WithDisabled(typeof(PlayerControlled))] — skips player minions
+  ActionSelectionSystem        — top-3 random pick; Interaction category → checks occupancy,
+                                 other categories → selects directly; writes SelectedAction
+  InteractionAssignmentSystem  — assigns winners to interaction, calls AIUtils.AssignWinners
 
 AIExecutionSystemGroup
   InteractionExecutionSystem   — navigate to waypoint, trigger interaction
@@ -64,13 +68,15 @@ AIExecutionSystemGroup
 public struct ActionOption : IBufferElementData
 {
     public float score;
-    public ActionCategory category;   // Wander, Interact, Attack, Flee
-    public Entity targetEntity;
-    public float3 targetPosition;
+    public ActionCategory category;   // Interaction, Wander, Chase, Attack, Flee, ...
+    public Entity targetEntity;       // interaction entity OR hostile entity
+    public float3 targetPosition;     // flee destination or chase target pos
 }
 ```
 
 All scoring systems write to this buffer. `ActionSelectionSystem` trims to top 3 and writes `SelectedAction`.
+Interaction scoring systems call `AIUtils.AddActionOption(ref options, ref entity, score)` — sets `category = Interaction` automatically.
+Behaviour scoring systems call `AIUtils.AddActionOption(ref options, score, category, targetEntity, targetPosition)` for full control.
 
 ---
 

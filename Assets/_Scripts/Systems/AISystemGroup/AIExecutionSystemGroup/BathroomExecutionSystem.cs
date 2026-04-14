@@ -1,4 +1,4 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
@@ -9,29 +9,27 @@ using Unity.Transforms;
 public partial struct BladderExecutionSystem : ISystem
 {
     private ComponentLookup<BladderMotivation> bladderLookup;
-    private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<BodyLink> brainLinkLookup;
-    private ComponentLookup<NeedsAction> needsActionLookup;
-    private ComponentLookup<Dead> deadLookup;
-    private ComponentLookup<UnitAction> unitActionLookup;
-    private ComponentLookup<PathRequest> pathRequestLookup;
-    private ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
-    private ComponentLookup<Movement> unitMoverLookup;
+    private ComponentLookup<LocalTransform>    transformLookup;
+    private ComponentLookup<NeedsAction>       needsActionLookup;
+    private ComponentLookup<Dead>              deadLookup;
+    private ComponentLookup<UnitAction>        unitActionLookup;
+    private ComponentLookup<PathRequest>       pathRequestLookup;
+    private ComponentLookup<PathfindingAgent>  pathfindingAgentLookup;
+    private ComponentLookup<Movement>          unitMoverLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<BladderInteraction>();
 
-        bladderLookup = state.GetComponentLookup<BladderMotivation>(false);
-        transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        brainLinkLookup = state.GetComponentLookup<BodyLink>(true);
-        needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
-        deadLookup = state.GetComponentLookup<Dead>(true);
-        unitActionLookup = state.GetComponentLookup<UnitAction>(false);
-        pathRequestLookup = state.GetComponentLookup<PathRequest>(false);
+        bladderLookup          = state.GetComponentLookup<BladderMotivation>(false);
+        transformLookup        = state.GetComponentLookup<LocalTransform>(true);
+        needsActionLookup      = state.GetComponentLookup<NeedsAction>(false);
+        deadLookup             = state.GetComponentLookup<Dead>(true);
+        unitActionLookup       = state.GetComponentLookup<UnitAction>(false);
+        pathRequestLookup      = state.GetComponentLookup<PathRequest>(false);
         pathfindingAgentLookup = state.GetComponentLookup<PathfindingAgent>(false);
-        unitMoverLookup = state.GetComponentLookup<Movement>(false);
+        unitMoverLookup        = state.GetComponentLookup<Movement>(false);
     }
 
     [BurstCompile]
@@ -39,7 +37,6 @@ public partial struct BladderExecutionSystem : ISystem
     {
         bladderLookup.Update(ref state);
         transformLookup.Update(ref state);
-        brainLinkLookup.Update(ref state);
         needsActionLookup.Update(ref state);
         deadLookup.Update(ref state);
         unitActionLookup.Update(ref state);
@@ -52,28 +49,25 @@ public partial struct BladderExecutionSystem : ISystem
         // Step 1: Request paths for newly assigned occupants
         state.Dependency = new BladderPathRequestJob
         {
-            brainLinkLookup = brainLinkLookup,
-            pathRequestLookup = pathRequestLookup,
+            pathRequestLookup      = pathRequestLookup,
             pathfindingAgentLookup = pathfindingAgentLookup,
-            unitMoverLookup = unitMoverLookup
+            unitMoverLookup        = unitMoverLookup,
         }.Schedule(state.Dependency);
 
         // Step 2: Check for arrival
         state.Dependency = new BladderArrivalJob
         {
             transformLookup = transformLookup,
-            brainLinkLookup = brainLinkLookup
         }.Schedule(state.Dependency);
 
         // Step 3: Handle completion
         state.Dependency = new BladderCompletionJob
         {
-            deltaTime = deltaTime,
-            bladderLookup = bladderLookup,
+            deltaTime         = deltaTime,
+            bladderLookup     = bladderLookup,
             needsActionLookup = needsActionLookup,
-            deadLookup = deadLookup,
-            unitActionLookup = unitActionLookup,
-            brainLinkLookup = brainLinkLookup
+            deadLookup        = deadLookup,
+            unitActionLookup  = unitActionLookup,
         }.Schedule(state.Dependency);
     }
 
@@ -86,10 +80,9 @@ public partial struct BladderExecutionSystem : ISystem
     [WithDisabled(typeof(InteractionHandled))]
     public partial struct BladderPathRequestJob : IJobEntity
     {
-        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
-        public ComponentLookup<PathRequest> pathRequestLookup;
+        public ComponentLookup<PathRequest>      pathRequestLookup;
         public ComponentLookup<PathfindingAgent> pathfindingAgentLookup;
-        public ComponentLookup<Movement> unitMoverLookup;
+        public ComponentLookup<Movement>         unitMoverLookup;
 
         public void Execute(
             in BladderInteraction bladderInteraction,
@@ -102,13 +95,9 @@ public partial struct BladderExecutionSystem : ISystem
 
             for (int i = 0; i < occupants.Length; i++)
             {
-                Entity brainEntity = occupants[i].entity;
-
-                if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
-                    continue;
-
+                // Occupant entity IS the unit entity — request path directly.
                 AIUtils.RequestPath(
-                    brainLink.body,
+                    occupants[i].entity,
                     interactionTransform.Position,
                     ref pathRequestLookup,
                     ref pathfindingAgentLookup,
@@ -129,7 +118,6 @@ public partial struct BladderExecutionSystem : ISystem
     public partial struct BladderArrivalJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
 
         public void Execute(
             in BladderInteraction bladderInteraction,
@@ -139,11 +127,11 @@ public partial struct BladderExecutionSystem : ISystem
             ref InteractionTimer timer,
             EnabledRefRW<InteractionTimer> timerEnabled)
         {
-            if (AIUtils.CheckArrival(in occupants, in interactionTransform, interaction.interactionRange,
-                    ref brainLinkLookup, ref transformLookup))
+            if (AIUtils.CheckArrival(in occupants, in interactionTransform,
+                    interaction.interactionRange, ref transformLookup))
             {
-                timer.elapsed = 0f;
-                timer.duration = timer.maxTime;
+                timer.elapsed        = 0f;
+                timer.duration       = timer.maxTime;
                 timerEnabled.ValueRW = true;
             }
         }
@@ -159,10 +147,9 @@ public partial struct BladderExecutionSystem : ISystem
     {
         public float deltaTime;
         public ComponentLookup<BladderMotivation> bladderLookup;
-        public ComponentLookup<NeedsAction> needsActionLookup;
-        [ReadOnly] public ComponentLookup<Dead> deadLookup;
-        public ComponentLookup<UnitAction> unitActionLookup;
-        [ReadOnly] public ComponentLookup<BodyLink> brainLinkLookup;
+        public ComponentLookup<NeedsAction>       needsActionLookup;
+        [ReadOnly] public ComponentLookup<Dead>   deadLookup;
+        public ComponentLookup<UnitAction>        unitActionLookup;
 
         public void Execute(
             in BladderInteraction bladderInteraction,
@@ -180,24 +167,21 @@ public partial struct BladderExecutionSystem : ISystem
             if (timer.elapsed < timer.duration)
                 return;
 
-            // Apply bladder restoration
+            // Apply bladder restoration — occupant entity IS the unit, has BladderMotivation.
             for (int i = 0; i < occupants.Length; i++)
             {
-                Entity brainEntity = occupants[i].entity;
+                Entity unitEntity = occupants[i].entity;
 
-                if (bladderLookup.HasComponent(brainEntity))
-                {
-                    bladderLookup[brainEntity] = new BladderMotivation { value = 100 };
-                }
+                if (bladderLookup.HasComponent(unitEntity))
+                    bladderLookup[unitEntity] = new BladderMotivation { value = 100 };
             }
 
-            // Release and cleanup — dead units are cleared but NeedsAction is not re-enabled.
-            AIUtils.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref brainLinkLookup, ref deadLookup);
+            AIUtils.ReleaseOccupants(occupants, ref needsActionLookup, ref unitActionLookup, ref deadLookup);
 
-            timer.elapsed = 0f;
-            timerEnabled.ValueRW = false;
+            timer.elapsed                      = 0f;
+            timerEnabled.ValueRW               = false;
             interactionProviderEnabled.ValueRW = true;
-            interactionHandledEnabled.ValueRW = false;
+            interactionHandledEnabled.ValueRW  = false;
         }
     }
 }

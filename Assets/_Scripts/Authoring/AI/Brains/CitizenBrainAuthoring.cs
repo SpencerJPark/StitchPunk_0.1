@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class CitizenBrainAuthoring : MonoBehaviour
 {
-    public GameObject body;
     public float awarenessRange;
 
     public class Baker : Baker<CitizenBrainAuthoring>
@@ -13,7 +12,7 @@ public class CitizenBrainAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             
-            BrainBakeHelper.AddRequirements(this, entity, authoring.body, authoring.awarenessRange);
+            BrainBakeHelper.AddRequirements(this, entity, authoring.awarenessRange);
             BrainBakeHelper.AddHumanMotivations(this, entity);
             BrainBakeHelper.AddRandomMotivations(this, entity, (uint)entity.Index);
         }

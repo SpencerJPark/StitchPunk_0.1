@@ -48,20 +48,20 @@ public partial struct OrderMarkerSystem : ISystem
         }
     }
 
-    // Scans all minion bodies in this horde and returns true if any brain still has
+    // Scans all minion entities in this horde and returns true if any still has
     // PlayerControlled enabled (meaning the order is still active for that unit).
+    // In the single-entity model, PlayerControlled lives directly on the minion entity.
     private bool AnyMemberIsPlayerControlled(ref SystemState state, in Horde horde)
     {
-        foreach ((RefRO<HordeMembership> membership, RefRO<BrainLink> brainLink) in
-            SystemAPI.Query<RefRO<HordeMembership>, RefRO<BrainLink>>()
-            .WithAll<Minion>())
+        foreach ((RefRO<HordeMembership> membership, Entity minionEntity) in
+            SystemAPI.Query<RefRO<HordeMembership>>()
+            .WithAll<Minion>()
+            .WithEntityAccess())
         {
             if (membership.ValueRO.hordeId != horde.hordeId) continue;
 
-            Entity brainEntity = brainLink.ValueRO.brain;
-            if (brainEntity == Entity.Null) continue;
-            if (!playerControlledLookup.HasComponent(brainEntity)) continue;
-            if (playerControlledLookup.IsComponentEnabled(brainEntity)) return true;
+            if (!playerControlledLookup.HasComponent(minionEntity)) continue;
+            if (playerControlledLookup.IsComponentEnabled(minionEntity)) return true;
         }
         return false;
     }

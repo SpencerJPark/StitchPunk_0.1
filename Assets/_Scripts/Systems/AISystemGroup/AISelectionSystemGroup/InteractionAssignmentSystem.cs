@@ -1,15 +1,12 @@
-﻿using Unity.Burst;
-using Unity.Collections;
+using Unity.Burst;
 using Unity.Entities;
-using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AISelectionSystemGroup))]
 public partial struct InteractionAssignmentSystem : ISystem
 {
-    private ComponentLookup<BodyLink> bodyLinkLookup;
-    private ComponentLookup<UnitAction> unitActionLookup;
+    private ComponentLookup<UnitAction>  unitActionLookup;
     private ComponentLookup<NeedsAction> needsActionLookup;
 
     [BurstCompile]
@@ -17,22 +14,19 @@ public partial struct InteractionAssignmentSystem : ISystem
     {
         state.RequireForUpdate<Interaction>();
 
-        bodyLinkLookup = state.GetComponentLookup<BodyLink>(true);
-        unitActionLookup = state.GetComponentLookup<UnitAction>(false);
+        unitActionLookup  = state.GetComponentLookup<UnitAction>(false);
         needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        bodyLinkLookup.Update(ref state);
         unitActionLookup.Update(ref state);
         needsActionLookup.Update(ref state);
 
         state.Dependency = new AssignmentJob
         {
-            bodyLinkLookup = bodyLinkLookup,
-            unitActionLookup = unitActionLookup,
+            unitActionLookup  = unitActionLookup,
             needsActionLookup = needsActionLookup,
         }.Schedule(state.Dependency);
     }
@@ -41,8 +35,7 @@ public partial struct InteractionAssignmentSystem : ISystem
     [WithAll(typeof(InteractionProvider))]
     public partial struct AssignmentJob : IJobEntity
     {
-        [ReadOnly] public ComponentLookup<BodyLink> bodyLinkLookup;
-        public ComponentLookup<UnitAction> unitActionLookup;
+        public ComponentLookup<UnitAction>  unitActionLookup;
         public ComponentLookup<NeedsAction> needsActionLookup;
 
         public void Execute(
@@ -54,20 +47,16 @@ public partial struct InteractionAssignmentSystem : ISystem
             if (occupants.Length == 0)
                 return;
 
-            // Select winners based on score
+            // Select winners based on score — rejects losers and re-enables NeedsAction on them.
             AIUtils.SelectWinners(occupants, interaction.maxOccupants, ref needsActionLookup);
 
             if (occupants.Length == 0)
                 return;
 
-            // Assign winners to move toward interaction using new pathfinding
-            AIUtils.AssignWinners(
-                in occupants,
-                interaction.actionType,
-                ref bodyLinkLookup,
-                ref unitActionLookup);
+            // Assign winners — occupant entity IS the unit entity in the single-entity model.
+            AIUtils.AssignWinners(in occupants, interaction.actionType, ref unitActionLookup);
 
-            // Disable provider while being used
+            // Disable provider while being used.
             providerEnabled.ValueRW = false;
         }
     }

@@ -31,6 +31,8 @@ public enum ActionCategory
     Attack,
     UseItem,
     Wander,
+    Chase,
+    Flee,
 }
 
 public enum MotivationType
@@ -63,7 +65,11 @@ public enum BehaviourType
     PunchAttack,
     SlashAttack,
     Dance,
-    Smoke
+    Smoke,
+    Chase,       // Find and pursue nearest hostile in awareness range via FactionRegistry
+    MeleeAttack, // Attack CombatTarget if within melee range
+    Flee,        // Flee from threats in the ThreatEntry buffer
+    Wander,      // Baseline low-priority idle movement
 }
 
 public enum AttackType

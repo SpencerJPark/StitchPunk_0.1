@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class ZombieBrainAuthoring : MonoBehaviour
 {
-    public GameObject body;
     public float awarenessRange;
 
     public class Baker : Baker<ZombieBrainAuthoring>
@@ -12,7 +11,7 @@ public class ZombieBrainAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            BrainBakeHelper.AddRequirements(this, entity, authoring.body, authoring.awarenessRange);
+            BrainBakeHelper.AddRequirements(this, entity, authoring.awarenessRange);
             BrainBakeHelper.AddPlayerControllable(this, entity);
 
             AddComponent<PlayerOrder>(entity);

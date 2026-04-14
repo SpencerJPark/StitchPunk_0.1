@@ -5,20 +5,23 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 // Reads command event components from the player entity and fans orders out to
-// every Selected + Minion body.
+// every Selected + Minion entity.
 //
 // Supported commands:
 //   OnMinionMoveCommand     — move to world position
 //   OnMinionInteractCommand — interact with target entity
-//   OnMinionAttackCommand   — engage hostile; brain stays under player control even if hit
+//   OnMinionAttackCommand   — engage hostile; stays under player control even if hit
 //   OnMinionDefendCommand   — hold position; auto-attack enemies within radius
 //   OnMinionFollowCommand   — continuously path toward player position each frame
 //
-// Per body (on any new command):
-//   • Enables  PlayerControlled on the brain (bypasses ActionSelectionSystem)
-//   • Writes   PlayerOrder on the brain (destination + optional target + commandType)
-//   • Disables NeedsAction on the brain (prevents AI from picking a new action mid-command)
-//   • Enables  PathRequest on the body  (kicks off pathfinding toward destination)
+// Per unit (on any new command):
+//   • Enables  PlayerControlled (bypasses ActionSelectionSystem)
+//   • Writes   PlayerOrder (destination + optional target + commandType)
+//   • Disables NeedsAction (prevents AI from picking a new action mid-command)
+//   • Enables  PathRequest (kicks off pathfinding toward destination)
+//
+// In the single-entity model, PlayerControlled/PlayerOrder/NeedsAction/PathRequest
+// all live on the same unit entity — no BrainLink cross-reference needed.
 //
 // Runs in PlayerEquipmentSystemGroup (OrderLast inside PlayerSystemGroup),
 // so commands written by UnitSelectionManager this frame are acted on before
@@ -114,7 +117,7 @@ public partial struct MinionCommandSystem : ISystem
         localTransformLookup.Update(ref state);
 
         // ── Continuous follow: update destination to current player position ───
-        // Runs every frame for brains already in Follow mode (regardless of new command).
+        // Runs every frame for units already in Follow mode (regardless of new command).
         if (!hasNewCommand || activeCommand != CommandType.Follow)
         {
             float3 playerPosition  = float3.zero;
@@ -128,33 +131,29 @@ public partial struct MinionCommandSystem : ISystem
 
             if (foundPlayer)
             {
-                foreach ((RefRO<BrainLink> brainLink,
-                           RefRO<PathfindingAgent> pathfindingAgent,
+                foreach ((RefRO<PathfindingAgent> pathfindingAgent,
                            RefRW<PathRequest> pathRequest,
                            EnabledRefRW<PathRequest> pathRequestEnabled,
                            RefRO<HordeMembership> hordeMembership,
-                           Entity bodyEntity) in
+                           Entity unitEntity) in
                     SystemAPI.Query<
-                        RefRO<BrainLink>,
                         RefRO<PathfindingAgent>,
                         RefRW<PathRequest>,
                         EnabledRefRW<PathRequest>,
                         RefRO<HordeMembership>>()
                     .WithAll<Minion>()
-                    .WithPresent<PathRequest, HordeMembership>()
+                    .WithPresent<PathRequest, HordeMembership, PlayerControlled>()
                     .WithEntityAccess())
                 {
-                    Entity brainEntity = brainLink.ValueRO.brain;
-                    if (brainEntity == Entity.Null) continue;
-                    if (!SystemAPI.IsComponentEnabled<PlayerControlled>(brainEntity)) continue;
+                    if (!SystemAPI.IsComponentEnabled<PlayerControlled>(unitEntity)) continue;
 
-                    PlayerOrder currentOrder = SystemAPI.GetComponent<PlayerOrder>(brainEntity);
+                    PlayerOrder currentOrder = SystemAPI.GetComponent<PlayerOrder>(unitEntity);
                     if (currentOrder.commandType != CommandType.Follow) continue;
 
                     currentOrder.destination = playerPosition;
-                    SystemAPI.SetComponent(brainEntity, currentOrder);
+                    SystemAPI.SetComponent(unitEntity, currentOrder);
 
-                    bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(bodyEntity);
+                    bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(unitEntity);
                     if (!isInHorde)
                     {
                         pathRequest.ValueRW.targetPosition = playerPosition;
@@ -181,18 +180,15 @@ public partial struct MinionCommandSystem : ISystem
         // their shared target in one pass rather than once per member.
         NativeHashSet<Entity> dirtyHordes = new NativeHashSet<Entity>(8, Allocator.Temp);
 
-        // ── Fan order to every Selected + Minion body ─────────────────────────
+        // ── Fan order to every Selected + Minion entity ───────────────────────
         // WithPresent<HordeMembership> includes both grouped (enabled) and
-        // ungrouped (disabled) zombie bodies; all zombies have the component
-        // after SwapBrainSystem runs.
-        foreach ((RefRO<BrainLink> brainLink,
-                   RefRO<PathfindingAgent> pathfindingAgent,
+        // ungrouped (disabled) zombie entities.
+        foreach ((RefRO<PathfindingAgent> pathfindingAgent,
                    RefRW<PathRequest> pathRequest,
                    EnabledRefRW<PathRequest> pathRequestEnabled,
                    RefRO<HordeMembership> hordeMembership,
-                   Entity bodyEntity) in
+                   Entity unitEntity) in
             SystemAPI.Query<
-                RefRO<BrainLink>,
                 RefRO<PathfindingAgent>,
                 RefRW<PathRequest>,
                 EnabledRefRW<PathRequest>,
@@ -201,28 +197,25 @@ public partial struct MinionCommandSystem : ISystem
             .WithPresent<PathRequest, HordeMembership>()
             .WithEntityAccess())
         {
-            Entity brainEntity = brainLink.ValueRO.brain;
-            if (brainEntity == Entity.Null) continue;
-
-            SystemAPI.SetComponentEnabled<PlayerControlled>(brainEntity, true);
-            SystemAPI.SetComponent(brainEntity, new PlayerOrder
+            SystemAPI.SetComponentEnabled<PlayerControlled>(unitEntity, true);
+            SystemAPI.SetComponent(unitEntity, new PlayerOrder
             {
                 destination  = destination,
                 targetEntity = orderTarget,
                 commandType  = activeCommand,
             });
-            SystemAPI.SetComponentEnabled<NeedsAction>(brainEntity, false);
+            SystemAPI.SetComponentEnabled<NeedsAction>(unitEntity, false);
 
-            // Stamp commandType onto the body's Selected so SelectedVisualSystem
-            // can update the ring color without needing to cross-reference the brain.
-            if (selectedLookup.HasComponent(bodyEntity))
+            // Stamp commandType onto Selected so SelectedVisualSystem can update
+            // the ring color without a cross-reference.
+            if (selectedLookup.HasComponent(unitEntity))
             {
-                Selected selectedData   = selectedLookup[bodyEntity];
+                Selected selectedData    = selectedLookup[unitEntity];
                 selectedData.commandType = activeCommand;
-                selectedLookup[bodyEntity] = selectedData;
+                selectedLookup[unitEntity] = selectedData;
             }
 
-            bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(bodyEntity);
+            bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(unitEntity);
             if (isInHorde)
             {
                 dirtyHordes.Add(hordeMembership.ValueRO.hordeEntity);

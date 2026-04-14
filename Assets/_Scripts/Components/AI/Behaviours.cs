@@ -1,6 +1,6 @@
 ﻿using Unity.Entities;
 
 // Behaviour Types
-public struct Yawn : IComponentData {
+public struct YawnBehaviour : IComponentData {
     public int value;
 }

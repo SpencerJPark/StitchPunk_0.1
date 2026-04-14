@@ -7,9 +7,8 @@ using Unity.Transforms;
 // First tries to reclaim dormant (Disabled) pool units of the matching type,
 // then instantiates new ones for any shortfall.
 //
-// Body and brain are instantiated as separate root entities and cross-linked via
-// BrainLink / BodyLink. This avoids the LinkedEntityGroup IEnableableComponent
-// copy bug and makes runtime brain-swapping straightforward.
+// All AI state (Brain, MotivationState, ActionOptions, PlayerControlled, etc.)
+// lives on the unit entity itself — no separate brain entity or BrainLink needed.
 //
 // Disables the UnitSpawner component after fulfilling its spawn count.
 [UpdateInGroup(typeof(SpawnSystemGroup))]

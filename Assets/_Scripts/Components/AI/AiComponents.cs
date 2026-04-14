@@ -20,14 +20,15 @@ public struct Motivation : IBufferElementData
     public int value;
 }
 
-public struct Behaviour : IBufferElementData // equipt items add to buffer also
+public struct Behaviour : IBufferElementData // equipped items add to buffer also
 {
-    public BehaviourType behaviourType;
-    public MotivationType targetMotivation;
-    public ActionType actionType;
-    public int value;
-
-    public AttackType attackType;
+    public BehaviourType  behaviourType;
+    public MotivationType targetMotivation; // which motivation this behaviour satisfies
+    public ActionType     actionType;
+    public int            value;            // satisfaction multiplier (0–100)
+    public AttackType     attackType;
+    public FactionType    hostileFaction;   // for Chase: which faction to pursue
+    public float          range;            // for MeleeAttack: attack range in world units
 }
 
 public struct Awareness : IComponentData

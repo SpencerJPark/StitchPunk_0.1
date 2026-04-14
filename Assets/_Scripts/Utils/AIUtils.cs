@@ -1,4 +1,4 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -7,16 +7,31 @@ using Unity.Transforms;
 [BurstCompile]
 public static class AIUtils
 {
-    public static void AddActionOption(ref DynamicBuffer<ActionOption> options, ref Entity interactionEntity, float score)
+    // Convenience overload used by interaction scoring systems (Hunger, Energy, etc.).
+    // Category is always Interaction; targetPosition is resolved by execution systems
+    // from the interaction entity's LocalTransform at navigation time.
+    public static void AddActionOption(ref DynamicBuffer<ActionOption> options, ref Entity targetEntity, float score)
     {
-        if (interactionEntity != Entity.Null)
+        if (targetEntity != Entity.Null)
         {
             options.Add(new ActionOption
             {
-                interactableEntity = interactionEntity,
-                score = score
+                score        = score,
+                category     = ActionCategory.Interaction,
+                targetEntity = targetEntity,
             });
         }
+    }
+
+    public static void AddActionOption(ref DynamicBuffer<ActionOption> options, float score, ActionCategory category, Entity targetEntity, float3 targetPosition)
+    {
+        options.Add(new ActionOption
+        {
+            score          = score,
+            category       = category,
+            targetEntity   = targetEntity,
+            targetPosition = targetPosition,
+        });
     }
 
     public static float EvaluateScoringCurve(
@@ -34,7 +49,7 @@ public static class AIUtils
 
         return -needValue;
     }
-    
+
     public static void QueryNearbyInteractionsByType(
         in NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells,
         in ComponentLookup<InteractionProvider> interactionProviderLookup,
@@ -119,26 +134,21 @@ public static class AIUtils
             occupants.RemoveAt(i);
         }
     }
-    
+
+    // In the single-entity model the occupant entity IS the unit entity —
+    // no BodyLink lookup needed. UnitAction lives directly on the occupant.
     public static void AssignWinners(
         in DynamicBuffer<InteractionOccupant> occupants,
         ActionType actionType,
-        ref ComponentLookup<BodyLink> bodyLinkLookup,
         ref ComponentLookup<UnitAction> unitActionLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
-            Entity brainEntity = occupants[i].entity;
+            Entity unitEntity = occupants[i].entity;
 
-            if (!bodyLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
-                continue;
-
-            Entity body = brainLink.body;
-
-            // Set the action only
-            if (unitActionLookup.HasComponent(body))
+            if (unitActionLookup.HasComponent(unitEntity))
             {
-                unitActionLookup[body] = new UnitAction
+                unitActionLookup[unitEntity] = new UnitAction
                 {
                     current = actionType
                 };
@@ -146,87 +156,75 @@ public static class AIUtils
         }
     }
 
-    
+    // Occupant entity IS the unit entity — check its transform directly.
     public static bool CheckArrival(
         in DynamicBuffer<InteractionOccupant> occupants,
         in LocalTransform interactionTransform,
         float interactionRange,
-        ref ComponentLookup<BodyLink> brainLinkLookup,
         ref ComponentLookup<LocalTransform> transformLookup)
     {
         if (occupants.Length == 0)
             return false;
 
-        Entity brainEntity = occupants[0].entity;
+        Entity unitEntity = occupants[0].entity;
 
-        if (!brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+        if (!transformLookup.TryGetComponent(unitEntity, out LocalTransform unitTransform))
             return false;
 
-        if (!transformLookup.TryGetComponent(brainLink.body, out LocalTransform bodyTransform))
-            return false;
-
-        float distSq = math.distancesq(bodyTransform.Position, interactionTransform.Position);
+        float distSq = math.distancesq(unitTransform.Position, interactionTransform.Position);
         float rangeSq = interactionRange * interactionRange;
 
         return distSq <= rangeSq;
     }
-    
+
+    // Occupant entity IS the unit entity — apply animation directly.
     public static void StartInteractionAnimation(
         ActionType actionType,
         in DynamicBuffer<InteractionOccupant> occupants,
-        ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<BodyLink> brainLinkLookup)
+        ref ComponentLookup<UnitAction> unitActionLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
-            Entity brainEntity = occupants[i].entity;
+            Entity unitEntity = occupants[i].entity;
 
-            if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+            if (unitActionLookup.HasComponent(unitEntity))
             {
-                if (unitActionLookup.HasComponent(brainLink.body))
+                unitActionLookup[unitEntity] = new UnitAction
                 {
-                    unitActionLookup[brainLink.body] = new UnitAction
-                    {
-                        current = actionType
-                    };
-                }
+                    current = actionType
+                };
             }
         }
     }
 
     /// <summary>
-    /// Release occupants and reset their pathfinding state.
-    /// Dead units (body has Dead enabled) are cleared from the buffer
-    /// but do NOT have NeedsAction re-enabled.
+    /// Release occupants and reset their action state.
+    /// Dead units are cleared but NeedsAction is NOT re-enabled.
+    /// Occupant entity IS the unit entity in the single-entity model.
     /// </summary>
     public static void ReleaseOccupants(
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<BodyLink> brainLinkLookup,
         ref ComponentLookup<Dead> deadLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
-            Entity brainEntity = occupants[i].entity;
-            bool bodyIsDead = false;
+            Entity unitEntity = occupants[i].entity;
 
-            if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+            if (unitActionLookup.HasComponent(unitEntity))
             {
-                if (unitActionLookup.HasComponent(brainLink.body))
+                unitActionLookup[unitEntity] = new UnitAction
                 {
-                    unitActionLookup[brainLink.body] = new UnitAction
-                    {
-                        current = ActionType.Idle
-                    };
-                }
-
-                bodyIsDead = deadLookup.HasComponent(brainLink.body) &&
-                             deadLookup.IsComponentEnabled(brainLink.body);
+                    current = ActionType.Idle
+                };
             }
 
-            if (!bodyIsDead)
-                needsActionLookup.SetComponentEnabled(brainEntity, true);
+            bool isDead = deadLookup.HasComponent(unitEntity) &&
+                          deadLookup.IsComponentEnabled(unitEntity);
+
+            if (!isDead)
+                needsActionLookup.SetComponentEnabled(unitEntity, true);
         }
 
         occupants.Clear();
@@ -234,14 +232,13 @@ public static class AIUtils
 
     /// <summary>
     /// Release occupants with full pathfinding cleanup.
-    /// Dead units (body has Dead enabled) are cleared from the buffer
-    /// but do NOT have NeedsAction re-enabled.
+    /// Dead units are cleared but NeedsAction is NOT re-enabled.
+    /// Occupant entity IS the unit entity in the single-entity model.
     /// </summary>
     public static void ReleaseOccupants(
         DynamicBuffer<InteractionOccupant> occupants,
         ref ComponentLookup<NeedsAction> needsActionLookup,
         ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<BodyLink> brainLinkLookup,
         ref ComponentLookup<Dead> deadLookup,
         ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
         ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
@@ -249,42 +246,34 @@ public static class AIUtils
     {
         for (int i = 0; i < occupants.Length; i++)
         {
-            Entity brainEntity = occupants[i].entity;
-            bool bodyIsDead = false;
+            Entity unitEntity = occupants[i].entity;
 
-            if (brainLinkLookup.TryGetComponent(brainEntity, out BodyLink brainLink))
+            bool isDead = deadLookup.HasComponent(unitEntity) &&
+                          deadLookup.IsComponentEnabled(unitEntity);
+
+            if (unitActionLookup.HasComponent(unitEntity))
             {
-                Entity body = brainLink.body;
-
-                bodyIsDead = deadLookup.HasComponent(body) && deadLookup.IsComponentEnabled(body);
-
-                // Reset action
-                if (unitActionLookup.HasComponent(body))
+                unitActionLookup[unitEntity] = new UnitAction
                 {
-                    unitActionLookup[body] = new UnitAction
-                    {
-                        current = ActionType.Idle
-                    };
-                }
-
-                // Reset pathfinding agent
-                if (pathfindingAgentLookup.HasComponent(body))
-                {
-                    var agent = pathfindingAgentLookup[body];
-                    agent.isActive = false;
-                    pathfindingAgentLookup[body] = agent;
-                }
-
-                // Disable followers
-                if (flowFieldFollowerLookup.HasComponent(body))
-                    flowFieldFollowerLookup.SetComponentEnabled(body, false);
-
-                if (dstarFollowerLookup.HasComponent(body))
-                    dstarFollowerLookup.SetComponentEnabled(body, false);
+                    current = ActionType.Idle
+                };
             }
 
-            if (!bodyIsDead)
-                needsActionLookup.SetComponentEnabled(brainEntity, true);
+            if (pathfindingAgentLookup.HasComponent(unitEntity))
+            {
+                PathfindingAgent agent = pathfindingAgentLookup[unitEntity];
+                agent.isActive = false;
+                pathfindingAgentLookup[unitEntity] = agent;
+            }
+
+            if (flowFieldFollowerLookup.HasComponent(unitEntity))
+                flowFieldFollowerLookup.SetComponentEnabled(unitEntity, false);
+
+            if (dstarFollowerLookup.HasComponent(unitEntity))
+                dstarFollowerLookup.SetComponentEnabled(unitEntity, false);
+
+            if (!isDead)
+                needsActionLookup.SetComponentEnabled(unitEntity, true);
         }
 
         occupants.Clear();
@@ -326,7 +315,7 @@ public static class AIUtils
         {
             mode = pathfindingAgentLookup[entity].preferredMode;
 
-            var agent = pathfindingAgentLookup[entity];
+            PathfindingAgent agent = pathfindingAgentLookup[entity];
             agent.targetPosition = targetPosition;
             agent.isActive = true;
             agent.needsRepath = true;
@@ -339,11 +328,10 @@ public static class AIUtils
             requestedMode = mode
         };
         pathRequestLookup.SetComponentEnabled(entity, true);
-        
-        // Also set UnitMover target
+
         if (unitMoverLookup.HasComponent(entity))
         {
-            var mover = unitMoverLookup[entity];
+            Movement mover = unitMoverLookup[entity];
             mover.targetPosition = targetPosition;
             unitMoverLookup[entity] = mover;
         }
@@ -360,7 +348,7 @@ public static class AIUtils
     {
         if (pathfindingAgentLookup.HasComponent(entity))
         {
-            var agent = pathfindingAgentLookup[entity];
+            PathfindingAgent agent = pathfindingAgentLookup[entity];
             agent.isActive = false;
             pathfindingAgentLookup[entity] = agent;
         }

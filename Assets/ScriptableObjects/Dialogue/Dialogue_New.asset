@@ -13,9 +13,46 @@ MonoBehaviour:
   m_Name: Dialogue_New
   m_EditorClassIdentifier: StitchPunk.Data::DialogueSequenceSO
   sequenceId: 0
-  nodes: []
-  connections: []
-  refresherSequence: {fileID: 0}
+  nodes:
+  - rid: 1555969798649413709
+  - rid: 1555969798649413710
+  - rid: 1555969798649413711
+  - rid: 1555969798649413712
+  connections:
+  - fromNodeId: 0a82fdc5-575a-4fa7-aa31-9bba0fcb5762
+    fromPortId: out
+    toNodeId: 6b1b45d5-41e0-4742-8732-3329d36d3475
+    toPortId: in
+  - fromNodeId: 3a6bd009-9eb3-4cc3-85c7-58ecca2f9411
+    fromPortId: out
+    toNodeId: 6b1b45d5-41e0-4742-8732-3329d36d3475
+    toPortId: in
+  - fromNodeId: 6b1b45d5-41e0-4742-8732-3329d36d3475
+    fromPortId: out
+    toNodeId: 667db5bb-83b4-4142-bb1d-7ea5799e1760
+    toPortId: in
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 1555969798649413709
+      type: {class: DialogueStartNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: 0a82fdc5-575a-4fa7-aa31-9bba0fcb5762
+        editorPosition: {x: 919, y: 493}
+    - rid: 1555969798649413710
+      type: {class: DialogueRefresherNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: 3a6bd009-9eb3-4cc3-85c7-58ecca2f9411
+        editorPosition: {x: 919, y: 621}
+    - rid: 1555969798649413711
+      type: {class: DialogueLineNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: 6b1b45d5-41e0-4742-8732-3329d36d3475
+        editorPosition: {x: 1151, y: 511}
+        speakerName: 
+        dialogueText: 
+    - rid: 1555969798649413712
+      type: {class: DialogueEndNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: 667db5bb-83b4-4142-bb1d-7ea5799e1760
+        editorPosition: {x: 1558, y: 511}
