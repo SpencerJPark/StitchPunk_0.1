@@ -11,10 +11,6 @@ public struct UnitAction : IComponentData
 {
     public ActionType current;    
 }
-public struct Target : IComponentData, IEnableableComponent
-{
-    public Entity entity;
-}
 
 // Health
 public struct Alive : IComponentData, IEnableableComponent { }
@@ -98,4 +94,15 @@ public struct SelectionColor : IComponentData
 {
     public float4 Value; // RGBA
 }
+
+// ─── Behavioral State Components ──────────────────────────────────────────────
+// Each state is an IEnableableComponent with a duration (seconds; -1 = permanent).
+// UnitStateExpirySystem ticks duration and disables the component when it hits 0.
+// CombatAwarenessSystem refreshes AggressiveState.duration each frame a hostile is in range.
+
+public struct AggressiveState : IComponentData, IEnableableComponent { public float duration; }
+public struct DrunkState      : IComponentData, IEnableableComponent { public float duration; }
+public struct StunnedState    : IComponentData, IEnableableComponent { public float duration; }
+public struct PanickedState   : IComponentData, IEnableableComponent { public float duration; }
+public struct BerserkState    : IComponentData, IEnableableComponent { public float duration; }
 

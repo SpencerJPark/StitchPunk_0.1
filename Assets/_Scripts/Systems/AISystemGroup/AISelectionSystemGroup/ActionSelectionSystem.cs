@@ -8,15 +8,17 @@ using Random = Unity.Mathematics.Random;
 [UpdateInGroup(typeof(AISelectionSystemGroup))]
 public partial struct ActionSelectionSystem : ISystem
 {
-    private BufferLookup<InteractionOccupant> occupantBufferLookup;
-    private ComponentLookup<Interaction>      interactionLookup;
+    private BufferLookup<InteractionOccupant>    occupantBufferLookup;
+    private ComponentLookup<Interaction>         interactionLookup;
+    private ComponentLookup<InteractionProvider> interactionProviderLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<SelectedAction>();
 
-        occupantBufferLookup = state.GetBufferLookup<InteractionOccupant>(false);
-        interactionLookup    = state.GetComponentLookup<Interaction>(true);
+        occupantBufferLookup      = state.GetBufferLookup<InteractionOccupant>(false);
+        interactionLookup         = state.GetComponentLookup<Interaction>(true);
+        interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(false);
     }
 
     [BurstCompile]
@@ -24,14 +26,16 @@ public partial struct ActionSelectionSystem : ISystem
     {
         occupantBufferLookup.Update(ref state);
         interactionLookup.Update(ref state);
+        interactionProviderLookup.Update(ref state);
 
         float time = (float)SystemAPI.Time.ElapsedTime;
 
         state.Dependency = new ActionSelectionJob
         {
-            time                 = time,
-            occupantBufferLookup = occupantBufferLookup,
-            interactionLookup    = interactionLookup,
+            time                      = time,
+            occupantBufferLookup      = occupantBufferLookup,
+            interactionLookup         = interactionLookup,
+            interactionProviderLookup = interactionProviderLookup,
         }.Schedule(state.Dependency);
     }
 
@@ -44,8 +48,9 @@ public partial struct ActionSelectionSystem : ISystem
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
-        public BufferLookup<InteractionOccupant> occupantBufferLookup;
-        [ReadOnly] public ComponentLookup<Interaction> interactionLookup;
+        public BufferLookup<InteractionOccupant>    occupantBufferLookup;
+        [ReadOnly] public ComponentLookup<Interaction>         interactionLookup;
+        public            ComponentLookup<InteractionProvider> interactionProviderLookup;
 
         public void Execute(
             ref SelectedAction selectedAction,
@@ -87,9 +92,13 @@ public partial struct ActionSelectionSystem : ISystem
 
                     occupantBuffer.Add(new InteractionOccupant
                     {
-                        entity = npcEntity,
-                        score  = candidate.score,
+                        entity        = npcEntity,
+                        score         = candidate.score,
+                        behaviourType = candidate.behaviourType,
                     });
+
+                    if (occupantBuffer.Length >= interaction.maxOccupants)
+                        interactionProviderLookup.SetComponentEnabled(candidate.targetEntity, false);
                 }
                 // ── Behaviour / combat options: no occupancy check ─────────────
                 // (Chase, Attack, Flee, Wander don't own world-object slots.)

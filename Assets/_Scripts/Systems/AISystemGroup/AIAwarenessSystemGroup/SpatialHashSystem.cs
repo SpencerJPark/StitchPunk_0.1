@@ -76,28 +76,28 @@ public partial struct SpatialHashSystem : ISystem
 
             // Add to interaction-specific hash for each motivation type this interaction provides
             if (bladderLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Bladder), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Bladder), entity);
 
             if (hungerLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Hunger), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Hunger), entity);
 
             if (energyLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Energy), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Energy), entity);
 
             if (funLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Fun), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Fun), entity);
 
             if (socialLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Social), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Social), entity);
 
             if (comfortLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Comfort), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Comfort), entity);
 
             if (safetyLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Safety), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Safety), entity);
 
             if (movementLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, MotivationType.Movement), entity);
+                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Movement), entity);
         }
     }
 

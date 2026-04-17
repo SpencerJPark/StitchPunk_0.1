@@ -91,7 +91,16 @@ New data layer:
 
 Brain types defined: Citizen, Guard, FeralZombie, PlayerZombie, Panic, Merchant, Character.
 
-**Phase 2 next:** Rewrite scoring systems (MotivationDecaySystem, InteractionScoringSystem, ChaseScoringSystem, AttackScoringSystem, FleeScoringSystem, ActionSelectionSystem).
+**Phase 2 complete:** Pre-pass + generic scorer architecture implemented.
+- `Motivation : IBufferElementData` — unified buffer (value, decayRate, contextMultiplier) replaces 9 separate XxxMotivation components
+- `MotivationDecaySystem` — single buffer-iterating job (resets contextMultiplier + applies decay)
+- `SelfPreservationPrePassSystem` — health < 30% → contextMultiplier = 2.5 on SelfPreservation
+- `SafetyPrePassSystem` — threats present → contextMultiplier = 2.0 on Safety
+- `MotivationScoringSystem` — single generic scorer (replaces 8 per-motivation systems)
+- `Behaviour : IBufferElementData` — buffer for behaviour entries (Wander, Chase, MeleeAttack, Flee)
+- `InteractionValue : IComponentData` — generic multiplier baked on all interaction entities
+- `BrainBakeHelper.AddHumanMotivations` — now populates Motivation buffer (9 entries with rates)
+- `BrainBakeHelper.AddCitizenBehaviours` — adds Wander + Flee entries to Behaviour buffer
 
 **Factory System Phase 1 is built (ECS data layer + production loop):**
 

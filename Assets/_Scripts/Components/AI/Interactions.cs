@@ -36,7 +36,7 @@ public struct InteractionTimer : IComponentData, IEnableableComponent
 public struct InteractionOccupant : IBufferElementData
 {
     public Entity entity;
-    public MotivationType motivationType;
+    public BehaviourType behaviourType;
     public float score;
 }
 
@@ -44,6 +44,14 @@ public struct InteractionHandled : IComponentData, IEnableableComponent
 {
 }
 
+
+// Generic multiplier component baked onto every interaction entity alongside
+// its specific XxxInteraction tag. The generic MotivationScoringSystem reads
+// this instead of doing type-specific lookups per motivation.
+public struct InteractionValue : IComponentData
+{
+    public float multiplier; // 1.0 = neutral, 1.2 = 20% boost, etc.
+}
 
 // Interaction Types
 public struct SocialInteraction : IComponentData {

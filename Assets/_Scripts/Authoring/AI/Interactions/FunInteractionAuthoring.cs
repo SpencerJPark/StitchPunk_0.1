@@ -9,10 +9,8 @@ public class FunInteractionAuthoring : MonoBehaviour
 
         public override void Bake(FunInteractionAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new FunInteraction
-            {
-                value = authoring.value,
-            });
+            AddComponent(entity, new FunInteraction { value = authoring.value });
+            AddComponent(entity, new InteractionValue { multiplier = authoring.value * 0.01f + 1f });
         }
     }
 }

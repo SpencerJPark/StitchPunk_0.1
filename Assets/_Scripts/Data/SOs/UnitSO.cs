@@ -44,3 +44,4 @@ public struct ActionAnimationMapping
     public ActionType action;
     public AnimationType animation;
 }
+

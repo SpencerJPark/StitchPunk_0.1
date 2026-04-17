@@ -13,7 +13,9 @@ public class CitizenBrainAuthoring : MonoBehaviour
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             
             BrainBakeHelper.AddRequirements(this, entity, authoring.awarenessRange);
-            BrainBakeHelper.AddHumanMotivations(this, entity);
+            DynamicBuffer<Behaviour> motivations = BrainBakeHelper.AddHumanMotivations(this, entity);
+            BrainBakeHelper.AddCitizenBehaviours(ref motivations);
+            BrainBakeHelper.AddSelfDefence(ref motivations);
             BrainBakeHelper.AddRandomMotivations(this, entity, (uint)entity.Index);
         }
     }

@@ -26,7 +26,9 @@
       "Bash(ls:*)",
       "Bash(python3 -c ':*)",
       "Bash(dir \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\BuildingsSystemGroup\")",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cat \"Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDegregationSystem.cs\")",
+      "Bash(cat \"Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDecaySystem.cs\")"
     ]
   }
 }

@@ -8,10 +8,8 @@ public class HungerInteractionAuthoring : MonoBehaviour {
 
         public override void Bake(HungerInteractionAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new HungerInteraction
-            {
-                value = authoring.value
-            });
+            AddComponent(entity, new HungerInteraction { value = authoring.value });
+            AddComponent(entity, new InteractionValue { multiplier = authoring.value * 0.01f + 1f });
         }
     }
 }

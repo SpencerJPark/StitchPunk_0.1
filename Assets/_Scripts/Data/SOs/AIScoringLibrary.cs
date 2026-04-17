@@ -6,11 +6,11 @@ public class AIScoringLibrarySO : ScriptableObject
 {
     public List<AIScoringCurveSO> curves = new List<AIScoringCurveSO>();
 
-    public AIScoringCurveSO GetCurve(MotivationType type)
+    public AIScoringCurveSO GetCurve(BehaviourType type)
     {
         foreach (var curve in curves)
         {
-            if (curve != null && curve.motivationType == type)
+            if (curve != null && curve.behaviourType == type)
                 return curve;
         }
         return null;

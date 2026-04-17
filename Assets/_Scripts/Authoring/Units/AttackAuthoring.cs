@@ -14,6 +14,8 @@ public class AttackAuthoring : MonoBehaviour
             SetComponentEnabled<Attack>(entity, false);
             AddComponent(entity, new AttackData { attackType = authoring.baseAttack });
             AddComponent(entity, new AttackCooldown { timer = 0f });
+            AddComponent<CombatTarget>(entity);
+            SetComponentEnabled<CombatTarget>(entity, false);
         }
     }
 }

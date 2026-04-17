@@ -14,21 +14,21 @@ public struct SpatialHashRegistry : IComponentData
 public struct SpatialInteractionKey : System.IEquatable<SpatialInteractionKey>
 {
     public int2 cell;
-    public MotivationType motivationType;
+    public BehaviourType behaviourType;
 
-    public SpatialInteractionKey(int2 cell, MotivationType motivationType)
+    public SpatialInteractionKey(int2 cell, BehaviourType behaviourType)
     {
         this.cell = cell;
-        this.motivationType = motivationType;
+        this.behaviourType = behaviourType;
     }
 
     public bool Equals(SpatialInteractionKey other)
     {
-        return cell.Equals(other.cell) && motivationType == other.motivationType;
+        return cell.Equals(other.cell) && behaviourType == other.behaviourType;
     }
 
     public override int GetHashCode()
     {
-        return cell.GetHashCode() ^ ((int)motivationType * 397);
+        return cell.GetHashCode() ^ ((int)behaviourType * 397);
     }
 }

@@ -9,10 +9,8 @@ public class SafetyInteractionAuthoring : MonoBehaviour
 
         public override void Bake(SafetyInteractionAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new SafetyInteraction
-            {
-                value = authoring.value,
-            });
+            AddComponent(entity, new SafetyInteraction { value = authoring.value });
+            AddComponent(entity, new InteractionValue { multiplier = authoring.value * 0.01f + 1f });
         }
     }
 }

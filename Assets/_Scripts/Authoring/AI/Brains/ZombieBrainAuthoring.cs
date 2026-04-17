@@ -12,9 +12,11 @@ public class ZombieBrainAuthoring : MonoBehaviour
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
             BrainBakeHelper.AddRequirements(this, entity, authoring.awarenessRange);
-            BrainBakeHelper.AddPlayerControllable(this, entity);
-
             AddComponent<PlayerOrder>(entity);
+
+            DynamicBuffer<Behaviour> motivations = AddBuffer<Behaviour>(entity);
+            BrainBakeHelper.AddBloodLust(ref motivations);
+            BrainBakeHelper.AddSelfDefence(ref motivations);
         }
     }
 }

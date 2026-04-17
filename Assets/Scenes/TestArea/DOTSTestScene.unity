@@ -176,7 +176,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &526580277
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -536,6 +536,88 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1095802177
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1822333382599755793, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: brain
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 5.17
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.00000001490093
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -1.4551912e-10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_Name
+      value: MaleCitizen
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1095802179}
+  m_SourcePrefab: {fileID: 100100000, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+--- !u!1 &1095802178 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+  m_PrefabInstance: {fileID: 1095802177}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1095802179
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1095802178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bbe361000653474bafbbf502f66faa2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::DialogueProviderAuthoring
+  dialogueSequence: {fileID: 0}
 --- !u!4 &1106686507 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4619132538253755074, guid: 599f27871f18fa04c907cd57971da4be, type: 3}
@@ -1437,6 +1519,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::DialogueProviderAuthoring
   dialogueSequence: {fileID: 0}
+--- !u!114 &7653187856236759800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7653187856236759798}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 925b5fd86637ba64a87517998712e4cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::ZombieBrainAuthoring
+  awarenessRange: 10
 --- !u!1001 &9202468519409920937
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1445,13 +1540,25 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 97168373984705854, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: unitType
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 1822333382599755793, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: brain
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 3363976009509366347, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: factionType
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3485874398458451963, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: startUndead
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 5.17
+      value: 1.65
       objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1493,13 +1600,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: MaleCitizen
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3023273170798776052, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7653187856236759799}
+    - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7653187856236759800}
   m_SourcePrefab: {fileID: 100100000, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
@@ -1511,6 +1622,7 @@ SceneRoots:
   - {fileID: 1794040442}
   - {fileID: 1551899775}
   - {fileID: 9202468519409920937}
+  - {fileID: 1095802177}
   - {fileID: 899217116}
   - {fileID: 906487447}
   - {fileID: 548270451}

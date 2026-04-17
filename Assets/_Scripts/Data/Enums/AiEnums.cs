@@ -35,7 +35,13 @@ public enum ActionCategory
     Flee,
 }
 
-public enum MotivationType
+public enum ScoringMode : byte
+{
+    Interaction, // spatial hash query → action on a found entity
+    Action,      // no query → scored directly; execution system resolves targeting
+}
+
+public enum BehaviourType
 {
     None,
     Hunger,
@@ -60,17 +66,6 @@ public enum MotivationType
     Nervous,
 }
 
-public enum BehaviourType
-{
-    PunchAttack,
-    SlashAttack,
-    Dance,
-    Smoke,
-    Chase,       // Find and pursue nearest hostile in awareness range via FactionRegistry
-    MeleeAttack, // Attack CombatTarget if within melee range
-    Flee,        // Flee from threats in the ThreatEntry buffer
-    Wander,      // Baseline low-priority idle movement
-}
 
 public enum AttackType
 {

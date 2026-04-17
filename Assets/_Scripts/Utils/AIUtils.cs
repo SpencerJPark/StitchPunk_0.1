@@ -10,15 +10,17 @@ public static class AIUtils
     // Convenience overload used by interaction scoring systems (Hunger, Energy, etc.).
     // Category is always Interaction; targetPosition is resolved by execution systems
     // from the interaction entity's LocalTransform at navigation time.
-    public static void AddActionOption(ref DynamicBuffer<ActionOption> options, ref Entity targetEntity, float score)
+    public static void AddActionOption(ref DynamicBuffer<ActionOption> options, ref Entity targetEntity, float score,
+        BehaviourType behaviourType = BehaviourType.None)
     {
         if (targetEntity != Entity.Null)
         {
             options.Add(new ActionOption
             {
-                score        = score,
-                category     = ActionCategory.Interaction,
-                targetEntity = targetEntity,
+                score         = score,
+                category      = ActionCategory.Interaction,
+                behaviourType = behaviourType,
+                targetEntity  = targetEntity,
             });
         }
     }
@@ -36,14 +38,14 @@ public static class AIUtils
 
     public static float EvaluateScoringCurve(
         ref BlobAssetReference<AIScoringLibraryBlob> library,
-        MotivationType motivationType,
+        BehaviourType behaviourType,
         float needValue)
     {
         ref AIScoringLibraryBlob blob = ref library.Value;
 
         for (int i = 0; i < blob.curves.Length; i++)
         {
-            if (blob.curves[i].motivationType == motivationType)
+            if (blob.curves[i].behaviourType == behaviourType)
                 return blob.curves[i].curve.Evaluate(needValue);
         }
 
@@ -57,7 +59,7 @@ public static class AIUtils
         float3 position,
         float range,
         float cellSize,
-        MotivationType motivationType,
+        BehaviourType behaviourType,
         ref NativeList<Entity> results)
     {
         float rangeSq = range * range;
@@ -73,7 +75,7 @@ public static class AIUtils
         {
             for (int y = minCell.y; y <= maxCell.y; y++)
             {
-                var key = new SpatialInteractionKey(new int2(x, y), motivationType);
+                var key = new SpatialInteractionKey(new int2(x, y), behaviourType);
 
                 if (!interactionCells.TryGetFirstValue(key, out Entity candidate, out var iterator))
                     continue;
@@ -284,14 +286,14 @@ public static class AIUtils
         float3 pos,
         float needValue,
         float awarenessRange,
-        MotivationType motivationType,
+        BehaviourType behaviourType,
         ref BlobAssetReference<AIScoringLibraryBlob> scoringLibrary,
         ref ComponentLookup<LocalTransform> transformLookup)
     {
         float3 targetPos = transformLookup[candidate].Position;
         float distance = math.distance(pos, targetPos);
 
-        float baseScore = EvaluateScoringCurve(ref scoringLibrary, motivationType, needValue);
+        float baseScore = EvaluateScoringCurve(ref scoringLibrary, behaviourType, needValue);
         float distanceBonus = math.remap(0f, awarenessRange, 10f, 0f, distance);
 
         return math.clamp(baseScore + distanceBonus, -100f, 100f);

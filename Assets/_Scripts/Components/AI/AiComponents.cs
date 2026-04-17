@@ -5,30 +5,16 @@ public struct Brain : IComponentData
 {
     public BrainType activeBrain;
 }
-
-public struct ActiveBrain : IComponentData, IEnableableComponent { }
-
 public struct SwapBrainRequest : IComponentData, IEnableableComponent
 {
     public BrainType newBrain;
 }
+public struct ActiveBrain : IComponentData, IEnableableComponent { }
+public struct NeedsAction : IComponentData, IEnableableComponent { }
 
-// Motivations will be scored in a system group, 
-public struct Motivation : IBufferElementData
+public struct Target : IComponentData, IEnableableComponent
 {
-    public MotivationType motivationType;
-    public int value;
-}
-
-public struct Behaviour : IBufferElementData // equipped items add to buffer also
-{
-    public BehaviourType  behaviourType;
-    public MotivationType targetMotivation; // which motivation this behaviour satisfies
-    public ActionType     actionType;
-    public int            value;            // satisfaction multiplier (0–100)
-    public AttackType     attackType;
-    public FactionType    hostileFaction;   // for Chase: which faction to pursue
-    public float          range;            // for MeleeAttack: attack range in world units
+    public Entity entity;
 }
 
 public struct Awareness : IComponentData
@@ -36,22 +22,42 @@ public struct Awareness : IComponentData
     public float range;
 }
 
-public struct NeedsAction : IComponentData, IEnableableComponent { }
+public struct ActionTimer : IComponentData
+{
+    public float time;
+}
+
+public struct Behaviour : IBufferElementData
+{
+    public BehaviourType behaviourType;  // drives curve + spatial hash key (Interaction mode)
+    public float value;                    // current urgency [-100, 100]
+    public float decayRate;                // units per second
+    public float contextMultiplier;        // written by pre-pass systems, reset to 1.0 by decay system
+    public ScoringMode scoringMode;        // Interaction (spatial query) or Action (score directly)
+    public ActionCategory actionCategory;  // the ActionOption category this entry emits
+}
+
+
 
 public struct ActionOption : IBufferElementData
 {
-    public float score;
+    public float         score;
     public ActionCategory category;
-    public Entity targetEntity;
-    public float3 targetPosition;
+    public BehaviourType  behaviourType;
+    public Entity        targetEntity;
+    public float3        targetPosition;
 }
 
 public struct SelectedAction : IComponentData
 {
     public ActionCategory category;
-    public Entity targetEntity;       // interaction waypoint, enemy, flee-from source
-    public float3 targetPosition;     // destination to navigate toward
+    public Entity targetEntity; // interaction waypoint, enemy, flee-from source
+    public float3 targetPosition; // destination to navigate toward
 }
+
+
+
+
 
 
 public struct PlayerControlled : IComponentData, IEnableableComponent { }
@@ -63,7 +69,21 @@ public struct PlayerOrder : IComponentData
     public CommandType commandType;
 }
 
-public struct HungerRegistry : IBufferElementData
+// ─── Shared Move-To-Target ────────────────────────────────────────────────────
+// Enable MoveToTargetRequest to ask MoveToTargetSystem to walk this unit toward
+// targetEntity. When distance < arrivalRange the system disables this component
+// and enables ArrivedAtTarget. Execution systems (e.g. CombatAttackExecutionSystem)
+// check ArrivedAtTarget to know when to begin their action.
+
+public struct MoveToTargetRequest : IComponentData, IEnableableComponent
 {
-    public Entity motivationEntity;
+    public Entity targetEntity;
+    public float  arrivalRange;
+    public float3 lastKnownTargetPos; // for re-path detection (re-request when target moves > ~1 unit)
 }
+
+public struct ArrivedAtTarget : IComponentData, IEnableableComponent { }
+
+
+
+
