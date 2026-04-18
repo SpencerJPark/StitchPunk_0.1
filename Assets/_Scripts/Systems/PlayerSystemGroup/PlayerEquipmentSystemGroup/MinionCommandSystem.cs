@@ -131,15 +131,17 @@ public partial struct MinionCommandSystem : ISystem
 
             if (foundPlayer)
             {
-                foreach ((RefRO<PathfindingAgent> pathfindingAgent,
+                foreach ((RefRW<PathfindingAgent> pathfindingAgent,
                            RefRW<PathRequest> pathRequest,
                            EnabledRefRW<PathRequest> pathRequestEnabled,
+                           RefRW<Movement> movement,
                            RefRO<HordeMembership> hordeMembership,
                            Entity unitEntity) in
                     SystemAPI.Query<
-                        RefRO<PathfindingAgent>,
+                        RefRW<PathfindingAgent>,
                         RefRW<PathRequest>,
                         EnabledRefRW<PathRequest>,
+                        RefRW<Movement>,
                         RefRO<HordeMembership>>()
                     .WithAll<Minion>()
                     .WithPresent<PathRequest, HordeMembership, PlayerControlled>()
@@ -156,9 +158,10 @@ public partial struct MinionCommandSystem : ISystem
                     bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(unitEntity);
                     if (!isInHorde)
                     {
-                        pathRequest.ValueRW.targetPosition = playerPosition;
-                        pathRequest.ValueRW.requestedMode  = pathfindingAgent.ValueRO.preferredMode;
-                        pathRequestEnabled.ValueRW         = true;
+                        AIUtils.BeginPathRequest(
+                            ref pathRequest.ValueRW, pathRequestEnabled,
+                            ref pathfindingAgent.ValueRW, ref movement.ValueRW,
+                            targetPosition: playerPosition);
                     }
                 }
             }
@@ -183,15 +186,17 @@ public partial struct MinionCommandSystem : ISystem
         // ── Fan order to every Selected + Minion entity ───────────────────────
         // WithPresent<HordeMembership> includes both grouped (enabled) and
         // ungrouped (disabled) zombie entities.
-        foreach ((RefRO<PathfindingAgent> pathfindingAgent,
+        foreach ((RefRW<PathfindingAgent> pathfindingAgent,
                    RefRW<PathRequest> pathRequest,
                    EnabledRefRW<PathRequest> pathRequestEnabled,
+                   RefRW<Movement> movement,
                    RefRO<HordeMembership> hordeMembership,
                    Entity unitEntity) in
             SystemAPI.Query<
-                RefRO<PathfindingAgent>,
+                RefRW<PathfindingAgent>,
                 RefRW<PathRequest>,
                 EnabledRefRW<PathRequest>,
+                RefRW<Movement>,
                 RefRO<HordeMembership>>()
             .WithAll<Selected, Minion>()
             .WithPresent<PathRequest, HordeMembership>()
@@ -222,9 +227,10 @@ public partial struct MinionCommandSystem : ISystem
             }
             else
             {
-                pathRequest.ValueRW.targetPosition = destination;
-                pathRequest.ValueRW.requestedMode  = pathfindingAgent.ValueRO.preferredMode;
-                pathRequestEnabled.ValueRW         = true;
+                AIUtils.BeginPathRequest(
+                    ref pathRequest.ValueRW, pathRequestEnabled,
+                    ref pathfindingAgent.ValueRW, ref movement.ValueRW,
+                    targetPosition: destination);
             }
         }
 

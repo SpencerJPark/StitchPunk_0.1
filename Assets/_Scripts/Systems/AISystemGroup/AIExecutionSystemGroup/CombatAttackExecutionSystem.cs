@@ -8,18 +8,18 @@ using Unity.Collections;
 /// AI attack loop — three jobs handle the full combat lifecycle.
 ///
 /// CombatMoveJob    (CombatTarget enabled, not arrived):
-///   Enables MoveToTargetRequest toward the hostile. MoveToTargetSystem handles pathing.
+///   Issues a path request toward the hostile with stoppingDistance = attack range.
+///   PathfindingCoordinatorSystem halts the follower once the unit is inside range.
 ///
 /// CombatAttackJob  (CombatTarget enabled, ArrivedAtTarget enabled):
 ///   Sets Target + enables Attack. Monitors drift and re-engages chasing if needed.
 ///   Cleans up and releases back to AI when the target dies.
 ///
 /// CombatAbandonJob (CombatTarget disabled, NeedsAction disabled, category == Attack):
-///   Hostile left awareness range — clean up all combat state and re-enable NeedsAction.
+///   Hostile left awareness range — halt pathing, clean up all combat state, re-enable NeedsAction.
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIExecutionSystemGroup))]
-[UpdateAfter(typeof(MoveToTargetSystem))]
 public partial struct CombatAttackExecutionSystem : ISystem
 {
     private ComponentLookup<Alive>          aliveLookup;
@@ -29,6 +29,7 @@ public partial struct CombatAttackExecutionSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<AttackLibrary>();
 
         aliveLookup     = state.GetComponentLookup<Alive>(true);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
@@ -40,15 +41,21 @@ public partial struct CombatAttackExecutionSystem : ISystem
         aliveLookup.Update(ref state);
         transformLookup.Update(ref state);
 
+        BlobAssetReference<AttackLibraryBlob> attackLibrary =
+            SystemAPI.GetSingleton<AttackLibrary>().library;
+
         state.Dependency = new CombatMoveJob
         {
-            aliveLookup = aliveLookup,
+            aliveLookup     = aliveLookup,
+            transformLookup = transformLookup,
+            attackLibrary   = attackLibrary,
         }.Schedule(state.Dependency);
 
         state.Dependency = new CombatAttackJob
         {
             aliveLookup     = aliveLookup,
             transformLookup = transformLookup,
+            attackLibrary   = attackLibrary,
         }.Schedule(state.Dependency);
 
         state.Dependency = new CombatAbandonJob().Schedule(state.Dependency);
@@ -57,24 +64,29 @@ public partial struct CombatAttackExecutionSystem : ISystem
 
 // ── Phase A: move toward hostile ─────────────────────────────────────────────
 [BurstCompile]
-[WithAll(typeof(CombatTarget))]
+[WithAll(typeof(ActiveBrain))]
 [WithDisabled(typeof(NeedsAction))]
-[WithDisabled(typeof(ArrivedAtTarget))]
-[WithPresent(typeof(MoveToTargetRequest))]
-[WithDisabled(typeof(PlayerControlled))]
+[WithAll(typeof(CombatTarget))]
+[WithPresent(typeof(PathRequest), typeof(ArrivedAtTarget))]
 public partial struct CombatMoveJob : IJobEntity
 {
-    private const float MELEE_RANGE = 1.5f;
-
-    [ReadOnly] public ComponentLookup<Alive> aliveLookup;
+    private const float REPATH_DIST_SQ = 1.0f;
+    
+    [ReadOnly] public ComponentLookup<Alive>                  aliveLookup;
+    [ReadOnly] public ComponentLookup<LocalTransform>         transformLookup;
+    [ReadOnly] public BlobAssetReference<AttackLibraryBlob>   attackLibrary;
 
     public void Execute(
-        in SelectedAction                   selectedAction,
-        in CombatTarget                     combatTarget,
-        ref MoveToTargetRequest             moveRequest,
-        EnabledRefRW<MoveToTargetRequest>   moveRequestEnabled,
-        EnabledRefRW<NeedsAction>           needsActionEnabled,
-        EnabledRefRW<CombatTarget>          combatTargetEnabled)
+        in  SelectedAction            selectedAction,
+        in  LocalTransform            localTransform,
+        ref CombatTarget              combatTarget,
+        ref PathRequest               pathRequest,
+        ref PathfindingAgent          agent,
+        ref Movement                  movement,
+        EnabledRefRW<PathRequest>     pathRequestEnabled,
+        EnabledRefRW<NeedsAction>     needsActionEnabled,
+        EnabledRefRW<ArrivedAtTarget> arrivedEnabled,
+        EnabledRefRW<CombatTarget>    combatTargetEnabled)
     {
         if (selectedAction.category != ActionCategory.Attack)
             return;
@@ -87,14 +99,32 @@ public partial struct CombatMoveJob : IJobEntity
         if (!targetAlive)
         {
             combatTargetEnabled.ValueRW  = false;
-            moveRequestEnabled.ValueRW   = false;
             needsActionEnabled.ValueRW   = true;
             return;
         }
 
-        moveRequest.targetEntity = hostile;
-        moveRequest.arrivalRange = MELEE_RANGE;
-        moveRequestEnabled.ValueRW = true;
+        float attackRange         = attackLibrary.Value.attacks[(int)combatTarget.selectedAttack].range;
+        float3 lastKnownTargetPos = transformLookup[hostile].Position;
+
+        if (AIUtils.CheckInRange(localTransform, ref arrivedEnabled, lastKnownTargetPos, attackRange))
+        {
+            // Cancel any stale PathRequest scheduled by the coordinator's periodic
+            // repath — otherwise DStarLiteSystem/FlowFieldSystem will process it
+            // this same frame and re-set agent.isActive = true, bypassing the halt.
+            pathRequestEnabled.ValueRW = false;
+            return;
+        }
+        
+        float movedSq = math.distancesq(pathRequest.targetPosition, lastKnownTargetPos);
+        if (movedSq >= REPATH_DIST_SQ)
+        {
+            AIUtils.BeginPathRequest(
+                ref pathRequest, pathRequestEnabled,
+                ref agent, ref movement,
+                targetPosition: lastKnownTargetPos,
+                stoppingDistance: attackRange,
+                modeOverride: PathfindingMode.DStarLite);
+        }
     }
 }
 
@@ -104,19 +134,21 @@ public partial struct CombatMoveJob : IJobEntity
 [WithDisabled(typeof(NeedsAction))]
 [WithAll(typeof(ArrivedAtTarget))]
 [WithPresent(typeof(Attack), typeof(Target))]
-[WithDisabled(typeof(PlayerControlled))]
+[WithAll(typeof(ActiveBrain))]
 public partial struct CombatAttackJob : IJobEntity
 {
-    private const float MELEE_RANGE            = 1.5f;
-    private const float MELEE_RANGE_HYSTERESIS = 2.0f;
+    // Target must drift this much past attack range before we resume chasing —
+    // prevents flapping between Arrived and Move when the hostile fidgets on the boundary.
+    private const float HYSTERESIS_MULT = 1.33f;
 
-    [ReadOnly] public ComponentLookup<Alive>          aliveLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
+    [ReadOnly] public ComponentLookup<Alive>                  aliveLookup;
+    [ReadOnly] public ComponentLookup<LocalTransform>         transformLookup;
+    [ReadOnly] public BlobAssetReference<AttackLibraryBlob>   attackLibrary;
 
     public void Execute(
-        in SelectedAction                selectedAction,
-        in LocalTransform                myTransform,
-        in CombatTarget                  combatTarget,
+        in  SelectedAction               selectedAction,
+        in  LocalTransform               myTransform,
+        ref CombatTarget                 combatTarget,
         in AttackCooldown                cooldown,
         ref Target                       target,
         EnabledRefRW<CombatTarget>       combatTargetEnabled,
@@ -149,11 +181,13 @@ public partial struct CombatAttackJob : IJobEntity
         if (cooldown.timer <= 0f)
             attackEnabled.ValueRW = true;
 
-        // If target drifted out of melee range, go back to chasing
+        // If target drifted out of attack range, go back to chasing
         if (transformLookup.TryGetComponent(hostile, out LocalTransform hostileTransform))
         {
-            float distSq = math.distancesq(myTransform.Position, hostileTransform.Position);
-            if (distSq > MELEE_RANGE_HYSTERESIS * MELEE_RANGE_HYSTERESIS)
+            float attackRange   = attackLibrary.Value.attacks[(int)combatTarget.selectedAttack].range;
+            float hysteresis    = attackRange * HYSTERESIS_MULT;
+            float distSq        = math.distancesq(myTransform.Position, hostileTransform.Position);
+            if (distSq > hysteresis * hysteresis)
             {
                 attackEnabled.ValueRW  = false;
                 arrivedEnabled.ValueRW = false;
@@ -166,13 +200,17 @@ public partial struct CombatAttackJob : IJobEntity
 [BurstCompile]
 [WithDisabled(typeof(CombatTarget))]
 [WithDisabled(typeof(NeedsAction))]
-[WithPresent(typeof(MoveToTargetRequest), typeof(ArrivedAtTarget), typeof(Attack), typeof(Target))]
-[WithDisabled(typeof(PlayerControlled))]
+[WithPresent(typeof(PathRequest), typeof(DStarLiteFollower), typeof(FlowFieldFollower),
+             typeof(ArrivedAtTarget), typeof(Attack), typeof(Target))]
+[WithAll(typeof(ActiveBrain))]
 public partial struct CombatAbandonJob : IJobEntity
 {
     public void Execute(
-        in SelectedAction                 selectedAction,
-        EnabledRefRW<MoveToTargetRequest> moveRequestEnabled,
+        in  SelectedAction                selectedAction,
+        ref PathfindingAgent              agent,
+        EnabledRefRW<PathRequest>         pathRequestEnabled,
+        EnabledRefRW<DStarLiteFollower>   dstarFollowerEnabled,
+        EnabledRefRW<FlowFieldFollower>   flowFollowerEnabled,
         EnabledRefRW<ArrivedAtTarget>     arrivedEnabled,
         EnabledRefRW<Attack>              attackEnabled,
         EnabledRefRW<Target>              targetEnabled,
@@ -181,7 +219,8 @@ public partial struct CombatAbandonJob : IJobEntity
         if (selectedAction.category != ActionCategory.Attack)
             return;
 
-        moveRequestEnabled.ValueRW = false;
+        AIUtils.HaltPathing(ref agent, pathRequestEnabled, dstarFollowerEnabled, flowFollowerEnabled);
+
         arrivedEnabled.ValueRW     = false;
         attackEnabled.ValueRW      = false;
         targetEnabled.ValueRW      = false;

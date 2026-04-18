@@ -511,7 +511,10 @@ public partial struct DStarLiteSystem : ISystem
             PathData pathData = activePaths[follower.pathDataIndex];
             if (!pathData.isValid || pathData.owner != entity)
                 return;
-            
+
+            if (!agent.isActive)
+                return;
+
             float3 currentPos = transform.Position;
             float3 nextWP = follower.nextWaypoint;
             

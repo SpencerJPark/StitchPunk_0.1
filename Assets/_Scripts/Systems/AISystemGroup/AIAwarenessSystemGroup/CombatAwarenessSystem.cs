@@ -26,7 +26,7 @@ using Unity.Transforms;
 public partial struct CombatAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform>  transformLookup;
-    private ComponentLookup<Alive>           aliveLookup;
+    private ComponentLookup<Dead>            deadLookup;
     private ComponentLookup<CombatTarget>    combatTargetLookup;
     private ComponentLookup<AggressiveState> aggressiveLookup;
 
@@ -37,7 +37,7 @@ public partial struct CombatAwarenessSystem : ISystem
         state.RequireForUpdate<FactionRegistry>();
 
         transformLookup    = state.GetComponentLookup<LocalTransform>(true);
-        aliveLookup        = state.GetComponentLookup<Alive>(true);
+        deadLookup         = state.GetComponentLookup<Dead>(true);
         combatTargetLookup = state.GetComponentLookup<CombatTarget>(false);
         aggressiveLookup   = state.GetComponentLookup<AggressiveState>(false);
     }
@@ -46,7 +46,7 @@ public partial struct CombatAwarenessSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         transformLookup.Update(ref state);
-        aliveLookup.Update(ref state);
+        deadLookup.Update(ref state);
         combatTargetLookup.Update(ref state);
         aggressiveLookup.Update(ref state);
 
@@ -58,7 +58,7 @@ public partial struct CombatAwarenessSystem : ISystem
         state.Dependency = new CombatAwarenessJob
         {
             transformLookup    = transformLookup,
-            aliveLookup        = aliveLookup,
+            deadLookup         = deadLookup,
             combatTargetLookup = combatTargetLookup,
             aggressiveLookup   = aggressiveLookup,
             factionEntities    = registry.entities,
@@ -74,7 +74,7 @@ public partial struct CombatAwarenessJob : IJobEntity
     private const float AGGRESSIVE_LINGER = 3.0f;
 
     [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
-    [ReadOnly] public ComponentLookup<Alive>                   aliveLookup;
+    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
     [NativeDisableParallelForRestriction]
     public            ComponentLookup<CombatTarget>            combatTargetLookup;
     [NativeDisableParallelForRestriction]
@@ -82,12 +82,14 @@ public partial struct CombatAwarenessJob : IJobEntity
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
 
     public void Execute(
-        Entity                          self,
-        in Faction                      faction,
-        in Awareness                    awareness,
-        in LocalTransform               transform,
-        ref DynamicBuffer<ActionOption> options,
-        EnabledRefRO<NeedsAction>       needsAction)
+        Entity                              self,
+        in Faction                          faction,
+        in Awareness                        awareness,
+        in LocalTransform                   transform,
+        in AttackData                       attackData,
+        ref DynamicBuffer<ActionOption>     options,
+        in DynamicBuffer<AttackFaction>     attackFactions,
+        EnabledRefRO<NeedsAction>           needsAction)
     {
         float3 myPos   = transform.Position;
         float  rangeSq = awareness.range * awareness.range;
@@ -95,11 +97,9 @@ public partial struct CombatAwarenessJob : IJobEntity
         Entity nearestHostile    = Entity.Null;
         float  nearestDistanceSq = float.MaxValue;
 
-        // Enumerate all FactionType values (0..4) and check hostility
-        for (byte fKey = 0; fKey < 5; fKey++)
+        for (int f = 0; f < attackFactions.Length; f++)
         {
-            if (!IsHostile(faction.factionType, (FactionType)fKey))
-                continue;
+            byte fKey = (byte)attackFactions[f].faction;
 
             if (!factionEntities.TryGetFirstValue(fKey, out Entity candidate,
                     out NativeParallelMultiHashMapIterator<byte> iterator))
@@ -110,7 +110,7 @@ public partial struct CombatAwarenessJob : IJobEntity
                 if (candidate == self)
                     continue;
 
-                if (aliveLookup.HasComponent(candidate) && !aliveLookup.IsComponentEnabled(candidate))
+                if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate))
                     continue;
 
                 if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform))
@@ -135,7 +135,8 @@ public partial struct CombatAwarenessJob : IJobEntity
             if (combatTargetLookup.HasComponent(self))
             {
                 CombatTarget ct = combatTargetLookup[self];
-                ct.targetEntity = nearestHostile;
+                ct.targetEntity   = nearestHostile;
+                ct.selectedAttack = attackData.attackType; // placeholder — multi-attack scorer will write here later
                 combatTargetLookup[self] = ct;
                 combatTargetLookup.SetComponentEnabled(self, true);
             }
@@ -166,23 +167,13 @@ public partial struct CombatAwarenessJob : IJobEntity
         }
         else
         {
-            if (combatTargetLookup.HasComponent(self))
+            // Only disable CombatTarget for units that actively scan for hostiles.
+            // Units with no attackFactions rely on FightOrFlightSystem for reactive combat;
+            // clearing their target here would cancel the fight-back response every frame.
+            if (attackFactions.Length > 0 && combatTargetLookup.HasComponent(self))
                 combatTargetLookup.SetComponentEnabled(self, false);
             // AggressiveState expires via UnitStateExpirySystem once its duration runs out
         }
     }
 
-    private static bool IsHostile(FactionType self, FactionType other)
-    {
-        if (self == FactionType.None    || other == FactionType.None)    return false;
-        if (self == FactionType.Neutral || other == FactionType.Neutral) return false;
-        if (self == other)                                               return false;
-
-        bool selfUndead    = self  == FactionType.Undead;
-        bool otherUndead   = other == FactionType.Undead;
-        bool selfCivilian  = self  == FactionType.Player || self  == FactionType.Human;
-        bool otherCivilian = other == FactionType.Player || other == FactionType.Human;
-
-        return (selfUndead && otherCivilian) || (selfCivilian && otherUndead);
-    }
 }

@@ -66,6 +66,11 @@ public enum BehaviourType
     Nervous,
 }
 
+public enum UnitStateType
+{
+    None,
+}
+
 
 public enum AttackType
 {
@@ -109,7 +114,7 @@ public enum BrainType
     None        = 0,
     Citizen     = 1,   // Full motivation-driven AI — seeks interactions to satisfy needs
     Guard       = 2,   // Safety-focused, chases and attacks Undead
-    FeralZombie = 3,   // Pure combat — chases and attacks Player + Human
+    Rotted = 3,   // Pure combat — chases and attacks Player + Human
     PlayerZombie = 4,  // Player-controlled minion (PlayerControlled component enabled)
     Panic       = 5,   // Flee-dominant — runs from all threats
     Merchant    = 6,   // Social and work motivated, no combat

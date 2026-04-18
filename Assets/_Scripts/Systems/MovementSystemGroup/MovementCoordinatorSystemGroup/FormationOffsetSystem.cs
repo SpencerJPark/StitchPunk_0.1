@@ -10,7 +10,6 @@ using Unity.Mathematics;
 // Runs before PathfindingCoordinatorSystem so offsets are fresh when the follower system runs.
 [BurstCompile]
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
-[UpdateBefore(typeof(PathfindingCoordinatorSystem))]
 public partial struct FormationOffsetSystem : ISystem
 {
     private ComponentLookup<HordeMembership>   membershipLookup;

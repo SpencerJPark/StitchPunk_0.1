@@ -4,8 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-[UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
-[UpdateAfter(typeof(GridSystem))]
+[UpdateInGroup(typeof(MovementCoordinatorSystemGroup), OrderLast = true)]
 public partial struct PathfindingCoordinatorSystem : ISystem
 {
     [BurstCompile]
@@ -44,6 +43,7 @@ public partial struct PathfindingCoordinatorSystem : ISystem
 
         public void Execute(
             ref PathfindingAgent agent,
+            ref Movement movement,
             in LocalTransform transform,
             Entity entity,
             [EntityIndexInQuery] int sortKey)
@@ -66,10 +66,17 @@ public partial struct PathfindingCoordinatorSystem : ISystem
                 new float2(transform.Position.x, transform.Position.z),
                 new float2(agent.targetPosition.x, agent.targetPosition.z));
 
-            if (distToTarget < arrivalDistance)
+            float threshold = agent.stoppingDistance > 0f ? agent.stoppingDistance : arrivalDistance;
+
+            if (distToTarget < threshold)
             {
                 agent.isActive = false;
                 agent.needsRepath = false;
+
+                // Freeze Movement synchronously so followers/mover running later
+                // this frame don't drift on a stale waypoint while the follower
+                // enabled flags wait for end-of-frame ECB playback.
+                movement.targetPosition = transform.Position;
 
                 ecb.SetComponentEnabled<FlowFieldFollower>(sortKey, entity, false);
                 ecb.SetComponentEnabled<DStarLiteFollower>(sortKey, entity, false);

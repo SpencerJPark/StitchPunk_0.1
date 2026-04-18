@@ -103,9 +103,12 @@ public partial struct DStarMoveJob : IJobEntity
         in PathfindingAgent agent,
         ref Movement movement)
     {
+        if (!agent.isActive)
+            return;
+
         if (agent.currentMode != PathfindingMode.DStarLite)
             return;
-        
+
         movement.targetPosition = follower.nextWaypoint;
     }
 }

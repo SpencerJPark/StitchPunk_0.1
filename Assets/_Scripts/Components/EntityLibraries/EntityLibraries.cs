@@ -59,3 +59,14 @@ public struct FactoryLibraryReference : IComponentData
 }
 
 
+public struct BrainLibrary : IComponentData
+{
+    public BlobAssetReference<BrainLibraryBlob> blob;
+}
+
+public struct BrainLibraryReference : IComponentData
+{
+    public UnityObjectRef<BrainLibrarySO> library;
+}
+
+

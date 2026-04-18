@@ -9,7 +9,7 @@ using Unity.Physics;
 /// Shared grid infrastructure used by both FlowFieldSystem and DStarLiteSystem.
 /// Manages the cost map, layers, and provides utility methods for grid operations.
 /// </summary>
-[UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
+[UpdateInGroup(typeof(MovementCoordinatorSystemGroup), OrderFirst = true)]
 public partial struct GridSystem : ISystem
 {
     /// <summary>

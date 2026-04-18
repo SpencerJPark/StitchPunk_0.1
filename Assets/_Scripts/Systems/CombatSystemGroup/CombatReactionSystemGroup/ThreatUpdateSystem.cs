@@ -35,6 +35,8 @@ public partial struct ThreatUpdateSystem : ISystem
 [WithDisabled(typeof(Dead))]
 public partial struct ThreatUpdateJob : IJobEntity
 {
+    private const float REACTION_TIME = 0.3f;
+
     public void Execute(in DynamicBuffer<Hurt> hurtBuffer, ref DynamicBuffer<ThreatEntry> threatBuffer)
     {
         if (hurtBuffer.Length == 0)
@@ -65,7 +67,8 @@ public partial struct ThreatUpdateJob : IJobEntity
                 threatBuffer.Add(new ThreatEntry
                 {
                     attackerEntity = hurt.attackerEntity,
-                    threatScore = hurt.damageAmount
+                    threatScore    = hurt.damageAmount,
+                    reactionDelay  = REACTION_TIME,
                 });
             }
         }

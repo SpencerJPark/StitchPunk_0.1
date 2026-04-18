@@ -153,9 +153,7 @@ GameObject:
   - component: {fileID: 6575585675197493464}
   - component: {fileID: 123114018271666235}
   - component: {fileID: 323249702145562905}
-  - component: {fileID: 711091554357179147}
   - component: {fileID: 3004038991711854641}
-  - component: {fileID: 3801419847962034913}
   m_Layer: 6
   m_Name: BaseUnit
   m_TagString: Untagged
@@ -230,6 +228,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fallSpeed: 16
+  groundOffset: 0
 --- !u!114 &757781151266987349
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -282,20 +281,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   unitLibrary: {fileID: 0}
---- !u!114 &711091554357179147
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ed0317c7c1d8bc84ebf4621ac95043a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  visualGameObject: {fileID: 400835017738712693}
-  showScale: 2
 --- !u!114 &3004038991711854641
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -333,19 +318,6 @@ MonoBehaviour:
     animation: 0
     speed: 1
     looping: 1
---- !u!114 &3801419847962034913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4a3e674ff92423e87fa9a00eb223797, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyBrainAuthoring
-  brain: {fileID: 0}
 --- !u!1001 &4233715775177122149
 PrefabInstance:
   m_ObjectHideFlags: 0

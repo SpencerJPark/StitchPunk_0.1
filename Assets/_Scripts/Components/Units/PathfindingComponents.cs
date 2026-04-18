@@ -18,6 +18,9 @@ public struct PathfindingAgent : IComponentData
     public bool needsRepath;
     public float3 targetPosition;
     public bool isActive;
+    // 0 = use coordinator default (cellSize * 0.5f). Set by requesters that
+    // want to halt short of the target (e.g. combat stopping at attack range).
+    public float stoppingDistance;
 }
 
 public struct PathRequest : IComponentData, IEnableableComponent

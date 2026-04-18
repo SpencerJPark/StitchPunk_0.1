@@ -69,10 +69,14 @@ public partial struct FlowFieldFollowerSystem : ISystem
 
         public void Execute(
             in LocalTransform localTransform,
+            in PathfindingAgent agent,
             ref Movement movement,
             ref FlowFieldFollower follower,
             EnabledRefRW<FlowFieldFollower> followerEnabled)
         {
+            if (!agent.isActive)
+                return;
+
             RaycastInput raycastInput = new RaycastInput
             {
                 Start = localTransform.Position,
@@ -112,10 +116,14 @@ public partial struct FlowFieldFollowerSystem : ISystem
 
         public void Execute(
             in LocalTransform localTransform,
+            in PathfindingAgent agent,
             ref Movement movement,
             ref FlowFieldFollower follower,
             EnabledRefRW<FlowFieldFollower> followerEnabled)
         {
+            if (!agent.isActive)
+                return;
+
             // Validate flow field
             if (follower.flowFieldIndex < 0 || follower.flowFieldIndex >= FlowFieldSystem.FLOW_FIELD_MAP_COUNT)
             {

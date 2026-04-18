@@ -24,7 +24,6 @@ using Unity.Transforms;
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIExecutionSystemGroup))]
-[UpdateAfter(typeof(MoveToTargetSystem))]
 public partial struct InteractionExecutionSystem : ISystem
 {
     private ComponentLookup<Interaction>         interactionLookup;

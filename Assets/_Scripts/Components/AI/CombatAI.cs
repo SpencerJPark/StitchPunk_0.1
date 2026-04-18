@@ -17,7 +17,8 @@ public struct Faction : IComponentData
 public struct ThreatEntry : IBufferElementData
 {
     public Entity attackerEntity;
-    public float threatScore;       // cumulative damage received from this attacker
+    public float  threatScore;       // cumulative damage received from this attacker
+    public float  reactionDelay;     // counts down to 0 before fight-back activates
 }
 
 // ─── CombatTarget ─────────────────────────────────────────────────────────────
@@ -26,8 +27,9 @@ public struct ThreatEntry : IBufferElementData
 // Enabled  = actively pursuing targetEntity (AttackExecutionSystem is executing)
 public struct CombatTarget : IComponentData, IEnableableComponent
 {
-    public Entity targetEntity;
-    public float retargetTimer;    // counts down; 0 → re-evaluate target
+    public Entity     targetEntity;
+    public float      retargetTimer;    // counts down; 0 → re-evaluate target
+    public AttackType selectedAttack;   // which attack to use this engagement (drives range, anim)
 }
 
 // ─── FactionRegistry ──────────────────────────────────────────────────────────

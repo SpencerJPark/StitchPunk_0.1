@@ -12,11 +12,6 @@ public struct SwapBrainRequest : IComponentData, IEnableableComponent
 public struct ActiveBrain : IComponentData, IEnableableComponent { }
 public struct NeedsAction : IComponentData, IEnableableComponent { }
 
-public struct Target : IComponentData, IEnableableComponent
-{
-    public Entity entity;
-}
-
 public struct Awareness : IComponentData
 {
     public float range;
@@ -37,7 +32,10 @@ public struct Behaviour : IBufferElementData
     public ActionCategory actionCategory;  // the ActionOption category this entry emits
 }
 
-
+public struct AttackFaction : IBufferElementData
+{
+    public FactionType faction;
+}
 
 public struct ActionOption : IBufferElementData
 {
@@ -55,11 +53,6 @@ public struct SelectedAction : IComponentData
     public float3 targetPosition; // destination to navigate toward
 }
 
-
-
-
-
-
 public struct PlayerControlled : IComponentData, IEnableableComponent { }
 
 public struct PlayerOrder : IComponentData
@@ -74,12 +67,17 @@ public struct PlayerOrder : IComponentData
 // targetEntity. When distance < arrivalRange the system disables this component
 // and enables ArrivedAtTarget. Execution systems (e.g. CombatAttackExecutionSystem)
 // check ArrivedAtTarget to know when to begin their action.
+public struct Target : IComponentData, IEnableableComponent
+{
+    public Entity entity;
+}
 
 public struct MoveToTargetRequest : IComponentData, IEnableableComponent
 {
     public Entity targetEntity;
     public float  arrivalRange;
-    public float3 lastKnownTargetPos; // for re-path detection (re-request when target moves > ~1 unit)
+    public float3 lastKnownTargetPos;
+    public PathfindingMode requestedMode;
 }
 
 public struct ArrivedAtTarget : IComponentData, IEnableableComponent { }

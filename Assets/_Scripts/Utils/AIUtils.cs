@@ -7,6 +7,7 @@ using Unity.Transforms;
 [BurstCompile]
 public static class AIUtils
 {
+    
     // Convenience overload used by interaction scoring systems (Hunger, Energy, etc.).
     // Category is always Interaction; targetPosition is resolved by execution systems
     // from the interaction entity's LocalTransform at navigation time.
@@ -199,88 +200,6 @@ public static class AIUtils
         }
     }
 
-    /// <summary>
-    /// Release occupants and reset their action state.
-    /// Dead units are cleared but NeedsAction is NOT re-enabled.
-    /// Occupant entity IS the unit entity in the single-entity model.
-    /// </summary>
-    public static void ReleaseOccupants(
-        DynamicBuffer<InteractionOccupant> occupants,
-        ref ComponentLookup<NeedsAction> needsActionLookup,
-        ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<Dead> deadLookup)
-    {
-        for (int i = 0; i < occupants.Length; i++)
-        {
-            Entity unitEntity = occupants[i].entity;
-
-            if (unitActionLookup.HasComponent(unitEntity))
-            {
-                unitActionLookup[unitEntity] = new UnitAction
-                {
-                    current = ActionType.Idle
-                };
-            }
-
-            bool isDead = deadLookup.HasComponent(unitEntity) &&
-                          deadLookup.IsComponentEnabled(unitEntity);
-
-            if (!isDead)
-                needsActionLookup.SetComponentEnabled(unitEntity, true);
-        }
-
-        occupants.Clear();
-    }
-
-    /// <summary>
-    /// Release occupants with full pathfinding cleanup.
-    /// Dead units are cleared but NeedsAction is NOT re-enabled.
-    /// Occupant entity IS the unit entity in the single-entity model.
-    /// </summary>
-    public static void ReleaseOccupants(
-        DynamicBuffer<InteractionOccupant> occupants,
-        ref ComponentLookup<NeedsAction> needsActionLookup,
-        ref ComponentLookup<UnitAction> unitActionLookup,
-        ref ComponentLookup<Dead> deadLookup,
-        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
-        ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
-        ref ComponentLookup<DStarLiteFollower> dstarFollowerLookup)
-    {
-        for (int i = 0; i < occupants.Length; i++)
-        {
-            Entity unitEntity = occupants[i].entity;
-
-            bool isDead = deadLookup.HasComponent(unitEntity) &&
-                          deadLookup.IsComponentEnabled(unitEntity);
-
-            if (unitActionLookup.HasComponent(unitEntity))
-            {
-                unitActionLookup[unitEntity] = new UnitAction
-                {
-                    current = ActionType.Idle
-                };
-            }
-
-            if (pathfindingAgentLookup.HasComponent(unitEntity))
-            {
-                PathfindingAgent agent = pathfindingAgentLookup[unitEntity];
-                agent.isActive = false;
-                pathfindingAgentLookup[unitEntity] = agent;
-            }
-
-            if (flowFieldFollowerLookup.HasComponent(unitEntity))
-                flowFieldFollowerLookup.SetComponentEnabled(unitEntity, false);
-
-            if (dstarFollowerLookup.HasComponent(unitEntity))
-                dstarFollowerLookup.SetComponentEnabled(unitEntity, false);
-
-            if (!isDead)
-                needsActionLookup.SetComponentEnabled(unitEntity, true);
-        }
-
-        occupants.Clear();
-    }
-
     public static float ScoreInteraction(
         Entity candidate,
         float3 pos,
@@ -299,70 +218,66 @@ public static class AIUtils
         return math.clamp(baseScore + distanceBonus, -100f, 100f);
     }
 
-    /// <summary>
-    /// Request a path for an entity using the new pathfinding system.
-    /// </summary>
-    public static void RequestPath(
-        Entity entity,
-        float3 targetPosition,
-        ref ComponentLookup<PathRequest> pathRequestLookup,
-        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
-        ref ComponentLookup<Movement> unitMoverLookup)
+    // Issues a path request and keeps the agent + mover in sync in one shot.
+    // Call from inside an IJobEntity.Execute with refs already in hand — no lookups needed.
+    // stoppingDistance = 0 uses the coordinator's default arrival distance.
+    // Pass PathfindingMode.None to use agent.preferredMode.
+    public static void BeginPathRequest(
+        ref PathRequest            pathRequest,
+        EnabledRefRW<PathRequest>  pathRequestEnabled,
+        ref PathfindingAgent       agent,
+        ref Movement               movement,
+        float3                     targetPosition,
+        float                      stoppingDistance = 0f,
+        PathfindingMode            modeOverride     = PathfindingMode.None)
     {
-        if (!pathRequestLookup.HasComponent(entity))
-            return;
 
-        PathfindingMode mode = PathfindingMode.DStarLite;
-        if (pathfindingAgentLookup.HasComponent(entity))
-        {
-            mode = pathfindingAgentLookup[entity].preferredMode;
+        PathfindingMode mode = modeOverride == PathfindingMode.None
+            ? agent.preferredMode
+            : modeOverride;
 
-            PathfindingAgent agent = pathfindingAgentLookup[entity];
-            agent.targetPosition = targetPosition;
-            agent.isActive = true;
-            agent.needsRepath = true;
-            pathfindingAgentLookup[entity] = agent;
-        }
+        pathRequest.targetPosition = targetPosition;
+        pathRequest.requestedMode  = mode;
+        pathRequestEnabled.ValueRW = true;
 
-        pathRequestLookup[entity] = new PathRequest
-        {
-            targetPosition = targetPosition,
-            requestedMode = mode
-        };
-        pathRequestLookup.SetComponentEnabled(entity, true);
+        agent.targetPosition   = targetPosition;
+        agent.stoppingDistance = stoppingDistance;
+        agent.isActive         = true;
+        agent.needsRepath      = true;
 
-        if (unitMoverLookup.HasComponent(entity))
-        {
-            Movement mover = unitMoverLookup[entity];
-            mover.targetPosition = targetPosition;
-            unitMoverLookup[entity] = mover;
-        }
+        movement.targetPosition = targetPosition;
+        
     }
 
-    /// <summary>
-    /// Stop pathfinding for an entity.
-    /// </summary>
-    public static void StopPathfinding(
-        Entity entity,
-        ref ComponentLookup<PathfindingAgent> pathfindingAgentLookup,
-        ref ComponentLookup<FlowFieldFollower> flowFieldFollowerLookup,
-        ref ComponentLookup<DStarLiteFollower> dstarFollowerLookup)
+    public static bool CheckInRange(
+        LocalTransform transform,
+        ref EnabledRefRW<ArrivedAtTarget> arrivedEnabled,
+        float3 targetPosition,
+        float range)
     {
-        if (pathfindingAgentLookup.HasComponent(entity))
+        float distSq = math.distancesq(transform.Position, targetPosition);
+       
+        if (distSq <= range * range)
         {
-            PathfindingAgent agent = pathfindingAgentLookup[entity];
-            agent.isActive = false;
-            pathfindingAgentLookup[entity] = agent;
+            arrivedEnabled.ValueRW = true;
+            return true;
         }
+        return false;
+    }
 
-        if (flowFieldFollowerLookup.HasComponent(entity))
-        {
-            flowFieldFollowerLookup.SetComponentEnabled(entity, false);
-        }
-
-        if (dstarFollowerLookup.HasComponent(entity))
-        {
-            dstarFollowerLookup.SetComponentEnabled(entity, false);
-        }
+    // Immediate halt — use for mid-task interrupts (target lost, command cancelled).
+    // For ordinary "arrived at range" stops, let PathfindingCoordinatorSystem halt
+    // followers via the stoppingDistance check instead of calling this.
+    public static void HaltPathing(
+        ref PathfindingAgent               agent,
+        EnabledRefRW<PathRequest>          pathRequestEnabled,
+        EnabledRefRW<DStarLiteFollower>    dstarFollowerEnabled,
+        EnabledRefRW<FlowFieldFollower>    flowFollowerEnabled)
+    {
+        agent.isActive    = false;
+        agent.needsRepath = false;
+        pathRequestEnabled.ValueRW   = false;
+        dstarFollowerEnabled.ValueRW = false;
+        flowFollowerEnabled.ValueRW  = false;
     }
 }

@@ -4527,6 +4527,7 @@ GameObject:
   - component: {fileID: 6621476877874542357}
   - component: {fileID: 8932618118240817772}
   - component: {fileID: 97168373984705854}
+  - component: {fileID: 4338925606018782699}
   - component: {fileID: 3363976009509366347}
   - component: {fileID: 5598200834146730775}
   - component: {fileID: 5529774196114971569}
@@ -4539,7 +4540,6 @@ GameObject:
   - component: {fileID: 6836798298145647292}
   - component: {fileID: 81547783365101107}
   - component: {fileID: 3781486699761808551}
-  - component: {fileID: 3023273170798776052}
   - component: {fileID: 5385637352373302489}
   m_Layer: 6
   m_Name: MaleCitizen
@@ -4601,6 +4601,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   unitType: 2
+--- !u!114 &4338925606018782699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 149e64ac9de028146b3f339630f54061, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BrainAuthoring
+  brain: 1
+  active: 1
+  brainLibrary: {fileID: 11400000, guid: ec0f33a61e91bbf448eca314eb003b6e, type: 2}
 --- !u!114 &3363976009509366347
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4823,19 +4838,6 @@ MonoBehaviour:
   groundBufferBackward: 0.29
   tiltOffsetForward: 5
   tiltOffsetBackward: 0
---- !u!114 &3023273170798776052
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9101195342176660511}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 42b941a8f1a24fa4be4e54bd83f7cf2e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
-  awarenessRange: 20
 --- !u!114 &5385637352373302489
 MonoBehaviour:
   m_ObjectHideFlags: 0

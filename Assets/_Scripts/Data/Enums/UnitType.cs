@@ -2,9 +2,16 @@
 {
     None = 0,
     Player = 1,
-    Human = 2,
-    Undead = 3,
-    Neutral = 4
+    StoryNPC = 2,
+    Citizens = 3,
+    Animals = 4,
+    Rottens = 5,
+    Army = 6,
+    NorthenForces = 7,
+    Church,
+    Elites,
+    
+    
 }
 
 

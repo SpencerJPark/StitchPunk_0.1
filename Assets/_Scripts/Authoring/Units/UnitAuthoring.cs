@@ -12,8 +12,14 @@ public class UnitAuthoring : MonoBehaviour {
             AddComponent(entity, new Unit());
             AddComponent(entity, new UnitData { unitType = authoring.unitType });
             AddComponent(entity, new UnitAction());
+            
             AddComponent<Target>(entity);
             SetComponentEnabled<Target>(entity, false);
+            AddComponent<MoveToTargetRequest>(entity);
+            SetComponentEnabled<MoveToTargetRequest>(entity, false);
+            AddComponent<ArrivedAtTarget>(entity);
+            SetComponentEnabled<ArrivedAtTarget>(entity, false);
+            
             AddComponent<NewlySpawned>(entity);
             SetComponentEnabled<NewlySpawned>(entity, false);
         }

@@ -50,7 +50,7 @@ public partial struct MinionAttackExecutionJob : IJobEntity
 
     public void Execute(
         in AttackCooldown              cooldown,
-        in Target                      target,
+        ref Target                     target,
         EnabledRefRW<Attack>           attackEnabled,
         EnabledRefRW<Target>           targetEnabled,
         EnabledRefRW<PlayerControlled> playerControlledEnabled,
