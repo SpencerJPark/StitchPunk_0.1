@@ -83,7 +83,7 @@ partial struct InteractionHighlightSystem : ISystem
             if (!state.EntityManager.HasComponent<InteractableVisual>(child)) continue;
 
             var visual = state.EntityManager.GetComponentData<InteractableVisual>(child);
-            visual.Value = 0f;
+            visual.value = 0f;
             state.EntityManager.SetComponentData(child, visual);
         }
 
@@ -92,7 +92,7 @@ partial struct InteractionHighlightSystem : ISystem
             state.EntityManager.HasComponent<InteractableVisual>(previousEntity))
         {
             var visual = state.EntityManager.GetComponentData<InteractableVisual>(previousEntity);
-            visual.Value = 0f;
+            visual.value = 0f;
             state.EntityManager.SetComponentData(previousEntity, visual);
         }
     }
@@ -126,7 +126,7 @@ partial struct InteractionHighlightSystem : ISystem
             if (!state.EntityManager.HasComponent<InteractableVisual>(child)) continue;
 
             var visual = state.EntityManager.GetComponentData<InteractableVisual>(child);
-            visual.Value = 1f;
+            visual.value = 1f;
             state.EntityManager.SetComponentData(child, visual);
         }
 
@@ -135,7 +135,7 @@ partial struct InteractionHighlightSystem : ISystem
             state.EntityManager.HasComponent<InteractableVisual>(nextEntity))
         {
             var visual = state.EntityManager.GetComponentData<InteractableVisual>(nextEntity);
-            visual.Value = 1f;
+            visual.value = 1f;
             state.EntityManager.SetComponentData(nextEntity, visual);
         }
     }

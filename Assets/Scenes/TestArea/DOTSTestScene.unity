@@ -679,7 +679,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1386834131}
   - component: {fileID: 1386834130}
-  - component: {fileID: 1386834132}
   m_Layer: 0
   m_Name: Waypoint
   m_TagString: Untagged
@@ -699,19 +698,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a3cc0040f44e4422bc87eaaaaf378566, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WaypointAuthoring
-  interactionRange: 1.56
+  interactionRange: 1.5
   maxOccupant: 1
-  maxTime: 5
+  maxTime: 10
   actionType: 17
-  playerInteractable: 0
-  providesMovement: 0
-  providesHunger: 0
-  providesEnergy: 0
-  providesFun: 0
-  providesSocial: 0
-  providesComfort: 0
-  providesSafety: 0
-  providesBladder: 0
+  kind: 7
+  playerInteractable: 1
+  satisfies:
+  - behaviourType: 6
+    value: 100
 --- !u!4 &1386834131
 Transform:
   m_ObjectHideFlags: 0
@@ -727,19 +722,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1386834132
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1386834128}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a937c1db203d4b04af9699880ea8e236, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FunInteractionAuthoring
-  value: 8
 --- !u!1 &1551899769
 GameObject:
   m_ObjectHideFlags: 0
@@ -791,15 +773,9 @@ MonoBehaviour:
   maxOccupant: 1
   maxTime: 0.5
   actionType: 5
+  kind: 0
   playerInteractable: 1
-  providesMovement: 0
-  providesHunger: 0
-  providesEnergy: 0
-  providesFun: 0
-  providesSocial: 0
-  providesComfort: 0
-  providesSafety: 0
-  providesBladder: 0
+  satisfies: []
 --- !u!65 &1551899772
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -938,7 +914,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1590280494}
   - component: {fileID: 1590280493}
-  - component: {fileID: 1590280492}
   m_Layer: 0
   m_Name: Waypoint
   m_TagString: Untagged
@@ -946,19 +921,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1590280492
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1590280491}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a937c1db203d4b04af9699880ea8e236, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FunInteractionAuthoring
-  value: 8
 --- !u!114 &1590280493
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -975,15 +937,9 @@ MonoBehaviour:
   maxOccupant: 1
   maxTime: 5
   actionType: 17
+  kind: 0
   playerInteractable: 0
-  providesMovement: 0
-  providesHunger: 0
-  providesEnergy: 0
-  providesFun: 0
-  providesSocial: 0
-  providesComfort: 0
-  providesSafety: 0
-  providesBladder: 0
+  satisfies: []
 --- !u!4 &1590280494
 Transform:
   m_ObjectHideFlags: 0

@@ -28,7 +28,15 @@
       "Bash(dir \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\BuildingsSystemGroup\")",
       "Bash(find:*)",
       "Bash(cat \"Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDegregationSystem.cs\")",
-      "Bash(cat \"Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDecaySystem.cs\")"
+      "Bash(cat \"Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDecaySystem.cs\")",
+      "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-thirst-prepass/with_skill/**)",
+      "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-thirst-prepass/with_skill/outputs/\")",
+      "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-thirst-prepass/without_skill/**)",
+      "Bash(mkdir -p 'C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-thirst-prepass/without_skill/outputs/')",
+      "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-worker-arrival/without_skill/**)",
+      "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-worker-arrival/without_skill/outputs/\")",
+      "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/without_skill/**)",
+      "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/without_skill/outputs/\")"
     ]
   }
 }

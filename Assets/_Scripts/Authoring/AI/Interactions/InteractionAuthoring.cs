@@ -1,6 +1,5 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 using UnityEngine;
-using System;
 
 public class InteractionAuthoring : MonoBehaviour
 {
@@ -12,23 +11,28 @@ public class InteractionAuthoring : MonoBehaviour
 
     public float maxTime = 0.5f;
 
-    [Tooltip("Interaction ActionEnum for when performed")]
+    [Tooltip("Legacy animation/state hint copied onto UnitAction. Orthogonal to InteractionKind.")]
     public ActionType actionType = ActionType.Interact;
+
+    [Tooltip("Which per-kind execution system handles this interaction once a unit commits to it. " +
+             "None falls back to the universal InteractionExecutionSystem.")]
+    public InteractionKind kind = InteractionKind.None;
 
     [Header("Player")]
     [Tooltip("Whether the player can directly target and interact with this entity.")]
     public bool playerInteractable;
 
-    [Header("Motivation Types Provided")]
-    [Tooltip("Which NPC motivations this interaction satisfies. Must have at least one for the AI scoring systems to find it.")]
-    public bool providesMovement;
-    public bool providesHunger;
-    public bool providesEnergy;
-    public bool providesFun;
-    public bool providesSocial;
-    public bool providesComfort;
-    public bool providesSafety;
-    public bool providesBladder;
+    [Header("Behaviour Satisfaction")]
+    [Tooltip("Which NPC behaviours this interaction satisfies and by how much. " +
+             "An entry with value 0 is skipped. Value is remapped to multiplier = value*0.01 + 1.")]
+    public BehaviourEntry[] satisfies = System.Array.Empty<BehaviourEntry>();
+
+    [System.Serializable]
+    public struct BehaviourEntry
+    {
+        public BehaviourType behaviourType;
+        public int value;
+    }
 
     public class Baker : Baker<InteractionAuthoring>
     {
@@ -41,6 +45,11 @@ public class InteractionAuthoring : MonoBehaviour
                 interactionRange = authoring.interactionRange,
                 actionType = authoring.actionType,
                 maxOccupants = authoring.maxOccupant
+            });
+
+            AddComponent(entity, new InteractionKindData
+            {
+                kind = authoring.kind,
             });
 
             AddComponent(entity, new InteractionTimer
@@ -59,17 +68,27 @@ public class InteractionAuthoring : MonoBehaviour
 
             if (authoring.playerInteractable) AddComponent(entity, new PlayerInteractable());
 
-            // Motivation-type tags — SpatialHashSystem only registers this entity
-            // in interactionCells for motivations it actually has a component for.
-            if (authoring.providesMovement) AddComponent(entity, new MovementInteraction { value = 1 });
-            if (authoring.providesHunger)   AddComponent(entity, new HungerInteraction   { value = 1 });
-            if (authoring.providesEnergy)   AddComponent(entity, new EnergyInteraction   { value = 1 });
-            if (authoring.providesFun)      AddComponent(entity, new FunInteraction      { value = 1 });
-            if (authoring.providesSocial)   AddComponent(entity, new SocialInteraction   { value = 1 });
-            if (authoring.providesComfort)  AddComponent(entity, new ComfortInteraction  { value = 1 });
-            if (authoring.providesSafety)   AddComponent(entity, new SafetyInteraction   { value = 1 });
-            if (authoring.providesBladder)  AddComponent(entity, new BladderInteraction  { value = 1 });
+            // BehaviourSatisfaction buffer — one entry per behaviour this provider can satisfy.
+            // SpatialHashSystem registers the entity under each listed behaviourType; scoring
+            // reads the matching multiplier during final-score composition.
+            DynamicBuffer<BehaviourSatisfaction> satisfactionBuffer =
+                AddBuffer<BehaviourSatisfaction>(entity);
+
+            if (authoring.satisfies != null)
+            {
+                for (int i = 0; i < authoring.satisfies.Length; i++)
+                {
+                    BehaviourEntry entry = authoring.satisfies[i];
+                    if (entry.behaviourType == BehaviourType.None)
+                        continue;
+
+                    satisfactionBuffer.Add(new BehaviourSatisfaction
+                    {
+                        behaviourType = entry.behaviourType,
+                        multiplier    = entry.value * 0.01f + 1f,
+                    });
+                }
+            }
         }
     }
 }
-

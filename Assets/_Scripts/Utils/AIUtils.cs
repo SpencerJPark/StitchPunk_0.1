@@ -140,10 +140,26 @@ public static class AIUtils
 
     // In the single-entity model the occupant entity IS the unit entity —
     // no BodyLink lookup needed. UnitAction lives directly on the occupant.
+    //
+    // Also writes CurrentInteraction on each winning unit and enables the
+    // kind-specific task component so per-kind execution systems can pick up
+    // the work via their own [WithAll(typeof(KindTask))] queries. When kind
+    // is None the universal InteractionExecutionSystem handles the flow instead.
     public static void AssignWinners(
+        Entity interactionEntity,
         in DynamicBuffer<InteractionOccupant> occupants,
         ActionType actionType,
-        ref ComponentLookup<UnitAction> unitActionLookup)
+        InteractionKind kind,
+        ref ComponentLookup<UnitAction> unitActionLookup,
+        ref ComponentLookup<CurrentInteraction> currentInteractionLookup,
+        ref ComponentLookup<PickupTask> pickupLookup,
+        ref ComponentLookup<BuildTask> buildLookup,
+        ref ComponentLookup<DrinkTask> drinkLookup,
+        ref ComponentLookup<EatTask> eatLookup,
+        ref ComponentLookup<TouchAnimateTask> touchAnimateLookup,
+        ref ComponentLookup<WanderAreaTask> wanderAreaLookup,
+        ref ComponentLookup<SitTask> sitLookup,
+        ref ComponentLookup<RepairTask> repairLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
@@ -156,6 +172,69 @@ public static class AIUtils
                     current = actionType
                 };
             }
+
+            if (currentInteractionLookup.HasComponent(unitEntity))
+            {
+                currentInteractionLookup[unitEntity] = new CurrentInteraction
+                {
+                    interaction      = interactionEntity,
+                    drivingBehaviour = occupants[i].behaviourType,
+                };
+            }
+
+            EnableKindTask(
+                unitEntity, kind,
+                ref pickupLookup, ref buildLookup, ref drinkLookup, ref eatLookup,
+                ref touchAnimateLookup, ref wanderAreaLookup, ref sitLookup, ref repairLookup);
+        }
+    }
+
+    private static void EnableKindTask(
+        Entity unitEntity,
+        InteractionKind kind,
+        ref ComponentLookup<PickupTask> pickupLookup,
+        ref ComponentLookup<BuildTask> buildLookup,
+        ref ComponentLookup<DrinkTask> drinkLookup,
+        ref ComponentLookup<EatTask> eatLookup,
+        ref ComponentLookup<TouchAnimateTask> touchAnimateLookup,
+        ref ComponentLookup<WanderAreaTask> wanderAreaLookup,
+        ref ComponentLookup<SitTask> sitLookup,
+        ref ComponentLookup<RepairTask> repairLookup)
+    {
+        switch (kind)
+        {
+            case InteractionKind.Pickup:
+                if (pickupLookup.HasComponent(unitEntity))
+                    pickupLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.Build:
+                if (buildLookup.HasComponent(unitEntity))
+                    buildLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.Drink:
+                if (drinkLookup.HasComponent(unitEntity))
+                    drinkLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.Eat:
+                if (eatLookup.HasComponent(unitEntity))
+                    eatLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.TouchAnimate:
+                if (touchAnimateLookup.HasComponent(unitEntity))
+                    touchAnimateLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.WanderArea:
+                if (wanderAreaLookup.HasComponent(unitEntity))
+                    wanderAreaLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.Sit:
+                if (sitLookup.HasComponent(unitEntity))
+                    sitLookup.SetComponentEnabled(unitEntity, true);
+                break;
+            case InteractionKind.Repair:
+                if (repairLookup.HasComponent(unitEntity))
+                    repairLookup.SetComponentEnabled(unitEntity, true);
+                break;
         }
     }
 

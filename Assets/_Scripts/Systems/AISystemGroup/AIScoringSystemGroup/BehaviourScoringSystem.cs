@@ -21,9 +21,9 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
 public partial struct BehaviourScoringSystem : ISystem
 {
-    private ComponentLookup<InteractionProvider> interactionProviderLookup;
-    private ComponentLookup<LocalTransform>      transformLookup;
-    private ComponentLookup<InteractionValue>    interactionValueLookup;
+    private ComponentLookup<InteractionProvider>  interactionProviderLookup;
+    private ComponentLookup<LocalTransform>       transformLookup;
+    private BufferLookup<BehaviourSatisfaction>   satisfactionLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -33,7 +33,7 @@ public partial struct BehaviourScoringSystem : ISystem
 
         interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(true);
         transformLookup           = state.GetComponentLookup<LocalTransform>(true);
-        interactionValueLookup    = state.GetComponentLookup<InteractionValue>(true);
+        satisfactionLookup        = state.GetBufferLookup<BehaviourSatisfaction>(true);
     }
 
     [BurstCompile]
@@ -41,7 +41,7 @@ public partial struct BehaviourScoringSystem : ISystem
     {
         interactionProviderLookup.Update(ref state);
         transformLookup.Update(ref state);
-        interactionValueLookup.Update(ref state);
+        satisfactionLookup.Update(ref state);
 
         SpatialHashRegistry spatialHash    = SystemAPI.GetSingleton<SpatialHashRegistry>();
         ScoringLibrary      scoringLibrary = SystemAPI.GetSingleton<ScoringLibrary>();
@@ -50,7 +50,7 @@ public partial struct BehaviourScoringSystem : ISystem
         {
             interactionProviderLookup = interactionProviderLookup,
             transformLookup           = transformLookup,
-            interactionValueLookup    = interactionValueLookup,
+            satisfactionLookup        = satisfactionLookup,
             interactionCells          = spatialHash.interactionCells,
             cellSize                  = SpatialHashSystem.CELL_SIZE,
             scoringLibrary            = scoringLibrary.library,
@@ -64,7 +64,7 @@ public partial struct MotivationScoringJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<InteractionProvider>                      interactionProviderLookup;
     [ReadOnly] public ComponentLookup<LocalTransform>                           transformLookup;
-    [ReadOnly] public ComponentLookup<InteractionValue>                         interactionValueLookup;
+    [ReadOnly] public BufferLookup<BehaviourSatisfaction>                       satisfactionLookup;
     [ReadOnly] public NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells;
     [ReadOnly] public BlobAssetReference<AIScoringLibraryBlob>                  scoringLibrary;
     public float cellSize;
@@ -104,9 +104,21 @@ public partial struct MotivationScoringJob : IJobEntity
                     {
                         Entity candidate = nearby[i];
 
+                        // Pull the per-behaviour multiplier from the provider's satisfaction buffer.
+                        // The linear scan is bounded by how many behaviours a single provider
+                        // satisfies (typically 1–3), so it's cheap.
                         float interactionMultiplier = 1f;
-                        if (interactionValueLookup.TryGetComponent(candidate, out InteractionValue iv))
-                            interactionMultiplier = iv.multiplier;
+                        if (satisfactionLookup.TryGetBuffer(candidate,
+                            out DynamicBuffer<BehaviourSatisfaction> satisfaction))
+                        {
+                            for (int entryIndex = 0; entryIndex < satisfaction.Length; entryIndex++)
+                            {
+                                if (satisfaction[entryIndex].behaviourType != behaviour.behaviourType)
+                                    continue;
+                                interactionMultiplier = satisfaction[entryIndex].multiplier;
+                                break;
+                            }
+                        }
 
                         float baseScore = AIUtils.ScoreInteraction(
                             candidate, pos, behaviour.value,

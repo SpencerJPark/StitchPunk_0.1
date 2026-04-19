@@ -41,6 +41,31 @@ public static class BrainUtil
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
+
+        // Interaction plumbing — CurrentInteraction holds the active target + driving
+        // behaviour; per-kind task enableables gate the small execution systems that
+        // run only for the kind of interaction the unit is currently performing.
+        baker.AddComponent(entity, new CurrentInteraction
+        {
+            interaction      = Entity.Null,
+            drivingBehaviour = BehaviourType.None,
+        });
+        AddInteractionTask<T, PickupTask>(baker, entity);
+        AddInteractionTask<T, BuildTask>(baker, entity);
+        AddInteractionTask<T, DrinkTask>(baker, entity);
+        AddInteractionTask<T, EatTask>(baker, entity);
+        AddInteractionTask<T, TouchAnimateTask>(baker, entity);
+        AddInteractionTask<T, WanderAreaTask>(baker, entity);
+        AddInteractionTask<T, SitTask>(baker, entity);
+        AddInteractionTask<T, RepairTask>(baker, entity);
+    }
+
+    private static void AddInteractionTask<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
+        where TAuthoring : UnityEngine.Component
+        where TTask : unmanaged, IComponentData, IEnableableComponent
+    {
+        baker.AddComponent<TTask>(entity);
+        baker.SetComponentEnabled<TTask>(entity, false);
     }
 
     public static void PopulateBehaviours(DynamicBuffer<Behaviour> buffer, BehaviourType[] types)

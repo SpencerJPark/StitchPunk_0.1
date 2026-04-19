@@ -1,4 +1,4 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -10,15 +10,6 @@ public partial struct SpatialHashSystem : ISystem
 {
     public const float CELL_SIZE = 20f;
 
-    private ComponentLookup<BladderInteraction> bladderLookup;
-    private ComponentLookup<HungerInteraction> hungerLookup;
-    private ComponentLookup<EnergyInteraction> energyLookup;
-    private ComponentLookup<FunInteraction> funLookup;
-    private ComponentLookup<SocialInteraction> socialLookup;
-    private ComponentLookup<ComfortInteraction> comfortLookup;
-    private ComponentLookup<SafetyInteraction> safetyLookup;
-    private ComponentLookup<MovementInteraction> movementLookup;
-
     public void OnCreate(ref SystemState state)
     {
         state.EntityManager.CreateSingleton(new SpatialHashRegistry
@@ -26,20 +17,11 @@ public partial struct SpatialHashSystem : ISystem
             waypointCells = new NativeParallelMultiHashMap<int2, Entity>(1024, Allocator.Persistent),
             interactionCells = new NativeParallelMultiHashMap<SpatialInteractionKey, Entity>(1024, Allocator.Persistent)
         });
-
-        bladderLookup = state.GetComponentLookup<BladderInteraction>(true);
-        hungerLookup = state.GetComponentLookup<HungerInteraction>(true);
-        energyLookup = state.GetComponentLookup<EnergyInteraction>(true);
-        funLookup = state.GetComponentLookup<FunInteraction>(true);
-        socialLookup = state.GetComponentLookup<SocialInteraction>(true);
-        comfortLookup = state.GetComponentLookup<ComfortInteraction>(true);
-        safetyLookup = state.GetComponentLookup<SafetyInteraction>(true);
-        movementLookup = state.GetComponentLookup<MovementInteraction>(true);
     }
 
     public void OnDestroy(ref SystemState state)
     {
-        if (SystemAPI.TryGetSingleton<SpatialHashRegistry>(out var singleton))
+        if (SystemAPI.TryGetSingleton<SpatialHashRegistry>(out SpatialHashRegistry singleton))
         {
             if (singleton.waypointCells.IsCreated)
                 singleton.waypointCells.Dispose();
@@ -51,53 +33,35 @@ public partial struct SpatialHashSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        bladderLookup.Update(ref state);
-        hungerLookup.Update(ref state);
-        energyLookup.Update(ref state);
-        funLookup.Update(ref state);
-        socialLookup.Update(ref state);
-        comfortLookup.Update(ref state);
-        safetyLookup.Update(ref state);
-        movementLookup.Update(ref state);
-
-        var singleton = SystemAPI.GetSingletonRW<SpatialHashRegistry>();
+        RefRW<SpatialHashRegistry> singleton = SystemAPI.GetSingletonRW<SpatialHashRegistry>();
 
         singleton.ValueRW.waypointCells.Clear();
         singleton.ValueRW.interactionCells.Clear();
 
-        foreach (var (transform, provider, entity) in
-            SystemAPI.Query<RefRO<LocalTransform>, RefRO<InteractionProvider>>()
+        // Iterate every interaction provider once; register it under every behaviour it
+        // satisfies. Keeps the hash key unchanged (cell, BehaviourType) so every existing
+        // query path keeps working.
+        foreach ((RefRO<LocalTransform> transform,
+                  DynamicBuffer<BehaviourSatisfaction> satisfaction,
+                  Entity entity) in
+            SystemAPI.Query<RefRO<LocalTransform>, DynamicBuffer<BehaviourSatisfaction>>()
+                .WithAll<InteractionProvider>()
                 .WithEntityAccess())
         {
             int2 cell = GetCell(transform.ValueRO.Position);
 
-            // Add to general waypoint hash (for backwards compatibility or general queries)
             singleton.ValueRW.waypointCells.Add(cell, entity);
 
-            // Add to interaction-specific hash for each motivation type this interaction provides
-            if (bladderLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Bladder), entity);
+            for (int i = 0; i < satisfaction.Length; i++)
+            {
+                BehaviourSatisfaction entry = satisfaction[i];
+                if (entry.behaviourType == BehaviourType.None)
+                    continue;
 
-            if (hungerLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Hunger), entity);
-
-            if (energyLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Energy), entity);
-
-            if (funLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Fun), entity);
-
-            if (socialLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Social), entity);
-
-            if (comfortLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Comfort), entity);
-
-            if (safetyLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Safety), entity);
-
-            if (movementLookup.HasComponent(entity))
-                singleton.ValueRW.interactionCells.Add(new SpatialInteractionKey(cell, BehaviourType.Movement), entity);
+                singleton.ValueRW.interactionCells.Add(
+                    new SpatialInteractionKey(cell, entry.behaviourType),
+                    entity);
+            }
         }
     }
 

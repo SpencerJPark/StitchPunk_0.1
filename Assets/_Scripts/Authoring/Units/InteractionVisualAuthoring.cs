@@ -8,7 +8,7 @@ public class InteractionVisualAuthoring : MonoBehaviour
         public override void Bake(InteractionVisualAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new InteractableVisual { Value = 0f });
+            AddComponent(entity, new InteractableVisual { value = 0f });
         }
     }
 }

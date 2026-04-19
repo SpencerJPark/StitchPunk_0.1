@@ -29,6 +29,11 @@ public class PlayerAuthoring : MonoBehaviour
             AddComponent(entity, new Player());
 
             AddComponent(entity, new PlayerActionMap{ activeActionMap = ActionMaps.Player});
+            
+            AddComponent(entity, new Faction
+            {
+                factionType = FactionType.Player,
+            });
 
             AddComponent(entity, new MovePlayerInput());
             SetComponentEnabled<MovePlayerInput>(entity, false);

@@ -5,9 +5,14 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 /// <summary>
-/// Unit-side interaction execution system. Replaces the old BladderExecutionSystem
-/// and GenericInteractionExecutionSystem, which iterated interaction entities and
-/// used component lookups to reach unit entities.
+/// Universal fallback for interaction execution. Drives move → arrive → timer →
+/// complete for any interaction whose InteractionKind is None — i.e. interactions
+/// that don't have a dedicated per-kind execution system yet. Per-kind systems
+/// (PickupSystem, BuildSystem, ...) will replace this flow for their specific
+/// InteractionKind values and are responsible for the same completion contract:
+/// remove the unit from InteractionOccupant, restore the driving behaviour's value,
+/// re-enable InteractionProvider if a slot freed, disable their own task enableable,
+/// and re-enable NeedsAction.
 ///
 /// This system iterates UNIT entities and looks up data on the interaction entity
 /// (4 lookups total, all on the single stable interaction entity).
