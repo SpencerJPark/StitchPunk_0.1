@@ -95,6 +95,7 @@ public struct CurrentInteraction : IComponentData
 // filter at the ECS level — matches the codebase pattern (NeedsAction, ProductionProgress).
 public struct PickupTask       : IComponentData, IEnableableComponent { }
 public struct BuildTask        : IComponentData, IEnableableComponent { }
+public struct HarvestTask       : IComponentData, IEnableableComponent { }
 public struct DrinkTask        : IComponentData, IEnableableComponent { }
 public struct EatTask          : IComponentData, IEnableableComponent { }
 public struct TouchAnimateTask : IComponentData, IEnableableComponent { }

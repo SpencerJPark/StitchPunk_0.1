@@ -1,16 +1,15 @@
 ﻿using Unity.Entities;
 using UnityEngine;
 
-public class FactionAuthoring : MonoBehaviour
+public class PickupInteractionAuthoring : MonoBehaviour
 {
-
-    public class Baker : Baker<FactionAuthoring>
+    public class Baker : Baker<PickupInteractionAuthoring>
     {
-        public override void Bake(FactionAuthoring authoring)
+        public override void Bake(PickupInteractionAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new PickupTask());
-            SetComponentEnabled<PickupTask>(false);
+            SetComponentEnabled<PickupTask>(entity, false);
         }
     }
 }

@@ -36,7 +36,16 @@
       "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-worker-arrival/without_skill/**)",
       "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-worker-arrival/without_skill/outputs/\")",
       "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/without_skill/**)",
-      "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/without_skill/outputs/\")"
+      "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/without_skill/outputs/\")",
+      "Bash(mkdir -p \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/with_skill/outputs\")",
+      "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/eval-death-propagate/with_skill/outputs/**)",
+      "Read(//c/Users/spenc/.claude/plugins/cache/claude-plugins-official/skill-creator/unknown/skills/skill-creator/**)",
+      "Bash(python -m scripts.aggregate_benchmark \"C:/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1\" --skill-name dots-system-scaffold)",
+      "Read(//c/Users/spenc/.claude/skills/dots-system-scaffold-workspace/iteration-1/**)",
+      "Bash(mkdir -p __TRACKED_VAR__/__TRACKED_VAR__/run-1)",
+      "Bash(mv __TRACKED_VAR__/__TRACKED_VAR__/grading.json __TRACKED_VAR__/__TRACKED_VAR__/run-1/grading.json)",
+      "Bash(mv __TRACKED_VAR__/__TRACKED_VAR__/timing.json __TRACKED_VAR__/__TRACKED_VAR__/run-1/timing.json)",
+      "Bash(python *)"
     ]
   }
 }
