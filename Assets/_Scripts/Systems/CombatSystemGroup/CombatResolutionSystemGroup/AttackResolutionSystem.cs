@@ -115,6 +115,7 @@ public partial struct AttackResolutionJob : IJobEntity
         if (distanceSq > attackBlob.range * attackBlob.range)
             return;
 
+        // will depend on attack type
         // Write hit to target's Hurt buffer
         if (!hurtBufferLookup.HasBuffer(target.entity))
             return;

@@ -8,8 +8,8 @@ public class TouchAnimateTaskAuthoring : MonoBehaviour
         public override void Bake(TouchAnimateTaskAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new TouchAnimateTask());
-            SetComponentEnabled<TouchAnimateTask>(entity, false);
+            AddComponent(entity, new TouchInteraction());
+            SetComponentEnabled<TouchInteraction>(entity, false);
         }
     }
 }

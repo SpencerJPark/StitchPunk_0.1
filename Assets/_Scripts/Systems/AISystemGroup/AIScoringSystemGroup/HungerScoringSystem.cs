@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -19,21 +19,13 @@ using Unity.Transforms;
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
-public partial struct BehaviourScoringSystem : ISystem
+public partial struct HungerScoringSystem : ISystem
 {
-    private ComponentLookup<InteractionProvider>  interactionProviderLookup;
-    private ComponentLookup<LocalTransform>       transformLookup;
-    private BufferLookup<BehaviourSatisfaction>   satisfactionLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<ScoringLibrary>();
-
-        interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(true);
-        transformLookup           = state.GetComponentLookup<LocalTransform>(true);
-        satisfactionLookup        = state.GetBufferLookup<BehaviourSatisfaction>(true);
     }
 
     [BurstCompile]
@@ -60,21 +52,14 @@ public partial struct BehaviourScoringSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(ActiveBrain))]
+[WithAll(typeof(NeedsAction))]
 public partial struct MotivationScoringJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<InteractionProvider>                      interactionProviderLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform>                           transformLookup;
-    [ReadOnly] public BufferLookup<BehaviourSatisfaction>                       satisfactionLookup;
-    [ReadOnly] public NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells;
-    [ReadOnly] public BlobAssetReference<AIScoringLibraryBlob>                  scoringLibrary;
-    public float cellSize;
-
     public void Execute(
         ref DynamicBuffer<ActionOption> options,
         in  DynamicBuffer<Motivation>   motivations,
         in  Awareness                   awareness,
-        in  LocalTransform              transform,
-        EnabledRefRO<NeedsAction>       needsAction)
+        in  LocalTransform              transform)
     {
         if (!needsAction.ValueRO)
             return;

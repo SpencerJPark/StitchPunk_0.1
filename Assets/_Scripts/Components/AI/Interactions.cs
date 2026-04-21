@@ -2,9 +2,7 @@ using Unity.Entities;
 using Unity.Rendering;
 
 // Building Blocks
-public struct InteractionProvider : IComponentData, IEnableableComponent
-{
-}
+
 
 // Marks this interaction entity as targetable by the player's targeting system.
 // Add to any interactable object/NPC the player should be able to interact with directly.
@@ -13,12 +11,7 @@ public struct PlayerInteractable : IComponentData, IEnableableComponent
 {
 }
 
-public struct Interaction : IComponentData
-{
-    public float interactionRange;
-    public ActionType actionType;
-    public int maxOccupants;
-}
+
 
 [MaterialProperty("_IsInteractable")]
 public struct InteractableVisual : IComponentData
@@ -26,19 +19,6 @@ public struct InteractableVisual : IComponentData
     public float value; // 0 = not interactable, 1 = interactable
 }
 
-public struct InteractionTimer : IComponentData, IEnableableComponent
-{
-    public float maxTime;
-    public float duration;
-    public float elapsed;
-}
-
-public struct InteractionOccupant : IBufferElementData
-{
-    public Entity entity;
-    public BehaviourType behaviourType;
-    public float score;
-}
 
 public struct InteractionHandled : IComponentData, IEnableableComponent
 {
@@ -75,7 +55,7 @@ public struct InteractionKindData : IComponentData
 // BehaviourScoringSystem reads it to pick the per-behaviour multiplier during scoring.
 public struct BehaviourSatisfaction : IBufferElementData
 {
-    public BehaviourType behaviourType;
+    public MotivationType motivationType;
     public float multiplier; // 1.0 = neutral, 1.2 = 20% boost, etc.
 }
 
@@ -86,19 +66,20 @@ public struct BehaviourSatisfaction : IBufferElementData
 public struct CurrentInteraction : IComponentData
 {
     public Entity interaction;
-    public BehaviourType drivingBehaviour;
+    public MotivationType drivingMotivation;
 }
 
 // Per-kind task components on the unit. Enableable so each small execution system can
 // query [WithAll(typeof(KindTask))] and only iterate units actively performing that kind.
 // Kept separate (rather than one enum flag) so each system's query is a clean archetype
 // filter at the ECS level — matches the codebase pattern (NeedsAction, ProductionProgress).
-public struct PickupTask       : IComponentData, IEnableableComponent { }
-public struct BuildTask        : IComponentData, IEnableableComponent { }
-public struct HarvestTask       : IComponentData, IEnableableComponent { }
-public struct DrinkTask        : IComponentData, IEnableableComponent { }
-public struct EatTask          : IComponentData, IEnableableComponent { }
-public struct TouchAnimateTask : IComponentData, IEnableableComponent { }
-public struct WanderAreaTask   : IComponentData, IEnableableComponent { }
-public struct SitTask          : IComponentData, IEnableableComponent { }
-public struct RepairTask       : IComponentData, IEnableableComponent { }
+public struct PickupInteraction : IComponentData, IEnableableComponent { }
+public struct BuildInteraction  : IComponentData, IEnableableComponent { }
+public struct HarvestInteraction : IComponentData, IEnableableComponent { }
+public struct DrinkInteraction  : IComponentData, IEnableableComponent { }
+public struct EatInteraction    : IComponentData, IEnableableComponent { }
+public struct TouchInteraction : IComponentData, IEnableableComponent { }
+public struct WanderInteraction   : IComponentData, IEnableableComponent { }
+public struct SitInteraction    : IComponentData, IEnableableComponent { }
+public struct RepairInteraction : IComponentData, IEnableableComponent { }
+public struct SpeakInteraction : IComponentData, IEnableableComponent { }

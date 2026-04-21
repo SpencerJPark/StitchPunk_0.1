@@ -77,7 +77,7 @@ public partial struct CombatMoveJob : IJobEntity
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob>   attackLibrary;
 
     public void Execute(
-        in  SelectedAction            selectedAction,
+        in  CurrentAction            selectedAction,
         in  LocalTransform            localTransform,
         ref CombatTarget              combatTarget,
         ref PathRequest               pathRequest,
@@ -88,8 +88,6 @@ public partial struct CombatMoveJob : IJobEntity
         EnabledRefRW<ArrivedAtTarget> arrivedEnabled,
         EnabledRefRW<CombatTarget>    combatTargetEnabled)
     {
-        if (selectedAction.category != ActionCategory.Attack)
-            return;
 
         Entity hostile = combatTarget.targetEntity;
 
@@ -146,7 +144,7 @@ public partial struct CombatAttackJob : IJobEntity
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob>   attackLibrary;
 
     public void Execute(
-        in  SelectedAction               selectedAction,
+        in  CurrentAction               selectedAction,
         in  LocalTransform               myTransform,
         ref CombatTarget                 combatTarget,
         in AttackCooldown                cooldown,
@@ -157,8 +155,6 @@ public partial struct CombatAttackJob : IJobEntity
         EnabledRefRW<Target>             targetEnabled,
         EnabledRefRW<NeedsAction>        needsActionEnabled)
     {
-        if (selectedAction.category != ActionCategory.Attack)
-            return;
 
         Entity hostile = combatTarget.targetEntity;
 
@@ -206,7 +202,7 @@ public partial struct CombatAttackJob : IJobEntity
 public partial struct CombatAbandonJob : IJobEntity
 {
     public void Execute(
-        in  SelectedAction                selectedAction,
+        in  CurrentAction                selectedAction,
         ref PathfindingAgent              agent,
         EnabledRefRW<PathRequest>         pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower>   dstarFollowerEnabled,
@@ -216,8 +212,6 @@ public partial struct CombatAbandonJob : IJobEntity
         EnabledRefRW<Target>              targetEnabled,
         EnabledRefRW<NeedsAction>         needsActionEnabled)
     {
-        if (selectedAction.category != ActionCategory.Attack)
-            return;
 
         AIUtils.HaltPathing(ref agent, pathRequestEnabled, dstarFollowerEnabled, flowFollowerEnabled);
 

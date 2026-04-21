@@ -22,7 +22,7 @@ public static class BrainUtil
         baker.AddComponent<AggressiveState>(entity);
         baker.SetComponentEnabled<AggressiveState>(entity, false);
 
-        DynamicBuffer<Behaviour> behaviourBuffer = baker.AddBuffer<Behaviour>(entity);
+        DynamicBuffer<Motivation> behaviourBuffer = baker.AddBuffer<Motivation>(entity);
         if (brainSo.behaviours != null)
             PopulateBehaviours(behaviourBuffer, brainSo.behaviours);
 
@@ -48,16 +48,16 @@ public static class BrainUtil
         baker.AddComponent(entity, new CurrentInteraction
         {
             interaction      = Entity.Null,
-            drivingBehaviour = BehaviourType.None,
+            drivingMotivation = MotivationType.None,
         });
-        AddInteractionTask<T, PickupTask>(baker, entity);
-        AddInteractionTask<T, BuildTask>(baker, entity);
-        AddInteractionTask<T, DrinkTask>(baker, entity);
-        AddInteractionTask<T, EatTask>(baker, entity);
-        AddInteractionTask<T, TouchAnimateTask>(baker, entity);
-        AddInteractionTask<T, WanderAreaTask>(baker, entity);
-        AddInteractionTask<T, SitTask>(baker, entity);
-        AddInteractionTask<T, RepairTask>(baker, entity);
+        AddInteractionTask<T, PickupInteraction>(baker, entity);
+        AddInteractionTask<T, BuildInteraction>(baker, entity);
+        AddInteractionTask<T, DrinkInteraction>(baker, entity);
+        AddInteractionTask<T, EatInteraction>(baker, entity);
+        AddInteractionTask<T, TouchInteraction>(baker, entity);
+        AddInteractionTask<T, WanderInteraction>(baker, entity);
+        AddInteractionTask<T, SitInteraction>(baker, entity);
+        AddInteractionTask<T, RepairInteraction>(baker, entity);
     }
 
     private static void AddInteractionTask<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
@@ -68,13 +68,13 @@ public static class BrainUtil
         baker.SetComponentEnabled<TTask>(entity, false);
     }
 
-    public static void PopulateBehaviours(DynamicBuffer<Behaviour> buffer, BehaviourType[] types)
+    public static void PopulateBehaviours(DynamicBuffer<Motivation> buffer, MotivationType[] types)
     {
         for (int i = 0; i < types.Length; i++)
             buffer.Add(DefaultBehaviour(types[i]));
     }
 
-    public static void PopulateRandomBehaviours(DynamicBuffer<Behaviour> buffer, BehaviourType[] pool, int amount)
+    public static void PopulateRandomBehaviours(DynamicBuffer<Motivation> buffer, MotivationType[] pool, int amount)
     {
         if (pool == null || pool.Length == 0 || amount <= 0)
             return;
@@ -86,14 +86,14 @@ public static class BrainUtil
             return;
         }
 
-        BehaviourType[] copy = new BehaviourType[pool.Length];
+        MotivationType[] copy = new MotivationType[pool.Length];
         System.Array.Copy(pool, copy, pool.Length);
 
         System.Random rng = new System.Random();
         for (int i = 0; i < amount; i++)
         {
             int j = rng.Next(i, copy.Length);
-            BehaviourType temp = copy[i];
+            MotivationType temp = copy[i];
             copy[i] = copy[j];
             copy[j] = temp;
             buffer.Add(DefaultBehaviour(copy[i]));
@@ -101,8 +101,8 @@ public static class BrainUtil
     }
 
     public static void PopulateRandomBehaviours(
-        DynamicBuffer<Behaviour> buffer,
-        ref BlobArray<BehaviourType> pool,
+        DynamicBuffer<Motivation> buffer,
+        ref BlobArray<MotivationType> pool,
         int amount,
         ref Random random)
     {
@@ -117,14 +117,14 @@ public static class BrainUtil
             return;
         }
 
-        NativeArray<BehaviourType> copy = new NativeArray<BehaviourType>(poolLength, Allocator.Temp);
+        NativeArray<MotivationType> copy = new NativeArray<MotivationType>(poolLength, Allocator.Temp);
         for (int i = 0; i < poolLength; i++)
             copy[i] = pool[i];
 
         for (int i = 0; i < amount; i++)
         {
             int j = random.NextInt(i, poolLength);
-            BehaviourType temp = copy[i];
+            MotivationType temp = copy[i];
             copy[i] = copy[j];
             copy[j] = temp;
             buffer.Add(DefaultBehaviour(copy[i]));
@@ -140,11 +140,11 @@ public static class BrainUtil
         baker.SetComponentEnabled<PlayerControlled>(entity, startControlled);
     }
 
-    public static Behaviour DefaultBehaviour(BehaviourType type)
+    public static Motivation DefaultBehaviour(MotivationType type)
     {
-        return new Behaviour
+        return new Motivation
         {
-            behaviourType     = type,
+            motivationType     = type,
             value             = 100f,
             decayRate         = 0f,
             contextMultiplier = 1f,
@@ -153,16 +153,16 @@ public static class BrainUtil
         };
     }
 
-    private static ActionCategory DefaultActionCategory(BehaviourType type)
+    private static ActionCategory DefaultActionCategory(MotivationType type)
     {
         switch (type)
         {
-            case BehaviourType.Movement:         return ActionCategory.Wander;
-            case BehaviourType.SelfPreservation: return ActionCategory.Flee;
-            case BehaviourType.Safety:           return ActionCategory.Flee;
-            case BehaviourType.BloodLust:        return ActionCategory.Attack;
-            case BehaviourType.SelfDefence:      return ActionCategory.Attack;
-            case BehaviourType.Work:             return ActionCategory.Interaction;
+            case MotivationType.Movement:         return ActionCategory.Wander;
+            case MotivationType.SelfPreservation: return ActionCategory.Flee;
+            case MotivationType.Safety:           return ActionCategory.Flee;
+            case MotivationType.BloodLust:        return ActionCategory.Attack;
+            case MotivationType.SelfDefence:      return ActionCategory.Attack;
+            case MotivationType.Work:             return ActionCategory.Interaction;
             default:                             return ActionCategory.None;
         }
     }

@@ -9,14 +9,14 @@ public partial struct InteractionAssignmentSystem : ISystem
     private ComponentLookup<UnitAction>          unitActionLookup;
     private ComponentLookup<NeedsAction>         needsActionLookup;
     private ComponentLookup<CurrentInteraction>  currentInteractionLookup;
-    private ComponentLookup<PickupTask>          pickupLookup;
-    private ComponentLookup<BuildTask>           buildLookup;
-    private ComponentLookup<DrinkTask>           drinkLookup;
-    private ComponentLookup<EatTask>             eatLookup;
-    private ComponentLookup<TouchAnimateTask>    touchAnimateLookup;
-    private ComponentLookup<WanderAreaTask>      wanderAreaLookup;
-    private ComponentLookup<SitTask>             sitLookup;
-    private ComponentLookup<RepairTask>          repairLookup;
+    private ComponentLookup<PickupInteraction>          pickupLookup;
+    private ComponentLookup<BuildInteraction>           buildLookup;
+    private ComponentLookup<DrinkInteraction>           drinkLookup;
+    private ComponentLookup<EatInteraction>             eatLookup;
+    private ComponentLookup<TouchInteraction>    touchAnimateLookup;
+    private ComponentLookup<WanderInteraction>      wanderAreaLookup;
+    private ComponentLookup<SitInteraction>             sitLookup;
+    private ComponentLookup<RepairInteraction>          repairLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -26,14 +26,14 @@ public partial struct InteractionAssignmentSystem : ISystem
         unitActionLookup         = state.GetComponentLookup<UnitAction>(false);
         needsActionLookup        = state.GetComponentLookup<NeedsAction>(false);
         currentInteractionLookup = state.GetComponentLookup<CurrentInteraction>(false);
-        pickupLookup             = state.GetComponentLookup<PickupTask>(false);
-        buildLookup              = state.GetComponentLookup<BuildTask>(false);
-        drinkLookup              = state.GetComponentLookup<DrinkTask>(false);
-        eatLookup                = state.GetComponentLookup<EatTask>(false);
-        touchAnimateLookup       = state.GetComponentLookup<TouchAnimateTask>(false);
-        wanderAreaLookup         = state.GetComponentLookup<WanderAreaTask>(false);
-        sitLookup                = state.GetComponentLookup<SitTask>(false);
-        repairLookup             = state.GetComponentLookup<RepairTask>(false);
+        pickupLookup             = state.GetComponentLookup<PickupInteraction>(false);
+        buildLookup              = state.GetComponentLookup<BuildInteraction>(false);
+        drinkLookup              = state.GetComponentLookup<DrinkInteraction>(false);
+        eatLookup                = state.GetComponentLookup<EatInteraction>(false);
+        touchAnimateLookup       = state.GetComponentLookup<TouchInteraction>(false);
+        wanderAreaLookup         = state.GetComponentLookup<WanderInteraction>(false);
+        sitLookup                = state.GetComponentLookup<SitInteraction>(false);
+        repairLookup             = state.GetComponentLookup<RepairInteraction>(false);
     }
 
     [BurstCompile]
@@ -74,14 +74,14 @@ public partial struct InteractionAssignmentSystem : ISystem
         public ComponentLookup<UnitAction>          unitActionLookup;
         public ComponentLookup<NeedsAction>         needsActionLookup;
         public ComponentLookup<CurrentInteraction>  currentInteractionLookup;
-        public ComponentLookup<PickupTask>          pickupLookup;
-        public ComponentLookup<BuildTask>           buildLookup;
-        public ComponentLookup<DrinkTask>           drinkLookup;
-        public ComponentLookup<EatTask>             eatLookup;
-        public ComponentLookup<TouchAnimateTask>    touchAnimateLookup;
-        public ComponentLookup<WanderAreaTask>      wanderAreaLookup;
-        public ComponentLookup<SitTask>             sitLookup;
-        public ComponentLookup<RepairTask>          repairLookup;
+        public ComponentLookup<PickupInteraction>          pickupLookup;
+        public ComponentLookup<BuildInteraction>           buildLookup;
+        public ComponentLookup<DrinkInteraction>           drinkLookup;
+        public ComponentLookup<EatInteraction>             eatLookup;
+        public ComponentLookup<TouchInteraction>    touchAnimateLookup;
+        public ComponentLookup<WanderInteraction>      wanderAreaLookup;
+        public ComponentLookup<SitInteraction>             sitLookup;
+        public ComponentLookup<RepairInteraction>          repairLookup;
 
         public void Execute(
             Entity interactionEntity,

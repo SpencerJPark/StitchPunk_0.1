@@ -1,5 +1,6 @@
 using Unity.Entities;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class InteractionAuthoring : MonoBehaviour
 {
@@ -30,7 +31,7 @@ public class InteractionAuthoring : MonoBehaviour
     [System.Serializable]
     public struct BehaviourEntry
     {
-        public BehaviourType behaviourType;
+        [FormerlySerializedAs("behaviourType")] public MotivationType motivationType;
         public int value;
     }
 
@@ -79,12 +80,12 @@ public class InteractionAuthoring : MonoBehaviour
                 for (int i = 0; i < authoring.satisfies.Length; i++)
                 {
                     BehaviourEntry entry = authoring.satisfies[i];
-                    if (entry.behaviourType == BehaviourType.None)
+                    if (entry.motivationType == MotivationType.None)
                         continue;
 
                     satisfactionBuffer.Add(new BehaviourSatisfaction
                     {
-                        behaviourType = entry.behaviourType,
+                        motivationType = entry.motivationType,
                         multiplier    = entry.value * 0.01f + 1f,
                     });
                 }

@@ -60,6 +60,10 @@ public struct PlayerImmune : IComponentData, IEnableableComponent { }
 
 
 public struct Attack : IComponentData, IEnableableComponent { }
+public struct AttackFaction : IBufferElementData
+{
+    public FactionType faction;
+}
 public struct AttackData : IComponentData
 {
     public AttackType attackType;

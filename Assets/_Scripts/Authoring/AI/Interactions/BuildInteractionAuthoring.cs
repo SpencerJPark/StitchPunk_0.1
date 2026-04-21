@@ -8,8 +8,8 @@ public class BuildInteractionAuthoring : MonoBehaviour
         public override void Bake(BuildInteractionAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new BuildTask());
-            SetComponentEnabled<BuildTask>(entity, false);
+            AddComponent(entity, new BuildInteraction());
+            SetComponentEnabled<BuildInteraction>(entity, false);
         }
     }
 }

@@ -8,8 +8,8 @@ public class WanderAreaTaskAuthoring : MonoBehaviour
         public override void Bake(WanderAreaTaskAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new WanderAreaTask());
-            SetComponentEnabled<WanderAreaTask>(entity, false);
+            AddComponent(entity, new WanderInteraction());
+            SetComponentEnabled<WanderInteraction>(entity, false);
         }
     }
 }

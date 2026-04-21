@@ -11,11 +11,11 @@ public class BrainSO : ScriptableObject
     public float awarenessRange;
 
     [Header("Brain Behaviour")]
-    [SearchableEnum] public BehaviourType[] behaviours;
+    [SearchableEnum] public MotivationType[] behaviours;
 
     [Header("Random Brain Behaviour")] 
     public int amount;
-    [SearchableEnum] public BehaviourType[] randomBehaviours;
+    [SearchableEnum] public MotivationType[] randomBehaviours;
     
     [Header("Agression Targets")]
     public FactionType[] attackFactions;

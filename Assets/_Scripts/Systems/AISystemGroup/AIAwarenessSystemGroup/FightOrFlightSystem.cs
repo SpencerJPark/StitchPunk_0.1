@@ -77,7 +77,7 @@ public partial struct FightOrFlightJob : IJobEntity
         Entity                          self,
         in Health                       health,
         in AttackData                   attackData,
-        ref DynamicBuffer<Behaviour>    behaviours,
+        ref DynamicBuffer<Motivation>    behaviours,
         ref DynamicBuffer<ActionOption> options,
         ref DynamicBuffer<ThreatEntry>  threats,
         EnabledRefRO<NeedsAction>       needsAction)
@@ -124,17 +124,17 @@ public partial struct FightOrFlightJob : IJobEntity
 
         for (int i = 0; i < behaviours.Length; i++)
         {
-            Behaviour b = behaviours[i];
+            Motivation b = behaviours[i];
 
-            if (b.behaviourType == BehaviourType.SelfDefence && canFight)
+            if (b.motivationType == MotivationType.SelfDefence && canFight)
             {
                 b.contextMultiplier = FIGHT_MULTIPLIER;
                 behaviours[i]       = b;
                 fightActivated      = true;
             }
 
-            if ((b.behaviourType == BehaviourType.SelfPreservation ||
-                 b.behaviourType == BehaviourType.Safety) && canFlee)
+            if ((b.motivationType == MotivationType.SelfPreservation ||
+                 b.motivationType == MotivationType.Safety) && canFlee)
             {
                 b.contextMultiplier = FLEE_MULTIPLIER;
                 behaviours[i]       = b;
@@ -146,7 +146,7 @@ public partial struct FightOrFlightJob : IJobEntity
 
         options.Add(new ActionOption
         {
-            score        = FIGHT_SCORE,
+            utilityScore        = FIGHT_SCORE,
             category     = ActionCategory.Attack,
             targetEntity = topAggressor,
         });

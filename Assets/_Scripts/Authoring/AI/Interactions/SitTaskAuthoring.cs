@@ -8,8 +8,8 @@ public class SitTaskAuthoring : MonoBehaviour
         public override void Bake(SitTaskAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new SitTask());
-            SetComponentEnabled<SitTask>(entity, false);
+            AddComponent(entity, new SitInteraction());
+            SetComponentEnabled<SitInteraction>(entity, false);
         }
     }
 }

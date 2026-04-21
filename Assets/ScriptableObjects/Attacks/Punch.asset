@@ -16,7 +16,7 @@ MonoBehaviour:
   attackDelivery: 1
   damageBehaviour: 1
   damageAmount: 5
-  range: 1
+  range: 0.8
   cooldown: 1
   ragdollForce: 1.2
   launchForceY: 1

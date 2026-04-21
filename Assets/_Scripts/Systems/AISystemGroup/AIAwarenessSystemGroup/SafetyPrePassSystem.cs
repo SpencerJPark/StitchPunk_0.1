@@ -24,7 +24,7 @@ public partial struct SafetyPrePassJob : IJobEntity
 {
     private const float THREAT_MULTIPLIER = 2.0f;
 
-    public void Execute(ref DynamicBuffer<Behaviour> motivations, in DynamicBuffer<ThreatEntry> threats)
+    public void Execute(ref DynamicBuffer<Motivation> motivations, in DynamicBuffer<ThreatEntry> threats)
     {
         if (threats.Length == 0)
             return;
@@ -33,8 +33,8 @@ public partial struct SafetyPrePassJob : IJobEntity
         // are boosted simultaneously when threats are present.
         for (int i = 0; i < motivations.Length; i++)
         {
-            Behaviour m = motivations[i];
-            if (m.behaviourType != BehaviourType.Safety)
+            Motivation m = motivations[i];
+            if (m.motivationType != MotivationType.Safety)
                 continue;
 
             m.contextMultiplier = THREAT_MULTIPLIER;

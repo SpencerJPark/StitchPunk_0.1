@@ -12,15 +12,15 @@ public static class AIUtils
     // Category is always Interaction; targetPosition is resolved by execution systems
     // from the interaction entity's LocalTransform at navigation time.
     public static void AddActionOption(ref DynamicBuffer<ActionOption> options, ref Entity targetEntity, float score,
-        BehaviourType behaviourType = BehaviourType.None)
+        MotivationType motivationType = MotivationType.None)
     {
         if (targetEntity != Entity.Null)
         {
             options.Add(new ActionOption
             {
-                score         = score,
+                utilityScore         = score,
                 category      = ActionCategory.Interaction,
-                behaviourType = behaviourType,
+                motivationType = motivationType,
                 targetEntity  = targetEntity,
             });
         }
@@ -30,7 +30,7 @@ public static class AIUtils
     {
         options.Add(new ActionOption
         {
-            score          = score,
+            utilityScore          = score,
             category       = category,
             targetEntity   = targetEntity,
             targetPosition = targetPosition,
@@ -39,18 +39,25 @@ public static class AIUtils
 
     public static float EvaluateScoringCurve(
         ref BlobAssetReference<AIScoringLibraryBlob> library,
-        BehaviourType behaviourType,
+        MotivationType motivationType,
         float needValue)
     {
         ref AIScoringLibraryBlob blob = ref library.Value;
 
         for (int i = 0; i < blob.curves.Length; i++)
         {
-            if (blob.curves[i].behaviourType == behaviourType)
+            if (blob.curves[i].motivationType == motivationType)
                 return blob.curves[i].curve.Evaluate(needValue);
         }
 
         return -needValue;
+    }
+
+    public static float FastDistanceScore(float3 from, float3 to, float maxRangeSq)
+    {
+        // Uses (x*x + y*y + z*z), skipping the heavy Square Root step
+        float distSq = math.distancesq(from, to);
+        return 1.0f - math.saturate(distSq / maxRangeSq);
     }
 
     public static void QueryNearbyInteractionsByType(
@@ -60,7 +67,7 @@ public static class AIUtils
         float3 position,
         float range,
         float cellSize,
-        BehaviourType behaviourType,
+        MotivationType motivationType,
         ref NativeList<Entity> results)
     {
         float rangeSq = range * range;
@@ -76,7 +83,7 @@ public static class AIUtils
         {
             for (int y = minCell.y; y <= maxCell.y; y++)
             {
-                var key = new SpatialInteractionKey(new int2(x, y), behaviourType);
+                var key = new SpatialInteractionKey(new int2(x, y), motivationType);
 
                 if (!interactionCells.TryGetFirstValue(key, out Entity candidate, out var iterator))
                     continue;
@@ -152,14 +159,14 @@ public static class AIUtils
         InteractionKind kind,
         ref ComponentLookup<UnitAction> unitActionLookup,
         ref ComponentLookup<CurrentInteraction> currentInteractionLookup,
-        ref ComponentLookup<PickupTask> pickupLookup,
-        ref ComponentLookup<BuildTask> buildLookup,
-        ref ComponentLookup<DrinkTask> drinkLookup,
-        ref ComponentLookup<EatTask> eatLookup,
-        ref ComponentLookup<TouchAnimateTask> touchAnimateLookup,
-        ref ComponentLookup<WanderAreaTask> wanderAreaLookup,
-        ref ComponentLookup<SitTask> sitLookup,
-        ref ComponentLookup<RepairTask> repairLookup)
+        ref ComponentLookup<PickupInteraction> pickupLookup,
+        ref ComponentLookup<BuildInteraction> buildLookup,
+        ref ComponentLookup<DrinkInteraction> drinkLookup,
+        ref ComponentLookup<EatInteraction> eatLookup,
+        ref ComponentLookup<TouchInteraction> touchAnimateLookup,
+        ref ComponentLookup<WanderInteraction> wanderAreaLookup,
+        ref ComponentLookup<SitInteraction> sitLookup,
+        ref ComponentLookup<RepairInteraction> repairLookup)
     {
         for (int i = 0; i < occupants.Length; i++)
         {
@@ -178,7 +185,7 @@ public static class AIUtils
                 currentInteractionLookup[unitEntity] = new CurrentInteraction
                 {
                     interaction      = interactionEntity,
-                    drivingBehaviour = occupants[i].behaviourType,
+                    drivingMotivation = occupants[i].motivationType,
                 };
             }
 
@@ -192,14 +199,14 @@ public static class AIUtils
     private static void EnableKindTask(
         Entity unitEntity,
         InteractionKind kind,
-        ref ComponentLookup<PickupTask> pickupLookup,
-        ref ComponentLookup<BuildTask> buildLookup,
-        ref ComponentLookup<DrinkTask> drinkLookup,
-        ref ComponentLookup<EatTask> eatLookup,
-        ref ComponentLookup<TouchAnimateTask> touchAnimateLookup,
-        ref ComponentLookup<WanderAreaTask> wanderAreaLookup,
-        ref ComponentLookup<SitTask> sitLookup,
-        ref ComponentLookup<RepairTask> repairLookup)
+        ref ComponentLookup<PickupInteraction> pickupLookup,
+        ref ComponentLookup<BuildInteraction> buildLookup,
+        ref ComponentLookup<DrinkInteraction> drinkLookup,
+        ref ComponentLookup<EatInteraction> eatLookup,
+        ref ComponentLookup<TouchInteraction> touchAnimateLookup,
+        ref ComponentLookup<WanderInteraction> wanderAreaLookup,
+        ref ComponentLookup<SitInteraction> sitLookup,
+        ref ComponentLookup<RepairInteraction> repairLookup)
     {
         switch (kind)
         {
@@ -284,14 +291,14 @@ public static class AIUtils
         float3 pos,
         float needValue,
         float awarenessRange,
-        BehaviourType behaviourType,
+        MotivationType motivationType,
         ref BlobAssetReference<AIScoringLibraryBlob> scoringLibrary,
         ref ComponentLookup<LocalTransform> transformLookup)
     {
         float3 targetPos = transformLookup[candidate].Position;
         float distance = math.distance(pos, targetPos);
 
-        float baseScore = EvaluateScoringCurve(ref scoringLibrary, behaviourType, needValue);
+        float baseScore = EvaluateScoringCurve(ref scoringLibrary, motivationType, needValue);
         float distanceBonus = math.remap(0f, awarenessRange, 10f, 0f, distance);
 
         return math.clamp(baseScore + distanceBonus, -100f, 100f);

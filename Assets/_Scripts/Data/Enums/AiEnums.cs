@@ -1,47 +1,19 @@
-﻿public enum ActionType
+﻿public enum BrainType
 {
-    None,
-    Idle,
-    Walk,
-    Run,
-    Jump,
-    Interact,
-    Repair,
-    Build,
-    Eat,
-    Sleep,
-    Talk,
-    Smoke,
-    Drink,
-    Attack,
-    Patrol,
-    Flee,
-    SeekEntertainment,
-    UseBathroom,
-    Sit,
-    Death,
-    Resurrection
+    None        = 0,
+    Citizen     = 1,
+    Guard       = 2,
+    Rotted = 3, 
+    PlayerZombie = 4, 
+    Panic       = 5, 
+    Merchant    = 6, 
+    StoryCharacter   = 7, 
+    Bandit = 8,
+    AngryMob,
+    
 }
 
-public enum ActionCategory
-{
-    None,
-    Interaction,
-    Action,
-    Attack,
-    UseItem,
-    Wander,
-    Chase,
-    Flee,
-}
-
-public enum ScoringMode : byte
-{
-    Interaction, // spatial hash query → action on a found entity
-    Action,      // no query → scored directly; execution system resolves targeting
-}
-
-public enum BehaviourType
+public enum MotivationType
 {
     None,
     Hunger,
@@ -66,58 +38,41 @@ public enum BehaviourType
     Nervous,
 }
 
+public enum ActionCategory
+{
+    Goto,
+    Animate,
+    UseSmartObject
+}
+
+public enum ActionType // used for animation linking
+{
+    None,
+    Idle,
+    Walk,
+    Run,
+    Jump,
+    Interact,
+    Repair,
+    Build,
+    Eat,
+    Sleep,
+    Talk,
+    Smoke,
+    Drink,
+    Attack,
+    Patrol,
+    Flee,
+    SeekEntertainment,
+    UseBathroom,
+    Sit,
+    Death,
+    Resurrection
+}
+
+
 public enum UnitStateType
 {
     None,
 }
 
-
-public enum AttackType
-{
-    None,
-    Instant,
-    Punch,
-    Claw,
-    Throw,
-    Kick,
-    Slash,
-    Stab,
-    Swing,
-    ShootOneHand,
-    ShootTwoHand,
-    Explode,
-}
-
-public enum AttackDelivery // attack delivery behaviour
-{
-    None,
-    Melee,
-    Throw,
-    Shoot,
-    Projectile,
-    Hitscan,
-    Beam
-}
-
-public enum DamageBehaviour // attack effect behaviour
-{
-    None,
-    SinlgeTarget,
-    AreaOfEffect,
-    Cone,
-    Line,
-    Chain,
-}
-
-public enum BrainType
-{
-    None        = 0,
-    Citizen     = 1,   // Full motivation-driven AI — seeks interactions to satisfy needs
-    Guard       = 2,   // Safety-focused, chases and attacks Undead
-    Rotted = 3,   // Pure combat — chases and attacks Player + Human
-    PlayerZombie = 4,  // Player-controlled minion (PlayerControlled component enabled)
-    Panic       = 5,   // Flee-dominant — runs from all threats
-    Merchant    = 6,   // Social and work motivated, no combat
-    StoryCharacter   = 7,   // Story character — scripted via narrative system
-    Bandit = 8,
-}

@@ -35,7 +35,7 @@ public partial struct SwapBrainJob : IJobEntity
 
     public void Execute(
         ref Brain brain,
-        ref DynamicBuffer<Behaviour>    behaviourBuffer,
+        ref DynamicBuffer<Motivation>    behaviourBuffer,
         ref DynamicBuffer<ActionOption> actionOptionBuffer,
         ref SelectedAction              selectedAction,
         EnabledRefRW<SwapBrainRequest>  swapRequestEnabled,

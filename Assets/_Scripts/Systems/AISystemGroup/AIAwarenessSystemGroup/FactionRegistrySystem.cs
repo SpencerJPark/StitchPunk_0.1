@@ -2,6 +2,8 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
+// to be deleted
+
 /// <summary>
 /// Rebuilds the FactionRegistry singleton every frame.
 /// Mirrors SpatialHashSystem but for body entities keyed by FactionType.

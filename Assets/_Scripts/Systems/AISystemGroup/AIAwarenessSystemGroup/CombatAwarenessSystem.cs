@@ -22,7 +22,6 @@ using Unity.Transforms;
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
 [UpdateAfter(typeof(FactionRegistrySystem))]
-[UpdateAfter(typeof(MotivationDecaySystem))]
 public partial struct CombatAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform>  transformLookup;
@@ -159,7 +158,7 @@ public partial struct CombatAwarenessJob : IJobEntity
             {
                 options.Add(new ActionOption
                 {
-                    score        = 1000f,
+                    utilityScore        = 1000f,
                     category     = ActionCategory.Attack,
                     targetEntity = nearestHostile,
                 });

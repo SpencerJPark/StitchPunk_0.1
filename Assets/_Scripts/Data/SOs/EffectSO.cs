@@ -10,7 +10,7 @@ public class EffectSO : ScriptableObject
     public float effectTimer;
 
     [Header("Effect Behaviours")]
-    [SearchableEnum] public BehaviourType[] behaviours;
+    [SearchableEnum] public MotivationType[] behaviours;
 }
 
 // States are mearly different Behaviour swaps that happen when certain qualifiers are met and removed

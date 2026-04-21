@@ -8,8 +8,8 @@ public class PickupInteractionAuthoring : MonoBehaviour
         public override void Bake(PickupInteractionAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new PickupTask());
-            SetComponentEnabled<PickupTask>(entity, false);
+            AddComponent(entity, new PickupInteraction());
+            SetComponentEnabled<PickupInteraction>(entity, false);
         }
     }
 }

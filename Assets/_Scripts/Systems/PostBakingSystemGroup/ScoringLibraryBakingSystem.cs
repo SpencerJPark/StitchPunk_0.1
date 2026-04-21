@@ -30,11 +30,11 @@ public partial struct ScoringLibraryBakingSystem : ISystem
 
         for (int i = 0; i < curveCount; i++)
         {
-            AIScoringCurveSO curveAsset = librarySO.curves[i];
+            AIConsiderationCurveSO curveAsset = librarySO.curves[i];
             if (curveAsset == null) continue;
 
             ref AIScoringCurveEntryBlob entryBlob = ref curvesBuilder[i];
-            entryBlob.behaviourType = curveAsset.behaviourType;
+            entryBlob.motivationType = curveAsset.motivationType;
 
             int res = ConstGameData.SCORING_CURVE_RESOLUTION;
             entryBlob.curve.resolution = res;

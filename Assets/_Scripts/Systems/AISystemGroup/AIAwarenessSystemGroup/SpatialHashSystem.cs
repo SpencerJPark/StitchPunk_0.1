@@ -55,11 +55,11 @@ public partial struct SpatialHashSystem : ISystem
             for (int i = 0; i < satisfaction.Length; i++)
             {
                 BehaviourSatisfaction entry = satisfaction[i];
-                if (entry.behaviourType == BehaviourType.None)
+                if (entry.motivationType == MotivationType.None)
                     continue;
 
                 singleton.ValueRW.interactionCells.Add(
-                    new SpatialInteractionKey(cell, entry.behaviourType),
+                    new SpatialInteractionKey(cell, entry.motivationType),
                     entity);
             }
         }

@@ -121,7 +121,7 @@ public partial struct InteractionCompleteJob : IJobEntity
         Entity                         self,
         in SelectedAction              selectedAction,
         ref ActionTimer                actionTimer,
-        ref DynamicBuffer<Behaviour>   behaviourBuffer,
+        ref DynamicBuffer<Motivation>   behaviourBuffer,
         EnabledRefRW<ArrivedAtTarget>  arrivedEnabled,
         EnabledRefRW<NeedsAction>      needsActionEnabled)
     {
@@ -162,11 +162,11 @@ public partial struct InteractionCompleteJob : IJobEntity
     private void CompleteInteraction(
         Entity self,
         Entity interactionEntity,
-        ref DynamicBuffer<Behaviour> behaviourBuffer,
+        ref DynamicBuffer<Motivation> behaviourBuffer,
         ref EnabledRefRW<ArrivedAtTarget> arrivedEnabled,
         ref EnabledRefRW<NeedsAction> needsActionEnabled)
     {
-        BehaviourType restoredType = BehaviourType.None;
+        MotivationType restoredType = MotivationType.None;
 
         // Remove self from occupant buffer; read behaviourType stored at selection time
         if (occupantBufferLookup.TryGetBuffer(interactionEntity, out DynamicBuffer<InteractionOccupant> occupants))
@@ -176,7 +176,7 @@ public partial struct InteractionCompleteJob : IJobEntity
                 if (occupants[i].entity != self)
                     continue;
 
-                restoredType = occupants[i].behaviourType;
+                restoredType = occupants[i].motivationType;
                 occupants.RemoveAt(i);
                 break;
             }
@@ -190,12 +190,12 @@ public partial struct InteractionCompleteJob : IJobEntity
         }
 
         // Restore the motivation that drove this interaction to full
-        if (restoredType != BehaviourType.None)
+        if (restoredType != MotivationType.None)
         {
             for (int m = 0; m < behaviourBuffer.Length; m++)
             {
-                Behaviour entry = behaviourBuffer[m];
-                if (entry.behaviourType != restoredType)
+                Motivation entry = behaviourBuffer[m];
+                if (entry.motivationType != restoredType)
                     continue;
                 entry.value        = 100f;
                 behaviourBuffer[m] = entry;

@@ -9,12 +9,48 @@ public struct SwapBrainRequest : IComponentData, IEnableableComponent
 {
     public BrainType newBrain;
 }
-public struct ActiveBrain : IComponentData, IEnableableComponent { }
-public struct NeedsAction : IComponentData, IEnableableComponent { }
 
+public struct ActiveBrain : IComponentData, IEnableableComponent { }
+
+// Context
 public struct Awareness : IComponentData
 {
     public float range;
+}
+public struct Motivation : IBufferElementData
+{
+    public MotivationType motivationType;  // drives curve + spatial hash key (Interaction mode)
+    public float value;                    // current urgency [-100, 100]
+    public float decayRate;                // units per second
+    public float contextMultiplier;        // written by pre-pass systems, reset to 1.0 by decay system
+}
+public struct InteractionProvider : IComponentData, IEnableableComponent
+{
+}
+public struct Interaction : IComponentData
+{
+    public ActionType actionType;
+    public MotivationType motivationType;
+    public float utilityScore;
+}
+public struct ActionOption : IBufferElementData
+{
+    public ActionType actionType;
+    public MotivationType motivationType;
+    public float utilityScore; // result from motivations considerations multiplied
+    public bool interaction;
+    public Entity targetEntity;
+}
+
+// Actions
+public struct NeedsAction : IComponentData, IEnableableComponent { }
+
+public struct CurrentAction : IComponentData
+{
+    public ActionType actionType;
+    public MotivationType  motivationType;
+    public bool interaction;
+    public Entity targetEntity;
 }
 
 public struct ActionTimer : IComponentData
@@ -22,36 +58,7 @@ public struct ActionTimer : IComponentData
     public float time;
 }
 
-public struct Behaviour : IBufferElementData
-{
-    public BehaviourType behaviourType;  // drives curve + spatial hash key (Interaction mode)
-    public float value;                    // current urgency [-100, 100]
-    public float decayRate;                // units per second
-    public float contextMultiplier;        // written by pre-pass systems, reset to 1.0 by decay system
-    public ScoringMode scoringMode;        // Interaction (spatial query) or Action (score directly)
-    public ActionCategory actionCategory;  // the ActionOption category this entry emits
-}
 
-public struct AttackFaction : IBufferElementData
-{
-    public FactionType faction;
-}
-
-public struct ActionOption : IBufferElementData
-{
-    public float         score;
-    public ActionCategory category;
-    public BehaviourType  behaviourType;
-    public Entity        targetEntity;
-    public float3        targetPosition;
-}
-
-public struct SelectedAction : IComponentData
-{
-    public ActionCategory category;
-    public Entity targetEntity; // interaction waypoint, enemy, flee-from source
-    public float3 targetPosition; // destination to navigate toward
-}
 
 public struct PlayerControlled : IComponentData, IEnableableComponent { }
 
@@ -62,24 +69,11 @@ public struct PlayerOrder : IComponentData
     public CommandType commandType;
 }
 
-// ─── Shared Move-To-Target ────────────────────────────────────────────────────
-// Enable MoveToTargetRequest to ask MoveToTargetSystem to walk this unit toward
-// targetEntity. When distance < arrivalRange the system disables this component
-// and enables ArrivedAtTarget. Execution systems (e.g. CombatAttackExecutionSystem)
-// check ArrivedAtTarget to know when to begin their action.
+
 public struct Target : IComponentData, IEnableableComponent
 {
     public Entity entity;
 }
-
-public struct MoveToTargetRequest : IComponentData, IEnableableComponent
-{
-    public Entity targetEntity;
-    public float  arrivalRange;
-    public float3 lastKnownTargetPos;
-    public PathfindingMode requestedMode;
-}
-
 public struct ArrivedAtTarget : IComponentData, IEnableableComponent { }
 
 

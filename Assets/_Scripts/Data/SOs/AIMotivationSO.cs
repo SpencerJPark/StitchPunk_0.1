@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "_ScoringLibrary", menuName = "ScoringSO/Scoring Library")]
-public class AIScoringLibrarySO : ScriptableObject
+[CreateAssetMenu(fileName = "_Motivation", menuName = "AI / Motivation")]
+public class AIMotivationSO : ScriptableObject
 {
     public List<AIConsiderationCurveSO> curves = new List<AIConsiderationCurveSO>();
 

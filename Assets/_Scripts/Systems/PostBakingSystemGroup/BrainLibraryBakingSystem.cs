@@ -37,12 +37,12 @@ public partial struct BrainLibraryBakingSystem : ISystem
             entriesBuilder[i].randomBehaviourAmount = brainSO.amount;
 
             int behaviourCount = brainSO.behaviours != null ? brainSO.behaviours.Length : 0;
-            BlobBuilderArray<BehaviourType> behavioursBuilder = builder.Allocate(ref entriesBuilder[i].behaviours, behaviourCount);
+            BlobBuilderArray<MotivationType> behavioursBuilder = builder.Allocate(ref entriesBuilder[i].behaviours, behaviourCount);
             for (int j = 0; j < behaviourCount; j++)
                 behavioursBuilder[j] = brainSO.behaviours[j];
 
             int randomCount = brainSO.randomBehaviours != null ? brainSO.randomBehaviours.Length : 0;
-            BlobBuilderArray<BehaviourType> randomBuilder = builder.Allocate(ref entriesBuilder[i].randomBehaviours, randomCount);
+            BlobBuilderArray<MotivationType> randomBuilder = builder.Allocate(ref entriesBuilder[i].randomBehaviours, randomCount);
             for (int j = 0; j < randomCount; j++)
                 randomBuilder[j] = brainSO.randomBehaviours[j];
 

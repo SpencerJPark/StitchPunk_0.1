@@ -8,8 +8,8 @@ public class DrinkTaskAuthoring : MonoBehaviour
         public override void Bake(DrinkTaskAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new DrinkTask());
-            SetComponentEnabled<DrinkTask>(entity, false);
+            AddComponent(entity, new DrinkInteraction());
+            SetComponentEnabled<DrinkInteraction>(entity, false);
         }
     }
 }

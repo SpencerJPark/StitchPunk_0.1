@@ -8,8 +8,8 @@ public class RepairTaskAuthoring : MonoBehaviour
         public override void Bake(RepairTaskAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new RepairTask());
-            SetComponentEnabled<RepairTask>(entity, false);
+            AddComponent(entity, new RepairInteraction());
+            SetComponentEnabled<RepairInteraction>(entity, false);
         }
     }
 }

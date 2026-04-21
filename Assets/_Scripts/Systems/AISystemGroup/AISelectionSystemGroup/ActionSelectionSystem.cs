@@ -93,8 +93,8 @@ public partial struct ActionSelectionSystem : ISystem
                     occupantBuffer.Add(new InteractionOccupant
                     {
                         entity        = npcEntity,
-                        score         = candidate.score,
-                        behaviourType = candidate.behaviourType,
+                        score         = candidate.utilityScore,
+                        motivationType = candidate.motivationType,
                     });
 
                     if (occupantBuffer.Length >= interaction.maxOccupants)
@@ -148,7 +148,7 @@ public partial struct ActionSelectionSystem : ISystem
             {
                 for (int j = i + 1; j < options.Length; j++)
                 {
-                    if (options[j].score > options[i].score)
+                    if (options[j].utilityScore > options[i].utilityScore)
                     {
                         ActionOption temp = options[i];
                         options[i]        = options[j];
