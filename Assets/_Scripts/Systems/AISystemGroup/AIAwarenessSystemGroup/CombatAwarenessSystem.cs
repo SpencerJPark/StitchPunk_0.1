@@ -158,8 +158,10 @@ public partial struct CombatAwarenessJob : IJobEntity
             {
                 options.Add(new ActionOption
                 {
+                    actionType = ActionType.Punch,
+                    motivationType = MotivationType.BloodLust,
                     utilityScore        = 1000f,
-                    category     = ActionCategory.Attack,
+                    interaction =  false,
                     targetEntity = nearestHostile,
                 });
             }

@@ -8,8 +8,7 @@ using Unity.Entities;
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
-[UpdateAfter(typeof(MotivationDecaySystem))]
-public partial struct SafetyPrePassSystem : ISystem
+public partial struct SafetyMotivationSystem : ISystem
 {
     [BurstCompile]
     public void OnUpdate(ref SystemState state)

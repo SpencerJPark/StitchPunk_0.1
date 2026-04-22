@@ -12,7 +12,7 @@ public static class BrainUtil
         baker.SetComponentEnabled<ActiveBrain>(entity, active);
 
         baker.AddBuffer<ActionOption>(entity);
-        baker.AddComponent<SelectedAction>(entity);
+        baker.AddComponent<CurrentAction>(entity);
         baker.AddComponent<NeedsAction>(entity);
         baker.SetComponentEnabled<NeedsAction>(entity, active);
 
@@ -41,26 +41,9 @@ public static class BrainUtil
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
-
-        // Interaction plumbing — CurrentInteraction holds the active target + driving
-        // behaviour; per-kind task enableables gate the small execution systems that
-        // run only for the kind of interaction the unit is currently performing.
-        baker.AddComponent(entity, new CurrentInteraction
-        {
-            interaction      = Entity.Null,
-            drivingMotivation = MotivationType.None,
-        });
-        AddInteractionTask<T, PickupInteraction>(baker, entity);
-        AddInteractionTask<T, BuildInteraction>(baker, entity);
-        AddInteractionTask<T, DrinkInteraction>(baker, entity);
-        AddInteractionTask<T, EatInteraction>(baker, entity);
-        AddInteractionTask<T, TouchInteraction>(baker, entity);
-        AddInteractionTask<T, WanderInteraction>(baker, entity);
-        AddInteractionTask<T, SitInteraction>(baker, entity);
-        AddInteractionTask<T, RepairInteraction>(baker, entity);
     }
 
-    private static void AddInteractionTask<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
+    private static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
         where TAuthoring : UnityEngine.Component
         where TTask : unmanaged, IComponentData, IEnableableComponent
     {
@@ -148,22 +131,6 @@ public static class BrainUtil
             value             = 100f,
             decayRate         = 0f,
             contextMultiplier = 1f,
-            scoringMode       = ScoringMode.Action,
-            actionCategory    = DefaultActionCategory(type),
         };
-    }
-
-    private static ActionCategory DefaultActionCategory(MotivationType type)
-    {
-        switch (type)
-        {
-            case MotivationType.Movement:         return ActionCategory.Wander;
-            case MotivationType.SelfPreservation: return ActionCategory.Flee;
-            case MotivationType.Safety:           return ActionCategory.Flee;
-            case MotivationType.BloodLust:        return ActionCategory.Attack;
-            case MotivationType.SelfDefence:      return ActionCategory.Attack;
-            case MotivationType.Work:             return ActionCategory.Interaction;
-            default:                             return ActionCategory.None;
-        }
     }
 }

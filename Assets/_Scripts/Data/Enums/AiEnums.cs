@@ -36,6 +36,7 @@ public enum MotivationType
     Depressed,
     Lazy,
     Nervous,
+    Slob, // fart and burp
 }
 
 public enum ActionCategory
@@ -49,10 +50,10 @@ public enum ActionType // used for animation linking
 {
     None,
     Idle,
-    Walk,
-    Run,
-    Jump,
-    Interact,
+    Wander, // picks a random spot around the waypoint to move to, meant for simulating controlled city walking
+    Interact, // Generic move to and wave hands
+    Punch,
+    Flee,
     Repair,
     Build,
     Eat,
@@ -60,9 +61,9 @@ public enum ActionType // used for animation linking
     Talk,
     Smoke,
     Drink,
-    Attack,
+
     Patrol,
-    Flee,
+
     SeekEntertainment,
     UseBathroom,
     Sit,

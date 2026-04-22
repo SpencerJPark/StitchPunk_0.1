@@ -59,27 +59,4 @@ public struct BehaviourSatisfaction : IBufferElementData
     public float multiplier; // 1.0 = neutral, 1.2 = 20% boost, etc.
 }
 
-// On the unit (occupant). Shared data carrier for whichever kind-specific task is active.
-// Written by InteractionAssignmentSystem when the unit wins a slot; read by the per-kind
-// execution system to know which interaction entity it's working on and which behaviour
-// motivated the pick (so the completion step can restore the right behaviour value).
-public struct CurrentInteraction : IComponentData
-{
-    public Entity interaction;
-    public MotivationType drivingMotivation;
-}
 
-// Per-kind task components on the unit. Enableable so each small execution system can
-// query [WithAll(typeof(KindTask))] and only iterate units actively performing that kind.
-// Kept separate (rather than one enum flag) so each system's query is a clean archetype
-// filter at the ECS level — matches the codebase pattern (NeedsAction, ProductionProgress).
-public struct PickupInteraction : IComponentData, IEnableableComponent { }
-public struct BuildInteraction  : IComponentData, IEnableableComponent { }
-public struct HarvestInteraction : IComponentData, IEnableableComponent { }
-public struct DrinkInteraction  : IComponentData, IEnableableComponent { }
-public struct EatInteraction    : IComponentData, IEnableableComponent { }
-public struct TouchInteraction : IComponentData, IEnableableComponent { }
-public struct WanderInteraction   : IComponentData, IEnableableComponent { }
-public struct SitInteraction    : IComponentData, IEnableableComponent { }
-public struct RepairInteraction : IComponentData, IEnableableComponent { }
-public struct SpeakInteraction : IComponentData, IEnableableComponent { }

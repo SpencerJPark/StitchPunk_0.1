@@ -37,7 +37,7 @@ public partial struct SwapBrainJob : IJobEntity
         ref Brain brain,
         ref DynamicBuffer<Motivation>    behaviourBuffer,
         ref DynamicBuffer<ActionOption> actionOptionBuffer,
-        ref SelectedAction              selectedAction,
+        ref CurrentAction              currentAction,
         EnabledRefRW<SwapBrainRequest>  swapRequestEnabled,
         EnabledRefRW<NeedsAction>       needsActionEnabled,
         ref SwapBrainRequest            request,
@@ -68,7 +68,7 @@ public partial struct SwapBrainJob : IJobEntity
             ref rng);
 
         actionOptionBuffer.Clear();
-        selectedAction = default;
+        currentAction = default;
 
         swapRequestEnabled.ValueRW = false;
         needsActionEnabled.ValueRW = true;

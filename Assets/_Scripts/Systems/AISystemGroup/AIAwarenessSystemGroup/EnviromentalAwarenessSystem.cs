@@ -20,9 +20,9 @@ public partial struct EnvironmentalAwarenessSystem : ISystem
 
         state.Dependency = new EnvironmentalAwarenessJob
         {
-            Registry = registry,
-            TransformLookup = transformLookup,
-            InteractionLookup = interactionLookup
+            registry = registry,
+            transformLookup = transformLookup,
+            interactionLookup = interactionLookup
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -31,9 +31,9 @@ public partial struct EnvironmentalAwarenessSystem : ISystem
 [WithAll(typeof(ActiveBrain))]
 public partial struct EnvironmentalAwarenessJob : IJobEntity
 {
-    [ReadOnly] public SpatialHashRegistry Registry;
-    [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
-    [ReadOnly] public ComponentLookup<Interaction> InteractionLookup;
+    [ReadOnly] public SpatialHashRegistry registry;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
+    [ReadOnly] public ComponentLookup<Interaction> interactionLookup;
 
     public void Execute(
         Entity entity, 
@@ -64,12 +64,12 @@ public partial struct EnvironmentalAwarenessJob : IJobEntity
                     // Construct the key for this cell + this motivation
                     var searchKey = new SpatialInteractionKey(targetCell, currentNeed);
 
-                    if (Registry.interactionCells.TryGetFirstValue(searchKey, out Entity target, out var it))
+                    if (registry.interactionCells.TryGetFirstValue(searchKey, out Entity target, out var it))
                     {
                         do
                         {
                             AddActionIfValid(target, npcPos, awareness.range, ref options);
-                        } while (Registry.interactionCells.TryGetNextValue(out target, ref it));
+                        } while (registry.interactionCells.TryGetNextValue(out target, ref it));
                     }
                 }
             }
@@ -78,7 +78,7 @@ public partial struct EnvironmentalAwarenessJob : IJobEntity
 
     private void AddActionIfValid(Entity target, float3 npcPos, float maxRange, ref DynamicBuffer<ActionOption> options)
     {
-        if (TransformLookup.TryGetComponent(target, out var targetTransform))
+        if (transformLookup.TryGetComponent(target, out var targetTransform))
         {
             float dist = math.distance(npcPos, targetTransform.Position);
             
@@ -87,7 +87,7 @@ public partial struct EnvironmentalAwarenessJob : IJobEntity
                 // Physical feasibility (0.0 to 1.0)
                 float distScore = 1.0f - math.saturate(dist / maxRange);
 
-                if (InteractionLookup.TryGetComponent(target, out var interactData))
+                if (interactionLookup.TryGetComponent(target, out var interactData))
                 {
                     options.Add(new ActionOption
                     {

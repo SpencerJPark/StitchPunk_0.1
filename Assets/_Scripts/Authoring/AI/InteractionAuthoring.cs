@@ -43,7 +43,6 @@ public class InteractionAuthoring : MonoBehaviour
 
             AddComponent(entity, new Interaction
             {
-                interactionRange = authoring.interactionRange,
                 actionType = authoring.actionType,
                 maxOccupants = authoring.maxOccupant
             });
@@ -52,17 +51,11 @@ public class InteractionAuthoring : MonoBehaviour
             {
                 kind = authoring.kind,
             });
-
-            AddComponent(entity, new InteractionTimer
-            {
-                maxTime = authoring.maxTime,
-            });
-            SetComponentEnabled<InteractionTimer>(entity, false);
+            
 
             AddComponent(entity, new InteractionProvider());
             SetComponentEnabled<InteractionProvider>(entity, true);
-
-            AddBuffer<InteractionOccupant>(entity);
+            
 
             AddComponent(entity, new InteractionHandled());
             SetComponentEnabled<InteractionHandled>(entity, false);

@@ -18,7 +18,6 @@ using Unity.Collections;
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
-[UpdateAfter(typeof(MotivationDecaySystem))]
 public partial struct FightOrFlightSystem : ISystem
 {
     private ComponentLookup<CombatTarget>    combatTargetLookup;
@@ -146,8 +145,10 @@ public partial struct FightOrFlightJob : IJobEntity
 
         options.Add(new ActionOption
         {
-            utilityScore        = FIGHT_SCORE,
-            category     = ActionCategory.Attack,
+            actionType = ActionType.Punch,
+            motivationType = MotivationType.SelfDefence,
+            utilityScore = FIGHT_SCORE,
+            interaction = false,
             targetEntity = topAggressor,
         });
 

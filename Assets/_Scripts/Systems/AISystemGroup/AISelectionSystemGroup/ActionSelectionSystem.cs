@@ -8,153 +8,194 @@ using Random = Unity.Mathematics.Random;
 [UpdateInGroup(typeof(AISelectionSystemGroup))]
 public partial struct ActionSelectionSystem : ISystem
 {
-    private BufferLookup<InteractionOccupant>    occupantBufferLookup;
-    private ComponentLookup<Interaction>         interactionLookup;
-    private ComponentLookup<InteractionProvider> interactionProviderLookup;
+    private ComponentLookup<Interaction> interactionLookup;
+    private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
 
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<SelectedAction>();
+        state.RequireForUpdate<GameSceneTag>();
 
-        occupantBufferLookup      = state.GetBufferLookup<InteractionOccupant>(false);
-        interactionLookup         = state.GetComponentLookup<Interaction>(true);
-        interactionProviderLookup = state.GetComponentLookup<InteractionProvider>(false);
+        interactionLookup = state.GetComponentLookup<Interaction>(false);
+        
+        _functionTable[(int)ActionType.None] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.NullEnable);
+        _functionTable[(int)ActionType.Idle]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.IdleEnable);
+        _functionTable[(int)ActionType.Wander]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
+        _functionTable[(int)ActionType.Interact]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
+        _functionTable[(int)ActionType.Punch]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PunchEnable);
+        _functionTable[(int)ActionType.Flee]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
+    }
+    
+    [BurstCompile]
+    public void OnDestroy(ref SystemState state)
+    {
+        if (_functionTable.IsCreated)
+        {
+            _functionTable.Dispose();
+        }
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        occupantBufferLookup.Update(ref state);
-        interactionLookup.Update(ref state);
-        interactionProviderLookup.Update(ref state);
-
         float time = (float)SystemAPI.Time.ElapsedTime;
-
+        interactionLookup.Update(ref state);
+        var ecbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+        
+        
+        // 1 Select Best Action
         state.Dependency = new ActionSelectionJob
         {
-            time                      = time,
-            occupantBufferLookup      = occupantBufferLookup,
-            interactionLookup         = interactionLookup,
-            interactionProviderLookup = interactionProviderLookup,
-        }.Schedule(state.Dependency);
+            time = time,
+        }.ScheduleParallel(state.Dependency);
+        
+        // 2 Validate Selection on Interactions
+        new ValidateInteractionJob
+        {
+            interactionLookup = interactionLookup,
+        }.Run();
+        
+        // 3 Enable Downstream Components
+        state.Dependency = new SetupActionJob
+        {
+            ecb = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged).AsParallelWriter(),
+            functionTable = _functionTable
+            
+        }.ScheduleParallel(state.Dependency);
     }
 
     // [WithAll(typeof(NeedsAction))] is required — NeedsAction is IEnableableComponent.
     // Without it the query uses WithPresent (runs on all units) and FilterPreviousEntity
     // re-enables NeedsAction on dead/inactive units that have 0 options, creating an infinite loop.
     [BurstCompile]
-    [WithAll(typeof(ActiveBrain))]
-    [WithAll(typeof(NeedsAction))]
+    [WithAll(typeof(ActiveBrain), typeof(NeedsAction))]
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
-        public BufferLookup<InteractionOccupant>    occupantBufferLookup;
-        [ReadOnly] public ComponentLookup<Interaction>         interactionLookup;
-        public            ComponentLookup<InteractionProvider> interactionProviderLookup;
 
         public void Execute(
-            ref SelectedAction selectedAction,
+            Entity entity,
+            [EntityIndexInQuery] int entityIndex,
+            ref CurrentAction currentAction,
             ref DynamicBuffer<ActionOption> options,
-            EnabledRefRW<NeedsAction> needsActionEnabled,
-            Entity npcEntity,
-            [EntityIndexInQuery] int entityIndex)
+            EnabledRefRW<NeedsInteractionSelectionValidation> needsValidation,
+            EnabledRefRW<NeedsAction> needsAction)
         {
-            // Filter out previous entity first to avoid re-selecting the same target.
-            if (FilterPreviousEntity(selectedAction, ref options, needsActionEnabled))
-                return;
+            // 1. Filter out the previous target to prevent "oscillating" or getting stuck
+            FilterPreviousTarget(ref options, currentAction.targetEntity);
 
-            // Sort AFTER filtering so the top-3 pick is based on the filtered list.
-            SortDescending(ref options);
-
-            Random random    = EntityUtils.CreateRandom(entityIndex, time);
-            int    topCount  = math.min(options.Length, 3);
-            int    startIndex = random.NextInt(0, topCount);
-
-            // Try from random start, wrap through all options.
-            for (int attempt = 0; attempt < options.Length; attempt++)
+            if (options.Length == 0)
             {
-                int          i         = (startIndex + attempt) % options.Length;
-                ActionOption candidate = options[i];
-
-                // ── Interaction options: enforce occupancy cap ─────────────────
-                if (candidate.category == ActionCategory.Interaction)
-                {
-                    if (!occupantBufferLookup.TryGetBuffer(candidate.targetEntity,
-                        out DynamicBuffer<InteractionOccupant> occupantBuffer))
-                        continue;
-
-                    if (!interactionLookup.TryGetComponent(candidate.targetEntity,
-                        out Interaction interaction))
-                        continue;
-
-                    if (occupantBuffer.Length >= interaction.maxOccupants)
-                        continue;
-
-                    occupantBuffer.Add(new InteractionOccupant
-                    {
-                        entity        = npcEntity,
-                        score         = candidate.utilityScore,
-                        motivationType = candidate.motivationType,
-                    });
-
-                    if (occupantBuffer.Length >= interaction.maxOccupants)
-                        interactionProviderLookup.SetComponentEnabled(candidate.targetEntity, false);
-                }
-                // ── Behaviour / combat options: no occupancy check ─────────────
-                // (Chase, Attack, Flee, Wander don't own world-object slots.)
-
-                // Commit selection.
-                selectedAction.category      = candidate.category;
-                selectedAction.targetEntity  = candidate.targetEntity;
-                selectedAction.targetPosition = candidate.targetPosition;
-                needsActionEnabled.ValueRW   = false;
+                // No options left? Stay in NeedsAction and try again next frame
                 options.Clear();
                 return;
             }
 
-            // No valid option found — try again next frame.
-            needsActionEnabled.ValueRW = true;
+            // 2. Sort options by score (Descending)
+            SortOptions(ref options);
+
+            // 3. Randomly pick from Top 3
+            Unity.Mathematics.Random random = new Unity.Mathematics.Random((uint)(entityIndex + 1) * (uint)(time * 1000 + 1));
+            int topCount = math.min(options.Length, 3);
+            int selectedIndex = random.NextInt(0, topCount);
+            
+            ActionOption choice = options[selectedIndex];
+
+            // 4. Record the selection to CurrentAction
+            currentAction.actionType = choice.actionType;
+            currentAction.motivationType = choice.motivationType;
+            currentAction.targetEntity = choice.targetEntity;
+
+            // 5. Handle State Transitions
+            // If it's an interaction, we need the Validator to check occupancy
+            if (choice.interaction) 
+            {
+                needsValidation.ValueRW = true;
+                needsAction.ValueRW = false; // Transitioning to Validation state
+            }
+            else
+            {
+                // If it's not an interaction, we are done picking! 
+                // The Logic systems (Attack, Patrol) should take over now.
+                needsValidation.ValueRW = false;
+                needsAction.ValueRW = false; 
+            }
+
+            // 6. Cleanup
             options.Clear();
         }
 
-        private static bool FilterPreviousEntity(
-            SelectedAction selectedAction,
-            ref DynamicBuffer<ActionOption> options,
-            EnabledRefRW<NeedsAction> needsActionEnabled)
+        private static void FilterPreviousTarget(ref DynamicBuffer<ActionOption> options, Entity previousTarget)
         {
-            if (options.Length == 0)
-                return true;
-
-            // Remove all options matching the previously selected target.
             for (int i = options.Length - 1; i >= 0; i--)
             {
-                if (options[i].targetEntity == selectedAction.targetEntity)
+                if (options[i].targetEntity == previousTarget)
+                {
                     options.RemoveAt(i);
+                }
             }
-
-            // If no options remain after filtering, wait for next frame.
-            if (options.Length == 0)
-            {
-                needsActionEnabled.ValueRW = true;
-                return true;
-            }
-
-            return false;
         }
 
-        private static void SortDescending(ref DynamicBuffer<ActionOption> options)
+        private static void SortOptions(ref DynamicBuffer<ActionOption> options)
         {
-            for (int i = 0; i < options.Length - 1; i++)
+            // Simple Insertion Sort - efficient for small AI option buffers
+            for (int i = 1; i < options.Length; i++)
             {
-                for (int j = i + 1; j < options.Length; j++)
+                ActionOption temp = options[i];
+                int j = i - 1;
+
+                while (j >= 0 && options[j].utilityScore < temp.utilityScore)
                 {
-                    if (options[j].utilityScore > options[i].utilityScore)
-                    {
-                        ActionOption temp = options[i];
-                        options[i]        = options[j];
-                        options[j]        = temp;
-                    }
+                    options[j + 1] = options[j];
+                    j--;
                 }
+                options[j + 1] = temp;
+            }
+        }
+    }
+    
+    [BurstCompile]
+    public partial struct ValidateInteractionJob : IJobEntity
+    {
+        public ComponentLookup<Interaction> interactionLookup;
+
+        public void Execute(
+            EnabledRefRW<NeedsInteractionSelectionValidation> validationTrigger,
+            EnabledRefRW<NeedsAction> needsAction, 
+            in CurrentAction currentAction)
+        {
+            validationTrigger.ValueRW = false;
+            
+            if (interactionLookup.TryGetComponent(currentAction.targetEntity, out Interaction interaction))
+            {
+                if (interaction.occupantCount >= interaction.maxOccupants)
+                {
+                    needsAction.ValueRW = true;
+                    return;
+                }
+                
+                interaction.occupantCount++;
+                interactionLookup[currentAction.targetEntity] = interaction;
+            }
+            else
+            {
+                needsAction.ValueRW = true;
+            }
+        }
+    }
+    
+    [BurstCompile]
+    public partial struct SetupActionJob : IJobEntity
+    {
+        public EntityCommandBuffer.ParallelWriter ecb;
+        [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
+
+        public void Execute(Entity entity, [EntityIndexInQuery] int index, in CurrentAction currentAction)
+        {
+            int actionIndex = (int)currentAction.actionType;
+            
+            if (actionIndex >= 0 && actionIndex < functionTable.Length)
+            {
+                functionTable[actionIndex].Invoke(entity, index, ecb);
             }
         }
     }
