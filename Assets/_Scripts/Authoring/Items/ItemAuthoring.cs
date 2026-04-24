@@ -36,8 +36,8 @@ public class ItemAuthoring : MonoBehaviour
             AddComponent(entity, new Item { itemType = authoring.itemType });
             AddComponent(entity, new EquiptBy());
             AddComponent(entity, new AttachedTo());
-            AddComponent(entity, new EquipRequest());
-            SetComponentEnabled<EquipRequest>(entity, false);
+            AddComponent(entity, new EquipAction());
+            SetComponentEnabled<EquipAction>(entity, false);
 
             AddComponent(entity, new AttachRequest());
             SetComponentEnabled<AttachRequest>(entity, false);

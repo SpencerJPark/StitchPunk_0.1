@@ -15,6 +15,8 @@ public static class BrainUtil
         baker.AddComponent<CurrentAction>(entity);
         baker.AddComponent<NeedsAction>(entity);
         baker.SetComponentEnabled<NeedsAction>(entity, active);
+        baker.AddComponent<NeedsActionSelectionValidation>(entity);
+        baker.SetComponentEnabled<NeedsActionSelectionValidation>(entity, false);
 
         baker.AddComponent(entity, new Awareness { range = brainSo.awarenessRange });
         baker.AddComponent(entity, new ActionTimer { time = 0f });
@@ -41,9 +43,14 @@ public static class BrainUtil
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
+
+        DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
+        if (brainSo.attacks != null)
+            foreach (AttackType attackType in brainSo.attacks)
+                availableAttackBuffer.Add(new AvailableAttack { attackType = attackType });
     }
 
-    private static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
+    public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
         where TAuthoring : UnityEngine.Component
         where TTask : unmanaged, IComponentData, IEnableableComponent
     {

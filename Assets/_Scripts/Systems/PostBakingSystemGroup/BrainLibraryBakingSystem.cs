@@ -34,22 +34,27 @@ public partial struct BrainLibraryBakingSystem : ISystem
             entriesBuilder[i].factionType           = brainSO.factionType;
             entriesBuilder[i].canBePlayerControlled = brainSO.canBePlayerControlled;
             entriesBuilder[i].awarenessRange        = brainSO.awarenessRange;
-            entriesBuilder[i].randomBehaviourAmount = brainSO.amount;
+            entriesBuilder[i].randomMotivationAmount = brainSO.amount;
 
             int behaviourCount = brainSO.behaviours != null ? brainSO.behaviours.Length : 0;
-            BlobBuilderArray<MotivationType> behavioursBuilder = builder.Allocate(ref entriesBuilder[i].behaviours, behaviourCount);
+            BlobBuilderArray<MotivationType> behavioursBuilder = builder.Allocate(ref entriesBuilder[i].motivation, behaviourCount);
             for (int j = 0; j < behaviourCount; j++)
                 behavioursBuilder[j] = brainSO.behaviours[j];
 
             int randomCount = brainSO.randomBehaviours != null ? brainSO.randomBehaviours.Length : 0;
-            BlobBuilderArray<MotivationType> randomBuilder = builder.Allocate(ref entriesBuilder[i].randomBehaviours, randomCount);
+            BlobBuilderArray<MotivationType> randomBuilder = builder.Allocate(ref entriesBuilder[i].randomMotivations, randomCount);
             for (int j = 0; j < randomCount; j++)
                 randomBuilder[j] = brainSO.randomBehaviours[j];
 
-            int attackCount = brainSO.attackFactions != null ? brainSO.attackFactions.Length : 0;
-            BlobBuilderArray<FactionType> attackBuilder = builder.Allocate(ref entriesBuilder[i].attackFactions, attackCount);
-            for (int j = 0; j < attackCount; j++)
-                attackBuilder[j] = brainSO.attackFactions[j];
+            int attackFactionsLength = brainSO.attackFactions != null ? brainSO.attackFactions.Length : 0;
+            BlobBuilderArray<FactionType> attackFactionBuilder = builder.Allocate(ref entriesBuilder[i].attackFactions, attackFactionsLength);
+            for (int j = 0; j < attackFactionsLength; j++)
+                attackFactionBuilder[j] = brainSO.attackFactions[j];
+            
+            int attacksLength = brainSO.attacks != null ? brainSO.attacks.Length : 0;
+            BlobBuilderArray<AttackType> attackBuilder = builder.Allocate(ref entriesBuilder[i].attacks, attacksLength);
+            for (int j = 0; j < attacksLength; j++)
+                attackBuilder[j] = brainSO.attacks[j];
         }
 
         BlobAssetReference<BrainLibraryBlob> blobRef =

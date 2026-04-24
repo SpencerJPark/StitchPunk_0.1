@@ -25,7 +25,9 @@ public static class AIUtils
             }
         }
 
-        return 0f; 
+        // No curve registered for this motivation — treat as neutral (1.0) so the
+        // option's raw utilityScore passes through unchanged rather than being zeroed.
+        return 1.0f;
     }
 
 

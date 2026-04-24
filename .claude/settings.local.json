@@ -45,7 +45,11 @@
       "Bash(mkdir -p __TRACKED_VAR__/__TRACKED_VAR__/run-1)",
       "Bash(mv __TRACKED_VAR__/__TRACKED_VAR__/grading.json __TRACKED_VAR__/__TRACKED_VAR__/run-1/grading.json)",
       "Bash(mv __TRACKED_VAR__/__TRACKED_VAR__/timing.json __TRACKED_VAR__/__TRACKED_VAR__/run-1/timing.json)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(git log *)",
+      "Bash(xargs wc *)",
+      "Bash(cat)",
+      "Bash(python3 /tmp/decode.py)"
     ]
   }
 }

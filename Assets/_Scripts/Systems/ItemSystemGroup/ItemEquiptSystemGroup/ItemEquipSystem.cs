@@ -34,7 +34,7 @@ public partial struct ItemEquipSystem : ISystem
 // Processes items flagged with EquipRequest (enabled by pickup or AI equip action).
 // Links UnitEquipt on the owner and EquiptSocket on the socket, then clears the request.
 [BurstCompile]
-[WithAll(typeof(EquipRequest))]
+[WithAll(typeof(EquipAction))]
 public partial struct ItemEquipJob : IJobEntity
 {
     public ComponentLookup<UnitEquipt> unitEquiptLookup;
@@ -44,7 +44,7 @@ public partial struct ItemEquipJob : IJobEntity
         Entity itemEntity,
         in EquiptBy equiptBy,
         in AttachedTo attachedTo,
-        EnabledRefRW<EquipRequest> equipRequestEnabled)
+        EnabledRefRW<EquipAction> equipRequestEnabled)
     {
         // Link item to owner's UnitEquipt slot
         if (unitEquiptLookup.HasComponent(equiptBy.owner))

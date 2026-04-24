@@ -5,19 +5,15 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 /// <summary>
-/// Detects hostile units within awareness range and heightens combat motivations.
+/// Detects hostiles within awareness range. When a hostile is found:
+///   - Sets CombatTarget to the nearest hostile
+///   - Sets BloodLust motivation value to 100 so MotivationScoringSystem scores attack options appropriately
+///   - Injects one ActionOption per AvailableAttack entry, scored by range fit vs current distance
+///     (attacks whose range matches the actual distance score highest; out-of-range options score lower)
+///   - Refreshes AggressiveState linger timer
 ///
-/// Runs after MotivationDecaySystem (which resets contextMultiplier to 1.0) and after
-/// FactionRegistrySystem (which rebuilds the faction map). This is the pre-pass for
-/// SelfDefence and BloodLust motivations — setting their contextMultiplier so
-/// MotivationScoringSystem scores ActionCategory.Attack high enough to win selection.
-///
-/// Per unit:
-///   Hostile found → enable CombatTarget, set targetEntity to nearest hostile,
-///                   set SelfDefence contextMultiplier = 3.0, BloodLust = 2.5,
-///                   refresh AggressiveState with a 3s linger duration.
-///   No hostiles   → disable CombatTarget.
-///                   AggressiveState expires via UnitStateExpirySystem after 3s linger.
+/// ActionPrioritySystem applies a flat +1 tier bonus to all BloodLust options, pushing them
+/// above civilian interaction scores (0-1) without hardcoding magic numbers.
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
@@ -26,19 +22,16 @@ public partial struct CombatAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform>  transformLookup;
     private ComponentLookup<Dead>            deadLookup;
-    private ComponentLookup<CombatTarget>    combatTargetLookup;
-    private ComponentLookup<AggressiveState> aggressiveLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<FactionRegistry>();
+        state.RequireForUpdate<AttackLibrary>();
 
         transformLookup    = state.GetComponentLookup<LocalTransform>(true);
         deadLookup         = state.GetComponentLookup<Dead>(true);
-        combatTargetLookup = state.GetComponentLookup<CombatTarget>(false);
-        aggressiveLookup   = state.GetComponentLookup<AggressiveState>(false);
     }
 
     [BurstCompile]
@@ -46,53 +39,45 @@ public partial struct CombatAwarenessSystem : ISystem
     {
         transformLookup.Update(ref state);
         deadLookup.Update(ref state);
-        combatTargetLookup.Update(ref state);
-        aggressiveLookup.Update(ref state);
 
         FactionRegistry registry = SystemAPI.GetSingleton<FactionRegistry>();
 
-        // Single-threaded: writable lookups for CombatTarget/AggressiveState.
-        // Each entity only writes its own components, but DOTS safety requires single-thread
-        // when lookup type matches the entity being iterated.
+        BlobAssetReference<AttackLibraryBlob> attackLibrary =
+            SystemAPI.GetSingleton<AttackLibrary>().library;
+
         state.Dependency = new CombatAwarenessJob
         {
             transformLookup    = transformLookup,
             deadLookup         = deadLookup,
-            combatTargetLookup = combatTargetLookup,
-            aggressiveLookup   = aggressiveLookup,
             factionEntities    = registry.entities,
+            attackLibrary      = attackLibrary,
         }.Schedule(state.Dependency);
     }
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain))]
-[WithPresent(typeof(CombatTarget), typeof(AggressiveState))]
+[WithAll(typeof(ActiveBrain), typeof(NeedsAction))]
+[WithPresent(typeof(CombatTarget))]
 public partial struct CombatAwarenessJob : IJobEntity
 {
-    private const float AGGRESSIVE_LINGER = 3.0f;
-
-    [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
-    [NativeDisableParallelForRestriction]
-    public            ComponentLookup<CombatTarget>            combatTargetLookup;
-    [NativeDisableParallelForRestriction]
-    public            ComponentLookup<AggressiveState>         aggressiveLookup;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
+    [ReadOnly] public ComponentLookup<Dead> deadLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
+    [ReadOnly] public BlobAssetReference<AttackLibraryBlob>    attackLibrary;
 
     public void Execute(
-        Entity                              self,
-        in Faction                          faction,
-        in Awareness                        awareness,
-        in LocalTransform                   transform,
-        in AttackData                       attackData,
-        ref DynamicBuffer<ActionOption>     options,
-        in DynamicBuffer<AttackFaction>     attackFactions,
-        EnabledRefRO<NeedsAction>           needsAction)
+        Entity self,
+        ref CombatTarget combatTarget,
+        in Awareness awareness,
+        in LocalTransform transform,
+        ref DynamicBuffer<Motivation>    motivations,
+        ref DynamicBuffer<ActionOption>  options,
+        in DynamicBuffer<AttackFaction>  attackFactions,
+        in DynamicBuffer<AvailableAttack> availableAttacks)
     {
         float3 myPos   = transform.Position;
+        
         float  rangeSq = awareness.range * awareness.range;
-
         Entity nearestHostile    = Entity.Null;
         float  nearestDistanceSq = float.MaxValue;
 
@@ -130,51 +115,46 @@ public partial struct CombatAwarenessJob : IJobEntity
 
         if (nearestHostile != Entity.Null)
         {
-            // Update combat target
-            if (combatTargetLookup.HasComponent(self))
+            combatTarget.targetEntity = nearestHostile;
+
+            // Set BloodLust motivation to max urgency so MotivationScoringSystem
+            // scores attack options at full weight via the BloodLust curve.
+            for (int m = 0; m < motivations.Length; m++)
             {
-                CombatTarget ct = combatTargetLookup[self];
-                ct.targetEntity   = nearestHostile;
-                ct.selectedAttack = attackData.attackType; // placeholder — multi-attack scorer will write here later
-                combatTargetLookup[self] = ct;
-                combatTargetLookup.SetComponentEnabled(self, true);
+                Motivation motivation = motivations[m];
+                if (motivation.motivationType == MotivationType.BloodLust)
+                {
+                    motivation.value = 100f;
+                    motivations[m] = motivation;
+                    break;
+                }
             }
 
-            // Refresh aggressive state linger timer
-            if (aggressiveLookup.HasComponent(self))
-            {
-                AggressiveState agg = aggressiveLookup[self];
-                agg.duration = AGGRESSIVE_LINGER;
-                aggressiveLookup[self] = agg;
-                aggressiveLookup.SetComponentEnabled(self, true);
-            }
+            float nearestDist = math.sqrt(nearestDistanceSq);
 
-            // Directly inject Attack option — bypasses scoring curves (no curve needed for combat).
-            // Score 1000 ensures Attack wins against all other motivation-driven options.
-            // targetEntity = nearestHostile so FilterPreviousEntity can distinguish targets and
-            // doesn't filter this option on the initial selection (where selectedAction.targetEntity = Null).
-            // CombatAttackExecutionSystem reads CombatTarget.targetEntity for execution anyway.
-            if (needsAction.ValueRO)
+            for (int a = 0; a < availableAttacks.Length; a++)
             {
+                AttackType attackType = availableAttacks[a].attackType;
+                ActionType actionType = attackLibrary.Value.attacks[(int)attackType].actionType;
+                float attackRange = attackLibrary.Value.attacks[(int)attackType].range;
+
+                // Score = 1.0 if target is at or within range; decays as target moves farther out.
+                // Longer-reach attacks score higher when target is at distance, encouraging
+                // the NPC to lead with the appropriate strike for its current position.
+                float rangeScore = nearestDist <= attackRange
+                    ? 1.0f
+                    : attackRange / nearestDist;
+
                 options.Add(new ActionOption
                 {
-                    actionType = ActionType.Punch,
+                    actionType     = actionType,
                     motivationType = MotivationType.BloodLust,
-                    utilityScore        = 1000f,
-                    interaction =  false,
-                    targetEntity = nearestHostile,
+                    attackType     = attackType,
+                    utilityScore   = rangeScore,
+                    interaction    = false,
+                    targetEntity   = nearestHostile,
                 });
             }
         }
-        else
-        {
-            // Only disable CombatTarget for units that actively scan for hostiles.
-            // Units with no attackFactions rely on FightOrFlightSystem for reactive combat;
-            // clearing their target here would cancel the fight-back response every frame.
-            if (attackFactions.Length > 0 && combatTargetLookup.HasComponent(self))
-                combatTargetLookup.SetComponentEnabled(self, false);
-            // AggressiveState expires via UnitStateExpirySystem once its duration runs out
-        }
     }
-
 }

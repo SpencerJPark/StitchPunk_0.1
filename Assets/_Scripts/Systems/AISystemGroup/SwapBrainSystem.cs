@@ -56,15 +56,15 @@ public partial struct SwapBrainJob : IJobEntity
         brain.activeBrain = request.newBrain;
 
         behaviourBuffer.Clear();
-        for (int i = 0; i < brainEntry.behaviours.Length; i++)
-            behaviourBuffer.Add(BrainUtil.DefaultBehaviour(brainEntry.behaviours[i]));
+        for (int i = 0; i < brainEntry.motivation.Length; i++)
+            behaviourBuffer.Add(BrainUtil.DefaultBehaviour(brainEntry.motivation[i]));
 
         uint seed = math.max((uint)entity.Index * 2654435761u ^ (uint)(elapsedTime * 1000f), 1u);
         Random rng = new Random(seed);
         BrainUtil.PopulateRandomBehaviours(
             behaviourBuffer,
-            ref brainEntry.randomBehaviours,
-            brainEntry.randomBehaviourAmount,
+            ref brainEntry.randomMotivations,
+            brainEntry.randomMotivationAmount,
             ref rng);
 
         actionOptionBuffer.Clear();

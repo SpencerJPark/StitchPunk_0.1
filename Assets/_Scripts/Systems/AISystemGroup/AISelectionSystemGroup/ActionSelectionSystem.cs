@@ -16,13 +16,19 @@ public partial struct ActionSelectionSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
 
         interactionLookup = state.GetComponentLookup<Interaction>(false);
-        
-        _functionTable[(int)ActionType.None] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.NullEnable);
-        _functionTable[(int)ActionType.Idle]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.IdleEnable);
-        _functionTable[(int)ActionType.Wander]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
-        _functionTable[(int)ActionType.Interact]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
-        _functionTable[(int)ActionType.Punch]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PunchEnable);
-        _functionTable[(int)ActionType.Flee]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
+
+        int tableSize = (int)ActionType.Spawn + 1;
+        _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
+
+        FunctionPointer<ActionActivationDelegate> nullPtr = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.NullEnable);
+        for (int i = 0; i < tableSize; i++)
+            _functionTable[i] = nullPtr;
+
+        _functionTable[(int)ActionType.Idle]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.IdleEnable);
+        _functionTable[(int)ActionType.Wander]   = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
+        _functionTable[(int)ActionType.Interact] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
+        _functionTable[(int)ActionType.Flee]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
+        _functionTable[(int)ActionType.Melee]    = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
     }
     
     [BurstCompile]
@@ -47,8 +53,11 @@ public partial struct ActionSelectionSystem : ISystem
         {
             time = time,
         }.ScheduleParallel(state.Dependency);
-        
+
         // 2 Validate Selection on Interactions
+        // Complete pending jobs (including EnvironmentalAwarenessJob's Interaction reads)
+        // before this main-thread job writes to Interaction occupantCount.
+        state.Dependency.Complete();
         new ValidateInteractionJob
         {
             interactionLookup = interactionLookup,
@@ -68,18 +77,19 @@ public partial struct ActionSelectionSystem : ISystem
     // re-enables NeedsAction on dead/inactive units that have 0 options, creating an infinite loop.
     [BurstCompile]
     [WithAll(typeof(ActiveBrain), typeof(NeedsAction))]
+    [WithPresent(typeof(NeedsActionSelectionValidation))]
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
 
         public void Execute(
-            Entity entity,
             [EntityIndexInQuery] int entityIndex,
             ref CurrentAction currentAction,
             ref DynamicBuffer<ActionOption> options,
-            EnabledRefRW<NeedsInteractionSelectionValidation> needsValidation,
+            EnabledRefRW<NeedsActionSelectionValidation> needsValidation,
             EnabledRefRW<NeedsAction> needsAction)
         {
+
             // 1. Filter out the previous target to prevent "oscillating" or getting stuck
             FilterPreviousTarget(ref options, currentAction.targetEntity);
 
@@ -102,7 +112,7 @@ public partial struct ActionSelectionSystem : ISystem
 
             // 4. Record the selection to CurrentAction
             currentAction.actionType = choice.actionType;
-            currentAction.motivationType = choice.motivationType;
+            currentAction.attackType = choice.attackType;
             currentAction.targetEntity = choice.targetEntity;
 
             // 5. Handle State Transitions
@@ -128,7 +138,9 @@ public partial struct ActionSelectionSystem : ISystem
         {
             for (int i = options.Length - 1; i >= 0; i--)
             {
-                if (options[i].targetEntity == previousTarget)
+                // Only filter interactions — prevents immediately returning to the same chair/NPC.
+                // Combat options are never filtered; re-targeting the same hostile is correct.
+                if (options[i].interaction && options[i].targetEntity == previousTarget)
                 {
                     options.RemoveAt(i);
                 }
@@ -159,7 +171,7 @@ public partial struct ActionSelectionSystem : ISystem
         public ComponentLookup<Interaction> interactionLookup;
 
         public void Execute(
-            EnabledRefRW<NeedsInteractionSelectionValidation> validationTrigger,
+            EnabledRefRW<NeedsActionSelectionValidation> validationTrigger,
             EnabledRefRW<NeedsAction> needsAction, 
             in CurrentAction currentAction)
         {
@@ -195,7 +207,7 @@ public partial struct ActionSelectionSystem : ISystem
             
             if (actionIndex >= 0 && actionIndex < functionTable.Length)
             {
-                functionTable[actionIndex].Invoke(entity, index, ecb);
+                functionTable[actionIndex].Invoke(in entity, index, ref ecb);
             }
         }
     }

@@ -11,6 +11,10 @@ public struct UnitAction : IComponentData
 {
     public ActionType current;    
 }
+public struct Target : IComponentData, IEnableableComponent
+{
+    public Entity entity;
+}
 
 // Health
 public struct Alive : IComponentData, IEnableableComponent { }
@@ -55,7 +59,6 @@ public struct HealthBar : IComponentData {
 // Use on friendly vehicles, allied units, or anything else that shouldn't take player damage.
 public struct PlayerImmune : IComponentData, IEnableableComponent { }
 
-// Actions
 
 
 

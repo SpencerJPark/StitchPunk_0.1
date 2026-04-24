@@ -15,3 +15,4 @@ MonoBehaviour:
   curves:
   - {fileID: 11400000, guid: c02b1daa5297d26498eb17e420e085e9, type: 2}
   - {fileID: 11400000, guid: 1057b334dea7bfd4fb32e20f602c1d2d, type: 2}
+  - {fileID: 11400000, guid: 56f85e508deaea649960248314d1d35f, type: 2}

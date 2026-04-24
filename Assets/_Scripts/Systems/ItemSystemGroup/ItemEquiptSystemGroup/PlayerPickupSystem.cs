@@ -16,7 +16,7 @@ public partial struct PlayerPickupSystem : ISystem
     private ComponentLookup<UnitEquipt> unitEquiptLookup;
     private ComponentLookup<EquiptBy> equiptByLookup;
     private ComponentLookup<AttachedTo> attachedToLookup;
-    private ComponentLookup<EquipRequest> equipRequestLookup;
+    private ComponentLookup<EquipAction> equipRequestLookup;
     private ComponentLookup<AttachRequest> attachRequestLookup;
     private ComponentLookup<PlayerInteractable> playerInteractableLookup;
 
@@ -29,7 +29,7 @@ public partial struct PlayerPickupSystem : ISystem
         unitEquiptLookup         = state.GetComponentLookup<UnitEquipt>(true);
         equiptByLookup           = state.GetComponentLookup<EquiptBy>(false);
         attachedToLookup         = state.GetComponentLookup<AttachedTo>(false);
-        equipRequestLookup       = state.GetComponentLookup<EquipRequest>(false);
+        equipRequestLookup       = state.GetComponentLookup<EquipAction>(false);
         attachRequestLookup      = state.GetComponentLookup<AttachRequest>(false);
         playerInteractableLookup = state.GetComponentLookup<PlayerInteractable>(false);
     }
@@ -70,7 +70,7 @@ public partial struct PlayerPickupJob : IJobEntity
     [ReadOnly] public ComponentLookup<UnitEquipt> unitEquiptLookup;
     public ComponentLookup<EquiptBy> equiptByLookup;
     public ComponentLookup<AttachedTo> attachedToLookup;
-    public ComponentLookup<EquipRequest> equipRequestLookup;
+    public ComponentLookup<EquipAction> equipRequestLookup;
     public ComponentLookup<AttachRequest> attachRequestLookup;
     public ComponentLookup<PlayerInteractable> playerInteractableLookup;
 

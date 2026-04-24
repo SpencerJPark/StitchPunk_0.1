@@ -20,3 +20,4 @@ MonoBehaviour:
   amount: 0
   randomBehaviours: 
   attackFactions: 01020306070809
+  attacks: 03000000

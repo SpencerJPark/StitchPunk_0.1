@@ -25,7 +25,7 @@ public struct AttachedTo : IComponentData // goes on item
     public Entity socket;
 }
 
-public struct EquipRequest : IComponentData, IEnableableComponent { }
+public struct EquipAction : IComponentData, IEnableableComponent { }
 
 // Enabled by PlayerPickupSystem after EquipRequest. ItemAttachSystem parents the item
 // to AttachedTo.socket and resets its local transform, then disables this.

@@ -8,7 +8,7 @@ public class AttackSO : ScriptableObject
     [SearchableEnum] public AttackType attackType;
 
     [Tooltip("Attack Delivery Behaviour")]
-    [SearchableEnum] public AttackDelivery attackDelivery;
+    [SearchableEnum] public ActionType actionType;
 
     [FormerlySerializedAs("attackEffect")] [Tooltip("Damage Behaviour")]
     [SearchableEnum] public DamageBehaviour damageBehaviour;

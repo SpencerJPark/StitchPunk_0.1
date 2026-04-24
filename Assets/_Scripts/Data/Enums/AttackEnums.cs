@@ -14,17 +14,6 @@
     Explode,
 }
 
-public enum AttackDelivery // attack delivery behaviour
-{
-    None,
-    Melee,
-    Throw,
-    Shoot,
-    Projectile,
-    Hitscan,
-    Beam
-}
-
 public enum DamageBehaviour // attack effect behaviour
 {
     None,

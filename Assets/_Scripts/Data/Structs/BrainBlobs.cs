@@ -6,10 +6,11 @@ public struct BrainEntryBlob
     public FactionType factionType;
     public bool canBePlayerControlled;
     public float awarenessRange;
-    public BlobArray<MotivationType> behaviours;
-    public int randomBehaviourAmount;
-    public BlobArray<MotivationType> randomBehaviours;
+    public BlobArray<MotivationType> motivation;
+    public int randomMotivationAmount;
+    public BlobArray<MotivationType> randomMotivations;
     public BlobArray<FactionType>   attackFactions;
+    public BlobArray<AttackType> attacks;
 }
 
 public struct BrainLibraryBlob

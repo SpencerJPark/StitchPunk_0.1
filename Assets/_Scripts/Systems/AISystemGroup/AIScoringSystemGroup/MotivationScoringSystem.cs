@@ -2,21 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Transforms;
 
-/// <summary>
-/// Unified motivation scoring system. Iterates the Motivation buffer on each AI entity
-/// and scores every entry using the same formula: EvaluateCurve(value) * contextMultiplier.
-///
-/// Two scoring modes:
-///   Interaction — queries the spatial hash for nearby entities of this motivationType,
-///                 writes an ActionOption per candidate (category = actionCategory, target = entity)
-///   Action      — no spatial query; scores directly and writes one ActionOption
-///                 (category = actionCategory, no target — execution systems use Target component)
-///
-/// Awareness systems (AIAwarenessSystemGroup) are responsible for updating motivation values
-/// and contextMultipliers to reflect what the unit can currently act on. Scoring is pure.
-/// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
 public partial struct MotivationScoringSystem : ISystem
@@ -27,8 +13,6 @@ public partial struct MotivationScoringSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<ScoringLibrary>();
-        
-        
     }
 
     [BurstCompile]
@@ -56,11 +40,7 @@ public partial struct MotivationScoringJob : IJobEntity
         for (int i = 0; i < options.Length; i++)
         {
             ActionOption action = options[i];
-            
-            float calculatedScore = ScoreAction(action, motivations, scoringLibrary);
-            
-            action.utilityScore = math.max(0f, calculatedScore);
-            
+            action.utilityScore = math.max(0f, ScoreAction(action, motivations, scoringLibrary));
             options[i] = action;
         }
     }

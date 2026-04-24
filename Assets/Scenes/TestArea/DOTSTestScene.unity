@@ -594,6 +594,10 @@ PrefabInstance:
       propertyPath: brain
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 5385637352373302489, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.x
       value: 8.06
@@ -638,7 +642,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: MaleCitizen
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5385637352373302489, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -669,59 +674,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4619132538253755074, guid: 599f27871f18fa04c907cd57971da4be, type: 3}
   m_PrefabInstance: {fileID: 5927545703036503334}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1386834128
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1386834131}
-  - component: {fileID: 1386834130}
-  m_Layer: 0
-  m_Name: Waypoint
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1386834130
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1386834128}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a3cc0040f44e4422bc87eaaaaf378566, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WaypointAuthoring
-  interactionRange: 1.5
-  maxOccupant: 1
-  maxTime: 10
-  actionType: 17
-  kind: 7
-  playerInteractable: 1
-  satisfies:
-  - behaviourType: 6
-    value: 100
---- !u!4 &1386834131
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1386834128}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5.07, y: 0, z: -6.49}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1551899769
 GameObject:
   m_ObjectHideFlags: 0
@@ -734,7 +686,6 @@ GameObject:
   - component: {fileID: 1551899774}
   - component: {fileID: 1551899773}
   - component: {fileID: 1551899772}
-  - component: {fileID: 1551899771}
   - component: {fileID: 1551899770}
   - component: {fileID: 1551899776}
   - component: {fileID: 1551899777}
@@ -757,25 +708,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &1551899771
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1551899769}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a3cc0040f44e4422bc87eaaaaf378566, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::InteractionAuthoring
-  interactionRange: 1.5
-  maxOccupant: 1
-  maxTime: 0.5
-  actionType: 5
-  kind: 0
-  playerInteractable: 1
-  satisfies: []
 --- !u!65 &1551899772
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -904,57 +836,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::GravityAuthoring
   fallSpeed: 2
   groundOffset: 0.5
---- !u!1 &1590280491
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1590280494}
-  - component: {fileID: 1590280493}
-  m_Layer: 0
-  m_Name: Waypoint
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1590280493
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1590280491}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a3cc0040f44e4422bc87eaaaaf378566, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WaypointAuthoring
-  interactionRange: 1.56
-  maxOccupant: 1
-  maxTime: 5
-  actionType: 17
-  kind: 0
-  playerInteractable: 0
-  satisfies: []
---- !u!4 &1590280494
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1590280491}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.24, y: 0, z: -4.389}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1794040442
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1521,6 +1402,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::DialogueProviderAuthoring
   dialogueSequence: {fileID: 0}
+--- !u!114 &7653187856236759817
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7653187856236759798}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34851118a98e402984d2a37a7e88b1ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::RotterBrainAuthoring
+  active: 1
+  brainLibrary: {fileID: 11400000, guid: ec0f33a61e91bbf448eca314eb003b6e, type: 2}
 --- !u!1001 &9202468519409920937
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1548,6 +1443,10 @@ PrefabInstance:
     - target: {fileID: 4338925606018782699, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: brain
       value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5385637352373302489, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1595,9 +1494,14 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 3023273170798776052, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+    - {fileID: 4338925606018782699, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+    - {fileID: 5385637352373302489, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      insertIndex: 3
+      addedObject: {fileID: 7653187856236759817}
     - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7653187856236759799}
@@ -1616,6 +1520,4 @@ SceneRoots:
   - {fileID: 899217116}
   - {fileID: 906487447}
   - {fileID: 548270451}
-  - {fileID: 1386834131}
-  - {fileID: 1590280494}
   - {fileID: 526580278}

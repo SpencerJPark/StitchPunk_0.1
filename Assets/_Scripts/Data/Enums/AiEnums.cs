@@ -39,20 +39,15 @@ public enum MotivationType
     Slob, // fart and burp
 }
 
-public enum ActionCategory
-{
-    Goto,
-    Animate,
-    UseSmartObject
-}
-
 public enum ActionType // used for animation linking
 {
     None,
     Idle,
     Wander, // picks a random spot around the waypoint to move to, meant for simulating controlled city walking
-    Interact, // Generic move to and wave hands
-    Punch,
+    Interact,
+    Death,
+    Resurrection,
+    
     Flee,
     Repair,
     Build,
@@ -61,14 +56,18 @@ public enum ActionType // used for animation linking
     Talk,
     Smoke,
     Drink,
-
     Patrol,
 
     SeekEntertainment,
-    UseBathroom,
+    Bathroom,
     Sit,
-    Death,
-    Resurrection
+    
+    Melee,
+    Projectile,
+    Swing,
+    Throw,
+    Shoot,
+    Spawn,
 }
 
 

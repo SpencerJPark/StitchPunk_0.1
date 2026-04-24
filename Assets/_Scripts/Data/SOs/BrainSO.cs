@@ -19,6 +19,9 @@ public class BrainSO : ScriptableObject
     
     [Header("Agression Targets")]
     public FactionType[] attackFactions;
+    
+    [Header("Combat")]
+    [SearchableEnum] public AttackType[] attacks;
 }
 
 // States are mearly different brain swaps that happen when certain qualifiers are met

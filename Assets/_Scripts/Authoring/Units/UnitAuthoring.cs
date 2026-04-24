@@ -15,8 +15,6 @@ public class UnitAuthoring : MonoBehaviour {
             
             AddComponent<Target>(entity);
             SetComponentEnabled<Target>(entity, false);
-            AddComponent<ArrivedAtTarget>(entity);
-            SetComponentEnabled<ArrivedAtTarget>(entity, false);
             
             AddComponent<NewlySpawned>(entity);
             SetComponentEnabled<NewlySpawned>(entity, false);

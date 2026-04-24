@@ -14,7 +14,7 @@ public class UnitSO : ScriptableObject
     [SearchableEnum] public AnimationType movingAnimation;
 
     [Tooltip("Default Attack")] 
-    [SearchableEnum] public AttackType attackType;
+    [SearchableEnum] public AttackType[] attackType;
     
     [Header("Movement")]
     public float moveSpeed = 5f;
