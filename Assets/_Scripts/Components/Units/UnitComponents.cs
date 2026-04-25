@@ -63,6 +63,16 @@ public struct PlayerImmune : IComponentData, IEnableableComponent { }
 
 
 public struct Attack : IComponentData, IEnableableComponent { }
+public struct PendingAttack : IComponentData, IEnableableComponent
+{
+    public Entity targetEntity;
+    public float  hitTime;
+    public bool   hitFired;
+}
+public struct LocomotionStance : IComponentData
+{
+    public StanceType stance;
+}
 public struct AttackFaction : IBufferElementData
 {
     public FactionType faction;

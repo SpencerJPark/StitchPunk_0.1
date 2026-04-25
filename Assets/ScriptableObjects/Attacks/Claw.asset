@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Claw
   m_EditorClassIdentifier: StitchPunk.Data::AttackSO
   attackType: 3
-  attackDelivery: 1
+  actionType: 18
   damageBehaviour: 1
   damageAmount: 5
   range: 0.8
@@ -21,3 +21,4 @@ MonoBehaviour:
   ragdollForce: 1.2
   launchForceY: 1
   launchForceX: 2
+  hitTime: 0.3

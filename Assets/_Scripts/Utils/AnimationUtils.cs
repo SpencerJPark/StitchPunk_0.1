@@ -59,7 +59,20 @@ using Unity.Entities;
             }
         }
         return false;
-    }    
+    }
+
+    // Like IsCurrentLayer but also requires the layer to be active.
+    // Use for non-looping layers (e.g. Action) where the same animation may need
+    // to restart after it finishes playing.
+    public static bool IsCurrentLayerActive(ref DynamicBuffer<AnimationLayer> layers, AnimationLayerType layerType, AnimationType animationType)
+    {
+        for (int i = 0; i < layers.Length; i++)
+        {
+            if (layers[i].layer == layerType)
+                return layers[i].animation == animationType && layers[i].active;
+        }
+        return false;
+    }
     
     public static void ClearLayer(ref DynamicBuffer<AnimationLayer> layers, AnimationLayerType layerType)
     {

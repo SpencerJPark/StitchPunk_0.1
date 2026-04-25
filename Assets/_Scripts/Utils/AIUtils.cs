@@ -122,7 +122,7 @@ public static class AIUtils
 
     public static void BeginPathRequest(
         ref PathRequest            pathRequest,
-        ref EnabledRefRW<PathRequest>  pathRequestEnabled,
+        EnabledRefRW<PathRequest>  pathRequestEnabled,
         float3                     targetPosition,
         PathfindingMode            mode     = PathfindingMode.DStarLite)
     {
@@ -135,7 +135,7 @@ public static class AIUtils
     
     public static void HaltPathing(
         ref PathRequest pathRequest,
-        ref EnabledRefRW<PathRequest> pathRequestEnabled,
+        EnabledRefRW<PathRequest> pathRequestEnabled,
         LocalTransform localTransform)
     {
         pathRequest.targetPosition = localTransform.Position;

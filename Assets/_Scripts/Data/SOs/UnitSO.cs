@@ -10,6 +10,7 @@ public class UnitSO : ScriptableObject
     
     [Tooltip("Animation Data")]
     public ActionAnimationMapping[] actionAnimations;
+    public StanceAnimationMapping[] stanceAnimations;
     [SearchableEnum] public AnimationType idleAnimation;
     [SearchableEnum] public AnimationType movingAnimation;
 
@@ -43,5 +44,13 @@ public struct ActionAnimationMapping
 {
     public ActionType action;
     public AnimationType animation;
+}
+
+[Serializable]
+public struct StanceAnimationMapping
+{
+    public StanceType stance;
+    [SearchableEnum] public AnimationType idleAnimation;
+    [SearchableEnum] public AnimationType movingAnimation;
 }
 

@@ -39,6 +39,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder[i].ragdollForce    = 1f;
             attacksBuilder[i].launchForceY    = 0f;
             attacksBuilder[i].launchForceX    = 0f;
+            attacksBuilder[i].hitTime         = 0.3f;
         }
 
         foreach (var attackSO in librarySO.attacks)
@@ -55,6 +56,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder[index].ragdollForce    = attackSO.ragdollForce;
             attacksBuilder[index].launchForceY    = attackSO.launchForceY;
             attacksBuilder[index].launchForceX    = attackSO.launchForceX;
+            attacksBuilder[index].hitTime         = attackSO.hitTime;
         }
 
         var blobRef = builder.CreateBlobAssetReference<AttackLibraryBlob>(Allocator.Persistent);

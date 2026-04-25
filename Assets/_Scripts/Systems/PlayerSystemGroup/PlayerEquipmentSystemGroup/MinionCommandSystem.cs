@@ -131,14 +131,12 @@ public partial struct MinionCommandSystem : ISystem
 
             if (foundPlayer)
             {
-                foreach ((RefRW<PathfindingAgent> pathfindingAgent,
-                           RefRW<PathRequest> pathRequest,
+                foreach ((RefRW<PathRequest> pathRequest,
                            EnabledRefRW<PathRequest> pathRequestEnabled,
                            RefRW<Movement> movement,
                            RefRO<HordeMembership> hordeMembership,
                            Entity unitEntity) in
                     SystemAPI.Query<
-                        RefRW<PathfindingAgent>,
                         RefRW<PathRequest>,
                         EnabledRefRW<PathRequest>,
                         RefRW<Movement>,
@@ -158,10 +156,7 @@ public partial struct MinionCommandSystem : ISystem
                     bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(unitEntity);
                     if (!isInHorde)
                     {
-                        AIUtils.BeginPathRequest(
-                            ref pathRequest.ValueRW, pathRequestEnabled,
-                            ref pathfindingAgent.ValueRW, ref movement.ValueRW,
-                            targetPosition: playerPosition);
+                        AIUtils.BeginPathRequest(ref pathRequest.ValueRW, pathRequestEnabled, playerPosition);
                     }
                 }
             }
@@ -227,10 +222,7 @@ public partial struct MinionCommandSystem : ISystem
             }
             else
             {
-                AIUtils.BeginPathRequest(
-                    ref pathRequest.ValueRW, pathRequestEnabled,
-                    ref pathfindingAgent.ValueRW, ref movement.ValueRW,
-                    targetPosition: destination);
+                AIUtils.BeginPathRequest(ref pathRequest.ValueRW, pathRequestEnabled, destination);
             }
         }
 

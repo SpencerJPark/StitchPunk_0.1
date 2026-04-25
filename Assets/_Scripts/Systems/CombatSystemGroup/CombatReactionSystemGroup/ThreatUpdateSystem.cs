@@ -1,18 +1,6 @@
 using Unity.Burst;
 using Unity.Entities;
 
-/// <summary>
-/// Reads each entity's Hurt buffer (before DamageApplicationSystem clears it)
-/// and updates the ThreatEntry buffer with cumulative damage per attacker.
-///
-/// The ThreatEntry buffer is later read by ChaseTargetingSystem to bias target
-/// selection toward whoever has been dealing the most damage to this unit —
-/// implementing the "attack back" instinct in a data-oriented way.
-///
-/// Only processes entities that have both Hurt and ThreatEntry buffers.
-/// Hurt is on all units; ThreatEntry is added by FactionAuthoring (only
-/// entities that participate in faction-based combat need threat tracking).
-/// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(CombatReactionSystemGroup))]
 [UpdateBefore(typeof(DamageApplicationSystem))]

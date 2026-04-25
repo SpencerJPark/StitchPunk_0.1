@@ -76,3 +76,10 @@ public enum UnitStateType
     None,
 }
 
+public enum StanceType
+{
+    Normal    = 0,
+    Defensive = 1,
+    Running   = 2,
+}
+

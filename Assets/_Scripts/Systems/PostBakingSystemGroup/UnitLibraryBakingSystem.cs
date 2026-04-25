@@ -54,13 +54,24 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].movingAnimation = unitSO.movingAnimation;
 
             int mappingCount = unitSO.actionAnimations?.Length ?? 0;
-            BlobBuilderArray<ActionAnimationMappingBlob> mappingsArray = 
+            BlobBuilderArray<ActionAnimationMappingBlob> mappingsArray =
                 builder.Allocate(ref unitsArray[i].actionAnimations, mappingCount);
 
             for (int j = 0; j < mappingCount; j++)
             {
-                mappingsArray[j].action = unitSO.actionAnimations[j].action;
+                mappingsArray[j].action    = unitSO.actionAnimations[j].action;
                 mappingsArray[j].animation = unitSO.actionAnimations[j].animation;
+            }
+
+            int stanceCount = unitSO.stanceAnimations?.Length ?? 0;
+            BlobBuilderArray<StanceAnimationBlob> stanceArray =
+                builder.Allocate(ref unitsArray[i].stanceAnimations, stanceCount);
+
+            for (int j = 0; j < stanceCount; j++)
+            {
+                stanceArray[j].stance         = unitSO.stanceAnimations[j].stance;
+                stanceArray[j].idleAnimation   = unitSO.stanceAnimations[j].idleAnimation;
+                stanceArray[j].movingAnimation = unitSO.stanceAnimations[j].movingAnimation;
             }
         }
 

@@ -11,6 +11,7 @@ public struct AttackBlob
     public float ragdollForce;
     public float launchForceY;
     public float launchForceX;
+    public float hitTime;
 }
 
 public struct AttackLibraryBlob

@@ -31,4 +31,8 @@ public class AttackSO : ScriptableObject
 
     [Tooltip("Direct sideways launch velocity (units/s), away from attacker. 0 = no sideways drift.")]
     public float launchForceX = 0f;
+
+    [Header("Hit Timing")]
+    [Tooltip("Seconds into the attack animation when damage fires. Must be less than the clip duration.")]
+    public float hitTime = 0.3f;
 }

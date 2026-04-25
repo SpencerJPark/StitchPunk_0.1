@@ -15,7 +15,9 @@ public class UnitAuthoring : MonoBehaviour {
             
             AddComponent<Target>(entity);
             SetComponentEnabled<Target>(entity, false);
-            
+
+            AddComponent(entity, new LocomotionStance { stance = StanceType.Normal });
+
             AddComponent<NewlySpawned>(entity);
             SetComponentEnabled<NewlySpawned>(entity, false);
         }

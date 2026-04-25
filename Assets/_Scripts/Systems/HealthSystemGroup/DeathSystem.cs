@@ -7,15 +7,17 @@ using Unity.Transforms;
 [UpdateBefore(typeof(ReviveSystem))]
 public partial struct DeathSystem : ISystem
 {
-    private ComponentLookup<ActiveBrain> activeBrainLookup;
-    private ComponentLookup<NeedsAction> needsActionLookup;
+    private ComponentLookup<ActiveBrain>    activeBrainLookup;
+    private ComponentLookup<NeedsAction>    needsActionLookup;
+    private ComponentLookup<PendingAttack>  pendingAttackLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        activeBrainLookup = state.GetComponentLookup<ActiveBrain>(false);
-        needsActionLookup = state.GetComponentLookup<NeedsAction>(false);
+        activeBrainLookup   = state.GetComponentLookup<ActiveBrain>(false);
+        needsActionLookup   = state.GetComponentLookup<NeedsAction>(false);
+        pendingAttackLookup = state.GetComponentLookup<PendingAttack>(false);
     }
 
     [BurstCompile]
@@ -23,11 +25,13 @@ public partial struct DeathSystem : ISystem
     {
         activeBrainLookup.Update(ref state);
         needsActionLookup.Update(ref state);
+        pendingAttackLookup.Update(ref state);
 
         state.Dependency = new DeathJob
         {
-            activeBrainLookup = activeBrainLookup,
-            needsActionLookup = needsActionLookup,
+            activeBrainLookup   = activeBrainLookup,
+            needsActionLookup   = needsActionLookup,
+            pendingAttackLookup = pendingAttackLookup,
         }.Schedule(state.Dependency);
     }
 }
@@ -39,8 +43,9 @@ public partial struct DeathSystem : ISystem
 [WithPresent(typeof(HordeMembership))]
 public partial struct DeathJob : IJobEntity
 {
-    public ComponentLookup<ActiveBrain> activeBrainLookup;
-    public ComponentLookup<NeedsAction> needsActionLookup;
+    public ComponentLookup<ActiveBrain>   activeBrainLookup;
+    public ComponentLookup<NeedsAction>   needsActionLookup;
+    public ComponentLookup<PendingAttack> pendingAttackLookup;
 
     public void Execute(
         Entity entity,
@@ -49,22 +54,22 @@ public partial struct DeathJob : IJobEntity
         in LocalTransform transform,
         ref UnitAction unitAction,
         ref Movement mover,
-        EnabledRefRW<Alive> aliveEnabled,
-        EnabledRefRW<PathRequest> pathRequestEnabled,
+        EnabledRefRW<Alive>            aliveEnabled,
+        EnabledRefRW<PathRequest>      pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarEnabled,
         EnabledRefRW<FlowFieldFollower> flowFieldEnabled,
-        EnabledRefRW<HordeMembership> hordeMembershipEnabled)
+        EnabledRefRW<HordeMembership>  hordeMembershipEnabled)
     {
         // 1. Flip life/death state flags on this entity
-        unitAction.current = ActionType.Death;
-        aliveEnabled.ValueRW = false;
-        pathRequestEnabled.ValueRW = false;
-        dStarEnabled.ValueRW = false;
-        flowFieldEnabled.ValueRW = false;
+        unitAction.current             = ActionType.Death;
+        aliveEnabled.ValueRW           = false;
+        pathRequestEnabled.ValueRW     = false;
+        dStarEnabled.ValueRW           = false;
+        flowFieldEnabled.ValueRW       = false;
         hordeMembershipEnabled.ValueRW = false;
 
         // 2. Stop movement and snap target
-        mover.isMoving = false;
+        mover.isMoving       = false;
         mover.targetPosition = transform.Position;
 
         // 3. Stop AI state — lives on the same entity in the single-entity model.
@@ -74,5 +79,9 @@ public partial struct DeathJob : IJobEntity
 
         if (needsActionLookup.HasComponent(entity))
             needsActionLookup.SetComponentEnabled(entity, false);
+
+        // 4. Cancel any in-flight attack — prevents ghost hits from dead attackers.
+        if (pendingAttackLookup.HasComponent(entity))
+            pendingAttackLookup.SetComponentEnabled(entity, false);
     }
 }

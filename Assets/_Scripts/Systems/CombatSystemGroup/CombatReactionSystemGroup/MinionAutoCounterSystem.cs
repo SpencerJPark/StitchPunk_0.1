@@ -2,11 +2,6 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Collections;
 
-// When a player-controlled minion takes a hit, release PlayerControlled so the
-// AI (SelfPreservation scoring) takes over and counter-attacks.
-//
-// Must run BEFORE DamageApplicationSystem — that system clears the Hurt buffer,
-// so checking for non-empty hits here lets us catch the damage before it's consumed.
 [BurstCompile]
 [UpdateInGroup(typeof(CombatReactionSystemGroup))]
 [UpdateBefore(typeof(DamageApplicationSystem))]
@@ -36,9 +31,7 @@ public partial struct MinionAutoCounterSystem : ISystem
     public void OnDestroy(ref SystemState state) { }
 }
 
-// Iterates minion entities that are alive and have incoming hits.
-// In the single-entity model, PlayerControlled and NeedsAction live directly
-// on the unit entity — no cross-entity BrainLink lookup needed.
+
 [BurstCompile]
 [WithAll(typeof(Minion))]
 [WithDisabled(typeof(Dead))]
