@@ -94,7 +94,7 @@ public partial struct FleeJob : IJobEntity
         }
 
         // Check arrival
-        if (AIUtils.CheckInRange(transform, ref arrivedEnabled, pathRequest.targetPosition, ARRIVE_RANGE))
+        if (AIUtils.IsTargetInRange(transform, ref arrivedEnabled, pathRequest.targetPosition, ARRIVE_RANGE))
         {
             AIUtils.HaltPathing(ref agent, pathRequestEnabled, dstarEnabled, flowEnabled);
             actionTimer.time = RECOVER_DURATION;

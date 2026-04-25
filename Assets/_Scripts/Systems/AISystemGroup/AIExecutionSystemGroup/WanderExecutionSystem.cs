@@ -79,7 +79,7 @@ public partial struct WanderJob : IJobEntity
         }
 
         // Check if we've arrived this frame
-        if (AIUtils.CheckInRange(transform, ref arrivedEnabled, pathRequest.targetPosition, ARRIVE_RANGE))
+        if (AIUtils.IsTargetInRange(transform, ref arrivedEnabled, pathRequest.targetPosition, ARRIVE_RANGE))
         {
             AIUtils.HaltPathing(ref agent, pathRequestEnabled, dstarEnabled, flowEnabled);
             actionTimer.time = IDLE_DURATION;

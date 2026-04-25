@@ -86,67 +86,60 @@ public static class AIUtils
             }
         }
     }
-
-    // Issues a path request and keeps the agent + mover in sync in one shot.
-    // Call from inside an IJobEntity.Execute with refs already in hand — no lookups needed.
-    // stoppingDistance = 0 uses the coordinator's default arrival distance.
-    // Pass PathfindingMode.None to use agent.preferredMode.
-    public static void BeginPathRequest(
-        ref PathRequest            pathRequest,
-        EnabledRefRW<PathRequest>  pathRequestEnabled,
-        ref PathfindingAgent       agent,
-        ref Movement               movement,
-        float3                     targetPosition,
-        float                      stoppingDistance = 0f,
-        PathfindingMode            modeOverride     = PathfindingMode.None)
+    
+    public static bool IsTargetAlive(Entity hostile, ComponentLookup<Alive> aliveLookup)
     {
-
-        PathfindingMode mode = modeOverride == PathfindingMode.None
-            ? agent.preferredMode
-            : modeOverride;
-
-        pathRequest.targetPosition = targetPosition;
-        pathRequest.requestedMode  = mode;
-        pathRequestEnabled.ValueRW = true;
-
-        agent.targetPosition   = targetPosition;
-        agent.stoppingDistance = stoppingDistance;
-        agent.isActive         = true;
-        agent.needsRepath      = true;
-
-        movement.targetPosition = targetPosition;
-        
+        return hostile != Entity.Null &&
+               aliveLookup.HasComponent(hostile) && 
+               aliveLookup.IsComponentEnabled(hostile);
     }
-
-    public static bool CheckInRange(
-        LocalTransform transform,
-        ref EnabledRefRW<ArrivedAtTarget> arrivedEnabled,
-        float3 targetPosition,
+    
+    public static bool IsTargetOutOfRange(
+        LocalTransform myTransform, 
+        LocalTransform targetTransform, 
         float range)
     {
-        float distSq = math.distancesq(transform.Position, targetPosition);
+        float distSq = math.distancesq(myTransform.Position, targetTransform.Position);
+        float rangeSq = range * range;
+        
+        return distSq > rangeSq;
+    }
+    
+    public static bool IsTargetInRange(
+        LocalTransform myTransform,
+        LocalTransform targetTransform,
+        float range)
+    {
+        float distSq = math.distancesq(myTransform.Position, targetTransform.Position);
        
         if (distSq <= range * range)
         {
-            arrivedEnabled.ValueRW = true;
             return true;
         }
         return false;
     }
 
-    // Immediate halt — use for mid-task interrupts (target lost, command cancelled).
-    // For ordinary "arrived at range" stops, let PathfindingCoordinatorSystem halt
-    // followers via the stoppingDistance check instead of calling this.
-    public static void HaltPathing(
-        ref PathfindingAgent               agent,
-        EnabledRefRW<PathRequest>          pathRequestEnabled,
-        EnabledRefRW<DStarLiteFollower>    dstarFollowerEnabled,
-        EnabledRefRW<FlowFieldFollower>    flowFollowerEnabled)
+
+    public static void BeginPathRequest(
+        ref PathRequest            pathRequest,
+        ref EnabledRefRW<PathRequest>  pathRequestEnabled,
+        float3                     targetPosition,
+        PathfindingMode            mode     = PathfindingMode.DStarLite)
     {
-        agent.isActive    = false;
-        agent.needsRepath = false;
-        pathRequestEnabled.ValueRW   = false;
-        dstarFollowerEnabled.ValueRW = false;
-        flowFollowerEnabled.ValueRW  = false;
+        pathRequest.targetPosition = targetPosition;
+        pathRequest.requestedMode  = mode;
+        pathRequestEnabled.ValueRW = true;
+    }
+
+
+    
+    public static void HaltPathing(
+        ref PathRequest pathRequest,
+        ref EnabledRefRW<PathRequest> pathRequestEnabled,
+        LocalTransform localTransform)
+    {
+        pathRequest.targetPosition = localTransform.Position;
+        pathRequest.requestedMode  = PathfindingMode.None;
+        pathRequestEnabled.ValueRW = true;
     }
 }
