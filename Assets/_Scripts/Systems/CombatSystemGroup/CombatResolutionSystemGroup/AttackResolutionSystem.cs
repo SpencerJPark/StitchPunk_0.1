@@ -105,7 +105,10 @@ public partial struct AttackResolutionJob : IJobEntity
         }
 
         // Fetch full attack stats from baked blob
-        ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[(int)attackData.attackType];
+        int attackIndex = (int)attackData.attackType;
+        if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+            return;
+        ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
         // Range check
         if (!transformLookup.TryGetComponent(target.entity, out LocalTransform targetTransform))

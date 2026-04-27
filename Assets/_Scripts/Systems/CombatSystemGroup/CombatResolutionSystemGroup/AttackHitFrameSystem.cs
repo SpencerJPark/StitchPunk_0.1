@@ -79,7 +79,10 @@ public partial struct AttackHitFrameJob : IJobEntity
         if (actionLayerTime < 0f)
             return;
 
-        ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[(int)currentAction.attackType];
+        int attackIndex = (int)currentAction.attackType;
+        if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+            return;
+        ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
         // Hit-frame check: fire damage the first frame animation time crosses hitTime.
         // Using >= means this fires correctly even when a large deltaTime skips past hitTime.

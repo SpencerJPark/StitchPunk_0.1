@@ -41,8 +41,11 @@ public partial struct PlayerAttackSystem : ISystem
             facingDir.y = 0f;
             facingDir = math.normalizesafe(facingDir);
 
-            AttackType attackType = attackData.ValueRO.attackType;
-            ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[(int)attackType];
+            AttackType attackType  = attackData.ValueRO.attackType;
+            int        attackIndex = (int)attackType;
+            if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+                continue;
+            ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
             float range = attackBlob.range;
             float rangeSq = range * range;
             bool isMelee = attackBlob.actionType == ActionType.Melee;

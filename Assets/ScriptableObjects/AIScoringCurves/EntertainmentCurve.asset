@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e76d9c91e85c43c3b74a012ba45b544f, type: 3}
   m_Name: EntertainmentCurve
   m_EditorClassIdentifier: Assembly-CSharp::AIScoringCurveSO
-  motivationType: 0
+  motivationType: 3
   curve:
     serializedVersion: 2
     m_Curve:

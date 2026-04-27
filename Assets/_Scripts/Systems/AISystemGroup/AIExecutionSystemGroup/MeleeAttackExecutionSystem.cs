@@ -103,7 +103,14 @@ public partial struct MeleeProcessorJob : IJobEntity
             return;
         }
 
-        ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[(int)currentAction.attackType];
+        int attackIndex = (int)currentAction.attackType;
+        if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+        {
+            needsActionEnabled.ValueRW = true;
+            meleeAction.ValueRW        = false;
+            return;
+        }
+        ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
         float distSq     = math.distancesq(localTransform.Position, targetTransform.Position);
         float breakOffSq = (attackBlob.range * HYSTERESIS_MULT) * (attackBlob.range * HYSTERESIS_MULT);
 
@@ -130,9 +137,10 @@ public partial struct MeleeProcessorJob : IJobEntity
             cooldown.timer               = attackBlob.cooldown;
 
             // Start the attack animation on the Action layer
-            AnimationType attackAnimation = GetAttackAnimation(
-                ref unitLibrary.Value.units[(int)unitData.unitType],
-                attackBlob.actionType);
+            int unitIndex = (int)unitData.unitType;
+            AnimationType attackAnimation = AnimationType.None;
+            if (unitIndex >= 0 && unitIndex < unitLibrary.Value.units.Length)
+                attackAnimation = GetAttackAnimation(ref unitLibrary.Value.units[unitIndex], attackBlob.actionType);
             AnimationUtils.SetLayer(ref layers, AnimationLayerType.Action, attackAnimation, 1f, false);
         }
     }

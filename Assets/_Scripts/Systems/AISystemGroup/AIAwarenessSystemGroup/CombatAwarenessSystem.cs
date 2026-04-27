@@ -134,9 +134,12 @@ public partial struct CombatAwarenessJob : IJobEntity
 
             for (int a = 0; a < availableAttacks.Length; a++)
             {
-                AttackType attackType = availableAttacks[a].attackType;
-                ActionType actionType = attackLibrary.Value.attacks[(int)attackType].actionType;
-                float attackRange = attackLibrary.Value.attacks[(int)attackType].range;
+                AttackType attackType  = availableAttacks[a].attackType;
+                int        attackIndex = (int)attackType;
+                if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+                    continue;
+                ActionType actionType = attackLibrary.Value.attacks[attackIndex].actionType;
+                float      attackRange = attackLibrary.Value.attacks[attackIndex].range;
 
                 // Score = 1.0 if target is at or within range; decays as target moves farther out.
                 // Longer-reach attacks score higher when target is at distance, encouraging
