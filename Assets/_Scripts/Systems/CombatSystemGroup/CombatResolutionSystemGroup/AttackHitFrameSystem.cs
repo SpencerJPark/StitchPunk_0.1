@@ -6,7 +6,6 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(CombatResolutionSystemGroup))]
-[UpdateBefore(typeof(AttackResolutionSystem))]
 public partial struct AttackHitFrameSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;

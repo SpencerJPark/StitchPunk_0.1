@@ -55,10 +55,7 @@ public struct ActionOption : IBufferElementData
     public Entity targetEntity;
 }
 
-public struct AvailableAttack : IBufferElementData
-{
-    public AttackType attackType;
-}
+
 public struct InteractionProvider : IComponentData, IEnableableComponent { }
 public struct Interaction : IComponentData
 {

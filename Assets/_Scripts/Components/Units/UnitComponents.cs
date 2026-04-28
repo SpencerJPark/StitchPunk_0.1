@@ -60,31 +60,12 @@ public struct HealthBar : IComponentData {
 public struct PlayerImmune : IComponentData, IEnableableComponent { }
 
 
-
-
-public struct Attack : IComponentData, IEnableableComponent { }
-public struct AttackRequest : IComponentData, IEnableableComponent
-{
-    public Entity targetEntity;
-    public float  hitTime;
-    public bool   hitFired;
-}
 public struct LocomotionStance : IComponentData
 {
     public StanceType stance;
 }
-public struct AttackFaction : IBufferElementData
-{
-    public FactionType faction;
-}
-public struct AttackData : IComponentData
-{
-    public AttackType attackType;
-}
-public struct AttackCooldown : IComponentData
-{
-    public float timer;
-}
+
+
 
 
 

@@ -43,7 +43,7 @@ public partial struct MinionAttackExecutionSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(Minion), typeof(Target), typeof(PlayerControlled))]
-[WithPresent(typeof(Attack), typeof(ActionRequest))]
+[WithPresent(typeof(AttackRequest), typeof(ActionRequest))]
 public partial struct MinionAttackExecutionJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Alive> aliveLookup;
@@ -51,7 +51,7 @@ public partial struct MinionAttackExecutionJob : IJobEntity
     public void Execute(
         in AttackCooldown              cooldown,
         ref Target                     target,
-        EnabledRefRW<Attack>           attackEnabled,
+        EnabledRefRW<AttackRequest>           attackRequest,
         EnabledRefRW<Target>           targetEnabled,
         EnabledRefRW<PlayerControlled> playerControlledEnabled,
         EnabledRefRW<ActionRequest>      needsActionEnabled)
@@ -64,13 +64,13 @@ public partial struct MinionAttackExecutionJob : IJobEntity
         if (!targetAlive)
         {
             targetEnabled.ValueRW           = false;
-            attackEnabled.ValueRW           = false;
+            attackRequest.ValueRW           = false;
             playerControlledEnabled.ValueRW = false;
             needsActionEnabled.ValueRW      = true;
             return;
         }
 
         if (cooldown.timer <= 0f)
-            attackEnabled.ValueRW = true;
+            attackRequest.ValueRW = true;
     }
 }

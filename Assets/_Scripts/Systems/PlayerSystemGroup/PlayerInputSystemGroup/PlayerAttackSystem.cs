@@ -3,7 +3,6 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [UpdateInGroup(typeof(CombatResolutionSystemGroup))]
-[UpdateBefore(typeof(AttackResolutionSystem))]
 public partial struct PlayerAttackSystem : ISystem
 {
     // Cone used for ranged/directional attacks. Melee targets closest in range instead.
@@ -20,12 +19,12 @@ public partial struct PlayerAttackSystem : ISystem
         BlobAssetReference<AttackLibraryBlob> attackLibrary = SystemAPI.GetSingleton<AttackLibrary>().library;
         float cosHalfAngle = math.cos(math.radians(RANGED_CONE_HALF_ANGLE_DEG));
 
-        foreach (var (transform, attackData, target, attackEnabled, attackInputEnabled, actionMap) in
+        foreach (var (transform, target,currentAttack,  attackEnabled, attackInputEnabled, actionMap) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
-                RefRO<AttackData>,
                 RefRW<Target>,
-                EnabledRefRW<Attack>,
+                RefRO<CurrentAttack>,
+                EnabledRefRW<AttackRequest>,
                 EnabledRefRW<OnAttackPlayerInput>,
                 RefRO<PlayerActionMap>>()
                     .WithAll<Player>()
@@ -41,7 +40,7 @@ public partial struct PlayerAttackSystem : ISystem
             facingDir.y = 0f;
             facingDir = math.normalizesafe(facingDir);
 
-            AttackType attackType  = attackData.ValueRO.attackType;
+            AttackType attackType  = currentAttack.ValueRO.attackType;
             int        attackIndex = (int)attackType;
             if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
                 continue;

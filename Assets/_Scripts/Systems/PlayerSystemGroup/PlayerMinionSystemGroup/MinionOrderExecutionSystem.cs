@@ -56,7 +56,7 @@ public partial struct MinionOrderExecutionSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(PlayerControlled))]
-[WithPresent(typeof(Attack), typeof(Target))]
+[WithPresent(typeof(AttackRequest), typeof(Target))]
 public partial struct MinionOrderExecutionJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
@@ -68,7 +68,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         in PlayerOrder                 order,
         in LocalTransform              transform,
         ref Target                     target,
-        EnabledRefRW<Attack>           attackEnabled,
+        EnabledRefRW<AttackRequest>           attackEnabled,
         EnabledRefRW<Target>           targetEnabled,
         EnabledRefRW<PlayerControlled> playerControlledEnabled,
         EnabledRefRW<ActionRequest>      needsActionEnabled)
