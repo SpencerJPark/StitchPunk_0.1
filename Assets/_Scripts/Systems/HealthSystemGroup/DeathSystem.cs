@@ -8,16 +8,16 @@ using Unity.Transforms;
 public partial struct DeathSystem : ISystem
 {
     private ComponentLookup<ActiveBrain>    activeBrainLookup;
-    private ComponentLookup<NeedsAction>    needsActionLookup;
-    private ComponentLookup<PendingAttack>  pendingAttackLookup;
+    private ComponentLookup<ActionRequest>    needsActionLookup;
+    private ComponentLookup<AttackRequest>  pendingAttackLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         activeBrainLookup   = state.GetComponentLookup<ActiveBrain>(false);
-        needsActionLookup   = state.GetComponentLookup<NeedsAction>(false);
-        pendingAttackLookup = state.GetComponentLookup<PendingAttack>(false);
+        needsActionLookup   = state.GetComponentLookup<ActionRequest>(false);
+        pendingAttackLookup = state.GetComponentLookup<AttackRequest>(false);
     }
 
     [BurstCompile]
@@ -44,8 +44,8 @@ public partial struct DeathSystem : ISystem
 public partial struct DeathJob : IJobEntity
 {
     public ComponentLookup<ActiveBrain>   activeBrainLookup;
-    public ComponentLookup<NeedsAction>   needsActionLookup;
-    public ComponentLookup<PendingAttack> pendingAttackLookup;
+    public ComponentLookup<ActionRequest>   needsActionLookup;
+    public ComponentLookup<AttackRequest> pendingAttackLookup;
 
     public void Execute(
         Entity entity,

@@ -63,7 +63,7 @@ public struct PlayerImmune : IComponentData, IEnableableComponent { }
 
 
 public struct Attack : IComponentData, IEnableableComponent { }
-public struct PendingAttack : IComponentData, IEnableableComponent
+public struct AttackRequest : IComponentData, IEnableableComponent
 {
     public Entity targetEntity;
     public float  hitTime;

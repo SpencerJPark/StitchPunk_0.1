@@ -5,8 +5,8 @@ using Unity.Transforms;
 using Unity.Collections;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIExecutionSystemGroup))]
-public partial struct MeleeAttackExecutionSystem : ISystem
+[UpdateInGroup(typeof(AIActionSystemGroup))]
+public partial struct MeleeContinuousActionSystem : ISystem
 {
     private ComponentLookup<Alive>          aliveLookup;
     private ComponentLookup<LocalTransform> transformLookup;
@@ -34,7 +34,7 @@ public partial struct MeleeAttackExecutionSystem : ISystem
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
-        state.Dependency = new MeleeProcessorJob
+        state.Dependency = new MeleeContinuousActionJob
         {
             aliveLookup   = aliveLookup,
             transformLookup = transformLookup,
@@ -46,9 +46,9 @@ public partial struct MeleeAttackExecutionSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(ActiveBrain))]
-[WithDisabled(typeof(NeedsAction))]
-[WithPresent(typeof(PathRequest), typeof(Target), typeof(Attack), typeof(PendingAttack))]
-public partial struct MeleeProcessorJob : IJobEntity
+[WithDisabled(typeof(ActionRequest))]
+[WithPresent(typeof(PathRequest), typeof(Target), typeof(AttackRequest))]
+public partial struct MeleeContinuousActionJob : IJobEntity
 {
     private const float REPATH_DIST_SQ  = 1.0f;
     private const float HYSTERESIS_MULT = 1.33f;
@@ -67,47 +67,44 @@ public partial struct MeleeProcessorJob : IJobEntity
         ref CombatTarget      combatTarget,
         ref PathRequest       pathRequest,
         ref Target            target,
-        ref PendingAttack     pendingAttack,
+        ref AttackRequest     attackRequest,
         ref DynamicBuffer<AnimationLayer> layers,
-        EnabledRefRW<MeleeAction>   meleeAction,
-        EnabledRefRW<NeedsAction>   needsActionEnabled,
+        EnabledRefRW<MeleeContinuousAction>   meleeContinuous,
+        EnabledRefRW<ActionRequest>   actionRequest,
         EnabledRefRW<PathRequest>   pathRequestEnabled,
         EnabledRefRW<Target>        targetEnabled,
-        EnabledRefRW<Attack>        attackEnabled,
-        EnabledRefRW<PendingAttack> pendingAttackEnabled)
+        EnabledRefRW<AttackRequest> attackRequestEnabled)
     {
         Entity hostile = combatTarget.targetEntity;
 
         if (!transformLookup.TryGetComponent(hostile, out LocalTransform targetTransform))
         {
-            attackEnabled.ValueRW      = false;
             targetEnabled.ValueRW      = false;
-            pendingAttackEnabled.ValueRW = false;
-            pendingAttack.hitFired     = false;
+            attackRequestEnabled.ValueRW = false;
+            attackRequest.hitFired     = false;
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled, localTransform);
-            needsActionEnabled.ValueRW = true;
-            meleeAction.ValueRW        = false;
+            actionRequest.ValueRW = true;
+            meleeContinuous.ValueRW        = false;
             return;
         }
 
         if (!AIUtils.IsTargetAlive(hostile, aliveLookup) ||
             AIUtils.IsTargetOutOfRange(localTransform, targetTransform, awareness.range))
         {
-            attackEnabled.ValueRW      = false;
             targetEnabled.ValueRW      = false;
-            pendingAttackEnabled.ValueRW = false;
-            pendingAttack.hitFired     = false;
+            attackRequestEnabled.ValueRW = false;
+            attackRequest.hitFired     = false;
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled, localTransform);
-            needsActionEnabled.ValueRW = true;
-            meleeAction.ValueRW        = false;
+            actionRequest.ValueRW = true;
+            meleeContinuous.ValueRW        = false;
             return;
         }
 
         int attackIndex = (int)currentAction.attackType;
         if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
-            needsActionEnabled.ValueRW = true;
-            meleeAction.ValueRW        = false;
+            actionRequest.ValueRW = true;
+            meleeContinuous.ValueRW        = false;
             return;
         }
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
@@ -116,7 +113,6 @@ public partial struct MeleeProcessorJob : IJobEntity
 
         if (distSq > breakOffSq)
         {
-            attackEnabled.ValueRW = false;
             targetEnabled.ValueRW = false;
             float movedSq = math.distancesq(pathRequest.targetPosition, targetTransform.Position);
             if (movedSq >= REPATH_DIST_SQ)
@@ -128,12 +124,12 @@ public partial struct MeleeProcessorJob : IJobEntity
         target.entity     = hostile;
         targetEnabled.ValueRW = true;
 
-        if (cooldown.timer <= 0f && !pendingAttackEnabled.ValueRO)
+        if (cooldown.timer <= 0f && !attackRequestEnabled.ValueRO)
         {
-            pendingAttack.targetEntity   = hostile;
-            pendingAttack.hitTime        = attackBlob.hitTime;
-            pendingAttack.hitFired       = false;
-            pendingAttackEnabled.ValueRW = true;
+            attackRequest.targetEntity   = hostile;
+            attackRequest.hitTime        = attackBlob.hitTime;
+            attackRequest.hitFired       = false;
+            attackRequestEnabled.ValueRW = true;
             cooldown.timer               = attackBlob.cooldown;
 
             // Start the attack animation on the Action layer

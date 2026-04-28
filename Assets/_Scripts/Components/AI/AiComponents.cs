@@ -13,7 +13,7 @@ public struct SwapBrainRequest : IComponentData, IEnableableComponent
     public BrainType newBrain;
 }
 public struct ActiveBrain : IComponentData, IEnableableComponent { }
-public struct NeedsAction : IComponentData, IEnableableComponent { }
+public struct ActionRequest : IComponentData, IEnableableComponent { }
 public struct NeedsActionSelectionValidation: IComponentData, IEnableableComponent {}
 public struct CurrentAction : IComponentData
 {
@@ -98,7 +98,8 @@ public struct IdleAction : IComponentData, IEnableableComponent { }
 public struct MoveToAction : IComponentData, IEnableableComponent { }
 public struct WanderAction : IComponentData, IEnableableComponent { }
 public struct InteractAction : IComponentData, IEnableableComponent { }
-public struct MeleeAction : IComponentData, IEnableableComponent { }
+public struct MeleeContinuousAction : IComponentData, IEnableableComponent { }
+public struct MeleeSingleAction : IComponentData, IEnableableComponent { }
 public struct FleeAction : IComponentData, IEnableableComponent { }
 
 

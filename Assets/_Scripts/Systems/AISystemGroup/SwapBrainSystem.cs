@@ -39,7 +39,7 @@ public partial struct SwapBrainJob : IJobEntity
         ref DynamicBuffer<ActionOption> actionOptionBuffer,
         ref CurrentAction              currentAction,
         EnabledRefRW<SwapBrainRequest>  swapRequestEnabled,
-        EnabledRefRW<NeedsAction>       needsActionEnabled,
+        EnabledRefRW<ActionRequest>       needsActionEnabled,
         ref SwapBrainRequest            request,
         in  Entity                      entity)
     {

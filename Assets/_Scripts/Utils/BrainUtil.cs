@@ -13,8 +13,8 @@ public static class BrainUtil
 
         baker.AddBuffer<ActionOption>(entity);
         baker.AddComponent<CurrentAction>(entity);
-        baker.AddComponent<NeedsAction>(entity);
-        baker.SetComponentEnabled<NeedsAction>(entity, active);
+        baker.AddComponent<ActionRequest>(entity);
+        baker.SetComponentEnabled<ActionRequest>(entity, active);
         baker.AddComponent<NeedsActionSelectionValidation>(entity);
         baker.SetComponentEnabled<NeedsActionSelectionValidation>(entity, false);
 

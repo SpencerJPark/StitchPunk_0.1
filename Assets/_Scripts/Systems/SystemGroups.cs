@@ -41,12 +41,12 @@ public partial class AISystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(AISystemGroup))]
         [UpdateAfter(typeof(AIScoringSystemGroup))]
-        [UpdateBefore(typeof(AIExecutionSystemGroup))]
+        [UpdateBefore(typeof(AIActionSystemGroup))]
         public partial class AISelectionSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(AISystemGroup))]
         [UpdateAfter(typeof(AISelectionSystemGroup))]
-        public partial class AIExecutionSystemGroup : ComponentSystemGroup { }
+        public partial class AIActionSystemGroup : ComponentSystemGroup { }
 
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]

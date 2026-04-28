@@ -28,7 +28,7 @@ public partial struct ActionSelectionSystem : ISystem
         _functionTable[(int)ActionType.Wander]   = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
         _functionTable[(int)ActionType.Interact] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
         _functionTable[(int)ActionType.Flee]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
-        _functionTable[(int)ActionType.Melee]    = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
+        _functionTable[(int)ActionType.MeleeContinuous]    = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
     }
     
     [BurstCompile]
@@ -76,7 +76,7 @@ public partial struct ActionSelectionSystem : ISystem
     // Without it the query uses WithPresent (runs on all units) and FilterPreviousEntity
     // re-enables NeedsAction on dead/inactive units that have 0 options, creating an infinite loop.
     [BurstCompile]
-    [WithAll(typeof(ActiveBrain), typeof(NeedsAction))]
+    [WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
     [WithPresent(typeof(NeedsActionSelectionValidation))]
     public partial struct ActionSelectionJob : IJobEntity
     {
@@ -87,7 +87,7 @@ public partial struct ActionSelectionSystem : ISystem
             ref CurrentAction currentAction,
             ref DynamicBuffer<ActionOption> options,
             EnabledRefRW<NeedsActionSelectionValidation> needsValidation,
-            EnabledRefRW<NeedsAction> needsAction)
+            EnabledRefRW<ActionRequest> needsAction)
         {
 
             // 1. Filter out the previous target to prevent "oscillating" or getting stuck
@@ -172,7 +172,7 @@ public partial struct ActionSelectionSystem : ISystem
 
         public void Execute(
             EnabledRefRW<NeedsActionSelectionValidation> validationTrigger,
-            EnabledRefRW<NeedsAction> needsAction, 
+            EnabledRefRW<ActionRequest> needsAction, 
             in CurrentAction currentAction)
         {
             validationTrigger.ValueRW = false;

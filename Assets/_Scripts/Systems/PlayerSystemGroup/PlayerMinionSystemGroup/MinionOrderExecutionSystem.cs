@@ -18,7 +18,7 @@ using Unity.Collections;
 /// All AI-state and combat components live on the same unit entity.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIExecutionSystemGroup))]
+[UpdateInGroup(typeof(AIActionSystemGroup))]
 public partial struct MinionOrderExecutionSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
@@ -71,7 +71,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         EnabledRefRW<Attack>           attackEnabled,
         EnabledRefRW<Target>           targetEnabled,
         EnabledRefRW<PlayerControlled> playerControlledEnabled,
-        EnabledRefRW<NeedsAction>      needsActionEnabled)
+        EnabledRefRW<ActionRequest>      needsActionEnabled)
     {
         // Already executing an attack — attack system owns completion.
         if (attackEnabled.ValueRO)
@@ -95,7 +95,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         ref EnabledRefRW<Attack> attackEnabled,
         ref EnabledRefRW<Target> targetEnabled,
         ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
-        ref EnabledRefRW<NeedsAction> needsActionEnabled)
+        ref EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         bool targetAlive = aliveLookup.HasComponent(orderTarget) &&
                            aliveLookup.IsComponentEnabled(orderTarget);
@@ -125,7 +125,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         float3 unitPos,
         float3 destination,
         ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
-        ref EnabledRefRW<NeedsAction> needsActionEnabled)
+        ref EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         float distSq = math.distancesq(unitPos, destination);
         if (distSq <= arriveRangeSq)
@@ -134,7 +134,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
 
     private static void ReleaseBrain(
         ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
-        ref EnabledRefRW<NeedsAction> needsActionEnabled)
+        ref EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         playerControlledEnabled.ValueRW = false;
         needsActionEnabled.ValueRW      = true;

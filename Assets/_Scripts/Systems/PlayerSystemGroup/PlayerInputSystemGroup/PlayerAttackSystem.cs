@@ -48,7 +48,7 @@ public partial struct PlayerAttackSystem : ISystem
             ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
             float range = attackBlob.range;
             float rangeSq = range * range;
-            bool isMelee = attackBlob.actionType == ActionType.Melee;
+            bool isMelee = attackBlob.actionType == ActionType.MeleeContinuous;
 
             Entity bestTarget = Entity.Null;
             float bestDistSq = float.MaxValue;

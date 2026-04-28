@@ -45,7 +45,16 @@ public partial struct UpdateLayerTimeJob : IJobEntity
             if (!layer.active) continue;
             
             ref AnimationClipBlob clip = ref library.Value.clips[(int)layer.animation];
-            
+
+            if (!layer.looping && clip.duration <= 0f)
+            {
+                // Missing/placeholder clip — mark complete so AttackHitFrameSystem fires and disarms AttackRequest.
+                layer.time   = float.MaxValue;
+                layer.active = false;
+                layers[i] = layer;
+                continue;
+            }
+
             layer.time += deltaTime * layer.speed;
             
             if (clip.duration > 0 && layer.time >= clip.duration)

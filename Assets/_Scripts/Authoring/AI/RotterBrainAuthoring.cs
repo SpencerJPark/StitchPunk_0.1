@@ -17,7 +17,7 @@ public class RotterBrainAuthoring : MonoBehaviour
 
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             BrainUtil.BakeRequirements(this, entity, authoring.active, brainSO);
-            BrainUtil.AddAction<RotterBrainAuthoring, MeleeAction>(this, entity);
+            BrainUtil.AddAction<RotterBrainAuthoring, MeleeContinuousAction>(this, entity);
             BrainUtil.AddAction<RotterBrainAuthoring, WanderAction>(this, entity);
             BrainUtil.AddAction<RotterBrainAuthoring, IdleAction>(this, entity);
         }

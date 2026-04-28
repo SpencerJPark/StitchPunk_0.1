@@ -25,8 +25,12 @@ public static class SelectionFunctions
     
     [BurstCompile]
     public static void MeleeEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb)
-        => ecb.SetComponentEnabled<MeleeAction>(index, entity, true);
+        => ecb.SetComponentEnabled<MeleeContinuousAction>(index, entity, true);
     
+    [BurstCompile]
+    public static void MeleeSingleEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb)
+        => ecb.SetComponentEnabled<MeleeSingleAction>(index, entity, true);
+
     [BurstCompile]
     public static void FleeEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb)
         => ecb.SetComponentEnabled<FleeAction>(index, entity, true);

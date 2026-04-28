@@ -14,7 +14,7 @@ using Unity.Entities;
 /// DISABLES Attack after each hit. This system re-enables it for the next hit.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIExecutionSystemGroup))]
+[UpdateInGroup(typeof(AIActionSystemGroup))]
 public partial struct MinionAttackExecutionSystem : ISystem
 {
     private ComponentLookup<Alive> aliveLookup;
@@ -43,7 +43,7 @@ public partial struct MinionAttackExecutionSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(Minion), typeof(Target), typeof(PlayerControlled))]
-[WithPresent(typeof(Attack), typeof(NeedsAction))]
+[WithPresent(typeof(Attack), typeof(ActionRequest))]
 public partial struct MinionAttackExecutionJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Alive> aliveLookup;
@@ -54,7 +54,7 @@ public partial struct MinionAttackExecutionJob : IJobEntity
         EnabledRefRW<Attack>           attackEnabled,
         EnabledRefRW<Target>           targetEnabled,
         EnabledRefRW<PlayerControlled> playerControlledEnabled,
-        EnabledRefRW<NeedsAction>      needsActionEnabled)
+        EnabledRefRW<ActionRequest>      needsActionEnabled)
     {
         Entity targetEntity = target.entity;
 

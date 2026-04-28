@@ -62,12 +62,15 @@ public enum ActionType // used for animation linking
     Bathroom,
     Sit,
     
-    Melee,
-    Projectile,
+    MeleeContinuous,
+    MeleeSingle,
+    ProjectileContinuous,
+    ProjectileSingle,
     Swing,
     Throw,
     Shoot,
     Spawn,
+    
 }
 
 

@@ -6,20 +6,25 @@ using Unity.Collections;
 [UpdateInGroup(typeof(AnimationAssignmentSystemGroup))]
 public partial struct UnitAnimationAssignmentSystem : ISystem
 {
+    private ComponentLookup<AttackRequest> attackRequestLookup;
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<UnitDataLibrary>();
+        attackRequestLookup = state.GetComponentLookup<AttackRequest>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         BlobAssetReference<UnitLibraryBlob> library = SystemAPI.GetSingleton<UnitDataLibrary>().library;
+        attackRequestLookup.Update(ref state);
 
         new UnitAnimationAssignmentJob
         {
-            library = library
+            library = library,
+            attackRequestLookup = attackRequestLookup
         }.ScheduleParallel();
     }
 }
@@ -28,8 +33,10 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
 public partial struct UnitAnimationAssignmentJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> library;
+    [ReadOnly] public ComponentLookup<AttackRequest>      attackRequestLookup;
 
     public void Execute(
+        Entity                           entity,
         ref DynamicBuffer<AnimationLayer> layers,
         in UnitData          unitData,
         in Movement          movement,
@@ -48,33 +55,26 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
             AnimationUtils.SetLayer(ref layers, AnimationLayerType.Base, baseAnimation);
 
         // Action layer: attack animations are managed by execution systems directly.
-        // Idle/None: clear the Action layer. Other actions: assign looping animation.
-        if (IsIdleAction(unitAction.current))
+        // Skip while an attack is in progress so the execution system's layer is not cleared.
+        bool isAttacking = attackRequestLookup.HasComponent(entity) && attackRequestLookup.IsComponentEnabled(entity);
+        if (!isAttacking)
         {
-            AnimationUtils.ClearLayer(ref layers, AnimationLayerType.Action);
+            if (IsIdleAction(unitAction.current))
+            {
+                AnimationUtils.ClearLayer(ref layers, AnimationLayerType.Action);
+            }
+            else
+            {
+                AnimationType actionAnimation = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving);
+                if (!AnimationUtils.IsCurrentLayerActive(ref layers, AnimationLayerType.Action, actionAnimation))
+                    AnimationUtils.SetLayer(ref layers, AnimationLayerType.Action, actionAnimation, 1f, true);
+            }
         }
-        else if (!IsAttackAction(unitAction.current))
-        {
-            AnimationType actionAnimation = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving);
-            if (!AnimationUtils.IsCurrentLayerActive(ref layers, AnimationLayerType.Action, actionAnimation))
-                AnimationUtils.SetLayer(ref layers, AnimationLayerType.Action, actionAnimation, 1f, true);
-        }
-        // Attack actions: Action layer is managed by MeleeAttackExecutionSystem + AttackHitFrameSystem
     }
 
     private static bool IsIdleAction(ActionType action)
     {
         return action == ActionType.Idle || action == ActionType.None;
-    }
-
-    private static bool IsAttackAction(ActionType action)
-    {
-        return action == ActionType.Melee
-            || action == ActionType.Projectile
-            || action == ActionType.Swing
-            || action == ActionType.Throw
-            || action == ActionType.Shoot
-            || action == ActionType.Spawn;
     }
 
     private static AnimationType GetBaseAnimation(

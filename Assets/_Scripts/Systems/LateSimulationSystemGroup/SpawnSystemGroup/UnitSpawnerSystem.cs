@@ -108,7 +108,7 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.AddComponent(newBody, new PoolOwner { unitType = targetType });
 
                 ecb.SetComponentEnabled<NewlySpawned>(newBody, true);
-                ecb.SetComponentEnabled<NeedsAction>(newBody, true);
+                ecb.SetComponentEnabled<ActionRequest>(newBody, true);
             }
 
             // Spawner has done its job — disable it until something re-activates it.

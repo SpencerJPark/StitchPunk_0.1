@@ -46,7 +46,7 @@ public partial struct AttackHitFrameSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(PendingAttack))]
+[WithAll(typeof(AttackRequest))]
 public partial struct AttackHitFrameJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
@@ -58,9 +58,9 @@ public partial struct AttackHitFrameJob : IJobEntity
         Entity                           attackerEntity,
         in LocalTransform                attackerTransform,
         in CurrentAction                 currentAction,
-        ref PendingAttack                pendingAttack,
+        ref AttackRequest                attackRequest,
         in DynamicBuffer<AnimationLayer> layers,
-        EnabledRefRW<PendingAttack>      pendingAttackEnabled)
+        EnabledRefRW<AttackRequest>      attackRequestEnabled)
     {
         // Find the Action animation layer
         float actionLayerTime  = -1f;
@@ -86,9 +86,9 @@ public partial struct AttackHitFrameJob : IJobEntity
 
         // Hit-frame check: fire damage the first frame animation time crosses hitTime.
         // Using >= means this fires correctly even when a large deltaTime skips past hitTime.
-        if (!pendingAttack.hitFired && actionLayerTime >= pendingAttack.hitTime)
+        if (!attackRequest.hitFired && actionLayerTime >= attackRequest.hitTime)
         {
-            Entity victim = pendingAttack.targetEntity;
+            Entity victim = attackRequest.targetEntity;
 
             bool victimAlive = aliveLookup.HasComponent(victim) &&
                                aliveLookup.IsComponentEnabled(victim);
@@ -116,15 +116,15 @@ public partial struct AttackHitFrameJob : IJobEntity
             }
 
             // Mark fired regardless — prevents re-attempts if target stepped out of range
-            pendingAttack.hitFired = true;
+            attackRequest.hitFired = true;
         }
 
         // Animation-complete check: AnimationTimeSystem sets active=false when a non-looping
         // clip reaches its end. Disarm so MeleeAttackExecutionSystem can start the next swing.
         if (!actionLayerActive)
         {
-            pendingAttackEnabled.ValueRW = false;
-            pendingAttack.hitFired       = false;
+            attackRequestEnabled.ValueRW = false;
+            attackRequest.hitFired       = false;
         }
     }
 }

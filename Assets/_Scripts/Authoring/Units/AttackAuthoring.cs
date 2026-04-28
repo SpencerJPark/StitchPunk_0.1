@@ -12,8 +12,8 @@ public class AttackAuthoring : MonoBehaviour
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent<Attack>(entity);
             SetComponentEnabled<Attack>(entity, false);
-            AddComponent<PendingAttack>(entity);
-            SetComponentEnabled<PendingAttack>(entity, false);
+            AddComponent<AttackRequest>(entity);
+            SetComponentEnabled<AttackRequest>(entity, false);
             AddComponent(entity, new AttackData { attackType = authoring.baseAttack });
             AddComponent(entity, new AttackCooldown { timer = 0f });
             AddComponent<CombatTarget>(entity);

@@ -36,7 +36,7 @@ public partial struct MinionAutoCounterSystem : ISystem
 [WithAll(typeof(Minion))]
 [WithDisabled(typeof(Dead))]
 [WithPresent(typeof(PlayerControlled))]
-[WithPresent(typeof(NeedsAction))]
+[WithPresent(typeof(ActionRequest))]
 public partial struct MinionAutoCounterJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<PlayerOrder> playerOrderLookup;
@@ -45,7 +45,7 @@ public partial struct MinionAutoCounterJob : IJobEntity
         Entity entity,
         in DynamicBuffer<Hurt> hurtBuffer,
         EnabledRefRW<PlayerControlled> playerControlledEnabled,
-        EnabledRefRW<NeedsAction> needsActionEnabled)
+        EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         if (hurtBuffer.Length == 0) return;
         if (!playerControlledEnabled.ValueRO) return;
