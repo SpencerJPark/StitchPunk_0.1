@@ -31,7 +31,6 @@ public partial struct AttackLibraryBakingSystem : ISystem
         for (int i = 0; i < attackCount; i++)
         {
             attacksBuilder[i].attackType      = (AttackType)i;
-            attacksBuilder[i].actionType  = ActionType.None;
             attacksBuilder[i].damageBehaviour = DamageBehaviour.SinlgeTarget;
             attacksBuilder[i].damageAmount    = 0;
             attacksBuilder[i].range           = 0f;
@@ -48,7 +47,6 @@ public partial struct AttackLibraryBakingSystem : ISystem
 
             int index = (int)attackSO.attackType;
             attacksBuilder[index].attackType      = attackSO.attackType;
-            attacksBuilder[index].actionType  = attackSO.actionType;
             attacksBuilder[index].damageBehaviour = attackSO.damageBehaviour;
             attacksBuilder[index].damageAmount    = attackSO.damageAmount;
             attacksBuilder[index].range           = attackSO.range;

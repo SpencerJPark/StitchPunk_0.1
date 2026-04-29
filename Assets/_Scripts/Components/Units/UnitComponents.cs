@@ -54,6 +54,11 @@ public struct HealthBar : IComponentData {
     public Entity barVisualEntity;
     public Entity healthEntity;
 }
+[MaterialProperty("_SelectionColor")]
+public struct HitVisual : IComponentData
+{
+    public float Value;
+}
 
 // Prevents the player from targeting this entity with attacks.
 // Use on friendly vehicles, allied units, or anything else that shouldn't take player damage.

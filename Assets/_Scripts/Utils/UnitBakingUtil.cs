@@ -2,12 +2,11 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-public static class BrainUtil
+public static class UnitBakingUtil
 {
-    public static void BakeRequirements<T>(Baker<T> baker, Entity entity, bool active, BrainSO brainSo)
+    public static void BakeRequirements<T>(Baker<T> baker, Entity entity, bool active, UnitSO unitSo)
         where T : UnityEngine.Component
     {
-        baker.AddComponent(entity, new Brain { activeBrain = brainSo.brainType });
         baker.AddComponent<ActiveBrain>(entity);
         baker.SetComponentEnabled<ActiveBrain>(entity, active);
 
@@ -18,36 +17,36 @@ public static class BrainUtil
         baker.AddComponent<NeedsActionSelectionValidation>(entity);
         baker.SetComponentEnabled<NeedsActionSelectionValidation>(entity, false);
 
-        baker.AddComponent(entity, new Awareness { range = brainSo.awarenessRange });
+        baker.AddComponent(entity, new Awareness { range = unitSo.awarenessRange });
         baker.AddComponent(entity, new ActionTimer { time = 0f });
 
         baker.AddComponent<AggressiveState>(entity);
         baker.SetComponentEnabled<AggressiveState>(entity, false);
 
         DynamicBuffer<Motivation> behaviourBuffer = baker.AddBuffer<Motivation>(entity);
-        if (brainSo.behaviours != null)
-            PopulateBehaviours(behaviourBuffer, brainSo.behaviours);
+        if (unitSo.behaviours != null)
+            PopulateBehaviours(behaviourBuffer, unitSo.behaviours);
 
-        if (brainSo.randomBehaviours != null && brainSo.randomBehaviours.Length > 0 && brainSo.amount > 0)
-            PopulateRandomBehaviours(behaviourBuffer, brainSo.randomBehaviours, brainSo.amount);
+        if (unitSo.randomBehaviours != null && unitSo.randomBehaviours.Length > 0 && unitSo.randomBehavioursAmount > 0)
+            PopulateRandomBehaviours(behaviourBuffer, unitSo.randomBehaviours, unitSo.randomBehavioursAmount);
 
         DynamicBuffer<AttackFaction> attackBuffer = baker.AddBuffer<AttackFaction>(entity);
-        if (brainSo.attackFactions != null)
+        if (unitSo.attackFactions != null)
         {
-            for (int i = 0; i < brainSo.attackFactions.Length; i++)
-                attackBuffer.Add(new AttackFaction { faction = brainSo.attackFactions[i] });
+            for (int i = 0; i < unitSo.attackFactions.Length; i++)
+                attackBuffer.Add(new AttackFaction { faction = unitSo.attackFactions[i] });
         }
 
-        if (brainSo.canBePlayerControlled)
+        if (unitSo.canBePlayerControlled)
             AddPlayerControlled(baker, entity, false);
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
 
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
-        if (brainSo.attacks != null)
-            foreach (AttackType attackType in brainSo.attacks)
-                availableAttackBuffer.Add(new AvailableAttack { attackType = attackType });
+        if (unitSo.attacks != null)
+            foreach (AttackActionMapping mapping in unitSo.attacks)
+                availableAttackBuffer.Add(new AvailableAttack { attackType = mapping.attack });
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)

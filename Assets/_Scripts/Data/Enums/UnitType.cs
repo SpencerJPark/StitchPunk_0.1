@@ -22,4 +22,5 @@ public enum UnitType {
     FemaleCitizen,
     MaleZombie,
     FemaleZombie,
+    PlayerZombie,
 }

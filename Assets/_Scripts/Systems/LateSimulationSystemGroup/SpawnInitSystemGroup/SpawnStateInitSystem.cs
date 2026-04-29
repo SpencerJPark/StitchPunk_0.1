@@ -24,7 +24,6 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<Undead>            _undeadLookup;
     private ComponentLookup<Minion>            _minionLookup;
     private ComponentLookup<Revive>            _reviveLookup;
-    private ComponentLookup<SwapBrainRequest>  _swapBrainLookup;
     private ComponentLookup<Selected>          _selectedLookup;
     private ComponentLookup<PathRequest>       _pathRequestLookup;
     private ComponentLookup<DStarLiteFollower> _dStarLookup;
@@ -41,7 +40,6 @@ public partial struct SpawnStateInitSystem : ISystem
         _undeadLookup        = state.GetComponentLookup<Undead>(false);
         _minionLookup        = state.GetComponentLookup<Minion>(false);
         _reviveLookup        = state.GetComponentLookup<Revive>(false);
-        _swapBrainLookup     = state.GetComponentLookup<SwapBrainRequest>(false);
         _selectedLookup      = state.GetComponentLookup<Selected>(false);
         _pathRequestLookup   = state.GetComponentLookup<PathRequest>(false);
         _dStarLookup         = state.GetComponentLookup<DStarLiteFollower>(false);
@@ -58,7 +56,6 @@ public partial struct SpawnStateInitSystem : ISystem
         _undeadLookup.Update(ref state);
         _minionLookup.Update(ref state);
         _reviveLookup.Update(ref state);
-        _swapBrainLookup.Update(ref state);
         _selectedLookup.Update(ref state);
         _pathRequestLookup.Update(ref state);
         _dStarLookup.Update(ref state);
@@ -85,8 +82,6 @@ public partial struct SpawnStateInitSystem : ISystem
                 _minionLookup.SetComponentEnabled(entity, false);
             if (_reviveLookup.HasComponent(entity))
                 _reviveLookup.SetComponentEnabled(entity, false);
-            if (_swapBrainLookup.HasComponent(entity))
-                _swapBrainLookup.SetComponentEnabled(entity, false);
             if (_selectedLookup.HasComponent(entity))
                 _selectedLookup.SetComponentEnabled(entity, false);
 

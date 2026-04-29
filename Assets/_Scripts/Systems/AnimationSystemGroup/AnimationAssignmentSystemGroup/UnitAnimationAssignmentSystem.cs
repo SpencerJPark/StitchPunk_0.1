@@ -6,25 +6,20 @@ using Unity.Collections;
 [UpdateInGroup(typeof(AnimationAssignmentSystemGroup))]
 public partial struct UnitAnimationAssignmentSystem : ISystem
 {
-    private ComponentLookup<AttackRequest> attackRequestLookup;
-
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<UnitDataLibrary>();
-        attackRequestLookup = state.GetComponentLookup<AttackRequest>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         BlobAssetReference<UnitLibraryBlob> library = SystemAPI.GetSingleton<UnitDataLibrary>().library;
-        attackRequestLookup.Update(ref state);
 
         new UnitAnimationAssignmentJob
         {
             library = library,
-            attackRequestLookup = attackRequestLookup
         }.ScheduleParallel();
     }
 }
@@ -33,15 +28,13 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
 public partial struct UnitAnimationAssignmentJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> library;
-    [ReadOnly] public ComponentLookup<AttackRequest>      attackRequestLookup;
 
     public void Execute(
-        Entity                           entity,
         ref DynamicBuffer<AnimationLayer> layers,
-        in UnitData          unitData,
-        in Movement          movement,
-        in UnitAction        unitAction,
-        in LocomotionStance  locomotionStance)
+        in UnitData         unitData,
+        in Movement         movement,
+        in UnitAction       unitAction,
+        in LocomotionStance locomotionStance)
     {
         int unitIndex = (int)unitData.unitType;
         if (unitIndex < 0 || unitIndex >= library.Value.units.Length)
@@ -54,10 +47,10 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         if (!AnimationUtils.IsCurrentLayer(ref layers, AnimationLayerType.Base, baseAnimation))
             AnimationUtils.SetLayer(ref layers, AnimationLayerType.Base, baseAnimation);
 
-        // Action layer: attack animations are managed by execution systems directly.
-        // Skip while an attack is in progress so the execution system's layer is not cleared.
-        bool isAttacking = attackRequestLookup.HasComponent(entity) && attackRequestLookup.IsComponentEnabled(entity);
-        if (!isAttacking)
+        // Action layer: a non-looping clip (e.g. attack) owns this layer until it finishes.
+        // AnimationRequestSystem runs first this frame and sets active=true, looping=false;
+        // AnimationTimeSystem clears active when the clip ends, returning control here.
+        if (!HasActiveNonLoopingLayer(ref layers, AnimationLayerType.Action))
         {
             if (IsIdleAction(unitAction.current))
             {
@@ -70,6 +63,16 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
                     AnimationUtils.SetLayer(ref layers, AnimationLayerType.Action, actionAnimation, 1f, true);
             }
         }
+    }
+
+    private static bool HasActiveNonLoopingLayer(ref DynamicBuffer<AnimationLayer> layers, AnimationLayerType layerType)
+    {
+        for (int i = 0; i < layers.Length; i++)
+        {
+            if (layers[i].layer == layerType)
+                return layers[i].active && !layers[i].looping;
+        }
+        return false;
     }
 
     private static bool IsIdleAction(ActionType action)
@@ -90,7 +93,6 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
                 if (stances[i].stance == stance)
                     return isMoving ? stances[i].movingAnimation : stances[i].idleAnimation;
             }
-            // No entry for this stance — fall through to defaults
         }
         return isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation;
     }

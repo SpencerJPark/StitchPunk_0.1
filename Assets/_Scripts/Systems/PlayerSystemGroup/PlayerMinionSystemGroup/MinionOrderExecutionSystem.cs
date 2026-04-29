@@ -92,7 +92,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         float3 unitPos,
         Entity orderTarget,
         ref Target target,
-        ref EnabledRefRW<Attack> attackEnabled,
+        ref EnabledRefRW<AttackRequest> attackEnabled,
         ref EnabledRefRW<Target> targetEnabled,
         ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
         ref EnabledRefRW<ActionRequest> needsActionEnabled)

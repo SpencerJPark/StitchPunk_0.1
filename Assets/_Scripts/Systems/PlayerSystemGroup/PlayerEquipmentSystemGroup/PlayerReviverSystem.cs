@@ -29,12 +29,6 @@ public partial struct PlayerReviverSystem : ISystem
                 Entity targetEntity = target.ValueRO.entity;
                 if (SystemAPI.HasComponent<Revive>(targetEntity))
                     SystemAPI.SetComponentEnabled<Revive>(targetEntity, true);
-
-                if (SystemAPI.HasComponent<SwapBrainRequest>(targetEntity))
-                {
-                    SystemAPI.SetComponent<SwapBrainRequest>(targetEntity, new SwapBrainRequest { newBrain = BrainType.PlayerZombie });
-                    SystemAPI.SetComponentEnabled<SwapBrainRequest>(targetEntity, true);
-                }
             }
 
             reviverEnabled.ValueRW = false;

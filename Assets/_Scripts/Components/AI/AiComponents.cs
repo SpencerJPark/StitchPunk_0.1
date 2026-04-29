@@ -4,13 +4,9 @@ using Unity.Collections;
 using Unity.Rendering;
 
 // Brain
-public struct Brain : IComponentData
-{
-    public BrainType activeBrain;
-}
 public struct SwapBrainRequest : IComponentData, IEnableableComponent
 {
-    public BrainType newBrain;
+    public UnitType newUnit;
 }
 public struct ActiveBrain : IComponentData, IEnableableComponent { }
 public struct ActionRequest : IComponentData, IEnableableComponent { }
@@ -18,8 +14,7 @@ public struct NeedsActionSelectionValidation: IComponentData, IEnableableCompone
 public struct CurrentAction : IComponentData
 {
     public ActionType actionType;
-    public AttackType attackType;
-    public Entity targetEntity;
+    public Entity     targetEntity;
 }
 
 public struct ArrivedAtTarget : IComponentData, IEnableableComponent { }
@@ -73,6 +68,10 @@ public struct FactionRegistry : IComponentData
 {
     public NativeParallelMultiHashMap<byte, Entity> entities;
 }
+public struct AttackFaction : IBufferElementData
+{
+    public FactionType faction;
+}
 // ─── ThreatEntry ──────────────────────────────────────────────────────────────
 // Buffer on any unit entity that can be attacked.
 // ThreatUpdateSystem populates this from the Hurt buffer each frame before
@@ -84,10 +83,7 @@ public struct ThreatEntry : IBufferElementData
     public float  threatScore;       // cumulative damage received from this attacker
     public float  reactionDelay;     // counts down to 0 before fight-back activates
 }
-public struct CombatTarget : IComponentData
-{
-    public Entity     targetEntity;
-}
+
 
 
 // Actions

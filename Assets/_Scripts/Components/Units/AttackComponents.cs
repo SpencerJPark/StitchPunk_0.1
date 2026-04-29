@@ -4,30 +4,19 @@ using Unity.Rendering;
 
 public struct AttackRequest : IComponentData, IEnableableComponent
 {
-    public Entity targetEntity;
+    public Entity     targetEntity;
     public AttackType attackType;
-    public float  hitTime;
-    public bool   hitFired;
+    public bool       hitFired;
 }
 public struct AttackCooldown : IComponentData
 {
     public float timer;
 }
-public struct AttackFaction : IBufferElementData
+public struct CombatTarget : IComponentData
 {
-    public FactionType faction;
-}
-
-public struct CurrentAttack : IComponentData
-{
-    public AttackType attackType;
+    public Entity     targetEntity;
 }
 public struct AvailableAttack : IBufferElementData
 {
     public AttackType attackType;
-}
-[MaterialProperty("_SelectionColor")]
-public struct HitVisual : IComponentData
-{
-    public float Value;
 }

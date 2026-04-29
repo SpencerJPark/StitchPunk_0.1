@@ -29,6 +29,7 @@ public partial struct CombatAwarenessSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<AttackLibrary>();
+        state.RequireForUpdate<UnitDataLibrary>();
 
         transformLookup    = state.GetComponentLookup<LocalTransform>(true);
         deadLookup         = state.GetComponentLookup<Dead>(true);
@@ -45,12 +46,16 @@ public partial struct CombatAwarenessSystem : ISystem
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
 
+        BlobAssetReference<UnitLibraryBlob> unitLibrary =
+            SystemAPI.GetSingleton<UnitDataLibrary>().library;
+
         state.Dependency = new CombatAwarenessJob
         {
             transformLookup    = transformLookup,
             deadLookup         = deadLookup,
             factionEntities    = registry.entities,
             attackLibrary      = attackLibrary,
+            unitLibrary        = unitLibrary,
         }.Schedule(state.Dependency);
     }
 }
@@ -63,17 +68,18 @@ public partial struct CombatAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [ReadOnly] public ComponentLookup<Dead> deadLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
-    [ReadOnly] public BlobAssetReference<AttackLibraryBlob>    attackLibrary;
+    [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
+    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
 
     public void Execute(
         Entity self,
         ref CombatTarget combatTarget,
         in Awareness awareness,
         in LocalTransform transform,
+        in UnitData                      unitData,
         ref DynamicBuffer<Motivation>    motivations,
         ref DynamicBuffer<ActionOption>  options,
-        in DynamicBuffer<AttackFaction>  attackFactions,
-        in DynamicBuffer<AvailableAttack> availableAttacks)
+        in DynamicBuffer<AttackFaction>  attackFactions)
     {
         float3 myPos   = transform.Position;
         
@@ -132,14 +138,18 @@ public partial struct CombatAwarenessJob : IJobEntity
 
             float nearestDist = math.sqrt(nearestDistanceSq);
 
-            for (int a = 0; a < availableAttacks.Length; a++)
+            int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
+            if (unitIndex < 0) return;
+            ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
+
+            for (int a = 0; a < unitBlob.attacks.Length; a++)
             {
-                AttackType attackType  = availableAttacks[a].attackType;
+                ActionType actionType = unitBlob.attacks[a].action;
+                AttackType attackType = unitBlob.attacks[a].attack;
                 int        attackIndex = (int)attackType;
-                if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+                if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
                     continue;
-                ActionType actionType = attackLibrary.Value.attacks[attackIndex].actionType;
-                float      attackRange = attackLibrary.Value.attacks[attackIndex].range;
+                float attackRange = attackLibrary.Value.attacks[attackIndex].range;
 
                 // Score = 1.0 if target is at or within range; decays as target moves farther out.
                 // Longer-reach attacks score higher when target is at distance, encouraging

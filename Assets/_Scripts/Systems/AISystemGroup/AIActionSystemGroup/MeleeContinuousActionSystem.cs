@@ -68,12 +68,13 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         ref PathRequest       pathRequest,
         ref Target            target,
         ref AttackRequest     attackRequest,
-        ref DynamicBuffer<AnimationLayer> layers,
+        ref DynamicBuffer<SetAnimation>   setAnimations,
         EnabledRefRW<MeleeContinuousAction>   meleeContinuous,
         EnabledRefRW<ActionRequest>   actionRequest,
         EnabledRefRW<PathRequest>   pathRequestEnabled,
-        EnabledRefRW<Target>        targetEnabled,
-        EnabledRefRW<AttackRequest> attackRequestEnabled)
+        EnabledRefRW<Target>          targetEnabled,
+        EnabledRefRW<AttackRequest>   attackRequestEnabled,
+        EnabledRefRW<AnimationRequest> animationRequestEnabled)
     {
         Entity hostile = combatTarget.targetEntity;
 
@@ -100,11 +101,13 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             return;
         }
 
-        int attackIndex = (int)currentAction.attackType;
-        if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+        int unitIndex = (int)unitData.unitType;
+        AttackType attackType = FindAttackForAction(ref unitLibrary.Value.units[unitIndex], currentAction.actionType);
+        int attackIndex = (int)attackType;
+        if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
             actionRequest.ValueRW = true;
-            meleeContinuous.ValueRW        = false;
+            meleeContinuous.ValueRW = false;
             return;
         }
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
@@ -126,19 +129,35 @@ public partial struct MeleeContinuousActionJob : IJobEntity
 
         if (cooldown.timer <= 0f && !attackRequestEnabled.ValueRO)
         {
-            attackRequest.targetEntity   = hostile;
-            attackRequest.hitTime        = attackBlob.hitTime;
-            attackRequest.hitFired       = false;
+            attackRequest.targetEntity = hostile;
+            attackRequest.attackType   = attackType;
+            attackRequest.hitFired     = false;
             attackRequestEnabled.ValueRW = true;
             cooldown.timer               = attackBlob.cooldown;
 
-            // Start the attack animation on the Action layer
-            int unitIndex = (int)unitData.unitType;
+            // Queue the attack animation via request system (decoupled from direct layer mutation)
             AnimationType attackAnimation = AnimationType.None;
             if (unitIndex >= 0 && unitIndex < unitLibrary.Value.units.Length)
-                attackAnimation = GetAttackAnimation(ref unitLibrary.Value.units[unitIndex], attackBlob.actionType);
-            AnimationUtils.SetLayer(ref layers, AnimationLayerType.Action, attackAnimation, 1f, false);
+                attackAnimation = GetAttackAnimation(ref unitLibrary.Value.units[unitIndex], ActionType.MeleeContinuous);
+            setAnimations.Add(new SetAnimation
+            {
+                layer     = AnimationLayerType.Action,
+                animation = attackAnimation,
+                speed     = 1f,
+                looping   = false,
+            });
+            animationRequestEnabled.ValueRW = true;
         }
+    }
+
+    private static AttackType FindAttackForAction(ref UnitDataBlob unitBlob, ActionType actionType)
+    {
+        for (int i = 0; i < unitBlob.attacks.Length; i++)
+        {
+            if (unitBlob.attacks[i].action == actionType)
+                return unitBlob.attacks[i].attack;
+        }
+        return AttackType.None;
     }
 
     private static AnimationType GetAttackAnimation(ref UnitDataBlob unitBlob, ActionType actionType)

@@ -55,6 +55,10 @@ public class AnimatorAuthoring : MonoBehaviour
             SortLayers(ref layers);
 
             AddBuffer<AnimatorTarget>(entity);
+
+            AddBuffer<SetAnimation>(entity);
+            AddComponent<AnimationRequest>(entity);
+            SetComponentEnabled<AnimationRequest>(entity, false);
         }
 
         private void SortLayers(ref DynamicBuffer<AnimationLayer> layers)

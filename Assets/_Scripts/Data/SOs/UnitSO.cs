@@ -6,22 +6,33 @@ using System;
 public class UnitSO : ScriptableObject
 {
     [SearchableEnum] public UnitType unitType;
+    public FactionType factionType;
+    public bool canBePlayerControlled = false;
+    
+    [Header("Prefab GameObject")]
     public GameObject prefab;
     
-    [Tooltip("Animation Data")]
+    [Header("AI")]
+    public float awarenessRange;
+    [SearchableEnum] public MotivationType[] behaviours;
+    public int randomBehavioursAmount;
+    [SearchableEnum] public MotivationType[] randomBehaviours;
+    
+    [Header("Animations")]
     public ActionAnimationMapping[] actionAnimations;
     public StanceAnimationMapping[] stanceAnimations;
     [SearchableEnum] public AnimationType idleAnimation;
     [SearchableEnum] public AnimationType movingAnimation;
 
-    [Tooltip("Default Attack")] 
-    [SearchableEnum] public AttackType[] attackType;
+    [Header("Combat")]
+    [SearchableEnum] public FactionType[] attackFactions;
+    public AttackActionMapping[] attacks;
     
     [Header("Movement")]
     public float moveSpeed = 5f;
     public float rotationSpeed = 10f;
     
-    [Tooltip("Spawn Cost")]
+    [Header("Spawn Cost")]
     public ResourceAmount[] spawnCostResourceAmountArray;
     public float progressMax;
     public Sprite sprite;
@@ -42,8 +53,15 @@ public class UnitSO : ScriptableObject
 [Serializable]
 public struct ActionAnimationMapping
 {
-    public ActionType action;
-    public AnimationType animation;
+    [SearchableEnum] public ActionType action;
+    [SearchableEnum] public AnimationType animation;
+}
+
+[Serializable]
+public struct AttackActionMapping
+{
+    [SearchableEnum] public ActionType action;
+    [SearchableEnum] public AttackType attack;
 }
 
 [Serializable]

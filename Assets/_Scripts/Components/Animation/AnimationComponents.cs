@@ -2,6 +2,16 @@
 using Unity.Mathematics;
 using Unity.Rendering;
 
+public struct AnimationRequest : IComponentData, IEnableableComponent { }
+public struct SetAnimation : IBufferElementData
+{
+    public AnimationLayerType layer;
+    public AnimationType      animation;
+    public float              speed;
+    public bool               looping;
+}
+
+
 [InternalBufferCapacity(8)]
 public struct AnimationLayer : IBufferElementData
 {

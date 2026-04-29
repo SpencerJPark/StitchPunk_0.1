@@ -1,19 +1,4 @@
-﻿public enum BrainType
-{
-    None        = 0,
-    Citizen     = 1,
-    Guard       = 2,
-    Rotted = 3, 
-    PlayerZombie = 4, 
-    Panic       = 5, 
-    Merchant    = 6, 
-    StoryCharacter   = 7, 
-    Bandit = 8,
-    AngryMob,
-    
-}
-
-public enum MotivationType
+﻿public enum MotivationType
 {
     None,
     Hunger,

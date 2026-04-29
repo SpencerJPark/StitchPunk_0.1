@@ -1,4 +1,4 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 using Unity.Collections;
 
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
@@ -9,7 +9,7 @@ public partial struct UnitLibraryBakingSystem : ISystem
     {
         EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
 
-        foreach (var (libraryRef, entity) in 
+        foreach (var (libraryRef, entity) in
             SystemAPI.Query<RefRO<UnitDataLibraryReference>>()
             .WithNone<UnitDataLibrary>()
             .WithEntityAccess())
@@ -48,15 +48,41 @@ public partial struct UnitLibraryBakingSystem : ISystem
         for (int i = 0; i < librarySO.units.Count; i++)
         {
             UnitSO unitSO = librarySO.units[i];
-            
-            unitsArray[i].unitType = unitSO.unitType;
-            unitsArray[i].idleAnimation = unitSO.idleAnimation;
-            unitsArray[i].movingAnimation = unitSO.movingAnimation;
+
+            unitsArray[i].unitType             = unitSO.unitType;
+            unitsArray[i].factionType          = unitSO.factionType;
+            unitsArray[i].canBePlayerControlled = unitSO.canBePlayerControlled;
+            unitsArray[i].awarenessRange       = unitSO.awarenessRange;
+            unitsArray[i].idleAnimation        = unitSO.idleAnimation;
+            unitsArray[i].movingAnimation      = unitSO.movingAnimation;
+            unitsArray[i].randomMotivationAmount = unitSO.randomBehavioursAmount;
+
+            int motivationCount = unitSO.behaviours?.Length ?? 0;
+            BlobBuilderArray<MotivationType> motivationArray = builder.Allocate(ref unitsArray[i].motivation, motivationCount);
+            for (int j = 0; j < motivationCount; j++)
+                motivationArray[j] = unitSO.behaviours[j];
+
+            int randomCount = unitSO.randomBehaviours?.Length ?? 0;
+            BlobBuilderArray<MotivationType> randomArray = builder.Allocate(ref unitsArray[i].randomMotivations, randomCount);
+            for (int j = 0; j < randomCount; j++)
+                randomArray[j] = unitSO.randomBehaviours[j];
+
+            int attackFactionCount = unitSO.attackFactions?.Length ?? 0;
+            BlobBuilderArray<FactionType> attackFactionArray = builder.Allocate(ref unitsArray[i].attackFactions, attackFactionCount);
+            for (int j = 0; j < attackFactionCount; j++)
+                attackFactionArray[j] = unitSO.attackFactions[j];
+
+            int attackCount = unitSO.attacks?.Length ?? 0;
+            BlobBuilderArray<AttackActionMappingBlob> attackArray = builder.Allocate(ref unitsArray[i].attacks, attackCount);
+            for (int j = 0; j < attackCount; j++)
+            {
+                attackArray[j].action = unitSO.attacks[j].action;
+                attackArray[j].attack = unitSO.attacks[j].attack;
+            }
 
             int mappingCount = unitSO.actionAnimations?.Length ?? 0;
             BlobBuilderArray<ActionAnimationMappingBlob> mappingsArray =
                 builder.Allocate(ref unitsArray[i].actionAnimations, mappingCount);
-
             for (int j = 0; j < mappingCount; j++)
             {
                 mappingsArray[j].action    = unitSO.actionAnimations[j].action;
@@ -66,7 +92,6 @@ public partial struct UnitLibraryBakingSystem : ISystem
             int stanceCount = unitSO.stanceAnimations?.Length ?? 0;
             BlobBuilderArray<StanceAnimationBlob> stanceArray =
                 builder.Allocate(ref unitsArray[i].stanceAnimations, stanceCount);
-
             for (int j = 0; j < stanceCount; j++)
             {
                 stanceArray[j].stance         = unitSO.stanceAnimations[j].stance;

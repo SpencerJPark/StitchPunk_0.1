@@ -111,8 +111,7 @@ public partial struct ActionSelectionSystem : ISystem
             ActionOption choice = options[selectedIndex];
 
             // 4. Record the selection to CurrentAction
-            currentAction.actionType = choice.actionType;
-            currentAction.attackType = choice.attackType;
+            currentAction.actionType   = choice.actionType;
             currentAction.targetEntity = choice.targetEntity;
 
             // 5. Handle State Transitions

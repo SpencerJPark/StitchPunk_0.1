@@ -56,13 +56,12 @@ public partial struct AttackHitFrameJob : IJobEntity
     public void Execute(
         Entity                           attackerEntity,
         in LocalTransform                attackerTransform,
-        in CurrentAction                 currentAction,
         ref AttackRequest                attackRequest,
         in DynamicBuffer<AnimationLayer> layers,
         EnabledRefRW<AttackRequest>      attackRequestEnabled)
     {
         // Find the Action animation layer
-        float actionLayerTime  = -1f;
+        float actionLayerTime   = -1f;
         bool  actionLayerActive = false;
         for (int i = 0; i < layers.Length; i++)
         {
@@ -78,14 +77,14 @@ public partial struct AttackHitFrameJob : IJobEntity
         if (actionLayerTime < 0f)
             return;
 
-        int attackIndex = (int)currentAction.attackType;
-        if (attackIndex < 0 || attackIndex >= attackLibrary.Value.attacks.Length)
+        int attackIndex = (int)attackRequest.attackType;
+        if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
             return;
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
         // Hit-frame check: fire damage the first frame animation time crosses hitTime.
         // Using >= means this fires correctly even when a large deltaTime skips past hitTime.
-        if (!attackRequest.hitFired && actionLayerTime >= attackRequest.hitTime)
+        if (!attackRequest.hitFired && actionLayerTime >= attackBlob.hitTime)
         {
             Entity victim = attackRequest.targetEntity;
 
