@@ -17,8 +17,8 @@ public class UndeadAuthoring : MonoBehaviour
             AddComponent<Undead>(entity);
             SetComponentEnabled<Undead>(entity, authoring.startUndead);
 
-            AddComponent<Revive>(entity);
-            SetComponentEnabled<Revive>(entity, false);
+            AddComponent<ReviveRequest>(entity);
+            SetComponentEnabled<ReviveRequest>(entity, false);
         }
     }
 }

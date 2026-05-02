@@ -9,7 +9,7 @@ using Unity.Transforms;
 /// Ragdoll2D is still enabled on the visual child.
 /// </summary>
 [UpdateInGroup(typeof(HealthSystemGroup))]
-[UpdateAfter(typeof(ReviveSystem))]
+[UpdateAfter(typeof(ReviveRequestSystem))]
 public partial struct Ragdoll2DReviveSystem : ISystem
 {
     private ComponentLookup<Ragdoll2D>       ragdollLookup;

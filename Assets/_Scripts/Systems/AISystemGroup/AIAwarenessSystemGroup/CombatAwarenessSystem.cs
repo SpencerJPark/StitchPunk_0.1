@@ -125,16 +125,7 @@ public partial struct CombatAwarenessJob : IJobEntity
 
             // Set BloodLust motivation to max urgency so MotivationScoringSystem
             // scores attack options at full weight via the BloodLust curve.
-            for (int m = 0; m < motivations.Length; m++)
-            {
-                Motivation motivation = motivations[m];
-                if (motivation.motivationType == MotivationType.BloodLust)
-                {
-                    motivation.value = 100f;
-                    motivations[m] = motivation;
-                    break;
-                }
-            }
+            AIUtils.SetMotivationValue(ref motivations, MotivationType.BloodLust, 100f);
 
             float nearestDist = math.sqrt(nearestDistanceSq);
 
@@ -151,18 +142,12 @@ public partial struct CombatAwarenessJob : IJobEntity
                     continue;
                 float attackRange = attackLibrary.Value.attacks[attackIndex].range;
 
-                // Score = 1.0 if target is at or within range; decays as target moves farther out.
-                // Longer-reach attacks score higher when target is at distance, encouraging
-                // the NPC to lead with the appropriate strike for its current position.
-                float rangeScore = nearestDist <= attackRange
-                    ? 1.0f
-                    : attackRange / nearestDist;
+                float rangeScore = AIUtils.AttackRangeScore(nearestDist, attackRange);
 
                 options.Add(new ActionOption
                 {
                     actionType     = actionType,
                     motivationType = MotivationType.BloodLust,
-                    attackType     = attackType,
                     utilityScore   = rangeScore,
                     interaction    = false,
                     targetEntity   = nearestHostile,

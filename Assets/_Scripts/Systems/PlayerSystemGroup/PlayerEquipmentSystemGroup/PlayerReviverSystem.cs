@@ -27,8 +27,8 @@ public partial struct PlayerReviverSystem : ISystem
             if (targetEnabled.ValueRO)
             {
                 Entity targetEntity = target.ValueRO.entity;
-                if (SystemAPI.HasComponent<Revive>(targetEntity))
-                    SystemAPI.SetComponentEnabled<Revive>(targetEntity, true);
+                if (SystemAPI.HasComponent<ReviveRequest>(targetEntity))
+                    SystemAPI.SetComponentEnabled<ReviveRequest>(targetEntity, true);
             }
 
             reviverEnabled.ValueRW = false;

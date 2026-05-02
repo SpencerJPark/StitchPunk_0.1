@@ -4,7 +4,7 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(HealthSystemGroup))]
-[UpdateBefore(typeof(ReviveSystem))]
+[UpdateBefore(typeof(ReviveRequestSystem))]
 public partial struct DeathSystem : ISystem
 {
     private ComponentLookup<ActiveBrain>    activeBrainLookup;

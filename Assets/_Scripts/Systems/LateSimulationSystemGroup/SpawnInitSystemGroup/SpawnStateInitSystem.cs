@@ -23,7 +23,7 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<Ragdoll2DLaunch>   _ragdollLaunchLookup;
     private ComponentLookup<Undead>            _undeadLookup;
     private ComponentLookup<Minion>            _minionLookup;
-    private ComponentLookup<Revive>            _reviveLookup;
+    private ComponentLookup<ReviveRequest>            _reviveLookup;
     private ComponentLookup<Selected>          _selectedLookup;
     private ComponentLookup<PathRequest>       _pathRequestLookup;
     private ComponentLookup<DStarLiteFollower> _dStarLookup;
@@ -39,7 +39,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _ragdollLaunchLookup = state.GetComponentLookup<Ragdoll2DLaunch>(false);
         _undeadLookup        = state.GetComponentLookup<Undead>(false);
         _minionLookup        = state.GetComponentLookup<Minion>(false);
-        _reviveLookup        = state.GetComponentLookup<Revive>(false);
+        _reviveLookup        = state.GetComponentLookup<ReviveRequest>(false);
         _selectedLookup      = state.GetComponentLookup<Selected>(false);
         _pathRequestLookup   = state.GetComponentLookup<PathRequest>(false);
         _dStarLookup         = state.GetComponentLookup<DStarLiteFollower>(false);

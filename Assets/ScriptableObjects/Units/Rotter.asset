@@ -10,21 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 95850bc4d1a0feb499910a2fb76c62ab, type: 3}
-  m_Name: MaleZombie
+  m_Name: Rotter
   m_EditorClassIdentifier: StitchPunk.Data::UnitSO
   unitType: 4
+  factionType: 5
+  canBePlayerControlled: 1
   prefab: {fileID: 3898859768826041075, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+  awarenessRange: 20
+  behaviours: 0b000000080000000a000000
+  randomBehavioursAmount: 0
+  randomBehaviours: 
   actionAnimations:
   - action: 1
     animation: 1
   - action: 2
     animation: 2
   - action: 18
-    animation: 34
+    animation: 1
   stanceAnimations: []
   idleAnimation: 1
   movingAnimation: 2
-  attackType: 03000000
+  attackFactions: 01030206070809
+  attacks:
+  - action: 18
+    attack: 3
   moveSpeed: 3
   rotationSpeed: 10
   spawnCostResourceAmountArray: []

@@ -6,7 +6,7 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(CombatResolutionSystemGroup))]
-public partial struct AttackHitFrameSystem : ISystem
+public partial struct AttackRequestSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
     private BufferLookup<Hurt>             hurtBufferLookup;
@@ -34,7 +34,7 @@ public partial struct AttackHitFrameSystem : ISystem
             SystemAPI.GetSingleton<AttackLibrary>().library;
 
         // Single-threaded: multiple attackers may write to the same target's Hurt buffer
-        state.Dependency = new AttackHitFrameJob
+        state.Dependency = new AttackRequestJob
         {
             transformLookup  = transformLookup,
             hurtBufferLookup = hurtBufferLookup,
@@ -45,8 +45,7 @@ public partial struct AttackHitFrameSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(AttackRequest))]
-public partial struct AttackHitFrameJob : IJobEntity
+public partial struct AttackRequestJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     public            BufferLookup<Hurt>              hurtBufferLookup;
@@ -114,15 +113,48 @@ public partial struct AttackHitFrameJob : IJobEntity
             }
 
             // Mark fired regardless — prevents re-attempts if target stepped out of range
-            attackRequest.hitFired = true;
+            attackRequest.hitFired       = true;
+            attackRequestEnabled.ValueRW = false;
+            return;
         }
 
-        // Animation-complete check: AnimationTimeSystem sets active=false when a non-looping
-        // clip reaches its end. Disarm so MeleeAttackExecutionSystem can start the next swing.
+        // Fallback: animation finished without ever firing a hit (target left range).
+        // Disarm so the action system can re-queue once cooldown expires.
         if (!actionLayerActive)
         {
             attackRequestEnabled.ValueRW = false;
             attackRequest.hitFired       = false;
         }
+    }
+}
+
+[BurstCompile]
+[UpdateInGroup(typeof(CombatResolutionSystemGroup))]
+public partial struct AttackCooldownSystem : ISystem
+{
+    [BurstCompile]
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate<GameSceneTag>();
+    }
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
+    {
+        float deltaTime = SystemAPI.Time.DeltaTime;
+        state.Dependency = new AttackCooldownJob { deltaTime = deltaTime }
+            .ScheduleParallel(state.Dependency);
+    }
+}
+
+[BurstCompile]
+public partial struct AttackCooldownJob : IJobEntity
+{
+    public float deltaTime;
+
+    public void Execute(ref AttackCooldown cooldown)
+    {
+        if (cooldown.timer > 0f)
+            cooldown.timer = math.max(0f, cooldown.timer - deltaTime);
     }
 }

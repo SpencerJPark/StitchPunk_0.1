@@ -45,9 +45,9 @@ public partial struct MeleeContinuousActionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain))]
+[WithAll(typeof(ActiveBrain), typeof(MeleeContinuousAction))]
 [WithDisabled(typeof(ActionRequest))]
-[WithPresent(typeof(PathRequest), typeof(Target), typeof(AttackRequest))]
+[WithPresent(typeof(Target), typeof(PathRequest), typeof(AttackRequest), typeof(AnimationRequest))]
 public partial struct MeleeContinuousActionJob : IJobEntity
 {
     private const float REPATH_DIST_SQ  = 1.0f;
@@ -70,9 +70,9 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         ref AttackRequest     attackRequest,
         ref DynamicBuffer<SetAnimation>   setAnimations,
         EnabledRefRW<MeleeContinuousAction>   meleeContinuous,
+        EnabledRefRW<Target>          targetEnabled,
         EnabledRefRW<ActionRequest>   actionRequest,
         EnabledRefRW<PathRequest>   pathRequestEnabled,
-        EnabledRefRW<Target>          targetEnabled,
         EnabledRefRW<AttackRequest>   attackRequestEnabled,
         EnabledRefRW<AnimationRequest> animationRequestEnabled)
     {
@@ -83,7 +83,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             targetEnabled.ValueRW      = false;
             attackRequestEnabled.ValueRW = false;
             attackRequest.hitFired     = false;
-            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled, localTransform);
+            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
             actionRequest.ValueRW = true;
             meleeContinuous.ValueRW        = false;
             return;
@@ -95,14 +95,25 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             targetEnabled.ValueRW      = false;
             attackRequestEnabled.ValueRW = false;
             attackRequest.hitFired     = false;
-            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled, localTransform);
+            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
             actionRequest.ValueRW = true;
             meleeContinuous.ValueRW        = false;
             return;
         }
 
-        int unitIndex = (int)unitData.unitType;
-        AttackType attackType = FindAttackForAction(ref unitLibrary.Value.units[unitIndex], currentAction.actionType);
+        int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
+        if (unitIndex < 0)
+        {
+            targetEnabled.ValueRW      = false;
+            attackRequestEnabled.ValueRW = false;
+            attackRequest.hitFired     = false;
+            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
+            actionRequest.ValueRW = true;
+            meleeContinuous.ValueRW        = false;
+            return;
+        }
+        
+        AttackType attackType = AIUtils.GetAttackByAction(ref unitLibrary.Value.units[unitIndex], currentAction.actionType);
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
@@ -110,6 +121,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             meleeContinuous.ValueRW = false;
             return;
         }
+        
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
         float distSq     = math.distancesq(localTransform.Position, targetTransform.Position);
         float breakOffSq = (attackBlob.range * HYSTERESIS_MULT) * (attackBlob.range * HYSTERESIS_MULT);
@@ -119,11 +131,21 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             targetEnabled.ValueRW = false;
             float movedSq = math.distancesq(pathRequest.targetPosition, targetTransform.Position);
             if (movedSq >= REPATH_DIST_SQ)
-                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position);
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
             return;
         }
 
-        AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled, localTransform);
+        float rangeSq = attackBlob.range * attackBlob.range;
+        if (distSq > rangeSq)
+        {
+            targetEnabled.ValueRW = false;
+            float movedSq = math.distancesq(pathRequest.targetPosition, targetTransform.Position);
+            if (movedSq >= REPATH_DIST_SQ)
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
+            return;
+        }
+
+        AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
         target.entity     = hostile;
         targetEnabled.ValueRW = true;
 
@@ -138,7 +160,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             // Queue the attack animation via request system (decoupled from direct layer mutation)
             AnimationType attackAnimation = AnimationType.None;
             if (unitIndex >= 0 && unitIndex < unitLibrary.Value.units.Length)
-                attackAnimation = GetAttackAnimation(ref unitLibrary.Value.units[unitIndex], ActionType.MeleeContinuous);
+                attackAnimation = AIUtils.GetAnimationByAction(ref unitLibrary.Value.units[unitIndex], ActionType.MeleeContinuous);
             setAnimations.Add(new SetAnimation
             {
                 layer     = AnimationLayerType.Action,
@@ -148,27 +170,8 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             });
             animationRequestEnabled.ValueRW = true;
         }
+        
     }
 
-    private static AttackType FindAttackForAction(ref UnitDataBlob unitBlob, ActionType actionType)
-    {
-        for (int i = 0; i < unitBlob.attacks.Length; i++)
-        {
-            if (unitBlob.attacks[i].action == actionType)
-                return unitBlob.attacks[i].attack;
-        }
-        return AttackType.None;
-    }
-
-    private static AnimationType GetAttackAnimation(ref UnitDataBlob unitBlob, ActionType actionType)
-    {
-        ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
-        for (int i = 0; i < mappings.Length; i++)
-        {
-            if (mappings[i].action == actionType)
-                return mappings[i].animation;
-        }
-        return AnimationType.None;
-    }
 }
 

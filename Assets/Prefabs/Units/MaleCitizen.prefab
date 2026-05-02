@@ -4527,7 +4527,6 @@ GameObject:
   - component: {fileID: 6621476877874542357}
   - component: {fileID: 8932618118240817772}
   - component: {fileID: 97168373984705854}
-  - component: {fileID: 4338925606018782699}
   - component: {fileID: 3363976009509366347}
   - component: {fileID: 5598200834146730775}
   - component: {fileID: 5529774196114971569}
@@ -4601,21 +4600,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   unitType: 2
---- !u!114 &4338925606018782699
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9101195342176660511}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 149e64ac9de028146b3f339630f54061, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BrainAuthoring
-  brain: 1
-  active: 1
-  brainLibrary: {fileID: 11400000, guid: ec0f33a61e91bbf448eca314eb003b6e, type: 2}
 --- !u!114 &3363976009509366347
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4855,14 +4839,7 @@ MonoBehaviour:
   maxTime: 0.5
   actionType: 5
   playerInteractable: 1
-  providesMovement: 0
-  providesHunger: 0
-  providesEnergy: 0
-  providesFun: 0
-  providesSocial: 0
-  providesComfort: 0
-  providesSafety: 0
-  providesBladder: 0
+  satisfies: []
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0

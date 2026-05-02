@@ -119,51 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &199059485
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 199059486}
-  - component: {fileID: 199059487}
-  m_Layer: 0
-  m_Name: BrainLibrary
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &199059486
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 199059485}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 795723640}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &199059487
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 199059485}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f9c6e46c7c69134ca3004ce6201a797, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BrainLibraryAuthoring
-  library: {fileID: 11400000, guid: ec0f33a61e91bbf448eca314eb003b6e, type: 2}
 --- !u!4 &316399931 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3714409246909389493, guid: 4b6be17b15c3acc4eae7ffb6a45701b5, type: 3}
@@ -398,7 +353,6 @@ Transform:
   - {fileID: 506652775}
   - {fileID: 2113325574}
   - {fileID: 1106686507}
-  - {fileID: 199059486}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &899217116
@@ -1415,7 +1369,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::RotterBrainAuthoring
   active: 1
-  brainLibrary: {fileID: 11400000, guid: ec0f33a61e91bbf448eca314eb003b6e, type: 2}
+  unitType: 4
+  unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
 --- !u!1001 &9202468519409920937
 PrefabInstance:
   m_ObjectHideFlags: 0

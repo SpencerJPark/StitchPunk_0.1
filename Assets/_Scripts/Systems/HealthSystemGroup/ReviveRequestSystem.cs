@@ -4,7 +4,7 @@ using Unity.Mathematics;
 
 [BurstCompile]
 [UpdateInGroup(typeof(HealthSystemGroup))]
-public partial struct ReviveSystem : ISystem
+public partial struct ReviveRequestSystem : ISystem
 {
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -24,7 +24,7 @@ public partial struct ReviveSystem : ISystem
 [WithPresent(typeof(Undead))]
 public partial struct ReviveJob : IJobEntity
 {
-    public void Execute(ref Health health, EnabledRefRW<Revive> reviveEnabled, EnabledRefRW<Undead> undeadEnabled, EnabledRefRW<Dead> deadEnabled, EnabledRefRW<Alive> aliveEnabled)
+    public void Execute(ref Health health, EnabledRefRW<ReviveRequest> reviveEnabled, EnabledRefRW<Undead> undeadEnabled, EnabledRefRW<Dead> deadEnabled, EnabledRefRW<Alive> aliveEnabled)
     {
         health.healthAmount = health.healthAmountMax;
         reviveEnabled.ValueRW = false;

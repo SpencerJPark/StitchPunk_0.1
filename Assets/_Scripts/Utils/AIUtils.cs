@@ -7,7 +7,6 @@ using Unity.Transforms;
 [BurstCompile]
 public static class AIUtils
 {
-
     public static float EvaluateScoringCurve(
         BlobAssetReference<AIScoringLibraryBlob> library,
         MotivationType motivationType,
@@ -124,22 +123,64 @@ public static class AIUtils
         ref PathRequest            pathRequest,
         EnabledRefRW<PathRequest>  pathRequestEnabled,
         float3                     targetPosition,
-        PathfindingMode            mode     = PathfindingMode.DStarLite)
+        float                      stoppingDistance = 0f,
+        PathfindingMode            mode             = PathfindingMode.DStarLite)
     {
-        pathRequest.targetPosition = targetPosition;
-        pathRequest.requestedMode  = mode;
-        pathRequestEnabled.ValueRW = true;
+        pathRequest.targetPosition   = targetPosition;
+        pathRequest.requestedMode    = mode;
+        pathRequest.stoppingDistance = stoppingDistance;
+        pathRequestEnabled.ValueRW   = true;
     }
-
 
     
     public static void HaltPathing(
         ref PathRequest pathRequest,
-        EnabledRefRW<PathRequest> pathRequestEnabled,
-        LocalTransform localTransform)
+        EnabledRefRW<PathRequest> pathRequestEnabled)
     {
-        pathRequest.targetPosition = localTransform.Position;
-        pathRequest.requestedMode  = PathfindingMode.None;
+        pathRequest.requestedMode  = PathfindingMode.Stop;
         pathRequestEnabled.ValueRW = true;
+    }
+
+    public static AttackType GetAttackByAction(ref UnitDataBlob unitBlob, ActionType actionType)
+    {
+        for (int i = 0; i < unitBlob.attacks.Length; i++)
+        {
+            if (unitBlob.attacks[i].action == actionType)
+                return unitBlob.attacks[i].attack;
+        }
+        return AttackType.None;
+    }
+
+    public static AnimationType GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType)
+    {
+        ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
+        for (int i = 0; i < mappings.Length; i++)
+        {
+            if (mappings[i].action == actionType)
+                return mappings[i].animation;
+        }
+        return AnimationType.None;
+    }
+
+    public static void SetMotivationValue(
+        ref DynamicBuffer<Motivation> motivations,
+        MotivationType type,
+        float value)
+    {
+        for (int i = 0; i < motivations.Length; i++)
+        {
+            Motivation motivation = motivations[i];
+            if (motivation.motivationType == type)
+            {
+                motivation.value = value;
+                motivations[i]   = motivation;
+                return;
+            }
+        }
+    }
+
+    public static float AttackRangeScore(float dist, float attackRange)
+    {
+        return dist <= attackRange ? 1.0f : attackRange / dist;
     }
 }

@@ -5,7 +5,7 @@ public enum PathfindingMode : byte
 {
     DStarLite = 0,
     FlowField = 1,
-    None = 2
+    Stop = 2
 }
 
 public struct PathfindingAgent : IComponentData
@@ -27,6 +27,7 @@ public struct PathRequest : IComponentData, IEnableableComponent
 {
     public float3 targetPosition;
     public PathfindingMode requestedMode;
+    public float stoppingDistance;
 }
 
 public struct DStarLiteFollower : IComponentData, IEnableableComponent

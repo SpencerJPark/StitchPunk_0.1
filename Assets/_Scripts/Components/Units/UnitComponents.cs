@@ -6,6 +6,7 @@ public struct Unit : IComponentData { }
 public struct UnitData : IComponentData
 {
     public UnitType unitType;
+    public int unitIndex;
 }
 public struct UnitAction : IComponentData
 {
@@ -46,7 +47,7 @@ public struct Health : IComponentData
     public float killLaunchForceX;
     public AttackType killAttackType;
 }
-public struct Heal : IComponentData, IEnableableComponent
+public struct HealRequest : IComponentData, IEnableableComponent
 {
     public int healAmount;
 }
@@ -76,7 +77,7 @@ public struct LocomotionStance : IComponentData
 
 // Player actions
 public struct Undead : IComponentData, IEnableableComponent { }
-public struct Revive : IComponentData, IEnableableComponent { }
+public struct ReviveRequest : IComponentData, IEnableableComponent { }
 public struct Minion: IComponentData, IEnableableComponent { }
 public struct Selected : IComponentData, IEnableableComponent
 {

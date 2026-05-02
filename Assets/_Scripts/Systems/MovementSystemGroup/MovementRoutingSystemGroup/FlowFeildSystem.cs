@@ -177,35 +177,27 @@ public partial struct FlowFieldSystem : ISystem
     
     private void CollectRequests(ref SystemState state, GridSystem.GridConfig gridConfig)
     {
-        foreach (var (agent, pathRequest, pathRequestEnabled, follower, entity) in 
-                 SystemAPI.Query<
-        RefRW<PathfindingAgent>,  // Changed to RefRW
-            RefRO<PathRequest>,
-        EnabledRefRW<PathRequest>,
-            RefRW<FlowFieldFollower>>()
-            .WithPresent<FlowFieldFollower>()
-            .WithEntityAccess())
+        foreach (var (pathRequest, pathRequestEnabled, entity) in
+            SystemAPI.Query<
+                RefRO<PathRequest>,
+                EnabledRefRW<PathRequest>>()
+                .WithPresent<FlowFieldFollower>()
+                .WithEntityAccess())
         {
-            // Only handle flow field requests
             if (pathRequest.ValueRO.requestedMode != PathfindingMode.FlowField)
                 continue;
-        
+
             int2 targetGridPos = GridSystem.GetGridPosition(pathRequest.ValueRO.targetPosition, gridConfig.cellSize);
-            int targetLayer = GridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig.layerHeight);
-        
-            // Set current mode
-            agent.ValueRW.currentMode = PathfindingMode.FlowField;
-            agent.ValueRW.isActive = true;
-            agent.ValueRW.needsRepath = false;
+            int  targetLayer   = GridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig.layerHeight);
 
             pathRequestEnabled.ValueRW = false;
-        
+
             pendingRequests.Enqueue(new FlowFieldRequest
             {
-                targetGridPosition = targetGridPos,
-                targetLayer = targetLayer,
+                targetGridPosition  = targetGridPos,
+                targetLayer         = targetLayer,
                 targetWorldPosition = pathRequest.ValueRO.targetPosition,
-                requester = entity
+                requester           = entity
             });
         }
     }

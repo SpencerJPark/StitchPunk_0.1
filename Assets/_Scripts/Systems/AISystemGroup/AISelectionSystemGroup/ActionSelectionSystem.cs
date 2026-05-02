@@ -165,6 +165,7 @@ public partial struct ActionSelectionSystem : ISystem
     }
     
     [BurstCompile]
+    [WithAll(typeof(NeedsActionSelectionValidation))]
     public partial struct ValidateInteractionJob : IJobEntity
     {
         public ComponentLookup<Interaction> interactionLookup;

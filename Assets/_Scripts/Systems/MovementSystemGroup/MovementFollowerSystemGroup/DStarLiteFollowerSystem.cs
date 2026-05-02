@@ -1,16 +1,11 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
-using UnityEngine;
 
-/// <summary>
-/// Updates UnitMover.targetPosition for entities following D* Lite paths.
-/// Also handles line-of-sight optimization.
-/// </summary>
+[BurstCompile]
 [UpdateInGroup(typeof(MovementFollowerSystemGroup))]
 public partial struct DStarLiteFollowerSystem : ISystem
 {
@@ -20,6 +15,8 @@ public partial struct DStarLiteFollowerSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<PhysicsWorldSingleton>();
+        state.RequireForUpdate<DStarLiteSystem.DStarLiteData>();
+        state.RequireForUpdate<GridSystem.GridCostMap>();
 
         dstarFollowerLookup = state.GetComponentLookup<DStarLiteFollower>(false);
     }
@@ -27,30 +24,152 @@ public partial struct DStarLiteFollowerSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+        DStarLiteSystem.DStarLiteData dstarData    = SystemAPI.GetSingleton<DStarLiteSystem.DStarLiteData>();
+        GridSystem.GridCostMap        gridCostMap   = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
+        PhysicsWorldSingleton         physicsWorld  = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+
+        EndSimulationEntityCommandBufferSystem.Singleton ecbSingleton =
+            SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+        EntityCommandBuffer.ParallelWriter ecb =
+            ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged).AsParallelWriter();
 
         dstarFollowerLookup.Update(ref state);
 
-        // Check line of sight to final target
-        var lineOfSightJob = new DStarLineOfSightJob
+        // 1. Advance waypoints along the computed D* path; detect per-segment arrival
+        state.Dependency = new UpdateFollowersJob
         {
-            collisionWorld = physicsWorld.CollisionWorld,
+            nodeSize    = dstarData.nodeSize,
+            width       = dstarData.width,
+            height      = dstarData.height,
+            nodes       = dstarData.nodes,
+            activePaths = dstarData.activePaths,
+            costs       = gridCostMap.costs,
+            ecb         = ecb
+        }.ScheduleParallel(state.Dependency);
+
+        // 2. Collapse remaining path when line-of-sight to final target is clear
+        state.Dependency = new DStarLineOfSightJob
+        {
+            collisionWorld      = physicsWorld.CollisionWorld,
             dstarFollowerLookup = dstarFollowerLookup
-        };
-        state.Dependency = lineOfSightJob.ScheduleParallel(state.Dependency);
-        
-        // Set movement targets for entities still following D* path
-        var moveJob = new DStarMoveJob();
-        state.Dependency = moveJob.ScheduleParallel(state.Dependency);
+        }.ScheduleParallel(state.Dependency);
+
+        // 3. Apply current waypoint to Movement
+        state.Dependency = new DStarMoveJob().ScheduleParallel(state.Dependency);
     }
 }
 
 /// <summary>
-/// Checks if D* Lite follower has clear line of sight to final target.
-/// When LOS is clear, collapses the remaining path to a single direct waypoint
-/// so DStarMoveJob drives the unit straight to the goal. DStarLiteFollower
-/// stays enabled so that UpdateFollowersJob and PathfindingCoordinatorSystem
-/// can detect arrival and handle cleanup normally.
+/// Advances the unit along its D* Lite waypoints and detects final arrival.
+/// </summary>
+[BurstCompile]
+[WithAll(typeof(DStarLiteFollower))]
+public partial struct UpdateFollowersJob : IJobEntity
+{
+    public float nodeSize;
+    public int   width;
+    public int   height;
+
+    [ReadOnly] public NativeArray<DStarLiteSystem.DStarNode> nodes;
+    [ReadOnly] public NativeArray<DStarLiteSystem.PathData>  activePaths;
+    [ReadOnly] public NativeArray<byte>                      costs;
+
+    public EntityCommandBuffer.ParallelWriter ecb;
+
+    public void Execute(
+        ref DStarLiteFollower  follower,
+        ref Movement           mover,
+        in LocalTransform      transform,
+        in PathfindingAgent    agent,
+        Entity                 entity,
+        [EntityIndexInQuery] int sortKey)
+    {
+        if (!agent.isActive) return;
+
+        if (follower.pathDataIndex < 0 || follower.pathDataIndex >= DStarLiteSystem.MAX_ACTIVE_PATHS)
+            return;
+
+        DStarLiteSystem.PathData pathData = activePaths[follower.pathDataIndex];
+        if (!pathData.isValid || pathData.owner != entity) return;
+
+        float3 currentPos = transform.Position;
+        float3 nextWP     = follower.nextWaypoint;
+
+        float distToWaypoint = math.distance(
+            new float2(currentPos.x, currentPos.z),
+            new float2(nextWP.x, nextWP.z));
+
+        if (distToWaypoint < nodeSize * 0.5f)
+        {
+            float distToGoal = math.distance(
+                new float2(currentPos.x, currentPos.z),
+                new float2(follower.targetPosition.x, follower.targetPosition.z));
+
+            if (distToGoal < nodeSize * 0.75f)
+            {
+                mover.targetPosition = follower.targetPosition;
+                ecb.SetComponentEnabled<DStarLiteFollower>(sortKey, entity, false);
+                return;
+            }
+
+            int2   currentGrid  = PathfindingUtils.WorldToGrid(currentPos, nodeSize);
+            int2   nextNode     = GetNextNodeTowardGoal(currentGrid);
+            float3 newWaypoint  = PathfindingUtils.GridToWorld(nextNode, nodeSize);
+
+            follower.nextWaypoint     = newWaypoint;
+            follower.currentNodeIndex = PathfindingUtils.CalculateIndex(currentGrid, width);
+
+            mover.targetPosition = newWaypoint;
+        }
+        else
+        {
+            mover.targetPosition = nextWP;
+        }
+
+        float3 toWaypoint = follower.nextWaypoint - currentPos;
+        if (math.lengthsq(toWaypoint) > 0.001f)
+            follower.lastMoveDirection = math.normalize(toWaypoint);
+    }
+
+    private int2 GetNextNodeTowardGoal(int2 currentPos)
+    {
+        float bestScore    = float.MaxValue;
+        int2  bestNeighbor = currentPos;
+
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+
+                int2 neighborPos = currentPos + new int2(dx, dy);
+                if (!PathfindingUtils.IsValidPosition(neighborPos, width, height)) continue;
+
+                int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, width);
+                if (costs[neighborIndex] == ConstGameData.WALL_COST) continue;
+
+                DStarLiteSystem.DStarNode neighborNode = nodes[neighborIndex];
+                if (neighborNode.g >= float.MaxValue * 0.5f) continue;
+
+                float cost  = PathfindingUtils.CalculateMoveCost(dx, dy, costs[neighborIndex]);
+                float score = cost + neighborNode.g;
+
+                if (score < bestScore)
+                {
+                    bestScore    = score;
+                    bestNeighbor = neighborPos;
+                }
+            }
+        }
+
+        return bestNeighbor;
+    }
+}
+
+/// <summary>
+/// When line-of-sight to the final target is clear, collapses the remaining
+/// waypoints to a single direct move. DStarLiteFollower stays enabled so
+/// arrival detection works normally.
 /// </summary>
 [BurstCompile]
 [WithAll(typeof(DStarLiteFollower))]
@@ -63,36 +182,33 @@ public partial struct DStarLineOfSightJob : IJobEntity
 
     public void Execute(
         in LocalTransform localTransform,
-        in Movement movement,
-        Entity entity)
+        in Movement       movement,
+        Entity            entity)
     {
         DStarLiteFollower follower = dstarFollowerLookup[entity];
 
         RaycastInput raycastInput = new RaycastInput
         {
-            Start = localTransform.Position,
-            End = follower.targetPosition,
+            Start  = localTransform.Position,
+            End    = follower.targetPosition,
             Filter = new CollisionFilter
             {
-                BelongsTo = ~0u,
+                BelongsTo   = ~0u,
                 CollidesWith = 1u << ConstGameData.WALLS_LAYER,
-                GroupIndex = 0
+                GroupIndex  = 0
             }
         };
 
         if (!collisionWorld.CastRay(raycastInput))
         {
-            // Clear line of sight — skip intermediate waypoints and aim directly at
-            // the final target. DStarMoveJob will pick up this updated nextWaypoint.
-            // DStarLiteFollower remains enabled so arrival detection works normally.
-            follower.nextWaypoint = follower.targetPosition;
+            follower.nextWaypoint       = follower.targetPosition;
             dstarFollowerLookup[entity] = follower;
         }
     }
 }
 
 /// <summary>
-/// Sets UnitMover target to D* Lite next waypoint.
+/// Sets Movement.targetPosition to the current D* Lite waypoint.
 /// </summary>
 [BurstCompile]
 [WithAll(typeof(DStarLiteFollower))]
@@ -100,14 +216,11 @@ public partial struct DStarMoveJob : IJobEntity
 {
     public void Execute(
         in DStarLiteFollower follower,
-        in PathfindingAgent agent,
-        ref Movement movement)
+        in PathfindingAgent  agent,
+        ref Movement         movement)
     {
-        if (!agent.isActive)
-            return;
-
-        if (agent.currentMode != PathfindingMode.DStarLite)
-            return;
+        if (!agent.isActive) return;
+        if (agent.currentMode != PathfindingMode.DStarLite) return;
 
         movement.targetPosition = follower.nextWaypoint;
     }
