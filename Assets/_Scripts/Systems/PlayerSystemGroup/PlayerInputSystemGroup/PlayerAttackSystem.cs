@@ -22,10 +22,11 @@ public partial struct PlayerAttackSystem : ISystem
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
         float cosHalfAngle = math.cos(math.radians(RANGED_CONE_HALF_ANGLE_DEG));
 
-        foreach (var (transform, attackRequest, attackRequestEnabled, attackInputEnabled,
+        foreach (var (transform, selectedAttack, attackRequest, attackRequestEnabled, attackInputEnabled,
                       actionMap, cooldown, entity) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
+                RefRO<PlayerSelectedAttack>,
                 RefRW<AttackRequest>,
                 EnabledRefRW<AttackRequest>,
                 EnabledRefRW<OnAttackPlayerInput>,
@@ -48,8 +49,10 @@ public partial struct PlayerAttackSystem : ISystem
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
             if (unitBlob.attacks.Length == 0) continue;
 
-            ActionType actionType  = unitBlob.attacks[0].action;
-            AttackType attackType  = unitBlob.attacks[0].attack;
+            AttackType attackType = selectedAttack.ValueRO.attackType != AttackType.None
+                ? selectedAttack.ValueRO.attackType
+                : unitBlob.attacks[0].attack;
+            ActionType actionType  = AIUtils.GetActionByAttack(ref unitBlob, attackType);
             int        attackIndex = (int)attackType;
             if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length) continue;
             ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];

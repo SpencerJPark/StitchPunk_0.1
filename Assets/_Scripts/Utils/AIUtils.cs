@@ -151,6 +151,16 @@ public static class AIUtils
         return AttackType.None;
     }
 
+    public static ActionType GetActionByAttack(ref UnitDataBlob unitBlob, AttackType attackType)
+    {
+        for (int i = 0; i < unitBlob.attacks.Length; i++)
+        {
+            if (unitBlob.attacks[i].attack == attackType)
+                return unitBlob.attacks[i].action;
+        }
+        return ActionType.None;
+    }
+
     public static AnimationType GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType)
     {
         ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;

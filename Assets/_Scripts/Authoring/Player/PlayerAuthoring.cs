@@ -9,6 +9,9 @@ public class PlayerAuthoring : MonoBehaviour
     [Tooltip("Child GameObject that acts as the aim arrow visual (shown while aiming).")]
     public GameObject aimIndicator;
 
+    [Header("Combat")]
+    [SearchableEnum] public AttackType defaultAttack = AttackType.Slash;
+
     [Header("Debug — Starting Equipment")]
     [SearchableEnum] public ItemType debugSlot1 = ItemType.None;
     [SearchableEnum] public ItemType debugSlot2 = ItemType.None;
@@ -46,6 +49,8 @@ public class PlayerAuthoring : MonoBehaviour
 
             AddComponent(entity, new ZoomPlayerInput());
             SetComponentEnabled<ZoomPlayerInput>(entity, false);
+
+            AddComponent(entity, new PlayerSelectedAttack { attackType = authoring.defaultAttack });
 
             AddComponent(entity, new OnAttackPlayerInput());
             SetComponentEnabled<OnAttackPlayerInput>(entity, false);

@@ -5,3 +5,8 @@ public struct OnPlayerReviverEquipt : IComponentData, IEnableableComponent
 {
     public ItemType itemType;
 }
+
+public struct PlayerSelectedAttack : IComponentData
+{
+    public AttackType attackType;
+}

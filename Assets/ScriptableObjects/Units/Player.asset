@@ -13,12 +13,23 @@ MonoBehaviour:
   m_Name: Player
   m_EditorClassIdentifier: StitchPunk.Data::UnitSO
   unitType: 1
+  factionType: 0
+  canBePlayerControlled: 0
   prefab: {fileID: 6406896981973988313, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
-  brainPrefab: {fileID: 0}
-  actionAnimations: []
+  awarenessRange: 0
+  behaviours: 
+  randomBehavioursAmount: 0
+  randomBehaviours: 
+  actionAnimations:
+  - action: 19
+    animation: 34
+  stanceAnimations: []
   idleAnimation: 1
   movingAnimation: 2
-  attackType: 6
+  attackFactions: 
+  attacks:
+  - action: 19
+    attack: 6
   moveSpeed: 3.5
   rotationSpeed: 15
   spawnCostResourceAmountArray: []

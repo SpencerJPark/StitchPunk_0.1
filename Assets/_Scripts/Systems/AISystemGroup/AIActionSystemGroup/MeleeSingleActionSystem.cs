@@ -110,7 +110,14 @@ public partial struct MeleeSingleActionJob : IJobEntity
             return;
         }
 
-        // 4. Combat Logic
+        float rangeSq = attackBlob.range * attackBlob.range;
+        if (distSq > rangeSq)
+        {
+            TryRepath(targetTransform.Position, attackBlob.range, ref pathRequest, pathRequestEnabled);
+            return;
+        }
+
+        // 4. Within Attack Range: Halt and Execute Attack
         AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
         target.entity = hostile;
         targetEnabled.ValueRW = true;

@@ -92,7 +92,6 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         // 2. Attack Data Lookup
         AttackType attackType = AIUtils.GetAttackByAction(ref unitLibrary.Value.units[unitIndex], currentAction.actionType);
         int attackIndex = (int)attackType;
-
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
             actionRequest.ValueRW = true;
@@ -113,7 +112,15 @@ public partial struct MeleeContinuousActionJob : IJobEntity
             return;
         }
 
-        // 3. Close Enough: Execute Attack
+        float rangeSq = attackBlob.range * attackBlob.range;
+        if (distSq > rangeSq)
+        {
+            if (math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ)
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
+            return;
+        }
+
+        // 3. Within Attack Range: Halt and Execute Attack
         AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
         target.entity = hostile;
         targetEnabled.ValueRW = true;
