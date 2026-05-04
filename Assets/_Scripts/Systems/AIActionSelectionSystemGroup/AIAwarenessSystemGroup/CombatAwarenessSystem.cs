@@ -61,7 +61,7 @@ public partial struct CombatAwarenessSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
+[WithAll(typeof(ActiveBrain), typeof(ActionRequest), typeof(Alive))]
 [WithPresent(typeof(CombatTarget))]
 public partial struct CombatAwarenessJob : IJobEntity
 {

@@ -28,7 +28,7 @@ public partial struct MotivationScoringSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
+[WithAll(typeof(ActiveBrain), typeof(ActionRequest), typeof(Alive))]
 public partial struct MotivationScoringJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<AIScoringLibraryBlob> scoringLibrary;

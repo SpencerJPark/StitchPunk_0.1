@@ -6,7 +6,7 @@
 public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(AISystemGroup))]
+[UpdateBefore(typeof(AIActionSelectionSystemGroup))]
 public partial class PlayerSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(PlayerSystemGroup), OrderFirst = true)]
@@ -26,28 +26,29 @@ public partial class PlayerSystemGroup : ComponentSystemGroup { }
         public partial class PlayerEquipmentSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(ItemSystemGroup))]
-public partial class AISystemGroup : ComponentSystemGroup { }
+[UpdateBefore(typeof(AIActionSelectionSystemGroup))]
+public partial class PlayerActionSelectionSystemGroup : ComponentSystemGroup { }
 
-        // SubGroups
-        [UpdateInGroup(typeof(AISystemGroup))]
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(ActionExecutionSystemGroup))]
+public partial class AIActionSelectionSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
         [UpdateBefore(typeof(AIScoringSystemGroup))]
         public partial class AIAwarenessSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(AISystemGroup))]
+        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
         [UpdateAfter(typeof(AIAwarenessSystemGroup))]
         [UpdateBefore(typeof(AISelectionSystemGroup))]
         public partial class AIScoringSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(AISystemGroup))]
+        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
         [UpdateAfter(typeof(AIScoringSystemGroup))]
-        [UpdateBefore(typeof(AIActionSystemGroup))]
         public partial class AISelectionSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(AISystemGroup))]
-        [UpdateAfter(typeof(AISelectionSystemGroup))]
-        public partial class AIActionSystemGroup : ComponentSystemGroup { }
-
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(ItemSystemGroup))]
+public partial class ActionExecutionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(MovementSystemGroup))]
@@ -60,12 +61,6 @@ public partial class ItemSystemGroup : ComponentSystemGroup { }
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(BuildingsSystemGroup))]
 public partial class MovementSystemGroup : ComponentSystemGroup { }
-
-
-[UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateAfter(typeof(MovementSystemGroup))]
-[UpdateBefore(typeof(CombatSystemGroup))]
-public partial class BuildingsSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(MovementSystemGroup))]
         [UpdateBefore(typeof(MovementRoutingSystemGroup))]
@@ -82,6 +77,10 @@ public partial class BuildingsSystemGroup : ComponentSystemGroup { }
         [UpdateInGroup(typeof(MovementSystemGroup))]
         public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }
 
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(MovementSystemGroup))]
+[UpdateBefore(typeof(CombatSystemGroup))]
+public partial class BuildingsSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(HealthSystemGroup))]

@@ -76,7 +76,7 @@ public partial struct ActionSelectionSystem : ISystem
     // Without it the query uses WithPresent (runs on all units) and FilterPreviousEntity
     // re-enables NeedsAction on dead/inactive units that have 0 options, creating an infinite loop.
     [BurstCompile]
-    [WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
+    [WithAll(typeof(ActiveBrain), typeof(ActionRequest), typeof(Alive))]
     [WithPresent(typeof(NeedsActionSelectionValidation))]
     public partial struct ActionSelectionJob : IJobEntity
     {

@@ -35,7 +35,7 @@ public partial struct ActionPrioritySystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
+[WithAll(typeof(ActiveBrain), typeof(ActionRequest), typeof(Alive))]
 public partial struct ActionPriorityJob : IJobEntity
 {
     private const float COMBAT_BONUS   = 1.0f;

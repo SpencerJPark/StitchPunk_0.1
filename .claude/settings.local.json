@@ -49,7 +49,9 @@
       "Bash(git log *)",
       "Bash(xargs wc *)",
       "Bash(cat)",
-      "Bash(python3 /tmp/decode.py)"
+      "Bash(python3 /tmp/decode.py)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

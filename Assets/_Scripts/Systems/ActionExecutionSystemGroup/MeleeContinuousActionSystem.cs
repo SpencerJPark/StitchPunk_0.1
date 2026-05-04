@@ -5,7 +5,7 @@ using Unity.Transforms;
 using Unity.Collections;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIActionSystemGroup))]
+[UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct MeleeContinuousActionSystem : ISystem
 {
     private ComponentLookup<Alive>          aliveLookup;
@@ -45,9 +45,9 @@ public partial struct MeleeContinuousActionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain), typeof(MeleeContinuousAction))]
+[WithAll(typeof(MeleeContinuousAction))]
 [WithDisabled(typeof(ActionRequest))]
-[WithPresent(typeof(Target), typeof(PathRequest), typeof(AttackRequest), typeof(AnimationRequest))]
+[WithPresent(typeof(Dead), typeof(Target), typeof(PathRequest), typeof(AttackRequest), typeof(AnimationRequest))]
 public partial struct MeleeContinuousActionJob : IJobEntity
 {
     private const float REPATH_DIST_SQ  = 1.0f;
@@ -62,13 +62,13 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         in LocalTransform localTransform,
         in Awareness awareness,
         in UnitData unitData,
-        in CurrentAction currentAction,
         ref AttackCooldown cooldown,
         ref CombatTarget combatTarget,
         ref PathRequest pathRequest,
         ref Target target,
         ref AttackRequest attackRequest,
         ref DynamicBuffer<SetAnimation> setAnimations,
+        EnabledRefRO<Dead> dead,
         EnabledRefRW<MeleeContinuousAction> meleeContinuous,
         EnabledRefRW<Target> targetEnabled,
         EnabledRefRW<ActionRequest> actionRequest,
@@ -82,15 +82,16 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         bool targetMissing = !transformLookup.TryGetComponent(hostile, out LocalTransform targetTransform);
         bool targetInvalid = !targetMissing && (!AIUtils.IsTargetAlive(hostile, aliveLookup) || AIUtils.IsTargetOutOfRange(localTransform, targetTransform, awareness.range));
         int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
+        bool isDead = dead.ValueRO;
 
-        if (targetMissing || targetInvalid || unitIndex < 0)
+        if (targetMissing || targetInvalid || unitIndex < 0 || isDead)
         {
             Terminate(ref attackRequest, ref pathRequest, meleeContinuous, targetEnabled, actionRequest, pathRequestEnabled, attackRequestEnabled);
             return;
         }
 
         // 2. Attack Data Lookup
-        AttackType attackType = AIUtils.GetAttackByAction(ref unitLibrary.Value.units[unitIndex], currentAction.actionType);
+        AttackType attackType = AIUtils.GetAttackByAction(ref unitLibrary.Value.units[unitIndex], ActionType.MeleeContinuous);
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
