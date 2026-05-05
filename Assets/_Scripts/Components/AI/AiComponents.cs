@@ -8,7 +8,7 @@ public struct SwapBrainRequest : IComponentData, IEnableableComponent
 {
     public UnitType newUnit;
 }
-public struct ActiveBrain : IComponentData, IEnableableComponent { }
+public struct AIBrain : IComponentData, IEnableableComponent { }
 public struct ActionRequest : IComponentData, IEnableableComponent { }
 public struct NeedsActionSelectionValidation: IComponentData, IEnableableComponent {}
 public struct CurrentAction : IComponentData

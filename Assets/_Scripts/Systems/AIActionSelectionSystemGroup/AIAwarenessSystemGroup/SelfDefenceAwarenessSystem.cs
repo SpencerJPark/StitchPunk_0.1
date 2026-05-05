@@ -73,7 +73,7 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
+[WithAll(typeof(AIBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
 [WithPresent(typeof(CombatTarget), typeof(AggressiveState))]
 public partial struct FightOrFlightJob : IJobEntity

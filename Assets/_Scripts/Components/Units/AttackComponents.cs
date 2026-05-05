@@ -18,5 +18,6 @@ public struct CombatTarget : IComponentData
 }
 public struct AvailableAttack : IBufferElementData
 {
+    public ActionType actionType;
     public AttackType attackType;
 }

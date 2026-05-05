@@ -14,7 +14,7 @@ using Unity.Entities;
 /// DISABLES Attack after each hit. This system re-enables it for the next hit.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(ActionExecutionSystemGroup))]
+[UpdateInGroup(typeof(ActionSystemGroup))]
 public partial struct MinionAttackOrderSystem : ISystem
 {
     private ComponentLookup<Alive> aliveLookup;

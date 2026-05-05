@@ -30,7 +30,7 @@ public partial class PlayerSystemGroup : ComponentSystemGroup { }
 public partial class MinionActionSelectionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(ActionExecutionSystemGroup))]
+[UpdateBefore(typeof(ActionSystemGroup))]
 public partial class AIActionSelectionSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
@@ -38,17 +38,18 @@ public partial class AIActionSelectionSystemGroup : ComponentSystemGroup { }
         public partial class AIAwarenessSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
-        [UpdateAfter(typeof(AIAwarenessSystemGroup))]
-        [UpdateBefore(typeof(AISelectionSystemGroup))]
         public partial class AIScoringSystemGroup : ComponentSystemGroup { }
-
-        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
-        [UpdateAfter(typeof(AIScoringSystemGroup))]
-        public partial class AISelectionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(ItemSystemGroup))]
-public partial class ActionExecutionSystemGroup : ComponentSystemGroup { }
+public partial class ActionSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(ActionSystemGroup))]
+        [UpdateBefore(typeof(ActionExecutionSystemGroup))]
+        public partial class ActionSelectionSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(ActionSystemGroup))]
+        public partial class ActionExecutionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(MovementSystemGroup))]

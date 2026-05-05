@@ -7,8 +7,8 @@ public static class UnitBakingUtil
     public static void BakeRequirements<T>(Baker<T> baker, Entity entity, bool active, UnitSO unitSo)
         where T : UnityEngine.Component
     {
-        baker.AddComponent<ActiveBrain>(entity);
-        baker.SetComponentEnabled<ActiveBrain>(entity, active);
+        baker.AddComponent<AIBrain>(entity);
+        baker.SetComponentEnabled<AIBrain>(entity, active);
 
         baker.AddBuffer<ActionOption>(entity);
         baker.AddComponent<CurrentAction>(entity);
@@ -48,7 +48,7 @@ public static class UnitBakingUtil
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
         if (unitSo.attacks != null)
             foreach (AttackActionMapping mapping in unitSo.attacks)
-                availableAttackBuffer.Add(new AvailableAttack { attackType = mapping.attack });
+                availableAttackBuffer.Add(new AvailableAttack { actionType = mapping.action, attackType = mapping.attack });
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)

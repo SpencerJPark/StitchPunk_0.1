@@ -18,7 +18,7 @@ using Unity.Collections;
 /// All AI-state and combat components live on the same unit entity.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(ActionExecutionSystemGroup))]
+[UpdateInGroup(typeof(ActionSystemGroup))]
 public partial struct MinionOrderExecutionSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;

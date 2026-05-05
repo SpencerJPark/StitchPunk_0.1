@@ -16,7 +16,7 @@
 // /// Timeout: if no threat data is available or arrive takes too long, gives up and re-evaluates.
 // /// </summary>
 // [BurstCompile]
-// [UpdateInGroup(typeof(AIExecutionSystemGroup))]
+// [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 // public partial struct FleeExecutionSystem : ISystem
 // {
 //     private ComponentLookup<LocalTransform> transformLookup;

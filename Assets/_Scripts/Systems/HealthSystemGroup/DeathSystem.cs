@@ -7,7 +7,7 @@ using Unity.Transforms;
 [UpdateBefore(typeof(ReviveRequestSystem))]
 public partial struct DeathSystem : ISystem
 {
-    private ComponentLookup<ActiveBrain>    activeBrainLookup;
+    private ComponentLookup<AIBrain>    activeBrainLookup;
     private ComponentLookup<ActionRequest>    needsActionLookup;
     private ComponentLookup<AttackRequest>  pendingAttackLookup;
 
@@ -15,7 +15,7 @@ public partial struct DeathSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        activeBrainLookup   = state.GetComponentLookup<ActiveBrain>(false);
+        activeBrainLookup   = state.GetComponentLookup<AIBrain>(false);
         needsActionLookup   = state.GetComponentLookup<ActionRequest>(false);
         pendingAttackLookup = state.GetComponentLookup<AttackRequest>(false);
     }
@@ -43,7 +43,7 @@ public partial struct DeathSystem : ISystem
 [WithPresent(typeof(HordeMembership))]
 public partial struct DeathJob : IJobEntity
 {
-    public ComponentLookup<ActiveBrain>   activeBrainLookup;
+    public ComponentLookup<AIBrain>   activeBrainLookup;
     public ComponentLookup<ActionRequest>   needsActionLookup;
     public ComponentLookup<AttackRequest> pendingAttackLookup;
 

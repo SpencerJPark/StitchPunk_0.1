@@ -14,7 +14,7 @@
 // ///   Complete — disable WanderAction, re-enable NeedsAction
 // /// </summary>
 // [BurstCompile]
-// [UpdateInGroup(typeof(AIExecutionSystemGroup))]
+// [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 // public partial struct WanderExecutionSystem : ISystem
 // {
 //     [BurstCompile]
