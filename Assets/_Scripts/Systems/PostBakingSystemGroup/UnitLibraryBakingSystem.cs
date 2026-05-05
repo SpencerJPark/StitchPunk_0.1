@@ -55,17 +55,17 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].awarenessRange       = unitSO.awarenessRange;
             unitsArray[i].idleAnimation        = unitSO.idleAnimation;
             unitsArray[i].movingAnimation      = unitSO.movingAnimation;
-            unitsArray[i].randomMotivationAmount = unitSO.randomBehavioursAmount;
+            unitsArray[i].randomMotivationAmount = unitSO.randomMotivationsTotal;
 
-            int motivationCount = unitSO.behaviours?.Length ?? 0;
+            int motivationCount = unitSO.motivations?.Length ?? 0;
             BlobBuilderArray<MotivationType> motivationArray = builder.Allocate(ref unitsArray[i].motivation, motivationCount);
             for (int j = 0; j < motivationCount; j++)
-                motivationArray[j] = unitSO.behaviours[j];
+                motivationArray[j] = unitSO.motivations[j];
 
-            int randomCount = unitSO.randomBehaviours?.Length ?? 0;
+            int randomCount = unitSO.randomMotivations?.Length ?? 0;
             BlobBuilderArray<MotivationType> randomArray = builder.Allocate(ref unitsArray[i].randomMotivations, randomCount);
             for (int j = 0; j < randomCount; j++)
-                randomArray[j] = unitSO.randomBehaviours[j];
+                randomArray[j] = unitSO.randomMotivations[j];
 
             int attackFactionCount = unitSO.attackFactions?.Length ?? 0;
             BlobBuilderArray<FactionType> attackFactionArray = builder.Allocate(ref unitsArray[i].attackFactions, attackFactionCount);

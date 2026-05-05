@@ -1,6 +1,7 @@
 using Unity.Entities;
 using UnityEngine;
 using System;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(fileName = "Unit", menuName = "UnitSO/Unit")]
 public class UnitSO : ScriptableObject
@@ -14,9 +15,9 @@ public class UnitSO : ScriptableObject
     
     [Header("AI")]
     public float awarenessRange;
-    [SearchableEnum] public MotivationType[] behaviours;
-    public int randomBehavioursAmount;
-    [SearchableEnum] public MotivationType[] randomBehaviours;
+    [SearchableEnum] public MotivationType[] motivations; 
+    public int randomMotivationsTotal; 
+    [SearchableEnum] public MotivationType[] randomMotivations;
     
     [Header("Animations")]
     public ActionAnimationMapping[] actionAnimations;

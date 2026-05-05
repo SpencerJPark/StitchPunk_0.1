@@ -18,7 +18,7 @@ using Unity.Transforms;
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
 [UpdateAfter(typeof(FactionRegistrySystem))]
-public partial struct CombatAwarenessSystem : ISystem
+public partial struct EnemyAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform>  transformLookup;
     private ComponentLookup<Dead>            deadLookup;
@@ -61,7 +61,8 @@ public partial struct CombatAwarenessSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(ActiveBrain), typeof(ActionRequest), typeof(Alive))]
+[WithAll(typeof(ActiveBrain), typeof(ActionRequest))]
+[WithDisabled(typeof(Dead))]
 [WithPresent(typeof(CombatTarget))]
 public partial struct CombatAwarenessJob : IJobEntity
 {

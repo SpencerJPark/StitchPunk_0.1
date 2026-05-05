@@ -51,7 +51,9 @@
       "Bash(cat)",
       "Bash(python3 /tmp/decode.py)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

@@ -27,7 +27,7 @@ public partial class PlayerSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(AIActionSelectionSystemGroup))]
-public partial class PlayerActionSelectionSystemGroup : ComponentSystemGroup { }
+public partial class MinionActionSelectionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(ActionExecutionSystemGroup))]

@@ -15,7 +15,7 @@ using Unity.Entities;
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
-public partial struct MinionAttackExecutionSystem : ISystem
+public partial struct MinionAttackOrderSystem : ISystem
 {
     private ComponentLookup<Alive> aliveLookup;
 
@@ -31,7 +31,7 @@ public partial struct MinionAttackExecutionSystem : ISystem
     {
         aliveLookup.Update(ref state);
 
-        state.Dependency = new MinionAttackExecutionJob
+        state.Dependency = new MinionAttackOrderJob
         {
             aliveLookup = aliveLookup,
         }.Schedule(state.Dependency);
@@ -44,7 +44,7 @@ public partial struct MinionAttackExecutionSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(Minion), typeof(Target), typeof(PlayerControlled))]
 [WithPresent(typeof(AttackRequest), typeof(ActionRequest))]
-public partial struct MinionAttackExecutionJob : IJobEntity
+public partial struct MinionAttackOrderJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Alive> aliveLookup;
 

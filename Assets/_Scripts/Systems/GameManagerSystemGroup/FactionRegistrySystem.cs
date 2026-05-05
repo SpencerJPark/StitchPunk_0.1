@@ -14,7 +14,7 @@ using Unity.Entities;
 /// Only alive entities (Dead disabled or no Dead component) are indexed.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(GameManagerSystemGroup))]
 public partial struct FactionRegistrySystem : ISystem
 {
     private ComponentLookup<Dead> deadLookup;

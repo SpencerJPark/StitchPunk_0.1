@@ -20,7 +20,7 @@ public enum UnitType {
     Player,
     MaleCitizen,
     FemaleCitizen,
-    MaleZombie,
+    MaleRotter,
     FemaleZombie,
     PlayerZombie,
 }

@@ -24,11 +24,11 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<AggressiveState>(entity, false);
 
         DynamicBuffer<Motivation> behaviourBuffer = baker.AddBuffer<Motivation>(entity);
-        if (unitSo.behaviours != null)
-            PopulateBehaviours(behaviourBuffer, unitSo.behaviours);
+        if (unitSo.motivations != null)
+            PopulateBehaviours(behaviourBuffer, unitSo.motivations);
 
-        if (unitSo.randomBehaviours != null && unitSo.randomBehaviours.Length > 0 && unitSo.randomBehavioursAmount > 0)
-            PopulateRandomBehaviours(behaviourBuffer, unitSo.randomBehaviours, unitSo.randomBehavioursAmount);
+        if (unitSo.randomMotivations != null && unitSo.randomMotivations.Length > 0 && unitSo.randomMotivationsTotal > 0)
+            PopulateRandomBehaviours(behaviourBuffer, unitSo.randomMotivations, unitSo.randomMotivationsTotal);
 
         DynamicBuffer<AttackFaction> attackBuffer = baker.AddBuffer<AttackFaction>(entity);
         if (unitSo.attackFactions != null)
@@ -38,7 +38,9 @@ public static class UnitBakingUtil
         }
 
         if (unitSo.canBePlayerControlled)
+        {
             AddPlayerControlled(baker, entity, false);
+        }
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);

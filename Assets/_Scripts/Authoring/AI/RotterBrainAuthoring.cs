@@ -4,7 +4,6 @@ using UnityEngine;
 public class RotterBrainAuthoring : MonoBehaviour
 {
     public bool active = true;
-    public UnitType unitType;
     public UnitLibrarySO unitLibrary;
 
     public class Baker : Baker<RotterBrainAuthoring>
@@ -13,7 +12,7 @@ public class RotterBrainAuthoring : MonoBehaviour
         {
             if (authoring.unitLibrary == null) return;
 
-            UnitSO unitSO = authoring.unitLibrary.GetUnitSO(authoring.unitType);
+            UnitSO unitSO = authoring.unitLibrary.GetUnitSO(UnitType.MaleRotter);
             if (unitSO == null) return;
 
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
