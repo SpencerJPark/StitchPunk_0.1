@@ -86,11 +86,11 @@ public static class AIUtils
         }
     }
     
-    public static bool IsTargetAlive(Entity hostile, ComponentLookup<Alive> aliveLookup)
+    public static bool IsTargetDead(Entity hostile, ComponentLookup<Dead> deadLookup)
     {
         return hostile != Entity.Null &&
-               aliveLookup.HasComponent(hostile) && 
-               aliveLookup.IsComponentEnabled(hostile);
+               deadLookup.HasComponent(hostile) && 
+               deadLookup.IsComponentEnabled(hostile);
     }
     
     public static bool IsTargetOutOfRange(

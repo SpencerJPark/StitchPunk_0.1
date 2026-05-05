@@ -5,7 +5,7 @@
 // using Unity.Transforms;
 //
 // [BurstCompile]
-// [UpdateInGroup(typeof(InitializationSystemGroup))]
+// [UpdateInGroup(typeof(GameManagerSystemGroup))]
 // public partial struct SpatialHashSystem : ISystem
 // {
 //     public const float CELL_SIZE = 20f;

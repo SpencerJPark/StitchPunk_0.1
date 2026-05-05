@@ -44,6 +44,7 @@ public struct ActionOption : IBufferElementData
 {
     public ActionType actionType;
     public MotivationType motivationType;
+    public int priority;
     public float utilityScore;
     public bool interaction;
     public Entity targetEntity;

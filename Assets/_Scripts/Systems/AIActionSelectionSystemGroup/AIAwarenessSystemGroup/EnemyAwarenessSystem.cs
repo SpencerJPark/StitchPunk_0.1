@@ -74,7 +74,6 @@ public partial struct CombatAwarenessJob : IJobEntity
 
     public void Execute(
         Entity self,
-        ref CombatTarget combatTarget,
         in Awareness awareness,
         in LocalTransform transform,
         in UnitData                      unitData,
@@ -122,8 +121,6 @@ public partial struct CombatAwarenessJob : IJobEntity
 
         if (nearestHostile != Entity.Null)
         {
-            combatTarget.targetEntity = nearestHostile;
-
             // Set BloodLust motivation to max urgency so MotivationScoringSystem
             // scores attack options at full weight via the BloodLust curve.
             AIUtils.SetMotivationValue(ref motivations, MotivationType.BloodLust, 100f);
@@ -149,6 +146,7 @@ public partial struct CombatAwarenessJob : IJobEntity
                 {
                     actionType     = actionType,
                     motivationType = MotivationType.BloodLust,
+                    priority = 2,
                     utilityScore   = rangeScore,
                     interaction    = false,
                     targetEntity   = nearestHostile,

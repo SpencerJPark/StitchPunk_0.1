@@ -1,4 +1,4 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -8,7 +8,7 @@ using Unity.Collections;
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct MeleeSingleActionSystem : ISystem
 {
-    private ComponentLookup<Alive>          aliveLookup;
+    private ComponentLookup<Dead>           deadLookup;
     private ComponentLookup<LocalTransform> transformLookup;
 
     [BurstCompile]
@@ -18,14 +18,14 @@ public partial struct MeleeSingleActionSystem : ISystem
         state.RequireForUpdate<AttackLibrary>();
         state.RequireForUpdate<UnitDataLibrary>();
 
-        aliveLookup     = state.GetComponentLookup<Alive>(true);
+        deadLookup      = state.GetComponentLookup<Dead>(true);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        aliveLookup.Update(ref state);
+        deadLookup.Update(ref state);
         transformLookup.Update(ref state);
 
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
@@ -36,10 +36,10 @@ public partial struct MeleeSingleActionSystem : ISystem
 
         state.Dependency = new MeleeSingleActionJob
         {
-            aliveLookup   = aliveLookup,
+            deadLookup      = deadLookup,
             transformLookup = transformLookup,
-            attackLibrary = attackLibrary,
-            unitLibrary   = unitLibrary,
+            attackLibrary   = attackLibrary,
+            unitLibrary     = unitLibrary,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -47,107 +47,104 @@ public partial struct MeleeSingleActionSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(MeleeSingleAction))]
 [WithDisabled(typeof(ActionRequest))]
-[WithPresent(typeof(Dead), typeof(Target), typeof(PathRequest), typeof(AttackRequest), typeof(AnimationRequest))]
+[WithPresent(typeof(Dead), typeof(PathRequest), typeof(AttackRequest), typeof(AnimationRequest))]
 public partial struct MeleeSingleActionJob : IJobEntity
 {
     private const float REPATH_DIST_SQ  = 1.0f;
     private const float HYSTERESIS_MULT = 1.33f;
 
-    [ReadOnly] public ComponentLookup<Alive> aliveLookup;
+    [ReadOnly] public ComponentLookup<Dead>          deadLookup;
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
-    [ReadOnly] public BlobAssetReference<UnitLibraryBlob> unitLibrary;
+    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
 
     public void Execute(
         in LocalTransform localTransform,
-        in Awareness awareness,
         in UnitData unitData,
+        ref CurrentAction action,
         ref AttackCooldown cooldown,
-        ref CombatTarget combatTarget,
         ref PathRequest pathRequest,
-        ref Target target,
         ref AttackRequest attackRequest,
         ref DynamicBuffer<SetAnimation> setAnimations,
         EnabledRefRO<Dead> dead,
         EnabledRefRW<MeleeSingleAction> meleeSingle,
         EnabledRefRW<ActionRequest> actionRequest,
         EnabledRefRW<PathRequest> pathRequestEnabled,
-        EnabledRefRW<Target> targetEnabled,
         EnabledRefRW<AttackRequest> attackRequestEnabled,
         EnabledRefRW<AnimationRequest> animationRequestEnabled)
     {
-        Entity hostile = combatTarget.targetEntity;
+        Entity hostile = action.targetEntity;
+
+        // Attack in flight — halt and wait for it to resolve
+        if (attackRequestEnabled.ValueRO)
+        {
+            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
+            return;
+        }
 
         // 1. Validation & Early Exits
         bool targetMissing = !transformLookup.TryGetComponent(hostile, out LocalTransform targetTransform);
-        bool targetInvalid = !targetMissing && (!AIUtils.IsTargetAlive(hostile, aliveLookup) || AIUtils.IsTargetOutOfRange(localTransform, targetTransform, awareness.range));
         int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
+        ref UnitDataBlob unit = ref unitLibrary.Value.units[unitIndex];
+        bool targetInvalid = !targetMissing && (AIUtils.IsTargetDead(hostile, deadLookup) || AIUtils.IsTargetOutOfRange(localTransform, targetTransform, unit.awarenessRange));
         bool isDead = dead.ValueRO;
+        bool finishedAttack = cooldown.timer < 0f;
 
-        if (targetMissing || targetInvalid || unitIndex < 0 || isDead)
+        if (targetMissing || targetInvalid || unitIndex < 0 || isDead || finishedAttack)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeSingle, targetEnabled, actionRequest, pathRequestEnabled, attackRequestEnabled);
+            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequest, pathRequestEnabled, attackRequestEnabled);
             return;
         }
 
         // 2. Attack Data Lookup
-        AttackType attackType = AIUtils.GetAttackByAction(ref unitLibrary.Value.units[unitIndex], ActionType.MeleeSingle);
+        AttackType attackType = AIUtils.GetAttackByAction(ref unit, ActionType.MeleeSingle);
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeSingle, targetEnabled, actionRequest, pathRequestEnabled, attackRequestEnabled);
+            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequest, pathRequestEnabled, attackRequestEnabled);
             return;
         }
 
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
         float distSq = math.distancesq(localTransform.Position, targetTransform.Position);
-        float maxRange = attackBlob.range * HYSTERESIS_MULT;
 
-        // 3. Movement Logic
+        // Use the larger of the two ranges for the "out of range" check
+        float maxRange = attackBlob.range * HYSTERESIS_MULT;
         if (distSq > (maxRange * maxRange))
         {
-            targetEnabled.ValueRW = false;
-            TryRepath(targetTransform.Position, attackBlob.range, ref pathRequest, pathRequestEnabled);
+            if (math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ)
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
             return;
         }
 
         float rangeSq = attackBlob.range * attackBlob.range;
         if (distSq > rangeSq)
         {
-            TryRepath(targetTransform.Position, attackBlob.range, ref pathRequest, pathRequestEnabled);
+            if (math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ)
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
             return;
         }
 
-        // 4. Within Attack Range: Halt and Execute Attack
+        // 3. Within Attack Range: Halt and Execute Attack
         AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-        target.entity = hostile;
-        targetEnabled.ValueRW = true;
-
-        // Single action specific: if on cooldown, we are done
-        if (cooldown.timer > 0f && !attackRequestEnabled.ValueRO)
-        {
-            meleeSingle.ValueRW = false;
-            actionRequest.ValueRW = true;
-            return;
-        }
 
         if (cooldown.timer <= 0f && !attackRequestEnabled.ValueRO)
         {
-            FireAttack(hostile, attackType, attackBlob.cooldown, unitIndex, ref attackRequest, ref setAnimations, attackRequestEnabled, animationRequestEnabled);
+            FireAttack(hostile, attackType, attackBlob.cooldown, ref unit, ref attackRequest, ref setAnimations, attackRequestEnabled, animationRequestEnabled);
             cooldown.timer = attackBlob.cooldown;
         }
     }
 
+    // --- Helpers ---
+
     private void Terminate(
-        ref AttackRequest attackReq, 
+        ref AttackRequest attackReq,
         ref PathRequest pathReq,
         EnabledRefRW<MeleeSingleAction> meleeSingle,
-        EnabledRefRW<Target> targetEnabled,
         EnabledRefRW<ActionRequest> actionRequest,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<AttackRequest> attackRequestEnabled)
     {
-        targetEnabled.ValueRW = false;
         attackRequestEnabled.ValueRW = false;
         attackReq.hitFired = false;
         AIUtils.HaltPathing(ref pathReq, pathRequestEnabled);
@@ -155,20 +152,12 @@ public partial struct MeleeSingleActionJob : IJobEntity
         meleeSingle.ValueRW = false;
     }
 
-    private void TryRepath(float3 targetPos, float range, ref PathRequest pathReq, EnabledRefRW<PathRequest> pathReqEnabled)
-    {
-        if (math.distancesq(pathReq.targetPosition, targetPos) >= REPATH_DIST_SQ)
-        {
-            AIUtils.BeginPathRequest(ref pathReq, pathReqEnabled, targetPos, range * 0.9f);
-        }
-    }
-
     private void FireAttack(
-        Entity hostile, 
-        AttackType type, 
-        float cooldownTime, 
-        int unitIndex,
-        ref AttackRequest attackReq, 
+        Entity hostile,
+        AttackType type,
+        float cooldownTime,
+        ref UnitDataBlob unit,
+        ref AttackRequest attackReq,
         ref DynamicBuffer<SetAnimation> anims,
         EnabledRefRW<AttackRequest> attackReqEnabled,
         EnabledRefRW<AnimationRequest> animReqEnabled)
@@ -178,9 +167,8 @@ public partial struct MeleeSingleActionJob : IJobEntity
         attackReq.hitFired = false;
         attackReqEnabled.ValueRW = true;
 
-        AnimationType animType = AIUtils.GetAnimationByAction(ref unitLibrary.Value.units[unitIndex], ActionType.MeleeSingle);
+        AnimationType animType = AIUtils.GetAnimationByAction(ref unit, ActionType.MeleeSingle);
         anims.Add(new SetAnimation { layer = AnimationLayerType.Action, animation = animType, speed = 1f });
         animReqEnabled.ValueRW = true;
     }
 }
-

@@ -210,6 +210,7 @@ public partial struct FightOrFlightJob : IJobEntity
             {
                 actionType     = actionType,
                 motivationType = MotivationType.SelfDefence,
+                priority = 3,
                 utilityScore   = rangeScore,
                 interaction    = false,
                 targetEntity   = topAggressor,

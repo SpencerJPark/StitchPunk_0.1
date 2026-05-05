@@ -94,6 +94,9 @@ public partial struct ActionSelectionSystem : ISystem
             // 1. Filter out the previous target to prevent "oscillating" or getting stuck
             FilterPreviousTarget(ref options, currentAction.targetEntity);
 
+            // 2. Hard-filter to the highest priority tier (combat/self-defence overrides idle options)
+            FilterToHighestPriority(ref options);
+
             if (options.Length == 0)
             {
                 // No options left? Stay in NeedsAction and try again next frame
@@ -101,21 +104,21 @@ public partial struct ActionSelectionSystem : ISystem
                 return;
             }
 
-            // 2. Sort options by score (Descending)
+            // 3. Sort options by score (Descending)
             SortOptions(ref options);
 
-            // 3. Randomly pick from Top 3
+            // 4. Randomly pick from Top 3
             Unity.Mathematics.Random random = new Unity.Mathematics.Random((uint)(entityIndex + 1) * (uint)(time * 1000 + 1));
             int topCount = math.min(options.Length, 3);
             int selectedIndex = random.NextInt(0, topCount);
             
             ActionOption choice = options[selectedIndex];
 
-            // 4. Record the selection to CurrentAction
+            // 5. Record the selection to CurrentAction
             currentAction.actionType   = choice.actionType;
             currentAction.targetEntity = choice.targetEntity;
 
-            // 5. Handle State Transitions
+            // 6. Handle State Transitions
             // If it's an interaction, we need the Validator to check occupancy
             if (choice.interaction) 
             {
@@ -130,8 +133,24 @@ public partial struct ActionSelectionSystem : ISystem
                 needsAction.ValueRW = false; 
             }
 
-            // 6. Cleanup
+            // 7. Cleanup
             options.Clear();
+        }
+
+        private static void FilterToHighestPriority(ref DynamicBuffer<ActionOption> options)
+        {
+            int maxPriority = 0;
+            for (int i = 0; i < options.Length; i++)
+            {
+                if (options[i].priority > maxPriority)
+                    maxPriority = options[i].priority;
+            }
+
+            for (int i = options.Length - 1; i >= 0; i--)
+            {
+                if (options[i].priority < maxPriority)
+                    options.RemoveAt(i);
+            }
         }
 
         private static void FilterPreviousTarget(ref DynamicBuffer<ActionOption> options, Entity previousTarget)
