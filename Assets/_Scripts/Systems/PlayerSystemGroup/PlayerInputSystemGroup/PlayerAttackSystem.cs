@@ -31,7 +31,7 @@ public partial struct PlayerAttackSystem : ISystem
                 EnabledRefRW<AttackRequest>,
                 EnabledRefRW<OnAttackPlayerInput>,
                 RefRO<PlayerActionMap>,
-                RefRW<AttackCooldown>>()
+                RefRW<ActionTimer>>()
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
                     .WithEntityAccess())
@@ -40,7 +40,7 @@ public partial struct PlayerAttackSystem : ISystem
             if (!attackInputEnabled.ValueRO) continue;
 
             attackInputEnabled.ValueRW = false;
-            if (cooldown.ValueRO.timer > 0f) continue;
+            if (cooldown.ValueRO.time > 0f) continue;
 
             UnitData unitData = SystemAPI.GetComponent<UnitData>(entity);
             int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
@@ -107,7 +107,7 @@ public partial struct PlayerAttackSystem : ISystem
             attackRequest.ValueRW.attackType   = attackType;
             attackRequest.ValueRW.hitFired     = false;
 
-            cooldown.ValueRW.timer = attackBlob.cooldown;
+            cooldown.ValueRW.time = attackBlob.cooldown;
 
             DynamicBuffer<SetAnimation> setAnimations = SystemAPI.GetBuffer<SetAnimation>(entity);
             setAnimations.Add(new SetAnimation

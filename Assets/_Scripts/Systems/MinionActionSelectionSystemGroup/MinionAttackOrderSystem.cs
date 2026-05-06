@@ -49,7 +49,7 @@ public partial struct MinionAttackOrderJob : IJobEntity
     [ReadOnly] public ComponentLookup<Alive> aliveLookup;
 
     public void Execute(
-        in AttackCooldown              cooldown,
+        in ActionTimer             actionTimer,
         ref Target                     target,
         EnabledRefRW<AttackRequest>           attackRequest,
         EnabledRefRW<Target>           targetEnabled,
@@ -70,7 +70,7 @@ public partial struct MinionAttackOrderJob : IJobEntity
             return;
         }
 
-        if (cooldown.timer <= 0f)
+        if (actionTimer.time <= 0f)
             attackRequest.ValueRW = true;
     }
 }

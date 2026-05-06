@@ -30,7 +30,7 @@ MonoBehaviour:
   stanceAnimations: []
   idleAnimation: 1
   movingAnimation: 2
-  attackFactions: 01030206070809
+  attackFactions: 00030206070809
   attacks:
   - action: 18
     attack: 3

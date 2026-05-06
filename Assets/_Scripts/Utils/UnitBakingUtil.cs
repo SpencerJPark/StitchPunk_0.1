@@ -19,6 +19,7 @@ public static class UnitBakingUtil
 
         baker.AddComponent(entity, new Awareness { range = unitSo.awarenessRange });
         baker.AddComponent(entity, new ActionTimer { time = 0f });
+        baker.SetComponentEnabled<ActionTimer>(entity, false);
 
         baker.AddComponent<AggressiveState>(entity);
         baker.SetComponentEnabled<AggressiveState>(entity, false);

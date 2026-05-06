@@ -127,34 +127,3 @@ public partial struct AttackRequestJob : IJobEntity
         }
     }
 }
-
-[BurstCompile]
-[UpdateInGroup(typeof(CombatResolutionSystemGroup))]
-public partial struct AttackCooldownSystem : ISystem
-{
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        state.RequireForUpdate<GameSceneTag>();
-    }
-
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        float deltaTime = SystemAPI.Time.DeltaTime;
-        state.Dependency = new AttackCooldownJob { deltaTime = deltaTime }
-            .ScheduleParallel(state.Dependency);
-    }
-}
-
-[BurstCompile]
-public partial struct AttackCooldownJob : IJobEntity
-{
-    public float deltaTime;
-
-    public void Execute(ref AttackCooldown cooldown)
-    {
-        if (cooldown.timer > 0f)
-            cooldown.timer = math.max(0f, cooldown.timer - deltaTime);
-    }
-}

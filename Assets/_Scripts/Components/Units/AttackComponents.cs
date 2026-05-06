@@ -8,10 +8,6 @@ public struct AttackRequest : IComponentData, IEnableableComponent
     public AttackType attackType;
     public bool       hitFired;
 }
-public struct AttackCooldown : IComponentData
-{
-    public float timer;
-}
 public struct CombatTarget : IComponentData
 {
     public Entity     targetEntity;

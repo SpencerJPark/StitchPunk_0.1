@@ -24,7 +24,7 @@ public struct Awareness : IComponentData
 {
     public float range;
 }
-public struct ActionTimer : IComponentData
+public struct ActionTimer : IComponentData, IEnableableComponent
 {
     public float time;
 }

@@ -53,7 +53,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\" -Recurse -Directory)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\" -Recurse -Directory)",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(findstr /S \"AnimationLibrary\" Assets/_Scripts/Components/ --include=\"*.cs\")",
+      "Bash(findstr /S \"public struct AnimationLibrary\" Assets/_Scripts/ --include=\"*.cs\")"
     ]
   }
 }

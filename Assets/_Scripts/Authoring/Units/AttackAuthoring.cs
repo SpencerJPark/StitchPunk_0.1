@@ -10,7 +10,6 @@ public class AttackAuthoring : MonoBehaviour
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent<AttackRequest>(entity);
             SetComponentEnabled<AttackRequest>(entity, false);
-            AddComponent(entity, new AttackCooldown { timer = 0f });
             AddComponent<CombatTarget>(entity);
         }
     }
