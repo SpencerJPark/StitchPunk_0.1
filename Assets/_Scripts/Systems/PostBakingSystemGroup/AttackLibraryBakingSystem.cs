@@ -34,7 +34,6 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder[i].damageBehaviour = DamageBehaviour.SinlgeTarget;
             attacksBuilder[i].damageAmount    = 0;
             attacksBuilder[i].range           = 0f;
-            attacksBuilder[i].cooldown        = 1f;
             attacksBuilder[i].ragdollForce    = 1f;
             attacksBuilder[i].launchForceY    = 0f;
             attacksBuilder[i].launchForceX    = 0f;
@@ -50,7 +49,6 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder[index].damageBehaviour = attackSO.damageBehaviour;
             attacksBuilder[index].damageAmount    = attackSO.damageAmount;
             attacksBuilder[index].range           = attackSO.range;
-            attacksBuilder[index].cooldown        = attackSO.cooldown;
             attacksBuilder[index].ragdollForce    = attackSO.ragdollForce;
             attacksBuilder[index].launchForceY    = attackSO.launchForceY;
             attacksBuilder[index].launchForceX    = attackSO.launchForceX;

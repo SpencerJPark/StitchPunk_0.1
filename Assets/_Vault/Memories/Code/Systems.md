@@ -19,11 +19,13 @@ PlayerSystemGroup            — all player-driven logic
   ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
   ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
   └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions, minion commands
-AISystemGroup                — see [[Systems_AI]]
-  ├── AIAwarenessSystemGroup — motivation decay, spatial hashing (perception)
-  ├── AIScoringSystemGroup   — 9 systems write scores to ActionOption buffer
-  ├── AISelectionSystemGroup — picks action; skips PlayerControlled brains
-  └── AIExecutionSystemGroup — executes the chosen action
+MinionActionSelectionSystemGroup — player-guided: reads PlayerOrder → writes ActionOption
+AIActionSelectionSystemGroup     — utility-guided: see [[Systems_AI]]
+  ├── AIAwarenessSystemGroup     — perception + motivation decay
+  └── AIScoringSystemGroup       — utility scoring
+ActionSystemGroup                — unified action pipeline: see [[Systems_AI]]
+  ├── ActionSelectionSystemGroup — picks from ActionOption buffer, enables action tag
+  └── ActionExecutionSystemGroup — orchestrates PathRequest / AttackRequest / etc.
 ItemSystemGroup              — thrown item movement, proximity hit detection
 AnimationSystemGroup         — see [[Systems_Animation]]
   ├── AnimationAssignmentSystemGroup — decides which clip to play per layer
@@ -81,7 +83,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 
 ### PlayerSystemGroup (`Systems/PlayerSystemGroup/`)
 
-Runs inside `SimulationSystemGroup`, before `AISystemGroup`. Contains two sub-groups:
+Runs inside `SimulationSystemGroup`, before `MinionActionSelectionSystemGroup`. Contains two sub-groups:
 
 #### PlayerInputSystemGroup (OrderFirst)
 
@@ -123,7 +125,17 @@ Runs inside `SimulationSystemGroup`, before `AISystemGroup`. Contains two sub-gr
 
 ---
 
-### AISystemGroup — see [[Systems_AI]]
+### MinionActionSelectionSystemGroup (`Systems/MinionActionSelectionSystemGroup/`)
+
+Runs before `AIActionSelectionSystemGroup`. Handles player-commanded units (`PlayerControlled` enabled). Reads `PlayerOrder` set by `MinionCommandSystem` and writes `ActionOption` buffer entries from the player's command. See [[Systems_AI]].
+
+---
+
+### AIActionSelectionSystemGroup — see [[Systems_AI]]
+
+---
+
+### ActionSystemGroup — see [[Systems_AI]]
 
 ---
 

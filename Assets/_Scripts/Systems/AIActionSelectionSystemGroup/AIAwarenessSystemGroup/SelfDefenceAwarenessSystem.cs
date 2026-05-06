@@ -73,7 +73,7 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(AIBrain))]
 [WithDisabled(typeof(Dead))]
 [WithPresent(typeof(CombatTarget), typeof(AggressiveState))]
 public partial struct FightOrFlightJob : IJobEntity
@@ -106,7 +106,7 @@ public partial struct FightOrFlightJob : IJobEntity
         ref DynamicBuffer<Motivation>    behaviours,
         ref DynamicBuffer<ActionOption> options,
         ref DynamicBuffer<ThreatEntry>  threats,
-        EnabledRefRO<ActionRequest> actionRequest)
+        EnabledRefRW<ActionInterruptRequest> interruptRequest)
     {
         if (threats.Length == 0)
             return;
@@ -183,7 +183,7 @@ public partial struct FightOrFlightJob : IJobEntity
             }
         }
 
-        if (!fightActivated || !actionRequest.ValueRO)
+        if (!fightActivated)
             return;
 
         int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
@@ -216,5 +216,7 @@ public partial struct FightOrFlightJob : IJobEntity
                 targetEntity   = topAggressor,
             });
         }
+
+        interruptRequest.ValueRW = true;
     }
 }

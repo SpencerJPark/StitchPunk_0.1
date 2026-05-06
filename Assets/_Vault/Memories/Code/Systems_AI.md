@@ -1,124 +1,165 @@
 ---
-tags: [memory, code, systems, ai, motivation]
+tags: [memory, code, systems, ai, action, decision, orchestration]
 related: "[[Systems]], [[Components]], [[Systems_Movement]]"
 ---
 
-# AISystemGroup — Context
+# AI & Action Architecture — Context
 
-The AI system is **unified behavior scoring**. Every unit has a `Brain` component (a `BrainType` enum) that points to a config entry in `BrainLibraryBlob`. That config defines which motivations decay, which behaviors score action options, and what weights apply. One system per behavior type runs for ALL brain types — a weight of 0 simply skips the entity.
-
-No separate brain entity. No body entity. All AI state lives on the single unit entity.
-
----
-
-## Architecture
-
-### Single Entity per Unit
-- Citizens, enemies, guards, minions — all single entities
-- Brain type is `Brain.activeBrain` (BrainType enum)
-- No `BodyLink`, `BrainLink` — **fully removed**. All AI state (Brain, motivations, ActionOptions, PlayerControlled, NeedsAction) is on the unit entity directly.
-
-### Brain Config in Blob
-- `BrainLibraryBlob` keyed by `(int)BrainType` → `BrainConfigBlob`
-- Each `BrainConfigBlob` has: motivation decay rates / initial values / urgency thresholds + behavior configs (weight=0 = inactive)
-- Baked from `BrainLibrarySO` (list of `BrainConfigSO` assets) by `BrainLibraryBakingSystem`
-
-### Brain Swap
-- Enable `SwapBrainRequest.newBrain` on any unit entity
-- `SwapBrainSystem` changes `Brain.activeBrain`, resets `MotivationState` from blob, clears `ActionOption` buffer
-- No entity destruction or instantiation
-
----
-
-## Pipeline (Phase 2 — in progress)
+## Overview: Three-Layer Separation
 
 ```
-AIAwarenessSystemGroup
-  MotivationDegradationSystem  — per-motivation component decay (HungerMotivation etc.), [WithAll(ActiveBrain)]
-  SpatialHashSystem            — spatial index for interaction discovery
-  FactionRegistrySystem        — NativeParallelMultiHashMap<byte,Entity> rebuilt each frame
-
-AIScoringSystemGroup           — all systems write to ActionOption buffer on the entity
-  HungerScoringSystem          — spatial hash → HungerInteraction entities → score vs HungerMotivation
-  EnergyScoringSystem          — (and 6 more motivation-interaction scoring systems...)
-  BehaviourScoringSystem       — scores Behaviour buffer entries:
-                                   Wander   → flat score 10f, ActionCategory.Wander
-                                   Chase    → FactionRegistry lookup, ActionCategory.Chase
-                                   MeleeAttack → CombatTarget in range, ActionCategory.Attack
-                                   Flee     → ThreatEntry buffer, ActionCategory.Flee
-
-AISelectionSystemGroup
-  ActionSelectionSystem        — top-3 random pick; Interaction category → checks occupancy,
-                                 other categories → selects directly; writes SelectedAction
-  InteractionAssignmentSystem  — assigns winners to interaction, calls AIUtils.AssignWinners
-
-AIExecutionSystemGroup
-  InteractionExecutionSystem   — navigate to waypoint, trigger interaction
-  AttackExecutionSystem        — sets AttackData.attackType (from blob key), Target.entity, enables Attack
-                                  → AttackResolutionSystem handles damage + cooldown via AttackLibraryBlob
-  FleeExecutionSystem          — PathRequest away from threat source
-  WanderExecutionSystem        — idle/wander when no urgent options
+Decision Layer    → How does a unit choose what to do?
+Selection Layer   → Unified picker from scored options
+Orchestration     → Actions coordinate requests to downstream systems
 ```
 
+AI is a **decision layer only** — it never moves a unit, fires an attack, or plays an animation. It writes scored `ActionOption` entries to a buffer. The selection and execution layers are shared by both player-guided and AI-guided units.
+
 ---
 
-## ActionOption Buffer
+## Decision Layer
 
-```csharp
-public struct ActionOption : IBufferElementData
-{
-    public float score;
-    public ActionCategory category;   // Interaction, Wander, Chase, Attack, Flee, ...
-    public Entity targetEntity;       // interaction entity OR hostile entity
-    public float3 targetPosition;     // flee destination or chase target pos
-}
+### MinionActionSelectionSystemGroup
+
+Runs before `AIActionSelectionSystemGroup`. Handles **player-guided entities** (`PlayerControlled` enabled).
+
+- Reads `PlayerOrder` component set by `MinionCommandSystem` (in `PlayerEquipmentSystemGroup`)
+- Writes `ActionOption` buffer entries directly from the player's command
+- Entities in this group skip the AI scoring pipeline entirely
+
+### AIActionSelectionSystemGroup
+
+Handles **utility-guided entities** (`PlayerControlled` disabled). Contains two sub-groups:
+
+#### AIAwarenessSystemGroup
+
+Perception + motivation decay. Runs before `AIScoringSystemGroup`.
+
+| System | Purpose |
+|---|---|
+| `EnemyAwarenessSystem` | Detects hostiles within awareness range → injects attack `ActionOption` entries |
+| `SelfDefenceAwarenessSystem` | Detects incoming threats → injects self-defence options |
+| `HealthAwarenessSystem` | Monitors health thresholds → injects survival options |
+| `ItemAwarenessSystem` | Finds nearby interactables → injects interact options |
+| `EnviromentalAwarenessSystem` | Environment context → injects environmental options |
+| `MotivationDecaySystem` | Ticks all `Motivation` buffer entries down by `decayRate × deltaTime` |
+
+#### AIScoringSystemGroup
+
+Scores and prunes the `ActionOption` buffer built by awareness systems.
+
+| System | Purpose |
+|---|---|
+| `MotivationScoringSystem` | Multiplies each option's utility score by a curve evaluated against the corresponding `Motivation.value` |
+| `ActionPrioritySystem` | Adds tier bonuses (Combat +1.0, Survival +2.0 when health < 60%); prunes options with score ≤ 0 |
+
+---
+
+## Selection Layer — ActionSelectionSystemGroup
+
+Unified selection — runs after both decision groups, regardless of whether the options came from player commands or AI scoring.
+
+**`ActionSelectionSystem`** — three-stage job pipeline:
+
+1. **Filter to highest priority tier** — eliminates lower-priority options so combat always beats idle
+2. **Sort by score (descending)**
+3. **Random pick from top 3** — prevents AI indecision; reduces re-evaluation cost
+
+After selection:
+- Writes `CurrentAction` (actionType + targetEntity)
+- Disables `ActionRequest` (prevents re-running selection this cycle)
+- Calls `SelectionFunctions` Burst function pointer table to `SetComponentEnabled` the correct action tag
+
+**`SelectionFunctions.cs`** — Burst-compiled static methods, one per `ActionType`, stored in a jump table indexed by `(int)ActionType`. Enables the corresponding enableable tag component on the entity.
+
+---
+
+## Orchestration Layer — ActionExecutionSystemGroup
+
+Actions are **coordinators, not executors**. An action system runs while its enableable tag component is active and follows this pattern:
+
+```
+1. Validate preconditions (target alive? in range?)
+2. Out of range → enable PathRequest (MovementSystemGroup handles it)
+3. In range → halt path, enable AttackRequest or other downstream request
+4. On completion → re-enable ActionRequest to restart the cycle
 ```
 
-All scoring systems write to this buffer. `ActionSelectionSystem` trims to top 3 and writes `SelectedAction`.
-Interaction scoring systems call `AIUtils.AddActionOption(ref options, ref entity, score)` — sets `category = Interaction` automatically.
-Behaviour scoring systems call `AIUtils.AddActionOption(ref options, score, category, targetEntity, targetPosition)` for full control.
+### Current Action Systems
 
----
-
-## MotivationState
-
-Single component, 9 named float fields (0–100 range):
-`hunger, energy, fun, social, comfort, bladder, safety, movement, selfPreservation`
-
-Decay rates, initial values, and urgency thresholds per brain type live in `BrainLibraryBlob`.
-`MotivationDecaySystem` ticks values down by `decayRate * deltaTime`, clamped to [0, 100].
-
----
-
-## Brain Types
-
-| BrainType | Motivations | Behaviors |
+| System | Tag | Pattern |
 |---|---|---|
-| Citizen | All 9, normal decay | Interaction (high), Flee (low) |
-| Guard | Safety, SelfPreservation | Chase Undead, Attack, Flee (low) |
-| FeralZombie | None (static) | Chase Player+Human, Attack |
-| PlayerZombie | None | PlayerControlled enabled → scoring bypassed |
-| Panic | SelfPreservation (fast decay) | Flee (very high) |
-| Merchant | Social, Work | Interaction |
-| Character | Per narrative | Via narrative system |
+| `MeleeSingleActionSystem` | `MeleeSingleAction` | Validate → path → halt → enable `AttackRequest` → enable `ActionTimer` (single shot) |
+| `MeleeContinuousActionSystem` | `MeleeContinuousAction` | Same as single, but re-fires `AttackRequest` each time `ActionTimer` expires |
+| `FleeActionSystem` | `FleeAction` | Enable `PathRequest` away from threat source *(commented out, pending API update)* |
+| `WanderExecutionSystem` | `WanderAction` | Pick random nearby point → path → idle briefly → re-enable `ActionRequest` |
+| `SitActionSystem` | `SitAction` | Path to interaction entity → play sit animation → countdown → apply satisfaction → re-enable `ActionRequest`. **Reference for all interaction actions.** |
+| `ActionInterruptSystem` | — | OrderFirst; detects `ActionInterruptRequest`, disables active action tag, halts path, re-enables `ActionRequest` |
+| `ActionTimerSystem` | `ActionTimer` | Ticks down `time` — action systems check expiry themselves |
+
+### Interruption System
+
+`ActionInterruptRequest` (IEnableableComponent) is baked onto all AI units by `UnitBakingUtil.BakeRequirements`.
+
+**Who enables it:** `MinionCommandSystem` (player override), damage systems *(future)*, threat detection *(future)*
+
+`ActionInterruptSystem` runs OrderFirst in `ActionExecutionSystemGroup`:
+1. Disables the active action tag via switch on `CurrentAction.actionType`
+2. Halts pathing, clears `ArrivedAtTarget`
+3. For sit: enables `SitReleaseRequest` if unit was mid-sit (occupant cleanup)
+4. Re-enables `ActionRequest` unless `PlayerControlled` is enabled
+
+**Adding interrupt support to a new action:** add a case to `ActionInterruptSystem.DeactivateActionTag`.
+
+### Environmental Awareness Pipeline
+
+`SpatialHashSystem` (in `GameManagerSystemGroup`) rebuilds `SpatialHashRegistry` each frame. Keys each `InteractionProvider` entity by `(cell, MotivationType)` using its `MotivationSatisfaction` buffer.
+
+`EnvironmentalAwarenessSystem` (in `AIAwarenessSystemGroup`) queries the hash per NPC motivation need, filters by `Interaction.allowedUnitTypeMask` (0 = any; bit N = `UnitType` N), adds `ActionOption` scored by distance.
+
+### Interaction Action Pattern (per-type, not generic)
+
+Each `ActionType` that maps to an environmental interaction gets its own execution system — no shared generic system. `SitActionSystem` is the reference.
+
+**States use `ArrivedAtTarget` as flag:** disabled = pathing; enabled = executing interaction.
+
+**Occupant flow:** `ValidateInteractionJob` increments on selection. Decrement via `SitReleaseRequest` + `SitReleaseJob` (single-threaded after parallel `.Complete()`).
+
+### Downstream Request Types
+
+| Request | Who enables it | Who consumes it |
+|---|---|---|
+| `PathRequest` | Any action needing movement | `MovementSystemGroup` |
+| `AttackRequest` | Melee/ranged action systems | `AttackResolutionSystem` (CombatSystemGroup) |
+| `SitReleaseRequest` | `SitJob` on completion / `ActionInterruptSystem` on interrupt | `SitReleaseJob` (decrements `occupantCount`) |
 
 ---
 
-## Adding a New Brain Type
+## Component State Machine
 
-1. Add a value to `BrainType` enum.
-2. Create `BrainConfigSO` asset (`AI/Brains/`) — set brainType, configure motivations and behaviors inline.
-3. Add to the `BrainLibrarySO` asset's brains list.
-4. Done — no new systems, no new components, no new authoring.
+```
+ActionRequest (enabled)                  → selection pipeline runs this frame
+ActionInterruptRequest (enabled)         → ActionInterruptSystem will abort current action
+Action tag (e.g. SitAction)             → that action's execution system is active
+ArrivedAtTarget (enabled)               → unit has reached target; in "executing" phase
+PathRequest (enabled)                   → MovementSystemGroup picks this up
+AttackRequest (enabled)                 → CombatResolutionSystemGroup picks this up
+SitReleaseRequest (enabled)             → SitReleaseJob will decrement occupantCount this frame
+```
 
 ---
 
-## Player-Controlled Minions
+## Adding a New Interaction Action
 
-- `PlayerControlled` is baked (disabled) on ALL unit entities via `BrainAuthoring`
-- `ActionSelectionSystem` uses `[WithDisabled(typeof(PlayerControlled))]` — minions are skipped
-- When `PlayerControlled` is enabled: `MinionCommandSystem` writes `SelectedAction` directly
-- `SwapBrainSystem` enables `PlayerControlled` when brain swaps to `BrainType.PlayerZombie`
+1. Confirm `ActionType.Foo` exists in `Data/Enums/AiEnums.cs`
+2. Add tag: `public struct FooAction : IComponentData, IEnableableComponent {}` (in `AiComponents.cs`)
+3. Add `FooEnable` to `SelectionFunctions.cs` (takes `bool enabled`, sets it on the tag)
+4. Register in **both** function tables — they share the same delegate but serve opposite purposes:
+   - `ActionSelectionSystem.OnCreate` → `_functionTable[(int)ActionType.Foo] = ... FooEnable` (enables on selection)
+   - `ActionInterruptSystem.OnCreate` → same line (disables on interrupt, passing `false`)
+5. Wire in brain bakers: `UnitBakingUtil.AddAction<TBaker, FooAction>` + `FooReleaseRequest` if needed
+6. Write `FooActionSystem` in `ActionExecutionSystemGroup/` — copy `SitActionSystem` as the template
+7. For occupant management: add a `FooReleaseRequest` + `FooReleaseJob` following the Sit pattern
 
 ---
 
@@ -126,12 +167,13 @@ Decay rates, initial values, and urgency thresholds per brain type live in `Brai
 
 | File | Path | Role |
 |---|---|---|
-| `BrainAuthoring.cs` | `Authoring/AI/Brains/` | Per-unit brain setup — replaces CitizenBrainAuthoring / ZombieBrainAuthoring |
-| `BrainLibraryAuthoring.cs` | `Authoring/EntityLibraries/` | Singleton — references BrainLibrarySO |
-| `BrainLibraryBakingSystem.cs` | `Systems/PostBakingSystemGroup/` | Builds BrainLibraryBlob from BrainLibrarySO |
-| `SwapBrainSystem.cs` | `Systems/HealthSystemGroup/` | Brain swap — cheap value change, no entity ops |
-| `BrainConfigSO.cs` | `Data/SOs/` | One per brain type — inline motivation + behavior config |
-| `BrainLibrarySO.cs` | `Data/SOs/` | List of all BrainConfigSOs |
-| `BrainBlobs.cs` | `Data/Structs/` | BrainLibraryBlob, BrainConfigBlob, MotivationValues9 |
-| `Brains.cs` | `Components/AI/` | Brain, MotivationState, BrainType, SwapBrainRequest |
-| `AIComponents.cs` | `Components/AI/` | ActionCategory, ActionOption, SelectedAction, NeedsAction, PlayerControlled |
+| `SystemGroups.cs` | `Systems/` | Declares all group ordering |
+| `ActionSelectionSystem.cs` | `Systems/ActionSystemGroup/ActionSelectionSystemGroup/` | Top-3 random pick + state setup |
+| `SelectionFunctions.cs` | `Systems/ActionSystemGroup/ActionSelectionSystemGroup/` | Burst function pointer table |
+| `MeleeSingleActionSystem.cs` | `Systems/ActionSystemGroup/ActionExecutionSystemGroup/` | Reference implementation |
+| `MeleeContinuousActionSystem.cs` | `Systems/ActionSystemGroup/ActionExecutionSystemGroup/` | Reference implementation |
+| `EnemyAwarenessSystem.cs` | `Systems/AIActionSelectionSystemGroup/AIAwarenessSystemGroup/` | Hostile detection → attack options |
+| `MotivationScoringSystem.cs` | `Systems/AIActionSelectionSystemGroup/AIScoringSystemGroup/` | Utility scoring |
+| `ActionPrioritySystem.cs` | `Systems/AIActionSelectionSystemGroup/AIScoringSystemGroup/` | Tier bonuses + pruning |
+| `AiComponents.cs` | `Components/AI/` | ActionRequest, CurrentAction, ActionOption buffer, Motivation buffer, all action tags |
+| `AttackComponents.cs` | `Components/Units/` | AttackRequest, CombatTarget, AvailableAttack buffer |

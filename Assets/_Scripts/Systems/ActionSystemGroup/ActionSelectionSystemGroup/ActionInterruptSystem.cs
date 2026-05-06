@@ -1,0 +1,99 @@
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Entities;
+
+// Detects ActionInterruptRequest, disables the active action tag via the shared
+// function pointer table, halts pathing, and returns the unit to the decision
+// pipeline (ActionRequest). Intentionally narrow — context-specific cleanup
+// (e.g. SitReleaseRequest) is the responsibility of whoever enables the interrupt.
+//
+// Register a new action type here whenever one is added to ActionSelectionSystem.
+[BurstCompile]
+[UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderFirst = true)]
+[UpdateAfter(typeof(ActionTimerSystem))]
+public partial struct ActionInterruptSystem : ISystem
+{
+    private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
+    private ComponentLookup<PlayerControlled>                      playerControlledLookup;
+
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate<GameSceneTag>();
+        playerControlledLookup = state.GetComponentLookup<PlayerControlled>(true);
+
+        int tableSize  = (int)ActionType.Spawn + 1;
+        _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
+
+        FunctionPointer<ActionActivationDelegate> nullPtr =
+            BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.NullEnable);
+        for (int i = 0; i < tableSize; i++)
+            _functionTable[i] = nullPtr;
+
+        _functionTable[(int)ActionType.Idle]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.IdleEnable);
+        _functionTable[(int)ActionType.Wander]          = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
+        _functionTable[(int)ActionType.Interact]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
+        _functionTable[(int)ActionType.Flee]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
+        _functionTable[(int)ActionType.MeleeContinuous] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
+        _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
+    }
+
+    [BurstCompile]
+    public void OnDestroy(ref SystemState state)
+    {
+        if (_functionTable.IsCreated)
+            _functionTable.Dispose();
+    }
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
+    {
+        playerControlledLookup.Update(ref state);
+
+        EntityCommandBuffer ecb = SystemAPI
+            .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+            .CreateCommandBuffer(state.WorldUnmanaged);
+
+        state.Dependency = new ActionInterruptJob
+        {
+            functionTable          = _functionTable,
+            playerControlledLookup = playerControlledLookup,
+            ecb                    = ecb.AsParallelWriter(),
+        }.ScheduleParallel(state.Dependency);
+    }
+}
+
+[BurstCompile]
+[WithAll(typeof(ActionInterruptRequest))]
+[WithPresent(typeof(PathRequest))]
+public partial struct ActionInterruptJob : IJobEntity
+{
+    [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
+    [ReadOnly] public ComponentLookup<PlayerControlled>                      playerControlledLookup;
+    public EntityCommandBuffer.ParallelWriter ecb;
+
+    public void Execute(
+        Entity                               entity,
+        [EntityIndexInQuery] int             index,
+        in CurrentAction                     currentAction,
+        EnabledRefRW<ActionInterruptRequest> interruptEnabled)
+    {
+        // Disable the active action tag via the shared function table
+        int actionIndex = (int)currentAction.actionType;
+        if (actionIndex >= 0 && actionIndex < functionTable.Length)
+            functionTable[actionIndex].Invoke(in entity, index, ref ecb, false);
+
+        // Halt pathing
+        ecb.SetComponentEnabled<PathRequest>(index, entity, false);
+
+        // Clear arrival state
+        ecb.SetComponentEnabled<ArrivedAtTarget>(index, entity, false);
+
+        // Return to decision pipeline — skip if player owns this unit
+        bool playerOwned = playerControlledLookup.HasComponent(entity) &&
+                           playerControlledLookup.IsComponentEnabled(entity);
+        if (!playerOwned)
+            ecb.SetComponentEnabled<ActionRequest>(index, entity, true);
+
+        interruptEnabled.ValueRW = false;
+    }
+}

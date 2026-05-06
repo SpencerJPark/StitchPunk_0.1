@@ -205,6 +205,7 @@ public partial struct MinionCommandSystem : ISystem
                 commandType  = activeCommand,
             });
             SystemAPI.SetComponentEnabled<ActionRequest>(unitEntity, false);
+            SystemAPI.SetComponentEnabled<ActionInterruptRequest>(unitEntity, true);
 
             // Stamp commandType onto Selected so SelectedVisualSystem can update
             // the ring color without a cross-reference.

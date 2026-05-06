@@ -16,9 +16,6 @@ public class AttackSO : ScriptableObject
     [Tooltip("How close to perform attack")]
     public float range;
 
-    [Tooltip("Seconds between attacks")]
-    public float cooldown;
-
     [Tooltip("Scales ragdoll violence on kill. 1 = baseline (sword). 0.5 = weak/glancing. 2+ = heavy/explosive.")]
     public float ragdollForce = 1f;
 

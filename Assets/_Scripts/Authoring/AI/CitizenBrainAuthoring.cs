@@ -19,8 +19,10 @@ public class CitizenBrainAuthoring : MonoBehaviour
             UnitBakingUtil.BakeRequirements(this, entity, authoring.active, unitSO);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, MeleeContinuousAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, WanderAction>(this, entity);
+            UnitBakingUtil.AddAction<CitizenBrainAuthoring, SitAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, IdleAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, FleeAction>(this, entity);
+            UnitBakingUtil.AddAction<CitizenBrainAuthoring, SitReleaseRequest>(this, entity);
         }
     }
 }

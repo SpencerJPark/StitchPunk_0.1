@@ -6,7 +6,6 @@ public struct AttackBlob
     public DamageBehaviour damageBehaviour;
     public int damageAmount;
     public float range;
-    public float cooldown;
     public float ragdollForce;
     public float launchForceY;
     public float launchForceX;

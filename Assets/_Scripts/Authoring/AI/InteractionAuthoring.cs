@@ -14,7 +14,9 @@ public class InteractionAuthoring : MonoBehaviour
 
     [Tooltip("Legacy animation/state hint copied onto UnitAction. Orthogonal to InteractionKind.")]
     public ActionType actionType = ActionType.Interact;
-    
+
+    [Tooltip("Which unit types may use this interaction. Leave empty to allow all unit types.")]
+    public UnitType[] allowedUnitTypes = System.Array.Empty<UnitType>();
 
     [Header("Player")]
     [Tooltip("Whether the player can directly target and interact with this entity.")]
@@ -38,10 +40,37 @@ public class InteractionAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
+            MotivationType primaryMotivation = MotivationType.None;
+            float primaryUtility = 0f;
+            if (authoring.satisfies != null)
+            {
+                for (int i = 0; i < authoring.satisfies.Length; i++)
+                {
+                    if (authoring.satisfies[i].motivationType != MotivationType.None)
+                    {
+                        primaryMotivation = authoring.satisfies[i].motivationType;
+                        primaryUtility    = authoring.satisfies[i].value;
+                        break;
+                    }
+                }
+            }
+
+            uint unitMask = 0u;
+            if (authoring.allowedUnitTypes != null)
+            {
+                for (int i = 0; i < authoring.allowedUnitTypes.Length; i++)
+                    unitMask |= 1u << (int)authoring.allowedUnitTypes[i];
+            }
+
             AddComponent(entity, new Interaction
             {
-                actionType = authoring.actionType,
-                maxOccupants = authoring.maxOccupant
+                actionType           = authoring.actionType,
+                motivationType       = primaryMotivation,
+                utilityScore         = primaryUtility,
+                range                = authoring.interactionRange,
+                allowedUnitTypeMask  = unitMask,
+                maxOccupants         = authoring.maxOccupant,
+                occupantCount        = 0
             });
 
             

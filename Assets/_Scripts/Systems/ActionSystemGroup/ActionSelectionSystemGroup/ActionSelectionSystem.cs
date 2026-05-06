@@ -5,7 +5,7 @@ using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
 [BurstCompile]
-[UpdateInGroup(typeof(ActionSelectionSystemGroup))]
+[UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderLast = true)]
 public partial struct ActionSelectionSystem : ISystem
 {
     private ComponentLookup<Interaction> interactionLookup;
@@ -28,7 +28,8 @@ public partial struct ActionSelectionSystem : ISystem
         _functionTable[(int)ActionType.Wander]   = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
         _functionTable[(int)ActionType.Interact] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
         _functionTable[(int)ActionType.Flee]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
-        _functionTable[(int)ActionType.MeleeContinuous]    = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
+        _functionTable[(int)ActionType.MeleeContinuous] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
+        _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
     }
     
     [BurstCompile]
@@ -227,7 +228,7 @@ public partial struct ActionSelectionSystem : ISystem
             
             if (actionIndex >= 0 && actionIndex < functionTable.Length)
             {
-                functionTable[actionIndex].Invoke(in entity, index, ref ecb);
+                functionTable[actionIndex].Invoke(in entity, index, ref ecb, true);
             }
         }
     }

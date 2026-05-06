@@ -82,7 +82,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
     {
         Entity hostile = action.targetEntity;
 
-        // Action is firing — halt and wait for it to resolve
+        // Action is firing
         if (actionTimerEnabled.ValueRO && actionTimer.time > 0)
         {
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);

@@ -164,6 +164,9 @@ public class PlayerAuthoring : MonoBehaviour
                 ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;
             AddComponent(entity, new UnitEquipt { socketEntity = socketEntity });
+            
+            AddComponent<ActionTimer>(entity);
+            SetComponentEnabled<ActionTimer>(entity, false);
         }
     }
 }

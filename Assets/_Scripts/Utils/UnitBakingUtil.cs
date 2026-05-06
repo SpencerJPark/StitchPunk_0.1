@@ -43,6 +43,14 @@ public static class UnitBakingUtil
             AddPlayerControlled(baker, entity, false);
         }
 
+        baker.AddComponent<ArrivedAtTarget>(entity);
+        baker.SetComponentEnabled<ArrivedAtTarget>(entity, false);
+
+        baker.AddComponent<ActionInterruptRequest>(entity);
+        baker.SetComponentEnabled<ActionInterruptRequest>(entity, false);
+
+        baker.AddBuffer<MotivationSatisfaction>(entity);
+
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
 

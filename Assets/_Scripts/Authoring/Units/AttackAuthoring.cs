@@ -11,6 +11,8 @@ public class AttackAuthoring : MonoBehaviour
             AddComponent<AttackRequest>(entity);
             SetComponentEnabled<AttackRequest>(entity, false);
             AddComponent<CombatTarget>(entity);
+            AddComponent(entity, new ActionTimer { time = 0f });
+            SetComponentEnabled<ActionTimer>(entity, false);
         }
     }
 }

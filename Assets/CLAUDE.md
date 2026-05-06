@@ -27,7 +27,9 @@ Folder Map — Read Before Working
 | `_Scripts/Components/` | [Components.md](_Vault/Memories/Code/Components.md) | IComponentData / IBufferElementData conventions |
 | `_Scripts/Components/Save/` | [Components.md](_Vault/Memories/Code/Components.md) | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
 | `_Scripts/Systems/` | [Systems.md](_Vault/Memories/Code/Systems.md) | System group order, ISystem rules, Burst |
-| `_Scripts/Systems/AISystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Motivation scoring, waypoint interactions, Brain/Body |
+| `_Scripts/Systems/MinionActionSelectionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Player-guided decision: PlayerOrder → ActionOption |
+| `_Scripts/Systems/AIActionSelectionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Utility-guided decision: awareness + scoring → ActionOption |
+| `_Scripts/Systems/ActionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Unified selection + action orchestration (PathRequest, AttackRequest) |
 | `_Scripts/Systems/AnimationSystemGroup/` | [Systems_Animation.md](_Vault/Memories/Code/Systems_Animation.md) | Layered quad animation, clip SO pipeline |
 | `_Scripts/Systems/MovementSystemGroup/` | [Systems_Movement.md](_Vault/Memories/Code/Systems_Movement.md) | Flowfield, D* Lite, horde formation |
 | `_Scripts/Systems/SaveSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Play time tracking, auto-save timer, save/load to JSON on disk |
@@ -77,30 +79,20 @@ Narrative event system is complete:
 - `NarrativeEventManager` (MonoBehaviour) drives async event execution via UniTask
 - `NarrativeIds.cs` registry is ready — populate Events/Entities constants as you build scenes
 
-**Unified AI Brain System — Phase 1 (data layer) complete:**
+**AI & Action Architecture — complete (current architecture):**
 
-Architecture: single entity per unit, brain type as a `BrainType` enum on a `Brain` component. All brain configs live in `BrainLibraryBlob` keyed by enum value. Brain swap = cheap value change, no entity destruction.
+AI is a **pure decision layer** — it scores `ActionOption` buffer entries but never executes movement, attacks, or animation. Execution is handled by a unified `ActionSystemGroup`.
 
-New data layer:
-- `Brain` component (BrainType enum) + `MotivationState` (9 floats) on every AI unit
-- `BrainConfigSO` — one per brain type, inline motivation + behavior config (no sub-assets)
-- `BrainLibrarySO` → `BrainLibraryBlob` baked by `BrainLibraryBakingSystem`
-- `ActionOption` buffer redesigned: `score`, `ActionCategory`, `targetEntity`, `targetPosition`
-- `SwapBrainSystem` — no entity ops, just changes `Brain.activeBrain` + resets `MotivationState`
-- `BrainAuthoring` — single authoring component for all unit types
+Three-layer pipeline:
+- `MinionActionSelectionSystemGroup` — player-commanded units: reads `PlayerOrder` → writes `ActionOption`
+- `AIActionSelectionSystemGroup` — utility-driven units: awareness systems populate `ActionOption`, scoring systems rank and prune
+- `ActionSystemGroup` — unified for all units:
+  - `ActionSelectionSystemGroup`: top-3 random pick → enables action tag via Burst function pointer table
+  - `ActionExecutionSystemGroup`: action systems orchestrate downstream requests (`PathRequest`, `AttackRequest`)
 
-Brain types defined: Citizen, Guard, FeralZombie, PlayerZombie, Panic, Merchant, Character.
+Melee actions (`MeleeSingleActionSystem`, `MeleeContinuousActionSystem`) are the reference implementation for the orchestration pattern.
 
-**Phase 2 complete:** Pre-pass + generic scorer architecture implemented.
-- `Motivation : IBufferElementData` — unified buffer (value, decayRate, contextMultiplier) replaces 9 separate XxxMotivation components
-- `MotivationDecaySystem` — single buffer-iterating job (resets contextMultiplier + applies decay)
-- `SelfPreservationPrePassSystem` — health < 30% → contextMultiplier = 2.5 on SelfPreservation
-- `SafetyPrePassSystem` — threats present → contextMultiplier = 2.0 on Safety
-- `MotivationScoringSystem` — single generic scorer (replaces 8 per-motivation systems)
-- `Behaviour : IBufferElementData` — buffer for behaviour entries (Wander, Chase, MeleeAttack, Flee)
-- `InteractionValue : IComponentData` — generic multiplier baked on all interaction entities
-- `BrainBakeHelper.AddHumanMotivations` — now populates Motivation buffer (9 entries with rates)
-- `BrainBakeHelper.AddCitizenBehaviours` — adds Wander + Flee entries to Behaviour buffer
+**Next:** Reintroduce waypoints as a downstream request target in the action system (waypoint entity → awareness scores it → `WaypointAction` tag → `PathRequest` to position).
 
 **Factory System Phase 1 is built (ECS data layer + production loop):**
 

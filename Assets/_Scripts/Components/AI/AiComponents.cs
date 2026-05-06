@@ -54,11 +54,14 @@ public struct ActionOption : IBufferElementData
 public struct InteractionProvider : IComponentData, IEnableableComponent { }
 public struct Interaction : IComponentData
 {
-    public ActionType actionType;
+    public ActionType     actionType;
     public MotivationType motivationType;
-    public float utilityScore;
-    public int maxOccupants;
-    public int occupantCount;
+    public int            priority;
+    public float          utilityScore;       // base satisfaction points granted on completion
+    public float          range;              // arrival distance for NPC to start interacting
+    public uint           allowedUnitTypeMask;// 0 = any unit; bit N = UnitType N is allowed
+    public int            maxOccupants;
+    public int            occupantCount;
 }
 public struct Faction : IComponentData
 {
@@ -91,9 +94,21 @@ public struct IdleAction : IComponentData, IEnableableComponent { }
 public struct MoveToAction : IComponentData, IEnableableComponent { }
 public struct WanderAction : IComponentData, IEnableableComponent { }
 public struct InteractAction : IComponentData, IEnableableComponent { }
+public struct SitAction : IComponentData, IEnableableComponent { }
 public struct MeleeContinuousAction : IComponentData, IEnableableComponent { }
 public struct MeleeSingleAction : IComponentData, IEnableableComponent { }
 public struct FleeAction : IComponentData, IEnableableComponent { }
+
+// Signals to ActionInterruptSystem to cleanly abort the current action this frame.
+// Enabled by: MinionCommandSystem (player override), damage systems, threat detection.
+public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
+
+// Flagged by SitActionSystem when a unit finishes or is interrupted mid-sit.
+// Consumed by SitReleaseJob to decrement Interaction.occupantCount on the target.
+public struct SitReleaseRequest : IComponentData, IEnableableComponent
+{
+    public Entity interactionEntity;
+}
 
 
 
