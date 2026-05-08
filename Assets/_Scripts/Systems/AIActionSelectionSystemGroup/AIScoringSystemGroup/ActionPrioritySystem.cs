@@ -42,7 +42,10 @@ public partial struct ActionPriorityJob : IJobEntity
     private const float SURVIVAL_BONUS = 2.0f;
     private const float FLEE_HEALTH_THRESHOLD = 0.6f;
 
-    public void Execute(in Health health, ref DynamicBuffer<ActionOption> options)
+    public void Execute(
+        in Health                        health,
+        ref DynamicBuffer<ActionOption>  options,
+        in DynamicBuffer<Motivation>     motivations)
     {
         float healthRatio = health.healthAmountMax > 0
             ? (float)health.healthAmount / health.healthAmountMax
@@ -60,7 +63,7 @@ public partial struct ActionPriorityJob : IJobEntity
                 option.utilityScore += COMBAT_BONUS;
             }
 
-            if (isHurt &&
+            if (isHurt && HasMotivation(motivations, option.motivationType) &&
                 (option.motivationType == MotivationType.SelfPreservation ||
                  option.motivationType == MotivationType.Safety))
             {
@@ -77,5 +80,15 @@ public partial struct ActionPriorityJob : IJobEntity
             if (options[i].utilityScore <= 0f)
                 options.RemoveAt(i);
         }
+    }
+
+    private static bool HasMotivation(in DynamicBuffer<Motivation> motivations, MotivationType type)
+    {
+        for (int i = 0; i < motivations.Length; i++)
+        {
+            if (motivations[i].motivationType == type)
+                return true;
+        }
+        return false;
     }
 }

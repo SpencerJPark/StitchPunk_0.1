@@ -10,7 +10,6 @@ using Unity.Entities;
 // Register a new action type here whenever one is added to ActionSelectionSystem.
 [BurstCompile]
 [UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderFirst = true)]
-[UpdateAfter(typeof(ActionTimerSystem))]
 public partial struct ActionInterruptSystem : ISystem
 {
     private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
@@ -75,7 +74,8 @@ public partial struct ActionInterruptJob : IJobEntity
         Entity                               entity,
         [EntityIndexInQuery] int             index,
         in CurrentAction                     currentAction,
-        EnabledRefRW<ActionInterruptRequest> interruptEnabled)
+        EnabledRefRW<ActionInterruptRequest> interruptEnabled,
+        EnabledRefRW<ActionRequest>          actionRequestEnabled)
     {
         // Disable the active action tag via the shared function table
         int actionIndex = (int)currentAction.actionType;
@@ -85,14 +85,12 @@ public partial struct ActionInterruptJob : IJobEntity
         // Halt pathing
         ecb.SetComponentEnabled<PathRequest>(index, entity, false);
 
-        // Clear arrival state
-        ecb.SetComponentEnabled<ArrivedAtTarget>(index, entity, false);
-
-        // Return to decision pipeline — skip if player owns this unit
+        // Return to decision pipeline via direct write (not ECB) so ActionSelectionJob
+        // can pick new options in the same frame.
         bool playerOwned = playerControlledLookup.HasComponent(entity) &&
                            playerControlledLookup.IsComponentEnabled(entity);
         if (!playerOwned)
-            ecb.SetComponentEnabled<ActionRequest>(index, entity, true);
+            actionRequestEnabled.ValueRW = true;
 
         interruptEnabled.ValueRW = false;
     }

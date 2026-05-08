@@ -30,6 +30,14 @@ public struct PathRequest : IComponentData, IEnableableComponent
     public float stoppingDistance;
 }
 
+public struct StuckDetector : IComponentData
+{
+    public float3 lastSampledPosition;
+    public float3 lastTargetPosition;
+    public float  stuckAccumulator;
+    public float  sampleTimer;
+}
+
 public struct DStarLiteFollower : IComponentData, IEnableableComponent
 {
     public int currentNodeIndex;

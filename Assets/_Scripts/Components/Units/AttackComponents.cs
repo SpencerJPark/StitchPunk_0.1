@@ -8,10 +8,6 @@ public struct AttackRequest : IComponentData, IEnableableComponent
     public AttackType attackType;
     public bool       hitFired;
 }
-public struct CombatTarget : IComponentData
-{
-    public Entity     targetEntity;
-}
 public struct AvailableAttack : IBufferElementData
 {
     public ActionType actionType;

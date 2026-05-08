@@ -7,13 +7,13 @@ using Unity.Transforms;
 // Executes the Wander action. Picks a random point within awareness range,
 // paths there, idles briefly, then returns to ActionRequest.
 //
-// States:
-//   Pathing  (WanderAction enabled, ArrivedAtTarget disabled) — path to random point
-//   Idling   (WanderAction enabled, ArrivedAtTarget enabled)  — wait out ActionTimer
+// States (ActionTimer enabled state as flag):
+//   Pathing  (WanderAction enabled, ActionTimer disabled) — path to random point
+//   Idling   (WanderAction enabled, ActionTimer enabled)  — wait out ActionTimer
 //   Complete — disable WanderAction, re-enable ActionRequest
 [BurstCompile]
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
-public partial struct WanderExecutionSystem : ISystem
+public partial struct WanderActionSystem : ISystem
 {
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -38,7 +38,7 @@ public partial struct WanderExecutionSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(AIBrain), typeof(WanderAction))]
 [WithDisabled(typeof(ActionRequest), typeof(ActionInterruptRequest))]
-[WithPresent(typeof(PathRequest), typeof(ActionTimer), typeof(ActionInterruptRequest))]
+[WithPresent(typeof(PathRequest), typeof(ActionTimer))]
 public partial struct WanderJob : IJobEntity
 {
     private const float IDLE_DURATION = 2.0f;
@@ -56,17 +56,16 @@ public partial struct WanderJob : IJobEntity
         ref ActionTimer            actionTimer,
         EnabledRefRW<WanderAction>  wanderActionEnabled,
         EnabledRefRW<ActionRequest> actionRequestEnabled,
-        EnabledRefRW<ArrivedAtTarget> arrivedEnabled,
+        EnabledRefRW<ActionTimer>   actionTimerEnabled,
         EnabledRefRW<PathRequest>   pathRequestEnabled)
     {
-        if (arrivedEnabled.ValueRO)
+        if (actionTimerEnabled.ValueRO)
         {
-            // Idling — count down the idle timer
-            actionTimer.time -= deltaTime;
+            // Idling — count down the idle timer (ticked by ActionTimerSystem)
             if (actionTimer.time <= 0f)
             {
-                arrivedEnabled.ValueRW     = false;
-                wanderActionEnabled.ValueRW = false;
+                actionTimerEnabled.ValueRW   = false;
+                wanderActionEnabled.ValueRW  = false;
                 actionRequestEnabled.ValueRW = true;
             }
             return;
@@ -76,8 +75,8 @@ public partial struct WanderJob : IJobEntity
         if (math.distancesq(transform.Position, pathRequest.targetPosition) <= ARRIVE_RANGE * ARRIVE_RANGE)
         {
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-            arrivedEnabled.ValueRW = true;
-            actionTimer.time       = IDLE_DURATION;
+            actionTimerEnabled.ValueRW = true;
+            actionTimer.time           = IDLE_DURATION;
             return;
         }
 
@@ -87,8 +86,8 @@ public partial struct WanderJob : IJobEntity
             Unity.Mathematics.Random random = new Unity.Mathematics.Random(
                 (uint)(entityIndex + 1) * (uint)(time * 1000f + 1f));
 
-            float  angle       = random.NextFloat(0f, math.PI * 2f);
-            float  dist        = random.NextFloat(awareness.range * 0.3f, awareness.range);
+            float  angle        = random.NextFloat(0f, math.PI * 2f);
+            float  dist         = random.NextFloat(awareness.range * 0.3f, awareness.range);
             float3 wanderTarget = transform.Position + new float3(
                 math.cos(angle) * dist,
                 0f,

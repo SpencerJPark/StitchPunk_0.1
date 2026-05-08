@@ -6,7 +6,7 @@ using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
-public partial struct EnvironmentalAwarenessSystem : ISystem
+public partial struct InteractionAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<Interaction>    interactionLookup;
@@ -28,7 +28,7 @@ public partial struct EnvironmentalAwarenessSystem : ISystem
 
         SpatialHashRegistry registry = SystemAPI.GetSingleton<SpatialHashRegistry>();
 
-        state.Dependency = new EnvironmentalAwarenessJob
+        state.Dependency = new InteractionAwarenessJob
         {
             registry          = registry,
             transformLookup   = transformLookup,
@@ -39,7 +39,7 @@ public partial struct EnvironmentalAwarenessSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(AIBrain), typeof(ActionRequest))]
-public partial struct EnvironmentalAwarenessJob : IJobEntity
+public partial struct InteractionAwarenessJob : IJobEntity
 {
     [ReadOnly] public SpatialHashRegistry            registry;
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;

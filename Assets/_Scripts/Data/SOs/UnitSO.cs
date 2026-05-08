@@ -1,6 +1,7 @@
 using Unity.Entities;
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 using UnityEngine.Serialization;
 
 [CreateAssetMenu(fileName = "Unit", menuName = "UnitSO/Unit")]
@@ -15,9 +16,10 @@ public class UnitSO : ScriptableObject
     
     [Header("AI")]
     public float awarenessRange;
-    [SearchableEnum] public MotivationType[] motivations; 
-    public int randomMotivationsTotal; 
+    [SearchableEnum] public MotivationType[] motivations;
+    public int randomMotivationsTotal;
     [SearchableEnum] public MotivationType[] randomMotivations;
+    public List<MotivationDecayConfig> motivationDecayRates;
     
     [Header("Animations")]
     public ActionAnimationMapping[] actionAnimations;
@@ -49,6 +51,13 @@ public class UnitSO : ScriptableObject
         }
         return isMoving ? movingAnimation : idleAnimation;
     }
+}
+
+[Serializable]
+public struct MotivationDecayConfig
+{
+    [SearchableEnum] public MotivationType motivationType;
+    public float decayRate;
 }
 
 [Serializable]

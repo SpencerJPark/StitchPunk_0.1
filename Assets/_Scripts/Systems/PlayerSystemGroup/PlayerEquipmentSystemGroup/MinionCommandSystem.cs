@@ -149,8 +149,7 @@ public partial struct MinionCommandSystem : ISystem
 
                     PlayerOrder currentOrder = SystemAPI.GetComponent<PlayerOrder>(unitEntity);
                     if (currentOrder.commandType != CommandType.Follow) continue;
-
-                    currentOrder.destination = playerPosition;
+                    
                     SystemAPI.SetComponent(unitEntity, currentOrder);
 
                     bool isInHorde = SystemAPI.IsComponentEnabled<HordeMembership>(unitEntity);
@@ -200,7 +199,6 @@ public partial struct MinionCommandSystem : ISystem
             SystemAPI.SetComponentEnabled<PlayerControlled>(unitEntity, true);
             SystemAPI.SetComponent(unitEntity, new PlayerOrder
             {
-                destination  = destination,
                 targetEntity = orderTarget,
                 commandType  = activeCommand,
             });

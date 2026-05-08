@@ -11,6 +11,11 @@ public struct EquiptSocket : IComponentData // goes on Socket
     public Entity attachedItem;
 }
 
+public struct ItemGripPoint : IComponentData
+{
+    public Entity entity;
+}
+
 
 public struct Item : IComponentData
 {
@@ -25,15 +30,26 @@ public struct AttachedTo : IComponentData // goes on item
     public Entity socket;
 }
 
-public struct EquipAction : IComponentData, IEnableableComponent { }
+public struct SpawnItemRequest : IComponentData, IEnableableComponent
+{
+    public ItemType itemType;
+    public Entity socket;
+}
 
-// Enabled by PlayerPickupSystem after EquipRequest. ItemAttachSystem parents the item
-// to AttachedTo.socket and resets its local transform, then disables this.
-public struct AttachRequest : IComponentData, IEnableableComponent { }
+public struct DespawnItemRequest : IComponentData, IEnableableComponent
+{
+    public Entity itemEntity;
+}
 
-// Applied when a throw is initiated. ThrownItemSystem moves the item by velocity
-// each frame and applies gravity until it lands.
-public struct ThrownItem : IComponentData, IEnableableComponent
+public struct AttachItemRequest : IComponentData, IEnableableComponent
+{
+    public ItemType itemType;
+    public Entity socket;
+}
+
+public struct UseItemRequest : IComponentData, IEnableableComponent { }
+
+public struct ThrownItemRequest : IComponentData, IEnableableComponent
 {
     public float3 velocity;
     public float throwSpeed;      // set per-item in ItemAuthoring
@@ -46,10 +62,3 @@ public struct ThrownItem : IComponentData, IEnableableComponent
     public float3 throwOrigin;    // world position at throw time — used to skip hits until item clears nearby units
 }
 
-// Stored on the item root. Points to the child entity whose transform is the
-// grip/align point — i.e. the empty child created with ItemAttachPointAuthoring.
-// A future positioning system uses this to snap the item to the socket.
-public struct ItemGripPoint : IComponentData
-{
-    public Entity entity;
-}

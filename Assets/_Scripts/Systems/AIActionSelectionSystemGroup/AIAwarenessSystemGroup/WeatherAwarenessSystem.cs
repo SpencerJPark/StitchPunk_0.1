@@ -1,0 +1,1 @@
+﻿// meant for units to respond to weather changes, like if rainy pull out umbrella or retreat indoors, stormy run indoors

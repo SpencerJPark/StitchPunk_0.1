@@ -79,7 +79,7 @@ public partial struct ActionSelectionSystem : ISystem
     [BurstCompile]
     [WithAll(typeof(AIBrain), typeof(ActionRequest))]
     [WithDisabled(typeof(Dead))]
-    [WithPresent(typeof(NeedsActionSelectionValidation))]
+    [WithPresent(typeof(ActionSelectionValidationRequest))]
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
@@ -88,7 +88,7 @@ public partial struct ActionSelectionSystem : ISystem
             [EntityIndexInQuery] int entityIndex,
             ref CurrentAction currentAction,
             ref DynamicBuffer<ActionOption> options,
-            EnabledRefRW<NeedsActionSelectionValidation> needsValidation,
+            EnabledRefRW<ActionSelectionValidationRequest> needsValidation,
             EnabledRefRW<ActionRequest> needsAction)
         {
 
@@ -120,18 +120,18 @@ public partial struct ActionSelectionSystem : ISystem
             currentAction.targetEntity = choice.targetEntity;
 
             // 6. Handle State Transitions
-            // If it's an interaction, we need the Validator to check occupancy
-            if (choice.interaction) 
+            // If it's an interaction, disable ActionRequest now so ValidateInteractionJob
+            // can use it as a signal, then re-enable it after validation.
+            if (choice.interaction)
             {
                 needsValidation.ValueRW = true;
-                needsAction.ValueRW = false; // Transitioning to Validation state
+                needsAction.ValueRW = false;
             }
             else
             {
-                // If it's not an interaction, we are done picking! 
-                // The Logic systems (Attack, Patrol) should take over now.
+                // Non-interaction: leave ActionRequest enabled so SetupActionJob (which
+                // filters [WithAll ActionRequest]) picks this entity up and disables it.
                 needsValidation.ValueRW = false;
-                needsAction.ValueRW = false; 
             }
 
             // 7. Cleanup
@@ -186,49 +186,60 @@ public partial struct ActionSelectionSystem : ISystem
     }
     
     [BurstCompile]
-    [WithAll(typeof(NeedsActionSelectionValidation))]
+    [WithAll(typeof(ActionSelectionValidationRequest))]
     public partial struct ValidateInteractionJob : IJobEntity
     {
         public ComponentLookup<Interaction> interactionLookup;
 
         public void Execute(
-            EnabledRefRW<NeedsActionSelectionValidation> validationTrigger,
-            EnabledRefRW<ActionRequest> needsAction, 
-            in CurrentAction currentAction)
+            EnabledRefRW<ActionSelectionValidationRequest> validationTrigger,
+            EnabledRefRW<ActionRequest>                    needsAction,
+            ref CurrentAction                              currentAction)
         {
             validationTrigger.ValueRW = false;
-            
-            if (interactionLookup.TryGetComponent(currentAction.targetEntity, out Interaction interaction))
+
+            bool validationPassed =
+                interactionLookup.TryGetComponent(currentAction.targetEntity, out Interaction interaction) &&
+                interaction.occupantCount < interaction.maxOccupants;
+
+            if (validationPassed)
             {
-                if (interaction.occupantCount >= interaction.maxOccupants)
-                {
-                    needsAction.ValueRW = true;
-                    return;
-                }
-                
                 interaction.occupantCount++;
                 interactionLookup[currentAction.targetEntity] = interaction;
             }
             else
             {
-                needsAction.ValueRW = true;
+                // Clear the selected action so SetupActionJob calls NullEnable (no-op)
+                // and leaves ActionRequest enabled — unit retries selection next frame.
+                currentAction.actionType = ActionType.None;
             }
+
+            // Always re-enable ActionRequest so SetupActionJob can run this frame.
+            needsAction.ValueRW = true;
         }
     }
     
     [BurstCompile]
+    [WithAll(typeof(ActionRequest))]
     public partial struct SetupActionJob : IJobEntity
     {
         public EntityCommandBuffer.ParallelWriter ecb;
         [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
 
-        public void Execute(Entity entity, [EntityIndexInQuery] int index, in CurrentAction currentAction)
+        public void Execute(
+            Entity                      entity,
+            [EntityIndexInQuery] int    index,
+            in CurrentAction            currentAction,
+            EnabledRefRW<ActionRequest> needsAction)
         {
             int actionIndex = (int)currentAction.actionType;
-            
-            if (actionIndex >= 0 && actionIndex < functionTable.Length)
+
+            // ActionType.None (0) means no valid action was selected (e.g. failed interaction
+            // validation). Leave ActionRequest enabled so the unit retries next frame.
+            if (actionIndex > 0 && actionIndex < functionTable.Length)
             {
                 functionTable[actionIndex].Invoke(in entity, index, ref ecb, true);
+                needsAction.ValueRW = false;
             }
         }
     }

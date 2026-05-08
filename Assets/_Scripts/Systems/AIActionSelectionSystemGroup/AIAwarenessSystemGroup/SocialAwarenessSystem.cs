@@ -1,0 +1,1 @@
+﻿// like factions can interact with eachother and decide to talk.

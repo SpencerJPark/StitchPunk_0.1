@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 05caac7ba5e4d3b46a66177e63d06ed8, type: 3}
   m_Name: Punch
   m_EditorClassIdentifier: StitchPunk.Data::AnimationClipSO
-  animationType: 36
+  animationType: 37
   duration: 1
   looping: 1
   allowBlendIn: 1

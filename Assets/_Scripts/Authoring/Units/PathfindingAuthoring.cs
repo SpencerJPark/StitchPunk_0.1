@@ -52,6 +52,8 @@ public class PathfindingAuthoring : MonoBehaviour
             // Add path request component
             AddComponent(entity, new PathRequest());
             SetComponentEnabled<PathRequest>(entity, false);
+
+            AddComponent(entity, new StuckDetector());
         }
     }
 }

@@ -26,7 +26,7 @@ MonoBehaviour:
   - action: 2
     animation: 2
   - action: 18
-    animation: 34
+    animation: 36
   stanceAnimations: []
   idleAnimation: 1
   movingAnimation: 2

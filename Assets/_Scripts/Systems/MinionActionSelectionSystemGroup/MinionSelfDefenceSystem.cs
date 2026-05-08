@@ -84,7 +84,6 @@ public partial struct MinionCounterJob : IJobEntity
         ref DynamicBuffer<ThreatEntry>      threatBuffer,
         ref DynamicBuffer<ActionOption>     actionOptions,
         in  DynamicBuffer<AvailableAttack>  availableAttacks,
-        ref CombatTarget                    combatTarget,
         EnabledRefRW<PlayerControlled>      playerControlledEnabled,
         EnabledRefRW<ActionRequest>         actionRequestEnabled)
     {
@@ -115,8 +114,6 @@ public partial struct MinionCounterJob : IJobEntity
 
         if (bestAttacker == Entity.Null)
             return;
-
-        combatTarget.targetEntity = bestAttacker;
 
         float aggressorDist = 0f;
         if (transformLookup.TryGetComponent(bestAttacker, out LocalTransform aggressorTransform))
@@ -171,7 +168,6 @@ public partial struct NearbyAlertJob : IJobEntity
         Entity                             entity,
         in  LocalTransform                 transform,
         ref DynamicBuffer<ActionOption>    actionOptions,
-        ref CombatTarget                   combatTarget,
         in  DynamicBuffer<AvailableAttack> availableAttacks,
         EnabledRefRW<PlayerControlled>     playerControlledEnabled,
         EnabledRefRW<ActionRequest>        actionRequestEnabled)
@@ -187,9 +183,7 @@ public partial struct NearbyAlertJob : IJobEntity
                 continue;
             if (!aliveLookup.IsComponentEnabled(alert.attackerEntity))
                 continue;
-
-            combatTarget.targetEntity = alert.attackerEntity;
-
+            
             float aggressorDist = 0f;
             if (transformLookup.TryGetComponent(alert.attackerEntity, out LocalTransform aggressorTransform))
                 aggressorDist = math.distance(transform.Position, aggressorTransform.Position);

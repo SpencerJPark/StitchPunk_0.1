@@ -3,23 +3,25 @@ using Unity.Mathematics;
 using Unity.Collections;
 using Unity.Rendering;
 
-// Brain
-public struct SwapBrainRequest : IComponentData, IEnableableComponent
-{
-    public UnitType newUnit;
-}
-public struct AIBrain : IComponentData, IEnableableComponent { }
-public struct ActionRequest : IComponentData, IEnableableComponent { }
-public struct NeedsActionSelectionValidation: IComponentData, IEnableableComponent {}
 public struct CurrentAction : IComponentData
 {
     public ActionType actionType;
     public Entity     targetEntity;
 }
 
-public struct ArrivedAtTarget : IComponentData, IEnableableComponent { }
+// Selection Methods
+public struct AIBrain : IComponentData, IEnableableComponent { }
+public struct PlayerControlled : IComponentData, IEnableableComponent { }
 
-// Context
+// Player Context
+public struct PlayerOrder : IComponentData
+{
+    public float3 destination;
+    public Entity targetEntity;
+    public CommandType commandType;
+}
+
+// Awareness Context
 public struct Awareness : IComponentData
 {
     public float range;
@@ -38,8 +40,10 @@ public struct Motivation : IBufferElementData
 public struct MotivationSatisfaction : IBufferElementData
 {
     public MotivationType motivationType;
-    public float multiplier; // 1.0 = neutral, 1.2 = 20% boost, etc.
+    public float restorationAmount; // flat units of motivation restored on action completion
 }
+
+
 public struct ActionOption : IBufferElementData
 {
     public ActionType actionType;
@@ -50,19 +54,6 @@ public struct ActionOption : IBufferElementData
     public Entity targetEntity;
 }
 
-
-public struct InteractionProvider : IComponentData, IEnableableComponent { }
-public struct Interaction : IComponentData
-{
-    public ActionType     actionType;
-    public MotivationType motivationType;
-    public int            priority;
-    public float          utilityScore;       // base satisfaction points granted on completion
-    public float          range;              // arrival distance for NPC to start interacting
-    public uint           allowedUnitTypeMask;// 0 = any unit; bit N = UnitType N is allowed
-    public int            maxOccupants;
-    public int            occupantCount;
-}
 public struct Faction : IComponentData
 {
     public FactionType factionType;
@@ -75,11 +66,6 @@ public struct AttackFaction : IBufferElementData
 {
     public FactionType faction;
 }
-// ─── ThreatEntry ──────────────────────────────────────────────────────────────
-// Buffer on any unit entity that can be attacked.
-// ThreatUpdateSystem populates this from the Hurt buffer each frame before
-// DamageApplicationSystem clears it. ChaseScoringSystem reads it to bias
-// target selection toward attackers.
 public struct ThreatEntry : IBufferElementData
 {
     public Entity attackerEntity;
@@ -98,37 +84,25 @@ public struct SitAction : IComponentData, IEnableableComponent { }
 public struct MeleeContinuousAction : IComponentData, IEnableableComponent { }
 public struct MeleeSingleAction : IComponentData, IEnableableComponent { }
 public struct FleeAction : IComponentData, IEnableableComponent { }
+public struct EquipAction : IComponentData, IEnableableComponent { }
 
-// Signals to ActionInterruptSystem to cleanly abort the current action this frame.
-// Enabled by: MinionCommandSystem (player override), damage systems, threat detection.
+
+// Requests
+public struct ActionRequest : IComponentData, IEnableableComponent { }
+public struct ActionSelectionValidationRequest: IComponentData, IEnableableComponent {}
 public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
-
-// Flagged by SitActionSystem when a unit finishes or is interrupted mid-sit.
-// Consumed by SitReleaseJob to decrement Interaction.occupantCount on the target.
-public struct SitReleaseRequest : IComponentData, IEnableableComponent
+public struct MotivationChangeRequest : IBufferElementData
 {
-    public Entity interactionEntity;
+    public MotivationType      motivationType;
+    public MotivationChangeType changeType;    // Add: += value (clamped 0–100); Set: = value (clamped 0–100)
+    public float               value;
+}
+public struct SwapBrainRequest : IComponentData, IEnableableComponent
+{
+    public UnitType newUnit;
 }
 
 
-
-// Player Specific
-public struct PlayerInteractable : IComponentData, IEnableableComponent { }
-
-[MaterialProperty("_IsInteractable")]
-public struct InteractableVisual : IComponentData
-{
-    public float value; // 0 = not interactable, 1 = interactable
-}
-
-public struct PlayerControlled : IComponentData, IEnableableComponent { }
-
-public struct PlayerOrder : IComponentData
-{
-    public float3 destination;
-    public Entity targetEntity;
-    public CommandType commandType;
-}
 
 
 

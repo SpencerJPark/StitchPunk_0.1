@@ -5,7 +5,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
-[UpdateInGroup(typeof(CombatResolutionSystemGroup))]
+[UpdateInGroup(typeof(CombatExecutionSystemGroup))]
 public partial struct AttackRequestSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;

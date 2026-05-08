@@ -7,9 +7,9 @@ using Unity.Transforms;
 // Executes the Sit action. Paths to the interaction entity, plays the sit animation,
 // waits for SIT_DURATION, applies motivation satisfaction, then returns to ActionRequest.
 //
-// States (ArrivedAtTarget as flag):
-//   Pathing  (SitAction enabled, ArrivedAtTarget disabled) — path toward chair
-//   Sitting  (SitAction enabled, ArrivedAtTarget enabled)  — animate + count down timer
+// States (ActionTimer enabled state as flag):
+//   Pathing  (SitAction enabled, ActionTimer disabled) — path toward chair
+//   Sitting  (SitAction enabled, ActionTimer enabled)  — animate + count down timer
 //   Complete — apply satisfaction, flag occupant release, disable SitAction, re-enable ActionRequest
 //
 // Interrupted mid-sit: ActionInterruptSystem enables SitReleaseRequest before this
@@ -18,10 +18,11 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct SitActionSystem : ISystem
 {
-    private ComponentLookup<LocalTransform>      transformLookup;
-    private ComponentLookup<Interaction>         interactionReadLookup;
-    private ComponentLookup<InteractionProvider> providerLookup;
-    private ComponentLookup<Interaction>         interactionWriteLookup;
+    private ComponentLookup<LocalTransform>          transformLookup;
+    private ComponentLookup<Interaction>             interactionReadLookup;
+    private ComponentLookup<InteractionProvider>     providerLookup;
+    private ComponentLookup<Interaction>             interactionWriteLookup;
+    private BufferLookup<MotivationSatisfaction>     satisfactionLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -31,6 +32,7 @@ public partial struct SitActionSystem : ISystem
         interactionReadLookup  = state.GetComponentLookup<Interaction>(true);
         providerLookup         = state.GetComponentLookup<InteractionProvider>(true);
         interactionWriteLookup = state.GetComponentLookup<Interaction>(false);
+        satisfactionLookup     = state.GetBufferLookup<MotivationSatisfaction>(true);
     }
 
     [BurstCompile]
@@ -40,13 +42,15 @@ public partial struct SitActionSystem : ISystem
         interactionReadLookup.Update(ref state);
         providerLookup.Update(ref state);
         interactionWriteLookup.Update(ref state);
+        satisfactionLookup.Update(ref state);
 
         state.Dependency = new SitJob
         {
-            deltaTime         = SystemAPI.Time.DeltaTime,
-            transformLookup   = transformLookup,
-            interactionLookup = interactionReadLookup,
-            providerLookup    = providerLookup,
+            deltaTime          = SystemAPI.Time.DeltaTime,
+            transformLookup    = transformLookup,
+            interactionLookup  = interactionReadLookup,
+            providerLookup     = providerLookup,
+            satisfactionLookup = satisfactionLookup,
         }.ScheduleParallel(state.Dependency);
 
         // Complete before the single-threaded release job to avoid write conflicts
@@ -63,8 +67,7 @@ public partial struct SitActionSystem : ISystem
 [WithAll(typeof(SitAction))]
 [WithDisabled(typeof(ActionRequest), typeof(ActionInterruptRequest))]
 [WithPresent(typeof(Dead), typeof(PathRequest), typeof(ActionTimer),
-             typeof(ActionInterruptRequest), typeof(SitReleaseRequest),
-             typeof(AnimationRequest))]
+             typeof(ReleaseRequest), typeof(AnimationRequest))]
 public partial struct SitJob : IJobEntity
 {
     private const float SIT_DURATION   = 8.0f;
@@ -75,43 +78,43 @@ public partial struct SitJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform>      transformLookup;
     [ReadOnly] public ComponentLookup<Interaction>         interactionLookup;
     [ReadOnly] public ComponentLookup<InteractionProvider> providerLookup;
+    [ReadOnly] public BufferLookup<MotivationSatisfaction> satisfactionLookup;
 
     public void Execute(
-        in LocalTransform                        localTransform,
-        in CurrentAction                         action,
-        ref PathRequest                          pathRequest,
-        ref ActionTimer                          actionTimer,
-        ref DynamicBuffer<Motivation>            motivations,
-        in DynamicBuffer<MotivationSatisfaction> satisfactions,
-        ref DynamicBuffer<SetAnimation>          setAnimations,
-        ref SitReleaseRequest                    sitReleaseReq,
-        EnabledRefRW<SitAction>                  sitEnabled,
-        EnabledRefRW<ActionRequest>              actionRequestEnabled,
-        EnabledRefRW<ArrivedAtTarget>            arrivedEnabled,
-        EnabledRefRW<PathRequest>                pathRequestEnabled,
-        EnabledRefRW<SitReleaseRequest>          sitReleaseEnabled,
-        EnabledRefRW<AnimationRequest>           animRequestEnabled,
-        EnabledRefRO<Dead>                       dead)
+        in LocalTransform                           localTransform,
+        in CurrentAction                            action,
+        ref PathRequest                             pathRequest,
+        ref ActionTimer                             actionTimer,
+        ref DynamicBuffer<SetAnimation>             setAnimations,
+        ref DynamicBuffer<MotivationChangeRequest>  changeRequests,
+        ref ReleaseRequest                       releaseReq,
+        EnabledRefRW<SitAction>                     sitEnabled,
+        EnabledRefRW<ActionRequest>                 actionRequestEnabled,
+        EnabledRefRW<ActionTimer>                   actionTimerEnabled,
+        EnabledRefRW<PathRequest>                   pathRequestEnabled,
+        EnabledRefRW<ReleaseRequest>             sitReleaseEnabled,
+        EnabledRefRW<AnimationRequest>              animRequestEnabled,
+        EnabledRefRO<Dead>                          dead)
     {
         Entity target = action.targetEntity;
 
         if (dead.ValueRO)
         {
             Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
-                arrivedEnabled, pathRequestEnabled, ref sitReleaseReq,
-                sitReleaseEnabled, target, arrivedEnabled.ValueRO);
+                actionTimerEnabled, pathRequestEnabled, ref releaseReq,
+                sitReleaseEnabled, target, actionTimerEnabled.ValueRO);
             return;
         }
 
         // --- Sitting state ---
-        if (arrivedEnabled.ValueRO)
+        if (actionTimerEnabled.ValueRO)
         {
             actionTimer.time -= deltaTime;
             if (actionTimer.time <= 0f)
             {
-                ApplySatisfaction(target, ref motivations, satisfactions);
+                ApplySatisfaction(target, ref changeRequests);
                 Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
-                    arrivedEnabled, pathRequestEnabled, ref sitReleaseReq,
+                    actionTimerEnabled, pathRequestEnabled, ref releaseReq,
                     sitReleaseEnabled, target, wasArrived: true);
             }
             return;
@@ -121,7 +124,7 @@ public partial struct SitJob : IJobEntity
         if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform))
         {
             Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
-                arrivedEnabled, pathRequestEnabled, ref sitReleaseReq,
+                actionTimerEnabled, pathRequestEnabled, ref releaseReq,
                 sitReleaseEnabled, target, wasArrived: false);
             return;
         }
@@ -129,7 +132,7 @@ public partial struct SitJob : IJobEntity
         if (!providerLookup.IsComponentEnabled(target))
         {
             Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
-                arrivedEnabled, pathRequestEnabled, ref sitReleaseReq,
+                actionTimerEnabled, pathRequestEnabled, ref releaseReq,
                 sitReleaseEnabled, target, wasArrived: false);
             return;
         }
@@ -137,7 +140,7 @@ public partial struct SitJob : IJobEntity
         if (!interactionLookup.TryGetComponent(target, out Interaction interact))
         {
             Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
-                arrivedEnabled, pathRequestEnabled, ref sitReleaseReq,
+                actionTimerEnabled, pathRequestEnabled, ref releaseReq,
                 sitReleaseEnabled, target, wasArrived: false);
             return;
         }
@@ -149,8 +152,8 @@ public partial struct SitJob : IJobEntity
         if (distSq <= rangeSq)
         {
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-            arrivedEnabled.ValueRW = true;
-            actionTimer.time       = SIT_DURATION;
+            actionTimerEnabled.ValueRW = true;
+            actionTimer.time           = SIT_DURATION;
 
             setAnimations.Add(new SetAnimation
             {
@@ -169,31 +172,24 @@ public partial struct SitJob : IJobEntity
     }
 
     private void ApplySatisfaction(
-        Entity                                   target,
-        ref DynamicBuffer<Motivation>            motivations,
-        in DynamicBuffer<MotivationSatisfaction> satisfactions)
+        Entity                                    target,
+        ref DynamicBuffer<MotivationChangeRequest> changeRequests)
     {
-        if (!interactionLookup.TryGetComponent(target, out Interaction interact)) return;
+        if (!satisfactionLookup.TryGetBuffer(target, out DynamicBuffer<MotivationSatisfaction> providerSatisfactions))
+            return;
 
-        MotivationType needType = interact.motivationType;
-        float          bonus    = interact.utilityScore;
-
-        for (int i = 0; i < satisfactions.Length; i++)
+        for (int i = 0; i < providerSatisfactions.Length; i++)
         {
-            if (satisfactions[i].motivationType == needType)
+            MotivationSatisfaction entry = providerSatisfactions[i];
+            if (entry.motivationType == MotivationType.None)
+                continue;
+
+            changeRequests.Add(new MotivationChangeRequest
             {
-                bonus *= satisfactions[i].multiplier;
-                break;
-            }
-        }
-
-        for (int i = 0; i < motivations.Length; i++)
-        {
-            Motivation m = motivations[i];
-            if (m.motivationType != needType) continue;
-            m.value        = math.min(100f, m.value + bonus);
-            motivations[i] = m;
-            break;
+                motivationType = entry.motivationType,
+                changeType     = MotivationChangeType.Add,
+                value          = entry.restorationAmount,
+            });
         }
     }
 
@@ -201,21 +197,21 @@ public partial struct SitJob : IJobEntity
         ref PathRequest                  pathRequest,
         EnabledRefRW<SitAction>          sitEnabled,
         EnabledRefRW<ActionRequest>      actionRequestEnabled,
-        EnabledRefRW<ArrivedAtTarget>    arrivedEnabled,
+        EnabledRefRW<ActionTimer>        actionTimerEnabled,
         EnabledRefRW<PathRequest>        pathRequestEnabled,
-        ref SitReleaseRequest            sitReleaseReq,
-        EnabledRefRW<SitReleaseRequest>  sitReleaseEnabled,
+        ref ReleaseRequest            releaseReq,
+        EnabledRefRW<ReleaseRequest>  sitReleaseEnabled,
         Entity                           interactionTarget,
         bool                             wasArrived)
     {
         AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-        arrivedEnabled.ValueRW       = false;
+        actionTimerEnabled.ValueRW   = false;
         sitEnabled.ValueRW           = false;
         actionRequestEnabled.ValueRW = true;
 
         if (wasArrived)
         {
-            sitReleaseReq.interactionEntity = interactionTarget;
+            releaseReq.interactionEntity = interactionTarget;
             sitReleaseEnabled.ValueRW       = true;
         }
     }
@@ -224,14 +220,14 @@ public partial struct SitJob : IJobEntity
 // Single-threaded: decrements occupantCount on the interaction entity.
 // Runs after SitJob.Complete() to avoid write conflicts on shared Interaction data.
 [BurstCompile]
-[WithAll(typeof(SitReleaseRequest))]
+[WithAll(typeof(ReleaseRequest))]
 public partial struct SitReleaseJob : IJobEntity
 {
     public ComponentLookup<Interaction> interactionLookup;
 
     public void Execute(
-        ref SitReleaseRequest           releaseReq,
-        EnabledRefRW<SitReleaseRequest> releaseEnabled)
+        ref ReleaseRequest           releaseReq,
+        EnabledRefRW<ReleaseRequest> releaseEnabled)
     {
         releaseEnabled.ValueRW = false;
 

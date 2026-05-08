@@ -26,9 +26,9 @@ public partial struct ThrownItemSystem : ISystem
         foreach (var (transform, thrownItem, gravity, thrownEnabled, interactableEnabled) in
             SystemAPI.Query<
                 RefRW<LocalTransform>,
-                RefRW<ThrownItem>,
+                RefRW<ThrownItemRequest>,
                 RefRO<Gravity>,
-                EnabledRefRW<ThrownItem>,
+                EnabledRefRW<ThrownItemRequest>,
                 EnabledRefRW<PlayerInteractable>>()
             .WithPresent<PlayerInteractable>())
         {

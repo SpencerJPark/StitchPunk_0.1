@@ -548,6 +548,10 @@ PrefabInstance:
       propertyPath: brain
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 3363976009509366347, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: factionType
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 5385637352373302489, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_Enabled
       value: 0

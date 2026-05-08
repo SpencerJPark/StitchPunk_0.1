@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using System.Collections.Generic;
 
 public static class UnitBakingUtil
 {
@@ -14,8 +15,8 @@ public static class UnitBakingUtil
         baker.AddComponent<CurrentAction>(entity);
         baker.AddComponent<ActionRequest>(entity);
         baker.SetComponentEnabled<ActionRequest>(entity, active);
-        baker.AddComponent<NeedsActionSelectionValidation>(entity);
-        baker.SetComponentEnabled<NeedsActionSelectionValidation>(entity, false);
+        baker.AddComponent<ActionSelectionValidationRequest>(entity);
+        baker.SetComponentEnabled<ActionSelectionValidationRequest>(entity, false);
 
         baker.AddComponent(entity, new Awareness { range = unitSo.awarenessRange });
         baker.AddComponent(entity, new ActionTimer { time = 0f });
@@ -31,6 +32,9 @@ public static class UnitBakingUtil
         if (unitSo.randomMotivations != null && unitSo.randomMotivations.Length > 0 && unitSo.randomMotivationsTotal > 0)
             PopulateRandomBehaviours(behaviourBuffer, unitSo.randomMotivations, unitSo.randomMotivationsTotal);
 
+        if (unitSo.motivationDecayRates != null && unitSo.motivationDecayRates.Count > 0)
+            ApplyDecayRates(behaviourBuffer, unitSo.motivationDecayRates);
+
         DynamicBuffer<AttackFaction> attackBuffer = baker.AddBuffer<AttackFaction>(entity);
         if (unitSo.attackFactions != null)
         {
@@ -42,14 +46,11 @@ public static class UnitBakingUtil
         {
             AddPlayerControlled(baker, entity, false);
         }
-
-        baker.AddComponent<ArrivedAtTarget>(entity);
-        baker.SetComponentEnabled<ArrivedAtTarget>(entity, false);
-
+        
         baker.AddComponent<ActionInterruptRequest>(entity);
         baker.SetComponentEnabled<ActionInterruptRequest>(entity, false);
 
-        baker.AddBuffer<MotivationSatisfaction>(entity);
+        baker.AddBuffer<MotivationChangeRequest>(entity);
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
@@ -131,6 +132,22 @@ public static class UnitBakingUtil
         }
 
         copy.Dispose();
+    }
+
+    public static void ApplyDecayRates(DynamicBuffer<Motivation> buffer, List<MotivationDecayConfig> rates)
+    {
+        for (int i = 0; i < buffer.Length; i++)
+        {
+            Motivation m = buffer[i];
+            for (int r = 0; r < rates.Count; r++)
+            {
+                if (rates[r].motivationType != m.motivationType)
+                    continue;
+                m.decayRate = rates[r].decayRate;
+                buffer[i]   = m;
+                break;
+            }
+        }
     }
 
     public static void AddPlayerControlled<T>(Baker<T> baker, Entity entity, bool startControlled)

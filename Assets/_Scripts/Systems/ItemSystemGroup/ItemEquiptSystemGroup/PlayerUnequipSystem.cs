@@ -85,23 +85,23 @@ public partial struct PlayerUnequipSystem : ISystem
             float3 forward = playerTransform.Forward();
 
             // ThrownItem owns X/Z only — Gravity owns Y
-            ThrownItem thrownItem = state.EntityManager.GetComponentData<ThrownItem>(itemEntity);
-            state.EntityManager.SetComponentData(itemEntity, new ThrownItem
+            ThrownItemRequest thrownItemRequest = state.EntityManager.GetComponentData<ThrownItemRequest>(itemEntity);
+            state.EntityManager.SetComponentData(itemEntity, new ThrownItemRequest
             {
-                velocity    = new float3(forward.x, 0f, forward.z) * thrownItem.throwSpeed,
-                throwSpeed  = thrownItem.throwSpeed,
-                throwArc    = thrownItem.throwArc,
-                throwDamage = thrownItem.throwDamage,
+                velocity    = new float3(forward.x, 0f, forward.z) * thrownItemRequest.throwSpeed,
+                throwSpeed  = thrownItemRequest.throwSpeed,
+                throwArc    = thrownItemRequest.throwArc,
+                throwDamage = thrownItemRequest.throwDamage,
                 thrower     = playerEntity,
                 throwOrigin = worldPos
             });
-            state.EntityManager.SetComponentEnabled<ThrownItem>(itemEntity, true);
+            state.EntityManager.SetComponentEnabled<ThrownItemRequest>(itemEntity, true);
 
             // Kick the arc through Gravity so UnitGravitySystem handles the full Y trajectory
             if (state.EntityManager.HasComponent<Gravity>(itemEntity))
             {
                 Gravity gravity = state.EntityManager.GetComponentData<Gravity>(itemEntity);
-                gravity.verticalVelocity = thrownItem.throwArc;
+                gravity.verticalVelocity = thrownItemRequest.throwArc;
                 gravity.isGrounded       = false;
                 state.EntityManager.SetComponentData(itemEntity, gravity);
             }

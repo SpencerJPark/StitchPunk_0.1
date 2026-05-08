@@ -59,6 +59,25 @@ public enum ActionType // used for animation linking
 }
 
 
+public static class ActionTypeExtensions
+{
+    public static bool IsCombatAction(this ActionType actionType) =>
+        actionType == ActionType.Flee                 ||
+        actionType == ActionType.MeleeContinuous      ||
+        actionType == ActionType.MeleeSingle          ||
+        actionType == ActionType.ProjectileContinuous ||
+        actionType == ActionType.ProjectileSingle     ||
+        actionType == ActionType.Swing                ||
+        actionType == ActionType.Throw                ||
+        actionType == ActionType.Shoot;
+}
+
+public enum MotivationChangeType
+{
+    Add,
+    Set,
+}
+
 public enum UnitStateType
 {
     None,

@@ -34,6 +34,10 @@ public partial class MinionActionSelectionSystemGroup : ComponentSystemGroup { }
 public partial class AIActionSelectionSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
+        [UpdateBefore(typeof(AIAwarenessSystemGroup))]
+        public partial class AIMotivationSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
         [UpdateBefore(typeof(AIScoringSystemGroup))]
         public partial class AIAwarenessSystemGroup : ComponentSystemGroup { }
 
@@ -89,10 +93,10 @@ public partial class CombatSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(CombatSystemGroup))]
         [UpdateBefore(typeof(CombatReactionSystemGroup))]
-        public partial class CombatResolutionSystemGroup : ComponentSystemGroup { }
+        public partial class CombatExecutionSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(CombatSystemGroup))]
-        [UpdateAfter(typeof(CombatResolutionSystemGroup))]
+        [UpdateAfter(typeof(CombatExecutionSystemGroup))]
         public partial class CombatReactionSystemGroup : ComponentSystemGroup { }
 
 

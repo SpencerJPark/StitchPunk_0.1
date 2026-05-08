@@ -21,7 +21,7 @@ public partial struct ItemAttachSystem : ISystem
 
         foreach (var (attachedTo, entity) in
             SystemAPI.Query<RefRO<AttachedTo>>()
-                .WithAll<AttachRequest>()
+                .WithAll<AttachItemRequest>()
                 .WithEntityAccess())
         {
             Entity socket = attachedTo.ValueRO.socket;
@@ -29,7 +29,7 @@ public partial struct ItemAttachSystem : ISystem
 
             ecb.AddComponent(entity, new Parent { Value = socket });
             ecb.SetComponent(entity, LocalTransform.Identity);
-            ecb.SetComponentEnabled<AttachRequest>(entity, false);
+            ecb.SetComponentEnabled<AttachItemRequest>(entity, false);
         }
 
         ecb.Playback(state.EntityManager);

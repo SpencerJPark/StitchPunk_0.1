@@ -1,0 +1,1 @@
+﻿// wander way points will be quieried here, they will be seperate from other interactions since they won't need verification for how many occupants, just what where the last couple to make logical navigation

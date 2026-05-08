@@ -13,21 +13,31 @@ MonoBehaviour:
   m_Name: MaleCitizen
   m_EditorClassIdentifier: StitchPunk.Data::UnitSO
   unitType: 2
-  factionType: 0
+  factionType: 3
   canBePlayerControlled: 1
   prefab: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
   awarenessRange: 20
-  motivations: 0100000002000000030000000400000005000000060000000700000008000000090000000a000000
+  motivations: 010000000200000003000000040000000500000006000000080000000a000000
   randomMotivationsTotal: 3
   randomMotivations: 0c0000000e0000000f000000100000001100000012000000130000001400000015000000
+  motivationDecayRates:
+  - motivationType: 1
+    decayRate: 0.5
+  - motivationType: 2
+    decayRate: 0.05
+  - motivationType: 3
+    decayRate: 0.5
   actionAnimations:
   - action: 1
     animation: 1
   - action: 2
     animation: 2
   - action: 18
-    animation: 34
-  stanceAnimations: []
+    animation: 37
+  stanceAnimations:
+  - stance: 0
+    idleAnimation: 0
+    movingAnimation: 0
   idleAnimation: 1
   movingAnimation: 2
   attackFactions: 

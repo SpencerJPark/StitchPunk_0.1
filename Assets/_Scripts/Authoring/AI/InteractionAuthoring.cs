@@ -23,8 +23,8 @@ public class InteractionAuthoring : MonoBehaviour
     public bool playerInteractable;
 
     [Header("Motivation Satisfaction")]
-    [Tooltip("Which NPC behaviours this interaction satisfies and by how much. " +
-             "An entry with value 0 is skipped. Value is remapped to multiplier = value*0.01 + 1.")]
+    [Tooltip("Which NPC motivations this interaction satisfies and by how much (flat units, 0–100). " +
+             "An entry with value 0 is skipped.")]
     public MotivationEntry[] satisfies = System.Array.Empty<MotivationEntry>();
 
     [System.Serializable]
@@ -81,9 +81,9 @@ public class InteractionAuthoring : MonoBehaviour
 
             if (authoring.playerInteractable) AddComponent(entity, new PlayerInteractable());
 
-            // MotivationSatisfaction buffer — one entry per behaviour this provider can satisfy.
-            // SpatialHashSystem registers the entity under each listed behaviourType; scoring
-            // reads the matching multiplier during final-score composition.
+            // MotivationSatisfaction buffer — one entry per motivation this provider can restore.
+            // SpatialHashSystem registers the entity under each motivation type for spatial queries.
+            // SitActionSystem reads restorationAmount on completion and queues MotivationChangeRequests.
             DynamicBuffer<MotivationSatisfaction> satisfactionBuffer =
                 AddBuffer<MotivationSatisfaction>(entity);
 
@@ -92,13 +92,13 @@ public class InteractionAuthoring : MonoBehaviour
                 for (int i = 0; i < authoring.satisfies.Length; i++)
                 {
                     MotivationEntry entry = authoring.satisfies[i];
-                    if (entry.motivationType == MotivationType.None)
+                    if (entry.motivationType == MotivationType.None || entry.value == 0)
                         continue;
 
                     satisfactionBuffer.Add(new MotivationSatisfaction
                     {
-                        motivationType = entry.motivationType,
-                        multiplier    = entry.value * 0.01f + 1f,
+                        motivationType    = entry.motivationType,
+                        restorationAmount = entry.value,
                     });
                 }
             }

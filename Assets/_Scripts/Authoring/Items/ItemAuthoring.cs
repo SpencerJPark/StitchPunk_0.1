@@ -39,11 +39,11 @@ public class ItemAuthoring : MonoBehaviour
             AddComponent(entity, new EquipAction());
             SetComponentEnabled<EquipAction>(entity, false);
 
-            AddComponent(entity, new AttachRequest());
-            SetComponentEnabled<AttachRequest>(entity, false);
+            AddComponent(entity, new AttachItemRequest());
+            SetComponentEnabled<AttachItemRequest>(entity, false);
 
-            AddComponent(entity, new ThrownItem { throwSpeed = authoring.throwSpeed, throwArc = authoring.throwArc, throwDamage = authoring.throwDamage, ragdollForce = authoring.throwRagdollForce, launchForceY = authoring.throwLaunchForceY, launchForceX = authoring.throwLaunchForceX });
-            SetComponentEnabled<ThrownItem>(entity, false);
+            AddComponent(entity, new ThrownItemRequest { throwSpeed = authoring.throwSpeed, throwArc = authoring.throwArc, throwDamage = authoring.throwDamage, ragdollForce = authoring.throwRagdollForce, launchForceY = authoring.throwLaunchForceY, launchForceX = authoring.throwLaunchForceX });
+            SetComponentEnabled<ThrownItemRequest>(entity, false);
 
             if (authoring.gripPoint != null)
             {
