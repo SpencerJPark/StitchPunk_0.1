@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "_UnitLibrary", menuName = "UnitSO/Unit Library")]
+[CreateAssetMenu(fileName = "_UnitLibrary", menuName = "Units/Unit Library")]
 public class UnitLibrarySO : ScriptableObject {
     
     public List<UnitSO> units;

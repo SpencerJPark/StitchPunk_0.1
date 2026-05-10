@@ -1,12 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "_ScoringLibrary", menuName = "ScoringSO/Scoring Library")]
+[CreateAssetMenu(fileName = "_ScoringLibrary", menuName = "AI/Scoring Library")]
 public class AIScoringLibrarySO : ScriptableObject
 {
-    public List<AIConsiderationCurveSO> curves = new List<AIConsiderationCurveSO>();
+    public List<AIScoringCurveSO> curves = new List<AIScoringCurveSO>();
 
-    public AIConsiderationCurveSO GetCurve(MotivationType type)
+    public AIScoringCurveSO GetCurve(MotivationType type)
     {
         foreach (var curve in curves)
         {

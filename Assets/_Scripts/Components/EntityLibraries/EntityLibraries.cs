@@ -48,15 +48,25 @@ public struct AttackLibraryReference : IComponentData
 }
 
 
-public struct FactoryLibrary : IComponentData
+// public struct FactoryLibrary : IComponentData
+// {
+//     public BlobAssetReference<FactoryLibraryBlob> blob;
+// }
+//
+// public struct FactoryLibraryReference : IComponentData
+// {
+//     public UnityObjectRef<FactoryLibrarySO> library;
+// }
+
+
+public struct InteractionLibrary : IComponentData
 {
-    public BlobAssetReference<FactoryLibraryBlob> blob;
+    public BlobAssetReference<InteractionLibraryBlob> library;
 }
 
-public struct FactoryLibraryReference : IComponentData
+public struct InteractionLibraryReference : IComponentData
 {
-    public UnityObjectRef<FactoryLibrarySO> library;
+    public UnityObjectRef<InteractionLibrarySO> library;
 }
-
 
 

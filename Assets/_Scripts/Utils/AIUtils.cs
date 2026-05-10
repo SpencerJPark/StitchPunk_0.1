@@ -39,7 +39,7 @@ public static class AIUtils
 
     public static void QueryNearbyInteractionsByType(
         in NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells,
-        in ComponentLookup<InteractionProvider> interactionProviderLookup,
+        in ComponentLookup<Interaction> interactionLookup,
         in ComponentLookup<LocalTransform> transformLookup,
         float3 position,
         float range,
@@ -67,8 +67,7 @@ public static class AIUtils
 
                 do
                 {
-                    // Check if provider is enabled
-                    if (!interactionProviderLookup.IsComponentEnabled(candidate))
+                    if (!interactionLookup.IsComponentEnabled(candidate))
                         continue;
 
                     if (!transformLookup.TryGetComponent(candidate, out LocalTransform targetTransform))

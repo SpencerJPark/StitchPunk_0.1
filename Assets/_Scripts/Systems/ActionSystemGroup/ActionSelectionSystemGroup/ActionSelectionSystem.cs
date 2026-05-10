@@ -14,6 +14,7 @@ public partial struct ActionSelectionSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<InteractionLibrary>();
 
         interactionLookup = state.GetComponentLookup<Interaction>(false);
 
@@ -59,9 +60,11 @@ public partial struct ActionSelectionSystem : ISystem
         // Complete pending jobs (including EnvironmentalAwarenessJob's Interaction reads)
         // before this main-thread job writes to Interaction occupantCount.
         state.Dependency.Complete();
+        InteractionLibrary interactionLib = SystemAPI.GetSingleton<InteractionLibrary>();
         new ValidateInteractionJob
         {
-            interactionLookup = interactionLookup,
+            interactionLookup  = interactionLookup,
+            interactionLibrary = interactionLib.library,
         }.Run();
         
         // 3 Enable Downstream Components
@@ -189,7 +192,8 @@ public partial struct ActionSelectionSystem : ISystem
     [WithAll(typeof(ActionSelectionValidationRequest))]
     public partial struct ValidateInteractionJob : IJobEntity
     {
-        public ComponentLookup<Interaction> interactionLookup;
+        public ComponentLookup<Interaction>                       interactionLookup;
+        [ReadOnly] public BlobAssetReference<InteractionLibraryBlob> interactionLibrary;
 
         public void Execute(
             EnabledRefRW<ActionSelectionValidationRequest> validationTrigger,
@@ -200,11 +204,11 @@ public partial struct ActionSelectionSystem : ISystem
 
             bool validationPassed =
                 interactionLookup.TryGetComponent(currentAction.targetEntity, out Interaction interaction) &&
-                interaction.occupantCount < interaction.maxOccupants;
+                interactionLibrary.Value.interactions[(int)interaction.actionType].maxOccupants > interaction.currentOccupants;
 
             if (validationPassed)
             {
-                interaction.occupantCount++;
+                interaction.currentOccupants++;
                 interactionLookup[currentAction.targetEntity] = interaction;
             }
             else

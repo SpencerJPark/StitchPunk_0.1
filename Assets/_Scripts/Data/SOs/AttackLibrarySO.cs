@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "_AttackLibrary", menuName = "AttackSO/Library")]
+[CreateAssetMenu(fileName = "_AttackLibrary", menuName = "Units/Attack Library")]
 public class AttackLibrarySO : ScriptableObject
 {
     public List<AttackSO> attacks = new List<AttackSO>();

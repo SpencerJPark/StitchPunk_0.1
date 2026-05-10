@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine.Serialization;
 
-[CreateAssetMenu(fileName = "Unit", menuName = "UnitSO/Unit")]
+[CreateAssetMenu(fileName = "Unit", menuName = "Units/Unit")]
 public class UnitSO : ScriptableObject
 {
     [SearchableEnum] public UnitType unitType;
@@ -35,10 +35,10 @@ public class UnitSO : ScriptableObject
     public float moveSpeed = 5f;
     public float rotationSpeed = 10f;
     
-    [Header("Spawn Cost")]
-    public ResourceAmount[] spawnCostResourceAmountArray;
-    public float progressMax;
-    public Sprite sprite;
+    // [Header("Spawn Cost")]
+    // public ResourceAmount[] spawnCostResourceAmountArray;
+    // public float progressMax;
+    // public Sprite sprite;
 
     public AnimationType GetAnimation(ActionType actionType, bool isMoving)
     {

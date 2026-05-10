@@ -18,21 +18,18 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct SitActionSystem : ISystem
 {
-    private ComponentLookup<LocalTransform>          transformLookup;
-    private ComponentLookup<Interaction>             interactionReadLookup;
-    private ComponentLookup<InteractionProvider>     providerLookup;
-    private ComponentLookup<Interaction>             interactionWriteLookup;
-    private BufferLookup<MotivationSatisfaction>     satisfactionLookup;
+    private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<Interaction>   interactionReadLookup;
+    private ComponentLookup<Interaction>   interactionWriteLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<InteractionLibrary>();
         transformLookup        = state.GetComponentLookup<LocalTransform>(true);
         interactionReadLookup  = state.GetComponentLookup<Interaction>(true);
-        providerLookup         = state.GetComponentLookup<InteractionProvider>(true);
         interactionWriteLookup = state.GetComponentLookup<Interaction>(false);
-        satisfactionLookup     = state.GetBufferLookup<MotivationSatisfaction>(true);
     }
 
     [BurstCompile]
@@ -40,17 +37,16 @@ public partial struct SitActionSystem : ISystem
     {
         transformLookup.Update(ref state);
         interactionReadLookup.Update(ref state);
-        providerLookup.Update(ref state);
         interactionWriteLookup.Update(ref state);
-        satisfactionLookup.Update(ref state);
+
+        InteractionLibrary interactionLib = SystemAPI.GetSingleton<InteractionLibrary>();
 
         state.Dependency = new SitJob
         {
             deltaTime          = SystemAPI.Time.DeltaTime,
             transformLookup    = transformLookup,
             interactionLookup  = interactionReadLookup,
-            providerLookup     = providerLookup,
-            satisfactionLookup = satisfactionLookup,
+            interactionLibrary = interactionLib.library,
         }.ScheduleParallel(state.Dependency);
 
         // Complete before the single-threaded release job to avoid write conflicts
@@ -75,10 +71,9 @@ public partial struct SitJob : IJobEntity
 
     public float deltaTime;
 
-    [ReadOnly] public ComponentLookup<LocalTransform>      transformLookup;
-    [ReadOnly] public ComponentLookup<Interaction>         interactionLookup;
-    [ReadOnly] public ComponentLookup<InteractionProvider> providerLookup;
-    [ReadOnly] public BufferLookup<MotivationSatisfaction> satisfactionLookup;
+    [ReadOnly] public ComponentLookup<LocalTransform>            transformLookup;
+    [ReadOnly] public ComponentLookup<Interaction>               interactionLookup;
+    [ReadOnly] public BlobAssetReference<InteractionLibraryBlob> interactionLibrary;
 
     public void Execute(
         in LocalTransform                           localTransform,
@@ -129,14 +124,6 @@ public partial struct SitJob : IJobEntity
             return;
         }
 
-        if (!providerLookup.IsComponentEnabled(target))
-        {
-            Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
-                actionTimerEnabled, pathRequestEnabled, ref releaseReq,
-                sitReleaseEnabled, target, wasArrived: false);
-            return;
-        }
-
         if (!interactionLookup.TryGetComponent(target, out Interaction interact))
         {
             Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
@@ -145,9 +132,19 @@ public partial struct SitJob : IJobEntity
             return;
         }
 
+        if (!interactionLookup.IsComponentEnabled(target))
+        {
+            Terminate(ref pathRequest, sitEnabled, actionRequestEnabled,
+                actionTimerEnabled, pathRequestEnabled, ref releaseReq,
+                sitReleaseEnabled, target, wasArrived: false);
+            return;
+        }
+
+        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interact.actionType];
+
         // --- Arrival check ---
         float distSq  = math.distancesq(localTransform.Position, targetTransform.Position);
-        float rangeSq = interact.range * interact.range;
+        float rangeSq = blob.range * blob.range;
 
         if (distSq <= rangeSq)
         {
@@ -168,29 +165,25 @@ public partial struct SitJob : IJobEntity
         // --- Repath if target has moved ---
         if (math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ)
             AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled,
-                targetTransform.Position, interact.range * 0.9f);
+                targetTransform.Position, blob.range * 0.9f);
     }
 
     private void ApplySatisfaction(
-        Entity                                    target,
+        Entity                                     target,
         ref DynamicBuffer<MotivationChangeRequest> changeRequests)
     {
-        if (!satisfactionLookup.TryGetBuffer(target, out DynamicBuffer<MotivationSatisfaction> providerSatisfactions))
-            return;
+        if (!interactionLookup.TryGetComponent(target, out Interaction interact)) return;
 
-        for (int i = 0; i < providerSatisfactions.Length; i++)
+        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interact.actionType];
+
+        if (blob.satisfiedMotivation == MotivationType.None) return;
+
+        changeRequests.Add(new MotivationChangeRequest
         {
-            MotivationSatisfaction entry = providerSatisfactions[i];
-            if (entry.motivationType == MotivationType.None)
-                continue;
-
-            changeRequests.Add(new MotivationChangeRequest
-            {
-                motivationType = entry.motivationType,
-                changeType     = MotivationChangeType.Add,
-                value          = entry.restorationAmount,
-            });
-        }
+            motivationType = blob.satisfiedMotivation,
+            changeType     = MotivationChangeType.Add,
+            value          = blob.restorationAmount,
+        });
     }
 
     private void Terminate(
@@ -236,8 +229,8 @@ public partial struct SitReleaseJob : IJobEntity
 
         if (interactionLookup.TryGetComponent(target, out Interaction interaction))
         {
-            interaction.occupantCount = math.max(0, interaction.occupantCount - 1);
-            interactionLookup[target] = interaction;
+            interaction.currentOccupants = math.max(0, interaction.currentOccupants - 1);
+            interactionLookup[target]    = interaction;
         }
 
         releaseReq.interactionEntity = Entity.Null;

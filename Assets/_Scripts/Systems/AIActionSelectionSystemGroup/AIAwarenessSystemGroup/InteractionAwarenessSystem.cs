@@ -16,6 +16,7 @@ public partial struct InteractionAwarenessSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<SpatialHashRegistry>();
+        state.RequireForUpdate<InteractionLibrary>();
         transformLookup   = state.GetComponentLookup<LocalTransform>(true);
         interactionLookup = state.GetComponentLookup<Interaction>(true);
     }
@@ -26,13 +27,15 @@ public partial struct InteractionAwarenessSystem : ISystem
         transformLookup.Update(ref state);
         interactionLookup.Update(ref state);
 
-        SpatialHashRegistry registry = SystemAPI.GetSingleton<SpatialHashRegistry>();
+        SpatialHashRegistry registry        = SystemAPI.GetSingleton<SpatialHashRegistry>();
+        InteractionLibrary  interactionLib  = SystemAPI.GetSingleton<InteractionLibrary>();
 
         state.Dependency = new InteractionAwarenessJob
         {
-            registry          = registry,
-            transformLookup   = transformLookup,
-            interactionLookup = interactionLookup
+            registry           = registry,
+            transformLookup    = transformLookup,
+            interactionLookup  = interactionLookup,
+            interactionLibrary = interactionLib.library,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -41,9 +44,10 @@ public partial struct InteractionAwarenessSystem : ISystem
 [WithAll(typeof(AIBrain), typeof(ActionRequest))]
 public partial struct InteractionAwarenessJob : IJobEntity
 {
-    [ReadOnly] public SpatialHashRegistry            registry;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-    [ReadOnly] public ComponentLookup<Interaction>    interactionLookup;
+    [ReadOnly] public SpatialHashRegistry                         registry;
+    [ReadOnly] public ComponentLookup<LocalTransform>             transformLookup;
+    [ReadOnly] public ComponentLookup<Interaction>                interactionLookup;
+    [ReadOnly] public BlobAssetReference<InteractionLibraryBlob>  interactionLibrary;
 
     public void Execute(
         Entity entity,
@@ -51,9 +55,9 @@ public partial struct InteractionAwarenessJob : IJobEntity
         in DynamicBuffer<Motivation>    motivations,
         in LocalTransform               transform,
         in Awareness                    awareness,
-        in UnitData                     unitData)
+        in Faction                      faction)
     {
-        float3 npcPos    = transform.Position;
+        float3 npcPos     = transform.Position;
         int2   centerCell = SpatialHashSystem.GetCell(npcPos);
         int    cellRange  = (int)math.ceil(awareness.range / SpatialHashSystem.CELL_SIZE);
 
@@ -74,7 +78,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
                         do
                         {
                             AddActionIfValid(target, npcPos, awareness.range, currentNeed,
-                                unitData.unitType, ref options);
+                                faction.factionType, ref options);
                         } while (registry.interactionCells.TryGetNextValue(out target, ref it));
                     }
                 }
@@ -83,11 +87,11 @@ public partial struct InteractionAwarenessJob : IJobEntity
     }
 
     private void AddActionIfValid(
-        Entity                       target,
-        float3                       npcPos,
-        float                        maxRange,
-        MotivationType               motivationType,
-        UnitType                     npcUnitType,
+        Entity                          target,
+        float3                          npcPos,
+        float                           maxRange,
+        MotivationType                  motivationType,
+        FactionType                     npcFaction,
         ref DynamicBuffer<ActionOption> options)
     {
         if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform)) return;
@@ -97,11 +101,21 @@ public partial struct InteractionAwarenessJob : IJobEntity
 
         if (!interactionLookup.TryGetComponent(target, out Interaction interactData)) return;
 
-        // Unit-type gate: skip if this interaction restricts which unit types can use it
-        if (interactData.allowedUnitTypeMask != 0)
+        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interactData.actionType];
+
+        // Faction gate — skip if the interaction restricts factions and this NPC's faction isn't listed
+        if (blob.allowedFactions.Length > 0)
         {
-            if ((interactData.allowedUnitTypeMask & (1u << (int)npcUnitType)) == 0) return;
+            bool permitted = false;
+            for (int i = 0; i < blob.allowedFactions.Length; i++)
+            {
+                if (blob.allowedFactions[i] == npcFaction) { permitted = true; break; }
+            }
+            if (!permitted) return;
         }
+
+        // Occupancy gate
+        if (interactData.currentOccupants >= blob.maxOccupants) return;
 
         float distScore = 1.0f - math.saturate(dist / maxRange);
 

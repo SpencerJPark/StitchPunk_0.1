@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 using UnityEngine.Serialization;
 
-[CreateAssetMenu(fileName = "Consideration", menuName = "AI / Consideration")]
-public class AIConsiderationCurveSO : ScriptableObject
+[CreateAssetMenu(fileName = "ScoringCurve", menuName = "AI/Scoring Curve")]
+public class AIScoringCurveSO : ScriptableObject
 {
     public MotivationType motivationType;
 

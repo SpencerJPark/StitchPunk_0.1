@@ -141,26 +141,3 @@ public partial struct PlayerAttackSystem : ISystem
         return AnimationType.None;
     }
 }
-
-// 2. THE TIMER TICK SYSTEM (Add this to your project!)
-[UpdateInGroup(typeof(SimulationSystemGroup))]
-[BurstCompile]
-public partial struct ActionTimerTickSystem : ISystem
-{
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        float dt = SystemAPI.Time.DeltaTime;
-        foreach (var (timer, enabled) in SystemAPI.Query<RefRW<ActionTimer>, EnabledRefRW<ActionTimer>>())
-        {
-            if (timer.ValueRO.time > 0f)
-            {
-                timer.ValueRW.time -= dt;
-            }
-            else
-            {
-                enabled.ValueRW = false; // Shut off timer once it hits 0
-            }
-        }
-    }
-}

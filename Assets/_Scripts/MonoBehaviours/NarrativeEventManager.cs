@@ -298,8 +298,8 @@ public class NarrativeEventManager : MonoBehaviour
                 break;
 
             case NarrativeToggleType.InteractionProvider:
-                if (_entityManager.HasComponent<InteractionProvider>(entity))
-                    _entityManager.SetComponentEnabled<InteractionProvider>(entity, action.enable);
+                if (_entityManager.HasComponent<Interaction>(entity))
+                    _entityManager.SetComponentEnabled<Interaction>(entity, action.enable);
                 break;
         }
     }

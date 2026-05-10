@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Serialization;
 
-[CreateAssetMenu(fileName = "UnitState", menuName = "UnitStateSO/UnitState")]
+[CreateAssetMenu(fileName = "UnitState", menuName = "Units/UnitState")]
 public class UnitStateSO : ScriptableObject
 {
     [Tooltip("UnitState Name")]

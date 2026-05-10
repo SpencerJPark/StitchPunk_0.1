@@ -14,7 +14,7 @@ using UnityEngine;
 /// After a sequence plays in full it is marked in the PlayedDialogue buffer.
 /// On the next trigger the runtime starts from the Refresher node instead of Start (if one is present).
 /// </summary>
-[CreateAssetMenu(fileName = "Dialogue_New", menuName = "Stitch Punk/Dialogue/Dialogue Sequence")]
+[CreateAssetMenu(fileName = "Dialogue_New", menuName = "Dialogue/Dialogue Sequence")]
 public class DialogueSequenceSO : ScriptableObject
 {
     [Tooltip("Unique integer ID. Must match a constant in DialogueIds.Sequences. " +

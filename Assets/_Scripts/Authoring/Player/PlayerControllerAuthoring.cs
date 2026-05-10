@@ -1,7 +1,7 @@
 using Unity.Entities;
 using UnityEngine;
 
-public class PlayerAuthoring : MonoBehaviour
+public class PlayerControllerAuthoring : MonoBehaviour
 {
     [Tooltip("Drag the empty hand socket child (EquiptSocketAuthoring) here.")]
     public GameObject handSocket;
@@ -25,9 +25,9 @@ public class PlayerAuthoring : MonoBehaviour
     [Tooltip("One scene-object marker per group slot (index 0 = group 1). Shown at the order destination, hidden on arrival or overwrite.")]
     public GameObject[] groupOrderMarkers = new GameObject[4];
 
-    public class Baker : Baker<PlayerAuthoring> {
+    public class Baker : Baker<PlayerControllerAuthoring> {
 
-        public override void Bake(PlayerAuthoring authoring) {
+        public override void Bake(PlayerControllerAuthoring controllerAuthoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new Player());
 
@@ -50,7 +50,7 @@ public class PlayerAuthoring : MonoBehaviour
             AddComponent(entity, new ZoomPlayerInput());
             SetComponentEnabled<ZoomPlayerInput>(entity, false);
 
-            AddComponent(entity, new PlayerSelectedAttack { attackType = authoring.defaultAttack });
+            AddComponent(entity, new PlayerSelectedAttack { attackType = controllerAuthoring.defaultAttack });
 
             AddComponent(entity, new OnAttackPlayerInput());
             SetComponentEnabled<OnAttackPlayerInput>(entity, false);
@@ -68,10 +68,10 @@ public class PlayerAuthoring : MonoBehaviour
             SetComponentEnabled<OnEquipmentSlotPlayerInput>(entity, false);
             AddComponent(entity, new PlayerEquipmentSlots
             {
-                itemSlot1 = authoring.debugSlot1,
-                itemSlot2 = authoring.debugSlot2,
-                itemSlot3 = authoring.debugSlot3,
-                itemSlot4 = authoring.debugSlot4,
+                itemSlot1 = controllerAuthoring.debugSlot1,
+                itemSlot2 = controllerAuthoring.debugSlot2,
+                itemSlot3 = controllerAuthoring.debugSlot3,
+                itemSlot4 = controllerAuthoring.debugSlot4,
             });
 
             AddComponent(entity, new OnDropPlayerInput());
@@ -82,8 +82,8 @@ public class PlayerAuthoring : MonoBehaviour
 
             AddComponent(entity, new AimDirection { direction = new Unity.Mathematics.float3(0f, 0f, 1f) });
 
-            Entity indicatorEntity = authoring.aimIndicator != null
-                ? GetEntity(authoring.aimIndicator, TransformUsageFlags.Dynamic)
+            Entity indicatorEntity = controllerAuthoring.aimIndicator != null
+                ? GetEntity(controllerAuthoring.aimIndicator, TransformUsageFlags.Dynamic)
                 : Entity.Null;
             AddComponent(entity, new AimIndicatorRef { visualEntity = indicatorEntity });
 
@@ -121,7 +121,7 @@ public class PlayerAuthoring : MonoBehaviour
             // Minion group data — one group unlocked by default
             AddComponent(entity, new PlayerMinionGroupsData
             {
-                unlockedGroupCount = authoring.startingGroupCount,
+                unlockedGroupCount = controllerAuthoring.startingGroupCount,
                 assignmentGroupIndex = 0
             });
 
@@ -132,11 +132,11 @@ public class PlayerAuthoring : MonoBehaviour
                 Entity hordeEntity = CreateAdditionalEntity(TransformUsageFlags.None);
 
                 Entity markerEntity = Entity.Null;
-                if (authoring.groupOrderMarkers != null
-                    && slotIndex < authoring.groupOrderMarkers.Length
-                    && authoring.groupOrderMarkers[slotIndex] != null)
+                if (controllerAuthoring.groupOrderMarkers != null
+                    && slotIndex < controllerAuthoring.groupOrderMarkers.Length
+                    && controllerAuthoring.groupOrderMarkers[slotIndex] != null)
                 {
-                    markerEntity = GetEntity(authoring.groupOrderMarkers[slotIndex], TransformUsageFlags.Dynamic);
+                    markerEntity = GetEntity(controllerAuthoring.groupOrderMarkers[slotIndex], TransformUsageFlags.Dynamic);
                 }
 
                 AddComponent(hordeEntity, new Horde
@@ -160,8 +160,8 @@ public class PlayerAuthoring : MonoBehaviour
 
             AddComponent(entity, new CursorScreenPosition());
 
-            Entity socketEntity = authoring.handSocket != null
-                ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
+            Entity socketEntity = controllerAuthoring.handSocket != null
+                ? GetEntity(controllerAuthoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;
             AddComponent(entity, new UnitEquipt { socketEntity = socketEntity });
             

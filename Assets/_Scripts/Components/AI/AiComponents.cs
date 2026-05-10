@@ -37,12 +37,6 @@ public struct Motivation : IBufferElementData
     public float decayRate;                // units per second
     public float contextMultiplier;        // written by pre-pass systems, reset to 1.0 by decay system
 }
-public struct MotivationSatisfaction : IBufferElementData
-{
-    public MotivationType motivationType;
-    public float restorationAmount; // flat units of motivation restored on action completion
-}
-
 
 public struct ActionOption : IBufferElementData
 {
