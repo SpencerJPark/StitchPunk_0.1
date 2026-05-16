@@ -13,4 +13,5 @@ MonoBehaviour:
   m_Name: _InteractionLibrary
   m_EditorClassIdentifier: StitchPunk.Data::InteractionLibrarySO
   interactions:
+  - {fileID: 11400000, guid: cb35eb5fe932720478ccaeb951402e8a, type: 2}
   - {fileID: 11400000, guid: eff8c32fb498eca4c81963ed04962346, type: 2}

@@ -46,6 +46,3 @@ MonoBehaviour:
     attack: 2
   moveSpeed: 3
   rotationSpeed: 10
-  spawnCostResourceAmountArray: []
-  progressMax: 0
-  sprite: {fileID: 0}

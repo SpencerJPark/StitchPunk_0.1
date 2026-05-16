@@ -17,6 +17,7 @@ public partial struct InteractionAwarenessSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<InteractionLibrary>();
+
         transformLookup   = state.GetComponentLookup<LocalTransform>(true);
         interactionLookup = state.GetComponentLookup<Interaction>(true);
     }
@@ -58,8 +59,8 @@ public partial struct InteractionAwarenessJob : IJobEntity
         in Faction                      faction)
     {
         float3 npcPos     = transform.Position;
-        int2   centerCell = SpatialHashSystem.GetCell(npcPos);
-        int    cellRange  = (int)math.ceil(awareness.range / SpatialHashSystem.CELL_SIZE);
+        int2   centerCell = InteractionSpatialHashSystem.GetCell(npcPos);
+        int    cellRange  = (int)math.ceil(awareness.range / InteractionSpatialHashSystem.CELL_SIZE);
 
         for (int m = 0; m < motivations.Length; m++)
         {
@@ -72,8 +73,9 @@ public partial struct InteractionAwarenessJob : IJobEntity
                 {
                     int2 targetCell = centerCell + new int2(x, z);
                     SpatialInteractionKey searchKey = new SpatialInteractionKey(targetCell, currentNeed);
+                    bool hit = registry.interactionCells.TryGetFirstValue(searchKey, out Entity target, out NativeParallelMultiHashMapIterator<SpatialInteractionKey> it);
 
-                    if (registry.interactionCells.TryGetFirstValue(searchKey, out Entity target, out NativeParallelMultiHashMapIterator<SpatialInteractionKey> it))
+                    if (hit)
                     {
                         do
                         {
@@ -94,16 +96,18 @@ public partial struct InteractionAwarenessJob : IJobEntity
         FactionType                     npcFaction,
         ref DynamicBuffer<ActionOption> options)
     {
-        if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform)) return;
+        if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform))
+            return;
 
         float dist = math.distance(npcPos, targetTransform.Position);
-        if (dist > maxRange) return;
+        if (dist > maxRange)
+            return;
 
-        if (!interactionLookup.TryGetComponent(target, out Interaction interactData)) return;
+        if (!interactionLookup.TryGetComponent(target, out Interaction interactData))
+            return;
 
         ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interactData.actionType];
 
-        // Faction gate — skip if the interaction restricts factions and this NPC's faction isn't listed
         if (blob.allowedFactions.Length > 0)
         {
             bool permitted = false;
@@ -111,11 +115,12 @@ public partial struct InteractionAwarenessJob : IJobEntity
             {
                 if (blob.allowedFactions[i] == npcFaction) { permitted = true; break; }
             }
-            if (!permitted) return;
+            if (!permitted)
+                return;
         }
 
-        // Occupancy gate
-        if (interactData.currentOccupants >= blob.maxOccupants) return;
+        if (interactData.currentOccupants >= blob.maxOccupants)
+            return;
 
         float distScore = 1.0f - math.saturate(dist / maxRange);
 
@@ -123,6 +128,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
         {
             actionType     = interactData.actionType,
             motivationType = motivationType,
+            priority = blob.priority,
             targetEntity   = target,
             interaction    = true,
             utilityScore   = distScore

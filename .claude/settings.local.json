@@ -57,7 +57,16 @@
       "Bash(findstr /S \"AnimationLibrary\" Assets/_Scripts/Components/ --include=\"*.cs\")",
       "Bash(findstr /S \"public struct AnimationLibrary\" Assets/_Scripts/ --include=\"*.cs\")",
       "Bash(Get-ChildItem *)",
-      "Bash(findstr /R /S \"Motivation.*=\" Assets\\\\_Scripts\\\\Authoring\\\\**/*.cs)"
+      "Bash(findstr /R /S \"Motivation.*=\" Assets\\\\_Scripts\\\\Authoring\\\\**/*.cs)",
+      "Bash(Select-String \"0117e7aa02e48e64d82854dd95d93e20\")",
+      "Bash(Select-Object -First 5 Path)",
+      "Bash(Find C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Authoring *)",
+      "Bash(Find \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Components\" -type f -name \"*.cs\")",
+      "Bash(Select-String -Pattern \"InteractionLibrary|InteractionReference\")",
+      "Bash(Find C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Data *)",
+      "Bash(Find C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems *)",
+      "Bash(Find C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\PostBakingSystemGroup *)",
+      "Bash(Find C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\PresentationSystemGroup *)"
     ]
   }
 }

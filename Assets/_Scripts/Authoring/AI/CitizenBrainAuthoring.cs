@@ -23,6 +23,7 @@ public class CitizenBrainAuthoring : MonoBehaviour
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, IdleAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, FleeAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, ReleaseRequest>(this, entity);
+            UnitBakingUtil.AddAction<CitizenBrainAuthoring, InteractAction>(this, entity);
         }
     }
 }

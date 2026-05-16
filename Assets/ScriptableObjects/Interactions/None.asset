@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bd6950638a9447e9909905a0b4058d91, type: 3}
-  m_Name: Bathroom
+  m_Name: None
   m_EditorClassIdentifier: StitchPunk.Data::InteractionSO
-  interactionActionType: 3
-  priority: 1
-  maxOccupants: 1
+  interactionActionType: 0
+  priority: 0
+  maxOccupants: 0
   motivationSatisfaction:
-    motivationType: 6
-    value: 100
-  factionsThatCanInteractWith: 010306070809
-  range: 0.05
+    motivationType: 0
+    value: 0
+  factionsThatCanInteractWith: 
+  range: 0

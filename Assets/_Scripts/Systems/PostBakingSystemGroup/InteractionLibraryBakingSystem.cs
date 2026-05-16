@@ -1,5 +1,6 @@
 using Unity.Collections;
 using Unity.Entities;
+using UnityEngine;
 
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
@@ -19,9 +20,24 @@ public partial struct InteractionLibraryBakingSystem : ISystem
             break;
         }
 
-        if (librarySO == null) return;
+        if (librarySO == null)
+        {
+            Debug.Log("[InteractionLibraryBaking] librarySO is NULL — baker didn't assign it");
+            return;
+        }
 
         int typeCount = System.Enum.GetValues(typeof(ActionType)).Length;
+
+        // Build a lookup first so each index is allocated exactly once.
+        // Calling builder.Allocate on the same BlobArray field twice corrupts the blob
+        // because the patcher can overwrite adjacent fields (including satisfiedMotivation).
+        System.Collections.Generic.Dictionary<int, InteractionSO> soByIndex =
+            new System.Collections.Generic.Dictionary<int, InteractionSO>();
+        foreach (InteractionSO so in librarySO.interactions)
+        {
+            if (so != null)
+                soByIndex[(int)so.interactionActionType] = so;
+        }
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref InteractionLibraryBlob root = ref builder.ConstructRoot<InteractionLibraryBlob>();
@@ -29,32 +45,31 @@ public partial struct InteractionLibraryBakingSystem : ISystem
 
         for (int i = 0; i < typeCount; i++)
         {
-            interactionsBuilder[i].actionType          = (ActionType)i;
-            interactionsBuilder[i].priority            = 0;
-            interactionsBuilder[i].maxOccupants        = 1;
-            interactionsBuilder[i].range               = 1.5f;
-            interactionsBuilder[i].satisfiedMotivation = MotivationType.None;
-            interactionsBuilder[i].restorationAmount   = 0f;
-            builder.Allocate(ref interactionsBuilder[i].allowedFactions, 0);
-        }
+            if (soByIndex.TryGetValue(i, out InteractionSO so))
+            {
+                interactionsBuilder[i].actionType          = so.interactionActionType;
+                interactionsBuilder[i].priority            = so.priority;
+                interactionsBuilder[i].maxOccupants        = so.maxOccupants;
+                interactionsBuilder[i].range               = so.range;
+                interactionsBuilder[i].satisfiedMotivation = so.motivationSatisfaction.motivationType;
+                interactionsBuilder[i].restorationAmount   = so.motivationSatisfaction.value;
 
-        foreach (InteractionSO so in librarySO.interactions)
-        {
-            if (so == null) continue;
-
-            int index = (int)so.interactionActionType;
-            interactionsBuilder[index].actionType          = so.interactionActionType;
-            interactionsBuilder[index].priority            = so.priority;
-            interactionsBuilder[index].maxOccupants        = so.maxOccupants;
-            interactionsBuilder[index].range               = so.range;
-            interactionsBuilder[index].satisfiedMotivation = so.motivationSatisfaction.motivationType;
-            interactionsBuilder[index].restorationAmount   = so.motivationSatisfaction.value;
-
-            int factionCount = so.factionsThatCanInteractWith != null ? so.factionsThatCanInteractWith.Length : 0;
-            BlobBuilderArray<FactionType> factionsBuilder =
-                builder.Allocate(ref interactionsBuilder[index].allowedFactions, factionCount);
-            for (int f = 0; f < factionCount; f++)
-                factionsBuilder[f] = so.factionsThatCanInteractWith[f];
+                int factionCount = so.factionsThatCanInteractWith != null ? so.factionsThatCanInteractWith.Length : 0;
+                BlobBuilderArray<FactionType> factionsBuilder =
+                    builder.Allocate(ref interactionsBuilder[i].allowedFactions, factionCount);
+                for (int f = 0; f < factionCount; f++)
+                    factionsBuilder[f] = so.factionsThatCanInteractWith[f];
+            }
+            else
+            {
+                interactionsBuilder[i].actionType          = (ActionType)i;
+                interactionsBuilder[i].priority            = 0;
+                interactionsBuilder[i].maxOccupants        = 1;
+                interactionsBuilder[i].range               = 1.5f;
+                interactionsBuilder[i].satisfiedMotivation = MotivationType.None;
+                interactionsBuilder[i].restorationAmount   = 0f;
+                builder.Allocate(ref interactionsBuilder[i].allowedFactions, 0);
+            }
         }
 
         BlobAssetReference<InteractionLibraryBlob> blobRef =
@@ -69,12 +84,7 @@ public partial struct InteractionLibraryBakingSystem : ISystem
         }
     }
 
-    public void OnDestroy(ref SystemState state)
-    {
-        foreach (RefRW<InteractionLibrary> holder in SystemAPI.Query<RefRW<InteractionLibrary>>())
-        {
-            if (holder.ValueRO.library.IsCreated)
-                holder.ValueRW.library.Dispose();
-        }
-    }
+    // Do NOT dispose here — the blob was transferred to the runtime world.
+    // Disposing it in the baking world's OnDestroy would free memory the runtime still uses (use-after-free).
+    // The runtime world's InteractionLibrary component owns the blob from this point on.
 }
