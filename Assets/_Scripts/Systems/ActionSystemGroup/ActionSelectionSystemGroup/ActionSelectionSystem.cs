@@ -93,7 +93,7 @@ public partial struct ActionSelectionSystem : ISystem
             ref CurrentAction currentAction,
             ref DynamicBuffer<ActionOption> options,
             EnabledRefRW<ActionSelectionValidationRequest> needsValidation,
-            EnabledRefRW<ActionRequest> needsAction)
+            EnabledRefRW<ActionRequest> actionRequest)
         {
 
             // 1. Filter out the previous target to prevent "oscillating" or getting stuck
@@ -129,7 +129,7 @@ public partial struct ActionSelectionSystem : ISystem
             if (choice.interaction)
             {
                 needsValidation.ValueRW = true;
-                needsAction.ValueRW = false;
+                actionRequest.ValueRW = false;
             }
             else
             {
@@ -191,6 +191,7 @@ public partial struct ActionSelectionSystem : ISystem
     
     [BurstCompile]
     [WithAll(typeof(ActionSelectionValidationRequest))]
+    [WithPresent(typeof(ActionRequest))]
     public partial struct ValidateInteractionJob : IJobEntity
     {
         public ComponentLookup<Interaction>                       interactionLookup;
@@ -198,7 +199,7 @@ public partial struct ActionSelectionSystem : ISystem
 
         public void Execute(
             EnabledRefRW<ActionSelectionValidationRequest> validationTrigger,
-            EnabledRefRW<ActionRequest>                    needsAction,
+            EnabledRefRW<ActionRequest>                    actionRequest,
             ref CurrentAction                              currentAction)
         {
             validationTrigger.ValueRW = false;
@@ -214,13 +215,11 @@ public partial struct ActionSelectionSystem : ISystem
             }
             else
             {
-                // Clear the selected action so SetupActionJob calls NullEnable (no-op)
-                // and leaves ActionRequest enabled — unit retries selection next frame.
                 currentAction.actionType = ActionType.None;
             }
 
-            // Always re-enable ActionRequest so SetupActionJob can run this frame.
-            needsAction.ValueRW = true;
+            // Always re-enable ActionRequest so SetupActionJob runs this frame.
+            actionRequest.ValueRW = true;
         }
     }
     

@@ -20,6 +20,9 @@ public class InteractionSO : ScriptableObject
 
     [Tooltip("How close to perform interaction")]
     public float range;
+
+    [Tooltip("How long the interaction takes in seconds")]
+    public float duration = 4f;
 }
 
 [Serializable]

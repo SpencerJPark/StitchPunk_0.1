@@ -9,6 +9,7 @@ public struct InteractionBlob
     public BlobArray<FactionType> allowedFactions;
     public MotivationType         satisfiedMotivation;
     public float                  restorationAmount;
+    public float                  duration;
 }
 
 public struct InteractionLibraryBlob

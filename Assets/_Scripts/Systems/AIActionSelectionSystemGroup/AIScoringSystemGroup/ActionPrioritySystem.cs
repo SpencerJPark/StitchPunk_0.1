@@ -1,20 +1,20 @@
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
 
 /// <summary>
-/// Applies flat tier bonuses to ActionOption scores after MotivationScoringSystem.
+/// Prunes the ActionOption buffer so only the highest-priority tier survives.
 ///
-/// Tiers:
-///   Combat (+1.0)      — BloodLust or SelfDefence options. Ensures attack options (scored 0-1
-///                        by motivation curves) reliably beat civilian interactions (also 0-1).
-///   Survival (+2.0)    — SelfPreservation or Safety options when health < 60%.
-///                        Overrides combat at +1 so the unit flees or grabs survival items
-///                        rather than continuing to fight when badly hurt.
+/// Priority is an int set by each awareness system when it creates options:
+///   InteractionAwarenessSystem  → blob.priority  (1 by default, configurable per SO)
+///   EnemyAwarenessSystem        → 2
+///   HealthAwarenessSystem       → 2 or 3
+///   SelfDefenceAwarenessSystem  → 3
 ///
-/// Weapon-grab interactions baked with MotivationType.BloodLust naturally receive the combat
-/// tier bonus, letting them compete with bare-hand attack options in the top-3 selection.
+/// Two-pass algorithm:
+///   1. Find the maximum priority value present in the buffer.
+///   2. Remove every option whose priority is below that maximum.
+///
+/// If all options share the same tier (e.g. all priority 1), none are removed.
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(AIScoringSystemGroup))]
@@ -38,57 +38,19 @@ public partial struct ActionPrioritySystem : ISystem
 [WithAll(typeof(AIBrain), typeof(ActionRequest), typeof(Alive))]
 public partial struct ActionPriorityJob : IJobEntity
 {
-    private const float COMBAT_BONUS   = 1.0f;
-    private const float SURVIVAL_BONUS = 2.0f;
-    private const float FLEE_HEALTH_THRESHOLD = 0.6f;
-
-    public void Execute(
-        in Health                        health,
-        ref DynamicBuffer<ActionOption>  options,
-        in DynamicBuffer<Motivation>     motivations)
+    public void Execute(ref DynamicBuffer<ActionOption> options)
     {
-        float healthRatio = health.healthAmountMax > 0
-            ? (float)health.healthAmount / health.healthAmountMax
-            : 1f;
-
-        bool isHurt = healthRatio < FLEE_HEALTH_THRESHOLD;
-
+        int maxPriority = 0;
         for (int i = 0; i < options.Length; i++)
         {
-            ActionOption option = options[i];
-
-            if (option.motivationType == MotivationType.BloodLust ||
-                option.motivationType == MotivationType.SelfDefence)
-            {
-                option.utilityScore += COMBAT_BONUS;
-            }
-
-            if (isHurt && HasMotivation(motivations, option.motivationType) &&
-                (option.motivationType == MotivationType.SelfPreservation ||
-                 option.motivationType == MotivationType.Safety))
-            {
-                option.utilityScore += SURVIVAL_BONUS;
-            }
-
-            options[i] = option;
+            if (options[i].priority > maxPriority)
+                maxPriority = options[i].priority;
         }
 
-        // Prune after all bonuses are applied — an option at score 0 after bonuses
-        // has nothing to offer selection and would pollute the random top-3 pick.
         for (int i = options.Length - 1; i >= 0; i--)
         {
-            if (options[i].utilityScore <= 0f)
+            if (options[i].priority < maxPriority)
                 options.RemoveAt(i);
         }
-    }
-
-    private static bool HasMotivation(in DynamicBuffer<Motivation> motivations, MotivationType type)
-    {
-        for (int i = 0; i < motivations.Length; i++)
-        {
-            if (motivations[i].motivationType == type)
-                return true;
-        }
-        return false;
     }
 }
