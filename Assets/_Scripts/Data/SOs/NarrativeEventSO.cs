@@ -12,17 +12,19 @@ using UnityEngine;
 /// a constant in NarrativeIds.Events. Place a NarrativeEventTriggerAuthoring (for
 /// proximity trigger) or wire a dialogue event via NarrativeIds.DialogueBridge to fire it.
 /// </summary>
-[CreateAssetMenu(fileName = "NarrativeEvent_New", menuName = "Stitch Punk/Narrative/Narrative Event")]
+[CreateAssetMenu(fileName = "NarrativeEvent_New", menuName = "Animation/Narrative Event")]
 public class NarrativeEventSO : ScriptableObject
 {
     [Tooltip("Unique integer ID. Must match a constant in NarrativeIds.Events. " +
              "Never reuse or change this value once the SO has been referenced.")]
     public int eventId;
 
+    [Tooltip("When true, player input is suppressed for the duration of this event. " +
+             "Use for cutscenes where the player should not be able to issue commands.")]
+    public bool blockPlayerInput;
+
     [Tooltip("Ordered list of action groups. Groups run one at a time. " +
-             "All actions within a group run simultaneously. " +
-             "Managed via the inspector — use [SerializeReference] polymorphism.")]
-    [SerializeReference]
+             "All actions within a group run simultaneously.")]
     public List<NarrativeActionGroup> groups = new List<NarrativeActionGroup>();
 }
 
@@ -37,6 +39,10 @@ public class NarrativeEventSO : ScriptableObject
 [Serializable]
 public class NarrativeActionGroup
 {
+    [Tooltip("Label for this step — for authoring clarity only. " +
+             "Example: 'Walk to door', 'Open door', 'Dialogue gate'.")]
+    public string groupName = "";
+
     [Tooltip("All actions that fire simultaneously for this step of the sequence.")]
     [SerializeReference]
     public List<NarrativeActionBase> actions = new List<NarrativeActionBase>();
@@ -97,8 +103,14 @@ public class PlayAnimationAction : NarrativeActionBase
     [Tooltip("Which animation layer to set. Use Override to take full control during cutscenes.")]
     public AnimationLayerType layer;
 
+    [Tooltip("When true, the group waits until the animation clip finishes playing before advancing. " +
+             "Works only for non-looping clips — the AnimationTimeSystem sets the layer inactive on completion. " +
+             "Takes precedence over duration when both are set.")]
+    public bool waitForCompletion;
+
     [Tooltip("How many seconds to wait before considering this action complete. " +
-             "Use 0 to fire-and-forget (the group advances without waiting).")]
+             "Use 0 to fire-and-forget (the group advances without waiting). " +
+             "Ignored when waitForCompletion is true.")]
     public float duration;
 
     [Tooltip("Whether the animation should loop. Set false for one-shot actions like death or emotes.")]

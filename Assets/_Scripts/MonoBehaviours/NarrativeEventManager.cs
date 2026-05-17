@@ -150,22 +150,31 @@ public class NarrativeEventManager : MonoBehaviour
     {
         CollectRepeatableTriggers(so.eventId);
 
-        foreach (NarrativeActionGroup group in so.groups)
+        if (so.blockPlayerInput)
+            _entityManager.SetComponentEnabled<CutsceneActiveTag>(_narrativeEntity, true);
+
+        try
         {
-            UniTask[] groupTasks = new UniTask[group.actions.Count];
-            for (int actionIndex = 0; actionIndex < group.actions.Count; actionIndex++)
-                groupTasks[actionIndex] = ExecuteActionAsync(group.actions[actionIndex], ct);
+            foreach (NarrativeActionGroup group in so.groups)
+            {
+                UniTask[] groupTasks = new UniTask[group.actions.Count];
+                for (int actionIndex = 0; actionIndex < group.actions.Count; actionIndex++)
+                    groupTasks[actionIndex] = ExecuteActionAsync(group.actions[actionIndex], ct);
 
-            await UniTask.WhenAll(groupTasks);
+                await UniTask.WhenAll(groupTasks);
 
-            if (ct.IsCancellationRequested) break;
+                if (ct.IsCancellationRequested) break;
+            }
         }
+        finally
+        {
+            // Re-arm repeatable triggers so the event can fire again on the next approach.
+            foreach (Entity triggerEntity in _repeatableTriggers)
+                _entityManager.SetComponentEnabled<NarrativeTrigger>(triggerEntity, true);
 
-        // Re-arm repeatable triggers so the event can fire again on the next approach.
-        foreach (Entity triggerEntity in _repeatableTriggers)
-            _entityManager.SetComponentEnabled<NarrativeTrigger>(triggerEntity, true);
-
-        _entityManager.SetComponentEnabled<ActiveNarrativeEvent>(_narrativeEntity, false);
+            _entityManager.SetComponentEnabled<CutsceneActiveTag>(_narrativeEntity, false);
+            _entityManager.SetComponentEnabled<ActiveNarrativeEvent>(_narrativeEntity, false);
+        }
     }
 
     private void CollectRepeatableTriggers(int eventId)
@@ -279,11 +288,31 @@ public class NarrativeEventManager : MonoBehaviour
         AnimationUtils.SetLayer(ref layers, action.layer, action.animationType,
             looping: action.looping);
 
-        if (action.duration > 0f)
+        if (action.waitForCompletion)
+        {
+            AnimationLayerType targetLayer = action.layer;
+            await UniTask.WaitUntil(() => IsLayerInactive(entity, targetLayer),
+                cancellationToken: ct);
+        }
+        else if (action.duration > 0f)
         {
             await UniTask.Delay(TimeSpan.FromSeconds(action.duration),
                 cancellationToken: ct);
         }
+    }
+
+    private bool IsLayerInactive(Entity entity, AnimationLayerType layerType)
+    {
+        if (!_entityManager.Exists(entity)) return true;
+        if (!_entityManager.HasBuffer<AnimationLayer>(entity)) return true;
+
+        DynamicBuffer<AnimationLayer> layers = _entityManager.GetBuffer<AnimationLayer>(entity);
+        for (int i = 0; i < layers.Length; i++)
+        {
+            if (layers[i].layer == layerType)
+                return !layers[i].active;
+        }
+        return true;
     }
 
     private void ExecuteEnableComponent(EnableComponentAction action)

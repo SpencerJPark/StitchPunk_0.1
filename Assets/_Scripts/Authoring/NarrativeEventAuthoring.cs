@@ -24,6 +24,9 @@ public class NarrativeEventAuthoring : MonoBehaviour
 
             AddComponent(entity, new ActiveNarrativeEvent());
             SetComponentEnabled<ActiveNarrativeEvent>(entity, false);
+
+            AddComponent(entity, new CutsceneActiveTag());
+            SetComponentEnabled<CutsceneActiveTag>(entity, false);
         }
     }
 }

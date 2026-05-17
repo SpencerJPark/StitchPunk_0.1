@@ -64,4 +64,9 @@ public struct InteractionLibrary : IComponentData
     public BlobAssetReference<InteractionLibraryBlob> library;
 }
 
+public struct InteractionLibraryReference : IComponentData
+{
+    public UnityObjectRef<InteractionLibrarySO> library;
+}
+
 

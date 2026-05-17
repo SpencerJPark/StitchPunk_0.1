@@ -64,7 +64,7 @@ public partial struct ActionInterruptSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(ActionInterruptRequest))]
-[WithPresent(typeof(PathRequest))]
+[WithPresent(typeof(PathRequest), typeof(ActionTimer))]
 public partial struct ActionInterruptJob : IJobEntity
 {
     [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
@@ -75,8 +75,9 @@ public partial struct ActionInterruptJob : IJobEntity
         Entity                               entity,
         [EntityIndexInQuery] int             index,
         in CurrentAction                     currentAction,
-        EnabledRefRW<ActionInterruptRequest> interruptEnabled,
-        EnabledRefRW<ActionRequest>          actionRequestEnabled)
+        ref ActionTimer                      actionTimer,
+        EnabledRefRW<ActionRequest>          actionRequestEnabled,
+        EnabledRefRW<ActionTimer>            actionTimerEnabled)
     {
         // Disable the active action tag via the shared function table
         int actionIndex = (int)currentAction.actionType;
@@ -86,6 +87,10 @@ public partial struct ActionInterruptJob : IJobEntity
         // Halt pathing
         ecb.SetComponentEnabled<PathRequest>(index, entity, false);
 
+        // Clear any leftover action timer so the incoming action runs immediately
+        actionTimer.time           = 0f;
+        actionTimerEnabled.ValueRW = false;
+
         // Return to decision pipeline via direct write (not ECB) so ActionSelectionJob
         // can pick new options in the same frame.
         bool playerOwned = playerControlledLookup.HasComponent(entity) &&
@@ -93,6 +98,9 @@ public partial struct ActionInterruptJob : IJobEntity
         if (!playerOwned)
             actionRequestEnabled.ValueRW = true;
 
-        interruptEnabled.ValueRW = false;
+        // Keep ActionInterruptRequest enabled until EndSimulation so action systems
+        // with [WithDisabled(typeof(ActionInterruptRequest))] (e.g. SitJob) cannot run
+        // on this entity in the same frame and overwrite the ActionTimer reset above.
+        ecb.SetComponentEnabled<ActionInterruptRequest>(index, entity, false);
     }
 }

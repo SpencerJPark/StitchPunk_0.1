@@ -63,6 +63,14 @@ public struct NarrativeTrigger : IComponentData, IEnableableComponent
 // ---------------------------------------------------------------------------
 
 /// <summary>
+/// Enabled by NarrativeEventManager while a narrative event with blockPlayerInput = true is running.
+/// Input and action-selection systems that should be suppressed during cutscenes check for this tag.
+/// Disabled automatically when the event finishes or is cancelled.
+/// Baked (disabled) by NarrativeEventAuthoring on the same entity as NarrativeEventTag.
+/// </summary>
+public struct CutsceneActiveTag : IComponentData, IEnableableComponent { }
+
+/// <summary>
 /// Gives an NPC or waypoint a stable integer ID so NarrativeEventSO actions can
 /// reference it without storing an Entity handle in the ScriptableObject.
 ///

@@ -72,6 +72,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         ref PathRequest pathRequest,
         ref AttackRequest attackRequest,
         ref DynamicBuffer<SetAnimation> setAnimations,
+        in Movement movement,
         EnabledRefRO<Dead> dead,
         EnabledRefRW<MeleeContinuousAction> meleeContinuous,
         EnabledRefRW<ActionRequest> actionRequest,
@@ -126,7 +127,9 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         float rangeSq = attackBlob.range * attackBlob.range;
         if (distSq > rangeSq)
         {
-            if (math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ)
+            bool stoppedMoving = !movement.isMoving;
+            bool targetShifted = math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ;
+            if (stoppedMoving || targetShifted)
                 AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
             return;
         }

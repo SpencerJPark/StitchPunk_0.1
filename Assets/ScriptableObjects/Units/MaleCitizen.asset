@@ -27,6 +27,8 @@ MonoBehaviour:
     decayRate: 0.05
   - motivationType: 3
     decayRate: 0.5
+  - motivationType: 6
+    decayRate: 0.5
   actionAnimations:
   - action: 1
     animation: 1

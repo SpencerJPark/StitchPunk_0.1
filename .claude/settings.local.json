@@ -69,7 +69,12 @@
       "Bash(Find C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\PresentationSystemGroup *)",
       "Bash(Remove-Item \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\PostBakingSystemGroup\\\\InteractionLibraryBakingSystem.cs\" -Force)",
       "Bash(Remove-Item \"C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\PostBakingSystemGroup\\\\InteractionLibraryBakingSystem.cs.meta\" -Force -ErrorAction SilentlyContinue)",
-      "Bash(findstr -i \"melee\\\\|action\")"
+      "Bash(findstr -i \"melee\\\\|action\")",
+      "Bash(Select-String -Pattern \"Playable|Timeline|PlayableDirector\" -List)",
+      "Bash(Select-Object Path)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head *)",
+      "Bash(findstr /s \"male\\\\|Male\\\\|npc\\\\|NPC\" _Scripts\\\\Authoring\\\\AI\\\\*.cs)"
     ]
   }
 }
