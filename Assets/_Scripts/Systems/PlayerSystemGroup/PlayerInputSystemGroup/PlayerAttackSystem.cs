@@ -3,20 +3,6 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// 1. Create an Aspect to handle the 8+ parameters
-public readonly partial struct PlayerAttackAspect : IAspect
-{
-    public readonly Entity Self;
-    public readonly RefRO<LocalTransform> Transform;
-    public readonly RefRO<PlayerSelectedAttack> SelectedAttack;
-    public readonly RefRW<AttackRequest> AttackRequest;
-    public readonly EnabledRefRW<AttackRequest> AttackRequestEnabled;
-    public readonly EnabledRefRW<OnAttackPlayerInput> AttackInputEnabled;
-    public readonly RefRO<PlayerActionMap> ActionMap;
-    public readonly RefRW<ActionTimer> ActionTimer;
-    public readonly EnabledRefRW<ActionTimer> ActionTimerEnabled;
-}
-
 [UpdateInGroup(typeof(PlayerInputSystemGroup))]
 [BurstCompile]
 public partial struct PlayerAttackSystem : ISystem
@@ -40,40 +26,42 @@ public partial struct PlayerAttackSystem : ISystem
         var animationLibrary = SystemAPI.GetSingleton<AnimationLibrary>().library;
         float cosHalfAngle = math.cos(math.radians(RANGED_CONE_HALF_ANGLE_DEG));
 
-        // Use the Aspect in the query to bypass the 7-parameter limit
-        foreach (var p in SystemAPI.Query<PlayerAttackAspect>()
-                     .WithAll<Player>()
-                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
+        foreach (var (attackInputEnabled, selfEntity) in
+            SystemAPI.Query<EnabledRefRW<OnAttackPlayerInput>>()
+                .WithAll<Player>()
+                .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
+                .WithEntityAccess())
         {
-            if (p.ActionMap.ValueRO.activeActionMap != ActionMaps.Player) continue;
-            if (!p.AttackInputEnabled.ValueRO) continue;
+            if (SystemAPI.GetComponent<PlayerActionMap>(selfEntity).activeActionMap != ActionMaps.Player) continue;
+            if (!attackInputEnabled.ValueRO) continue;
 
-            p.AttackInputEnabled.ValueRW = false; // Consume input
+            attackInputEnabled.ValueRW = false;
 
             // GATE: Stop if the action timer is still running
-            if (p.ActionTimerEnabled.ValueRO && p.ActionTimer.ValueRO.time > 0f) continue;
+            if (SystemAPI.IsComponentEnabled<ActionTimer>(selfEntity) && SystemAPI.GetComponent<ActionTimer>(selfEntity).time > 0f) continue;
 
-            // Fetch UnitData (which isn't in our aspect)
-            if (!SystemAPI.HasComponent<UnitData>(p.Self)) continue;
-            UnitData unitData = SystemAPI.GetComponent<UnitData>(p.Self);
-            
+            if (!SystemAPI.HasComponent<UnitData>(selfEntity)) continue;
+            UnitData unitData = SystemAPI.GetComponent<UnitData>(selfEntity);
+
             int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
             if (unitIndex < 0 || unitIndex >= unitLibrary.Value.units.Length) continue;
 
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
             if (unitBlob.attacks.Length == 0) continue;
 
-            AttackType attackType = p.SelectedAttack.ValueRO.attackType != AttackType.None
-                ? p.SelectedAttack.ValueRO.attackType
+            PlayerSelectedAttack selectedAttack = SystemAPI.GetComponent<PlayerSelectedAttack>(selfEntity);
+            AttackType attackType = selectedAttack.attackType != AttackType.None
+                ? selectedAttack.attackType
                 : unitBlob.attacks[0].attack;
-            
+
             ActionType actionType = AIUtils.GetActionByAttack(ref unitBlob, attackType);
             int attackIndex = (int)attackType;
             if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length) continue;
             ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
-            float3 playerPos = p.Transform.ValueRO.Position;
-            float3 facingDir = math.normalizesafe(new float3(math.forward(p.Transform.ValueRO.Rotation).x, 0, math.forward(p.Transform.ValueRO.Rotation).z));
+            LocalTransform playerTransform = SystemAPI.GetComponent<LocalTransform>(selfEntity);
+            float3 playerPos = playerTransform.Position;
+            float3 facingDir = math.normalizesafe(new float3(math.forward(playerTransform.Rotation).x, 0, math.forward(playerTransform.Rotation).z));
 
             bool isMelee = actionType == ActionType.MeleeContinuous || actionType == ActionType.MeleeSingle;
             float rangeSq = attackBlob.range * attackBlob.range;
@@ -106,20 +94,21 @@ public partial struct PlayerAttackSystem : ISystem
             if (bestTarget == Entity.Null) continue;
 
             // Fire the Attack
-            p.AttackRequest.ValueRW.targetEntity = bestTarget;
-            p.AttackRequest.ValueRW.attackType = attackType;
-            p.AttackRequest.ValueRW.hitFired = false;
-            p.AttackRequestEnabled.ValueRW = true;
+            RefRW<AttackRequest> attackRequest = SystemAPI.GetComponentRW<AttackRequest>(selfEntity);
+            attackRequest.ValueRW.targetEntity = bestTarget;
+            attackRequest.ValueRW.attackType = attackType;
+            attackRequest.ValueRW.hitFired = false;
+            SystemAPI.SetComponentEnabled<AttackRequest>(selfEntity, true);
 
             // Handle Animation & Timer
             AnimationType animType = GetAttackAnimation(ref unitBlob, actionType);
             float animDuration = animationLibrary.Value.clips[(int)animType].duration;
-            
-            // Safety: Ensure duration is at least one frame to prevent infinite fire
-            p.ActionTimer.ValueRW.time = math.max(animDuration, 0.05f);
-            p.ActionTimerEnabled.ValueRW = true;
 
-            var setAnimations = SystemAPI.GetBuffer<SetAnimation>(p.Self);
+            RefRW<ActionTimer> actionTimer = SystemAPI.GetComponentRW<ActionTimer>(selfEntity);
+            actionTimer.ValueRW.time = math.max(animDuration, 0.05f);
+            SystemAPI.SetComponentEnabled<ActionTimer>(selfEntity, true);
+
+            DynamicBuffer<SetAnimation> setAnimations = SystemAPI.GetBuffer<SetAnimation>(selfEntity);
             setAnimations.Add(new SetAnimation
             {
                 layer = AnimationLayerType.Action,
@@ -127,7 +116,7 @@ public partial struct PlayerAttackSystem : ISystem
                 speed = 1f,
                 looping = false,
             });
-            SystemAPI.SetComponentEnabled<AnimationRequest>(p.Self, true);
+            SystemAPI.SetComponentEnabled<AnimationRequest>(selfEntity, true);
         }
     }
 

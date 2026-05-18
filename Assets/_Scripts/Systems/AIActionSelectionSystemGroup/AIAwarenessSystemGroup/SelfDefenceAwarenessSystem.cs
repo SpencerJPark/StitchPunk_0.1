@@ -3,7 +3,6 @@ using Unity.Entities;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
@@ -19,7 +18,7 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<AttackLibrary>();
         state.RequireForUpdate<UnitDataLibrary>();
-        
+
         deadLookup         = state.GetComponentLookup<Dead>(true);
         transformLookup    = state.GetComponentLookup<LocalTransform>(true);
     }
@@ -66,6 +65,8 @@ public partial struct FightOrFlightJob : IJobEntity
     public void Execute(
         in UnitData                          unitData,
         in LocalTransform                    transform,
+        in Health                            health,
+        in Personality                       personality,
         ref DynamicBuffer<Motivation>        behaviours,
         ref DynamicBuffer<ActionOption>      options,
         ref DynamicBuffer<ThreatEntry>       threats,
@@ -75,14 +76,16 @@ public partial struct FightOrFlightJob : IJobEntity
         if (threats.Length == 0)
             return;
 
-        if (currentAction.actionType.IsCombatAction())
-            return;
+        bool inCombat = currentAction.actionType.IsCombatAction();
 
         Entity topAggressor = Entity.Null;
         float  topThreat    = 0f;
+        float  totalThreat  = 0f;
         for (int i = 0; i < threats.Length; i++)
         {
             ThreatEntry threat = threats[i];
+
+            totalThreat += threat.threatScore;
 
             if (threat.reactionDelay > 0f)
             {
@@ -114,6 +117,12 @@ public partial struct FightOrFlightJob : IJobEntity
         if (transformLookup.TryGetComponent(topAggressor, out LocalTransform aggressorTransform))
             aggressorDist = math.distance(transform.Position, aggressorTransform.Position);
 
+        // Desperation rises as cumulative received damage approaches 75% of max health.
+        // At full desperation, even cowards are pushed toward fighting back.
+        float desperationThreshold = math.max(1f, health.healthAmountMax * 0.75f);
+        float desperation          = math.saturate(totalThreat / desperationThreshold);
+        float fightWillingness     = personality.bravery + desperation * (1f - personality.bravery);
+
         for (int a = 0; a < unitBlob.attacks.Length; a++)
         {
             ActionType actionType  = unitBlob.attacks[a].action;
@@ -121,20 +130,24 @@ public partial struct FightOrFlightJob : IJobEntity
             int        attackIndex = (int)attackType;
             if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
                 continue;
-            float attackRange = attackLibrary.Value.attacks[attackIndex].range;
-            float rangeScore  = AIUtils.AttackRangeScore(aggressorDist, attackRange);
+            float attackRange   = attackLibrary.Value.attacks[attackIndex].range;
+            float rangeScore    = AIUtils.AttackRangeScore(aggressorDist, attackRange);
+            float attackUtility = rangeScore * fightWillingness;
 
             options.Add(new ActionOption
             {
                 actionType     = actionType,
                 motivationType = MotivationType.SelfDefence,
-                priority = 3,
-                utilityScore   = rangeScore,
+                priority       = 3,
+                utilityScore   = attackUtility,
                 interaction    = false,
                 targetEntity   = topAggressor,
             });
         }
-        
-        interruptRequest.ValueRW = true;
+
+        // Don't interrupt ongoing combat — let the existing melee action continue.
+        // HealthAwareness will interrupt if health drops critically.
+        if (!inCombat)
+            interruptRequest.ValueRW = true;
     }
 }

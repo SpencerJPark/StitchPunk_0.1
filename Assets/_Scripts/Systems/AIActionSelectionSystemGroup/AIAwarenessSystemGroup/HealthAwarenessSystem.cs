@@ -1,4 +1,4 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -28,34 +28,39 @@ public partial struct HealthAwarenessSystem : ISystem
 public partial struct HealthAwarenessJob : IJobEntity
 {
     public void Execute(
-        ref Health health,
-        in CurrentAction currentAction,
-        ref DynamicBuffer<ActionOption> options,
+        in  Health                           health,
+        in  CurrentAction                    currentAction,
+        in  Personality                      personality,
+        ref DynamicBuffer<ActionOption>      options,
         EnabledRefRW<ActionInterruptRequest> interruptRequest)
     {
         if (currentAction.actionType == ActionType.Flee)
             return;
 
-        if ((float)health.healthAmount / health.healthAmountMax < 0.3f)
+        float healthRatio = (float)health.healthAmount / health.healthAmountMax;
+
+        if (healthRatio < 0.3f)
         {
+            float fleeUtility = (1f - healthRatio) * (1f - personality.bravery);
             options.Add(new ActionOption
             {
                 actionType     = ActionType.Flee,
                 motivationType = MotivationType.SelfPreservation,
                 priority       = 3,
-                utilityScore   = 1f,
+                utilityScore   = fleeUtility,
             });
             interruptRequest.ValueRW = true;
             return;
         }
-        if ((float)health.healthAmount / health.healthAmountMax < 0.6f)
+        if (healthRatio < 0.6f)
         {
+            float fleeUtility = (0.6f - healthRatio) * (1f - personality.bravery);
             options.Add(new ActionOption
             {
                 actionType     = ActionType.Flee,
                 motivationType = MotivationType.SelfPreservation,
                 priority       = 2,
-                utilityScore   = 0.6f,
+                utilityScore   = fleeUtility,
             });
             interruptRequest.ValueRW = true;
         }

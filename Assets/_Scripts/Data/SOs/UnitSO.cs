@@ -16,6 +16,8 @@ public class UnitSO : ScriptableObject
     
     [Header("AI")]
     public float awarenessRange;
+    [Range(0f, 1f)]   public float bravery         = 0.5f;
+    [Range(0f, 0.5f)] public float braveryVariance = 0f;
     [SearchableEnum] public MotivationType[] motivations;
     public int randomMotivationsTotal;
     [SearchableEnum] public MotivationType[] randomMotivations;
