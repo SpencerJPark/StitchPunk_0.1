@@ -120,7 +120,9 @@ public partial struct MeleeSingleActionJob : IJobEntity
         float maxRange = attackBlob.range * HYSTERESIS_MULT;
         if (distSq > (maxRange * maxRange))
         {
-            if (math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ)
+            bool stoppedMoving = !movement.isMoving;
+            bool targetShifted = math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ;
+            if (stoppedMoving || targetShifted)
                 AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
             return;
         }
@@ -131,7 +133,8 @@ public partial struct MeleeSingleActionJob : IJobEntity
             bool stoppedMoving = !movement.isMoving;
             bool targetShifted = math.distancesq(pathRequest.targetPosition, targetTransform.Position) >= REPATH_DIST_SQ;
             if (stoppedMoving || targetShifted)
-                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position, attackBlob.range * 0.9f);
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetTransform.Position,
+                    stoppedMoving ? 0f : attackBlob.range * 0.9f);
             return;
         }
 

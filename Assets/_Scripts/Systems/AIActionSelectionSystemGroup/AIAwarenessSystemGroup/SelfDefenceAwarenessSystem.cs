@@ -49,12 +49,10 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(AIBrain))]
-[WithDisabled(typeof(Dead), typeof(ActionInterruptRequest))]
+[WithDisabled(typeof(Dead))]
+[WithPresent(typeof(ActionInterruptRequest))]
 public partial struct FightOrFlightJob : IJobEntity
 {
-    private const float FIGHT_MULTIPLIER  = 3.0f;
-    private const float FLEE_MULTIPLIER   = 1f;
-    
     [ReadOnly]
     public ComponentLookup<Dead>            deadLookup;
     [ReadOnly]
@@ -135,7 +133,6 @@ public partial struct FightOrFlightJob : IJobEntity
                 interaction    = false,
                 targetEntity   = topAggressor,
             });
-
         }
         
         interruptRequest.ValueRW = true;

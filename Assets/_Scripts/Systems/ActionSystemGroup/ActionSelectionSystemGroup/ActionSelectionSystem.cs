@@ -15,7 +15,7 @@ public partial struct ActionSelectionSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<InteractionLibrary>();
-
+        
         interactionLookup = state.GetComponentLookup<Interaction>(false);
 
         int tableSize = (int)ActionType.Spawn + 1;

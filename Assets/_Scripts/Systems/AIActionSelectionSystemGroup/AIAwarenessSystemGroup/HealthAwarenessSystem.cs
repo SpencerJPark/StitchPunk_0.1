@@ -4,6 +4,7 @@ using Unity.Mathematics;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateAfter(typeof(SelfDefenceAwarenessSystem))]
 public partial struct HealthAwarenessSystem : ISystem
 {
     [BurstCompile]
@@ -20,46 +21,43 @@ public partial struct HealthAwarenessSystem : ISystem
     }
 }
 
-// Applies healing to entities with Heal enabled, clamps to max, then disables the component
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(AIBrain))]
 [WithDisabled(typeof(Dead))]
+[WithPresent(typeof(FleeAction), typeof(ActionInterruptRequest))]
 public partial struct HealthAwarenessJob : IJobEntity
 {
-    public void Execute(ref Health health, ref DynamicBuffer<ActionOption> options)
+    public void Execute(
+        ref Health health,
+        in CurrentAction currentAction,
+        ref DynamicBuffer<ActionOption> options,
+        EnabledRefRW<ActionInterruptRequest> interruptRequest)
     {
-        if (health.healthAmount / health.healthAmountMax < 0.3f)
+        if (currentAction.actionType == ActionType.Flee)
+            return;
+
+        if ((float)health.healthAmount / health.healthAmountMax < 0.3f)
         {
             options.Add(new ActionOption
             {
-                actionType = ActionType.Flee,
+                actionType     = ActionType.Flee,
                 motivationType = MotivationType.SelfPreservation,
-                priority = 3,
-                utilityScore = 1f,
+                priority       = 3,
+                utilityScore   = 1f,
             });
+            interruptRequest.ValueRW = true;
             return;
         }
-        if (health.healthAmount / health.healthAmountMax < 0.6f)
+        if ((float)health.healthAmount / health.healthAmountMax < 0.6f)
         {
             options.Add(new ActionOption
             {
-                actionType = ActionType.Flee,
+                actionType     = ActionType.Flee,
                 motivationType = MotivationType.SelfPreservation,
-                priority = 2,
-                utilityScore = 0.6f,
+                priority       = 2,
+                utilityScore   = 0.6f,
             });
-            return;
-        }
-        if (health.healthAmount / health.healthAmountMax < 0.9f)
-        {
-            options.Add(new ActionOption
-            {
-                actionType = ActionType.Flee,
-                motivationType = MotivationType.SelfPreservation,
-                priority = 2,
-                utilityScore = 0.4f,
-            });
-            return;
+            interruptRequest.ValueRW = true;
         }
     }
 }

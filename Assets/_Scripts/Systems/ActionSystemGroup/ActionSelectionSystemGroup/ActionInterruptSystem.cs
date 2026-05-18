@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using UnityEngine;
 
 // Detects ActionInterruptRequest, disables the active action tag via the shared
 // function pointer table, halts pathing, and returns the unit to the decision
@@ -8,7 +9,7 @@ using Unity.Entities;
 // (e.g. SitReleaseRequest) is the responsibility of whoever enables the interrupt.
 //
 // Register a new action type here whenever one is added to ActionSelectionSystem.
-[BurstCompile]
+//[BurstCompile]
 [UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderFirst = true)]
 public partial struct ActionInterruptSystem : ISystem
 {
@@ -44,7 +45,7 @@ public partial struct ActionInterruptSystem : ISystem
             _functionTable.Dispose();
     }
 
-    [BurstCompile]
+    //[BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         playerControlledLookup.Update(ref state);
@@ -62,9 +63,9 @@ public partial struct ActionInterruptSystem : ISystem
     }
 }
 
-[BurstCompile]
+//[BurstCompile]
 [WithAll(typeof(ActionInterruptRequest))]
-[WithPresent(typeof(PathRequest), typeof(ActionTimer))]
+[WithPresent(typeof(PathRequest), typeof(ActionTimer), typeof(ActionRequest))]
 public partial struct ActionInterruptJob : IJobEntity
 {
     [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
@@ -76,16 +77,22 @@ public partial struct ActionInterruptJob : IJobEntity
         [EntityIndexInQuery] int             index,
         in CurrentAction                     currentAction,
         ref ActionTimer                      actionTimer,
+        EnabledRefRW<ActionInterruptRequest> actionInterruptRequestEnabled,
         EnabledRefRW<ActionRequest>          actionRequestEnabled,
-        EnabledRefRW<ActionTimer>            actionTimerEnabled)
+        EnabledRefRW<ActionTimer>            actionTimerEnabled,
+        EnabledRefRW<PathRequest>            pathRequestEnabled)
     {
+        Debug.Log("Action Interrupted");
+        
+        actionInterruptRequestEnabled.ValueRW = false;
+        
         // Disable the active action tag via the shared function table
         int actionIndex = (int)currentAction.actionType;
         if (actionIndex >= 0 && actionIndex < functionTable.Length)
             functionTable[actionIndex].Invoke(in entity, index, ref ecb, false);
 
         // Halt pathing
-        ecb.SetComponentEnabled<PathRequest>(index, entity, false);
+        pathRequestEnabled.ValueRW = false;
 
         // Clear any leftover action timer so the incoming action runs immediately
         actionTimer.time           = 0f;
@@ -97,10 +104,5 @@ public partial struct ActionInterruptJob : IJobEntity
                            playerControlledLookup.IsComponentEnabled(entity);
         if (!playerOwned)
             actionRequestEnabled.ValueRW = true;
-
-        // Keep ActionInterruptRequest enabled until EndSimulation so action systems
-        // with [WithDisabled(typeof(ActionInterruptRequest))] (e.g. SitJob) cannot run
-        // on this entity in the same frame and overwrite the ActionTimer reset above.
-        ecb.SetComponentEnabled<ActionInterruptRequest>(index, entity, false);
     }
 }
