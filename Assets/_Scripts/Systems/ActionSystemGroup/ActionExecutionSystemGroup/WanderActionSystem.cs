@@ -4,15 +4,10 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Executes the Wander action. If CurrentAction.targetEntity is set (a NavigationWaypoint),
-// picks a random point within that waypoint's radius and paths there; otherwise falls back
-// to a random point within awareness range. On arrival at a waypoint, records it in
-// RecentWaypoint (last 2) so the awareness system won't offer it again next cycle.
-//
-// States (ActionTimer enabled state as flag):
-//   Pathing  (WanderAction enabled, ActionTimer disabled) — path to destination
-//   Idling   (WanderAction enabled, ActionTimer enabled)  — wait out ActionTimer
-//   Complete — disable WanderAction, re-enable ActionRequest
+// Executes the Wander action. On the first frame (fresh activation from action selection), paths
+// to the action-selected waypoint (random point within its radius) or a random fallback position.
+// On arrival, records the waypoint in RecentWaypoint and immediately exits back to action selection
+// with no idle delay — the next decision starts the same frame the unit arrives.
 [BurstCompile]
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct WanderActionSystem : ISystem
@@ -46,10 +41,9 @@ public partial struct WanderActionSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(AIBrain), typeof(WanderAction))]
 [WithDisabled(typeof(ActionRequest), typeof(ActionInterruptRequest))]
-[WithPresent(typeof(PathRequest), typeof(ActionTimer))]
+[WithPresent(typeof(PathRequest), typeof(DStarLiteFollower))]
 public partial struct WanderJob : IJobEntity
 {
-    private const float IDLE_DURATION = 2.0f;
     private const float ARRIVE_RANGE  = 1.0f;
     private const float STOPPING_DIST = 0.5f;
 
@@ -59,44 +53,31 @@ public partial struct WanderJob : IJobEntity
     [ReadOnly] public ComponentLookup<NavigationWaypoint> waypointLookup;
 
     public void Execute(
-        [EntityIndexInQuery] int                  entityIndex,
-        in LocalTransform                         transform,
-        in Awareness                              awareness,
-        in CurrentAction                          currentAction,
-        ref PathRequest                           pathRequest,
-        ref ActionTimer                           actionTimer,
-        ref DynamicBuffer<RecentWaypoint>         recentWaypoints,
-        EnabledRefRW<WanderAction>                wanderActionEnabled,
-        EnabledRefRW<ActionRequest>               actionRequestEnabled,
-        EnabledRefRW<ActionTimer>                 actionTimerEnabled,
-        EnabledRefRW<PathRequest>                 pathRequestEnabled)
+        [EntityIndexInQuery] int          entityIndex,
+        in LocalTransform                 transform,
+        in Awareness                      awareness,
+        in CurrentAction                  currentAction,
+        ref PathRequest                   pathRequest,
+        ref DynamicBuffer<RecentWaypoint> recentWaypoints,
+        EnabledRefRW<WanderAction>        wanderActionEnabled,
+        EnabledRefRW<ActionRequest>       actionRequestEnabled,
+        EnabledRefRW<PathRequest>         pathRequestEnabled,
+        EnabledRefRO<DStarLiteFollower>   dstarFollowerEnabled)
     {
-        if (actionTimerEnabled.ValueRO)
-        {
-            // Idling — count down the idle timer (ticked by ActionTimerSystem)
-            if (actionTimer.time <= 0f)
-            {
-                actionTimerEnabled.ValueRW   = false;
-                wanderActionEnabled.ValueRW  = false;
-                actionRequestEnabled.ValueRW = true;
-            }
-            return;
-        }
-
-        // Arrival check
+        // Arrival: record waypoint and return to action selection immediately (no idle)
         if (math.distancesq(transform.Position, pathRequest.targetPosition) <= ARRIVE_RANGE * ARRIVE_RANGE)
         {
             if (currentAction.targetEntity != Entity.Null)
                 PushRecent(ref recentWaypoints, currentAction.targetEntity);
 
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-            actionTimerEnabled.ValueRW = true;
-            actionTimer.time           = IDLE_DURATION;
+            wanderActionEnabled.ValueRW  = false;
+            actionRequestEnabled.ValueRW = true;
             return;
         }
 
-        // First frame: no path issued yet
-        if (!pathRequestEnabled.ValueRO)
+        // Fresh activation: PathRequest not in flight and no active navigation follower
+        if (!pathRequestEnabled.ValueRO && !dstarFollowerEnabled.ValueRO)
         {
             float3 target;
             if (currentAction.targetEntity != Entity.Null
