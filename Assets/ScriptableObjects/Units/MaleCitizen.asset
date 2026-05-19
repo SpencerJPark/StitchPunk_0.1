@@ -45,6 +45,7 @@ MonoBehaviour:
   idleAnimation: 1
   movingAnimation: 2
   attackFactions: 
+  socialFactions: 0306080902
   attacks:
   - action: 18
     attack: 2

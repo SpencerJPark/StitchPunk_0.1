@@ -36,6 +36,7 @@ public partial struct ActionInterruptSystem : ISystem
         _functionTable[(int)ActionType.MeleeContinuous] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
         _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
         _functionTable[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
+        _functionTable[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.TalkEnable);
     }
 
     [BurstCompile]

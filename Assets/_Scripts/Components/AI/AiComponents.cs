@@ -79,11 +79,20 @@ public struct MeleeContinuousAction : IComponentData, IEnableableComponent { }
 public struct MeleeSingleAction : IComponentData, IEnableableComponent { }
 public struct FleeAction : IComponentData, IEnableableComponent { }
 public struct EquipAction : IComponentData, IEnableableComponent { }
+public struct TalkAction : IComponentData, IEnableableComponent { }
 
+// Social state
+public struct SocialEngaged : IComponentData, IEnableableComponent { }
+public struct ConversationContext : IComponentData
+{
+    public Entity conversationPartner;
+    public bool   isResponder;
+}
 
 // Requests
 public struct ActionRequest : IComponentData, IEnableableComponent { }
 public struct ActionSelectionValidationRequest: IComponentData, IEnableableComponent {}
+public struct SocialValidationRequest : IComponentData, IEnableableComponent { }
 public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
 public struct MotivationChangeRequest : IBufferElementData
 {

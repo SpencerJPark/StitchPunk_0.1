@@ -31,6 +31,7 @@ public class UnitSO : ScriptableObject
 
     [Header("Combat")]
     [SearchableEnum] public FactionType[] attackFactions;
+    [SearchableEnum] public FactionType[] socialFactions;
     public AttackActionMapping[] attacks;
     
     [Header("Movement")]

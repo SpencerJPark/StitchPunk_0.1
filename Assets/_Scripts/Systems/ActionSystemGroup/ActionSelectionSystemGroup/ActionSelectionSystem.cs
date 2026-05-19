@@ -8,7 +8,10 @@ using Random = Unity.Mathematics.Random;
 [UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderLast = true)]
 public partial struct ActionSelectionSystem : ISystem
 {
-    private ComponentLookup<Interaction> interactionLookup;
+    private ComponentLookup<Interaction>            interactionLookup;
+    private ComponentLookup<SocialEngaged>          socialEngagedLookup;
+    private ComponentLookup<ConversationContext>    conversationContextLookup;
+    private ComponentLookup<ActionInterruptRequest> actionInterruptRequestLookup;
     private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
 
     public void OnCreate(ref SystemState state)
@@ -16,7 +19,10 @@ public partial struct ActionSelectionSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<InteractionLibrary>();
         
-        interactionLookup = state.GetComponentLookup<Interaction>(false);
+        interactionLookup            = state.GetComponentLookup<Interaction>(false);
+        socialEngagedLookup          = state.GetComponentLookup<SocialEngaged>(false);
+        conversationContextLookup    = state.GetComponentLookup<ConversationContext>(false);
+        actionInterruptRequestLookup = state.GetComponentLookup<ActionInterruptRequest>(false);
 
         int tableSize = (int)ActionType.Spawn + 1;
         _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
@@ -32,6 +38,7 @@ public partial struct ActionSelectionSystem : ISystem
         _functionTable[(int)ActionType.MeleeContinuous] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
         _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
         _functionTable[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
+        _functionTable[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.TalkEnable);
     }
     
     [BurstCompile]
@@ -48,18 +55,19 @@ public partial struct ActionSelectionSystem : ISystem
     {
         float time = (float)SystemAPI.Time.ElapsedTime;
         interactionLookup.Update(ref state);
+        socialEngagedLookup.Update(ref state);
+        conversationContextLookup.Update(ref state);
+        actionInterruptRequestLookup.Update(ref state);
         var ecbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
-        
-        
+
         // 1 Select Best Action
         state.Dependency = new ActionSelectionJob
         {
             time = time,
         }.ScheduleParallel(state.Dependency);
 
-        // 2 Validate Selection on Interactions
-        // Complete pending jobs (including EnvironmentalAwarenessJob's Interaction reads)
-        // before this main-thread job writes to Interaction occupantCount.
+        // 2 Validate Selection
+        // Complete pending jobs before main-thread validation jobs write to shared components.
         state.Dependency.Complete();
         InteractionLibrary interactionLib = SystemAPI.GetSingleton<InteractionLibrary>();
         new ValidateInteractionJob
@@ -67,13 +75,19 @@ public partial struct ActionSelectionSystem : ISystem
             interactionLookup  = interactionLookup,
             interactionLibrary = interactionLib.library,
         }.Run();
-        
+
+        new ValidateSocialJob
+        {
+            socialEngagedLookup          = socialEngagedLookup,
+            conversationContextLookup    = conversationContextLookup,
+            actionInterruptRequestLookup = actionInterruptRequestLookup,
+        }.Run();
+
         // 3 Enable Downstream Components
         state.Dependency = new SetupActionJob
         {
-            ecb = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged).AsParallelWriter(),
-            functionTable = _functionTable
-            
+            ecb           = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged).AsParallelWriter(),
+            functionTable = _functionTable,
         }.ScheduleParallel(state.Dependency);
     }
 
@@ -83,7 +97,7 @@ public partial struct ActionSelectionSystem : ISystem
     [BurstCompile]
     [WithAll(typeof(AIBrain), typeof(ActionRequest))]
     [WithDisabled(typeof(Dead))]
-    [WithPresent(typeof(ActionSelectionValidationRequest))]
+    [WithPresent(typeof(ActionSelectionValidationRequest), typeof(SocialValidationRequest))]
     public partial struct ActionSelectionJob : IJobEntity
     {
         public float time;
@@ -93,7 +107,8 @@ public partial struct ActionSelectionSystem : ISystem
             ref CurrentAction currentAction,
             ref DynamicBuffer<ActionOption> options,
             EnabledRefRW<ActionSelectionValidationRequest> needsValidation,
-            EnabledRefRW<ActionRequest> actionRequest)
+            EnabledRefRW<SocialValidationRequest>          socialValidationRequestEnabled,
+            EnabledRefRW<ActionRequest>                    actionRequest)
         {
 
             // 1. Filter out the previous target to prevent "oscillating" or getting stuck
@@ -116,7 +131,7 @@ public partial struct ActionSelectionSystem : ISystem
             Unity.Mathematics.Random random = new Unity.Mathematics.Random((uint)(entityIndex + 1) * (uint)(time * 1000 + 1));
             int topCount = math.min(options.Length, 3);
             int selectedIndex = random.NextInt(0, topCount);
-            
+
             ActionOption choice = options[selectedIndex];
 
             // 5. Record the selection to CurrentAction
@@ -124,18 +139,26 @@ public partial struct ActionSelectionSystem : ISystem
             currentAction.targetEntity = choice.targetEntity;
 
             // 6. Handle State Transitions
-            // If it's an interaction, disable ActionRequest now so ValidateInteractionJob
-            // can use it as a signal, then re-enable it after validation.
             if (choice.interaction)
             {
-                needsValidation.ValueRW = true;
+                if (choice.actionType == ActionType.Talk)
+                {
+                    // Route to social validation — locks both units and interrupts target
+                    socialValidationRequestEnabled.ValueRW = true;
+                    needsValidation.ValueRW                = false;
+                }
+                else
+                {
+                    // Standard interaction — checks occupant capacity
+                    needsValidation.ValueRW                = true;
+                    socialValidationRequestEnabled.ValueRW = false;
+                }
                 actionRequest.ValueRW = false;
             }
             else
             {
-                // Non-interaction: leave ActionRequest enabled so SetupActionJob (which
-                // filters [WithAll ActionRequest]) picks this entity up and disables it.
-                needsValidation.ValueRW = false;
+                needsValidation.ValueRW                = false;
+                socialValidationRequestEnabled.ValueRW = false;
             }
 
             // 7. Cleanup
@@ -222,7 +245,56 @@ public partial struct ActionSelectionSystem : ISystem
             actionRequest.ValueRW = true;
         }
     }
-    
+
+    [BurstCompile]
+    [WithAll(typeof(SocialValidationRequest))]
+    [WithPresent(typeof(ActionRequest))]
+    public partial struct ValidateSocialJob : IJobEntity
+    {
+        public ComponentLookup<SocialEngaged>          socialEngagedLookup;
+        public ComponentLookup<ConversationContext>    conversationContextLookup;
+        public ComponentLookup<ActionInterruptRequest> actionInterruptRequestLookup;
+
+        public void Execute(
+            Entity                                entity,
+            EnabledRefRW<SocialValidationRequest> socialValidationRequestEnabled,
+            EnabledRefRW<ActionRequest>           actionRequestEnabled,
+            ref CurrentAction                     currentAction)
+        {
+            socialValidationRequestEnabled.ValueRW = false;
+            Entity target = currentAction.targetEntity;
+
+            bool valid = target != Entity.Null
+                && socialEngagedLookup.HasComponent(target)
+                && !socialEngagedLookup.IsComponentEnabled(target)
+                && conversationContextLookup.HasComponent(target);
+
+            if (valid)
+            {
+                socialEngagedLookup.SetComponentEnabled(entity, true);
+                socialEngagedLookup.SetComponentEnabled(target, true);
+                conversationContextLookup[entity] = new ConversationContext
+                {
+                    conversationPartner = target,
+                    isResponder         = false,
+                };
+                conversationContextLookup[target] = new ConversationContext
+                {
+                    conversationPartner = entity,
+                    isResponder         = true,
+                };
+                actionInterruptRequestLookup.SetComponentEnabled(target, true);
+            }
+            else
+            {
+                currentAction.actionType   = ActionType.None;
+                currentAction.targetEntity = Entity.Null;
+            }
+
+            actionRequestEnabled.ValueRW = true;
+        }
+    }
+
     [BurstCompile]
     [WithAll(typeof(ActionRequest))]
     public partial struct SetupActionJob : IJobEntity

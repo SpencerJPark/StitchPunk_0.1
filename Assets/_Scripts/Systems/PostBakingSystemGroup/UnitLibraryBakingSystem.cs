@@ -72,6 +72,11 @@ public partial struct UnitLibraryBakingSystem : ISystem
             for (int j = 0; j < attackFactionCount; j++)
                 attackFactionArray[j] = unitSO.attackFactions[j];
 
+            int socialFactionCount = unitSO.socialFactions?.Length ?? 0;
+            BlobBuilderArray<FactionType> socialFactionArray = builder.Allocate(ref unitsArray[i].socialFactions, socialFactionCount);
+            for (int j = 0; j < socialFactionCount; j++)
+                socialFactionArray[j] = unitSO.socialFactions[j];
+
             int attackCount = unitSO.attacks?.Length ?? 0;
             BlobBuilderArray<AttackActionMappingBlob> attackArray = builder.Allocate(ref unitsArray[i].attacks, attackCount);
             for (int j = 0; j < attackCount; j++)

@@ -57,6 +57,21 @@ public static class UnitBakingUtil
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
 
+        baker.AddComponent<TalkAction>(entity);
+        baker.SetComponentEnabled<TalkAction>(entity, false);
+
+        baker.AddComponent<SocialEngaged>(entity);
+        baker.SetComponentEnabled<SocialEngaged>(entity, false);
+
+        baker.AddComponent(entity, new ConversationContext
+        {
+            conversationPartner = Entity.Null,
+            isResponder         = false,
+        });
+
+        baker.AddComponent<SocialValidationRequest>(entity);
+        baker.SetComponentEnabled<SocialValidationRequest>(entity, false);
+
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
         if (unitSo.attacks != null)
             foreach (AttackActionMapping mapping in unitSo.attacks)

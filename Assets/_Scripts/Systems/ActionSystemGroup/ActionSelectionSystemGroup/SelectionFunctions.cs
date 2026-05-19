@@ -38,4 +38,19 @@ public static class SelectionFunctions
     [BurstCompile]
     public static void SitEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb, bool enabled)
         => ecb.SetComponentEnabled<SitAction>(index, entity, enabled);
+
+    [BurstCompile]
+    public static void TalkEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb, bool enabled)
+    {
+        ecb.SetComponentEnabled<TalkAction>(index, entity, enabled);
+        if (!enabled)
+        {
+            ecb.SetComponentEnabled<SocialEngaged>(index, entity, false);
+            ecb.SetComponent(index, entity, new ConversationContext
+            {
+                conversationPartner = Entity.Null,
+                isResponder         = false,
+            });
+        }
+    }
 }

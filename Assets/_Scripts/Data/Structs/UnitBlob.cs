@@ -24,6 +24,7 @@ public struct UnitDataBlob
     public int randomMotivationAmount;
     public BlobArray<MotivationType> randomMotivations;
     public BlobArray<FactionType> attackFactions;
+    public BlobArray<FactionType> socialFactions;
     public BlobArray<AttackActionMappingBlob> attacks;
     public BlobArray<ActionAnimationMappingBlob> actionAnimations;
     public BlobArray<StanceAnimationBlob> stanceAnimations;
