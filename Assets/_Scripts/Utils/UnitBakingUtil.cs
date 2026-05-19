@@ -51,6 +51,8 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<ActionInterruptRequest>(entity, false);
 
         baker.AddBuffer<MotivationChangeRequest>(entity);
+        baker.AddBuffer<RecentWaypoint>(entity);
+        baker.AddBuffer<RecentInteraction>(entity);
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);

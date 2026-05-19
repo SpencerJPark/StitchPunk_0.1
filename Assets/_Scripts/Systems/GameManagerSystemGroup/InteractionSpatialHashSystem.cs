@@ -43,7 +43,6 @@ public partial struct InteractionSpatialHashSystem : ISystem
         state.Dependency = new RegisterInteractionsJob
         {
             interactionLibrary = interactionLib.library,
-            waypointWriter     = registryRW.ValueRW.waypointCells.AsParallelWriter(),
             interactionWriter  = registryRW.ValueRW.interactionCells.AsParallelWriter(),
         }.ScheduleParallel(state.Dependency);
 
@@ -61,13 +60,11 @@ public partial struct InteractionSpatialHashSystem : ISystem
 public partial struct RegisterInteractionsJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<InteractionLibraryBlob> interactionLibrary;
-    public NativeParallelMultiHashMap<int2, Entity>.ParallelWriter waypointWriter;
     public NativeParallelMultiHashMap<SpatialInteractionKey, Entity>.ParallelWriter interactionWriter;
 
     public void Execute(Entity entity, in LocalTransform transform, in Interaction interaction)
     {
         int2 cell = InteractionSpatialHashSystem.GetCell(transform.Position);
-        waypointWriter.Add(cell, entity);
 
         ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interaction.actionType];
         if (blob.satisfiedMotivation != MotivationType.None)

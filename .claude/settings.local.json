@@ -74,7 +74,14 @@
       "Bash(Select-Object Path)",
       "Bash(Select-Object FullName)",
       "PowerShell(head *)",
-      "Bash(findstr /s \"male\\\\|Male\\\\|npc\\\\|NPC\" _Scripts\\\\Authoring\\\\AI\\\\*.cs)"
+      "Bash(findstr /s \"male\\\\|Male\\\\|npc\\\\|NPC\" _Scripts\\\\Authoring\\\\AI\\\\*.cs)",
+      "Bash(Select-Object Name)",
+      "Bash(start *)",
+      "Bash(Select-String -Path \"C:\\\\Users\\\\spenc\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\skill-creator\\\\unknown\\\\skills\\\\skill-creator\\\\assets\\\\eval_review.html\" -Pattern \"__EVAL_DATA_PLACEHOLDER__|__SKILL_NAME_PLACEHOLDER__|__SKILL_DESCRIPTION_PLACEHOLDER__\")",
+      "Bash(Select-Object -First 5)",
+      "Bash(echo \"Loop started in background \\(PID: $!\\)\")",
+      "Bash(pip install *)",
+      "Skill(dots-unit-ai)"
     ]
   }
 }

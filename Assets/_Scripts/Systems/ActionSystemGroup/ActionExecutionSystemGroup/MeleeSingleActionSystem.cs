@@ -19,7 +19,7 @@ public partial struct MeleeSingleActionSystem : ISystem
         state.RequireForUpdate<UnitDataLibrary>();
         state.RequireForUpdate<AnimationLibrary>();
 
-        deadLookup      = state.GetComponentLookup<Dead>(true);
+        deadLookup = state.GetComponentLookup<Dead>(true);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
     }
 
@@ -76,7 +76,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
         EnabledRefRO<Dead> dead,
         EnabledRefRW<ActionTimer> actionTimerEnabled,
         EnabledRefRW<MeleeSingleAction> meleeSingle,
-        EnabledRefRW<ActionRequest> actionRequest,
+        EnabledRefRW<ActionRequest> actionRequestEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<AttackRequest> attackRequestEnabled,
         EnabledRefRW<AnimationRequest> animationRequestEnabled)
@@ -100,7 +100,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
 
         if (targetMissing || targetInvalid || unitIndex < 0 || isDead || finishedAttack)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequest, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -109,7 +109,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequest, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -157,7 +157,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
         ref AttackRequest attackReq,
         ref PathRequest pathReq,
         EnabledRefRW<MeleeSingleAction> meleeSingle,
-        EnabledRefRW<ActionRequest> actionRequest,
+        EnabledRefRW<ActionRequest> actionRequestEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<AttackRequest> attackRequestEnabled,
         EnabledRefRW<ActionTimer> actionTimerEnabled)
@@ -165,7 +165,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
         attackRequestEnabled.ValueRW = false;
         attackReq.hitFired = false;
         AIUtils.HaltPathing(ref pathReq, pathRequestEnabled);
-        actionRequest.ValueRW = true;
+        actionRequestEnabled.ValueRW = true;
         meleeSingle.ValueRW = false;
         actionTimerEnabled.ValueRW = false;
     }

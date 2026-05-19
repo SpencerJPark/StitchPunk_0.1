@@ -96,6 +96,16 @@ public struct SwapBrainRequest : IComponentData, IEnableableComponent
     public UnitType newUnit;
 }
 
+public struct RecentWaypoint : IBufferElementData
+{
+    public Entity entity;
+}
+
+public struct RecentInteraction : IBufferElementData
+{
+    public Entity entity;
+}
+
 
 
 

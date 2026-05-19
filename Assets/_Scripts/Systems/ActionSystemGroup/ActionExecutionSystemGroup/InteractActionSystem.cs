@@ -229,8 +229,9 @@ public partial struct InteractReleaseJob : IJobEntity
     public ComponentLookup<Interaction> interactionLookup;
 
     public void Execute(
-        ref ReleaseRequest           releaseReq,
-        EnabledRefRW<ReleaseRequest> releaseEnabled)
+        ref ReleaseRequest                   releaseReq,
+        ref DynamicBuffer<RecentInteraction> recentInteractions,
+        EnabledRefRW<ReleaseRequest>         releaseEnabled)
     {
         releaseEnabled.ValueRW = false;
 
@@ -242,6 +243,9 @@ public partial struct InteractReleaseJob : IJobEntity
             interaction.currentOccupants = math.max(0, interaction.currentOccupants - 1);
             interactionLookup[target]    = interaction;
         }
+
+        if (recentInteractions.Length >= 2) recentInteractions.RemoveAt(0);
+        recentInteractions.Add(new RecentInteraction { entity = target });
 
         releaseReq.interactionEntity = Entity.Null;
     }

@@ -52,11 +52,12 @@ public partial struct InteractionAwarenessJob : IJobEntity
 
     public void Execute(
         Entity entity,
-        ref DynamicBuffer<ActionOption> options,
-        in DynamicBuffer<Motivation>    motivations,
-        in LocalTransform               transform,
-        in Awareness                    awareness,
-        in Faction                      faction)
+        ref DynamicBuffer<ActionOption>          options,
+        in DynamicBuffer<Motivation>             motivations,
+        in DynamicBuffer<RecentInteraction>      recentInteractions,
+        in LocalTransform                        transform,
+        in Awareness                             awareness,
+        in Faction                               faction)
     {
         float3 npcPos     = transform.Position;
         int2   centerCell = InteractionSpatialHashSystem.GetCell(npcPos);
@@ -80,7 +81,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
                         do
                         {
                             AddActionIfValid(target, npcPos, awareness.range, currentNeed,
-                                faction.factionType, ref options);
+                                faction.factionType, recentInteractions, ref options);
                         } while (registry.interactionCells.TryGetNextValue(out target, ref it));
                     }
                 }
@@ -89,13 +90,17 @@ public partial struct InteractionAwarenessJob : IJobEntity
     }
 
     private void AddActionIfValid(
-        Entity                          target,
-        float3                          npcPos,
-        float                           maxRange,
-        MotivationType                  motivationType,
-        FactionType                     npcFaction,
-        ref DynamicBuffer<ActionOption> options)
+        Entity                                   target,
+        float3                                   npcPos,
+        float                                    maxRange,
+        MotivationType                           motivationType,
+        FactionType                              npcFaction,
+        in DynamicBuffer<RecentInteraction>      recentInteractions,
+        ref DynamicBuffer<ActionOption>          options)
     {
+        for (int i = 0; i < recentInteractions.Length; i++)
+            if (recentInteractions[i].entity == target) return;
+
         if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform))
             return;
 

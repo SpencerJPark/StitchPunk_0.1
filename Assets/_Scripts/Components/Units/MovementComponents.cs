@@ -55,3 +55,8 @@ public struct HordeMemberBuffer : IBufferElementData
 {
     public Entity memberEntity;
 }
+
+public struct NavigationWaypoint : IComponentData
+{
+    public float radius; // scatter radius; 0 = walk to exact center
+}

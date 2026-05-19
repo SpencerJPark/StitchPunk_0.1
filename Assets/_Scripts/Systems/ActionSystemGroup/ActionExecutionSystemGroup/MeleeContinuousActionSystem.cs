@@ -75,7 +75,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         in Movement movement,
         EnabledRefRO<Dead> dead,
         EnabledRefRW<MeleeContinuousAction> meleeContinuous,
-        EnabledRefRW<ActionRequest> actionRequest,
+        EnabledRefRW<ActionRequest> actionRequestEnabled,
         EnabledRefRW<ActionTimer> actionTimerEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<AttackRequest> attackRequestEnabled,
@@ -99,7 +99,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
 
         if (targetMissing || targetInvalid || unitIndex < 0 || isDead)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeContinuous, actionRequest, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, meleeContinuous, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -108,7 +108,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeContinuous, actionRequest, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, meleeContinuous, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -156,7 +156,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         ref AttackRequest attackReq,
         ref PathRequest pathReq,
         EnabledRefRW<MeleeContinuousAction> meleeContinuousEnabled,
-        EnabledRefRW<ActionRequest> actionRequest,
+        EnabledRefRW<ActionRequest> actionRequestEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<AttackRequest> attackRequestEnabled,
         EnabledRefRW<ActionTimer> actionTimerEnabled)
@@ -164,7 +164,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         attackRequestEnabled.ValueRW = false;
         attackReq.hitFired = false;
         AIUtils.HaltPathing(ref pathReq, pathRequestEnabled);
-        actionRequest.ValueRW = true;
+        actionRequestEnabled.ValueRW = true;
         meleeContinuousEnabled.ValueRW = false;
         actionTimerEnabled.ValueRW = false;
     }
