@@ -17,6 +17,8 @@ public partial struct TalkActionSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<TalkAction>();
+        
         transformLookup           = state.GetComponentLookup<LocalTransform>(true);
         conversationContextLookup = state.GetComponentLookup<ConversationContext>(true);
     }
@@ -37,12 +39,15 @@ public partial struct TalkActionSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(TalkAction))]
+[WithDisabled(typeof(ActionRequest), typeof(Dead))]
+[WithPresent( typeof(ActionTimer), typeof(PathRequest), typeof(AnimationRequest))]
 partial struct TalkJob : IJobEntity
 {
     private const float CONVO_RANGE      = 1.5f;
     private const float DURATION_MIN     = 5f;
     private const float DURATION_MAX     = 15f;
     private const float REPATH_THRESHOLD = 0.5f;
+    private const float SOCIAL_COOLDOWN  = 60f;
 
     public float elapsedTime;
     [ReadOnly] public ComponentLookup<LocalTransform>      transformLookup;
@@ -53,11 +58,13 @@ partial struct TalkJob : IJobEntity
         Entity                                    entity,
         [EntityIndexInQuery] int                  entityIndex,
         in LocalTransform                         transform,
+        in Movement                               movement,
         ref ConversationContext                   context,
         ref PathRequest                           pathRequest,
         ref ActionTimer                           actionTimer,
-        ref DynamicBuffer<SetAnimation>           setAnimations,
+        ref DynamicBuffer<SetAnimation>            setAnimations,
         ref DynamicBuffer<MotivationChangeRequest> changeRequests,
+        ref DynamicBuffer<RecentInteraction>       recentInteractions,
         EnabledRefRW<TalkAction>                  talkEnabled,
         EnabledRefRW<ActionRequest>               actionRequestEnabled,
         EnabledRefRW<ActionTimer>                 actionTimerEnabled,
@@ -85,6 +92,14 @@ partial struct TalkJob : IJobEntity
                         value          = 50f,
                     });
                 }
+                if (partner != Entity.Null)
+                {
+                    recentInteractions.Add(new RecentInteraction
+                    {
+                        entity          = partner,
+                        cooldownEndTime = elapsedTime + SOCIAL_COOLDOWN,
+                    });
+                }
                 Terminate(ref context, ref pathRequest, talkEnabled, actionRequestEnabled,
                     actionTimerEnabled, pathRequestEnabled, socialEngagedEnabled);
             }
@@ -101,8 +116,21 @@ partial struct TalkJob : IJobEntity
         if (!transformLookup.TryGetComponent(partner, out LocalTransform partnerTransform))
             return;
 
-        float distSq  = math.distancesq(transform.Position, partnerTransform.Position);
-        bool  inRange  = distSq <= CONVO_RANGE * CONVO_RANGE;
+        float distSq = math.distancesq(transform.Position, partnerTransform.Position);
+        bool  inRange = distSq <= CONVO_RANGE * CONVO_RANGE;
+
+        // Initiator: first frame always submits approach path — prevents the inRange branch
+        // from short-circuiting before the unit has ever tried to walk.
+        if (!context.isResponder && !context.hasStartedApproach)
+        {
+            context.hasStartedApproach = true;
+            AIUtils.BeginPathRequest(
+                ref pathRequest,
+                pathRequestEnabled,
+                partnerTransform.Position,
+                CONVO_RANGE * 0.9f);
+            return;
+        }
 
         if (inRange)
         {
@@ -126,7 +154,10 @@ partial struct TalkJob : IJobEntity
         // Initiator paths to partner; responder stays put and waits for arrival
         if (!context.isResponder)
         {
-            if (math.distancesq(pathRequest.targetPosition, partnerTransform.Position) >= REPATH_THRESHOLD * REPATH_THRESHOLD)
+            bool stoppedMoving = !movement.isMoving;
+            bool partnerMoved  = math.distancesq(pathRequest.targetPosition, partnerTransform.Position)
+                                 >= REPATH_THRESHOLD * REPATH_THRESHOLD;
+            if (stoppedMoving || partnerMoved)
             {
                 AIUtils.BeginPathRequest(
                     ref pathRequest,
@@ -147,11 +178,12 @@ partial struct TalkJob : IJobEntity
         EnabledRefRW<SocialEngaged>   socialEngagedEnabled)
     {
         AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-        actionTimerEnabled.ValueRW   = false;
-        talkEnabled.ValueRW          = false;
-        socialEngagedEnabled.ValueRW = false;
-        context.conversationPartner  = Entity.Null;
-        context.isResponder          = false;
-        actionRequestEnabled.ValueRW = true;
+        actionTimerEnabled.ValueRW    = false;
+        talkEnabled.ValueRW           = false;
+        socialEngagedEnabled.ValueRW  = false;
+        context.conversationPartner   = Entity.Null;
+        context.isResponder           = false;
+        context.hasStartedApproach    = false;
+        actionRequestEnabled.ValueRW  = true;
     }
 }

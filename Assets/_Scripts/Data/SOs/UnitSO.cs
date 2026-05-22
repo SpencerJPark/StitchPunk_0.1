@@ -22,6 +22,7 @@ public class UnitSO : ScriptableObject
     public int randomMotivationsTotal;
     [SearchableEnum] public MotivationType[] randomMotivations;
     public List<MotivationDecayConfig> motivationDecayRates;
+    [SearchableEnum] public FactionType[] socialFactions;
     
     [Header("Animations")]
     public ActionAnimationMapping[] actionAnimations;
@@ -31,7 +32,6 @@ public class UnitSO : ScriptableObject
 
     [Header("Combat")]
     [SearchableEnum] public FactionType[] attackFactions;
-    [SearchableEnum] public FactionType[] socialFactions;
     public AttackActionMapping[] attacks;
     
     [Header("Movement")]

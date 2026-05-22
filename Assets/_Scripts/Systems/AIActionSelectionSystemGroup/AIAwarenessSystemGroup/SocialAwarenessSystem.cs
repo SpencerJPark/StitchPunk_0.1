@@ -48,6 +48,7 @@ public partial struct SocialAwarenessSystem : ISystem
             currentActionLookup = currentActionLookup,
             factionEntities     = registry.entities,
             unitLibrary         = unitLibrary,
+            elapsedTime         = (float)SystemAPI.Time.ElapsedTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -65,14 +66,16 @@ partial struct SocialAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<CurrentAction>  currentActionLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
+    public float elapsedTime;
 
     void Execute(
-        Entity                          self,
-        in LocalTransform               transform,
-        in UnitData                     unitData,
-        in Awareness                    awareness,
-        in DynamicBuffer<Motivation>    motivations,
-        ref DynamicBuffer<ActionOption> options)
+        Entity                                   self,
+        in LocalTransform                        transform,
+        in UnitData                              unitData,
+        in Awareness                             awareness,
+        in DynamicBuffer<Motivation>             motivations,
+        in DynamicBuffer<RecentInteraction>      recentInteractions,
+        ref DynamicBuffer<ActionOption>          options)
     {
         float socialValue = 0f;
         for (int m = 0; m < motivations.Length; m++)
@@ -109,6 +112,8 @@ partial struct SocialAwarenessJob : IJobEntity
 
                 if (socialEngagedLookup.HasComponent(candidate) && socialEngagedLookup.IsComponentEnabled(candidate)) continue;
 
+                if (IsOnCooldown(recentInteractions, candidate, elapsedTime)) continue;
+
                 if (currentActionLookup.TryGetComponent(candidate, out CurrentAction candidateAction)
                     && candidateAction.actionType.IsCombatAction()) continue;
 
@@ -134,6 +139,19 @@ partial struct SocialAwarenessJob : IJobEntity
             interaction    = true,
             targetEntity   = bestCandidate,
         });
+    }
+
+    private static bool IsOnCooldown(
+        in DynamicBuffer<RecentInteraction> recent,
+        Entity candidate,
+        float time)
+    {
+        for (int i = 0; i < recent.Length; i++)
+        {
+            if (recent[i].entity == candidate && recent[i].cooldownEndTime > time)
+                return true;
+        }
+        return false;
     }
 }
 

@@ -87,6 +87,7 @@ public struct ConversationContext : IComponentData
 {
     public Entity conversationPartner;
     public bool   isResponder;
+    public bool   hasStartedApproach;
 }
 
 // Requests
@@ -113,6 +114,7 @@ public struct RecentWaypoint : IBufferElementData
 public struct RecentInteraction : IBufferElementData
 {
     public Entity entity;
+    public float  cooldownEndTime;   // ElapsedTime when this cooldown expires
 }
 
 
