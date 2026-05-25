@@ -77,9 +77,18 @@ public static class UnitBakingUtil
             foreach (AttackActionMapping mapping in unitSo.attacks)
                 availableAttackBuffer.Add(new AvailableAttack { actionType = mapping.action, attackType = mapping.attack });
 
-        System.Random braveRng  = new System.Random();
-        float         braveBase = unitSo.bravery + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.braveryVariance;
-        baker.AddComponent(entity, new Personality { bravery = math.clamp(braveBase, 0f, 1f) });
+        System.Random braveRng       = new System.Random();
+        float         braveBase      = unitSo.bravery        + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.braveryVariance;
+        float         socialBase     = unitSo.socialAffinity + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.socialAffinityVariance;
+        float         wanderlustBase = unitSo.wanderlust     + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.wanderlustVariance;
+        float         gluttonyBase   = unitSo.gluttony       + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.gluttonyVariance;
+        baker.AddComponent(entity, new Personality
+        {
+            bravery        = math.clamp(braveBase,      0f, 1f),
+            socialAffinity = math.clamp(socialBase,     0f, 1f),
+            wanderlust     = math.clamp(wanderlustBase, 0f, 1f),
+            gluttony       = math.clamp(gluttonyBase,   0f, 1f),
+        });
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)

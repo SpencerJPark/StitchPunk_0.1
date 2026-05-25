@@ -44,7 +44,8 @@ public struct ActionOption : IBufferElementData
     public MotivationType motivationType;
     public int priority;
     public float utilityScore;
-    public bool interaction;
+    public float advertisedDelta;   // promised need restoration; 0 = use raw curve × utilityScore
+    public bool needsValidation;
     public Entity targetEntity;
 }
 

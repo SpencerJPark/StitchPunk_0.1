@@ -131,12 +131,13 @@ public partial struct InteractionAwarenessJob : IJobEntity
 
         options.Add(new ActionOption
         {
-            actionType     = interactData.actionType,
-            motivationType = motivationType,
-            priority = blob.priority,
-            targetEntity   = target,
-            interaction    = true,
-            utilityScore   = distScore
+            actionType      = interactData.actionType,
+            motivationType  = motivationType,
+            priority        = blob.priority,
+            targetEntity    = target,
+            needsValidation     = true,
+            utilityScore    = distScore,
+            advertisedDelta = blob.restorationAmount,
         });
     }
 }

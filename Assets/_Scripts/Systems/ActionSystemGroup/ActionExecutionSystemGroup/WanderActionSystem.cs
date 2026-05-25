@@ -119,7 +119,7 @@ public partial struct WanderJob : IJobEntity
 
     private static void PushRecent(ref DynamicBuffer<RecentWaypoint> buf, Entity entity)
     {
-        if (buf.Length >= 2) buf.RemoveAt(0);
+        if (buf.Length >= 4) buf.RemoveAt(0);
         buf.Add(new RecentWaypoint { entity = entity });
     }
 }

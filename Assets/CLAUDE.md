@@ -16,6 +16,7 @@ The world is one where **necromancy-based engineering** is the primary driver of
 Always write code explicitly, never use var
 As a reminder code using [Readonly] needs to import from Unity.Collection
 Preference using EntityJobs were it make sense in systems
+**Never call `.Run()` on a job** — always use `.Schedule()` (single-threaded worker) or `.ScheduleParallel()`. This is an absolute rule with no exceptions.
 
 Folder Map — Read Before Working
 

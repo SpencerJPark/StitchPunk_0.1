@@ -140,7 +140,7 @@ public partial struct FightOrFlightJob : IJobEntity
                 motivationType = MotivationType.SelfDefence,
                 priority       = 3,
                 utilityScore   = attackUtility,
-                interaction    = false,
+                needsValidation    = false,
                 targetEntity   = topAggressor,
             });
         }

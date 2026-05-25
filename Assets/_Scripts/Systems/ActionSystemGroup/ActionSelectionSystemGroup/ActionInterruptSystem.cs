@@ -9,17 +9,19 @@ using UnityEngine;
 // (e.g. SitReleaseRequest) is the responsibility of whoever enables the interrupt.
 //
 // Register a new action type here whenever one is added to ActionSelectionSystem.
-//[BurstCompile]
+[BurstCompile]
 [UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderFirst = true)]
 public partial struct ActionInterruptSystem : ISystem
 {
     private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
     private ComponentLookup<PlayerControlled>                      playerControlledLookup;
+    private ComponentLookup<TalkAction>                            talkActionLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         playerControlledLookup = state.GetComponentLookup<PlayerControlled>(true);
+        talkActionLookup       = state.GetComponentLookup<TalkAction>(true);
 
         int tableSize  = (int)ActionType.Spawn + 1;
         _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
@@ -46,10 +48,11 @@ public partial struct ActionInterruptSystem : ISystem
             _functionTable.Dispose();
     }
 
-    //[BurstCompile]
+    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         playerControlledLookup.Update(ref state);
+        talkActionLookup.Update(ref state);
 
         EntityCommandBuffer ecb = SystemAPI
             .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
@@ -59,18 +62,20 @@ public partial struct ActionInterruptSystem : ISystem
         {
             functionTable          = _functionTable,
             playerControlledLookup = playerControlledLookup,
+            talkActionLookup       = talkActionLookup,
             ecb                    = ecb.AsParallelWriter(),
         }.ScheduleParallel(state.Dependency);
     }
 }
 
-//[BurstCompile]
+[BurstCompile]
 [WithAll(typeof(ActionInterruptRequest))]
 [WithPresent(typeof(PathRequest), typeof(ActionTimer), typeof(ActionRequest))]
 public partial struct ActionInterruptJob : IJobEntity
 {
     [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
     [ReadOnly] public ComponentLookup<PlayerControlled>                      playerControlledLookup;
+    [ReadOnly] public ComponentLookup<TalkAction>                            talkActionLookup;
     public EntityCommandBuffer.ParallelWriter ecb;
 
     public void Execute(
@@ -83,8 +88,6 @@ public partial struct ActionInterruptJob : IJobEntity
         EnabledRefRW<ActionTimer>            actionTimerEnabled,
         EnabledRefRW<PathRequest>            pathRequestEnabled)
     {
-        Debug.Log("Action Interrupted");
-        
         actionInterruptRequestEnabled.ValueRW = false;
         
         // Disable the active action tag via the shared function table
@@ -99,11 +102,11 @@ public partial struct ActionInterruptJob : IJobEntity
         actionTimer.time           = 0f;
         actionTimerEnabled.ValueRW = false;
 
-        // Return to decision pipeline via direct write (not ECB) so ActionSelectionJob
-        // can pick new options in the same frame.
-        bool playerOwned = playerControlledLookup.HasComponent(entity) &&
-                           playerControlledLookup.IsComponentEnabled(entity);
-        if (!playerOwned)
+        // Return to decision pipeline. Skip if player-owned (player input drives those units)
+        // or if TalkAction is already enabled (responder was locked in by ValidateSocialJob).
+        bool playerOwned  = playerControlledLookup.HasComponent(entity) && playerControlledLookup.IsComponentEnabled(entity);
+        bool talkActive   = talkActionLookup.HasComponent(entity)       && talkActionLookup.IsComponentEnabled(entity);
+        if (!playerOwned && !talkActive)
             actionRequestEnabled.ValueRW = true;
     }
 }

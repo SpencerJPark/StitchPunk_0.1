@@ -22,6 +22,7 @@ These rules apply to **every file** in `_Scripts/`. No exceptions.
 - This is **Unity DOTS (ECS + Jobs + Burst)**. All game logic lives in [[Systems]], not MonoBehaviours.
 - Prefer `ISystem` (struct) over `SystemBase` (class) — it is Burst-compatible and has lower overhead.
 - Always annotate `ISystem` structs with `[BurstCompile]`.
+- **Never call `.Run()` on a job** — always use `.Schedule()` (single-threaded worker) or `.ScheduleParallel()`. `.Run()` blocks the main thread and bypasses the job system entirely.
 - **Never allocate managed memory inside a Burst job** — no `new List<>`, no `string`, no boxing.
 - Use `NativeArray`, `NativeList`, `NativeHashMap`, etc. and dispose them properly (use `[DeallocateOnJobCompletion]` or manual `Dispose()` in `OnDestroy`).
 - Never write logic inside `IComponentData` structs — see [[Components]] for conventions.

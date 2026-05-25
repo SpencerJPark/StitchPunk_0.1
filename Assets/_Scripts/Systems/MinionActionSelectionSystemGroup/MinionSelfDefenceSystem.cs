@@ -135,7 +135,7 @@ public partial struct MinionCounterJob : IJobEntity
                 motivationType = MotivationType.SelfDefence,
                 priority = 3,
                 utilityScore   = rangeScore,
-                interaction    = false,
+                needsValidation    = false,
                 targetEntity   = bestAttacker,
             });
         }
@@ -204,7 +204,7 @@ public partial struct NearbyAlertJob : IJobEntity
                     motivationType = MotivationType.SelfDefence,
                     priority = 2,
                     utilityScore   = rangeScore,
-                    interaction    = false,
+                    needsValidation    = false,
                     targetEntity   = alert.attackerEntity,
                 });
             }

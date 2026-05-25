@@ -20,7 +20,6 @@ public class RotterBrainAuthoring : MonoBehaviour
             UnitBakingUtil.AddAction<RotterBrainAuthoring, MeleeContinuousAction>(this, entity);
             UnitBakingUtil.AddAction<RotterBrainAuthoring, WanderAction>(this, entity);
             UnitBakingUtil.AddAction<RotterBrainAuthoring, IdleAction>(this, entity);
-            UnitBakingUtil.AddAction<RotterBrainAuthoring, FleeAction>(this, entity);
         }
     }
 }

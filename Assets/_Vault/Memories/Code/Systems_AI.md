@@ -31,27 +31,39 @@ Runs before `AIActionSelectionSystemGroup`. Handles **player-guided entities** (
 
 Handles **utility-guided entities** (`PlayerControlled` disabled). Contains two sub-groups:
 
-#### AIAwarenessSystemGroup
+#### AIMotivationSystemGroup
 
-Perception + motivation decay. Runs before `AIScoringSystemGroup`.
+Motivation decay and personality context. Runs before `AIAwarenessSystemGroup`.
 
 | System | Purpose |
 |---|---|
-| `EnemyAwarenessSystem` | Detects hostiles within awareness range → injects attack `ActionOption` entries |
+| `MotivationDecaySystem` (OrderFirst) | Resets `contextMultiplier` to 1.0, decays `value` by `decayRate × deltaTime` |
+| `MotivationChangeRequestSystem` | Applies batched `MotivationChangeRequest` entries (Add / Set mode) |
+| `PersonalityContextSystem` | Writes `contextMultiplier` per motivation from `Personality` traits (socialAffinity, wanderlust, gluttony) |
+
+#### AIAwarenessSystemGroup
+
+Perception + option generation. Runs before `AIScoringSystemGroup`.
+
+| System | Purpose |
+|---|---|
+| `ClearOptionsSystem` (OrderFirst) | Clears the `ActionOption` buffer |
+| `EnemyAwarenessSystem` | Detects hostiles → sets BloodLust = 100, injects attack options |
 | `SelfDefenceAwarenessSystem` | Detects incoming threats → injects self-defence options |
-| `HealthAwarenessSystem` | Monitors health thresholds → injects survival options |
-| `ItemAwarenessSystem` | Finds nearby interactables → injects interact options |
-| `EnviromentalAwarenessSystem` | Environment context → injects environmental options |
-| `MotivationDecaySystem` | Ticks all `Motivation` buffer entries down by `decayRate × deltaTime` |
+| `HealthAwarenessSystem` | Monitors health thresholds → injects survival/flee options |
+| `InteractionAwarenessSystem` | Spatial-hash query per motivation → injects interaction options with `advertisedDelta = blob.restorationAmount` |
+| `SocialAwarenessSystem` | Finds nearby friendly NPCs → injects Talk option with `advertisedDelta = 40f` |
+| `ItemAwarenessSystem` | Nearby items — stub |
+| `EnvironmentalAwarenessSystem` | Environment context — stub |
 
 #### AIScoringSystemGroup
 
-Scores and prunes the `ActionOption` buffer built by awareness systems.
+Scores and prunes the `ActionOption` buffer.
 
 | System | Purpose |
 |---|---|
-| `MotivationScoringSystem` | Multiplies each option's utility score by a curve evaluated against the corresponding `Motivation.value` |
-| `ActionPrioritySystem` | Adds tier bonuses (Combat +1.0, Survival +2.0 when health < 60%); prunes options with score ≤ 0 |
+| `MotivationScoringSystem` | **Need-delta formula**: `advertisedDelta != 0` → `(curve(current) − curve(future)) × utilityScore × contextMultiplier`; `advertisedDelta == 0` → `curve(value) × utilityScore × contextMultiplier` (fallback for combat context-flags) |
+| `ActionPrioritySystem` | Keeps only the highest-priority tier; lower tiers are removed |
 
 ---
 

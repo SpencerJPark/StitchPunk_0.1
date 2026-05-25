@@ -36,6 +36,7 @@ public partial struct NavigationAwarenessSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithPresent(typeof(WanderAction))]
 public partial struct NavigationAwarenessJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity> waypointCells;
@@ -80,7 +81,7 @@ public partial struct NavigationAwarenessJob : IJobEntity
                         motivationType = MotivationType.Movement,
                         priority       = 0,
                         utilityScore   = utilityScore,
-                        interaction    = false,
+                        needsValidation    = false,
                         targetEntity   = waypoint,
                     });
                 }

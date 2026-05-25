@@ -146,7 +146,7 @@ public partial struct CombatAwarenessJob : IJobEntity
                     motivationType = MotivationType.BloodLust,
                     priority = 2,
                     utilityScore   = rangeScore,
-                    interaction    = false,
+                    needsValidation    = false,
                     targetEntity   = nearestHostile,
                 });
             }
