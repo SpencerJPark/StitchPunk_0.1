@@ -45,7 +45,6 @@ public static class SelectionFunctions
         ecb.SetComponentEnabled<TalkAction>(index, entity, enabled);
         if (!enabled)
         {
-            ecb.SetComponentEnabled<SocialEngaged>(index, entity, false);
             ecb.SetComponent(index, entity, new ConversationContext
             {
                 conversationPartner = Entity.Null,

@@ -83,7 +83,6 @@ public struct EquipAction : IComponentData, IEnableableComponent { }
 public struct TalkAction : IComponentData, IEnableableComponent { }
 
 // Social state
-public struct SocialEngaged : IComponentData, IEnableableComponent { }
 public struct ConversationContext : IComponentData
 {
     public Entity conversationPartner;

@@ -57,12 +57,6 @@ public static class UnitBakingUtil
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
 
-        baker.AddComponent<TalkAction>(entity);
-        baker.SetComponentEnabled<TalkAction>(entity, false);
-
-        baker.AddComponent<SocialEngaged>(entity);
-        baker.SetComponentEnabled<SocialEngaged>(entity, false);
-
         baker.AddComponent(entity, new ConversationContext
         {
             conversationPartner = Entity.Null,

@@ -12,6 +12,7 @@ public partial struct TalkActionSystem : ISystem
 {
     private ComponentLookup<LocalTransform>      transformLookup;
     private ComponentLookup<ConversationContext> conversationContextLookup;
+    private ComponentLookup<CurrentAction> currentActionLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -21,6 +22,7 @@ public partial struct TalkActionSystem : ISystem
         
         transformLookup           = state.GetComponentLookup<LocalTransform>(true);
         conversationContextLookup = state.GetComponentLookup<ConversationContext>(true);
+        currentActionLookup = state.GetComponentLookup<CurrentAction>(true);
     }
 
     [BurstCompile]
@@ -28,11 +30,14 @@ public partial struct TalkActionSystem : ISystem
     {
         transformLookup.Update(ref state);
         conversationContextLookup.Update(ref state);
+        currentActionLookup.Update(ref state);
+        
         state.Dependency = new TalkJob
         {
             elapsedTime               = (float)SystemAPI.Time.ElapsedTime,
             transformLookup           = transformLookup,
             conversationContextLookup = conversationContextLookup,
+            currentActionLookup = currentActionLookup,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -53,6 +58,7 @@ partial struct TalkJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform>      transformLookup;
     [ReadOnly, NativeDisableContainerSafetyRestriction]
     public ComponentLookup<ConversationContext> conversationContextLookup;
+    [ReadOnly] public ComponentLookup<CurrentAction> currentActionLookup;
 
     void Execute(
         Entity                                    entity,
@@ -69,14 +75,15 @@ partial struct TalkJob : IJobEntity
         EnabledRefRW<ActionRequest>               actionRequestEnabled,
         EnabledRefRW<ActionTimer>                 actionTimerEnabled,
         EnabledRefRW<PathRequest>                 pathRequestEnabled,
-        EnabledRefRW<AnimationRequest>            animationRequestEnabled,
-        EnabledRefRW<SocialEngaged>               socialEngagedEnabled)
+        EnabledRefRW<AnimationRequest>            animationRequestEnabled)
     {
         Entity partner = context.conversationPartner;
 
-        bool partnerLost = partner == Entity.Null
+        bool partnerLost = 
+            partner == Entity.Null
             || !conversationContextLookup.TryGetComponent(partner, out ConversationContext partnerContext)
-            || partnerContext.conversationPartner != entity;
+            || partnerContext.conversationPartner != entity
+            || currentActionLookup[partner].targetEntity != entity;
 
         // Talking state — ActionTimerSystem already decremented actionTimer.time this frame
         if (actionTimerEnabled.ValueRO)
@@ -101,7 +108,7 @@ partial struct TalkJob : IJobEntity
                     });
                 }
                 Terminate(ref context, ref pathRequest, talkEnabled, actionRequestEnabled,
-                    actionTimerEnabled, pathRequestEnabled, socialEngagedEnabled);
+                    actionTimerEnabled, pathRequestEnabled);
             }
             return;
         }
@@ -109,7 +116,7 @@ partial struct TalkJob : IJobEntity
         if (partnerLost)
         {
             Terminate(ref context, ref pathRequest, talkEnabled, actionRequestEnabled,
-                actionTimerEnabled, pathRequestEnabled, socialEngagedEnabled);
+                actionTimerEnabled, pathRequestEnabled);
             return;
         }
 
@@ -174,16 +181,14 @@ partial struct TalkJob : IJobEntity
         EnabledRefRW<TalkAction>      talkEnabled,
         EnabledRefRW<ActionRequest>   actionRequestEnabled,
         EnabledRefRW<ActionTimer>     actionTimerEnabled,
-        EnabledRefRW<PathRequest>     pathRequestEnabled,
-        EnabledRefRW<SocialEngaged>   socialEngagedEnabled)
+        EnabledRefRW<PathRequest>     pathRequestEnabled)
     {
         AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
-        actionTimerEnabled.ValueRW    = false;
-        talkEnabled.ValueRW           = false;
-        socialEngagedEnabled.ValueRW  = false;
-        context.conversationPartner   = Entity.Null;
-        context.isResponder           = false;
-        context.hasStartedApproach    = false;
-        actionRequestEnabled.ValueRW  = true;
+        actionTimerEnabled.ValueRW   = false;
+        talkEnabled.ValueRW          = false;
+        context.conversationPartner  = Entity.Null;
+        context.isResponder          = false;
+        context.hasStartedApproach   = false;
+        actionRequestEnabled.ValueRW = true;
     }
 }
