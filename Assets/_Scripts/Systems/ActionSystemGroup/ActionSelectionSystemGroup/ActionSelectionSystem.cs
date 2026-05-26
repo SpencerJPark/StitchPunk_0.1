@@ -9,9 +9,10 @@ using Random = Unity.Mathematics.Random;
 public partial struct ActionSelectionSystem : ISystem
 {
     private ComponentLookup<Interaction>            interactionLookup;
-    private ComponentLookup<SocialEngaged>          socialEngagedLookup;
+    private ComponentLookup<TalkAction>             talkActionLookup;
     private ComponentLookup<ConversationContext>    conversationContextLookup;
     private ComponentLookup<ActionInterruptRequest> actionInterruptRequestLookup;
+    private ComponentLookup<ActionRequest>          actionRequestLookup;
     private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
 
     public void OnCreate(ref SystemState state)
@@ -20,9 +21,10 @@ public partial struct ActionSelectionSystem : ISystem
         state.RequireForUpdate<InteractionLibrary>();
         
         interactionLookup            = state.GetComponentLookup<Interaction>(false);
-        socialEngagedLookup          = state.GetComponentLookup<SocialEngaged>(false);
+        talkActionLookup             = state.GetComponentLookup<TalkAction>(false);
         conversationContextLookup    = state.GetComponentLookup<ConversationContext>(false);
         actionInterruptRequestLookup = state.GetComponentLookup<ActionInterruptRequest>(false);
+        actionRequestLookup          = state.GetComponentLookup<ActionRequest>(false);
 
         int tableSize = (int)ActionType.Spawn + 1;
         _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
@@ -55,10 +57,12 @@ public partial struct ActionSelectionSystem : ISystem
     {
         float time = (float)SystemAPI.Time.ElapsedTime;
         interactionLookup.Update(ref state);
-        socialEngagedLookup.Update(ref state);
+        talkActionLookup.Update(ref state);
         conversationContextLookup.Update(ref state);
         actionInterruptRequestLookup.Update(ref state);
+        actionRequestLookup.Update(ref state);
         var ecbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+        InteractionLibrary interactionLib = SystemAPI.GetSingleton<InteractionLibrary>();
 
         // 1 Select Best Action
         state.Dependency = new ActionSelectionJob
@@ -67,21 +71,19 @@ public partial struct ActionSelectionSystem : ISystem
         }.ScheduleParallel(state.Dependency);
 
         // 2 Validate Selection
-        // Complete pending jobs before main-thread validation jobs write to shared components.
-        state.Dependency.Complete();
-        InteractionLibrary interactionLib = SystemAPI.GetSingleton<InteractionLibrary>();
-        new ValidateInteractionJob
+        state.Dependency = new ValidateInteractionJob
         {
             interactionLookup  = interactionLookup,
             interactionLibrary = interactionLib.library,
-        }.Run();
+        }.Schedule(state.Dependency);
 
-        new ValidateSocialJob
+        state.Dependency = new ValidateSocialJob
         {
-            socialEngagedLookup          = socialEngagedLookup,
+            talkActionLookup             = talkActionLookup,
             conversationContextLookup    = conversationContextLookup,
             actionInterruptRequestLookup = actionInterruptRequestLookup,
-        }.Run();
+            actionRequestLookup          = actionRequestLookup,
+        }.Schedule(state.Dependency);
 
         // 3 Enable Downstream Components
         state.Dependency = new SetupActionJob
@@ -139,7 +141,7 @@ public partial struct ActionSelectionSystem : ISystem
             currentAction.targetEntity = choice.targetEntity;
 
             // 6. Handle State Transitions
-            if (choice.interaction)
+            if (choice.needsValidation)
             {
                 if (choice.actionType == ActionType.Talk)
                 {
@@ -187,7 +189,7 @@ public partial struct ActionSelectionSystem : ISystem
             {
                 // Only filter interactions — prevents immediately returning to the same chair/NPC.
                 // Combat options are never filtered; re-targeting the same hostile is correct.
-                if (options[i].interaction && options[i].targetEntity == previousTarget)
+                if (options[i].needsValidation && options[i].targetEntity == previousTarget)
                 {
                     options.RemoveAt(i);
                 }
@@ -251,28 +253,27 @@ public partial struct ActionSelectionSystem : ISystem
     [WithPresent(typeof(ActionRequest))]
     public partial struct ValidateSocialJob : IJobEntity
     {
-        public ComponentLookup<SocialEngaged>          socialEngagedLookup;
+        public ComponentLookup<TalkAction>             talkActionLookup;
         public ComponentLookup<ConversationContext>    conversationContextLookup;
         public ComponentLookup<ActionInterruptRequest> actionInterruptRequestLookup;
+        public ComponentLookup<ActionRequest>          actionRequestLookup;
 
         public void Execute(
             Entity                                entity,
             EnabledRefRW<SocialValidationRequest> socialValidationRequestEnabled,
-            EnabledRefRW<ActionRequest>           actionRequestEnabled,
             ref CurrentAction                     currentAction)
         {
             socialValidationRequestEnabled.ValueRW = false;
             Entity target = currentAction.targetEntity;
 
             bool valid = target != Entity.Null
-                && socialEngagedLookup.HasComponent(target)
-                && !socialEngagedLookup.IsComponentEnabled(target)
-                && conversationContextLookup.HasComponent(target);
+                && talkActionLookup.HasComponent(target)
+                && !talkActionLookup.IsComponentEnabled(target)
+                && conversationContextLookup.HasComponent(target)
+                && conversationContextLookup[target].conversationPartner != entity;
 
             if (valid)
             {
-                socialEngagedLookup.SetComponentEnabled(entity, true);
-                socialEngagedLookup.SetComponentEnabled(target, true);
                 conversationContextLookup[entity] = new ConversationContext
                 {
                     conversationPartner = target,
@@ -283,6 +284,15 @@ public partial struct ActionSelectionSystem : ISystem
                     conversationPartner = entity,
                     isResponder         = true,
                 };
+                // Enable TalkAction on BOTH directly — prevents double-booking if the partner
+                // also picked Talk this same frame (their check sees initiator already locked).
+                talkActionLookup.SetComponentEnabled(entity, true);
+                talkActionLookup.SetComponentEnabled(target, true);
+                // Disable ActionRequest on responder so SetupActionJob cannot re-activate
+                // their old action tag in the same frame, which would cause them to re-enter
+                // selection and overwrite ConversationContext.
+                actionRequestLookup.SetComponentEnabled(target, false);
+                // Interrupt responder to clear any action they were already executing.
                 actionInterruptRequestLookup.SetComponentEnabled(target, true);
             }
             else
@@ -291,7 +301,11 @@ public partial struct ActionSelectionSystem : ISystem
                 currentAction.targetEntity = Entity.Null;
             }
 
-            actionRequestEnabled.ValueRW = true;
+            // Success: initiator goes straight to TalkJob (TalkAction already enabled above).
+            // Failure: initiator retries selection next frame, unless we were already locked as
+            // a responder by the partner's iteration of this same job (mutual-selection race).
+            bool alreadyLockedAsResponder = talkActionLookup.IsComponentEnabled(entity);
+            actionRequestLookup.SetComponentEnabled(entity, !valid && !alreadyLockedAsResponder);
         }
     }
 
@@ -309,9 +323,7 @@ public partial struct ActionSelectionSystem : ISystem
             EnabledRefRW<ActionRequest> needsAction)
         {
             int actionIndex = (int)currentAction.actionType;
-
-            // ActionType.None (0) means no valid action was selected (e.g. failed interaction
-            // validation). Leave ActionRequest enabled so the unit retries next frame.
+            
             if (actionIndex > 0 && actionIndex < functionTable.Length)
             {
                 functionTable[actionIndex].Invoke(in entity, index, ref ecb, true);

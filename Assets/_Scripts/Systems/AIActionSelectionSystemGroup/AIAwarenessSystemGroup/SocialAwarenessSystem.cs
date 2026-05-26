@@ -11,7 +11,7 @@ public partial struct SocialAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<Dead>           deadLookup;
-    private ComponentLookup<SocialEngaged>  socialEngagedLookup;
+    private ComponentLookup<TalkAction>     talkActionLookup;
     private ComponentLookup<CurrentAction>  currentActionLookup;
 
     [BurstCompile]
@@ -22,7 +22,7 @@ public partial struct SocialAwarenessSystem : ISystem
         state.RequireForUpdate<UnitDataLibrary>();
         transformLookup     = state.GetComponentLookup<LocalTransform>(true);
         deadLookup          = state.GetComponentLookup<Dead>(true);
-        socialEngagedLookup = state.GetComponentLookup<SocialEngaged>(true);
+        talkActionLookup = state.GetComponentLookup<TalkAction>(true);
         currentActionLookup = state.GetComponentLookup<CurrentAction>(true);
     }
 
@@ -31,7 +31,7 @@ public partial struct SocialAwarenessSystem : ISystem
     {
         transformLookup.Update(ref state);
         deadLookup.Update(ref state);
-        socialEngagedLookup.Update(ref state);
+        talkActionLookup.Update(ref state);
         currentActionLookup.Update(ref state);
 
         FactionRegistry registry = SystemAPI.GetSingleton<FactionRegistry>();
@@ -44,7 +44,7 @@ public partial struct SocialAwarenessSystem : ISystem
         {
             transformLookup     = transformLookup,
             deadLookup          = deadLookup,
-            socialEngagedLookup = socialEngagedLookup,
+            talkActionLookup = talkActionLookup,
             currentActionLookup = currentActionLookup,
             factionEntities     = registry.entities,
             unitLibrary         = unitLibrary,
@@ -55,14 +55,14 @@ public partial struct SocialAwarenessSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(AIBrain), typeof(ActionRequest))]
-[WithDisabled(typeof(Dead), typeof(SocialEngaged))]
+[WithDisabled(typeof(Dead), typeof(TalkAction))]
 partial struct SocialAwarenessJob : IJobEntity
 {
-    private const float SOCIAL_MOTIVATION_THRESHOLD = 20f;
+    private const float SOCIAL_MOTIVATION_THRESHOLD = -20f;
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [ReadOnly] public ComponentLookup<Dead>           deadLookup;
-    [ReadOnly] public ComponentLookup<SocialEngaged>  socialEngagedLookup;
+    [ReadOnly] public ComponentLookup<TalkAction>  talkActionLookup;
     [ReadOnly] public ComponentLookup<CurrentAction>  currentActionLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
@@ -110,7 +110,7 @@ partial struct SocialAwarenessJob : IJobEntity
 
                 if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate)) continue;
 
-                if (socialEngagedLookup.HasComponent(candidate) && socialEngagedLookup.IsComponentEnabled(candidate)) continue;
+                if (talkActionLookup.HasComponent(candidate) && talkActionLookup.IsComponentEnabled(candidate)) continue;
 
                 if (IsOnCooldown(recentInteractions, candidate, elapsedTime)) continue;
 
@@ -132,12 +132,13 @@ partial struct SocialAwarenessJob : IJobEntity
 
         options.Add(new ActionOption
         {
-            actionType     = ActionType.Talk,
-            motivationType = MotivationType.Social,
-            priority       = 1,
-            utilityScore   = 1f - math.saturate(bestDistSq / rangeSq),
-            interaction    = true,
-            targetEntity   = bestCandidate,
+            actionType      = ActionType.Talk,
+            motivationType  = MotivationType.Social,
+            priority        = 1,
+            utilityScore    = 1f - math.saturate(bestDistSq / rangeSq),
+            advertisedDelta = 40f,
+            needsValidation     = true,
+            targetEntity    = bestCandidate,
         });
     }
 
@@ -155,42 +156,5 @@ partial struct SocialAwarenessJob : IJobEntity
     }
 }
 
-// Responder path: a unit whose SocialEngaged was set by ValidateSocialJob re-enters
-// selection after an ActionInterruptRequest and needs to pick TalkAction immediately.
-[BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
-[UpdateAfter(typeof(SocialAwarenessSystem))]
-public partial struct SocialRespondAwarenessSystem : ISystem
-{
-    [BurstCompile]
-    public void OnCreate(ref SystemState state) => state.RequireForUpdate<GameSceneTag>();
 
-    [BurstCompile]
-    public void OnUpdate(ref SystemState state)
-    {
-        state.Dependency = new SocialRespondJob().ScheduleParallel(state.Dependency);
-    }
-}
 
-[BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest), typeof(SocialEngaged))]
-[WithDisabled(typeof(Dead))]
-partial struct SocialRespondJob : IJobEntity
-{
-    void Execute(in ConversationContext context, ref DynamicBuffer<ActionOption> options)
-    {
-        if (context.conversationPartner == Entity.Null || !context.isResponder) return;
-
-        // interaction=false skips ValidateSocialJob — locking already happened.
-        // Priority 2 beats normal social initiations (1) but yields to self-defence (3).
-        options.Add(new ActionOption
-        {
-            actionType     = ActionType.Talk,
-            motivationType = MotivationType.Social,
-            priority       = 2,
-            utilityScore   = 100f,
-            interaction    = false,
-            targetEntity   = context.conversationPartner,
-        });
-    }
-}
