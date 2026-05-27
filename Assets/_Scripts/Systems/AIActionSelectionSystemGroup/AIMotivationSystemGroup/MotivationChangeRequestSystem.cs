@@ -7,8 +7,7 @@ using Unity.Mathematics;
 // writing to the Motivation buffer directly. The buffer accumulates across the frame and
 // is flushed once per selection cycle before awareness systems run.
 [BurstCompile]
-[UpdateInGroup(typeof(AIMotivationSystemGroup))]
-[UpdateAfter(typeof(MotivationDecaySystem))]
+[UpdateInGroup(typeof(AIMotivationSystemGroup), OrderFirst = true)]
 public partial struct MotivationChangeRequestSystem : ISystem
 {
     [BurstCompile]

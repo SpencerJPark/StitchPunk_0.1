@@ -81,7 +81,8 @@
       "Bash(Select-Object -First 5)",
       "Bash(echo \"Loop started in background \\(PID: $!\\)\")",
       "Bash(pip install *)",
-      "Skill(dots-unit-ai)"
+      "Skill(dots-unit-ai)",
+      "Bash(findstr /n \"SystemGroup\\\\|UpdateInGroup\" Assets/_Scripts/Systems/SystemGroups.cs)"
     ]
   }
 }

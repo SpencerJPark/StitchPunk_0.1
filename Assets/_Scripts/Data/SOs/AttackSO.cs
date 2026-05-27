@@ -29,4 +29,8 @@ public class AttackSO : ScriptableObject
     [Header("Hit Timing")]
     [Tooltip("Seconds into the attack animation when damage fires. Must be less than the clip duration.")]
     public float hitTime = 0.3f;
+
+    [Header("Attack Rate")]
+    [Tooltip("Seconds between swings. Must be >= hitTime so the hit lands before the next swing.")]
+    public float cooldown = 1f;
 }

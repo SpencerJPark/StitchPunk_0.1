@@ -9,10 +9,9 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
 public partial struct SocialAwarenessSystem : ISystem
 {
-    private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<Dead>           deadLookup;
-    private ComponentLookup<TalkAction>     talkActionLookup;
-    private ComponentLookup<CurrentAction>  currentActionLookup;
+    private ComponentLookup<LocalTransform>  transformLookup;
+    private ComponentLookup<Dead>            deadLookup;
+    private ComponentLookup<SocialAvailable> socialAvailableLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -20,10 +19,9 @@ public partial struct SocialAwarenessSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<UnitDataLibrary>();
-        transformLookup     = state.GetComponentLookup<LocalTransform>(true);
-        deadLookup          = state.GetComponentLookup<Dead>(true);
-        talkActionLookup = state.GetComponentLookup<TalkAction>(true);
-        currentActionLookup = state.GetComponentLookup<CurrentAction>(true);
+        transformLookup       = state.GetComponentLookup<LocalTransform>(true);
+        deadLookup            = state.GetComponentLookup<Dead>(true);
+        socialAvailableLookup = state.GetComponentLookup<SocialAvailable>(true);
     }
 
     [BurstCompile]
@@ -31,8 +29,7 @@ public partial struct SocialAwarenessSystem : ISystem
     {
         transformLookup.Update(ref state);
         deadLookup.Update(ref state);
-        talkActionLookup.Update(ref state);
-        currentActionLookup.Update(ref state);
+        socialAvailableLookup.Update(ref state);
 
         FactionRegistry registry = SystemAPI.GetSingleton<FactionRegistry>();
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
@@ -42,13 +39,12 @@ public partial struct SocialAwarenessSystem : ISystem
         // unsafe to read in parallel while writers may exist in the same update group.
         state.Dependency = new SocialAwarenessJob
         {
-            transformLookup     = transformLookup,
-            deadLookup          = deadLookup,
-            talkActionLookup = talkActionLookup,
-            currentActionLookup = currentActionLookup,
-            factionEntities     = registry.entities,
-            unitLibrary         = unitLibrary,
-            elapsedTime         = (float)SystemAPI.Time.ElapsedTime,
+            transformLookup       = transformLookup,
+            deadLookup            = deadLookup,
+            socialAvailableLookup = socialAvailableLookup,
+            factionEntities       = registry.entities,
+            unitLibrary           = unitLibrary,
+            elapsedTime           = (float)SystemAPI.Time.ElapsedTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -60,10 +56,9 @@ partial struct SocialAwarenessJob : IJobEntity
 {
     private const float SOCIAL_MOTIVATION_THRESHOLD = -20f;
 
-    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>           deadLookup;
-    [ReadOnly] public ComponentLookup<TalkAction>  talkActionLookup;
-    [ReadOnly] public ComponentLookup<CurrentAction>  currentActionLookup;
+    [ReadOnly] public ComponentLookup<LocalTransform>  transformLookup;
+    [ReadOnly] public ComponentLookup<Dead>            deadLookup;
+    [ReadOnly] public ComponentLookup<SocialAvailable> socialAvailableLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     public float elapsedTime;
@@ -110,12 +105,11 @@ partial struct SocialAwarenessJob : IJobEntity
 
                 if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate)) continue;
 
-                if (talkActionLookup.HasComponent(candidate) && talkActionLookup.IsComponentEnabled(candidate)) continue;
+                // SocialAvailable is disabled when candidate is in combat, fleeing, or already
+                // locked in a conversation — one flag replaces the old TalkAction + IsCombatAction checks.
+                if (!socialAvailableLookup.HasComponent(candidate) || !socialAvailableLookup.IsComponentEnabled(candidate)) continue;
 
                 if (IsOnCooldown(recentInteractions, candidate, elapsedTime)) continue;
-
-                if (currentActionLookup.TryGetComponent(candidate, out CurrentAction candidateAction)
-                    && candidateAction.actionType.IsCombatAction()) continue;
 
                 if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform)) continue;
 

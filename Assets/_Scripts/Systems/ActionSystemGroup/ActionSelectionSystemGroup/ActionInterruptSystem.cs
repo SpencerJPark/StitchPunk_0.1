@@ -16,12 +16,16 @@ public partial struct ActionInterruptSystem : ISystem
     private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
     private ComponentLookup<PlayerControlled>                      playerControlledLookup;
     private ComponentLookup<TalkAction>                            talkActionLookup;
+    private ComponentLookup<Dead>                                  deadLookup;
+    private BufferLookup<ActionOption>                             actionOptionLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         playerControlledLookup = state.GetComponentLookup<PlayerControlled>(true);
         talkActionLookup       = state.GetComponentLookup<TalkAction>(true);
+        deadLookup             = state.GetComponentLookup<Dead>(true);
+        actionOptionLookup     = state.GetBufferLookup<ActionOption>(true);
 
         int tableSize  = (int)ActionType.Spawn + 1;
         _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
@@ -39,6 +43,7 @@ public partial struct ActionInterruptSystem : ISystem
         _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
         _functionTable[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
         _functionTable[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.TalkEnable);
+        _functionTable[(int)ActionType.Death]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.DeathEnable);
     }
 
     [BurstCompile]
@@ -53,6 +58,8 @@ public partial struct ActionInterruptSystem : ISystem
     {
         playerControlledLookup.Update(ref state);
         talkActionLookup.Update(ref state);
+        deadLookup.Update(ref state);
+        actionOptionLookup.Update(ref state);
 
         EntityCommandBuffer ecb = SystemAPI
             .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
@@ -63,6 +70,8 @@ public partial struct ActionInterruptSystem : ISystem
             functionTable          = _functionTable,
             playerControlledLookup = playerControlledLookup,
             talkActionLookup       = talkActionLookup,
+            deadLookup             = deadLookup,
+            actionOptionLookup     = actionOptionLookup,
             ecb                    = ecb.AsParallelWriter(),
         }.ScheduleParallel(state.Dependency);
     }
@@ -76,6 +85,8 @@ public partial struct ActionInterruptJob : IJobEntity
     [ReadOnly] public NativeArray<FunctionPointer<ActionActivationDelegate>> functionTable;
     [ReadOnly] public ComponentLookup<PlayerControlled>                      playerControlledLookup;
     [ReadOnly] public ComponentLookup<TalkAction>                            talkActionLookup;
+    [ReadOnly] public ComponentLookup<Dead>                                  deadLookup;
+    [ReadOnly] public BufferLookup<ActionOption>                             actionOptionLookup;
     public EntityCommandBuffer.ParallelWriter ecb;
 
     public void Execute(
@@ -89,24 +100,59 @@ public partial struct ActionInterruptJob : IJobEntity
         EnabledRefRW<PathRequest>            pathRequestEnabled)
     {
         actionInterruptRequestEnabled.ValueRW = false;
-        
-        // Disable the active action tag via the shared function table
-        int actionIndex = (int)currentAction.actionType;
-        if (actionIndex >= 0 && actionIndex < functionTable.Length)
+
+        bool talkActive = talkActionLookup.HasComponent(entity) && talkActionLookup.IsComponentEnabled(entity);
+
+        // Determine whether this is a high-priority interrupt (e.g. self-defence, health) or a
+        // low-priority social lock (ValidateSocialJob interrupting the responder to clear their
+        // previous action). Compare the highest-priority option currently in the awareness buffer
+        // against the priority of the action being interrupted:
+        //   - Higher priority available → something more urgent has appeared; unconditionally interrupt.
+        //   - Same or no priority       → this is a social lock; preserve the existing special case
+        //                                 that protects the one-frame window where the unit just
+        //                                 ended a conversation and was re-locked as a new responder.
+        int maxBufferPriority = 0;
+        if (actionOptionLookup.HasBuffer(entity))
+        {
+            DynamicBuffer<ActionOption> options = actionOptionLookup[entity];
+            for (int i = 0; i < options.Length; i++)
+            {
+                if (options[i].priority > maxBufferPriority)
+                    maxBufferPriority = options[i].priority;
+            }
+        }
+
+        bool highPriority = maxBufferPriority > currentAction.priority;
+
+        int  actionIndex = (int)currentAction.actionType;
+        bool skipDisable = !highPriority && currentAction.actionType == ActionType.Talk && talkActive;
+        if (!skipDisable && actionIndex >= 0 && actionIndex < functionTable.Length)
             functionTable[actionIndex].Invoke(in entity, index, ref ecb, false);
 
-        // Halt pathing
         pathRequestEnabled.ValueRW = false;
-
-        // Clear any leftover action timer so the incoming action runs immediately
         actionTimer.time           = 0f;
         actionTimerEnabled.ValueRW = false;
 
-        // Return to decision pipeline. Skip if player-owned (player input drives those units)
-        // or if TalkAction is already enabled (responder was locked in by ValidateSocialJob).
-        bool playerOwned  = playerControlledLookup.HasComponent(entity) && playerControlledLookup.IsComponentEnabled(entity);
-        bool talkActive   = talkActionLookup.HasComponent(entity)       && talkActionLookup.IsComponentEnabled(entity);
-        if (!playerOwned && !talkActive)
+        // Dead units transition to the Death action and never re-enter selection.
+        // ActionRequest stays disabled until revival fires another ActionInterruptRequest.
+        bool isDead = deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity);
+        if (isDead)
+        {
+            functionTable[(int)ActionType.Death].Invoke(in entity, index, ref ecb, true);
+            ecb.SetComponent(index, entity, new CurrentAction
+            {
+                actionType   = ActionType.Death,
+                targetEntity = Entity.Null,
+                priority     = 0,
+            });
+            return;
+        }
+
+        // Return to decision pipeline unless player-owned or a low-priority social lock
+        // (responder is held in TalkJob, not selection).
+        bool playerOwned    = playerControlledLookup.HasComponent(entity) && playerControlledLookup.IsComponentEnabled(entity);
+        bool keepInTalkLock = !highPriority && talkActive;
+        if (!playerOwned && !keepInTalkLock)
             actionRequestEnabled.ValueRW = true;
     }
 }

@@ -7,6 +7,7 @@ public struct CurrentAction : IComponentData
 {
     public ActionType actionType;
     public Entity     targetEntity;
+    public int        priority;
 }
 
 // Selection Methods
@@ -71,6 +72,7 @@ public struct ThreatEntry : IBufferElementData
 
 
 // Actions
+public struct DeathAction : IComponentData, IEnableableComponent { }
 public struct IdleAction : IComponentData, IEnableableComponent { }
 public struct MoveToAction : IComponentData, IEnableableComponent { }
 public struct WanderAction : IComponentData, IEnableableComponent { }
@@ -89,6 +91,10 @@ public struct ConversationContext : IComponentData
     public bool   isResponder;
     public bool   hasStartedApproach;
 }
+
+// Social availability — disabled when unit is in combat/fleeing/already talking.
+// Used by SocialAwarenessSystem and ValidateSocialJob to gate talk targeting.
+public struct SocialAvailable : IComponentData, IEnableableComponent { }
 
 // Requests
 public struct ActionRequest : IComponentData, IEnableableComponent { }

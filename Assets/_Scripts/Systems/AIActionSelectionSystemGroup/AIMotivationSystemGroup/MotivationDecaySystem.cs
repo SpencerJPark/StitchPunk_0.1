@@ -10,7 +10,8 @@ using Unity.Mathematics;
 /// Only processes entities that currently need an action — mid-execution units skip decay.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIMotivationSystemGroup), OrderFirst = true)]
+[UpdateInGroup(typeof(AIMotivationSystemGroup))]
+[UpdateAfter(typeof(MotivationChangeRequestSystem))]
 public partial struct MotivationDecaySystem : ISystem
 {
     [BurstCompile]

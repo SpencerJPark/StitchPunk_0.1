@@ -96,11 +96,11 @@ public partial struct MeleeSingleActionJob : IJobEntity
         ref UnitDataBlob unit = ref unitLibrary.Value.units[unitIndex];
         bool targetInvalid = !targetMissing && (AIUtils.IsTargetDead(hostile, deadLookup) || AIUtils.IsTargetOutOfRange(localTransform, targetTransform, unit.awarenessRange));
         bool isDead = dead.ValueRO;
-        bool finishedAttack = actionTimer.time < 0f && actionTimerEnabled.ValueRO;
+        bool finishedAttack = actionTimer.time <= 0f && actionTimerEnabled.ValueRO;
 
         if (targetMissing || targetInvalid || unitIndex < 0 || isDead || finishedAttack)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, ref actionTimer, meleeSingle, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -109,7 +109,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeSingle, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, ref actionTimer, meleeSingle, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -145,7 +145,11 @@ public partial struct MeleeSingleActionJob : IJobEntity
         {
             AnimationType animType = AIUtils.GetAnimationByAction(ref unit, ActionType.MeleeSingle);
             float animDuration = animationLibrary.Value.clips[(int)animType].duration;
-            FireAction(hostile, attackType, animType, animDuration,
+            if (animDuration <= 0f) return;
+            // Cadence is authored via cooldown, not animation length. Guarantee the hit
+            // (at hitTime) lands before the next swing fires.
+            float interval = math.max(attackBlob.cooldown, attackBlob.hitTime + 0.05f);
+            FireAction(hostile, attackType, animType, interval,
                 ref actionTimer, ref attackRequest, ref setAnimations,
                 actionTimerEnabled, attackRequestEnabled, animationRequestEnabled);
         }
@@ -156,6 +160,7 @@ public partial struct MeleeSingleActionJob : IJobEntity
     private void Terminate(
         ref AttackRequest attackReq,
         ref PathRequest pathReq,
+        ref ActionTimer actionTimer,
         EnabledRefRW<MeleeSingleAction> meleeSingle,
         EnabledRefRW<ActionRequest> actionRequestEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
@@ -168,13 +173,14 @@ public partial struct MeleeSingleActionJob : IJobEntity
         actionRequestEnabled.ValueRW = true;
         meleeSingle.ValueRW = false;
         actionTimerEnabled.ValueRW = false;
+        actionTimer.time = 0f;
     }
 
     private void FireAction(
         Entity hostile,
         AttackType type,
         AnimationType animType,
-        float animDuration,
+        float timerDuration,
         ref ActionTimer actionTimer,
         ref AttackRequest attackReq,
         ref DynamicBuffer<SetAnimation> anims,
@@ -185,9 +191,10 @@ public partial struct MeleeSingleActionJob : IJobEntity
         attackReq.targetEntity = hostile;
         attackReq.attackType = type;
         attackReq.hitFired = false;
+        attackReq.elapsed = 0f;
         attackReqEnabled.ValueRW = true;
 
-        actionTimer.time = animDuration;
+        actionTimer.time = timerDuration;
         actionTimerEnabled.ValueRW = true;
 
         anims.Add(new SetAnimation { layer = AnimationLayerType.Action, animation = animType, speed = 1f });

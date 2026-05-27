@@ -21,3 +21,4 @@ MonoBehaviour:
   ragdollForce: 1.2
   launchForceY: 1
   launchForceX: 2
+  hitTime: 0.3

@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
@@ -13,6 +14,8 @@ public partial struct ActionSelectionSystem : ISystem
     private ComponentLookup<ConversationContext>    conversationContextLookup;
     private ComponentLookup<ActionInterruptRequest> actionInterruptRequestLookup;
     private ComponentLookup<ActionRequest>          actionRequestLookup;
+    private ComponentLookup<SocialAvailable>        socialAvailableLookup;
+    private ComponentLookup<CurrentAction>          currentActionLookup;
     private NativeArray<FunctionPointer<ActionActivationDelegate>> _functionTable;
 
     public void OnCreate(ref SystemState state)
@@ -25,6 +28,8 @@ public partial struct ActionSelectionSystem : ISystem
         conversationContextLookup    = state.GetComponentLookup<ConversationContext>(false);
         actionInterruptRequestLookup = state.GetComponentLookup<ActionInterruptRequest>(false);
         actionRequestLookup          = state.GetComponentLookup<ActionRequest>(false);
+        socialAvailableLookup        = state.GetComponentLookup<SocialAvailable>(false);
+        currentActionLookup          = state.GetComponentLookup<CurrentAction>(false);
 
         int tableSize = (int)ActionType.Spawn + 1;
         _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
@@ -41,6 +46,7 @@ public partial struct ActionSelectionSystem : ISystem
         _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
         _functionTable[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
         _functionTable[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.TalkEnable);
+        _functionTable[(int)ActionType.Death]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.DeathEnable);
     }
     
     [BurstCompile]
@@ -61,6 +67,8 @@ public partial struct ActionSelectionSystem : ISystem
         conversationContextLookup.Update(ref state);
         actionInterruptRequestLookup.Update(ref state);
         actionRequestLookup.Update(ref state);
+        socialAvailableLookup.Update(ref state);
+        currentActionLookup.Update(ref state);
         var ecbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
         InteractionLibrary interactionLib = SystemAPI.GetSingleton<InteractionLibrary>();
 
@@ -83,6 +91,8 @@ public partial struct ActionSelectionSystem : ISystem
             conversationContextLookup    = conversationContextLookup,
             actionInterruptRequestLookup = actionInterruptRequestLookup,
             actionRequestLookup          = actionRequestLookup,
+            socialAvailableLookup        = socialAvailableLookup,
+            currentActionLookup          = currentActionLookup,
         }.Schedule(state.Dependency);
 
         // 3 Enable Downstream Components
@@ -139,6 +149,7 @@ public partial struct ActionSelectionSystem : ISystem
             // 5. Record the selection to CurrentAction
             currentAction.actionType   = choice.actionType;
             currentAction.targetEntity = choice.targetEntity;
+            currentAction.priority     = choice.priority;
 
             // 6. Handle State Transitions
             if (choice.needsValidation)
@@ -257,6 +268,8 @@ public partial struct ActionSelectionSystem : ISystem
         public ComponentLookup<ConversationContext>    conversationContextLookup;
         public ComponentLookup<ActionInterruptRequest> actionInterruptRequestLookup;
         public ComponentLookup<ActionRequest>          actionRequestLookup;
+        public ComponentLookup<SocialAvailable>                              socialAvailableLookup;
+        [NativeDisableContainerSafetyRestriction] public ComponentLookup<CurrentAction> currentActionLookup;
 
         public void Execute(
             Entity                                entity,
@@ -266,11 +279,14 @@ public partial struct ActionSelectionSystem : ISystem
             socialValidationRequestEnabled.ValueRW = false;
             Entity target = currentAction.targetEntity;
 
+            // Target must be socially available (not in combat, not already in a conversation).
+            // SocialAvailable is disabled by SelectionFunctions whenever combat/flee starts and
+            // by this job when a conversation is locked — so first-write-wins prevents double-booking.
             bool valid = target != Entity.Null
-                && talkActionLookup.HasComponent(target)
-                && !talkActionLookup.IsComponentEnabled(target)
                 && conversationContextLookup.HasComponent(target)
-                && conversationContextLookup[target].conversationPartner != entity;
+                && conversationContextLookup[target].conversationPartner != entity
+                && socialAvailableLookup.HasComponent(target)
+                && socialAvailableLookup.IsComponentEnabled(target);
 
             if (valid)
             {
@@ -284,13 +300,27 @@ public partial struct ActionSelectionSystem : ISystem
                     conversationPartner = entity,
                     isResponder         = true,
                 };
+
+                // Disable SocialAvailable on both so no other unit can target either this frame.
+                socialAvailableLookup.SetComponentEnabled(entity, false);
+                socialAvailableLookup.SetComponentEnabled(target, false);
+
                 // Enable TalkAction on BOTH directly — prevents double-booking if the partner
                 // also picked Talk this same frame (their check sees initiator already locked).
                 talkActionLookup.SetComponentEnabled(entity, true);
                 talkActionLookup.SetComponentEnabled(target, true);
+
+                // Update responder's CurrentAction so TalkJob's partnerLost check is correct
+                // and ActionInterruptSystem reads the right priority for the responder next frame.
+                currentActionLookup[target] = new CurrentAction
+                {
+                    actionType   = ActionType.Talk,
+                    targetEntity = entity,
+                    priority     = 1,
+                };
+
                 // Disable ActionRequest on responder so SetupActionJob cannot re-activate
-                // their old action tag in the same frame, which would cause them to re-enter
-                // selection and overwrite ConversationContext.
+                // their old action tag in the same frame.
                 actionRequestLookup.SetComponentEnabled(target, false);
                 // Interrupt responder to clear any action they were already executing.
                 actionInterruptRequestLookup.SetComponentEnabled(target, true);

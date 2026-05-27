@@ -10,29 +10,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e76d9c91e85c43c3b74a012ba45b544f, type: 3}
-  m_Name: SocialCurve
+  m_Name: WanderCurve
   m_EditorClassIdentifier: Assembly-CSharp::AIScoringCurveSO
-  motivationType: 6
+  motivationType: 8
   curve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: -100
-      value: 100
-      inSlope: 0
-      outSlope: -1
+      time: -99.65501
+      value: 99.70227
+      inSlope: -0.49633968
+      outSlope: -0.49633968
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
-      outWeight: 0
+      outWeight: 0.19023567
     - serializedVersion: 3
-      time: 100
-      value: -100
-      inSlope: -1
-      outSlope: 0
+      time: 99.882126
+      value: 50.031555
+      inSlope: -0.56653
+      outSlope: -0.56653
       tangentMode: 0
       weightedMode: 0
-      inWeight: 0
+      inWeight: 0.23400672
       outWeight: 0
     m_PreInfinity: 2
     m_PostInfinity: 2

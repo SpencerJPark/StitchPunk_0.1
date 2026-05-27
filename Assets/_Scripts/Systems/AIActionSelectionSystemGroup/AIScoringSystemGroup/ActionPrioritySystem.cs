@@ -17,8 +17,7 @@ using Unity.Entities;
 /// If all options share the same tier (e.g. all priority 1), none are removed.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIScoringSystemGroup))]
-[UpdateAfter(typeof(MotivationScoringSystem))]
+[UpdateInGroup(typeof(AIScoringSystemGroup), OrderFirst = true)]
 public partial struct ActionPrioritySystem : ISystem
 {
     [BurstCompile]

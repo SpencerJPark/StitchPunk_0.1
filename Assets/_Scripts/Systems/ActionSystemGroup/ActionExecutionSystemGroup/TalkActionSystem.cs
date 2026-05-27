@@ -126,9 +126,9 @@ partial struct TalkJob : IJobEntity
         float distSq = math.distancesq(transform.Position, partnerTransform.Position);
         bool  inRange = distSq <= CONVO_RANGE * CONVO_RANGE;
 
-        // Initiator: first frame always submits approach path — prevents the inRange branch
-        // from short-circuiting before the unit has ever tried to walk.
-        if (!context.isResponder && !context.hasStartedApproach)
+        // Both units approach on first frame — prevents the inRange branch from short-circuiting
+        // before either has tried to walk.
+        if (!context.hasStartedApproach)
         {
             context.hasStartedApproach = true;
             AIUtils.BeginPathRequest(
@@ -144,7 +144,7 @@ partial struct TalkJob : IJobEntity
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
 
             Random rng = new Random((uint)(entityIndex + 1) * (uint)(elapsedTime * 1000f + 1f));
-            actionTimer.time       = DURATION_MIN + rng.NextFloat(0f, DURATION_MAX - DURATION_MIN);
+            actionTimer.time           = DURATION_MIN + rng.NextFloat(0f, DURATION_MAX - DURATION_MIN);
             actionTimerEnabled.ValueRW = true;
 
             setAnimations.Add(new SetAnimation
@@ -158,20 +158,17 @@ partial struct TalkJob : IJobEntity
             return;
         }
 
-        // Initiator paths to partner; responder stays put and waits for arrival
-        if (!context.isResponder)
+        // Both units path toward each other; repath if stopped or partner moved.
+        bool stoppedMoving = !movement.isMoving;
+        bool partnerMoved  = math.distancesq(pathRequest.targetPosition, partnerTransform.Position)
+                             >= REPATH_THRESHOLD * REPATH_THRESHOLD;
+        if (stoppedMoving || partnerMoved)
         {
-            bool stoppedMoving = !movement.isMoving;
-            bool partnerMoved  = math.distancesq(pathRequest.targetPosition, partnerTransform.Position)
-                                 >= REPATH_THRESHOLD * REPATH_THRESHOLD;
-            if (stoppedMoving || partnerMoved)
-            {
-                AIUtils.BeginPathRequest(
-                    ref pathRequest,
-                    pathRequestEnabled,
-                    partnerTransform.Position,
-                    CONVO_RANGE * 0.9f);
-            }
+            AIUtils.BeginPathRequest(
+                ref pathRequest,
+                pathRequestEnabled,
+                partnerTransform.Position,
+                CONVO_RANGE * 0.9f);
         }
     }
 

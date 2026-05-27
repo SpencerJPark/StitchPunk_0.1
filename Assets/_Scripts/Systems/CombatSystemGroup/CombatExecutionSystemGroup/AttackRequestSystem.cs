@@ -40,6 +40,7 @@ public partial struct AttackRequestSystem : ISystem
             hurtBufferLookup = hurtBufferLookup,
             aliveLookup      = aliveLookup,
             attackLibrary    = attackLibrary,
+            deltaTime        = SystemAPI.Time.DeltaTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -47,33 +48,24 @@ public partial struct AttackRequestSystem : ISystem
 [BurstCompile]
 public partial struct AttackRequestJob : IJobEntity
 {
+    // Lunge tolerance: a swing is only ever fired against a target the action system
+    // already confirmed in range, so allow this much drift before the hit lands rather
+    // than whiffing on minor repath jitter. A target that genuinely fled is still missed.
+    private const float HIT_RANGE_MULT = 1.5f;
+
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     public            BufferLookup<Hurt>              hurtBufferLookup;
     [ReadOnly] public ComponentLookup<Alive>          aliveLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
+    public float deltaTime;
 
     public void Execute(
-        Entity                           attackerEntity,
-        in LocalTransform                attackerTransform,
-        ref AttackRequest                attackRequest,
-        in DynamicBuffer<AnimationLayer> layers,
-        EnabledRefRW<AttackRequest>      attackRequestEnabled)
+        Entity                      attackerEntity,
+        in LocalTransform           attackerTransform,
+        ref AttackRequest           attackRequest,
+        EnabledRefRW<AttackRequest> attackRequestEnabled)
     {
-        // Find the Action animation layer
-        float actionLayerTime   = -1f;
-        bool  actionLayerActive = false;
-        for (int i = 0; i < layers.Length; i++)
-        {
-            if (layers[i].layer == AnimationLayerType.Action)
-            {
-                actionLayerTime   = layers[i].time;
-                actionLayerActive = layers[i].active;
-                break;
-            }
-        }
-
-        // Action layer not yet present — wait one frame for animation assignment
-        if (actionLayerTime < 0f)
+        if (attackRequest.hitFired)
             return;
 
         int attackIndex = (int)attackRequest.attackType;
@@ -81,49 +73,44 @@ public partial struct AttackRequestJob : IJobEntity
             return;
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
-        // Hit-frame check: fire damage the first frame animation time crosses hitTime.
-        // Using >= means this fires correctly even when a large deltaTime skips past hitTime.
-        if (!attackRequest.hitFired && actionLayerTime >= attackBlob.hitTime)
-        {
-            Entity victim = attackRequest.targetEntity;
-
-            bool victimAlive = aliveLookup.HasComponent(victim) &&
-                               aliveLookup.IsComponentEnabled(victim);
-
-            if (victimAlive &&
-                transformLookup.TryGetComponent(victim, out LocalTransform victimTransform) &&
-                hurtBufferLookup.HasBuffer(victim))
-            {
-                float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
-
-                if (distanceSq <= attackBlob.range * attackBlob.range)
-                {
-                    hurtBufferLookup[victim].Add(new Hurt
-                    {
-                        attackerEntity = attackerEntity,
-                        attackType     = attackBlob.attackType,
-                        distance       = math.sqrt(distanceSq),
-                        damageAmount   = attackBlob.damageAmount,
-                        hitSourceX     = attackerTransform.Position.x,
-                        ragdollForce   = attackBlob.ragdollForce,
-                        launchForceY   = attackBlob.launchForceY,
-                        launchForceX   = attackBlob.launchForceX,
-                    });
-                }
-            }
-
-            // Mark fired regardless — prevents re-attempts if target stepped out of range
-            attackRequest.hitFired       = true;
-            attackRequestEnabled.ValueRW = false;
+        // Hit timing is self-contained and delta-time driven: elapsed is reset to 0 at the
+        // start of each swing (FireAction / PlayerAttackSystem) and advances here. This is
+        // frame-rate-correct and independent of system ordering. Using >= fires correctly
+        // even when a large deltaTime skips past hitTime.
+        attackRequest.elapsed += deltaTime;
+        if (attackRequest.elapsed < attackBlob.hitTime)
             return;
+
+        Entity victim = attackRequest.targetEntity;
+
+        bool victimAlive = aliveLookup.HasComponent(victim) &&
+                           aliveLookup.IsComponentEnabled(victim);
+
+        if (victimAlive &&
+            transformLookup.TryGetComponent(victim, out LocalTransform victimTransform) &&
+            hurtBufferLookup.HasBuffer(victim))
+        {
+            float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
+            float hitRange   = attackBlob.range * HIT_RANGE_MULT;
+
+            if (distanceSq <= hitRange * hitRange)
+            {
+                hurtBufferLookup[victim].Add(new Hurt
+                {
+                    attackerEntity = attackerEntity,
+                    attackType     = attackBlob.attackType,
+                    distance       = math.sqrt(distanceSq),
+                    damageAmount   = attackBlob.damageAmount,
+                    hitSourceX     = attackerTransform.Position.x,
+                    ragdollForce   = attackBlob.ragdollForce,
+                    launchForceY   = attackBlob.launchForceY,
+                    launchForceX   = attackBlob.launchForceX,
+                });
+            }
         }
 
-        // Fallback: animation finished without ever firing a hit (target left range).
-        // Disarm so the action system can re-queue once cooldown expires.
-        if (!actionLayerActive)
-        {
-            attackRequestEnabled.ValueRW = false;
-            attackRequest.hitFired       = false;
-        }
+        // Mark fired regardless — prevents re-attempts if target stepped out of range
+        attackRequest.hitFired       = true;
+        attackRequestEnabled.ValueRW = false;
     }
 }

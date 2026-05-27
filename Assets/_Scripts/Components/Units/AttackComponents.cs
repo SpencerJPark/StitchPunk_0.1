@@ -7,6 +7,7 @@ public struct AttackRequest : IComponentData, IEnableableComponent
     public Entity     targetEntity;
     public AttackType attackType;
     public bool       hitFired;
+    public float      elapsed;
 }
 public struct AvailableAttack : IBufferElementData
 {

@@ -47,6 +47,9 @@ public static class UnitBakingUtil
             AddPlayerControlled(baker, entity, false);
         }
         
+        baker.AddComponent<DeathAction>(entity);
+        baker.SetComponentEnabled<DeathAction>(entity, false);
+
         baker.AddComponent<ActionInterruptRequest>(entity);
         baker.SetComponentEnabled<ActionInterruptRequest>(entity, false);
 
@@ -65,6 +68,9 @@ public static class UnitBakingUtil
 
         baker.AddComponent<SocialValidationRequest>(entity);
         baker.SetComponentEnabled<SocialValidationRequest>(entity, false);
+
+        baker.AddComponent<SocialAvailable>(entity);
+        baker.SetComponentEnabled<SocialAvailable>(entity, true);
 
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
         if (unitSo.attacks != null)

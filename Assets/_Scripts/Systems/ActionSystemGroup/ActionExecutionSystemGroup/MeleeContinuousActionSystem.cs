@@ -99,7 +99,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
 
         if (targetMissing || targetInvalid || unitIndex < 0 || isDead)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeContinuous, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, ref actionTimer, meleeContinuous, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -108,7 +108,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         int attackIndex = (int)attackType;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
         {
-            Terminate(ref attackRequest, ref pathRequest, meleeContinuous, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
+            Terminate(ref attackRequest, ref pathRequest, ref actionTimer, meleeContinuous, actionRequestEnabled, pathRequestEnabled, attackRequestEnabled, actionTimerEnabled);
             return;
         }
 
@@ -144,7 +144,11 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         {
             AnimationType animType = AIUtils.GetAnimationByAction(ref unit, ActionType.MeleeContinuous);
             float animDuration = animationLibrary.Value.clips[(int)animType].duration;
-            FireAction(hostile, attackType, animType, animDuration,
+            if (animDuration <= 0f) return;
+            // Cadence is authored via cooldown, not animation length. Guarantee the hit
+            // (at hitTime) lands before the next swing fires.
+            float interval = math.max(attackBlob.cooldown, attackBlob.hitTime + 0.05f);
+            FireAction(hostile, attackType, animType, interval,
                 ref actionTimer, ref attackRequest, ref setAnimations,
                 actionTimerEnabled, attackRequestEnabled, animationRequestEnabled);
         }
@@ -155,6 +159,7 @@ public partial struct MeleeContinuousActionJob : IJobEntity
     private void Terminate(
         ref AttackRequest attackReq,
         ref PathRequest pathReq,
+        ref ActionTimer actionTimer,
         EnabledRefRW<MeleeContinuousAction> meleeContinuousEnabled,
         EnabledRefRW<ActionRequest> actionRequestEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
@@ -167,13 +172,14 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         actionRequestEnabled.ValueRW = true;
         meleeContinuousEnabled.ValueRW = false;
         actionTimerEnabled.ValueRW = false;
+        actionTimer.time = 0f;
     }
 
     private void FireAction(
         Entity hostile,
         AttackType type,
         AnimationType animType,
-        float animDuration,
+        float timerDuration,
         ref ActionTimer actionTimer,
         ref AttackRequest attackReq,
         ref DynamicBuffer<SetAnimation> anims,
@@ -184,12 +190,13 @@ public partial struct MeleeContinuousActionJob : IJobEntity
         attackReq.targetEntity = hostile;
         attackReq.attackType = type;
         attackReq.hitFired = false;
+        attackReq.elapsed = 0f;
         attackReqEnabled.ValueRW = true;
 
         anims.Add(new SetAnimation { layer = AnimationLayerType.Action, animation = animType, speed = 1f });
         animReqEnabled.ValueRW = true;
-        
-        actionTimer.time = animDuration;
+
+        actionTimer.time = timerDuration;
         actionTimerEnabled.ValueRW = true;
     }
 }

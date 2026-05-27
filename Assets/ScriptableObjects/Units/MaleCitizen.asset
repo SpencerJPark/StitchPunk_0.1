@@ -19,6 +19,12 @@ MonoBehaviour:
   awarenessRange: 20
   bravery: 0.5
   braveryVariance: 0.38
+  socialAffinity: 0.5
+  socialAffinityVariance: 0.1
+  wanderlust: 0.5
+  wanderlustVariance: 0.1
+  gluttony: 0.5
+  gluttonyVariance: 0.1
   motivations: 010000000200000003000000040000000500000006000000080000000a000000
   randomMotivationsTotal: 3
   randomMotivations: 0c0000000e0000000f000000100000001100000012000000130000001400000015000000
@@ -31,6 +37,11 @@ MonoBehaviour:
     decayRate: 0.5
   - motivationType: 6
     decayRate: 0.5
+  - motivationType: 4
+    decayRate: 0.3
+  - motivationType: 8
+    decayRate: 1
+  socialFactions: 0306080902
   actionAnimations:
   - action: 1
     animation: 1
@@ -45,7 +56,6 @@ MonoBehaviour:
   idleAnimation: 1
   movingAnimation: 2
   attackFactions: 
-  socialFactions: 0306080902
   attacks:
   - action: 18
     attack: 2

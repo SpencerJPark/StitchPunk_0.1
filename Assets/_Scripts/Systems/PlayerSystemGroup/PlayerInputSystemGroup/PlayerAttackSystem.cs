@@ -23,7 +23,6 @@ public partial struct PlayerAttackSystem : ISystem
     {
         var attackLibrary = SystemAPI.GetSingleton<AttackLibrary>().library;
         var unitLibrary = SystemAPI.GetSingleton<UnitDataLibrary>().library;
-        var animationLibrary = SystemAPI.GetSingleton<AnimationLibrary>().library;
         float cosHalfAngle = math.cos(math.radians(RANGED_CONE_HALF_ANGLE_DEG));
 
         foreach (var (attackInputEnabled, selfEntity) in
@@ -98,14 +97,15 @@ public partial struct PlayerAttackSystem : ISystem
             attackRequest.ValueRW.targetEntity = bestTarget;
             attackRequest.ValueRW.attackType = attackType;
             attackRequest.ValueRW.hitFired = false;
+            attackRequest.ValueRW.elapsed = 0f;
             SystemAPI.SetComponentEnabled<AttackRequest>(selfEntity, true);
 
             // Handle Animation & Timer
             AnimationType animType = GetAttackAnimation(ref unitBlob, actionType);
-            float animDuration = animationLibrary.Value.clips[(int)animType].duration;
 
+            // Cadence is authored via cooldown; guarantee the hit (at hitTime) lands first.
             RefRW<ActionTimer> actionTimer = SystemAPI.GetComponentRW<ActionTimer>(selfEntity);
-            actionTimer.ValueRW.time = math.max(animDuration, 0.05f);
+            actionTimer.ValueRW.time = math.max(attackBlob.cooldown, attackBlob.hitTime + 0.05f);
             SystemAPI.SetComponentEnabled<ActionTimer>(selfEntity, true);
 
             DynamicBuffer<SetAnimation> setAnimations = SystemAPI.GetBuffer<SetAnimation>(selfEntity);

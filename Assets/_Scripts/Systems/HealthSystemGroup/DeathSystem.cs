@@ -7,30 +7,26 @@ using Unity.Transforms;
 [UpdateBefore(typeof(ReviveRequestSystem))]
 public partial struct DeathSystem : ISystem
 {
-    private ComponentLookup<AIBrain>    activeBrainLookup;
-    private ComponentLookup<ActionRequest>    needsActionLookup;
-    private ComponentLookup<AttackRequest>  pendingAttackLookup;
+    private ComponentLookup<ActionInterruptRequest> interruptLookup;
+    private ComponentLookup<AttackRequest>          pendingAttackLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        activeBrainLookup   = state.GetComponentLookup<AIBrain>(false);
-        needsActionLookup   = state.GetComponentLookup<ActionRequest>(false);
+        interruptLookup     = state.GetComponentLookup<ActionInterruptRequest>(false);
         pendingAttackLookup = state.GetComponentLookup<AttackRequest>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        activeBrainLookup.Update(ref state);
-        needsActionLookup.Update(ref state);
+        interruptLookup.Update(ref state);
         pendingAttackLookup.Update(ref state);
 
         state.Dependency = new DeathJob
         {
-            activeBrainLookup   = activeBrainLookup,
-            needsActionLookup   = needsActionLookup,
+            interruptLookup     = interruptLookup,
             pendingAttackLookup = pendingAttackLookup,
         }.Schedule(state.Dependency);
     }
@@ -43,9 +39,8 @@ public partial struct DeathSystem : ISystem
 [WithPresent(typeof(HordeMembership))]
 public partial struct DeathJob : IJobEntity
 {
-    public ComponentLookup<AIBrain>   activeBrainLookup;
-    public ComponentLookup<ActionRequest>   needsActionLookup;
-    public ComponentLookup<AttackRequest> pendingAttackLookup;
+    public ComponentLookup<ActionInterruptRequest> interruptLookup;
+    public ComponentLookup<AttackRequest>          pendingAttackLookup;
 
     public void Execute(
         Entity entity,
@@ -60,7 +55,13 @@ public partial struct DeathJob : IJobEntity
         EnabledRefRW<FlowFieldFollower> flowFieldEnabled,
         EnabledRefRW<HordeMembership>  hordeMembershipEnabled)
     {
-        // 1. Flip life/death state flags on this entity
+        // Guard: Alive is still enabled only on the first death frame.
+        // Subsequent frames the unit is already fully in death state — skip to avoid
+        // re-triggering ActionInterruptRequest on every frame while dead.
+        if (!aliveEnabled.ValueRO)
+            return;
+
+        // 1. Flip life/death state flags
         unitAction.current             = ActionType.Death;
         aliveEnabled.ValueRW           = false;
         pathRequestEnabled.ValueRW     = false;
@@ -72,13 +73,10 @@ public partial struct DeathJob : IJobEntity
         mover.isMoving       = false;
         mover.targetPosition = transform.Position;
 
-        // 3. Stop AI state — lives on the same entity in the single-entity model.
-        //    Use lookups so units without AI components (e.g. player) are handled safely.
-        if (activeBrainLookup.HasComponent(entity))
-            activeBrainLookup.SetComponentEnabled(entity, false);
-
-        if (needsActionLookup.HasComponent(entity))
-            needsActionLookup.SetComponentEnabled(entity, false);
+        // 3. Fire ActionInterruptRequest — the interrupt system will disable the current
+        //    action tag cleanly and transition to DeathAction next frame.
+        if (interruptLookup.HasComponent(entity))
+            interruptLookup.SetComponentEnabled(entity, true);
 
         // 4. Cancel any in-flight attack — prevents ghost hits from dead attackers.
         if (pendingAttackLookup.HasComponent(entity))

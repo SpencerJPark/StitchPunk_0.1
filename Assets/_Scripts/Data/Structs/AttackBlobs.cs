@@ -10,6 +10,7 @@ public struct AttackBlob
     public float launchForceY;
     public float launchForceX;
     public float hitTime;
+    public float cooldown;
 }
 
 public struct AttackLibraryBlob

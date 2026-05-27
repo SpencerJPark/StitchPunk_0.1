@@ -23,11 +23,11 @@ public partial struct AnimationTimeSystem : ISystem
         BlobAssetReference<AnimationLibraryBlob> library = SystemAPI.GetSingleton<AnimationLibrary>().library;
         float deltaTime = SystemAPI.Time.DeltaTime;
         
-        new UpdateLayerTimeJob
+        state.Dependency = new UpdateLayerTimeJob
         {
             library = library,
             deltaTime = deltaTime
-        }.ScheduleParallel();
+        }.ScheduleParallel(state.Dependency);
     }
 }
 

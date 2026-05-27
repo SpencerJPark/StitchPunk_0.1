@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIScoringSystemGroup))]
+[UpdateInGroup(typeof(AIScoringSystemGroup), OrderLast = true)]
 public partial struct MotivationScoringSystem : ISystem
 {
 
