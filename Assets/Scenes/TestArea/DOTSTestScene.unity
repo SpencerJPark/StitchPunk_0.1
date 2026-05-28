@@ -1152,6 +1152,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: MaleCitizen
       objectReference: {fileID: 0}
+    - target: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 5385637352373302489, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
     m_RemovedGameObjects: []
@@ -3286,7 +3290,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 16.3
+      value: 5.95
       objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.y
@@ -3294,7 +3298,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -2.4
+      value: 2.36
       objectReference: {fileID: 0}
     - target: {fileID: 6621476877874542357, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_LocalRotation.w

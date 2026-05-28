@@ -48,9 +48,10 @@ Perception + option generation. Runs before `AIScoringSystemGroup`.
 | System | Purpose |
 |---|---|
 | `ClearOptionsSystem` (OrderFirst) | Clears the `ActionOption` buffer |
-| `EnemyAwarenessSystem` | Detects hostiles → sets BloodLust = 100, injects attack options |
-| `SelfDefenceAwarenessSystem` | Detects incoming threats → injects self-defence options |
-| `HealthAwarenessSystem` | Monitors health thresholds → injects survival/flee options |
+| `ThreatDecaySystem` (OrderFirst) | Prunes stale `ThreatEntry` records before consumers read. Dead/despawned attackers removed immediately; everything else decays via `ThreatEntry.staleTimer` (refreshed on each hit by `ThreatUpdateSystem`, TTL const `THREAT_TTL` ≈ 4s) so active combat never expires but a disengaged enemy is forgotten |
+| `EnemyAwarenessSystem` | Detects hostiles → sets BloodLust = 100, injects attack options (priority 2) |
+| `SelfDefenceAwarenessSystem` | Detects incoming threats → injects fight-back options (priority 2); fires `ActionInterruptRequest` when not already in combat |
+| `FleeAwarenessSystem` | Decision-point flee: only when `ActionRequest` is enabled **and** the unit has active threats (`ThreatEntry`). Sets SelfPreservation = 100 and injects a Flee option (priority 2) scored `(1 − healthRatio) × (1 − bravery)`. No interrupt, no bracket tracking — melee-single units re-decide each swing |
 | `InteractionAwarenessSystem` | Spatial-hash query per motivation → injects interaction options with `advertisedDelta = blob.restorationAmount` |
 | `SocialAwarenessSystem` | Finds nearby friendly NPCs → injects Talk option with `advertisedDelta = 40f` |
 | `ItemAwarenessSystem` | Nearby items — stub |

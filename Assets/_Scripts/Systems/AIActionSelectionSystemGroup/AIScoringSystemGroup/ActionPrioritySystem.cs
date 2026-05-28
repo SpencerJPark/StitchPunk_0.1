@@ -7,8 +7,8 @@ using Unity.Entities;
 /// Priority is an int set by each awareness system when it creates options:
 ///   InteractionAwarenessSystem  → blob.priority  (1 by default, configurable per SO)
 ///   EnemyAwarenessSystem        → 2
-///   HealthAwarenessSystem       → 2 or 3
-///   SelfDefenceAwarenessSystem  → 3
+///   HealthAwarenessSystem       → 2  (flee competes with fighting at the combat tier)
+///   SelfDefenceAwarenessSystem  → 2
 ///
 /// Two-pass algorithm:
 ///   1. Find the maximum priority value present in the buffer.

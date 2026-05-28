@@ -31,6 +31,7 @@ public struct ActionTimer : IComponentData, IEnableableComponent
 {
     public float time;
 }
+
 public struct Motivation : IBufferElementData
 {
     public MotivationType motivationType;  // drives curve + spatial hash key (Interaction mode)
@@ -67,6 +68,7 @@ public struct ThreatEntry : IBufferElementData
     public Entity attackerEntity;
     public float  threatScore;       // cumulative damage received from this attacker
     public float  reactionDelay;     // counts down to 0 before fight-back activates
+    public float  staleTimer;        // refreshed on each hit; entry is removed once it reaches 0
 }
 
 

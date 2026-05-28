@@ -44,6 +44,15 @@ public partial struct PathStuckCheckJob : IJobEntity
         ref StuckDetector                    stuckDetector,
         EnabledRefRW<ActionInterruptRequest> interruptEnabled)
     {
+        // Intentionally stationary (e.g. attacking in range, where the melee action halts
+        // pathing every frame) — not stuck. Only units actively pathing can be stuck.
+        if (pathRequest.requestedMode == PathfindingMode.Stop)
+        {
+            stuckDetector.stuckAccumulator = 0f;
+            stuckDetector.sampleTimer      = 0f;
+            return;
+        }
+
         // New path request — reset all detector state
         if (!stuckDetector.lastTargetPosition.Equals(pathRequest.targetPosition))
         {

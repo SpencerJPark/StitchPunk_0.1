@@ -24,6 +24,7 @@ public partial struct ThreatUpdateSystem : ISystem
 public partial struct ThreatUpdateJob : IJobEntity
 {
     private const float REACTION_TIME = 0.3f;
+    private const float THREAT_TTL    = 4f;
 
     public void Execute(in DynamicBuffer<Hurt> hurtBuffer, ref DynamicBuffer<ThreatEntry> threatBuffer)
     {
@@ -44,6 +45,7 @@ public partial struct ThreatUpdateJob : IJobEntity
                 {
                     ThreatEntry entry = threatBuffer[threatIndex];
                     entry.threatScore += hurt.damageAmount;
+                    entry.staleTimer   = THREAT_TTL;
                     threatBuffer[threatIndex] = entry;
                     found = true;
                     break;
@@ -57,6 +59,7 @@ public partial struct ThreatUpdateJob : IJobEntity
                     attackerEntity = hurt.attackerEntity,
                     threatScore    = hurt.damageAmount,
                     reactionDelay  = REACTION_TIME,
+                    staleTimer     = THREAT_TTL,
                 });
             }
         }
