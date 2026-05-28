@@ -42,7 +42,7 @@ public partial struct FleeAwarenessJob : IJobEntity
 
         float healthRatio = (float)health.healthAmount / health.healthAmountMax;
         
-        if (healthRatio >= .7f)
+        if (healthRatio >= .3f)
             return;
 
         // ~0 at full health, rising as the unit is wounded and damped by bravery.

@@ -4,9 +4,11 @@ using Unity.Mathematics;
 public struct Movement : IComponentData
 {
     public float moveSpeed;
+    public float runSpeed;
     public float rotationSpeed;
     public float3 targetPosition;
     public bool isMoving;
+    public bool isRunning;
 }
 
 public struct Gravity : IComponentData

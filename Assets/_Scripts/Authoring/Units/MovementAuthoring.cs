@@ -6,6 +6,7 @@ public class MovementAuthoring : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed = 5f;
+    public float runSpeed = 9f;
     public float rotationSpeed = 10f;
 
     public class Baker : Baker<MovementAuthoring>
@@ -16,9 +17,11 @@ public class MovementAuthoring : MonoBehaviour
             AddComponent(entity, new Movement
             {
                 moveSpeed              = authoring.moveSpeed,
+                runSpeed               = authoring.runSpeed,
                 rotationSpeed          = authoring.rotationSpeed,
                 targetPosition         = float3.zero,
                 isMoving               = false,
+                isRunning              = false,
             });
             AddComponent(entity, new SetupUnitMoverDefaultPosition());
         }

@@ -104,7 +104,7 @@ Actions are **coordinators, not executors**. An action system runs while its ena
 |---|---|---|
 | `MeleeSingleActionSystem` | `MeleeSingleAction` | Validate → path → halt → enable `AttackRequest` → enable `ActionTimer` (single shot) |
 | `MeleeContinuousActionSystem` | `MeleeContinuousAction` | Same as single, but re-fires `AttackRequest` each time `ActionTimer` expires |
-| `FleeActionSystem` | `FleeAction` | Enable `PathRequest` away from threat source *(commented out, pending API update)* |
+| `FleeActionSystem` | `FleeAction` | Run (`Movement.isRunning`) to a multi-hop away-from-attacker waypoint chain (nearest waypoint each hop, up to 4, until beyond the attacker's `Awareness.range`); re-enables `ActionRequest` on arrival so flee re-chains until threat decays |
 | `WanderExecutionSystem` | `WanderAction` | Pick random nearby point → path → idle briefly → re-enable `ActionRequest` |
 | `SitActionSystem` | `SitAction` | Path to interaction entity → play sit animation → countdown → apply satisfaction → re-enable `ActionRequest`. **Reference for all interaction actions.** |
 | `ActionInterruptSystem` | — | OrderFirst; detects `ActionInterruptRequest`, disables active action tag, halts path, re-enables `ActionRequest` |

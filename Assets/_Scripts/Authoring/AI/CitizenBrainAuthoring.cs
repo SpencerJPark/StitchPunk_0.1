@@ -17,7 +17,7 @@ public class CitizenBrainAuthoring : MonoBehaviour
 
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             UnitBakingUtil.BakeRequirements(this, entity, authoring.active, unitSO);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, MeleeContinuousAction>(this, entity);
+            UnitBakingUtil.AddAction<CitizenBrainAuthoring, MeleeSingleAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, WanderAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, TalkAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, SitAction>(this, entity);

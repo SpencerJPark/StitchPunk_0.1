@@ -66,7 +66,8 @@ public partial struct UnitMoverJob : IJobEntity
         }
 
         float dist = math.sqrt(distSq);
-        float moveDist = math.min(dist, movement.moveSpeed * deltaTime);
+        float activeSpeed = movement.isRunning ? movement.runSpeed : movement.moveSpeed;
+        float moveDist = math.min(dist, activeSpeed * deltaTime);
         float3 moveDir = toTarget / dist;
         float3 desiredMove = moveDir * moveDist;
 
