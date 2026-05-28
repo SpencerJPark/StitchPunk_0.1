@@ -31,7 +31,7 @@ public partial struct ActionSelectionSystem : ISystem
         socialAvailableLookup        = state.GetComponentLookup<SocialAvailable>(false);
         currentActionLookup          = state.GetComponentLookup<CurrentAction>(false);
 
-        int tableSize = (int)ActionType.Spawn + 1;
+        int tableSize = System.Enum.GetValues(typeof(ActionType)).Length;
         _functionTable = new NativeArray<FunctionPointer<ActionActivationDelegate>>(tableSize, Allocator.Persistent);
 
         FunctionPointer<ActionActivationDelegate> nullPtr = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.NullEnable);
@@ -48,6 +48,10 @@ public partial struct ActionSelectionSystem : ISystem
         _functionTable[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
         _functionTable[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.TalkEnable);
         _functionTable[(int)ActionType.Death]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.DeathEnable);
+        _functionTable[(int)ActionType.EquipWeapon]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
+        _functionTable[(int)ActionType.UseHealingItem]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
+        _functionTable[(int)ActionType.Eat]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
+        _functionTable[(int)ActionType.Drink]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
     }
     
     [BurstCompile]

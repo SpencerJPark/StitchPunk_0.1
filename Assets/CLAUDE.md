@@ -93,6 +93,8 @@ Three-layer pipeline:
 
 Melee actions (`MeleeSingleActionSystem`, `MeleeContinuousActionSystem`) are the reference implementation for the orchestration pattern.
 
+**Item awareness is built:** `ItemAwarenessSystem` scans loose items (`EquiptBy.owner == null`) and emits pickup options — weapon when threatened+unarmed, healing when hurt, food/drink when idle. `PickupItemActionSystem` paths to the item then branches by `ItemCategory` (weapon = equip via existing `ItemEquipSystem`; healing = `HealRequest`; food/drink = `MotivationChangeRequest` + destroy). Category/effect data comes from the new `ItemLibrary` blob (`ItemSO` → `ItemLibrarySO` → `ItemLibraryBakingSystem`). **Scene setup still required:** create an `_ItemLibrary` asset + `ItemSO`s, add `ItemLibraryAuthoring`, build consumable prefabs (Bandage/MedKit/Bread/Water), and wire `handSocket` on the citizen prefab for visual weapon attach.
+
 **Next:** Reintroduce waypoints as a downstream request target in the action system (waypoint entity → awareness scores it → `WaypointAction` tag → `PathRequest` to position).
 
 **Factory System Phase 1 is built (ECS data layer + production loop):**

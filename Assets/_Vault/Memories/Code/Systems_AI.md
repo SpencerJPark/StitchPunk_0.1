@@ -54,7 +54,7 @@ Perception + option generation. Runs before `AIScoringSystemGroup`.
 | `FleeAwarenessSystem` | Decision-point flee: only when `ActionRequest` is enabled **and** the unit has active threats (`ThreatEntry`). Sets SelfPreservation = 100 and injects a Flee option (priority 2) scored `(1 − healthRatio) × (1 − bravery)`. No interrupt, no bracket tracking — melee-single units re-decide each swing |
 | `InteractionAwarenessSystem` | Spatial-hash query per motivation → injects interaction options with `advertisedDelta = blob.restorationAmount` |
 | `SocialAwarenessSystem` | Finds nearby friendly NPCs → injects Talk option with `advertisedDelta = 40f` |
-| `ItemAwarenessSystem` | Nearby items — stub |
+| `ItemAwarenessSystem` | Scans loose items (`EquiptBy.owner == Entity.Null`) within `Awareness.range` (direct query scan, no spatial hash). Emits pickup options: **weapon** when threatened + unarmed (`SelfDefence`, priority 2; suppressed if `UnitEquipt.equiptItemEntity` set), **healing** when `health < 100%` (`SelfPreservation`, priority 0, utility scaled by `1 − healthRatio`), **food/drink** when no threat & not in combat (priority 0, `advertisedDelta = restorationAmount`). Item category + effect read from the `ItemLibrary` blob keyed by `ItemType` |
 | `EnvironmentalAwarenessSystem` | Environment context — stub |
 
 #### AIScoringSystemGroup
@@ -107,6 +107,7 @@ Actions are **coordinators, not executors**. An action system runs while its ena
 | `FleeActionSystem` | `FleeAction` | Run (`Movement.isRunning`) to a multi-hop away-from-attacker waypoint chain (nearest waypoint each hop, up to 4, until beyond the attacker's `Awareness.range`); re-enables `ActionRequest` on arrival so flee re-chains until threat decays |
 | `WanderExecutionSystem` | `WanderAction` | Pick random nearby point → path → idle briefly → re-enable `ActionRequest` |
 | `SitActionSystem` | `SitAction` | Path to interaction entity → play sit animation → countdown → apply satisfaction → re-enable `ActionRequest`. **Reference for all interaction actions.** |
+| `PickupItemActionSystem` | `PickupItemAction` | Path to target item → arrive (`ItemBlob.pickupRange`) → animate + `ActionTimer` → on completion branch by `ItemCategory`: **weapon** = replicate equip linking (set `EquiptBy`/`AttachedTo`, enable `EquipAction` + `AttachItemRequest`; `ItemEquipSystem` finalises the slot), **healing** = enable `HealRequest{healAmount}`, **food/drink** = add `MotivationChangeRequest` then destroy item via ECB. Single-threaded `.Schedule()` (writes item entities via `ComponentLookup`). Serves the `EquipWeapon` / `UseHealingItem` / `Eat` / `Drink` ActionTypes |
 | `ActionInterruptSystem` | — | OrderFirst; detects `ActionInterruptRequest`, disables active action tag, halts path, re-enables `ActionRequest` |
 | `ActionTimerSystem` | `ActionTimer` | Ticks down `time` — action systems check expiry themselves |
 

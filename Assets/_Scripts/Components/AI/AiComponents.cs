@@ -85,6 +85,7 @@ public struct MeleeSingleAction : IComponentData, IEnableableComponent { }
 public struct FleeAction : IComponentData, IEnableableComponent { }
 public struct EquipAction : IComponentData, IEnableableComponent { }
 public struct TalkAction : IComponentData, IEnableableComponent { }
+public struct PickupItemAction : IComponentData, IEnableableComponent { }
 
 // Social state
 public struct ConversationContext : IComponentData

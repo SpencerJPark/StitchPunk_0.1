@@ -84,4 +84,9 @@ public static class SelectionFunctions
             ecb.SetComponentEnabled<SocialAvailable>(index, entity, true);
         }
     }
+
+    [BurstCompile]
+    public static void PickupItemEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb,
+        bool enabled)
+        => ecb.SetComponentEnabled<PickupItemAction>(index, entity, enabled);
 }

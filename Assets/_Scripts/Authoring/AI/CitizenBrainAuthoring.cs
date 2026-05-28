@@ -6,6 +6,10 @@ public class CitizenBrainAuthoring : MonoBehaviour
     public bool active = true;
     public UnitLibrarySO unitLibrary;
 
+    [Tooltip("Optional empty hand socket child (EquiptSocketAuthoring) items attach to when equipped. " +
+             "Leave null if this unit cannot visually hold items.")]
+    public GameObject handSocket;
+
     public class Baker : Baker<CitizenBrainAuthoring>
     {
         public override void Bake(CitizenBrainAuthoring authoring)
@@ -25,6 +29,12 @@ public class CitizenBrainAuthoring : MonoBehaviour
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, FleeAction>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, ReleaseRequest>(this, entity);
             UnitBakingUtil.AddAction<CitizenBrainAuthoring, InteractAction>(this, entity);
+            UnitBakingUtil.AddAction<CitizenBrainAuthoring, PickupItemAction>(this, entity);
+
+            Entity socketEntity = authoring.handSocket != null
+                ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
+                : Entity.Null;
+            AddComponent(entity, new UnitEquipt { socketEntity = socketEntity });
         }
     }
 }

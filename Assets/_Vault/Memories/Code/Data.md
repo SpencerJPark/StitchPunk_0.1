@@ -55,6 +55,7 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 | `AIScoringLibrary` + `AIScoringCurveSO` | `MotivationType` | Scoring curve shapes per motivation — used by [[Systems_AI]] |
 | `BuildingTypeListSO` + `BuildingTypeSO` | `BuildingType` | Building stats and prefab refs |
 | `ResourceTypeListSO` + `ResourceTypeSO` | `ResourceType` | Resource display names, icons, caps |
+| `ItemLibrarySO` + `ItemSO` | `ItemType` | Item `ItemCategory` + effect data (heal amount, satisfied motivation, restoration, pickup range) — used by `ItemAwarenessSystem` / `PickupItemActionSystem`. Baked by `ItemLibraryBakingSystem` into `ItemLibraryBlob` (holder: `ItemLibrary`) |
 
 ---
 
@@ -70,7 +71,8 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 | `UnitType` | 4 | MaleCitizen / FemaleCitizen / MaleZombie / FemaleZombie |
 | `BuildingType` | 7 | Building categories |
 | `Direction` | 8 | N / NE / E / SE / S / SW / W / NW |
-| `ItemType` | — | Held item types |
+| `ItemType` | 10 | Held + consumable item types (weapons, Bandage/MedKit/Bread/Water) |
+| `ItemCategory` | 5 | None / Weapon / Healing / Food / Drink — drives `PickupItemActionSystem` effect branch |
 
 ---
 

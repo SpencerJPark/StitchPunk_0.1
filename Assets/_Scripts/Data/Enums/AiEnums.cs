@@ -55,7 +55,10 @@ public enum ActionType // used for animation linking
     Throw,
     Shoot,
     Spawn,
-    
+
+    // Item-awareness actions — appended; do not reorder existing values.
+    EquipWeapon,
+    UseHealingItem,
 }
 
 
