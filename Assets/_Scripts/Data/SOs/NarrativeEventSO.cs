@@ -12,7 +12,7 @@ using UnityEngine;
 /// a constant in NarrativeIds.Events. Place a NarrativeEventTriggerAuthoring (for
 /// proximity trigger) or wire a dialogue event via NarrativeIds.DialogueBridge to fire it.
 /// </summary>
-[CreateAssetMenu(fileName = "NarrativeEvent_New", menuName = "Animation/Narrative Event")]
+[CreateAssetMenu(fileName = "NarrativeEvent_New", menuName = "Dots Animation/Narrative Event")]
 public class NarrativeEventSO : ScriptableObject
 {
     [Tooltip("Unique integer ID. Must match a constant in NarrativeIds.Events. " +

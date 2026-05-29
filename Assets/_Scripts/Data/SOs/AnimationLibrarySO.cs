@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "_AnimationLibrary", menuName = "Animation / Animation Library")]
+[CreateAssetMenu(fileName = "_AnimationLibrary", menuName = "Dots Animation/Animation Library")]
 public class AnimationLibrarySO : ScriptableObject
 {
     public List<AnimationClipSO> clips = new List<AnimationClipSO>();

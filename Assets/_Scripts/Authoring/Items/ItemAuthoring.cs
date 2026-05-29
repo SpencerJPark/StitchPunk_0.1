@@ -8,25 +8,6 @@ public class ItemAuthoring : MonoBehaviour
     [Tooltip("Drag the child GameObject that has ItemAttachPointAuthoring here.")]
     public GameObject gripPoint;
 
-    [Tooltip("How fast the item travels when thrown (units/sec).")]
-    public float throwSpeed = 10f;
-
-    [Tooltip("Initial upward velocity when thrown (controls arc height).")]
-    public float throwArc = 4f;
-
-    [Tooltip("Damage dealt to a health entity when the thrown item hits it.")]
-    public int throwDamage = 10;
-
-    [Tooltip("Scales ragdoll violence when this item kills on impact. 1 = baseline (sword). 2+ = heavy/explosive.")]
-    public float throwRagdollForce = 1f;
-
-    [Header("Launch Arc")]
-    [Tooltip("Direct upward launch velocity (units/s) when this item kills on impact. 0 = no arc.")]
-    public float throwLaunchForceY = 0f;
-
-    [Tooltip("Direct sideways launch velocity (units/s) when this item kills on impact. 0 = no drift.")]
-    public float throwLaunchForceX = 0f;
-
     public class Baker : Baker<ItemAuthoring>
     {
         public override void Bake(ItemAuthoring authoring)
@@ -42,7 +23,7 @@ public class ItemAuthoring : MonoBehaviour
             AddComponent(entity, new AttachItemRequest());
             SetComponentEnabled<AttachItemRequest>(entity, false);
 
-            AddComponent(entity, new ThrownItemRequest { throwSpeed = authoring.throwSpeed, throwArc = authoring.throwArc, throwDamage = authoring.throwDamage, ragdollForce = authoring.throwRagdollForce, launchForceY = authoring.throwLaunchForceY, launchForceX = authoring.throwLaunchForceX });
+            AddComponent(entity, new ThrownItemRequest());
             SetComponentEnabled<ThrownItemRequest>(entity, false);
 
             if (authoring.gripPoint != null)

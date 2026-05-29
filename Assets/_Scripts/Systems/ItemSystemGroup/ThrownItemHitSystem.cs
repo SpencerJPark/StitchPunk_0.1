@@ -22,6 +22,7 @@ public partial struct ThrownItemHitSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<ItemLibrary>();
         hurtBufferLookup  = state.GetBufferLookup<Hurt>(false);
         transformLookup   = state.GetComponentLookup<LocalTransform>(true);
     }
@@ -31,6 +32,8 @@ public partial struct ThrownItemHitSystem : ISystem
     {
         hurtBufferLookup.Update(ref state);
         transformLookup.Update(ref state);
+
+        BlobAssetReference<ItemLibraryBlob> itemLibrary = SystemAPI.GetSingleton<ItemLibrary>().library;
 
         // Collect all hittable entities (have both Hurt buffer and a position) into a temp list
         // so the inner loop can be a simple distance check.
@@ -51,10 +54,11 @@ public partial struct ThrownItemHitSystem : ISystem
         if (targets.Length == 0)
             return;
 
-        foreach (var (transform, thrownItem, thrownEnabled, interactableEnabled) in
+        foreach (var (transform, thrownItem, item, thrownEnabled, interactableEnabled) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
                 RefRO<ThrownItemRequest>,
+                RefRO<Item>,
                 EnabledRefRW<ThrownItemRequest>,
                 EnabledRefRW<PlayerInteractable>>()
             .WithPresent<PlayerInteractable>())
@@ -71,6 +75,8 @@ public partial struct ThrownItemHitSystem : ISystem
             float travelDistSq = originDelta.x * originDelta.x + originDelta.z * originDelta.z;
             if (travelDistSq < minTravelDist * minTravelDist)
                 continue;
+
+            ref ItemBlob itemBlob = ref itemLibrary.Value.items[(int)item.ValueRO.itemType];
 
             for (int i = 0; i < targets.Length; i++)
             {
@@ -95,11 +101,11 @@ public partial struct ThrownItemHitSystem : ISystem
                     attackerEntity = Entity.Null,
                     attackType     = AttackType.Throw,
                     distance       = math.sqrt(distSq),
-                    damageAmount   = thrownItem.ValueRO.throwDamage,
+                    damageAmount   = itemBlob.throwDamage,
                     hitSourceX     = itemPos.x,
-                    ragdollForce   = thrownItem.ValueRO.ragdollForce,
-                    launchForceY   = thrownItem.ValueRO.launchForceY,
-                    launchForceX   = thrownItem.ValueRO.launchForceX
+                    ragdollForce   = itemBlob.throwRagdollForce,
+                    launchForceY   = itemBlob.throwLaunchForceY,
+                    launchForceX   = itemBlob.throwLaunchForceX
                 });
 
                 thrownEnabled.ValueRW       = false;

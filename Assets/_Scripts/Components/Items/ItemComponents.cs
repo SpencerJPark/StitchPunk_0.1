@@ -52,13 +52,7 @@ public struct UseItemRequest : IComponentData, IEnableableComponent { }
 public struct ThrownItemRequest : IComponentData, IEnableableComponent
 {
     public float3 velocity;
-    public float throwSpeed;      // set per-item in ItemAuthoring
-    public float throwArc;        // set per-item in ItemAuthoring
-    public int throwDamage;       // set per-item in ItemAuthoring
-    public float ragdollForce;    // set per-item in ItemAuthoring
-    public float launchForceY;    // set per-item in ItemAuthoring
-    public float launchForceX;    // set per-item in ItemAuthoring
-    public Entity thrower;        // set at throw time — excluded from hit detection
-    public float3 throwOrigin;    // world position at throw time — used to skip hits until item clears nearby units
+    public Entity thrower;        // excluded from hit detection
+    public float3 throwOrigin;    // used to skip hits until item clears nearby units
 }
 

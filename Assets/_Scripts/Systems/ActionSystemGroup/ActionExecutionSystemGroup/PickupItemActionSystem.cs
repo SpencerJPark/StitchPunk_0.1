@@ -5,12 +5,14 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 // Executes item pickup/consume for all item-awareness ActionTypes (EquipWeapon, UseHealingItem, Eat, Drink).
-// All route to PickupItemAction; the effect is chosen from the target item's ItemCategory, not the ActionType.
+// All route to PickupItemAction; the outcome is chosen from the item's ItemCategory:
+//   - Weapon     -> equip (delegates to ItemEquipSystem).
+//   - Consumable -> resolve consumeEffect via EffectLibrary, then HealRequest (Healing) or MotivationChangeRequest (behaviours).
 //
 // States (ActionTimer enabled flag):
 //   Pathing  (PickupItemAction enabled, ActionTimer disabled) — path toward the item
 //   Acting   (PickupItemAction enabled, ActionTimer enabled)  — animate + count down
-//   Complete — apply effect (equip / heal / consume), disable PickupItemAction, re-enable ActionRequest
+//   Complete — apply effect, disable PickupItemAction, re-enable ActionRequest
 //
 // Runs single-threaded (.Schedule) because it writes to arbitrary item entities via ComponentLookup,
 // mirroring ItemEquipSystem / PlayerPickupSystem.
@@ -32,6 +34,7 @@ public partial struct PickupItemActionSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<ItemLibrary>();
+        state.RequireForUpdate<EffectLibrary>();
         state.RequireForUpdate<UnitDataLibrary>();
 
         transformLookup          = state.GetComponentLookup<LocalTransform>(true);
@@ -62,6 +65,8 @@ public partial struct PickupItemActionSystem : ISystem
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary =
             SystemAPI.GetSingleton<ItemLibrary>().library;
+        BlobAssetReference<EffectLibraryBlob> effectLibrary =
+            SystemAPI.GetSingleton<EffectLibrary>().library;
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
@@ -78,6 +83,7 @@ public partial struct PickupItemActionSystem : ISystem
             playerInteractableLookup = playerInteractableLookup,
             unitEquiptLookup         = unitEquiptLookup,
             itemLibrary              = itemLibrary,
+            effectLibrary            = effectLibrary,
             unitLibrary              = unitLibrary,
         }.Schedule(state.Dependency);
     }
@@ -103,8 +109,9 @@ public partial struct PickupItemJob : IJobEntity
     public ComponentLookup<AttachItemRequest>  attachRequestLookup;
     public ComponentLookup<PlayerInteractable> playerInteractableLookup;
     [ReadOnly] public ComponentLookup<UnitEquipt> unitEquiptLookup;
-    [ReadOnly] public BlobAssetReference<ItemLibraryBlob> itemLibrary;
-    [ReadOnly] public BlobAssetReference<UnitLibraryBlob> unitLibrary;
+    [ReadOnly] public BlobAssetReference<ItemLibraryBlob>   itemLibrary;
+    [ReadOnly] public BlobAssetReference<EffectLibraryBlob> effectLibrary;
+    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
 
     public void Execute(
         Entity                                     self,
@@ -222,28 +229,50 @@ public partial struct PickupItemJob : IJobEntity
                 EquipWeapon(self, item);
                 break;
 
-            case ItemCategory.Healing:
+            case ItemCategory.Consumable:
                 ClaimItem(item, self);
-                healRequest.healAmount     = blob.healAmount;
-                healRequestEnabled.ValueRW = true;
-                ecb.DestroyEntity(item);
-                break;
-
-            case ItemCategory.Food:
-            case ItemCategory.Drink:
-                ClaimItem(item, self);
-                if (blob.satisfiedMotivation != MotivationType.None && blob.restorationAmount != 0f)
-                {
-                    changeRequests.Add(new MotivationChangeRequest
-                    {
-                        motivationType = blob.satisfiedMotivation,
-                        changeType     = MotivationChangeType.Add,
-                        value          = blob.restorationAmount,
-                    });
-                }
+                ApplyConsumableEffect(blob.consumeEffect, ref healRequest, healRequestEnabled, ref changeRequests);
                 ecb.DestroyEntity(item);
                 break;
         }
+    }
+
+    private void ApplyConsumableEffect(
+        EffectType                                 effectType,
+        ref HealRequest                            healRequest,
+        EnabledRefRW<HealRequest>                  healRequestEnabled,
+        ref DynamicBuffer<MotivationChangeRequest> changeRequests)
+    {
+        int effectIndex = (int)effectType;
+        if (effectIndex < 0 || effectIndex >= effectLibrary.Value.effects.Length)
+            return;
+
+        ref EffectBlob effectBlob = ref effectLibrary.Value.effects[effectIndex];
+
+        if (effectBlob.effectType == EffectType.Healing)
+        {
+            healRequest.healAmount     = (int)effectBlob.value;
+            healRequestEnabled.ValueRW = true;
+            return;
+        }
+
+        if (effectBlob.behaviours.Length > 0)
+        {
+            for (int b = 0; b < effectBlob.behaviours.Length; b++)
+            {
+                MotivationType motivation = effectBlob.behaviours[b];
+                if (motivation == MotivationType.None) continue;
+                changeRequests.Add(new MotivationChangeRequest
+                {
+                    motivationType = motivation,
+                    changeType     = MotivationChangeType.Add,
+                    value          = effectBlob.value,
+                });
+            }
+            return;
+        }
+
+        // TODO: status effect dispatch (Poisoned, OnFire, etc.) — awaiting UnitStateExpirySystem.
     }
 
     // Mirrors PlayerPickupJob: link the item to the unit and let ItemEquipSystem finalise the slot.

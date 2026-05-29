@@ -17,6 +17,7 @@ public partial struct PlayerUnequipSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<Player>();
+        state.RequireForUpdate<ItemLibrary>();
     }
 
     public void OnUpdate(ref SystemState state)
@@ -84,14 +85,14 @@ public partial struct PlayerUnequipSystem : ISystem
             LocalTransform playerTransform = state.EntityManager.GetComponentData<LocalTransform>(playerEntity);
             float3 forward = playerTransform.Forward();
 
+            BlobAssetReference<ItemLibraryBlob> itemLibrary = SystemAPI.GetSingleton<ItemLibrary>().library;
+            Item itemComp = state.EntityManager.GetComponentData<Item>(itemEntity);
+            ref ItemBlob itemBlob = ref itemLibrary.Value.items[(int)itemComp.itemType];
+
             // ThrownItem owns X/Z only — Gravity owns Y
-            ThrownItemRequest thrownItemRequest = state.EntityManager.GetComponentData<ThrownItemRequest>(itemEntity);
             state.EntityManager.SetComponentData(itemEntity, new ThrownItemRequest
             {
-                velocity    = new float3(forward.x, 0f, forward.z) * thrownItemRequest.throwSpeed,
-                throwSpeed  = thrownItemRequest.throwSpeed,
-                throwArc    = thrownItemRequest.throwArc,
-                throwDamage = thrownItemRequest.throwDamage,
+                velocity    = new float3(forward.x, 0f, forward.z) * itemBlob.throwSpeed,
                 thrower     = playerEntity,
                 throwOrigin = worldPos
             });
@@ -101,7 +102,7 @@ public partial struct PlayerUnequipSystem : ISystem
             if (state.EntityManager.HasComponent<Gravity>(itemEntity))
             {
                 Gravity gravity = state.EntityManager.GetComponentData<Gravity>(itemEntity);
-                gravity.verticalVelocity = thrownItemRequest.throwArc;
+                gravity.verticalVelocity = itemBlob.throwArc;
                 gravity.isGrounded       = false;
                 state.EntityManager.SetComponentData(itemEntity, gravity);
             }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System;
 using UnityEngine.Serialization;
 
-[CreateAssetMenu(fileName = "AnimationClip", menuName = "Animation / Clip")]
+[CreateAssetMenu(fileName = "AnimationClip", menuName = "Dots Animation/Clip")]
 public class AnimationClipSO : ScriptableObject
 {
     [SearchableEnum] public AnimationType animationType;

@@ -1,4 +1,4 @@
-﻿public enum EffectType
+public enum EffectType
 {
     None,
     OnFire,
@@ -13,4 +13,6 @@
     Undying,
     Electrified,
     Speed,
+    Feed,
+    Hydrate,
 }

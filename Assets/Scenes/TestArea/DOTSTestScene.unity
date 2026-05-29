@@ -264,6 +264,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &89479057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -628,6 +629,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &203022093
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1267,6 +1269,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &503928612
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1877,6 +1880,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &767502203
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2105,6 +2109,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 795723640}
+  - component: {fileID: 795723642}
+  - component: {fileID: 795723641}
   m_Layer: 0
   m_Name: EntityLibraries
   m_TagString: Untagged
@@ -2132,6 +2138,32 @@ Transform:
   - {fileID: 236680397}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &795723641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f05456ce11b326a4a82310568de98b09, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::EffectLibraryAuthoring
+  library: {fileID: 11400000, guid: 2d289124e8a6d0b45b080f5965d584ec, type: 2}
+--- !u!114 &795723642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c9353556e7d3984c8fdc167fc6eca9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::ItemLibraryAuthoring
+  library: {fileID: 11400000, guid: 9c207dd849563114dbeac13d6cc766ab, type: 2}
 --- !u!1 &820724609 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
@@ -2151,6 +2183,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &820724611
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2789,6 +2822,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!4 &1106686507 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4619132538253755074, guid: 599f27871f18fa04c907cd57971da4be, type: 3}
@@ -2859,6 +2893,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1160862660
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3143,6 +3178,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1342527509
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3175,6 +3211,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1353490308
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3206,7 +3243,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2024714973468264229, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: moveSpeed
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3363976009509366347, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: factionType
@@ -3375,6 +3412,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1390592851
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3407,6 +3445,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1550629474
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3727,6 +3766,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1625507242
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3759,6 +3799,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &1729816625
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4049,6 +4090,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CitizenBrainAuthoring
   active: 1
   unitLibrary: {fileID: 11400000, guid: e4a8952c28192a44886ac96bdc2bf140, type: 2}
+  handSocket: {fileID: 0}
 --- !u!114 &2056743451
 MonoBehaviour:
   m_ObjectHideFlags: 0

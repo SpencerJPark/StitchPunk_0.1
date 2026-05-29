@@ -4,11 +4,12 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Aware of loose items nearby and what they offer (weapon, heal, food/drink).
+// Aware of loose items nearby and what they offer (weapon vs consumable).
 // Appends ActionOption entries; never touches action tags or requests.
-//   - Threatened + unarmed -> seek nearest weapon (SelfDefence, priority 2).
-//   - Hurt (health < 100%)  -> seek nearest healing item, scaled by damage (SelfPreservation, priority 0).
-//   - Nothing urgent        -> consume nearest food/drink, gated by need via the scoring curve (priority 0).
+//   - Threatened + unarmed -> seek nearest Weapon item (SelfDefence, priority 2).
+//   - Hurt (health < 100%) -> seek nearest Consumable with EffectType.Healing (SelfPreservation, priority 0).
+//   - Nothing urgent       -> seek nearest Consumable with EffectType.Feed/Hydrate, gated by need (priority 0).
+// Consumable effects are resolved via EffectLibraryBlob — EffectType decides the slot, behaviours[0] the motivation.
 // Loose items are those with EquiptBy.owner == Entity.Null.
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
@@ -22,11 +23,11 @@ public partial struct ItemAwarenessSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<ItemLibrary>();
+        state.RequireForUpdate<EffectLibrary>();
 
-        _looseItemQuery = state.GetEntityQuery(
-            ComponentType.ReadOnly<Item>(),
-            ComponentType.ReadOnly<LocalTransform>(),
-            ComponentType.ReadOnly<EquiptBy>());
+        _looseItemQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Item, LocalTransform, EquiptBy>()
+            .Build(ref state);
 
         _unitEquiptLookup = state.GetComponentLookup<UnitEquipt>(true);
     }
@@ -42,6 +43,8 @@ public partial struct ItemAwarenessSystem : ISystem
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary =
             SystemAPI.GetSingleton<ItemLibrary>().library;
+        BlobAssetReference<EffectLibraryBlob> effectLibrary =
+            SystemAPI.GetSingleton<EffectLibrary>().library;
 
         NativeArray<Entity>         itemEntities   = _looseItemQuery.ToEntityArray(Allocator.TempJob);
         NativeArray<Item>           itemData       = _looseItemQuery.ToComponentDataArray<Item>(Allocator.TempJob);
@@ -55,6 +58,7 @@ public partial struct ItemAwarenessSystem : ISystem
             itemTransforms   = itemTransforms,
             itemOwners       = itemOwners,
             itemLibrary      = itemLibrary,
+            effectLibrary    = effectLibrary,
             unitEquiptLookup = _unitEquiptLookup,
         }.ScheduleParallel(state.Dependency);
 
@@ -74,7 +78,8 @@ public partial struct ItemAwarenessJob : IJobEntity
     [ReadOnly] public NativeArray<Item>           itemData;
     [ReadOnly] public NativeArray<LocalTransform> itemTransforms;
     [ReadOnly] public NativeArray<EquiptBy>       itemOwners;
-    [ReadOnly] public BlobAssetReference<ItemLibraryBlob> itemLibrary;
+    [ReadOnly] public BlobAssetReference<ItemLibraryBlob>   itemLibrary;
+    [ReadOnly] public BlobAssetReference<EffectLibraryBlob> effectLibrary;
     [ReadOnly] public ComponentLookup<UnitEquipt> unitEquiptLookup;
 
     public void Execute(
@@ -130,40 +135,50 @@ public partial struct ItemAwarenessJob : IJobEntity
             if (distSq > rangeSq)
                 continue;
 
-            switch (blob.category)
+            if (blob.category == ItemCategory.Weapon)
             {
-                case ItemCategory.Weapon:
-                    if (wantWeapon && distSq < nearestWeaponSq)
-                    {
-                        nearestWeaponSq = distSq;
-                        nearestWeapon   = itemEntities[i];
-                    }
-                    break;
-                case ItemCategory.Healing:
+                if (wantWeapon && distSq < nearestWeaponSq)
+                {
+                    nearestWeaponSq = distSq;
+                    nearestWeapon   = itemEntities[i];
+                }
+                continue;
+            }
+
+            // Consumable — resolve EffectType to decide which awareness slot fires.
+            int effectIndex = (int)blob.consumeEffect;
+            if (effectIndex < 0 || effectIndex >= effectLibrary.Value.effects.Length)
+                continue;
+
+            ref EffectBlob effectBlob = ref effectLibrary.Value.effects[effectIndex];
+
+            switch (effectBlob.effectType)
+            {
+                case EffectType.Healing:
                     if (wantHealing && distSq < nearestHealSq)
                     {
                         nearestHealSq = distSq;
                         nearestHeal   = itemEntities[i];
                     }
                     break;
-                case ItemCategory.Food:
+                case EffectType.Feed:
                     if (wantConsume && distSq < nearestFoodSq)
                     {
                         nearestFoodSq  = distSq;
                         nearestFood    = itemEntities[i];
-                        foodMotivation = blob.satisfiedMotivation != MotivationType.None
-                            ? blob.satisfiedMotivation : MotivationType.Hunger;
-                        foodDelta      = blob.restorationAmount;
+                        foodMotivation = effectBlob.behaviours.Length > 0 && effectBlob.behaviours[0] != MotivationType.None
+                            ? effectBlob.behaviours[0] : MotivationType.Hunger;
+                        foodDelta      = effectBlob.value;
                     }
                     break;
-                case ItemCategory.Drink:
+                case EffectType.Hydrate:
                     if (wantConsume && distSq < nearestDrinkSq)
                     {
                         nearestDrinkSq  = distSq;
                         nearestDrink    = itemEntities[i];
-                        drinkMotivation = blob.satisfiedMotivation != MotivationType.None
-                            ? blob.satisfiedMotivation : MotivationType.Hunger;
-                        drinkDelta      = blob.restorationAmount;
+                        drinkMotivation = effectBlob.behaviours.Length > 0 && effectBlob.behaviours[0] != MotivationType.None
+                            ? effectBlob.behaviours[0] : MotivationType.Hunger;
+                        drinkDelta      = effectBlob.value;
                     }
                     break;
             }

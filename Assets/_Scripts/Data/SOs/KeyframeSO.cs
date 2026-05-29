@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
 
-[CreateAssetMenu(fileName = "AnimationSO", menuName = "Animation/KeyframeSO")]
+[CreateAssetMenu(fileName = "AnimationSO", menuName = "Dots Animation/KeyframeSO")]
 public class KeyframeSO: ScriptableObject
 {
     public int frame;

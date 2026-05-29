@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "_ItemLibrary", menuName = "AI/Item Library")]
+[CreateAssetMenu(fileName = "_ItemLibrary", menuName = "Items/Item Library")]
 public class ItemLibrarySO : ScriptableObject
 {
     public List<ItemSO> items = new List<ItemSO>();

@@ -39,25 +39,37 @@ public partial struct ItemLibraryBakingSystem : ISystem
         {
             if (soByIndex.TryGetValue(i, out ItemSO so))
             {
-                itemsBuilder[i].itemType            = so.itemType;
-                itemsBuilder[i].category            = so.category;
-                itemsBuilder[i].healAmount          = so.healAmount;
-                itemsBuilder[i].satisfiedMotivation = so.satisfiedMotivation;
-                itemsBuilder[i].restorationAmount   = so.restorationAmount;
-                itemsBuilder[i].pickupRange         = so.pickupRange;
-                itemsBuilder[i].consumeDuration     = so.consumeDuration;
-                itemsBuilder[i].baseUtility         = so.baseUtility;
+                itemsBuilder[i].itemType          = so.itemType;
+                itemsBuilder[i].category          = so.category;
+                itemsBuilder[i].weaponAttack      = so.weaponAttack;
+                itemsBuilder[i].onHitEffect       = so.onHitEffect;
+                itemsBuilder[i].consumeEffect     = so.consumeEffect;
+                itemsBuilder[i].pickupRange       = so.pickupRange;
+                itemsBuilder[i].consumeDuration   = so.consumeDuration;
+                itemsBuilder[i].baseUtility       = so.baseUtility;
+                itemsBuilder[i].throwSpeed        = so.throwSpeed;
+                itemsBuilder[i].throwArc          = so.throwArc;
+                itemsBuilder[i].throwDamage       = so.throwDamage;
+                itemsBuilder[i].throwRagdollForce = so.throwRagdollForce;
+                itemsBuilder[i].throwLaunchForceY = so.throwLaunchForceY;
+                itemsBuilder[i].throwLaunchForceX = so.throwLaunchForceX;
             }
             else
             {
-                itemsBuilder[i].itemType            = (ItemType)i;
-                itemsBuilder[i].category            = ItemCategory.None;
-                itemsBuilder[i].healAmount          = 0;
-                itemsBuilder[i].satisfiedMotivation = MotivationType.None;
-                itemsBuilder[i].restorationAmount   = 0f;
-                itemsBuilder[i].pickupRange         = 1.5f;
-                itemsBuilder[i].consumeDuration     = 1f;
-                itemsBuilder[i].baseUtility         = 0f;
+                itemsBuilder[i].itemType          = (ItemType)i;
+                itemsBuilder[i].category          = ItemCategory.None;
+                itemsBuilder[i].weaponAttack      = AttackType.None;
+                itemsBuilder[i].onHitEffect       = EffectType.None;
+                itemsBuilder[i].consumeEffect     = EffectType.None;
+                itemsBuilder[i].pickupRange       = 1.5f;
+                itemsBuilder[i].consumeDuration   = 1f;
+                itemsBuilder[i].baseUtility       = 0f;
+                itemsBuilder[i].throwSpeed        = 10f;
+                itemsBuilder[i].throwArc          = 4f;
+                itemsBuilder[i].throwDamage       = 10;
+                itemsBuilder[i].throwRagdollForce = 1f;
+                itemsBuilder[i].throwLaunchForceY = 0f;
+                itemsBuilder[i].throwLaunchForceX = 0f;
             }
         }
 

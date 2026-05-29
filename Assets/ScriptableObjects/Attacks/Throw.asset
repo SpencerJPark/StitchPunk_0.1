@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Throw
   m_EditorClassIdentifier: StitchPunk.Data::AttackSO
   attackType: 4
-  attackDelivery: 2
   damageBehaviour: 0
-  damageAmount: 0
+  damageAmount: 20
   range: 5.26
-  cooldown: 0
   ragdollForce: 1
   launchForceY: 0
   launchForceX: 0
+  hitTime: 0.3
+  cooldown: 0

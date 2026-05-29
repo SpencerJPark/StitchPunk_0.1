@@ -6,8 +6,8 @@ public class EffectSO : ScriptableObject
 {
     [Tooltip("Effect Name")]
     [SearchableEnum] public EffectType effectType;
-
-    public float effectTimer;
+    public float value;
+    public float timer;
 
     [Header("Effect Behaviours")]
     [SearchableEnum] public MotivationType[] behaviours;
