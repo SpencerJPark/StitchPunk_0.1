@@ -65,8 +65,8 @@ public partial struct InteractionAwarenessJob : IJobEntity
 
         for (int m = 0; m < motivations.Length; m++)
         {
-            MotivationType currentNeed = motivations[m].motivationType;
-            if (currentNeed == MotivationType.None) continue;
+            NeedType currentNeed = motivations[m].needType;
+            if (currentNeed == NeedType.None) continue;
 
             for (int x = -cellRange; x <= cellRange; x++)
             {
@@ -93,7 +93,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
         Entity                                   target,
         float3                                   npcPos,
         float                                    maxRange,
-        MotivationType                           motivationType,
+        NeedType                                 needType,
         FactionType                              npcFaction,
         in DynamicBuffer<RecentInteraction>      recentInteractions,
         ref DynamicBuffer<ActionOption>          options)
@@ -132,10 +132,10 @@ public partial struct InteractionAwarenessJob : IJobEntity
         options.Add(new ActionOption
         {
             actionType      = interactData.actionType,
-            motivationType  = motivationType,
+            needType        = needType,
             priority        = blob.priority,
             targetEntity    = target,
-            needsValidation     = true,
+            needsValidation = true,
             utilityScore    = distScore,
             advertisedDelta = blob.restorationAmount,
         });

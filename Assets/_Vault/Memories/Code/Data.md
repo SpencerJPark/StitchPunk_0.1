@@ -105,6 +105,18 @@ Designer-tweakable values (e.g. `animationFrameRate`) are **not** here — they 
 
 ---
 
+## BlobLibraryUtils (`Data/Structs/BlobLibraryUtils.cs`)
+
+Static helper class used by `PostBakingSystemGroup` baking systems. Provides:
+- `BuildEnumLookup<TSO>()` — builds `Dictionary<int, TSO>` from a SO list (handles null entries)
+- `EnumCount<TEnum>()` — returns declared value count for an enum
+- `FillWithPreFill<TSO, TItem>()` — pre-fills all slots with defaults, then overwrites from SO list (Attack pattern)
+- `FillWithLookup<TSO, TItem>()` — fills slots via Dictionary, calling mapper or defaultFactory per slot (Item pattern)
+
+`SystemAPI.Query<T>()` is source-generator–bound to the ISystem struct, so the query loops (SO extraction, blob assign, dispose) must stay inline in each system.
+
+---
+
 ## Save File DTOs (`Data/Structs/SaveFile.cs`)
 
 Plain C# classes with `[Serializable]` for `JsonUtility`. **Never put ECS types** (`float3`, `quaternion`, `Entity`) in these — flatten to primitives. The systems that read/write these are in SaveSystemGroup — see [[Systems]].

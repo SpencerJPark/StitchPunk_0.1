@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class PlayerControllerAuthoring : MonoBehaviour
 {
-    [Tooltip("Drag the empty hand socket child (EquiptSocketAuthoring) here.")]
+    [Tooltip("Drag the empty hand socket child (EquipSocketAuthoring) here.")]
     public GameObject handSocket;
 
     [Tooltip("Child GameObject that acts as the aim arrow visual (shown while aiming).")]
@@ -163,7 +163,7 @@ public class PlayerControllerAuthoring : MonoBehaviour
             Entity socketEntity = controllerAuthoring.handSocket != null
                 ? GetEntity(controllerAuthoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;
-            AddComponent(entity, new UnitEquipt { socketEntity = socketEntity });
+            AddComponent(entity, new UnitEquip { socketEntity = socketEntity });
             
             AddComponent<ActionTimer>(entity);
             SetComponentEnabled<ActionTimer>(entity, false);

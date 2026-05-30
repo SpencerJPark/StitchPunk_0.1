@@ -34,7 +34,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
             if (curveAsset == null) continue;
 
             ref AIScoringCurveEntryBlob entryBlob = ref curvesBuilder[i];
-            entryBlob.motivationType = curveAsset.motivationType;
+            entryBlob.needType = curveAsset.needType;
 
             int res = ConstGameData.SCORING_CURVE_RESOLUTION;
             entryBlob.curve.resolution = res;

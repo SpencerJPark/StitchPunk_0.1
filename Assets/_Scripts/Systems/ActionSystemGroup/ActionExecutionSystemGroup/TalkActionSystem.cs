@@ -94,9 +94,9 @@ partial struct TalkJob : IJobEntity
                 {
                     changeRequests.Add(new MotivationChangeRequest
                     {
-                        motivationType = MotivationType.Social,
-                        changeType     = MotivationChangeType.Add,
-                        value          = 50f,
+                        needType   = NeedType.Social,
+                        changeType = MotivationChangeType.Add,
+                        value      = 50f,
                     });
                 }
                 if (partner != Entity.Null)

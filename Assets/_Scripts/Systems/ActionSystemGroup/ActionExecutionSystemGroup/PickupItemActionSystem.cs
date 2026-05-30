@@ -22,12 +22,12 @@ public partial struct PickupItemActionSystem : ISystem
 {
     private ComponentLookup<LocalTransform>     transformLookup;
     private ComponentLookup<Item>               itemLookup;
-    private ComponentLookup<EquiptBy>           equiptByLookup;
+    private ComponentLookup<EquipBy>           equipByLookup;
     private ComponentLookup<AttachedTo>         attachedToLookup;
     private ComponentLookup<EquipAction>        equipActionLookup;
     private ComponentLookup<AttachItemRequest>  attachRequestLookup;
     private ComponentLookup<PlayerInteractable> playerInteractableLookup;
-    private ComponentLookup<UnitEquipt>         unitEquiptLookup;
+    private ComponentLookup<UnitEquip>         unitEquipLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -39,12 +39,12 @@ public partial struct PickupItemActionSystem : ISystem
 
         transformLookup          = state.GetComponentLookup<LocalTransform>(true);
         itemLookup               = state.GetComponentLookup<Item>(true);
-        equiptByLookup           = state.GetComponentLookup<EquiptBy>(false);
+        equipByLookup           = state.GetComponentLookup<EquipBy>(false);
         attachedToLookup         = state.GetComponentLookup<AttachedTo>(false);
         equipActionLookup        = state.GetComponentLookup<EquipAction>(false);
         attachRequestLookup      = state.GetComponentLookup<AttachItemRequest>(false);
         playerInteractableLookup = state.GetComponentLookup<PlayerInteractable>(false);
-        unitEquiptLookup         = state.GetComponentLookup<UnitEquipt>(true);
+        unitEquipLookup         = state.GetComponentLookup<UnitEquip>(true);
     }
 
     [BurstCompile]
@@ -52,12 +52,12 @@ public partial struct PickupItemActionSystem : ISystem
     {
         transformLookup.Update(ref state);
         itemLookup.Update(ref state);
-        equiptByLookup.Update(ref state);
+        equipByLookup.Update(ref state);
         attachedToLookup.Update(ref state);
         equipActionLookup.Update(ref state);
         attachRequestLookup.Update(ref state);
         playerInteractableLookup.Update(ref state);
-        unitEquiptLookup.Update(ref state);
+        unitEquipLookup.Update(ref state);
 
         EntityCommandBuffer ecb = SystemAPI
             .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
@@ -76,12 +76,12 @@ public partial struct PickupItemActionSystem : ISystem
             ecb                      = ecb,
             transformLookup          = transformLookup,
             itemLookup               = itemLookup,
-            equiptByLookup           = equiptByLookup,
+            equipByLookup           = equipByLookup,
             attachedToLookup         = attachedToLookup,
             equipActionLookup        = equipActionLookup,
             attachRequestLookup      = attachRequestLookup,
             playerInteractableLookup = playerInteractableLookup,
-            unitEquiptLookup         = unitEquiptLookup,
+            unitEquipLookup         = unitEquipLookup,
             itemLibrary              = itemLibrary,
             effectLibrary            = effectLibrary,
             unitLibrary              = unitLibrary,
@@ -103,12 +103,12 @@ public partial struct PickupItemJob : IJobEntity
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [ReadOnly] public ComponentLookup<Item>           itemLookup;
-    public ComponentLookup<EquiptBy>           equiptByLookup;
+    public ComponentLookup<EquipBy>           equipByLookup;
     public ComponentLookup<AttachedTo>         attachedToLookup;
     public ComponentLookup<EquipAction>        equipActionLookup;
     public ComponentLookup<AttachItemRequest>  attachRequestLookup;
     public ComponentLookup<PlayerInteractable> playerInteractableLookup;
-    [ReadOnly] public ComponentLookup<UnitEquipt> unitEquiptLookup;
+    [ReadOnly] public ComponentLookup<UnitEquip> unitEquipLookup;
     [ReadOnly] public BlobAssetReference<ItemLibraryBlob>   itemLibrary;
     [ReadOnly] public BlobAssetReference<EffectLibraryBlob> effectLibrary;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
@@ -260,13 +260,13 @@ public partial struct PickupItemJob : IJobEntity
         {
             for (int b = 0; b < effectBlob.behaviours.Length; b++)
             {
-                MotivationType motivation = effectBlob.behaviours[b];
-                if (motivation == MotivationType.None) continue;
+                NeedType need = effectBlob.behaviours[b];
+                if (need == NeedType.None) continue;
                 changeRequests.Add(new MotivationChangeRequest
                 {
-                    motivationType = motivation,
-                    changeType     = MotivationChangeType.Add,
-                    value          = effectBlob.value,
+                    needType   = need,
+                    changeType = MotivationChangeType.Add,
+                    value      = effectBlob.value,
                 });
             }
             return;
@@ -278,12 +278,12 @@ public partial struct PickupItemJob : IJobEntity
     // Mirrors PlayerPickupJob: link the item to the unit and let ItemEquipSystem finalise the slot.
     private void EquipWeapon(Entity self, Entity item)
     {
-        Entity socket = unitEquiptLookup.TryGetComponent(self, out UnitEquipt unitEquipt)
-            ? unitEquipt.socketEntity
+        Entity socket = unitEquipLookup.TryGetComponent(self, out UnitEquip unitEquip)
+            ? unitEquip.socketEntity
             : Entity.Null;
 
-        if (equiptByLookup.HasComponent(item))
-            equiptByLookup[item] = new EquiptBy { owner = self };
+        if (equipByLookup.HasComponent(item))
+            equipByLookup[item] = new EquipBy { owner = self };
         if (attachedToLookup.HasComponent(item))
             attachedToLookup[item] = new AttachedTo { socket = socket };
         if (equipActionLookup.HasComponent(item))
@@ -296,14 +296,14 @@ public partial struct PickupItemJob : IJobEntity
 
     private void ClaimItem(Entity item, Entity owner)
     {
-        if (equiptByLookup.HasComponent(item))
-            equiptByLookup[item] = new EquiptBy { owner = owner };
+        if (equipByLookup.HasComponent(item))
+            equipByLookup[item] = new EquipBy { owner = owner };
     }
 
     private bool IsLoose(Entity item)
     {
-        return !equiptByLookup.TryGetComponent(item, out EquiptBy equiptBy)
-            || equiptBy.owner == Entity.Null;
+        return !equipByLookup.TryGetComponent(item, out EquipBy equipBy)
+            || equipBy.owner == Entity.Null;
     }
 
     private void Terminate(

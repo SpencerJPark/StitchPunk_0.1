@@ -136,12 +136,12 @@ public partial struct FightOrFlightJob : IJobEntity
 
             options.Add(new ActionOption
             {
-                actionType     = actionType,
-                motivationType = MotivationType.SelfDefence,
-                priority       = 2,
-                utilityScore   = attackUtility,
-                needsValidation    = false,
-                targetEntity   = topAggressor,
+                actionType      = actionType,
+                needType        = NeedType.SelfDefence,
+                priority        = 2,
+                utilityScore    = attackUtility,
+                needsValidation = false,
+                targetEntity    = topAggressor,
             });
         }
 

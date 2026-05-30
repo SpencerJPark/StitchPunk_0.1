@@ -7,7 +7,7 @@ public struct InteractionBlob
     public int                    maxOccupants;
     public float                  range;
     public BlobArray<FactionType> allowedFactions;
-    public MotivationType         satisfiedMotivation;
+    public NeedType               satisfiedNeed;
     public float                  restorationAmount;
     public float                  duration;
 }

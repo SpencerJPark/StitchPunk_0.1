@@ -77,12 +77,12 @@ public partial struct NavigationAwarenessJob : IJobEntity
 
                     options.Add(new ActionOption
                     {
-                        actionType     = ActionType.Wander,
-                        motivationType = MotivationType.Movement,
-                        priority       = 0,
-                        utilityScore   = utilityScore,
-                        needsValidation    = false,
-                        targetEntity   = waypoint,
+                        actionType      = ActionType.Wander,
+                        needType        = NeedType.Movement,
+                        priority        = 0,
+                        utilityScore    = utilityScore,
+                        needsValidation = false,
+                        targetEntity    = waypoint,
                     });
                 }
                 while (waypointCells.TryGetNextValue(out waypoint, ref it));

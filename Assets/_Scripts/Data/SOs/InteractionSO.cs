@@ -28,6 +28,7 @@ public class InteractionSO : ScriptableObject
 [Serializable]
 public struct MotivationEntry
 {
-    [SearchableEnum] public MotivationType motivationType;
+    [FormerlySerializedAs("motivationType")]
+    [SearchableEnum] public NeedType needType;
     public int value;
 }

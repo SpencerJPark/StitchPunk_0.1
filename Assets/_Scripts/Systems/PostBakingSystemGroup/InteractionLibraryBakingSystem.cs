@@ -22,14 +22,9 @@ public partial struct InteractionLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        Dictionary<int, InteractionSO> soByIndex = new Dictionary<int, InteractionSO>();
-        foreach (InteractionSO so in librarySO.interactions)
-        {
-            if (so == null) continue;
-            soByIndex[(int)so.interactionActionType] = so;
-        }
-
-        int typeCount = System.Enum.GetValues(typeof(ActionType)).Length;
+        Dictionary<int, InteractionSO> soByIndex =
+            BlobLibraryUtils.BuildEnumLookup(librarySO.interactions, so => (int)so.interactionActionType);
+        int typeCount = BlobLibraryUtils.EnumCount<ActionType>();
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref InteractionLibraryBlob root = ref builder.ConstructRoot<InteractionLibraryBlob>();
@@ -44,7 +39,7 @@ public partial struct InteractionLibraryBakingSystem : ISystem
                 interactionsBuilder[i].priority            = so.priority;
                 interactionsBuilder[i].maxOccupants        = so.maxOccupants;
                 interactionsBuilder[i].range               = so.range;
-                interactionsBuilder[i].satisfiedMotivation = so.motivationSatisfaction.motivationType;
+                interactionsBuilder[i].satisfiedNeed = so.motivationSatisfaction.needType;
                 interactionsBuilder[i].restorationAmount   = so.motivationSatisfaction.value;
                 interactionsBuilder[i].duration            = so.duration;
 
@@ -61,7 +56,7 @@ public partial struct InteractionLibraryBakingSystem : ISystem
                 interactionsBuilder[i].priority            = 0;
                 interactionsBuilder[i].maxOccupants        = 1;
                 interactionsBuilder[i].range               = 1.5f;
-                interactionsBuilder[i].satisfiedMotivation = MotivationType.None;
+                interactionsBuilder[i].satisfiedNeed = NeedType.None;
                 interactionsBuilder[i].restorationAmount   = 0f;
                 interactionsBuilder[i].duration            = 4f;
                 builder.Allocate(ref interactionsBuilder[i].allowedFactions, 0);

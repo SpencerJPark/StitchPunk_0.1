@@ -99,13 +99,13 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<TTask>(entity, false);
     }
 
-    public static void PopulateBehaviours(DynamicBuffer<Motivation> buffer, MotivationType[] types)
+    public static void PopulateBehaviours(DynamicBuffer<Motivation> buffer, NeedType[] types)
     {
         for (int i = 0; i < types.Length; i++)
             buffer.Add(DefaultBehaviour(types[i]));
     }
 
-    public static void PopulateRandomBehaviours(DynamicBuffer<Motivation> buffer, MotivationType[] pool, int amount)
+    public static void PopulateRandomBehaviours(DynamicBuffer<Motivation> buffer, NeedType[] pool, int amount)
     {
         if (pool == null || pool.Length == 0 || amount <= 0)
             return;
@@ -117,14 +117,14 @@ public static class UnitBakingUtil
             return;
         }
 
-        MotivationType[] copy = new MotivationType[pool.Length];
+        NeedType[] copy = new NeedType[pool.Length];
         System.Array.Copy(pool, copy, pool.Length);
 
         System.Random rng = new System.Random();
         for (int i = 0; i < amount; i++)
         {
             int j = rng.Next(i, copy.Length);
-            MotivationType temp = copy[i];
+            NeedType temp = copy[i];
             copy[i] = copy[j];
             copy[j] = temp;
             buffer.Add(DefaultBehaviour(copy[i]));
@@ -133,7 +133,7 @@ public static class UnitBakingUtil
 
     public static void PopulateRandomBehaviours(
         DynamicBuffer<Motivation> buffer,
-        ref BlobArray<MotivationType> pool,
+        ref BlobArray<NeedType> pool,
         int amount,
         ref Random random)
     {
@@ -148,14 +148,14 @@ public static class UnitBakingUtil
             return;
         }
 
-        NativeArray<MotivationType> copy = new NativeArray<MotivationType>(poolLength, Allocator.Temp);
+        NativeArray<NeedType> copy = new NativeArray<NeedType>(poolLength, Allocator.Temp);
         for (int i = 0; i < poolLength; i++)
             copy[i] = pool[i];
 
         for (int i = 0; i < amount; i++)
         {
             int j = random.NextInt(i, poolLength);
-            MotivationType temp = copy[i];
+            NeedType temp = copy[i];
             copy[i] = copy[j];
             copy[j] = temp;
             buffer.Add(DefaultBehaviour(copy[i]));
@@ -171,7 +171,7 @@ public static class UnitBakingUtil
             Motivation m = buffer[i];
             for (int r = 0; r < rates.Count; r++)
             {
-                if (rates[r].motivationType != m.motivationType)
+                if (rates[r].needType != m.needType)
                     continue;
                 m.decayRate = rates[r].decayRate;
                 buffer[i]   = m;
@@ -187,11 +187,11 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<PlayerControlled>(entity, startControlled);
     }
 
-    public static Motivation DefaultBehaviour(MotivationType type)
+    public static Motivation DefaultBehaviour(NeedType type)
     {
         return new Motivation
         {
-            motivationType     = type,
+            needType          = type,
             value             = 100f,
             decayRate         = 0f,
             contextMultiplier = 1f,

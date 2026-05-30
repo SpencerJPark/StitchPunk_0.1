@@ -1,12 +1,12 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 using Unity.Mathematics;
 
-public struct UnitEquipt : IComponentData // goes on parent entity
+public struct UnitEquip : IComponentData // goes on parent entity
 {
-    public Entity equiptItemEntity;
-    public Entity socketEntity; // the EquiptSocket child entity items attach to
+    public Entity equipItemEntity;
+    public Entity socketEntity; // the EquipSocket child entity items attach to
 }
-public struct EquiptSocket : IComponentData // goes on Socket
+public struct EquipSocket : IComponentData // goes on Socket
 {
     public Entity attachedItem;
 }
@@ -21,7 +21,7 @@ public struct Item : IComponentData
 {
     public ItemType itemType;
 }
-public struct EquiptBy : IComponentData // goes on item
+public struct EquipBy : IComponentData // goes on item
 {
     public Entity owner;
 }

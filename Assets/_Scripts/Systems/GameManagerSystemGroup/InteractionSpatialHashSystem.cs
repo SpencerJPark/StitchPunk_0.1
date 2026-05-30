@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -17,7 +18,8 @@ public partial struct InteractionSpatialHashSystem : ISystem
         state.EntityManager.CreateSingleton(new SpatialHashRegistry
         {
             waypointCells    = new NativeParallelMultiHashMap<int2, Entity>(1024, Allocator.Persistent),
-            interactionCells = new NativeParallelMultiHashMap<SpatialInteractionKey, Entity>(1024, Allocator.Persistent)
+            interactionCells = new NativeParallelMultiHashMap<SpatialInteractionKey, Entity>(1024, Allocator.Persistent),
+            itemCells        = new NativeParallelMultiHashMap<int2, Entity>(512, Allocator.Persistent),
         });
     }
 
@@ -27,6 +29,7 @@ public partial struct InteractionSpatialHashSystem : ISystem
         {
             if (singleton.waypointCells.IsCreated)    singleton.waypointCells.Dispose();
             if (singleton.interactionCells.IsCreated) singleton.interactionCells.Dispose();
+            if (singleton.itemCells.IsCreated)        singleton.itemCells.Dispose();
         }
     }
 
@@ -39,20 +42,41 @@ public partial struct InteractionSpatialHashSystem : ISystem
         RefRW<SpatialHashRegistry> registryRW = SystemAPI.GetSingletonRW<SpatialHashRegistry>();
         registryRW.ValueRW.waypointCells.Clear();
         registryRW.ValueRW.interactionCells.Clear();
+        registryRW.ValueRW.itemCells.Clear();
 
-        state.Dependency = new RegisterInteractionsJob
+        JobHandle interactionsHandle = new RegisterInteractionsJob
         {
             interactionLibrary = interactionLib.library,
             interactionWriter  = registryRW.ValueRW.interactionCells.AsParallelWriter(),
         }.ScheduleParallel(state.Dependency);
 
-        // Complete before leaving so InteractionAwarenessSystem reads a fully populated registry.
+        JobHandle itemsHandle = new RegisterItemsJob
+        {
+            itemWriter = registryRW.ValueRW.itemCells.AsParallelWriter(),
+        }.ScheduleParallel(state.Dependency);
+
+        state.Dependency = JobHandle.CombineDependencies(interactionsHandle, itemsHandle);
+
+        // Complete before leaving so awareness systems read a fully populated registry.
         state.Dependency.Complete();
     }
 
     public static int2 GetCell(float3 position) => new int2(
         (int)math.floor(position.x / CELL_SIZE),
         (int)math.floor(position.z / CELL_SIZE));
+}
+
+[BurstCompile]
+[WithAll(typeof(Item), typeof(LocalTransform), typeof(EquipBy))]
+public partial struct RegisterItemsJob : IJobEntity
+{
+    public NativeParallelMultiHashMap<int2, Entity>.ParallelWriter itemWriter;
+
+    public void Execute(Entity entity, in LocalTransform transform, in EquipBy equip)
+    {
+        if (equip.owner != Entity.Null) return;
+        itemWriter.Add(InteractionSpatialHashSystem.GetCell(transform.Position), entity);
+    }
 }
 
 [BurstCompile]
@@ -67,7 +91,7 @@ public partial struct RegisterInteractionsJob : IJobEntity
         int2 cell = InteractionSpatialHashSystem.GetCell(transform.Position);
 
         ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interaction.actionType];
-        if (blob.satisfiedMotivation != MotivationType.None)
-            interactionWriter.Add(new SpatialInteractionKey(cell, blob.satisfiedMotivation), entity);
+        if (blob.satisfiedNeed != NeedType.None)
+            interactionWriter.Add(new SpatialInteractionKey(cell, blob.satisfiedNeed), entity);
     }
 }

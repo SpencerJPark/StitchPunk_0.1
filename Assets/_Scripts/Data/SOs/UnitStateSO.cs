@@ -10,7 +10,7 @@ public class UnitStateSO : ScriptableObject
     public float stateTimer;
 
     [Header("UnitState Behaviours")]
-    [SearchableEnum] public MotivationType[] behaviours;
+    [SearchableEnum] public NeedType[] behaviours;
 }
 
 // States are mearly different Behaviour swaps that happen when certain qualifiers are met and removed

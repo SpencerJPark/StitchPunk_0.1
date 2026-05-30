@@ -16,7 +16,7 @@ public partial struct PlayerReviverSystem : ISystem
     {
         foreach (var (reviverEnabled, target, targetEnabled) in
             SystemAPI.Query<
-                EnabledRefRW<OnPlayerReviverEquipt>,
+                EnabledRefRW<OnPlayerReviverEquip>,
                 RefRO<Target>,
                 EnabledRefRO<Target>>()
                     .WithAll<Player>()

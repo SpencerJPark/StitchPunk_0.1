@@ -1,4 +1,4 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 using UnityEngine;
 
 public class CitizenBrainAuthoring : MonoBehaviour
@@ -6,7 +6,7 @@ public class CitizenBrainAuthoring : MonoBehaviour
     public bool active = true;
     public UnitLibrarySO unitLibrary;
 
-    [Tooltip("Optional empty hand socket child (EquiptSocketAuthoring) items attach to when equipped. " +
+    [Tooltip("Optional empty hand socket child (EquipSocketAuthoring) items attach to when equipped. " +
              "Leave null if this unit cannot visually hold items.")]
     public GameObject handSocket;
 
@@ -34,7 +34,7 @@ public class CitizenBrainAuthoring : MonoBehaviour
             Entity socketEntity = authoring.handSocket != null
                 ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;
-            AddComponent(entity, new UnitEquipt { socketEntity = socketEntity });
+            AddComponent(entity, new UnitEquip { socketEntity = socketEntity });
         }
     }
 }

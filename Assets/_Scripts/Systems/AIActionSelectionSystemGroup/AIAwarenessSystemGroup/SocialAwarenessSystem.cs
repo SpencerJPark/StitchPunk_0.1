@@ -75,7 +75,7 @@ partial struct SocialAwarenessJob : IJobEntity
         float socialValue = 0f;
         for (int m = 0; m < motivations.Length; m++)
         {
-            if (motivations[m].motivationType == MotivationType.Social)
+            if (motivations[m].needType == NeedType.Social)
             {
                 socialValue = motivations[m].value;
                 break;
@@ -127,11 +127,11 @@ partial struct SocialAwarenessJob : IJobEntity
         options.Add(new ActionOption
         {
             actionType      = ActionType.Talk,
-            motivationType  = MotivationType.Social,
+            needType        = NeedType.Social,
             priority        = 1,
             utilityScore    = 1f - math.saturate(bestDistSq / rangeSq),
             advertisedDelta = 40f,
-            needsValidation     = true,
+            needsValidation = true,
             targetEntity    = bestCandidate,
         });
     }

@@ -58,12 +58,12 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].randomMotivationAmount = unitSO.randomMotivationsTotal;
 
             int motivationCount = unitSO.motivations?.Length ?? 0;
-            BlobBuilderArray<MotivationType> motivationArray = builder.Allocate(ref unitsArray[i].motivation, motivationCount);
+            BlobBuilderArray<NeedType> motivationArray = builder.Allocate(ref unitsArray[i].motivation, motivationCount);
             for (int j = 0; j < motivationCount; j++)
                 motivationArray[j] = unitSO.motivations[j];
 
             int randomCount = unitSO.randomMotivations?.Length ?? 0;
-            BlobBuilderArray<MotivationType> randomArray = builder.Allocate(ref unitsArray[i].randomMotivations, randomCount);
+            BlobBuilderArray<NeedType> randomArray = builder.Allocate(ref unitsArray[i].randomMotivations, randomCount);
             for (int j = 0; j < randomCount; j++)
                 randomArray[j] = unitSO.randomMotivations[j];
 

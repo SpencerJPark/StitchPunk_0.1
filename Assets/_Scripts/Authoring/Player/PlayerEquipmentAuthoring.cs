@@ -9,8 +9,8 @@ public class PlayerEquipmentAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            AddComponent(entity, new OnPlayerReviverEquipt());
-            SetComponentEnabled<OnPlayerReviverEquipt>(entity, false);
+            AddComponent(entity, new OnPlayerReviverEquip());
+            SetComponentEnabled<OnPlayerReviverEquip>(entity, false);
         }
     }
 }

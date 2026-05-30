@@ -38,7 +38,7 @@ public partial struct MotivationChangeJob : IJobEntity
             for (int m = 0; m < motivations.Length; m++)
             {
                 Motivation motivation = motivations[m];
-                if (motivation.motivationType != req.motivationType)
+                if (motivation.needType != req.needType)
                     continue;
 
                 motivation.value = req.changeType == MotivationChangeType.Set

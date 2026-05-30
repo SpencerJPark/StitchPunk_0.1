@@ -19,7 +19,7 @@ public struct AIScoringBlob
 
 public struct AIScoringCurveEntryBlob
 {
-    public MotivationType motivationType;
+    public NeedType      needType;
     public AIScoringBlob curve;
 }
 

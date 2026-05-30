@@ -132,7 +132,7 @@ public partial struct MinionCounterJob : IJobEntity
             actionOptions.Add(new ActionOption
             {
                 actionType     = actionType,
-                motivationType = MotivationType.SelfDefence,
+                needType       = NeedType.SelfDefence,
                 priority = 3,
                 utilityScore   = rangeScore,
                 needsValidation    = false,
@@ -201,7 +201,7 @@ public partial struct NearbyAlertJob : IJobEntity
                 actionOptions.Add(new ActionOption
                 {
                     actionType     = actionType,
-                    motivationType = MotivationType.SelfDefence,
+                    needType       = NeedType.SelfDefence,
                     priority = 2,
                     utilityScore   = rangeScore,
                     needsValidation    = false,

@@ -1,4 +1,4 @@
-﻿public enum MotivationType
+﻿public enum NeedType
 {
     None,
     Hunger,
@@ -12,16 +12,7 @@
     SelfPreservation,
     SelfDefence,
     BloodLust,
-    Bookworm,
     Work,
-    NightOwl,
-    EarlyBird,
-    Glutton,
-    Grumpy,
-    Depressed,
-    Lazy,
-    Nervous,
-    Slob, // fart and burp
 }
 
 public enum ActionType // used for animation linking

@@ -20,9 +20,9 @@ public struct UnitDataBlob
     public FactionType factionType;
     public bool canBePlayerControlled;
     public float awarenessRange;
-    public BlobArray<MotivationType> motivation;
+    public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;
-    public BlobArray<MotivationType> randomMotivations;
+    public BlobArray<NeedType> randomMotivations;
     public BlobArray<FactionType> attackFactions;
     public BlobArray<FactionType> socialFactions;
     public BlobArray<AttackActionMappingBlob> attacks;

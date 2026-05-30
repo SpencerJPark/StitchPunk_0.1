@@ -5,7 +5,7 @@ public struct EffectBlob
     public EffectType                 effectType;
     public float                      value;
     public float                      timer;
-    public BlobArray<MotivationType>  behaviours;
+    public BlobArray<NeedType>  behaviours;
 }
 
 public struct EffectLibraryBlob

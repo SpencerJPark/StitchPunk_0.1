@@ -3,14 +3,14 @@ using UnityEngine;
 
 // Place on an empty child GameObject of the hand bone.
 // Marks this entity as the socket point that items snap to when equipped.
-public class EquiptSocketAuthoring : MonoBehaviour
+public class EquipSocketAuthoring : MonoBehaviour
 {
-    public class Baker : Baker<EquiptSocketAuthoring>
+    public class Baker : Baker<EquipSocketAuthoring>
     {
-        public override void Bake(EquiptSocketAuthoring authoring)
+        public override void Bake(EquipSocketAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-            AddComponent(entity, new EquiptSocket());
+            AddComponent(entity, new EquipSocket());
         }
     }
 }

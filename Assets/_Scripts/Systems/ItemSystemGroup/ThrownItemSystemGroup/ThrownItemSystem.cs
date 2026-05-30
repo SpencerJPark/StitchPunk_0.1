@@ -9,7 +9,7 @@ using Unity.Transforms;
 /// Stops and re-enables PlayerInteractable when UnitGravitySystem reports isGrounded.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(ItemSystemGroup))]
+[UpdateInGroup(typeof(ThrownItemSystemGroup))]
 public partial struct ThrownItemSystem : ISystem
 {
     [BurstCompile]

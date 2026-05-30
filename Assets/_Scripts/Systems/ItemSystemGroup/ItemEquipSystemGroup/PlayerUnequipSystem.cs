@@ -8,7 +8,7 @@ using Unity.Transforms;
 /// Unparents the equipped item, restores its world position, and for throws
 /// applies a forward + arc velocity so ThrownItemSystem can move it.
 /// </summary>
-[UpdateInGroup(typeof(ItemEquiptSystemGroup))]
+[UpdateInGroup(typeof(ItemEquipSystemGroup))]
 [UpdateBefore(typeof(ItemEquipSystem))]
 public partial struct PlayerUnequipSystem : ISystem
 {
@@ -33,9 +33,9 @@ public partial struct PlayerUnequipSystem : ISystem
 
         if (isDrop)  state.EntityManager.SetComponentEnabled<OnDropPlayerInput>(playerEntity, false);
 
-        UnitEquipt unitEquipt = state.EntityManager.GetComponentData<UnitEquipt>(playerEntity);
-        Entity itemEntity     = unitEquipt.equiptItemEntity;
-        Entity socketEntity   = unitEquipt.socketEntity;
+        UnitEquip unitEquip = state.EntityManager.GetComponentData<UnitEquip>(playerEntity);
+        Entity itemEntity     = unitEquip.equipItemEntity;
+        Entity socketEntity   = unitEquip.socketEntity;
 
         if (itemEntity == Entity.Null)
         {
@@ -63,18 +63,18 @@ public partial struct PlayerUnequipSystem : ISystem
         ecb.Dispose();
 
         // Clear equip data (preserve socketEntity on player for future pickups)
-        state.EntityManager.SetComponentData(playerEntity, new UnitEquipt
+        state.EntityManager.SetComponentData(playerEntity, new UnitEquip
         {
-            equiptItemEntity = Entity.Null,
+            equipItemEntity = Entity.Null,
             socketEntity     = socketEntity
         });
-        state.EntityManager.SetComponentData(itemEntity, new EquiptBy   { owner  = Entity.Null });
+        state.EntityManager.SetComponentData(itemEntity, new EquipBy   { owner  = Entity.Null });
         state.EntityManager.SetComponentData(itemEntity, new AttachedTo { socket = Entity.Null });
 
         if (socketEntity != Entity.Null &&
-            state.EntityManager.HasComponent<EquiptSocket>(socketEntity))
+            state.EntityManager.HasComponent<EquipSocket>(socketEntity))
         {
-            state.EntityManager.SetComponentData(socketEntity, new EquiptSocket { attachedItem = Entity.Null });
+            state.EntityManager.SetComponentData(socketEntity, new EquipSocket { attachedItem = Entity.Null });
         }
 
         // ── Throw ─────────────────────────────────────────────────────────────

@@ -54,9 +54,9 @@ public partial struct MotivationScoringJob : IJobEntity
         {
             var motivation = motivations[m];
 
-            if (action.motivationType == motivation.motivationType)
+            if (action.needType == motivation.needType)
             {
-                float motiveScore = AIUtils.EvaluateScoringCurve(library, motivation.motivationType, motivation.value);
+                float motiveScore = AIUtils.EvaluateScoringCurve(library, motivation.needType, motivation.value);
                 
                 // Usually utility is multiplied to weight the motivation
                 return motiveScore * action.utilityScore;

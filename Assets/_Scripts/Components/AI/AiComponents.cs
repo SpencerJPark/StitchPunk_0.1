@@ -34,21 +34,21 @@ public struct ActionTimer : IComponentData, IEnableableComponent
 
 public struct Motivation : IBufferElementData
 {
-    public MotivationType motivationType;  // drives curve + spatial hash key (Interaction mode)
-    public float value;                    // current urgency [-100, 100]
-    public float decayRate;                // units per second
-    public float contextMultiplier;        // written by pre-pass systems, reset to 1.0 by decay system
+    public NeedType needType;           // drives curve + spatial hash key (Interaction mode)
+    public float    value;              // current urgency [-100, 100]
+    public float    decayRate;          // units per second
+    public float    contextMultiplier;  // written by pre-pass systems, reset to 1.0 by decay system
 }
 
 public struct ActionOption : IBufferElementData
 {
     public ActionType actionType;
-    public MotivationType motivationType;
-    public int priority;
-    public float utilityScore;
-    public float advertisedDelta;   // promised need restoration; 0 = use raw curve × utilityScore
-    public bool needsValidation;
-    public Entity targetEntity;
+    public NeedType   needType;
+    public int        priority;
+    public float      utilityScore;
+    public float      advertisedDelta;  // promised need restoration; 0 = use raw curve × utilityScore
+    public bool       needsValidation;
+    public Entity     targetEntity;
 }
 
 public struct Faction : IComponentData
@@ -106,9 +106,9 @@ public struct SocialValidationRequest : IComponentData, IEnableableComponent { }
 public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
 public struct MotivationChangeRequest : IBufferElementData
 {
-    public MotivationType      motivationType;
-    public MotivationChangeType changeType;    // Add: += value (clamped 0–100); Set: = value (clamped 0–100)
-    public float               value;
+    public NeedType             needType;
+    public MotivationChangeType changeType;  // Add: += value (clamped 0–100); Set: = value (clamped 0–100)
+    public float                value;
 }
 public struct SwapBrainRequest : IComponentData, IEnableableComponent
 {

@@ -8,13 +8,13 @@ using Unity.Collections;
 /// finalises the link on the same frame.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(ItemEquiptSystemGroup))]
+[UpdateInGroup(typeof(ItemEquipSystemGroup))]
 [UpdateBefore(typeof(ItemEquipSystem))]
 public partial struct PlayerPickupSystem : ISystem
 {
     private ComponentLookup<Item> itemLookup;
-    private ComponentLookup<UnitEquipt> unitEquiptLookup;
-    private ComponentLookup<EquiptBy> equiptByLookup;
+    private ComponentLookup<UnitEquip> unitEquipLookup;
+    private ComponentLookup<EquipBy> equipByLookup;
     private ComponentLookup<AttachedTo> attachedToLookup;
     private ComponentLookup<EquipAction> equipRequestLookup;
     private ComponentLookup<AttachItemRequest> attachRequestLookup;
@@ -26,8 +26,8 @@ public partial struct PlayerPickupSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
 
         itemLookup               = state.GetComponentLookup<Item>(true);
-        unitEquiptLookup         = state.GetComponentLookup<UnitEquipt>(true);
-        equiptByLookup           = state.GetComponentLookup<EquiptBy>(false);
+        unitEquipLookup         = state.GetComponentLookup<UnitEquip>(true);
+        equipByLookup           = state.GetComponentLookup<EquipBy>(false);
         attachedToLookup         = state.GetComponentLookup<AttachedTo>(false);
         equipRequestLookup       = state.GetComponentLookup<EquipAction>(false);
         attachRequestLookup      = state.GetComponentLookup<AttachItemRequest>(false);
@@ -38,8 +38,8 @@ public partial struct PlayerPickupSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         itemLookup.Update(ref state);
-        unitEquiptLookup.Update(ref state);
-        equiptByLookup.Update(ref state);
+        unitEquipLookup.Update(ref state);
+        equipByLookup.Update(ref state);
         attachedToLookup.Update(ref state);
         equipRequestLookup.Update(ref state);
         attachRequestLookup.Update(ref state);
@@ -48,8 +48,8 @@ public partial struct PlayerPickupSystem : ISystem
         state.Dependency = new PlayerPickupJob
         {
             itemLookup               = itemLookup,
-            unitEquiptLookup         = unitEquiptLookup,
-            equiptByLookup           = equiptByLookup,
+            unitEquipLookup         = unitEquipLookup,
+            equipByLookup           = equipByLookup,
             attachedToLookup         = attachedToLookup,
             equipRequestLookup       = equipRequestLookup,
             attachRequestLookup      = attachRequestLookup,
@@ -67,8 +67,8 @@ public partial struct PlayerPickupSystem : ISystem
 public partial struct PlayerPickupJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Item> itemLookup;
-    [ReadOnly] public ComponentLookup<UnitEquipt> unitEquiptLookup;
-    public ComponentLookup<EquiptBy> equiptByLookup;
+    [ReadOnly] public ComponentLookup<UnitEquip> unitEquipLookup;
+    public ComponentLookup<EquipBy> equipByLookup;
     public ComponentLookup<AttachedTo> attachedToLookup;
     public ComponentLookup<EquipAction> equipRequestLookup;
     public ComponentLookup<AttachItemRequest> attachRequestLookup;
@@ -89,11 +89,11 @@ public partial struct PlayerPickupJob : IJobEntity
         Entity itemEntity = target.ValueRO.entity;
         if (!itemLookup.HasComponent(itemEntity)) return;
 
-        Entity socketEntity = unitEquiptLookup.HasComponent(playerEntity)
-            ? unitEquiptLookup[playerEntity].socketEntity
+        Entity socketEntity = unitEquipLookup.HasComponent(playerEntity)
+            ? unitEquipLookup[playerEntity].socketEntity
             : Entity.Null;
 
-        equiptByLookup[itemEntity]   = new EquiptBy   { owner   = playerEntity };
+        equipByLookup[itemEntity]   = new EquipBy   { owner   = playerEntity };
         attachedToLookup[itemEntity] = new AttachedTo { socket  = socketEntity };
         equipRequestLookup.SetComponentEnabled(itemEntity, true);
         attachRequestLookup.SetComponentEnabled(itemEntity, true);

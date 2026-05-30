@@ -49,14 +49,14 @@ public partial struct FleeAwarenessJob : IJobEntity
         float fleeUtility = (1f - healthRatio) * (1f - personality.bravery);
 
         // SelfPreservation drives the scoring curve; mirrors EnemyAwareness setting BloodLust.
-        AIUtils.SetMotivationValue(ref motivations, MotivationType.SelfPreservation, 100f);
+        AIUtils.SetMotivationValue(ref motivations, NeedType.SelfPreservation, 100f);
 
         options.Add(new ActionOption
         {
-            actionType     = ActionType.Flee,
-            motivationType = MotivationType.SelfPreservation,
-            priority       = 2,
-            utilityScore   = fleeUtility,
+            actionType   = ActionType.Flee,
+            needType     = NeedType.SelfPreservation,
+            priority     = 2,
+            utilityScore = fleeUtility,
         });
     }
 }

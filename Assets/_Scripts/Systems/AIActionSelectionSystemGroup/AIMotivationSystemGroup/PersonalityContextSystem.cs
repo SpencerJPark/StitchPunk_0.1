@@ -35,22 +35,22 @@ public partial struct PersonalityContextJob : IJobEntity
         for (int i = 0; i < motivations.Length; i++)
         {
             Motivation motivation = motivations[i];
-            switch (motivation.motivationType)
+            switch (motivation.needType)
             {
-                case MotivationType.Social:
+                case NeedType.Social:
                     // socialAffinity [0,1]: 0.5 = neutral (×1.0), 0 = antisocial (×0), 1 = extrovert (×2)
                     motivation.contextMultiplier = personality.socialAffinity * 2f;
                     break;
 
-                case MotivationType.Movement:
+                case NeedType.Movement:
                     motivation.contextMultiplier = personality.wanderlust * 2f;
                     break;
 
-                case MotivationType.Hunger:
+                case NeedType.Hunger:
                     motivation.contextMultiplier = personality.gluttony * 2f;
                     break;
 
-                // All other motivations: contextMultiplier stays 1.0 (set by MotivationDecaySystem)
+                // All other needs: contextMultiplier stays 1.0 (set by MotivationDecaySystem)
             }
             motivations[i] = motivation;
         }

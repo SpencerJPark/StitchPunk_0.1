@@ -37,13 +37,13 @@ public partial struct SaveSystem : ISystem
         LocalTransform playerTransform = state.EntityManager.GetComponentData<LocalTransform>(playerEntity);
         Health playerHealth           = state.EntityManager.GetComponentData<Health>(playerEntity);
         PlayerEquipmentSlots playerEquipmentSlots = state.EntityManager.GetComponentData<PlayerEquipmentSlots>(playerEntity);
-        UnitEquipt unitEquipt         = state.EntityManager.GetComponentData<UnitEquipt>(playerEntity);
+        UnitEquip unitEquip         = state.EntityManager.GetComponentData<UnitEquip>(playerEntity);
 
         int equippedItemType = (int)ItemType.None;
-        if (unitEquipt.equiptItemEntity != Entity.Null &&
-            state.EntityManager.HasComponent<Item>(unitEquipt.equiptItemEntity))
+        if (unitEquip.equipItemEntity != Entity.Null &&
+            state.EntityManager.HasComponent<Item>(unitEquip.equipItemEntity))
         {
-            equippedItemType = (int)state.EntityManager.GetComponentData<Item>(unitEquipt.equiptItemEntity).itemType;
+            equippedItemType = (int)state.EntityManager.GetComponentData<Item>(unitEquip.equipItemEntity).itemType;
         }
 
         SaveFile saveFile = new SaveFile

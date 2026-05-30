@@ -11,7 +11,7 @@ using Unity.Collections;
 /// On hit: applies throwDamage and stops the item.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(ItemSystemGroup))]
+[UpdateInGroup(typeof(ThrownItemSystemGroup))]
 [UpdateAfter(typeof(ThrownItemSystem))]
 public partial struct ThrownItemHitSystem : ISystem
 {

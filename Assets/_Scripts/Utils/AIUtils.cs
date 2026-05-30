@@ -9,16 +9,16 @@ public static class AIUtils
 {
     public static float EvaluateScoringCurve(
         BlobAssetReference<AIScoringLibraryBlob> library,
-        MotivationType motivationType,
+        NeedType needType,
         float needValue)
     {
         if (!library.IsCreated) return 0f;
-        
+
         ref var blob = ref library.Value;
 
         for (int i = 0; i < blob.curves.Length; i++)
         {
-            if (blob.curves[i].motivationType == motivationType)
+            if (blob.curves[i].needType == needType)
             {
                 return blob.curves[i].curve.Evaluate(needValue);
             }
@@ -44,7 +44,7 @@ public static class AIUtils
         float3 position,
         float range,
         float cellSize,
-        MotivationType motivationType,
+        NeedType needType,
         ref NativeList<Entity> results)
     {
         float rangeSq = range * range;
@@ -60,7 +60,7 @@ public static class AIUtils
         {
             for (int y = minCell.y; y <= maxCell.y; y++)
             {
-                var key = new SpatialInteractionKey(new int2(x, y), motivationType);
+                var key = new SpatialInteractionKey(new int2(x, y), needType);
 
                 if (!interactionCells.TryGetFirstValue(key, out Entity candidate, out var iterator))
                     continue;
@@ -173,13 +173,13 @@ public static class AIUtils
 
     public static void SetMotivationValue(
         ref DynamicBuffer<Motivation> motivations,
-        MotivationType type,
+        NeedType type,
         float value)
     {
         for (int i = 0; i < motivations.Length; i++)
         {
             Motivation motivation = motivations[i];
-            if (motivation.motivationType == type)
+            if (motivation.needType == type)
             {
                 motivation.value = value;
                 motivations[i]   = motivation;

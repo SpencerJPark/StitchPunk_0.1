@@ -24,9 +24,9 @@ public class UnitSO : ScriptableObject
     [Range(0f, 0.5f)] public float wanderlustVariance   = 0.1f;
     [Range(0f, 1f)]   public float gluttony             = 0.5f;
     [Range(0f, 0.5f)] public float gluttonyVariance     = 0.1f;
-    [SearchableEnum] public MotivationType[] motivations;
+    [SearchableEnum] public NeedType[] motivations;
     public int randomMotivationsTotal;
-    [SearchableEnum] public MotivationType[] randomMotivations;
+    [SearchableEnum] public NeedType[] randomMotivations;
     public List<MotivationDecayConfig> motivationDecayRates;
     [SearchableEnum] public FactionType[] socialFactions;
     
@@ -65,7 +65,8 @@ public class UnitSO : ScriptableObject
 [Serializable]
 public struct MotivationDecayConfig
 {
-    [SearchableEnum] public MotivationType motivationType;
+    [FormerlySerializedAs("motivationType")]
+    [SearchableEnum] public NeedType needType;
     public float decayRate;
 }
 

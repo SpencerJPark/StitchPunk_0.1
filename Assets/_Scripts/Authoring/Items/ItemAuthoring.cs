@@ -15,7 +15,7 @@ public class ItemAuthoring : MonoBehaviour
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
             AddComponent(entity, new Item { itemType = authoring.itemType });
-            AddComponent(entity, new EquiptBy());
+            AddComponent(entity, new EquipBy());
             AddComponent(entity, new AttachedTo());
             AddComponent(entity, new EquipAction());
             SetComponentEnabled<EquipAction>(entity, false);

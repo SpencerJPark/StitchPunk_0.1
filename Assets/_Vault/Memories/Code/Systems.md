@@ -26,7 +26,9 @@ AIActionSelectionSystemGroup     — utility-guided: see [[Systems_AI]]
 ActionSystemGroup                — unified action pipeline: see [[Systems_AI]]
   ├── ActionSelectionSystemGroup — picks from ActionOption buffer, enables action tag
   └── ActionExecutionSystemGroup — orchestrates PathRequest / AttackRequest / etc.
-ItemSystemGroup              — thrown item movement, proximity hit detection
+ItemSystemGroup
+  ├── ItemEquipSystemGroup (OrderFirst) — equip, pickup, attach, unequip
+  └── ThrownItemSystemGroup            — thrown item movement, proximity hit detection
 AnimationSystemGroup         — see [[Systems_Animation]]
   ├── AnimationAssignmentSystemGroup — decides which clip to play per layer
   └── AnimationExecutionSystemGroup — advances time, samples keyframes, applies pose
@@ -166,8 +168,20 @@ Runs after `MovementSystemGroup`, before `CombatSystemGroup`. Handles factory pr
 
 ### ItemSystemGroup (`Systems/ItemSystemGroup/`)
 
+#### ItemEquipSystemGroup (OrderFirst) (`ItemEquipSystemGroup/`)
+
 | System | File | Purpose |
 |---|---|---|
+| `ItemEquipSystem` | `ItemEquipSystem.cs` | Equips items from pickup or command |
+| `PlayerPickupSystem` | `PlayerPickupSystem.cs` | Handles player pickup input |
+| `ItemAttachSystem` | `ItemAttachSystem.cs` | Attaches equipped item visually to socket |
+| `PlayerUnequipSystem` | `PlayerUnequipSystem.cs` | Handles player unequip input |
+
+#### ThrownItemSystemGroup (after ItemEquipSystemGroup) (`ThrownItemSystemGroup/`)
+
+| System | File | Purpose |
+|---|---|---|
+| `ThrownItemSystem` | `ThrownItemSystem.cs` | Applies horizontal (X/Z) throw velocity each frame; stops and re-enables `PlayerInteractable` when grounded |
 | `ThrownItemHitSystem` | `ThrownItemHitSystem.cs` | Proximity-based hit detection for thrown items (no physics collider required). XZ-only distance check; on hit writes to `Hurt` buffer, disables `ThrownItem`, enables `PlayerInteractable` |
 
 > Thrown items skip the `thrower` entity and ignore all hits until the item has traveled **1.2 units** from `ThrownItem.throwOrigin` — prevents a body right next to the player from immediately blocking the throw. Walls are unaffected (no `Health` component).

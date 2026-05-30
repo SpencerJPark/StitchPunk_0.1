@@ -176,13 +176,13 @@ public partial struct SitJob : IJobEntity
 
         ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interact.actionType];
 
-        if (blob.satisfiedMotivation == MotivationType.None) return;
+        if (blob.satisfiedNeed == NeedType.None) return;
 
         changeRequests.Add(new MotivationChangeRequest
         {
-            motivationType = blob.satisfiedMotivation,
-            changeType     = MotivationChangeType.Add,
-            value          = blob.restorationAmount,
+            needType   = blob.satisfiedNeed,
+            changeType = MotivationChangeType.Add,
+            value      = blob.restorationAmount,
         });
     }
 

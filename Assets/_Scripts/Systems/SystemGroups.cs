@@ -1,4 +1,4 @@
-﻿using Unity.Entities;
+using Unity.Entities;
 
 // main groups
 [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
@@ -60,7 +60,11 @@ public partial class ActionSystemGroup : ComponentSystemGroup { }
 public partial class ItemSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(ItemSystemGroup), OrderFirst = true)]
-        public partial class ItemEquiptSystemGroup : ComponentSystemGroup { }
+        public partial class ItemEquipSystemGroup : ComponentSystemGroup { }
+
+        [UpdateInGroup(typeof(ItemSystemGroup))]
+        [UpdateAfter(typeof(ItemEquipSystemGroup))]
+        public partial class ThrownItemSystemGroup : ComponentSystemGroup { }
 
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]

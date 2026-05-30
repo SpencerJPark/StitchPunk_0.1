@@ -121,7 +121,7 @@ public partial struct CombatAwarenessJob : IJobEntity
         {
             // Set BloodLust motivation to max urgency so MotivationScoringSystem
             // scores attack options at full weight via the BloodLust curve.
-            AIUtils.SetMotivationValue(ref motivations, MotivationType.BloodLust, 100f);
+            AIUtils.SetMotivationValue(ref motivations, NeedType.BloodLust, 100f);
 
             float nearestDist = math.sqrt(nearestDistanceSq);
 
@@ -142,12 +142,12 @@ public partial struct CombatAwarenessJob : IJobEntity
 
                 options.Add(new ActionOption
                 {
-                    actionType     = actionType,
-                    motivationType = MotivationType.BloodLust,
-                    priority = 2,
-                    utilityScore   = rangeScore,
-                    needsValidation    = false,
-                    targetEntity   = nearestHostile,
+                    actionType      = actionType,
+                    needType        = NeedType.BloodLust,
+                    priority        = 2,
+                    utilityScore    = rangeScore,
+                    needsValidation = false,
+                    targetEntity    = nearestHostile,
                 });
             }
         }

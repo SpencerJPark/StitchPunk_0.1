@@ -22,56 +22,15 @@ public partial struct ItemLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        Dictionary<int, ItemSO> soByIndex = new Dictionary<int, ItemSO>();
-        foreach (ItemSO so in librarySO.items)
-        {
-            if (so == null) continue;
-            soByIndex[(int)so.itemType] = so;
-        }
-
-        int typeCount = System.Enum.GetValues(typeof(ItemType)).Length;
+        Dictionary<int, ItemSO> soByIndex =
+            BlobLibraryUtils.BuildEnumLookup(librarySO.items, so => (int)so.itemType);
+        int typeCount = BlobLibraryUtils.EnumCount<ItemType>();
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref ItemLibraryBlob root = ref builder.ConstructRoot<ItemLibraryBlob>();
         BlobBuilderArray<ItemBlob> itemsBuilder = builder.Allocate(ref root.items, typeCount);
 
-        for (int i = 0; i < typeCount; i++)
-        {
-            if (soByIndex.TryGetValue(i, out ItemSO so))
-            {
-                itemsBuilder[i].itemType          = so.itemType;
-                itemsBuilder[i].category          = so.category;
-                itemsBuilder[i].weaponAttack      = so.weaponAttack;
-                itemsBuilder[i].onHitEffect       = so.onHitEffect;
-                itemsBuilder[i].consumeEffect     = so.consumeEffect;
-                itemsBuilder[i].pickupRange       = so.pickupRange;
-                itemsBuilder[i].consumeDuration   = so.consumeDuration;
-                itemsBuilder[i].baseUtility       = so.baseUtility;
-                itemsBuilder[i].throwSpeed        = so.throwSpeed;
-                itemsBuilder[i].throwArc          = so.throwArc;
-                itemsBuilder[i].throwDamage       = so.throwDamage;
-                itemsBuilder[i].throwRagdollForce = so.throwRagdollForce;
-                itemsBuilder[i].throwLaunchForceY = so.throwLaunchForceY;
-                itemsBuilder[i].throwLaunchForceX = so.throwLaunchForceX;
-            }
-            else
-            {
-                itemsBuilder[i].itemType          = (ItemType)i;
-                itemsBuilder[i].category          = ItemCategory.None;
-                itemsBuilder[i].weaponAttack      = AttackType.None;
-                itemsBuilder[i].onHitEffect       = EffectType.None;
-                itemsBuilder[i].consumeEffect     = EffectType.None;
-                itemsBuilder[i].pickupRange       = 1.5f;
-                itemsBuilder[i].consumeDuration   = 1f;
-                itemsBuilder[i].baseUtility       = 0f;
-                itemsBuilder[i].throwSpeed        = 10f;
-                itemsBuilder[i].throwArc          = 4f;
-                itemsBuilder[i].throwDamage       = 10;
-                itemsBuilder[i].throwRagdollForce = 1f;
-                itemsBuilder[i].throwLaunchForceY = 0f;
-                itemsBuilder[i].throwLaunchForceX = 0f;
-            }
-        }
+        BlobLibraryUtils.FillWithLookup(itemsBuilder, typeCount, soByIndex, DefaultItem, MapItem);
 
         BlobAssetReference<ItemLibraryBlob> blobRef =
             builder.CreateBlobAssetReference<ItemLibraryBlob>(Allocator.Persistent);
@@ -93,4 +52,40 @@ public partial struct ItemLibraryBakingSystem : ISystem
                 holder.ValueRW.library.Dispose();
         }
     }
+
+    static ItemBlob DefaultItem(int i) => new ItemBlob
+    {
+        itemType          = (ItemType)i,
+        category          = ItemCategory.None,
+        weaponAttack      = AttackType.None,
+        onHitEffect       = EffectType.None,
+        consumeEffect     = EffectType.None,
+        pickupRange       = 1.5f,
+        consumeDuration   = 1f,
+        baseUtility       = 0f,
+        throwSpeed        = 10f,
+        throwArc          = 4f,
+        throwDamage       = 10,
+        throwRagdollForce = 1f,
+        throwLaunchForceY = 0f,
+        throwLaunchForceX = 0f,
+    };
+
+    static ItemBlob MapItem(ItemSO so) => new ItemBlob
+    {
+        itemType          = so.itemType,
+        category          = so.category,
+        weaponAttack      = so.weaponAttack,
+        onHitEffect       = so.onHitEffect,
+        consumeEffect     = so.consumeEffect,
+        pickupRange       = so.pickupRange,
+        consumeDuration   = so.consumeDuration,
+        baseUtility       = so.baseUtility,
+        throwSpeed        = so.throwSpeed,
+        throwArc          = so.throwArc,
+        throwDamage       = so.throwDamage,
+        throwRagdollForce = so.throwRagdollForce,
+        throwLaunchForceY = so.throwLaunchForceY,
+        throwLaunchForceX = so.throwLaunchForceX,
+    };
 }

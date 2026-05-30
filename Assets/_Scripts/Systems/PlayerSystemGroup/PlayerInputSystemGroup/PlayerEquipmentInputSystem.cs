@@ -46,7 +46,7 @@ public partial struct PlayerEquipmentInputSystem : ISystem
             switch (equippedItem)
             {
                 case ItemType.Reviver:
-                    SystemAPI.SetComponentEnabled<OnPlayerReviverEquipt>(entity, true);
+                    SystemAPI.SetComponentEnabled<OnPlayerReviverEquip>(entity, true);
                     break;
             }
 

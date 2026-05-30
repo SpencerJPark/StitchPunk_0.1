@@ -13,7 +13,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         AttackLibrarySO librarySO = null;
-        foreach (var reference in SystemAPI.Query<RefRO<AttackLibraryReference>>())
+        foreach (RefRO<AttackLibraryReference> reference in SystemAPI.Query<RefRO<AttackLibraryReference>>())
         {
             librarySO = reference.ValueRO.library.Value;
             break;
@@ -21,45 +21,24 @@ public partial struct AttackLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        int attackCount = System.Enum.GetValues(typeof(AttackType)).Length;
+        int attackCount = BlobLibraryUtils.EnumCount<AttackType>();
 
-        using var builder = new BlobBuilder(Allocator.Temp);
+        using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref AttackLibraryBlob root = ref builder.ConstructRoot<AttackLibraryBlob>();
-        var attacksBuilder = builder.Allocate(ref root.attacks, attackCount);
+        BlobBuilderArray<AttackBlob> attacksBuilder = builder.Allocate(ref root.attacks, attackCount);
 
-        // Pre-fill all slots with defaults so unregistered attack types are safe to read
-        for (int i = 0; i < attackCount; i++)
-        {
-            attacksBuilder[i].attackType      = (AttackType)i;
-            attacksBuilder[i].damageBehaviour = DamageBehaviour.SinlgeTarget;
-            attacksBuilder[i].damageAmount    = 0;
-            attacksBuilder[i].range           = 0f;
-            attacksBuilder[i].ragdollForce    = 1f;
-            attacksBuilder[i].launchForceY    = 0f;
-            attacksBuilder[i].launchForceX    = 0f;
-            attacksBuilder[i].hitTime         = 0.3f;
-            attacksBuilder[i].cooldown        = 1f;
-        }
+        BlobLibraryUtils.FillWithPreFill(
+            attacksBuilder, attackCount,
+            DefaultAttack,
+            librarySO.attacks,
+            so => (int)so.attackType,
+            MapAttack
+        );
 
-        foreach (var attackSO in librarySO.attacks)
-        {
-            if (attackSO == null) continue;
+        BlobAssetReference<AttackLibraryBlob> blobRef =
+            builder.CreateBlobAssetReference<AttackLibraryBlob>(Allocator.Persistent);
 
-            int index = (int)attackSO.attackType;
-            attacksBuilder[index].attackType      = attackSO.attackType;
-            attacksBuilder[index].damageBehaviour = attackSO.damageBehaviour;
-            attacksBuilder[index].damageAmount    = attackSO.damageAmount;
-            attacksBuilder[index].range           = attackSO.range;
-            attacksBuilder[index].ragdollForce    = attackSO.ragdollForce;
-            attacksBuilder[index].launchForceY    = attackSO.launchForceY;
-            attacksBuilder[index].launchForceX    = attackSO.launchForceX;
-            attacksBuilder[index].hitTime         = attackSO.hitTime;
-            attacksBuilder[index].cooldown        = attackSO.cooldown;
-        }
-
-        var blobRef = builder.CreateBlobAssetReference<AttackLibraryBlob>(Allocator.Persistent);
-
-        foreach (var holder in SystemAPI.Query<RefRW<AttackLibrary>>())
+        foreach (RefRW<AttackLibrary> holder in SystemAPI.Query<RefRW<AttackLibrary>>())
         {
             if (holder.ValueRO.library.IsCreated)
                 holder.ValueRW.library.Dispose();
@@ -70,10 +49,36 @@ public partial struct AttackLibraryBakingSystem : ISystem
 
     public void OnDestroy(ref SystemState state)
     {
-        foreach (var holder in SystemAPI.Query<RefRW<AttackLibrary>>())
+        foreach (RefRW<AttackLibrary> holder in SystemAPI.Query<RefRW<AttackLibrary>>())
         {
             if (holder.ValueRO.library.IsCreated)
                 holder.ValueRW.library.Dispose();
         }
     }
+
+    static AttackBlob DefaultAttack(int i) => new AttackBlob
+    {
+        attackType      = (AttackType)i,
+        damageBehaviour = DamageBehaviour.SinlgeTarget,
+        damageAmount    = 0,
+        range           = 0f,
+        ragdollForce    = 1f,
+        launchForceY    = 0f,
+        launchForceX    = 0f,
+        hitTime         = 0.3f,
+        cooldown        = 1f,
+    };
+
+    static AttackBlob MapAttack(AttackSO so) => new AttackBlob
+    {
+        attackType      = so.attackType,
+        damageBehaviour = so.damageBehaviour,
+        damageAmount    = so.damageAmount,
+        range           = so.range,
+        ragdollForce    = so.ragdollForce,
+        launchForceY    = so.launchForceY,
+        launchForceX    = so.launchForceX,
+        hitTime         = so.hitTime,
+        cooldown        = so.cooldown,
+    };
 }

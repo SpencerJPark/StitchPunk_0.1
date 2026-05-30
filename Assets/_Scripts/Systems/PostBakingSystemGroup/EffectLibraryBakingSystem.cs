@@ -22,14 +22,9 @@ public partial struct EffectLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        Dictionary<int, EffectSO> soByIndex = new Dictionary<int, EffectSO>();
-        foreach (EffectSO so in librarySO.effects)
-        {
-            if (so == null) continue;
-            soByIndex[(int)so.effectType] = so;
-        }
-
-        int typeCount = System.Enum.GetValues(typeof(EffectType)).Length;
+        Dictionary<int, EffectSO> soByIndex =
+            BlobLibraryUtils.BuildEnumLookup(librarySO.effects, so => (int)so.effectType);
+        int typeCount = BlobLibraryUtils.EnumCount<EffectType>();
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref EffectLibraryBlob root = ref builder.ConstructRoot<EffectLibraryBlob>();
@@ -44,7 +39,7 @@ public partial struct EffectLibraryBakingSystem : ISystem
                 effectsBuilder[i].timer      = so.timer;
 
                 int behaviourCount = so.behaviours != null ? so.behaviours.Length : 0;
-                BlobBuilderArray<MotivationType> behavioursBuilder =
+                BlobBuilderArray<NeedType> behavioursBuilder =
                     builder.Allocate(ref effectsBuilder[i].behaviours, behaviourCount);
                 for (int b = 0; b < behaviourCount; b++)
                     behavioursBuilder[b] = so.behaviours[b];

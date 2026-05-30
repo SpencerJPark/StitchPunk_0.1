@@ -6,7 +6,7 @@ using Unity.Transforms;
 /// Parents an item entity to its socket and resets its local transform so it
 /// sits at the socket origin. Runs after ItemEquipSystem so all equip data is final.
 /// </summary>
-[UpdateInGroup(typeof(ItemEquiptSystemGroup))]
+[UpdateInGroup(typeof(ItemEquipSystemGroup))]
 [UpdateAfter(typeof(ItemEquipSystem))]
 public partial struct ItemAttachSystem : ISystem
 {
