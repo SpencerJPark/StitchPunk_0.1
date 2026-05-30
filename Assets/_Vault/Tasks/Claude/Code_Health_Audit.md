@@ -29,6 +29,7 @@ Snapshot of growth-curve issues identified during the throw-item refactor sessio
 - **Options:**
   - [ ] Stay tag-per-action but extract a shared "action orchestration" helper for the common pattern (path-to-target → animate → fire request → complete) so a new `EatAction` is ~30 lines instead of ~300.
   - [ ] Or: collapse to `ActiveActionRequest { ActionType type, Entity target }` + function-pointer dispatch (pattern already exists in `SelectionFunctions`). Trades discoverability for compactness — overkill until 30+ actions.
+- [x] Extracted dual-registration sync hazard: moved the 14 `ActionType → function-pointer` registrations from both `ActionSelectionSystem.OnCreate` and `ActionInterruptSystem.OnCreate` into `SelectionFunctions.PopulateFunctionTable`. Adding a new implemented ActionType now requires touching `SelectionFunctions.cs` only. (Done 2026-05-29.)
 
 ### 2. `MotivationType` mixes needs and traits
 - **Where:** `Assets/_Scripts/Data/Enums/AiEnums.cs:1–25`.
@@ -67,7 +68,7 @@ Snapshot of growth-curve issues identified during the throw-item refactor sessio
 ### 8. `ActionType.None` co-exists with `IdleAction` tag
 - **Where:** `AiEnums.cs:29` + `AiComponents.cs:78`.
 - **Problem:** Dual representation forces every consumer to check both for "doing nothing."
-- [ ] Pick one canonical "no action" state and retire the other.
+- [x] Retired `ActionType.None`; `ActionType.Idle` (now index 0) is the single "no action" state. Validation failures in `ValidateInteractionJob` and `ValidateSocialJob` now set `ActionType.Idle`. `SetupActionJob` bounds check updated to `>= 0` so `IdleEnable` fires correctly. `IsIdleAction()` simplified. `GetActionByAttack` miss-path returns `ActionType.Idle`. (Done 2026-05-29.)
 
 ---
 
@@ -93,3 +94,4 @@ When reviewing PRs that add authoring fields, ask: *is this static config (→ S
 3. ~~**#5 BlobLibraryUtils**~~ — Done 2026-05-29.
 4. ~~**#2 NeedType / TraitType split**~~ — Done 2026-05-29.
 5. ~~**#4 Spatial hash extension (items)**~~ — Done 2026-05-29. Enemy/social faction spatial extension deferred.
+6. ~~**#1 Dual-registration sync hazard**~~ — `SelectionFunctions.PopulateFunctionTable` extracted. Done 2026-05-29.

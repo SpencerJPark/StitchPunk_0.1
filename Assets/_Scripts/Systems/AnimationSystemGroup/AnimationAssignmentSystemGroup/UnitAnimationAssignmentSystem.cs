@@ -77,7 +77,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
 
     private static bool IsIdleAction(ActionType action)
     {
-        return action == ActionType.Idle || action == ActionType.None;
+        return action == ActionType.Idle;
     }
 
     private static AnimationType GetBaseAnimation(

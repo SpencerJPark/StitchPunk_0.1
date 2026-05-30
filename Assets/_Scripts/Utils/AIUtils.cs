@@ -157,7 +157,7 @@ public static class AIUtils
             if (unitBlob.attacks[i].attack == attackType)
                 return unitBlob.attacks[i].action;
         }
-        return ActionType.None;
+        return ActionType.Idle;
     }
 
     public static AnimationType GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType)

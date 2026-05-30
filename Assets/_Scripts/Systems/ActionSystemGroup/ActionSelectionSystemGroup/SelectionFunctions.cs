@@ -89,4 +89,22 @@ public static class SelectionFunctions
     public static void PickupItemEnable(in Entity entity, int index, ref EntityCommandBuffer.ParallelWriter ecb,
         bool enabled)
         => ecb.SetComponentEnabled<PickupItemAction>(index, entity, enabled);
+
+    public static void PopulateFunctionTable(ref NativeArray<FunctionPointer<ActionActivationDelegate>> table)
+    {
+        table[(int)ActionType.Idle]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(IdleEnable);
+        table[(int)ActionType.Wander]          = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(WanderEnable);
+        table[(int)ActionType.Interact]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(InteractEnable);
+        table[(int)ActionType.Flee]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(FleeEnable);
+        table[(int)ActionType.MeleeContinuous] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(MeleeEnable);
+        table[(int)ActionType.MeleeSingle]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(MeleeSingleEnable);
+        table[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SitEnable);
+        table[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(InteractEnable);
+        table[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(TalkEnable);
+        table[(int)ActionType.Death]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(DeathEnable);
+        table[(int)ActionType.EquipWeapon]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(PickupItemEnable);
+        table[(int)ActionType.UseHealingItem]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(PickupItemEnable);
+        table[(int)ActionType.Eat]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(PickupItemEnable);
+        table[(int)ActionType.Drink]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(PickupItemEnable);
+    }
 }

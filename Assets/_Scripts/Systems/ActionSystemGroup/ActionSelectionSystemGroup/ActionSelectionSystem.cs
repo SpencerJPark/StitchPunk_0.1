@@ -38,20 +38,7 @@ public partial struct ActionSelectionSystem : ISystem
         for (int i = 0; i < tableSize; i++)
             _functionTable[i] = nullPtr;
 
-        _functionTable[(int)ActionType.Idle]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.IdleEnable);
-        _functionTable[(int)ActionType.Wander]   = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.WanderEnable);
-        _functionTable[(int)ActionType.Interact] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
-        _functionTable[(int)ActionType.Flee]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.FleeEnable);
-        _functionTable[(int)ActionType.MeleeContinuous] = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeEnable);
-        _functionTable[(int)ActionType.MeleeSingle]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.MeleeSingleEnable);
-        _functionTable[(int)ActionType.Sit]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.SitEnable);
-        _functionTable[(int)ActionType.Bathroom]        = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.InteractEnable);
-        _functionTable[(int)ActionType.Talk]            = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.TalkEnable);
-        _functionTable[(int)ActionType.Death]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.DeathEnable);
-        _functionTable[(int)ActionType.EquipWeapon]     = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
-        _functionTable[(int)ActionType.UseHealingItem]  = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
-        _functionTable[(int)ActionType.Eat]             = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
-        _functionTable[(int)ActionType.Drink]           = BurstCompiler.CompileFunctionPointer<ActionActivationDelegate>(SelectionFunctions.PickupItemEnable);
+        SelectionFunctions.PopulateFunctionTable(ref _functionTable);
     }
     
     [BurstCompile]
@@ -256,7 +243,7 @@ public partial struct ActionSelectionSystem : ISystem
             }
             else
             {
-                currentAction.actionType = ActionType.None;
+                currentAction.actionType = ActionType.Idle;
             }
 
             // Always re-enable ActionRequest so SetupActionJob runs this frame.
@@ -332,7 +319,7 @@ public partial struct ActionSelectionSystem : ISystem
             }
             else
             {
-                currentAction.actionType   = ActionType.None;
+                currentAction.actionType   = ActionType.Idle;
                 currentAction.targetEntity = Entity.Null;
             }
 
@@ -359,7 +346,7 @@ public partial struct ActionSelectionSystem : ISystem
         {
             int actionIndex = (int)currentAction.actionType;
             
-            if (actionIndex > 0 && actionIndex < functionTable.Length)
+            if (actionIndex >= 0 && actionIndex < functionTable.Length)
             {
                 functionTable[actionIndex].Invoke(in entity, index, ref ecb, true);
                 needsAction.ValueRW = false;

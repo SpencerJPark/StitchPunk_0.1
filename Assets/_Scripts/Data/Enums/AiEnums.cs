@@ -17,7 +17,6 @@
 
 public enum ActionType // used for animation linking
 {
-    None,
     Idle,
     Wander, // picks a random spot around the waypoint to move to, meant for simulating controlled city walking
     Interact,
