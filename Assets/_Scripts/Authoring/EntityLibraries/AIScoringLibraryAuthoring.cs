@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class AIScoringLibraryAuthoring : MonoBehaviour
 {
-    public AIScoringLibrarySO library;
+    public ConsiderationLibrarySO library;
 
     public class Baker : Baker<AIScoringLibraryAuthoring>
     {

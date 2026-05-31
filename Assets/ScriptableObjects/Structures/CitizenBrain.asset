@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37ae3b292cc59f347a88c9c4d609ca4e, type: 3}
+  m_Name: CitizenBrain
+  m_EditorClassIdentifier: StitchPunk.Data::BrainConfigSO
+  unitType: 2
+  actions:
+  - {fileID: 11400000, guid: 79f119d1c12740642990f18c6c499045, type: 2}

@@ -13,7 +13,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
-        AIScoringLibrarySO librarySO = null;
+        ConsiderationLibrarySO librarySO = null;
         foreach (var reference in SystemAPI.Query<RefRO<ScoringLibraryReference>>())
         {
             librarySO = reference.ValueRO.library.Value;
@@ -30,7 +30,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
 
         for (int i = 0; i < curveCount; i++)
         {
-            AIScoringCurveSO curveAsset = librarySO.curves[i];
+            ConsiderationCurveSO curveAsset = librarySO.curves[i];
             if (curveAsset == null) continue;
 
             ref AIScoringCurveEntryBlob entryBlob = ref curvesBuilder[i];

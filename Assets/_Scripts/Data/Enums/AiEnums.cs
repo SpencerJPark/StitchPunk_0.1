@@ -1,4 +1,42 @@
-﻿public enum NeedType
+﻿
+public enum BehaviorPhase : byte
+{
+    Approach,
+    Execute,
+    InterruptionCleanup,
+    Recovery,
+    Complete
+}
+
+public enum BehaviorCommandType : byte
+{
+    PlayAnimation,
+    SpawnEntity,     // e.g., Spawn a projectile / bullet
+    ModifyStat,      // e.g., Hurt health, add money, satisfy hunger
+    StartDialogue,
+    ApplyForce,      // e.g., Dodge, knockback, dash
+    WaitTime         // Pause execution for a set duration
+}
+
+public enum ConsiderationType : byte
+{
+    Health,
+    LineOfSight,
+    DistanceToTarget,
+    AmmoCount,
+    Motivation,
+    Trait,
+}
+
+public enum CurveType : byte
+{
+    Linear,
+    Quadratic,
+    Inverse
+}
+
+
+public enum NeedType
 {
     None,
     Hunger,
@@ -69,6 +107,21 @@ public enum MotivationChangeType
 {
     Add,
     Set,
+}
+
+// Utility AI v2 — how an action picks its target.
+public enum TargetingMode : byte
+{
+    Self,          // action runs on the owner (Wander, Idle, Sleep)
+    SingleTarget,  // action needs one target entity (MeleeAttack, Talk, Pickup)
+}
+
+// Utility AI v2 — stable key for the BehaviorLibrary blob (enum-indexed like ItemType/AttackType).
+// Append-only: add new values at the end, never reorder existing ones.
+public enum BehaviorType : byte
+{
+    None,
+    Wander,
 }
 
 public enum UnitStateType

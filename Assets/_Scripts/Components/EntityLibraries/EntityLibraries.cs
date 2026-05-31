@@ -7,7 +7,7 @@ public struct ScoringLibrary : IComponentData
 }
 public struct ScoringLibraryReference : IComponentData
 {
-    public UnityObjectRef<AIScoringLibrarySO> library;
+    public UnityObjectRef<ConsiderationLibrarySO> library;
 }
 
 
@@ -67,6 +67,31 @@ public struct InteractionLibrary : IComponentData
 public struct InteractionLibraryReference : IComponentData
 {
     public UnityObjectRef<InteractionLibrarySO> library;
+}
+
+
+// Utility AI v2 — behaviors library (enum-indexed by BehaviorType), referenced directly by systems.
+public struct BehaviorLibrary : IComponentData
+{
+    public BlobAssetReference<BehaviorLibraryBlob> blob;
+}
+
+public struct BehaviorLibraryReference : IComponentData
+{
+    public UnityObjectRef<BehaviorLibrarySO> library;
+}
+
+
+// Utility AI v2 — brains + action defs. Singleton holding the master AIConfig blob.
+public struct BrainLibrary : IComponentData
+{
+    public BlobAssetReference<AIConfigBlob> blob;
+}
+
+// Bake-only handoff: one entry per BrainConfigSO assigned on AIConfigAuthoring.
+public struct BrainLibraryEntry : IBufferElementData
+{
+    public UnityObjectRef<BrainSO> config;
 }
 
 

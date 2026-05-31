@@ -23,28 +23,30 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<Ragdoll2DLaunch>   _ragdollLaunchLookup;
     private ComponentLookup<Undead>            _undeadLookup;
     private ComponentLookup<Minion>            _minionLookup;
-    private ComponentLookup<ReviveRequest>            _reviveLookup;
+    private ComponentLookup<ReviveRequest>     _reviveLookup;
     private ComponentLookup<Selected>          _selectedLookup;
     private ComponentLookup<PathRequest>       _pathRequestLookup;
     private ComponentLookup<DStarLiteFollower> _dStarLookup;
     private ComponentLookup<FlowFieldFollower> _flowFieldLookup;
     private ComponentLookup<HordeMembership>   _hordeLookup;
+    private ComponentLookup<UtilityBrainV2>    _utilityBrainV2Lookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        _aliveLookup         = state.GetComponentLookup<Alive>(false);
-        _deadLookup          = state.GetComponentLookup<Dead>(false);
-        _ragdollLaunchLookup = state.GetComponentLookup<Ragdoll2DLaunch>(false);
-        _undeadLookup        = state.GetComponentLookup<Undead>(false);
-        _minionLookup        = state.GetComponentLookup<Minion>(false);
-        _reviveLookup        = state.GetComponentLookup<ReviveRequest>(false);
-        _selectedLookup      = state.GetComponentLookup<Selected>(false);
-        _pathRequestLookup   = state.GetComponentLookup<PathRequest>(false);
-        _dStarLookup         = state.GetComponentLookup<DStarLiteFollower>(false);
-        _flowFieldLookup     = state.GetComponentLookup<FlowFieldFollower>(false);
-        _hordeLookup         = state.GetComponentLookup<HordeMembership>(false);
+        _aliveLookup           = state.GetComponentLookup<Alive>(false);
+        _deadLookup            = state.GetComponentLookup<Dead>(false);
+        _ragdollLaunchLookup   = state.GetComponentLookup<Ragdoll2DLaunch>(false);
+        _undeadLookup          = state.GetComponentLookup<Undead>(false);
+        _minionLookup          = state.GetComponentLookup<Minion>(false);
+        _reviveLookup          = state.GetComponentLookup<ReviveRequest>(false);
+        _selectedLookup        = state.GetComponentLookup<Selected>(false);
+        _pathRequestLookup     = state.GetComponentLookup<PathRequest>(false);
+        _dStarLookup           = state.GetComponentLookup<DStarLiteFollower>(false);
+        _flowFieldLookup       = state.GetComponentLookup<FlowFieldFollower>(false);
+        _hordeLookup           = state.GetComponentLookup<HordeMembership>(false);
+        _utilityBrainV2Lookup  = state.GetComponentLookup<UtilityBrainV2>(false);
     }
 
     [BurstCompile]
@@ -61,6 +63,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _dStarLookup.Update(ref state);
         _flowFieldLookup.Update(ref state);
         _hordeLookup.Update(ref state);
+        _utilityBrainV2Lookup.Update(ref state);
 
         foreach (var (_, entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
@@ -94,6 +97,10 @@ public partial struct SpawnStateInitSystem : ISystem
                 _flowFieldLookup.SetComponentEnabled(entity, false);
             if (_hordeLookup.HasComponent(entity))
                 _hordeLookup.SetComponentEnabled(entity, false);
+
+            // v2 utility brain — enabled on spawn so the new pipeline starts immediately.
+            if (_utilityBrainV2Lookup.HasComponent(entity))
+                _utilityBrainV2Lookup.SetComponentEnabled(entity, true);
         }
     }
 }

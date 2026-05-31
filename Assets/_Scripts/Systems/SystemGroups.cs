@@ -44,6 +44,17 @@ public partial class AIActionSelectionSystemGroup : ComponentSystemGroup { }
         [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
         public partial class AIScoringSystemGroup : ComponentSystemGroup { }
 
+        // v2 perception — awareness jobs write AwarenessTarget; runs alongside AIAwarenessSystemGroup
+        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
+        [UpdateAfter(typeof(AIMotivationSystemGroup))]
+        [UpdateBefore(typeof(AIScoringSystemGroup))]
+        public partial class PerceptionSystemGroup : ComponentSystemGroup { }
+
+        // v2 decision pipeline — instancing → context → scoring → selection; runs after legacy scoring
+        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
+        [UpdateAfter(typeof(AIScoringSystemGroup))]
+        public partial class UtilityDecisionSystemGroup : ComponentSystemGroup { }
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(ItemSystemGroup))]
 public partial class ActionSystemGroup : ComponentSystemGroup { }

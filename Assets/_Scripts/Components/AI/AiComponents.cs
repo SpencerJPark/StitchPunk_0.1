@@ -101,9 +101,11 @@ public struct SocialAvailable : IComponentData, IEnableableComponent { }
 
 // Requests
 public struct ActionRequest : IComponentData, IEnableableComponent { }
+public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
+
 public struct ActionSelectionValidationRequest: IComponentData, IEnableableComponent {}
 public struct SocialValidationRequest : IComponentData, IEnableableComponent { }
-public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
+
 public struct MotivationChangeRequest : IBufferElementData
 {
     public NeedType             needType;
