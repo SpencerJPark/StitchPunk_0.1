@@ -85,13 +85,20 @@ public struct BehaviorLibraryReference : IComponentData
 // Utility AI v2 — brains + action defs. Singleton holding the master AIConfig blob.
 public struct BrainLibrary : IComponentData
 {
-    public BlobAssetReference<AIConfigBlob> blob;
+    public BlobAssetReference<BrainLibraryBlob> blob;
 }
 
 // Bake-only handoff: one entry per BrainConfigSO assigned on AIConfigAuthoring.
 public struct BrainLibraryEntry : IBufferElementData
 {
     public UnityObjectRef<BrainSO> config;
+}
+
+// On unit: reverse lookup from unit → its pooled action entities. Written at spawn; read by ActionInstancingSystem.
+public struct OwnedAction : IBufferElementData
+{
+    public Entity actionEntity;
+    public int    actionDefIndex;
 }
 
 

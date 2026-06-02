@@ -26,11 +26,12 @@ public struct ActionDefBlob
     public ActionType    actionType;
     public int           priority;
     public TargetingMode targeting;
-    public BehaviorType  behavior;     // -> BehaviorLibrary, not an internal index
+    public BehaviorType  behavior;        // -> BehaviorLibrary, not an internal index
+    public int           maxCandidates;   // pool size: how many action entities to spawn per unit
     public BlobArray<ConsiderationBlob> considerations;
 }
 
-// One unit archetype's action set. Indices point into AIConfigBlob.actionDefs.
+// One unit archetype's action set. Indices point into BrainLibraryBlob.actionDefs.
 public struct BrainBlob
 {
     public UnitType       unitType;
@@ -38,7 +39,7 @@ public struct BrainBlob
 }
 
 // Master config blob: brains (indexed by UnitType) + the shared, de-duplicated action-def table.
-public struct AIConfigBlob
+public struct BrainLibraryBlob
 {
     public BlobArray<BrainBlob>      brains;       // indexed by (int)UnitType
     public BlobArray<ActionDefBlob>  actionDefs;

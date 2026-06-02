@@ -14,32 +14,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::UtilityActionSO
   actionType: 1
   priority: 1
-  targeting: 0
+  targeting: 1
   behavior: {fileID: 11400000, guid: d69009064a378c444bb7f29651f8f874, type: 2}
   considerations:
-  - input: 4
+  - input: 0
     curve:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: -0.0033340454
+        time: 0.000869751
         value: 0.99713135
-        inSlope: -0.9879393
-        outSlope: -0.9879393
+        inSlope: 0.0070889117
+        outSlope: 0.0070889117
         tangentMode: 34
         weightedMode: 0
         inWeight: 0
         outWeight: 0.33333334
       - serializedVersion: 3
         time: 1.0050049
-        value: 0.0009536743
-        inSlope: -0.9879393
-        outSlope: -0.9879393
-        tangentMode: 34
+        value: 1.0042496
+        inSlope: 0.018519605
+        outSlope: 0.018519605
+        tangentMode: 0
         weightedMode: 0
-        inWeight: 0.33333334
+        inWeight: 0.25630277
         outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    weight: 0.8
+    weight: 1

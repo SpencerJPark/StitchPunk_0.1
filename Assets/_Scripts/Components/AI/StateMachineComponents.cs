@@ -11,6 +11,7 @@ public struct StateMachine : IComponentData
     public BehaviorPhase currentPhase;
     public int           CurrentCommandIndex;
     public float         CommandTimer;
+    public StanceType    currentStance;    // written by Approach command; read by locomotion system
 }
 
 

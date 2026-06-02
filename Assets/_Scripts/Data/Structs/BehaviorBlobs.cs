@@ -4,7 +4,6 @@ using Unity.Entities;
 public struct BehaviorConfigBlob
 {
     public BehaviorType behaviorType;
-    public float        targetRange;
     public BlobArray<BehaviorCommand> executionSequence;
     public BlobArray<BehaviorCommand> interruptionCleanup;
 }
@@ -26,15 +25,3 @@ public struct BehaviorCommand
     public float Duration;    // How long this specific step takes before the next one runs
 }
 
-// The core configuration structure
-public struct ActionConfigBlob
-{
-    public float targetRange;
-    public int priority; // Higher priority actions can interrupt lower ones
-    
-    // The standard workflow sequence
-    public BlobArray<BehaviorCommand> executionSequence;
-    
-    // NEW: Run these ONLY if the execution sequence gets forcefully canceled
-    public BlobArray<BehaviorCommand> interruptionCleanupSequence;
-}

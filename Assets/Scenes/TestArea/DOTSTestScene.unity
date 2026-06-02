@@ -2111,6 +2111,8 @@ GameObject:
   - component: {fileID: 795723640}
   - component: {fileID: 795723642}
   - component: {fileID: 795723641}
+  - component: {fileID: 795723644}
+  - component: {fileID: 795723643}
   m_Layer: 0
   m_Name: EntityLibraries
   m_TagString: Untagged
@@ -2164,6 +2166,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemLibraryAuthoring
   library: {fileID: 11400000, guid: 9c207dd849563114dbeac13d6cc766ab, type: 2}
+--- !u!114 &795723643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea3c306e3de11ca4b8447b7915e4147d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BehaviorLibraryAuthoring
+  library: {fileID: 11400000, guid: 94dd0120c0a6ac446af7cbeb3d87e16a, type: 2}
+--- !u!114 &795723644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c3eaf134f4e14346b1b1309eb1beb12, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BrainLibraryAuthoring
+  library: {fileID: 11400000, guid: f900edf180ec02d4aa0fd4326dd1afb0, type: 2}
 --- !u!1 &820724609 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
@@ -3601,12 +3629,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemAuthoring
   itemType: 2
   gripPoint: {fileID: 1822350936}
-  throwSpeed: 10
-  throwArc: 1.6
-  throwDamage: 20
-  throwRagdollForce: 1
-  throwLaunchForceY: 0
-  throwLaunchForceX: 0
 --- !u!114 &1551899777
 MonoBehaviour:
   m_ObjectHideFlags: 0

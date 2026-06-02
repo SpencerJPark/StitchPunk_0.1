@@ -22,11 +22,11 @@ public partial struct ScoringLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        using var builder = new BlobBuilder(Allocator.Temp);
+        using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref AIScoringLibraryBlob root = ref builder.ConstructRoot<AIScoringLibraryBlob>();
 
         int curveCount = librarySO.curves.Count;
-        var curvesBuilder = builder.Allocate(ref root.curves, curveCount);
+        BlobBuilderArray<AIScoringCurveEntryBlob> curvesBuilder = builder.Allocate(ref root.curves, curveCount);
 
         for (int i = 0; i < curveCount; i++)
         {
@@ -39,7 +39,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
             int res = ConstGameData.SCORING_CURVE_RESOLUTION;
             entryBlob.curve.resolution = res;
 
-            var samplesBuilder = builder.Allocate(ref entryBlob.curve.samples, res);
+            BlobBuilderArray<float> samplesBuilder = builder.Allocate(ref entryBlob.curve.samples, res);
 
             for (int s = 0; s < res; s++)
             {
@@ -51,7 +51,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
         BlobAssetReference<AIScoringLibraryBlob> blobReference =
             builder.CreateBlobAssetReference<AIScoringLibraryBlob>(Allocator.Persistent);
 
-        foreach (var holder in SystemAPI.Query<RefRW<ScoringLibrary>>())
+        foreach (RefRW<ScoringLibrary> holder in SystemAPI.Query<RefRW<ScoringLibrary>>())
         {
             if (holder.ValueRO.library.IsCreated)
                 holder.ValueRW.library.Dispose();
@@ -62,7 +62,7 @@ public partial struct ScoringLibraryBakingSystem : ISystem
 
     public void OnDestroy(ref SystemState state)
     {
-        foreach (var holder in SystemAPI.Query<RefRW<ScoringLibrary>>())
+        foreach (RefRW<ScoringLibrary> holder in SystemAPI.Query<RefRW<ScoringLibrary>>())
         {
             if (holder.ValueRO.library.IsCreated)
                 holder.ValueRW.library.Dispose();

@@ -10,7 +10,7 @@ public struct UtilityAction : IComponentData
     public Entity targetEntity;
     public ActionType action;
     public int priority;
-    public int actionDefIndex;       // index into AIConfigBlob.actionDefs
+    public int actionDefIndex;       // index into BrainLibraryBlob.actionDefs
     public ActionContextData contextData;
     public float totalUtility;
 }

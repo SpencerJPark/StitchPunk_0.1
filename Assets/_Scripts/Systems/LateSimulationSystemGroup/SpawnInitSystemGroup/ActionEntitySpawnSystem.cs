@@ -1,10 +1,10 @@
 using Unity.Collections;
 using Unity.Entities;
 
-// Creates one action entity per action-def for every newly spawned UtilityBrainV2 unit.
-// Also adds DynamicBuffer<AwarenessTarget> to the unit for v2 perception systems.
-// Runs after UnitSpawnerSystem has created entities so NewlySpawned units are present.
-// Not BurstCompile — uses EntityManager structural APIs directly (only runs once per spawn).
+// Creates a pool of action entities per action-def for every UtilityBrainV2 unit on first appearance.
+// Pool size = ActionDefBlob.maxCandidates (authored on UtilityActionSO). ActionInstancingSystem
+// enables/disables pool slots each frame based on AwarenessTarget entries.
+// Not BurstCompile — uses EntityManager structural APIs directly (runs once per unit).
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
 public partial struct ActionEntitySpawnSystem : ISystem
 {
@@ -18,13 +18,14 @@ public partial struct ActionEntitySpawnSystem : ISystem
     {
         BrainLibrary brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
         if (!brainLibrary.blob.IsCreated) return;
-        ref AIConfigBlob blob = ref brainLibrary.blob.Value;
+        ref BrainLibraryBlob blob = ref brainLibrary.blob.Value;
 
         // Pre-collect to avoid iterating a query while making structural changes.
         NativeList<UnitSpawnEntry> toSpawn = new NativeList<UnitSpawnEntry>(Allocator.Temp);
         foreach ((RefRO<UnitData> unitData, Entity unit) in
             SystemAPI.Query<RefRO<UnitData>>()
-                .WithAll<UtilityBrainV2, NewlySpawned>()
+                .WithAll<UtilityBrainV2>()
+                .WithNone<AwarenessTarget>()
                 .WithEntityAccess())
         {
             toSpawn.Add(new UnitSpawnEntry { unit = unit, unitType = unitData.ValueRO.unitType });
@@ -32,31 +33,52 @@ public partial struct ActionEntitySpawnSystem : ISystem
 
         foreach (UnitSpawnEntry entry in toSpawn)
         {
-            if (!state.EntityManager.HasBuffer<AwarenessTarget>(entry.unit))
-                state.EntityManager.AddBuffer<AwarenessTarget>(entry.unit);
-            if (!state.EntityManager.HasBuffer<RecentWaypoint>(entry.unit))
-                state.EntityManager.AddBuffer<RecentWaypoint>(entry.unit);
+            state.EntityManager.AddBuffer<AwarenessTarget>(entry.unit);
+            state.EntityManager.AddBuffer<RecentWaypoint>(entry.unit);
+            state.EntityManager.AddBuffer<OwnedAction>(entry.unit);
 
             int unitTypeIndex = (int)entry.unitType;
             if (unitTypeIndex >= blob.brains.Length) continue;
             ref BrainBlob brain = ref blob.brains[unitTypeIndex];
+
+            // Collect entries before touching the buffer: every CreateEntity / AddComponent call is
+            // a structural change that invalidates any DynamicBuffer reference we hold.
+            NativeList<OwnedAction> pendingOwned = new NativeList<OwnedAction>(Allocator.Temp);
 
             for (int i = 0; i < brain.actionDefIndices.Length; i++)
             {
                 int actionDefIndex = brain.actionDefIndices[i];
                 ref ActionDefBlob actionDef = ref blob.actionDefs[actionDefIndex];
 
-                Entity actionEntity = state.EntityManager.CreateEntity();
-                state.EntityManager.AddComponentData(actionEntity, new UtilityAction
+                int poolSize = actionDef.maxCandidates > 0 ? actionDef.maxCandidates : 1;
+
+                for (int slot = 0; slot < poolSize; slot++)
                 {
-                    ownerEntity    = entry.unit,
-                    action         = actionDef.actionType,
-                    priority       = actionDef.priority,
-                    actionDefIndex = actionDefIndex,
-                });
-                state.EntityManager.AddComponent<ActionActive>(actionEntity);
-                state.EntityManager.SetComponentEnabled<ActionActive>(actionEntity, false);
+                    Entity actionEntity = state.EntityManager.CreateEntity();
+                    state.EntityManager.AddComponentData(actionEntity, new UtilityAction
+                    {
+                        ownerEntity    = entry.unit,
+                        action         = actionDef.actionType,
+                        priority       = actionDef.priority,
+                        actionDefIndex = actionDefIndex,
+                    });
+                    state.EntityManager.AddComponent<ActionActive>(actionEntity);
+                    state.EntityManager.SetComponentEnabled<ActionActive>(actionEntity, false);
+
+                    pendingOwned.Add(new OwnedAction
+                    {
+                        actionEntity   = actionEntity,
+                        actionDefIndex = actionDefIndex,
+                    });
+                }
             }
+
+            // All structural changes are done — re-fetch the buffer and write.
+            DynamicBuffer<OwnedAction> ownedActions = state.EntityManager.GetBuffer<OwnedAction>(entry.unit);
+            for (int i = 0; i < pendingOwned.Length; i++)
+                ownedActions.Add(pendingOwned[i]);
+
+            pendingOwned.Dispose();
         }
 
         toSpawn.Dispose();

@@ -63,7 +63,7 @@ public struct WinnerCandidate
 [WithAll(typeof(ActionActive))]
 public partial struct WinnerCollectJob : IJobEntity
 {
-    [ReadOnly] public BlobAssetReference<AIConfigBlob> aiConfig;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
     public NativeParallelMultiHashMap<Entity, WinnerCandidate>.ParallelWriter candidates;
 
     public void Execute(in UtilityAction utilityAction)
@@ -104,13 +104,17 @@ public partial struct WinnerSelectJob : IJobEntity
                 best = next;
         }
 
+        // Don't interrupt an in-flight behavior with the same action — let it complete naturally.
+        if (best.action == stateMachine.action && stateMachine.activeBehavior != BehaviorType.None)
+            return;
+        // Exact same idle winner — nothing changed.
         if (best.action == stateMachine.action && best.targetEntity == stateMachine.targetEntity)
             return;
 
         stateMachine.action              = best.action;
         stateMachine.activeBehavior      = best.behavior;
         stateMachine.targetEntity        = best.targetEntity;
-        stateMachine.currentPhase        = BehaviorPhase.Approach;
+        stateMachine.currentPhase        = BehaviorPhase.Execute;
         stateMachine.CurrentCommandIndex = 0;
         stateMachine.CommandTimer        = 0f;
     }

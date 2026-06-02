@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: WanderBehaviour
   m_EditorClassIdentifier: StitchPunk.Data::BehaviorSO
   behaviorType: 1
-  targetRange: 2
+  targetRange: 1.5
   executionSequence:
-  - type: 5
+  - type: 6
     IntParam: 0
-    FloatParam: 0
-    Duration: 2
+    FloatParam: 1.5
+    Duration: 0
   interruptionCleanup: []

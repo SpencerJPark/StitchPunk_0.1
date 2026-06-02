@@ -15,7 +15,8 @@ public enum BehaviorCommandType : byte
     ModifyStat,      // e.g., Hurt health, add money, satisfy hunger
     StartDialogue,
     ApplyForce,      // e.g., Dodge, knockback, dash
-    WaitTime         // Pause execution for a set duration
+    WaitTime,        // Pause execution for a set duration
+    Approach,        // Navigate to stateMachine.targetEntity. FloatParam = stopping distance. IntParam = (int)StanceType (0=walk, 2=run).
 }
 
 public enum ConsiderationType : byte

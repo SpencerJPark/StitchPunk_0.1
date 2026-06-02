@@ -36,13 +36,10 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
 
             if (!soByType.TryGetValue(typeIndex, out BehaviorSO behaviorSO))
             {
-                behaviorsBuilder[typeIndex].targetRange = 0f;
                 builder.Allocate(ref behaviorsBuilder[typeIndex].executionSequence, 0);
                 builder.Allocate(ref behaviorsBuilder[typeIndex].interruptionCleanup, 0);
                 continue;
             }
-
-            behaviorsBuilder[typeIndex].targetRange = behaviorSO.targetRange;
 
             // Execution sequence
             List<BehaviorCommandAuthoring> execSource = behaviorSO.executionSequence;

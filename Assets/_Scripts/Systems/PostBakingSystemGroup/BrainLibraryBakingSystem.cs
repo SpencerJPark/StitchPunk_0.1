@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
-public partial struct AIConfigBakingSystem : ISystem
+public partial struct BrainLibraryBakingSystem : ISystem
 {
     public void OnCreate(ref SystemState state)
     {
@@ -46,7 +47,7 @@ public partial struct AIConfigBakingSystem : ISystem
         int resolution = ConstGameData.SCORING_CURVE_RESOLUTION;
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
-        ref AIConfigBlob root = ref builder.ConstructRoot<AIConfigBlob>();
+        ref BrainLibraryBlob root = ref builder.ConstructRoot<BrainLibraryBlob>();
 
         // --- Action defs (+ nested considerations + sampled curves) ---
         BlobBuilderArray<ActionDefBlob> actionDefsBuilder =
@@ -55,11 +56,12 @@ public partial struct AIConfigBakingSystem : ISystem
         for (int defIndex = 0; defIndex < actionDefList.Count; defIndex++)
         {
             UtilityActionSO action = actionDefList[defIndex];
-            actionDefsBuilder[defIndex].actionType = action.actionType;
-            actionDefsBuilder[defIndex].priority   = action.priority;
-            actionDefsBuilder[defIndex].targeting  = action.targeting;
-            actionDefsBuilder[defIndex].behavior   =
+            actionDefsBuilder[defIndex].actionType     = action.actionType;
+            actionDefsBuilder[defIndex].priority       = action.priority;
+            actionDefsBuilder[defIndex].targeting      = action.targeting;
+            actionDefsBuilder[defIndex].behavior       =
                 action.behavior != null ? action.behavior.behaviorType : BehaviorType.None;
+            actionDefsBuilder[defIndex].maxCandidates  = math.max(1, action.maxCandidates);
 
             int considerationCount = action.considerations != null ? action.considerations.Count : 0;
             BlobBuilderArray<ConsiderationBlob> considerationsBuilder =
@@ -106,8 +108,8 @@ public partial struct AIConfigBakingSystem : ISystem
                 indicesBuilder[slotIndex] = indices[slotIndex];
         }
 
-        BlobAssetReference<AIConfigBlob> blobRef =
-            builder.CreateBlobAssetReference<AIConfigBlob>(Allocator.Persistent);
+        BlobAssetReference<BrainLibraryBlob> blobRef =
+            builder.CreateBlobAssetReference<BrainLibraryBlob>(Allocator.Persistent);
 
         foreach (RefRW<BrainLibrary> holder in SystemAPI.Query<RefRW<BrainLibrary>>())
         {

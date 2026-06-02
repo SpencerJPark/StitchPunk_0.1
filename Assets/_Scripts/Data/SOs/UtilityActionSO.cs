@@ -33,6 +33,9 @@ public class UtilityActionSO : ScriptableObject
     [Tooltip("The executed command sequence this action runs")]
     public BehaviorSO behavior;
 
+    [Tooltip("Max simultaneous candidates scored for this action. Self actions use 1. SingleTarget actions should match the expected max targets in range (e.g. 8 for waypoints, 16 for combat).")]
+    public int maxCandidates = 8;
+
     [Tooltip("Inline considerations (each with its own curve) that produce this action's utility")]
     public List<ConsiderationAuthoring> considerations = new List<ConsiderationAuthoring>();
 }

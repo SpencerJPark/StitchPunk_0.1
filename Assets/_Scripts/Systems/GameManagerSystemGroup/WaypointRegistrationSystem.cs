@@ -20,6 +20,7 @@ public partial struct WaypointRegistrationSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         RefRW<SpatialHashRegistry> registryRW = SystemAPI.GetSingletonRW<SpatialHashRegistry>();
+        registryRW.ValueRW.waypointCells.Clear();
 
         state.Dependency = new RegisterWaypointsJob
         {

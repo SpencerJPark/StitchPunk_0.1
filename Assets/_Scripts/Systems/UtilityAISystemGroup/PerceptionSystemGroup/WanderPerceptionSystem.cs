@@ -42,9 +42,9 @@ public partial struct WanderPerceptionJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
 
     public void Execute(
-        in LocalTransform                transform,
-        in Awareness                     awareness,
-        in DynamicBuffer<RecentWaypoint> recentWaypoints,
+        in LocalTransform                  transform,
+        in Awareness                       awareness,
+        ref DynamicBuffer<RecentWaypoint>  recentWaypoints,
         ref DynamicBuffer<AwarenessTarget> awarenessTargets)
     {
         awarenessTargets.Clear();
@@ -76,9 +76,45 @@ public partial struct WanderPerceptionJob : IJobEntity
 
                     awarenessTargets.Add(new AwarenessTarget
                     {
-                        targetEntity    = waypoint,
+                        targetEntity     = waypoint,
                         distanceToTarget = dist,
-                        inLineOfSight   = true,
+                        inLineOfSight    = true,
+                    });
+                }
+                while (waypointCells.TryGetNextValue(out waypoint, ref it));
+            }
+        }
+
+        // Fallback: all nearby waypoints were recently visited. Reset recent memory and re-scan
+        // so the unit never stalls waiting for waypoints that will never become available.
+        if (awarenessTargets.Length > 0) return;
+
+        recentWaypoints.Clear();
+
+        for (int x = -cellRange; x <= cellRange; x++)
+        {
+            for (int z = -cellRange; z <= cellRange; z++)
+            {
+                int2 targetCell = centerCell + new int2(x, z);
+                bool hit = waypointCells.TryGetFirstValue(
+                    targetCell, out Entity waypoint,
+                    out NativeParallelMultiHashMapIterator<int2> it);
+
+                if (!hit) continue;
+
+                do
+                {
+                    if (!transformLookup.TryGetComponent(waypoint, out LocalTransform waypointTransform))
+                        continue;
+
+                    float dist = math.distance(unitPos, waypointTransform.Position);
+                    if (dist > awareness.range) continue;
+
+                    awarenessTargets.Add(new AwarenessTarget
+                    {
+                        targetEntity     = waypoint,
+                        distanceToTarget = dist,
+                        inLineOfSight    = true,
                     });
                 }
                 while (waypointCells.TryGetNextValue(out waypoint, ref it));

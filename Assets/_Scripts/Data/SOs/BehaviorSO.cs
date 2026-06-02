@@ -26,10 +26,7 @@ public class BehaviorSO : ScriptableObject
     [Tooltip("Stable key into the BehaviorLibrary blob. Must be unique across all behaviors.")]
     public BehaviorType behaviorType;
 
-    [Tooltip("How close (world units) the owner must be to the target before Execute runs")]
-    public float targetRange;
-
-    [Tooltip("The standard step-by-step command sequence")]
+    [Tooltip("The step-by-step command sequence. Use an Approach command to navigate — set FloatParam = stopping distance, IntParam = StanceType (0=walk, 2=run).")]
     public List<BehaviorCommandAuthoring> executionSequence = new List<BehaviorCommandAuthoring>();
 
     [Tooltip("Run ONLY if the execution sequence is forcefully canceled (interrupt)")]

@@ -34,7 +34,7 @@ public partial struct ConsiderationScoringSystem : ISystem
 [WithAll(typeof(ActionActive))]
 public partial struct ConsiderationScoringJob : IJobEntity
 {
-    [ReadOnly] public BlobAssetReference<AIConfigBlob> aiConfig;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
 
     public void Execute(ref UtilityAction utilityAction)
     {
