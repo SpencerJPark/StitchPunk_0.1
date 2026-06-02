@@ -142,10 +142,10 @@ public partial struct MinionCommandSystem : ISystem
                         RefRW<Movement>,
                         RefRO<HordeMembership>>()
                     .WithAll<Minion>()
-                    .WithPresent<PathRequest, HordeMembership, PlayerControlled>()
+                    .WithPresent<PathRequest, HordeMembership, PlayerUnitBrain>()
                     .WithEntityAccess())
                 {
-                    if (!SystemAPI.IsComponentEnabled<PlayerControlled>(unitEntity)) continue;
+                    if (!SystemAPI.IsComponentEnabled<PlayerUnitBrain>(unitEntity)) continue;
 
                     PlayerOrder currentOrder = SystemAPI.GetComponent<PlayerOrder>(unitEntity);
                     if (currentOrder.commandType != CommandType.Follow) continue;
@@ -196,7 +196,7 @@ public partial struct MinionCommandSystem : ISystem
             .WithPresent<PathRequest, HordeMembership>()
             .WithEntityAccess())
         {
-            SystemAPI.SetComponentEnabled<PlayerControlled>(unitEntity, true);
+            SystemAPI.SetComponentEnabled<PlayerUnitBrain>(unitEntity, true);
             SystemAPI.SetComponent(unitEntity, new PlayerOrder
             {
                 targetEntity = orderTarget,

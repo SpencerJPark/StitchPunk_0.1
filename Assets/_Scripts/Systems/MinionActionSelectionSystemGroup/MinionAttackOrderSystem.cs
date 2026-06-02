@@ -42,7 +42,7 @@ public partial struct MinionAttackOrderSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(Minion), typeof(Target), typeof(PlayerControlled))]
+[WithAll(typeof(Minion), typeof(Target), typeof(PlayerUnitBrain))]
 [WithPresent(typeof(AttackRequest), typeof(ActionRequest))]
 public partial struct MinionAttackOrderJob : IJobEntity
 {
@@ -53,7 +53,7 @@ public partial struct MinionAttackOrderJob : IJobEntity
         ref Target                     target,
         EnabledRefRW<AttackRequest>           attackRequest,
         EnabledRefRW<Target>           targetEnabled,
-        EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        EnabledRefRW<PlayerUnitBrain> playerControlledEnabled,
         EnabledRefRW<ActionRequest>      needsActionEnabled)
     {
         Entity targetEntity = target.entity;

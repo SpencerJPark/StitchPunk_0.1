@@ -46,7 +46,7 @@ public partial struct ActionInstancingSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrainV2))]
+[WithAll(typeof(UtilityBrain))]
 public partial struct ActionInstancingJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;

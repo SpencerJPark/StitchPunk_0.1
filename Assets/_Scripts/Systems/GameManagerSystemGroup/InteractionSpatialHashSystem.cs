@@ -90,7 +90,7 @@ public partial struct RegisterInteractionsJob : IJobEntity
     {
         int2 cell = InteractionSpatialHashSystem.GetCell(transform.Position);
 
-        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interaction.actionType];
+        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interaction.action];
         if (blob.satisfiedNeed != NeedType.None)
             interactionWriter.Add(new SpatialInteractionKey(cell, blob.satisfiedNeed), entity);
     }

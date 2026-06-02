@@ -90,6 +90,17 @@ public enum ActionType // used for animation linking
     UseHealingItem,
 }
 
+public enum PersonalityTypes
+{
+    Bravery,
+    Romance,
+    Comedy,
+    Friendly,
+    Anger,
+    Partier,
+    Rest,
+}
+
 
 public static class ActionTypeExtensions
 {

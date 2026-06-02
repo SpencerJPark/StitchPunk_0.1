@@ -19,8 +19,6 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<ActionSelectionValidationRequest>(entity, false);
 
         baker.AddComponent(entity, new Awareness { range = unitSo.awarenessRange });
-        baker.AddComponent(entity, new ActionTimer { time = 0f });
-        baker.SetComponentEnabled<ActionTimer>(entity, false);
 
         baker.AddComponent<AggressiveState>(entity);
         baker.SetComponentEnabled<AggressiveState>(entity, false);
@@ -46,9 +44,6 @@ public static class UnitBakingUtil
         {
             AddPlayerControlled(baker, entity, false);
         }
-        
-        baker.AddComponent<DeathAction>(entity);
-        baker.SetComponentEnabled<DeathAction>(entity, false);
 
         baker.AddComponent<ActionInterruptRequest>(entity);
         baker.SetComponentEnabled<ActionInterruptRequest>(entity, false);
@@ -59,18 +54,11 @@ public static class UnitBakingUtil
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
-
-        baker.AddComponent(entity, new ConversationContext
-        {
-            conversationPartner = Entity.Null,
-            isResponder         = false,
-        });
+        
 
         baker.AddComponent<SocialValidationRequest>(entity);
         baker.SetComponentEnabled<SocialValidationRequest>(entity, false);
-
-        baker.AddComponent<SocialAvailable>(entity);
-        baker.SetComponentEnabled<SocialAvailable>(entity, true);
+        
 
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
         if (unitSo.attacks != null)
@@ -82,13 +70,7 @@ public static class UnitBakingUtil
         float         socialBase     = unitSo.socialAffinity + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.socialAffinityVariance;
         float         wanderlustBase = unitSo.wanderlust     + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.wanderlustVariance;
         float         gluttonyBase   = unitSo.gluttony       + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.gluttonyVariance;
-        baker.AddComponent(entity, new Personality
-        {
-            bravery        = math.clamp(braveBase,      0f, 1f),
-            socialAffinity = math.clamp(socialBase,     0f, 1f),
-            wanderlust     = math.clamp(wanderlustBase, 0f, 1f),
-            gluttony       = math.clamp(gluttonyBase,   0f, 1f),
-        });
+
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
@@ -183,8 +165,8 @@ public static class UnitBakingUtil
     public static void AddPlayerControlled<T>(Baker<T> baker, Entity entity, bool startControlled)
         where T : UnityEngine.Component
     {
-        baker.AddComponent<PlayerControlled>(entity);
-        baker.SetComponentEnabled<PlayerControlled>(entity, startControlled);
+        baker.AddComponent<PlayerUnitBrain>(entity);
+        baker.SetComponentEnabled<PlayerUnitBrain>(entity, startControlled);
     }
 
     public static Motivation DefaultBehaviour(NeedType type)

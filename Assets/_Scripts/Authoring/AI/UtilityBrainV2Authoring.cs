@@ -14,8 +14,8 @@ public class UtilityBrainV2Authoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.None);
 
-            AddComponent<UtilityBrainV2>(entity);
-            SetComponentEnabled<UtilityBrainV2>(entity, true);
+            AddComponent<UtilityBrain>(entity);
+            SetComponentEnabled<UtilityBrain>(entity, true);
 
             AddComponent<StateMachine>(entity);
 

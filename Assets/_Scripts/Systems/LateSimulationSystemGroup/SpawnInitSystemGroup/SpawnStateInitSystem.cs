@@ -29,7 +29,7 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<DStarLiteFollower> _dStarLookup;
     private ComponentLookup<FlowFieldFollower> _flowFieldLookup;
     private ComponentLookup<HordeMembership>   _hordeLookup;
-    private ComponentLookup<UtilityBrainV2>    _utilityBrainV2Lookup;
+    private ComponentLookup<UtilityBrain>    _utilityBrainV2Lookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -46,7 +46,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _dStarLookup           = state.GetComponentLookup<DStarLiteFollower>(false);
         _flowFieldLookup       = state.GetComponentLookup<FlowFieldFollower>(false);
         _hordeLookup           = state.GetComponentLookup<HordeMembership>(false);
-        _utilityBrainV2Lookup  = state.GetComponentLookup<UtilityBrainV2>(false);
+        _utilityBrainV2Lookup  = state.GetComponentLookup<UtilityBrain>(false);
     }
 
     [BurstCompile]

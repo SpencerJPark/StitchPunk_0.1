@@ -12,14 +12,14 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 public partial struct OrderMarkerSystem : ISystem
 {
-    private ComponentLookup<PlayerControlled> playerControlledLookup;
+    private ComponentLookup<PlayerUnitBrain> playerControlledLookup;
     private ComponentLookup<LocalTransform>   localTransformLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        playerControlledLookup = state.GetComponentLookup<PlayerControlled>(true);
+        playerControlledLookup = state.GetComponentLookup<PlayerUnitBrain>(true);
         localTransformLookup   = state.GetComponentLookup<LocalTransform>(false);
     }
 

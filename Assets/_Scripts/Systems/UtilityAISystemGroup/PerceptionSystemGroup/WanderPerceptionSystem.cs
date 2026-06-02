@@ -35,7 +35,7 @@ public partial struct WanderPerceptionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrainV2))]
+[WithAll(typeof(UtilityBrain))]
 public partial struct WanderPerceptionJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity> waypointCells;

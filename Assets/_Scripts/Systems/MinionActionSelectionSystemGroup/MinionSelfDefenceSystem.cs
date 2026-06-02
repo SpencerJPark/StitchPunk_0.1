@@ -68,7 +68,7 @@ public partial struct MinionSelfDefenceSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(Minion), typeof(PlayerControlled))]
+[WithAll(typeof(Minion), typeof(PlayerUnitBrain))]
 [WithDisabled(typeof(Dead))]
 public partial struct MinionCounterJob : IJobEntity
 {
@@ -84,7 +84,7 @@ public partial struct MinionCounterJob : IJobEntity
         ref DynamicBuffer<ThreatEntry>      threatBuffer,
         ref DynamicBuffer<ActionOption>     actionOptions,
         in  DynamicBuffer<AvailableAttack>  availableAttacks,
-        EnabledRefRW<PlayerControlled>      playerControlledEnabled,
+        EnabledRefRW<PlayerUnitBrain>      playerControlledEnabled,
         EnabledRefRW<ActionRequest>         actionRequestEnabled)
     {
         if (threatBuffer.Length == 0)
@@ -152,7 +152,7 @@ public partial struct MinionCounterJob : IJobEntity
 }
 
 [BurstCompile]
-[WithAll(typeof(Minion), typeof(PlayerControlled))]
+[WithAll(typeof(Minion), typeof(PlayerUnitBrain))]
 [WithDisabled(typeof(Dead))]
 public partial struct NearbyAlertJob : IJobEntity
 {
@@ -169,7 +169,7 @@ public partial struct NearbyAlertJob : IJobEntity
         in  LocalTransform                 transform,
         ref DynamicBuffer<ActionOption>    actionOptions,
         in  DynamicBuffer<AvailableAttack> availableAttacks,
-        EnabledRefRW<PlayerControlled>     playerControlledEnabled,
+        EnabledRefRW<PlayerUnitBrain>     playerControlledEnabled,
         EnabledRefRW<ActionRequest>        actionRequestEnabled)
     {
         if (playerOrderLookup.HasComponent(entity) &&

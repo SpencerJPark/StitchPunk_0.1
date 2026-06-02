@@ -81,7 +81,7 @@ public partial struct WinnerCollectJob : IJobEntity
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrainV2))]
+[WithAll(typeof(UtilityBrain))]
 public partial struct WinnerSelectJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<Entity, WinnerCandidate> candidates;

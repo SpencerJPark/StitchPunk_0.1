@@ -39,7 +39,7 @@ public partial struct BehaviorExecutionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrainV2))]
+[WithAll(typeof(UtilityBrain))]
 [WithPresent(typeof(PathRequest))]
 public partial struct BehaviorExecutionJob : IJobEntity
 {

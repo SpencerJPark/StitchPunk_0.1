@@ -55,7 +55,7 @@ public partial struct MinionOrderExecutionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(PlayerControlled))]
+[WithAll(typeof(PlayerUnitBrain))]
 [WithPresent(typeof(AttackRequest), typeof(Target))]
 public partial struct MinionOrderExecutionJob : IJobEntity
 {
@@ -70,7 +70,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         ref Target                     target,
         EnabledRefRW<AttackRequest>           attackEnabled,
         EnabledRefRW<Target>           targetEnabled,
-        EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        EnabledRefRW<PlayerUnitBrain> playerControlledEnabled,
         EnabledRefRW<ActionRequest>      needsActionEnabled)
     {
         // Already executing an attack — attack system owns completion.
@@ -94,7 +94,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
         ref Target target,
         ref EnabledRefRW<AttackRequest> attackEnabled,
         ref EnabledRefRW<Target> targetEnabled,
-        ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        ref EnabledRefRW<PlayerUnitBrain> playerControlledEnabled,
         ref EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         bool targetAlive = aliveLookup.HasComponent(orderTarget) &&
@@ -124,7 +124,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
     private void HandleMoveOrder(
         float3 unitPos,
         float3 destination,
-        ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        ref EnabledRefRW<PlayerUnitBrain> playerControlledEnabled,
         ref EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         float distSq = math.distancesq(unitPos, destination);
@@ -133,7 +133,7 @@ public partial struct MinionOrderExecutionJob : IJobEntity
     }
 
     private static void ReleaseBrain(
-        ref EnabledRefRW<PlayerControlled> playerControlledEnabled,
+        ref EnabledRefRW<PlayerUnitBrain> playerControlledEnabled,
         ref EnabledRefRW<ActionRequest> needsActionEnabled)
     {
         playerControlledEnabled.ValueRW = false;

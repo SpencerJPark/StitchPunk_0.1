@@ -32,7 +32,7 @@ public partial struct MotivationDecaySystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 public partial struct MotivationDecayJob : IJobEntity
 {
     public float deltaTime;
@@ -42,7 +42,6 @@ public partial struct MotivationDecayJob : IJobEntity
         for (int i = 0; i < motivations.Length; i++)
         {
             Motivation motivation = motivations[i];
-            motivation.contextMultiplier = 1.0f;
             motivation.value = math.clamp(motivation.value - motivation.decayRate * deltaTime, 0f, 100f);
             motivations[i] = motivation;
         }
