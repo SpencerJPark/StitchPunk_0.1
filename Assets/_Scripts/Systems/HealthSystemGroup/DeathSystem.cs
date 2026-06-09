@@ -24,10 +24,21 @@ public partial struct DeathSystem : ISystem
         interruptLookup.Update(ref state);
         pendingAttackLookup.Update(ref state);
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.Health) != 0;
+
+        EntityCommandBuffer ecb = loggingEnabled
+            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged)
+            : default;
+
         state.Dependency = new DeathJob
         {
             interruptLookup     = interruptLookup,
             pendingAttackLookup = pendingAttackLookup,
+            ecb                 = ecb,
+            loggingEnabled      = loggingEnabled,
+            timestamp           = SystemAPI.Time.ElapsedTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -41,6 +52,9 @@ public partial struct DeathJob : IJobEntity
 {
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
     public ComponentLookup<AttackRequest>          pendingAttackLookup;
+    public EntityCommandBuffer ecb;
+    public bool                loggingEnabled;
+    public double              timestamp;
 
     public void Execute(
         Entity entity,
@@ -81,5 +95,10 @@ public partial struct DeathJob : IJobEntity
         // 4. Cancel any in-flight attack — prevents ghost hits from dead attackers.
         if (pendingAttackLookup.HasComponent(entity))
             pendingAttackLookup.SetComponentEnabled(entity, false);
+
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb,
+                $"[Death] Entity {entity.Index} died. Interrupt: {interruptLookup.HasComponent(entity)}. AttackCancelled: {pendingAttackLookup.HasComponent(entity)}",
+                LogLevel.Info, timestamp, category: LogCategory.Health);
     }
 }

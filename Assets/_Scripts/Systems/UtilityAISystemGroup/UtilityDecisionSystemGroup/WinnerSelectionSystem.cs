@@ -28,11 +28,15 @@ public partial struct WinnerSelectionSystem : ISystem
             .CreateCommandBuffer(state.WorldUnmanaged)
             .AsParallelWriter();
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.AI) != 0;
+
         state.Dependency = new WinnerSelectJob
         {
-            aiConfig  = brainLibrary.blob,
-            ecb       = ecb,
-            timestamp = SystemAPI.Time.ElapsedTime,
+            aiConfig        = brainLibrary.blob,
+            ecb             = ecb,
+            timestamp       = SystemAPI.Time.ElapsedTime,
+            loggingEnabled  = loggingEnabled,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -44,6 +48,7 @@ public partial struct WinnerSelectJob : IJobEntity
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
     public EntityCommandBuffer.ParallelWriter ecb;
     public double timestamp;
+    public bool loggingEnabled;
 
     public void Execute(
         [EntityIndexInQuery] int         entityIndex,
@@ -97,9 +102,10 @@ public partial struct WinnerSelectJob : IJobEntity
         if (best.actionDefIndex >= 0 && best.actionDefIndex < aiConfig.Value.actionDefs.Length)
             behavior = aiConfig.Value.actionDefs[best.actionDefIndex].behavior;
 
-        LogUtil.Log(ref ecb, entityIndex,
-            $"[WinnerSelection] Selected action: {best.actionType} behavior: {behavior} utility: {best.totalUtility:G}",
-            LogLevel.Info, timestamp);
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb, entityIndex,
+                $"[WinnerSelection] Selected action: {best.actionType} behavior: {behavior} utility: {best.totalUtility:G}",
+                LogLevel.Info, timestamp, category: LogCategory.AI);
 
         stateMachine.action              = best.actionType;
         stateMachine.activeBehavior      = behavior;

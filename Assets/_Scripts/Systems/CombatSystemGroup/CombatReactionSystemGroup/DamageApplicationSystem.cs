@@ -14,7 +14,21 @@ public partial struct DamageApplicationSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        state.Dependency = new DamageApplicationJob().ScheduleParallel(state.Dependency);
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.Health) != 0;
+
+        EntityCommandBuffer.ParallelWriter ecb = loggingEnabled
+            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged)
+                .AsParallelWriter()
+            : default;
+
+        state.Dependency = new DamageApplicationJob
+        {
+            ecb            = ecb,
+            loggingEnabled = loggingEnabled,
+            timestamp      = SystemAPI.Time.ElapsedTime,
+        }.ScheduleParallel(state.Dependency);
     }
 }
 
@@ -23,7 +37,16 @@ public partial struct DamageApplicationSystem : ISystem
 [WithDisabled(typeof(Dead))]
 public partial struct DamageApplicationJob : IJobEntity
 {
-    public void Execute(ref Health health, ref DynamicBuffer<Hurt> hurtBuffer, EnabledRefRW<Dead> deadEnabled)
+    public EntityCommandBuffer.ParallelWriter ecb;
+    public bool   loggingEnabled;
+    public double timestamp;
+
+    public void Execute(
+        Entity                       entity,
+        [EntityIndexInQuery] int     entityIndex,
+        ref Health                   health,
+        ref DynamicBuffer<Hurt>      hurtBuffer,
+        EnabledRefRW<Dead>           deadEnabled)
     {
         if (hurtBuffer.Length == 0)
             return;
@@ -42,10 +65,21 @@ public partial struct DamageApplicationJob : IJobEntity
         health.killAttackType   = killingBlow.attackType;
         hurtBuffer.Clear();
 
+        int healthBefore = health.healthAmount;
         health.healthAmount -= totalDamage;
+
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb, entityIndex,
+                $"[Damage] Entity {entity.Index} took {totalDamage} dmg. HP: {healthBefore}->{health.healthAmount}",
+                LogLevel.Info, timestamp, category: LogCategory.Health);
+
         if (health.healthAmount <= 0)
         {
             deadEnabled.ValueRW = true;
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, entityIndex,
+                    $"[Damage] Entity {entity.Index} killed.",
+                    LogLevel.Warning, timestamp, category: LogCategory.Health);
         }
     }
 }

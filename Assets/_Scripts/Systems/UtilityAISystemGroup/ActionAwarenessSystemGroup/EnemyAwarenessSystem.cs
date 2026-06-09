@@ -51,6 +51,14 @@ public partial struct EnemyAwarenessSystem : ISystem
 
         BrainLibrary brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.AI) != 0;
+
+        EntityCommandBuffer ecb = loggingEnabled
+            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged)
+            : default;
+
         state.Dependency = new CombatAwarenessJob
         {
             transformLookup    = transformLookup,
@@ -59,6 +67,9 @@ public partial struct EnemyAwarenessSystem : ISystem
             attackLibrary      = attackLibrary,
             unitLibrary        = unitLibrary,
             aiConfig           = brainLibrary.blob,
+            ecb                = ecb,
+            loggingEnabled     = loggingEnabled,
+            timestamp          = SystemAPI.Time.ElapsedTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -74,6 +85,9 @@ public partial struct CombatAwarenessJob : IJobEntity
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob>    attackLibrary;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>     aiConfig;
+    public EntityCommandBuffer ecb;
+    public bool                loggingEnabled;
+    public double              timestamp;
 
     public void Execute(
         Entity self,
@@ -135,6 +149,7 @@ public partial struct CombatAwarenessJob : IJobEntity
             if (unitIndex < 0) return;
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
 
+            int addedCount = 0;
             for (int a = 0; a < unitBlob.attacks.Length; a++)
             {
                 ActionType actionType = unitBlob.attacks[a].action;
@@ -155,7 +170,13 @@ public partial struct CombatAwarenessJob : IJobEntity
                     needsValidation = false,
                     targetEntity    = nearestHostile,
                 });
+                addedCount++;
             }
+
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb,
+                    $"[EnemyAwareness] Entity {self.Index} found hostile {nearestHostile.Index} at dist {nearestDist:F2}. Actions added: {addedCount}",
+                    LogLevel.Info, timestamp, category: LogCategory.AI);
         }
     }
 }

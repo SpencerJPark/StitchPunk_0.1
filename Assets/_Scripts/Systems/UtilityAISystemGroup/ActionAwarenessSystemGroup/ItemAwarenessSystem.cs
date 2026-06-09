@@ -49,6 +49,15 @@ public partial struct ItemAwarenessSystem : ISystem
 
         SpatialHashRegistry registry = SystemAPI.GetSingleton<SpatialHashRegistry>();
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.Items) != 0;
+
+        EntityCommandBuffer.ParallelWriter ecb = loggingEnabled
+            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged)
+                .AsParallelWriter()
+            : default;
+
         state.Dependency = new ItemAwarenessJob
         {
             itemCells       = registry.itemCells,
@@ -58,6 +67,9 @@ public partial struct ItemAwarenessSystem : ISystem
             itemLibrary     = itemLibrary,
             effectLibrary   = effectLibrary,
             unitEquipLookup = _unitEquipLookup,
+            ecb             = ecb,
+            loggingEnabled  = loggingEnabled,
+            timestamp       = SystemAPI.Time.ElapsedTime,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -74,9 +86,13 @@ public partial struct ItemAwarenessJob : IJobEntity
     [ReadOnly] public BlobAssetReference<ItemLibraryBlob>           itemLibrary;
     [ReadOnly] public BlobAssetReference<EffectLibraryBlob>         effectLibrary;
     [ReadOnly] public ComponentLookup<UnitEquip>                    unitEquipLookup;
+    public EntityCommandBuffer.ParallelWriter ecb;
+    public bool                              loggingEnabled;
+    public double                            timestamp;
 
     public void Execute(
         Entity                          self,
+        [EntityIndexInQuery] int        entityIndex,
         in LocalTransform               transform,
         in Awareness                    awareness,
         in Health                       health,
@@ -203,6 +219,8 @@ public partial struct ItemAwarenessJob : IJobEntity
                 needsValidation = false,
                 targetEntity    = nearestWeapon,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found weapon {nearestWeapon.Index}. Action: EquipWeapon", LogLevel.Info, timestamp, category: LogCategory.Items);
         }
 
         // Healing — SelfPreservation motivation drives the blob scoring curve.
@@ -216,6 +234,8 @@ public partial struct ItemAwarenessJob : IJobEntity
                 needsValidation = false,
                 targetEntity    = nearestHeal,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found heal item {nearestHeal.Index}. Action: UseHealingItem", LogLevel.Info, timestamp, category: LogCategory.Items);
         }
 
         // Food — Hunger motivation drives blob scoring curve.
@@ -227,6 +247,8 @@ public partial struct ItemAwarenessJob : IJobEntity
                 needsValidation = false,
                 targetEntity    = nearestFood,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found food {nearestFood.Index}. Action: Eat", LogLevel.Info, timestamp, category: LogCategory.Items);
         }
 
         if (nearestDrink != Entity.Null)
@@ -237,6 +259,8 @@ public partial struct ItemAwarenessJob : IJobEntity
                 needsValidation = false,
                 targetEntity    = nearestDrink,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found drink {nearestDrink.Index}. Action: Drink", LogLevel.Info, timestamp, category: LogCategory.Items);
         }
     }
 

@@ -14,4 +14,5 @@ public struct LogMessage : IComponentData
     public LogLevel Level;
     public double Timestamp;
     public int SourceSystemHash;
+    public LogCategory Category;
 }

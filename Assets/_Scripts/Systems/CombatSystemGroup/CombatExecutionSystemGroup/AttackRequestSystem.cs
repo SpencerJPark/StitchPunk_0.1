@@ -33,6 +33,14 @@ public partial struct AttackRequestSystem : ISystem
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.Combat) != 0;
+
+        EntityCommandBuffer ecb = loggingEnabled
+            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged)
+            : default;
+
         // Single-threaded: multiple attackers may write to the same target's Hurt buffer
         state.Dependency = new AttackRequestJob
         {
@@ -41,6 +49,9 @@ public partial struct AttackRequestSystem : ISystem
             aliveLookup      = aliveLookup,
             attackLibrary    = attackLibrary,
             deltaTime        = SystemAPI.Time.DeltaTime,
+            ecb              = ecb,
+            loggingEnabled   = loggingEnabled,
+            timestamp        = SystemAPI.Time.ElapsedTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -57,7 +68,10 @@ public partial struct AttackRequestJob : IJobEntity
     public            BufferLookup<Hurt>              hurtBufferLookup;
     [ReadOnly] public ComponentLookup<Alive>          aliveLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
-    public float deltaTime;
+    public float              deltaTime;
+    public EntityCommandBuffer ecb;
+    public bool               loggingEnabled;
+    public double             timestamp;
 
     public void Execute(
         Entity                      attackerEntity,
@@ -106,7 +120,23 @@ public partial struct AttackRequestJob : IJobEntity
                     launchForceY   = attackBlob.launchForceY,
                     launchForceX   = attackBlob.launchForceX,
                 });
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb,
+                        $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.sqrt(distanceSq):F2})",
+                        LogLevel.Info, timestamp, category: LogCategory.Combat);
             }
+            else if (loggingEnabled)
+            {
+                LogUtil.Log(ref ecb,
+                    $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.sqrt(distanceSq):F2} > {hitRange:F2})",
+                    LogLevel.Info, timestamp, category: LogCategory.Combat);
+            }
+        }
+        else if (loggingEnabled)
+        {
+            LogUtil.Log(ref ecb,
+                $"[Attack] Skipped — target {victim.Index} not alive or invalid",
+                LogLevel.Info, timestamp, category: LogCategory.Combat);
         }
 
         // Mark fired regardless — prevents re-attempts if target stepped out of range

@@ -66,6 +66,9 @@ public partial struct BehaviorExecutionSystem : ISystem
             .CreateCommandBuffer(state.WorldUnmanaged)
             .AsParallelWriter();
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.StateMachine) != 0;
+
         state.Dependency = new BehaviorExecutionJob
         {
             behaviorLib              = behaviorLib.blob,
@@ -84,6 +87,7 @@ public partial struct BehaviorExecutionSystem : ISystem
             deltaTime                = deltaTime,
             ecb                      = ecb,
             timestamp                = SystemAPI.Time.ElapsedTime,
+            loggingEnabled           = loggingEnabled,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -112,6 +116,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
 
     public float  deltaTime;
     public double timestamp;
+    public bool   loggingEnabled;
     public EntityCommandBuffer.ParallelWriter ecb;
 
     public void Execute(
@@ -140,9 +145,10 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 if (stateMachine.targetEntity != Entity.Null)
                     PushRecent(ref recentWaypoints, stateMachine.targetEntity);
 
-                LogUtil.Log(ref ecb, entityIndex,
-                    $"[BehaviorExecution] Behavior {stateMachine.activeBehavior} complete (action: {stateMachine.action})",
-                    LogLevel.Info, timestamp);
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb, entityIndex,
+                        $"[BehaviorExecution] Behavior {stateMachine.activeBehavior} complete (action: {stateMachine.action})",
+                        LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
                 stateMachine.action              = ActionType.Idle;
                 stateMachine.activeBehavior      = BehaviorType.None;

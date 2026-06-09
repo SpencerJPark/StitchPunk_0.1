@@ -9,7 +9,8 @@ public static class LogUtil
         FixedString512Bytes message,
         LogLevel level = LogLevel.Info,
         double timestamp = 0.0,
-        int sourceSystemHash = 0)
+        int sourceSystemHash = 0,
+        LogCategory category = LogCategory.General)
     {
         Entity entity = ecb.CreateEntity(sortKey);
         ecb.AddComponent(sortKey, entity, new LogMessage
@@ -18,6 +19,7 @@ public static class LogUtil
             Level = level,
             Timestamp = timestamp,
             SourceSystemHash = sourceSystemHash,
+            Category = category,
         });
     }
 
@@ -26,7 +28,8 @@ public static class LogUtil
         FixedString512Bytes message,
         LogLevel level = LogLevel.Info,
         double timestamp = 0.0,
-        int sourceSystemHash = 0)
+        int sourceSystemHash = 0,
+        LogCategory category = LogCategory.General)
     {
         Entity entity = ecb.CreateEntity();
         ecb.AddComponent(entity, new LogMessage
@@ -35,6 +38,7 @@ public static class LogUtil
             Level = level,
             Timestamp = timestamp,
             SourceSystemHash = sourceSystemHash,
+            Category = category,
         });
     }
 }

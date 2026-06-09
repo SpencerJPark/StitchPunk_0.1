@@ -39,6 +39,14 @@ public partial struct MinionActionSelectionSystem : ISystem
         Entity       playerEntity  = SystemAPI.GetSingletonEntity<Player>();
         BrainLibrary brainLibrary  = SystemAPI.GetSingleton<BrainLibrary>();
 
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.AI) != 0;
+
+        EntityCommandBuffer ecb = loggingEnabled
+            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged)
+            : default;
+
         state.Dependency = new MinionActionWriteJob
         {
             aiConfig           = brainLibrary.blob,
@@ -46,6 +54,9 @@ public partial struct MinionActionSelectionSystem : ISystem
             attackCmdLookup    = _attackCmdLookup,
             interactCmdLookup  = _interactCmdLookup,
             followCmdLookup    = _followCmdLookup,
+            ecb                = ecb,
+            loggingEnabled     = loggingEnabled,
+            timestamp          = SystemAPI.Time.ElapsedTime,
         }.Schedule(state.Dependency);
     }
 }
@@ -54,11 +65,14 @@ public partial struct MinionActionSelectionSystem : ISystem
 [WithAll(typeof(UtilityBrain), typeof(PlayerUnitBrain))]
 public partial struct MinionActionWriteJob : IJobEntity
 {
-    [ReadOnly] public BlobAssetReference<BrainLibraryBlob>   aiConfig;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob>    aiConfig;
     [ReadOnly] public ComponentLookup<OnMinionAttackCommand>  attackCmdLookup;
     [ReadOnly] public ComponentLookup<OnMinionInteractCommand> interactCmdLookup;
     [ReadOnly] public ComponentLookup<OnMinionFollowCommand>  followCmdLookup;
-    public Entity playerEntity;
+    public Entity             playerEntity;
+    public EntityCommandBuffer ecb;
+    public bool               loggingEnabled;
+    public double             timestamp;
 
     public void Execute(
         Entity                           unit,
@@ -78,6 +92,8 @@ public partial struct MinionActionWriteJob : IJobEntity
                 actionDefIndex  = defIndex,
                 isPlayerOrdered = true,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Attack {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
         // Interact — path to target entity.
@@ -93,6 +109,8 @@ public partial struct MinionActionWriteJob : IJobEntity
                 actionDefIndex  = defIndex,
                 isPlayerOrdered = true,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Interact {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
         // Follow — shadow the player by using Wander toward the player entity.
@@ -107,6 +125,8 @@ public partial struct MinionActionWriteJob : IJobEntity
                 actionDefIndex  = defIndex,
                 isPlayerOrdered = true,
             });
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Follow player", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
     }
 }
