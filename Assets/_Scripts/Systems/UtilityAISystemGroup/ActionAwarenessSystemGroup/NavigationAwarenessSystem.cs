@@ -15,6 +15,7 @@ public partial struct NavigationAwarenessSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<SpatialHashRegistry>();
+        state.RequireForUpdate<BrainLibrary>();
 
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
     }
@@ -24,29 +25,32 @@ public partial struct NavigationAwarenessSystem : ISystem
     {
         transformLookup.Update(ref state);
 
-        SpatialHashRegistry registry = SystemAPI.GetSingleton<SpatialHashRegistry>();
+        SpatialHashRegistry registry    = SystemAPI.GetSingleton<SpatialHashRegistry>();
+        BrainLibrary        brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
 
         state.Dependency = new NavigationAwarenessJob
         {
             waypointCells   = registry.waypointCells,
             transformLookup = transformLookup,
+            aiConfig        = brainLibrary.blob,
         }.ScheduleParallel(state.Dependency);
     }
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
-[WithPresent(typeof(WanderAction))]
+[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 public partial struct NavigationAwarenessJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity> waypointCells;
     [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob>     aiConfig;
 
     public void Execute(
+        in UtilityBrain                      brain,
         in LocalTransform                    transform,
         in Awareness                         awareness,
         in DynamicBuffer<RecentWaypoint>     recentWaypoints,
-        ref DynamicBuffer<ActionOption>      options)
+        ref DynamicBuffer<UtilityActions>    options)
     {
         float3 unitPos    = transform.Position;
         int2   centerCell = InteractionSpatialHashSystem.GetCell(unitPos);
@@ -73,14 +77,13 @@ public partial struct NavigationAwarenessJob : IJobEntity
                     float dist = math.distance(unitPos, waypointTransform.Position);
                     if (dist > awareness.range) continue;
 
-                    float utilityScore = 1f - math.saturate(dist / awareness.range);
+                    int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Wander);
+                    if (defIndex < 0) continue;
 
-                    options.Add(new ActionOption
+                    options.Add(new UtilityActions
                     {
                         actionType      = ActionType.Wander,
-                        needType        = NeedType.Movement,
-                        priority        = 0,
-                        utilityScore    = utilityScore,
+                        actionDefIndex  = defIndex,
                         needsValidation = false,
                         targetEntity    = waypoint,
                     });

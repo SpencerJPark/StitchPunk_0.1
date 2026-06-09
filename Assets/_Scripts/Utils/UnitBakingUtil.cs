@@ -8,10 +8,10 @@ public static class UnitBakingUtil
     public static void BakeRequirements<T>(Baker<T> baker, Entity entity, bool active, UnitSO unitSo)
         where T : UnityEngine.Component
     {
-        baker.AddComponent<AIBrain>(entity);
-        baker.SetComponentEnabled<AIBrain>(entity, active);
+        baker.AddComponent(entity, new UtilityBrain { unitType = unitSo.unitType });
+        baker.SetComponentEnabled<UtilityBrain>(entity, active);
 
-        baker.AddBuffer<ActionOption>(entity);
+        baker.AddBuffer<UtilityActions>(entity);
         baker.AddComponent<CurrentAction>(entity);
         baker.AddComponent<ActionRequest>(entity);
         baker.SetComponentEnabled<ActionRequest>(entity, active);
@@ -71,6 +71,20 @@ public static class UnitBakingUtil
         float         wanderlustBase = unitSo.wanderlust     + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.wanderlustVariance;
         float         gluttonyBase   = unitSo.gluttony       + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.gluttonyVariance;
 
+        baker.AddComponent(entity, new StateMachine
+        {
+            action              = ActionType.Idle,
+            activeBehavior      = BehaviorType.None,
+            targetEntity        = Entity.Null,
+            currentPhase        = BehaviorPhase.Execute,
+            CurrentCommandIndex = 0,
+            CommandTimer        = 0f,
+            currentStance       = StanceType.Normal,
+        });
+
+        DynamicBuffer<PersonalityAttributes> personalityBuffer = baker.AddBuffer<PersonalityAttributes>(entity);
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Bravery,  value = braveBase });
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Friendly, value = socialBase });
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
@@ -176,7 +190,6 @@ public static class UnitBakingUtil
             needType          = type,
             value             = 100f,
             decayRate         = 0f,
-            contextMultiplier = 1f,
         };
     }
 }

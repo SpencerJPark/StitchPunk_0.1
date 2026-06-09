@@ -1,16 +1,6 @@
 ﻿using Unity.Entities;
 using UnityEngine;
 
-public struct ScoringLibrary : IComponentData
-{
-    public BlobAssetReference<AIScoringLibraryBlob> library;
-}
-public struct ScoringLibraryReference : IComponentData
-{
-    public UnityObjectRef<ConsiderationLibrarySO> library;
-}
-
-
 public struct AnimationLibrary : IComponentData {
     public BlobAssetReference<AnimationLibraryBlob> library;
 }
@@ -92,13 +82,6 @@ public struct BrainLibrary : IComponentData
 public struct BrainLibraryEntry : IBufferElementData
 {
     public UnityObjectRef<BrainSO> config;
-}
-
-// On unit: reverse lookup from unit → its pooled action entities. Written at spawn; read by ActionInstancingSystem.
-public struct OwnedAction : IBufferElementData
-{
-    public Entity actionEntity;
-    public int    actionDefIndex;
 }
 
 

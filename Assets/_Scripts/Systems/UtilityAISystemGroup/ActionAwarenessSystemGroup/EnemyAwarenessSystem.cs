@@ -7,12 +7,12 @@ using Unity.Transforms;
 /// <summary>
 /// Detects hostiles within awareness range. When a hostile is found:
 ///   - Sets CombatTarget to the nearest hostile
-///   - Sets BloodLust motivation value to 100 so MotivationScoringSystem scores attack options appropriately
+///   - Sets BloodLust motivation value to 100 so MotivationScoringSystem scores attack actions appropriately
 ///   - Injects one ActionOption per AvailableAttack entry, scored by range fit vs current distance
-///     (attacks whose range matches the actual distance score highest; out-of-range options score lower)
+///     (attacks whose range matches the actual distance score highest; out-of-range actions score lower)
 ///   - Refreshes AggressiveState linger timer
 ///
-/// ActionPrioritySystem applies a flat +1 tier bonus to all BloodLust options, pushing them
+/// ActionPrioritySystem applies a flat +1 tier bonus to all BloodLust actions, pushing them
 /// above civilian interaction scores (0-1) without hardcoding magic numbers.
 /// </summary>
 [BurstCompile]
@@ -29,6 +29,7 @@ public partial struct EnemyAwarenessSystem : ISystem
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<AttackLibrary>();
         state.RequireForUpdate<UnitDataLibrary>();
+        state.RequireForUpdate<BrainLibrary>();
 
         transformLookup    = state.GetComponentLookup<LocalTransform>(true);
         deadLookup         = state.GetComponentLookup<Dead>(true);
@@ -48,6 +49,8 @@ public partial struct EnemyAwarenessSystem : ISystem
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
+        BrainLibrary brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
+
         state.Dependency = new CombatAwarenessJob
         {
             transformLookup    = transformLookup,
@@ -55,28 +58,31 @@ public partial struct EnemyAwarenessSystem : ISystem
             factionEntities    = registry.entities,
             attackLibrary      = attackLibrary,
             unitLibrary        = unitLibrary,
+            aiConfig           = brainLibrary.blob,
         }.Schedule(state.Dependency);
     }
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
 public partial struct CombatAwarenessJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-    [ReadOnly] public ComponentLookup<Dead> deadLookup;
+    [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
+    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
-    [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
-    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
+    [ReadOnly] public BlobAssetReference<AttackLibraryBlob>    attackLibrary;
+    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob>     aiConfig;
 
     public void Execute(
         Entity self,
-        in Awareness awareness,
-        in LocalTransform transform,
+        in UtilityBrain                  brain,
+        in Awareness                     awareness,
+        in LocalTransform                transform,
         in UnitData                      unitData,
         ref DynamicBuffer<Motivation>    motivations,
-        ref DynamicBuffer<ActionOption>  options,
+        ref DynamicBuffer<UtilityActions> actions,
         in DynamicBuffer<AttackFaction>  attackFactions)
     {
         float3 myPos   = transform.Position;
@@ -120,7 +126,7 @@ public partial struct CombatAwarenessJob : IJobEntity
         if (nearestHostile != Entity.Null)
         {
             // Set BloodLust motivation to max urgency so MotivationScoringSystem
-            // scores attack options at full weight via the BloodLust curve.
+            // scores attack actions at full weight via the BloodLust curve.
             AIUtils.SetMotivationValue(ref motivations, NeedType.BloodLust, 100f);
 
             float nearestDist = math.sqrt(nearestDistanceSq);
@@ -138,14 +144,14 @@ public partial struct CombatAwarenessJob : IJobEntity
                     continue;
                 float attackRange = attackLibrary.Value.attacks[attackIndex].range;
 
-                float rangeScore = AIUtils.AttackRangeScore(nearestDist, attackRange);
+                int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, actionType);
+                if (defIndex < 0)
+                    continue;
 
-                options.Add(new ActionOption
+                actions.Add(new UtilityActions
                 {
                     actionType      = actionType,
-                    needType        = NeedType.BloodLust,
-                    priority        = 2,
-                    utilityScore    = rangeScore,
+                    actionDefIndex  = defIndex,
                     needsValidation = false,
                     targetEntity    = nearestHostile,
                 });

@@ -21,15 +21,15 @@ public class CitizenBrainAuthoring : MonoBehaviour
 
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             UnitBakingUtil.BakeRequirements(this, entity, authoring.active, unitSO);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, MeleeSingleAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, WanderAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, TalkAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, SitAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, IdleAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, FleeAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, ReleaseRequest>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, InteractAction>(this, entity);
-            UnitBakingUtil.AddAction<CitizenBrainAuthoring, PickupItemAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, MeleeSingleAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, WanderAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, TalkAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, SitAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, IdleAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, FleeAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, ReleaseRequest>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, InteractAction>(this, entity);
+            // UnitBakingUtil.AddAction<CitizenBrainAuthoring, PickupItemAction>(this, entity);
 
             Entity socketEntity = authoring.handSocket != null
                 ? GetEntity(authoring.handSocket, TransformUsageFlags.Dynamic)

@@ -17,6 +17,7 @@ public partial struct InteractionAwarenessSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<InteractionLibrary>();
+        state.RequireForUpdate<BrainLibrary>();
 
         transformLookup   = state.GetComponentLookup<LocalTransform>(true);
         interactionLookup = state.GetComponentLookup<Interaction>(true);
@@ -30,6 +31,7 @@ public partial struct InteractionAwarenessSystem : ISystem
 
         SpatialHashRegistry registry        = SystemAPI.GetSingleton<SpatialHashRegistry>();
         InteractionLibrary  interactionLib  = SystemAPI.GetSingleton<InteractionLibrary>();
+        BrainLibrary        brainLibrary    = SystemAPI.GetSingleton<BrainLibrary>();
 
         state.Dependency = new InteractionAwarenessJob
         {
@@ -37,22 +39,25 @@ public partial struct InteractionAwarenessSystem : ISystem
             transformLookup    = transformLookup,
             interactionLookup  = interactionLookup,
             interactionLibrary = interactionLib.library,
+            aiConfig           = brainLibrary.blob,
         }.ScheduleParallel(state.Dependency);
     }
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 public partial struct InteractionAwarenessJob : IJobEntity
 {
     [ReadOnly] public SpatialHashRegistry                         registry;
     [ReadOnly] public ComponentLookup<LocalTransform>             transformLookup;
     [ReadOnly] public ComponentLookup<Interaction>                interactionLookup;
     [ReadOnly] public BlobAssetReference<InteractionLibraryBlob>  interactionLibrary;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob>        aiConfig;
 
     public void Execute(
         Entity entity,
-        ref DynamicBuffer<ActionOption>          options,
+        in UtilityBrain                          brain,
+        ref DynamicBuffer<UtilityActions>        options,
         in DynamicBuffer<Motivation>             motivations,
         in DynamicBuffer<RecentInteraction>      recentInteractions,
         in LocalTransform                        transform,
@@ -81,7 +86,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
                         do
                         {
                             AddActionIfValid(target, npcPos, awareness.range, currentNeed,
-                                faction.factionType, recentInteractions, ref options);
+                                faction.factionType, brain.unitType, recentInteractions, ref options);
                         } while (registry.interactionCells.TryGetNextValue(out target, ref it));
                     }
                 }
@@ -95,8 +100,9 @@ public partial struct InteractionAwarenessJob : IJobEntity
         float                                    maxRange,
         NeedType                                 needType,
         FactionType                              npcFaction,
+        UnitType                                 unitType,
         in DynamicBuffer<RecentInteraction>      recentInteractions,
-        ref DynamicBuffer<ActionOption>          options)
+        ref DynamicBuffer<UtilityActions>        options)
     {
         for (int i = 0; i < recentInteractions.Length; i++)
             if (recentInteractions[i].entity == target) return;
@@ -111,7 +117,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
         if (!interactionLookup.TryGetComponent(target, out Interaction interactData))
             return;
 
-        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interactData.actionType];
+        ref InteractionBlob blob = ref interactionLibrary.Value.interactions[(int)interactData.action];
 
         if (blob.allowedFactions.Length > 0)
         {
@@ -124,20 +130,16 @@ public partial struct InteractionAwarenessJob : IJobEntity
                 return;
         }
 
-        if (interactData.currentOccupants >= blob.maxOccupants)
+        int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, unitType, interactData.action);
+        if (defIndex < 0)
             return;
 
-        float distScore = 1.0f - math.saturate(dist / maxRange);
-
-        options.Add(new ActionOption
+        options.Add(new UtilityActions
         {
-            actionType      = interactData.actionType,
-            needType        = needType,
-            priority        = blob.priority,
+            actionType      = interactData.action,
+            actionDefIndex  = defIndex,
             targetEntity    = target,
             needsValidation = true,
-            utilityScore    = distScore,
-            advertisedDelta = blob.restorationAmount,
         });
     }
 }

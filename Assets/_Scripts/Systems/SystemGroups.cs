@@ -6,7 +6,7 @@ using Unity.Entities;
 public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(AIActionSelectionSystemGroup))]
+[UpdateBefore(typeof(UtilityAISystemGroup))]
 public partial class PlayerSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(PlayerSystemGroup), OrderFirst = true)]
@@ -26,44 +26,30 @@ public partial class PlayerSystemGroup : ComponentSystemGroup { }
         public partial class PlayerEquipmentSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(AIActionSelectionSystemGroup))]
+[UpdateAfter(typeof(UtilityAISystemGroup))]
+[UpdateBefore(typeof(StateMachineSystemGroup))]
 public partial class MinionActionSelectionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(ActionSystemGroup))]
-public partial class AIActionSelectionSystemGroup : ComponentSystemGroup { }
+[UpdateBefore(typeof(StateMachineSystemGroup))]
+public partial class UtilityAISystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
+        [UpdateInGroup(typeof(UtilityAISystemGroup))]
         [UpdateBefore(typeof(AIAwarenessSystemGroup))]
         public partial class AIMotivationSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
-        [UpdateBefore(typeof(AIScoringSystemGroup))]
+        [UpdateInGroup(typeof(UtilityAISystemGroup))]
         public partial class AIAwarenessSystemGroup : ComponentSystemGroup { }
-
-        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
-        public partial class AIScoringSystemGroup : ComponentSystemGroup { }
-
-        // v2 perception — awareness jobs write AwarenessTarget; runs alongside AIAwarenessSystemGroup
-        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
-        [UpdateAfter(typeof(AIMotivationSystemGroup))]
-        [UpdateBefore(typeof(AIScoringSystemGroup))]
-        public partial class PerceptionSystemGroup : ComponentSystemGroup { }
-
-        // v2 decision pipeline — instancing → context → scoring → selection; runs after legacy scoring
-        [UpdateInGroup(typeof(AIActionSelectionSystemGroup))]
-        [UpdateAfter(typeof(AIScoringSystemGroup))]
-        public partial class UtilityDecisionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(ItemSystemGroup))]
-public partial class ActionSystemGroup : ComponentSystemGroup { }
+public partial class StateMachineSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(ActionSystemGroup))]
+        [UpdateInGroup(typeof(StateMachineSystemGroup))]
         [UpdateBefore(typeof(ActionExecutionSystemGroup))]
         public partial class ActionSelectionSystemGroup : ComponentSystemGroup { }
 
-        [UpdateInGroup(typeof(ActionSystemGroup))]
+        [UpdateInGroup(typeof(StateMachineSystemGroup))]
         public partial class ActionExecutionSystemGroup : ComponentSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]

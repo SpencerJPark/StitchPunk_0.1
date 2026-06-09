@@ -24,6 +24,7 @@ public struct UtilityActions : IBufferElementData
     public float totalUtility;
     public int actionDefIndex;
     public bool needsValidation;
+    public bool isPlayerOrdered;
 }
 
 

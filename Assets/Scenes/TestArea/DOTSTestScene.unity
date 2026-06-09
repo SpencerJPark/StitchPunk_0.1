@@ -3340,6 +3340,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2056743450}
+    - targetCorrespondingSourceObject: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2056743467}
   m_SourcePrefab: {fileID: 100100000, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
 --- !u!1001 &1363416327
 PrefabInstance:
@@ -4105,7 +4108,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2056743449}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9f0f7f65cd814d309c88ef769413a43f, type: 3}
   m_Name: 
@@ -4126,6 +4129,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::DialogueProviderAuthoring
   dialogueSequence: {fileID: 0}
+--- !u!114 &2056743467
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2056743449}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b8de9858cec4414c9e60176ef3bfe91, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::UtilityBrainV2Authoring
+  decideInterval: 0.5
 --- !u!1001 &2095071135
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4614,7 +4630,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 3023273170798776052, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}

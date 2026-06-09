@@ -11,12 +11,28 @@ public enum BehaviorPhase : byte
 public enum BehaviorCommandType : byte
 {
     PlayAnimation,
-    SpawnEntity,     // e.g., Spawn a projectile / bullet
-    ModifyStat,      // e.g., Hurt health, add money, satisfy hunger
+    SpawnEntity,       // e.g., Spawn a projectile / bullet
+    ModifyStat,        // e.g., Hurt health, add money, satisfy hunger
     StartDialogue,
-    ApplyForce,      // e.g., Dodge, knockback, dash
-    WaitTime,        // Pause execution for a set duration
-    Approach,        // Navigate to stateMachine.targetEntity. FloatParam = stopping distance. IntParam = (int)StanceType (0=walk, 2=run).
+    ApplyForce,        // e.g., Dodge, knockback, dash
+    WaitTime,          // Pause execution for a set duration. Duration = seconds.
+    Approach,          // Navigate to stateMachine.targetEntity. FloatParam = stopping distance. IntParam = (int)StanceType.
+
+    // Request emitters — enable a request component and advance immediately.
+    // BehaviorExecutionSystem emits these; downstream systems handle the rest.
+    RequestAttack,     // Enables AttackRequest on the unit. IntParam unused.
+    RequestPickup,     // Enables PickupRequest on stateMachine.targetEntity (item). Sets EquipBy + AttachedTo first.
+    ModifyMotivation,  // Appends MotivationChangeRequest. IntParam = (int)NeedType. FloatParam = Add delta.
+
+    // Flee — blocking navigate-away command.
+    // stateMachine.targetEntity must be the aggressor entity.
+    // Scans nearby waypoints, paths at Running speed to the one FARTHEST from the aggressor.
+    // Replaces stateMachine.targetEntity with the chosen waypoint on arrival so PushRecent works.
+    FleeFromTarget,
+
+    // Writes the interaction target to RecentInteraction so the unit won't immediately re-select it.
+    // IntParam = unused. FloatParam = cooldown seconds (default 30 if 0).
+    ReleaseInteraction,
 }
 
 public enum ConsiderationType : byte
@@ -128,12 +144,16 @@ public enum TargetingMode : byte
     SingleTarget,  // action needs one target entity (MeleeAttack, Talk, Pickup)
 }
 
-// Utility AI v2 — stable key for the BehaviorLibrary blob (enum-indexed like ItemType/AttackType).
-// Append-only: add new values at the end, never reorder existing ones.
+// Stable key for the BehaviorLibrary blob (enum-indexed). Append-only — never reorder.
 public enum BehaviorType : byte
 {
     None,
     Wander,
+    MeleeSwing,
+    Flee,
+    Sit,
+    Pickup,
+    Talk,
 }
 
 public enum UnitStateType

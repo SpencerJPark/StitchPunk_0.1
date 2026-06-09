@@ -2,13 +2,15 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 // One inline consideration baked from a UtilityActionSO. Curve is pre-sampled over normalized [0,1]
-// input. Independent of the legacy AIScoringBlob so that struct can be deleted in Phase 4.
+// input. Curve is pre-sampled at bake time and evaluated via linear interpolation.
 public struct ConsiderationBlob
 {
     public ConsiderationType input;
-    public float            weight;
-    public int              resolution;
-    public BlobArray<float> samples;   // sampled at t in [0,1]
+    public NeedType          needType;    // used when input == ConsiderationType.Motivation
+    public PersonalityTypes  traitType;  // used when input == ConsiderationType.Trait
+    public float             weight;
+    public int               resolution;
+    public BlobArray<float>  samples;   // sampled at t in [0,1]
 
     // Sample the curve at a normalized input t in [0,1] via linear interpolation between samples.
     public float Evaluate(float t)

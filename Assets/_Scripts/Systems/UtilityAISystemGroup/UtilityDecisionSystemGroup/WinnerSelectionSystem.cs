@@ -1,82 +1,39 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
 
-// Two-pass winner selection for UtilityBrainV2 units.
-// Pass 1 (WinnerCollectJob): each active action entity buckets itself by ownerEntity.
-// Pass 2 (WinnerSelectJob): each unit iterates candidates, picks priority tier + highest score,
-//         writes to StateMachine only when the winner changes.
-// Decision throttled by DecideCadence; no update until remaining <= 0.
+// Reads the scored UtilityActions buffer and writes the winning action to StateMachine.
+// Selection rules (in order):
+//   1. Player-ordered entry (isPlayerOrdered == true) always wins unconditionally.
+//   2. Highest priority tier gate — lower-priority options are ignored.
+//   3. Within the top tier: highest totalUtility wins.
+// Does not interrupt an in-flight behavior with the same action.
 [BurstCompile]
-[UpdateInGroup(typeof(UtilityDecisionSystemGroup), OrderLast = true)]
+[UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderLast = true)]
 public partial struct WinnerSelectionSystem : ISystem
 {
-    private EntityQuery _candidateQuery;
-
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BrainLibrary>();
-        _candidateQuery = SystemAPI.QueryBuilder().WithAll<ActionActive, UtilityAction>().Build();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        int candidateCount = _candidateQuery.CalculateEntityCount();
-        NativeParallelMultiHashMap<Entity, WinnerCandidate> candidates =
-            new NativeParallelMultiHashMap<Entity, WinnerCandidate>(
-                math.max(candidateCount, 1), Allocator.TempJob);
+        BrainLibrary brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
+        EntityCommandBuffer.ParallelWriter ecb = SystemAPI
+            .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+            .CreateCommandBuffer(state.WorldUnmanaged)
+            .AsParallelWriter();
 
-        BrainLibrary brainLibrary  = SystemAPI.GetSingleton<BrainLibrary>();
-        float    deltaTime = SystemAPI.Time.DeltaTime;
-
-        state.Dependency  = new WinnerCollectJob
+        state.Dependency = new WinnerSelectJob
         {
-            candidates = candidates.AsParallelWriter(),
-            aiConfig   = brainLibrary.blob,
+            aiConfig  = brainLibrary.blob,
+            ecb       = ecb,
+            timestamp = SystemAPI.Time.ElapsedTime,
         }.ScheduleParallel(state.Dependency);
-
-        state.Dependency  = new WinnerSelectJob
-        {
-            candidates = candidates,
-            deltaTime  = deltaTime,
-        }.ScheduleParallel(state.Dependency);
-
-        candidates.Dispose(state.Dependency);
-        state.Dependency = state.Dependency;
-    }
-}
-
-public struct WinnerCandidate
-{
-    public ActionType   action;
-    public BehaviorType behavior;
-    public Entity       targetEntity;
-    public float        totalUtility;
-    public int          priority;
-}
-
-[BurstCompile]
-[WithAll(typeof(ActionActive))]
-public partial struct WinnerCollectJob : IJobEntity
-{
-    [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
-    public NativeParallelMultiHashMap<Entity, WinnerCandidate>.ParallelWriter candidates;
-
-    public void Execute(in UtilityAction utilityAction)
-    {
-        ref ActionDefBlob actionDef = ref aiConfig.Value.actionDefs[utilityAction.actionDefIndex];
-        candidates.Add(utilityAction.ownerEntity, new WinnerCandidate
-        {
-            action       = utilityAction.action,
-            behavior     = actionDef.behavior,
-            targetEntity = utilityAction.targetEntity,
-            totalUtility = utilityAction.totalUtility,
-            priority     = utilityAction.priority,
-        });
     }
 }
 
@@ -84,35 +41,68 @@ public partial struct WinnerCollectJob : IJobEntity
 [WithAll(typeof(UtilityBrain))]
 public partial struct WinnerSelectJob : IJobEntity
 {
-    [ReadOnly] public NativeParallelMultiHashMap<Entity, WinnerCandidate> candidates;
-    public float deltaTime;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
+    public EntityCommandBuffer.ParallelWriter ecb;
+    public double timestamp;
 
-    public void Execute(Entity unit, ref StateMachine stateMachine, ref DecideCadence cadence)
+    public void Execute(
+        [EntityIndexInQuery] int         entityIndex,
+        ref StateMachine                 stateMachine,
+        in DynamicBuffer<UtilityActions> actions)
     {
-        cadence.remaining -= deltaTime;
-        if (cadence.remaining > 0f) return;
-        cadence.remaining = cadence.interval;
+        if (actions.IsEmpty) return;
 
-        if (!candidates.TryGetFirstValue(unit, out WinnerCandidate best,
-            out NativeParallelMultiHashMapIterator<Entity> iterator))
-            return;
+        UtilityActions best   = default;
+        bool           found  = false;
 
-        while (candidates.TryGetNextValue(out WinnerCandidate next, ref iterator))
+        // Player-ordered entry wins unconditionally — check first.
+        for (int i = 0; i < actions.Length; i++)
         {
-            if (next.priority > best.priority ||
-                (next.priority == best.priority && next.totalUtility > best.totalUtility))
-                best = next;
+            if (!actions[i].isPlayerOrdered) continue;
+            best  = actions[i];
+            found = true;
+            break;
         }
 
+        // Otherwise: priority tier gate + highest utility.
+        if (!found)
+        {
+            int highestPriority = int.MinValue;
+            for (int i = 0; i < actions.Length; i++)
+            {
+                if (actions[i].priority > highestPriority)
+                    highestPriority = actions[i].priority;
+            }
+
+            best.totalUtility = float.MinValue;
+            for (int i = 0; i < actions.Length; i++)
+            {
+                UtilityActions candidate = actions[i];
+                if (candidate.priority < highestPriority) continue;
+                if (candidate.totalUtility <= best.totalUtility) continue;
+                best  = candidate;
+                found = true;
+            }
+        }
+
+        if (!found) return;
+
         // Don't interrupt an in-flight behavior with the same action — let it complete naturally.
-        if (best.action == stateMachine.action && stateMachine.activeBehavior != BehaviorType.None)
+        if (best.actionType == stateMachine.action && stateMachine.activeBehavior != BehaviorType.None)
             return;
-        // Exact same idle winner — nothing changed.
-        if (best.action == stateMachine.action && best.targetEntity == stateMachine.targetEntity)
+        if (best.actionType == stateMachine.action && best.targetEntity == stateMachine.targetEntity)
             return;
 
-        stateMachine.action              = best.action;
-        stateMachine.activeBehavior      = best.behavior;
+        BehaviorType behavior = BehaviorType.None;
+        if (best.actionDefIndex >= 0 && best.actionDefIndex < aiConfig.Value.actionDefs.Length)
+            behavior = aiConfig.Value.actionDefs[best.actionDefIndex].behavior;
+
+        LogUtil.Log(ref ecb, entityIndex,
+            $"[WinnerSelection] Selected action: {best.actionType} behavior: {behavior} utility: {best.totalUtility:G}",
+            LogLevel.Info, timestamp);
+
+        stateMachine.action              = best.actionType;
+        stateMachine.activeBehavior      = behavior;
         stateMachine.targetEntity        = best.targetEntity;
         stateMachine.currentPhase        = BehaviorPhase.Execute;
         stateMachine.CurrentCommandIndex = 0;

@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Entities;
+using Unity.Collections;
 
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup))]
@@ -10,53 +11,71 @@ public partial struct FleeAwarenessSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        state.RequireForUpdate<Health>();
+        state.RequireForUpdate<BrainLibrary>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        state.Dependency = new FleeAwarenessJob().ScheduleParallel(state.Dependency);
+        BrainLibrary brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
+        state.Dependency = new FleeAwarenessJob
+        {
+            aiConfig = brainLibrary.blob,
+        }.ScheduleParallel(state.Dependency);
     }
 }
 
-// Offers Flee as a normal decision-point option: only runs when the unit is asking for a
-// new action (ActionRequest) and is in active combat (has at least one ThreatEntry).
-// No interrupt, no bracket tracking — for melee-single units each punch re-enables
-// ActionRequest, so flee competes against fighting on every swing.
+// Offers Flee when health is critical and the unit is under threat.
+// Bravery/cowardice is handled via ConsiderationType.Trait in the Flee ActionDefBlob consideration curves.
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
-[WithPresent(typeof(FleeAction))]
 public partial struct FleeAwarenessJob : IJobEntity
 {
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
+
     public void Execute(
-        in  Health                      health,
-        in  Personality                 personality,
+        in UtilityBrain                 brain,
+        in Health                       health,
         ref DynamicBuffer<Motivation>   motivations,
-        ref DynamicBuffer<ActionOption> options,
-        in  DynamicBuffer<ThreatEntry>  threats)
+        ref DynamicBuffer<UtilityActions> options,
+        in DynamicBuffer<ThreatEntry>   threats)
     {
         if (threats.Length == 0)
             return;
 
-        float healthRatio = (float)health.healthAmount / health.healthAmountMax;
-        
-        if (healthRatio >= .3f)
+        float healthRatio = health.healthAmountMax > 0
+            ? (float)health.healthAmount / health.healthAmountMax
+            : 1f;
+
+        if (healthRatio >= 0.3f)
             return;
 
-        // ~0 at full health, rising as the unit is wounded and damped by bravery.
-        float fleeUtility = (1f - healthRatio) * (1f - personality.bravery);
-
-        // SelfPreservation drives the scoring curve; mirrors EnemyAwareness setting BloodLust.
+        // SelfPreservation drives the scoring curve — mirrors EnemyAwareness setting BloodLust.
         AIUtils.SetMotivationValue(ref motivations, NeedType.SelfPreservation, 100f);
 
-        options.Add(new ActionOption
+        int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Flee);
+        if (defIndex < 0)
+            return;
+
+        // Find the top aggressor so BehaviorExecutionSystem can flee away from them.
+        Entity topAggressor = Entity.Null;
+        float  topThreat    = 0f;
+        for (int i = 0; i < threats.Length; i++)
         {
-            actionType   = ActionType.Flee,
-            needType     = NeedType.SelfPreservation,
-            priority     = 2,
-            utilityScore = fleeUtility,
+            if (threats[i].threatScore > topThreat)
+            {
+                topThreat    = threats[i].threatScore;
+                topAggressor = threats[i].attackerEntity;
+            }
+        }
+
+        options.Add(new UtilityActions
+        {
+            actionType      = ActionType.Flee,
+            actionDefIndex  = defIndex,
+            targetEntity    = topAggressor,
+            needsValidation = false,
         });
     }
 }

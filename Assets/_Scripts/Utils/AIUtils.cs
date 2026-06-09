@@ -7,29 +7,6 @@ using Unity.Transforms;
 [BurstCompile]
 public static class AIUtils
 {
-    public static float EvaluateScoringCurve(
-        BlobAssetReference<AIScoringLibraryBlob> library,
-        NeedType needType,
-        float needValue)
-    {
-        if (!library.IsCreated) return 0f;
-
-        ref var blob = ref library.Value;
-
-        for (int i = 0; i < blob.curves.Length; i++)
-        {
-            if (blob.curves[i].needType == needType)
-            {
-                return blob.curves[i].curve.Evaluate(needValue);
-            }
-        }
-
-        // No curve registered for this motivation — treat as neutral (1.0) so the
-        // option's raw utilityScore passes through unchanged rather than being zeroed.
-        return 1.0f;
-    }
-
-
     public static float FastDistanceScore(float3 from, float3 to, float maxRangeSq)
     {
         // Uses (x*x + y*y + z*z), skipping the heavy Square Root step

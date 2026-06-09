@@ -19,12 +19,12 @@ public partial struct ClearOptionsSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain))]
+[WithAll(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
 public partial struct ClearOptionsJob : IJobEntity
 {
-    public void Execute(ref DynamicBuffer<ActionOption> options)
+    public void Execute(ref DynamicBuffer<UtilityActions> actions)
     {
-        options.Clear();
+        actions.Clear();
     }
 }

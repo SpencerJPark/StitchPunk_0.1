@@ -2,13 +2,19 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // One inline consideration on a UtilityActionSO. The curve is authored directly here (no separate
-// ConsiderationCurveSO) and sampled into a blob at bake. X axis is the NORMALIZED [0,1] input
+// sampled into a blob at bake. X axis is the NORMALIZED [0,1] input
 // (e.g. health ratio, distance/range ratio); Y is the per-consideration score factor.
 [System.Serializable]
 public class ConsiderationAuthoring
 {
-    [Tooltip("Which flattened ActionContext value feeds this curve")]
+    [Tooltip("Which value feeds this curve (Health, Motivation, DistanceToTarget, Trait, ...)")]
     public ConsiderationType input;
+
+    [Tooltip("Which motivation to sample when input == Motivation")]
+    public NeedType needType;
+
+    [Tooltip("Which personality trait to sample when input == Trait")]
+    public PersonalityTypes traitType;
 
     [Tooltip("X: normalized input [0,1]; Y: score factor")]
     public AnimationCurve curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);

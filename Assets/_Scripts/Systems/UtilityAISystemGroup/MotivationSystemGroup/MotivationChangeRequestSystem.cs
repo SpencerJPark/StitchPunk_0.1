@@ -24,7 +24,7 @@ public partial struct MotivationChangeRequestSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain))]
+[WithAll(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
 public partial struct MotivationChangeJob : IJobEntity
 {

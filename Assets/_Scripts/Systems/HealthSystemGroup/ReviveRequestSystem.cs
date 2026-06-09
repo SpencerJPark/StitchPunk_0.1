@@ -6,14 +6,14 @@ using Unity.Mathematics;
 [UpdateInGroup(typeof(HealthSystemGroup))]
 public partial struct ReviveRequestSystem : ISystem
 {
-    private ComponentLookup<AIBrain>               aiBrainLookup;
+    private ComponentLookup<UtilityBrain>               aiBrainLookup;
     private ComponentLookup<ActionInterruptRequest> interruptLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        aiBrainLookup   = state.GetComponentLookup<AIBrain>(false);
+        aiBrainLookup   = state.GetComponentLookup<UtilityBrain>(false);
         interruptLookup = state.GetComponentLookup<ActionInterruptRequest>(false);
     }
 
@@ -36,7 +36,7 @@ public partial struct ReviveRequestSystem : ISystem
 [WithPresent(typeof(Undead))]
 public partial struct ReviveJob : IJobEntity
 {
-    public ComponentLookup<AIBrain>               aiBrainLookup;
+    public ComponentLookup<UtilityBrain>               aiBrainLookup;
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
 
     public void Execute(

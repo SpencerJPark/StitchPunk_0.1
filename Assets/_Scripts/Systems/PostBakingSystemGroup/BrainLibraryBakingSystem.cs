@@ -71,6 +71,8 @@ public partial struct BrainLibraryBakingSystem : ISystem
             {
                 ConsiderationAuthoring authored = action.considerations[considerationIndex];
                 considerationsBuilder[considerationIndex].input      = authored.input;
+                considerationsBuilder[considerationIndex].needType   = authored.needType;
+                considerationsBuilder[considerationIndex].traitType  = authored.traitType;
                 considerationsBuilder[considerationIndex].weight     = authored.weight;
                 considerationsBuilder[considerationIndex].resolution = resolution;
 

@@ -63,7 +63,7 @@ public partial struct ItemAwarenessSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(AIBrain), typeof(ActionRequest))]
+[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
 public partial struct ItemAwarenessJob : IJobEntity
 {
@@ -83,10 +83,10 @@ public partial struct ItemAwarenessJob : IJobEntity
         in CurrentAction                currentAction,
         in DynamicBuffer<ThreatEntry>   threats,
         ref DynamicBuffer<Motivation>   motivations,
-        ref DynamicBuffer<ActionOption> options)
+        ref DynamicBuffer<UtilityActions> options)
     {
         bool  hasThreat   = threats.Length > 0;
-        bool  inCombat    = currentAction.actionType.IsCombatAction();
+        bool  inCombat    = currentAction.action.IsCombatAction();
         float healthRatio = health.healthAmountMax > 0
             ? (float)health.healthAmount / health.healthAmountMax
             : 1f;
@@ -193,47 +193,37 @@ public partial struct ItemAwarenessJob : IJobEntity
             }
         }
 
-        // Weapon — urgent: arm up to defend (competes with combat/flee at priority 2).
+        // Weapon — urgent: arm up to defend. SelfDefence motivation drives the blob scoring curve.
         if (nearestWeapon != Entity.Null)
         {
             AIUtils.SetMotivationValue(ref motivations, NeedType.SelfDefence, 100f);
-            options.Add(new ActionOption
+            options.Add(new UtilityActions
             {
                 actionType      = ActionType.EquipWeapon,
-                needType        = NeedType.SelfDefence,
-                priority        = 2,
-                utilityScore    = 1f - math.saturate(nearestWeaponSq / rangeSq),
                 needsValidation = false,
                 targetEntity    = nearestWeapon,
             });
         }
 
-        // Healing — ambient recovery scaled by damage taken (priority 0, scored by SelfPreservation curve).
+        // Healing — SelfPreservation motivation drives the blob scoring curve.
         if (nearestHeal != Entity.Null)
         {
             float urgency = (1f - healthRatio) * 100f;
             SetMotivationAtLeast(ref motivations, NeedType.SelfPreservation, urgency);
-            options.Add(new ActionOption
+            options.Add(new UtilityActions
             {
                 actionType      = ActionType.UseHealingItem,
-                needType        = NeedType.SelfPreservation,
-                priority        = 0,
-                utilityScore    = (1f - healthRatio) * (1f - math.saturate(nearestHealSq / rangeSq)),
                 needsValidation = false,
                 targetEntity    = nearestHeal,
             });
         }
 
-        // Food — ambient need; scoring curve + advertisedDelta gate on actual hunger (priority 0).
+        // Food — Hunger motivation drives blob scoring curve.
         if (nearestFood != Entity.Null)
         {
-            options.Add(new ActionOption
+            options.Add(new UtilityActions
             {
                 actionType      = ActionType.Eat,
-                needType        = foodMotivation,
-                priority        = 0,
-                utilityScore    = 1f - math.saturate(nearestFoodSq / rangeSq),
-                advertisedDelta = foodDelta,
                 needsValidation = false,
                 targetEntity    = nearestFood,
             });
@@ -241,13 +231,9 @@ public partial struct ItemAwarenessJob : IJobEntity
 
         if (nearestDrink != Entity.Null)
         {
-            options.Add(new ActionOption
+            options.Add(new UtilityActions
             {
                 actionType      = ActionType.Drink,
-                needType        = drinkMotivation,
-                priority        = 0,
-                utilityScore    = 1f - math.saturate(nearestDrinkSq / rangeSq),
-                advertisedDelta = drinkDelta,
                 needsValidation = false,
                 targetEntity    = nearestDrink,
             });
