@@ -18,10 +18,16 @@ public struct BehaviorLibraryBlob
 public struct BehaviorCommand
 {
     public BehaviorCommandType type;
-    
+
     // Generic layout parameters used depending on the Type
-    public int IntParam;      // Animation Hash, Faction ID, Dialogue Node ID
-    public float FloatParam;  // Damage amount, Cash value, Dash speed
-    public float Duration;    // How long this specific step takes before the next one runs
+    public int IntParam;      // Animation Hash, Faction ID, Dialogue Node ID; LoopUntil: jump-back command index
+    public float FloatParam;  // Damage amount, Cash value, Dash speed; LoopUntil: range for TargetOutOfRange
+    public float Duration;    // How long this specific step takes before the next one runs; LoopUntil: loop timeout (0 = default)
+
+    // Qualifier flags — exit conditions for LoopUntil; later also early-exit for blocking commands.
+    public LoopQualifier Qualifier;
+    public int           QualifierIntParam;   // MotivationSatisfied: (int)NeedType
+    public float         QualifierFloatParam; // MotivationSatisfied: motivation threshold
+    public bool          Looping;             // PlayAnimation: SetAnimation.looping
 }
 

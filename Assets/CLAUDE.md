@@ -80,18 +80,16 @@ Narrative event system is complete:
 - `NarrativeEventManager` (MonoBehaviour) drives async event execution via UniTask
 - `NarrativeIds.cs` registry is ready — populate Events/Entities constants as you build scenes
 
-**AI & Action Architecture — complete (current architecture):**
+**AI & Action Architecture — behavior-command state machine (current architecture):**
 
-AI is a **pure decision layer** — it scores `ActionOption` buffer entries but never executes movement, attacks, or animation. Execution is handled by a unified `ActionSystemGroup`.
+AI is a **pure decision layer** — awareness systems in `UtilityAISystemGroup` populate the `UtilityActions` buffer, `ConsiderationScoringSystem` scores entries via pre-sampled curves, and `WinnerSelectionSystem` writes the winner into the `StateMachine` component. Execution is a single interpreter:
 
-Three-layer pipeline:
-- `MinionActionSelectionSystemGroup` — player-commanded units: reads `PlayerOrder` → writes `ActionOption`
-- `AIActionSelectionSystemGroup` — utility-driven units: awareness systems populate `ActionOption`, scoring systems rank and prune
-- `ActionSystemGroup` — unified for all units:
-  - `ActionSelectionSystemGroup`: top-3 random pick → enables action tag via Burst function pointer table
-  - `ActionExecutionSystemGroup`: action systems orchestrate downstream requests (`PathRequest`, `AttackRequest`)
+- `BehaviorExecutionSystem` (`ActionExecutionSystemGroup`) runs the active behavior's `executionSequence` — a `BlobArray<BehaviorCommand>` authored in `BehaviorSO` assets and baked into the enum-indexed `BehaviorLibrary` blob. Commands either block (Approach, WaitTime, FleeFromTarget, LoopUntil) or fire-and-advance (PlayAnimation, PlayActionAnimation, RequestAttack, RequestPickup, ModifyMotivation, ReleaseInteraction, StopAnimation).
+- `LoopUntil` jumps back to command index `IntParam` until any ticked `LoopQualifier` flag holds (TargetDead, TargetLost, TargetOutOfRange, TimerExpired, MotivationSatisfied, TargetNotEngagedWithSelf), with always-on timeout + iteration guards (`BehaviorQualifiers` in `_Scripts/Utils/`). This is how continuous melee loops swing-until-dead.
+- `RequestAttack` resolves the unit's `AttackType` from its baked `AvailableAttack` buffer (keyed by `stateMachine.action`) and writes a fresh `AttackRequest`; `PlayActionAnimation` resolves the per-unit animation from `UnitDataBlob.actionAnimations`. Behavior assets stay unit-agnostic.
+- Legacy per-action systems (`MeleeContinuousActionSystem`, `TalkActionSystem`, etc.) are commented out in `ActionExecutionSystemGroup/` as reference semantics for the migration; awareness stubs (`SelfDefence`, `Flee`, `Social`, `Schedule`, `Weather`) are pending Phase 3 work.
 
-Melee actions (`MeleeSingleActionSystem`, `MeleeContinuousActionSystem`) are the reference implementation for the orchestration pattern.
+Roadmap for recreating remaining behaviors + interrupt pipeline + sound system: see the plan in `.claude/plans/` (behavior recreation queue).
 
 **Item awareness is built:** `ItemAwarenessSystem` scans loose items (`EquiptBy.owner == null`) and emits pickup options — weapon when threatened+unarmed, healing when hurt, food/drink when idle. `PickupItemActionSystem` paths to the item then branches by `ItemCategory` (weapon = equip via existing `ItemEquipSystem`; healing = `HealRequest`; food/drink = `MotivationChangeRequest` + destroy). Category/effect data comes from the new `ItemLibrary` blob (`ItemSO` → `ItemLibrarySO` → `ItemLibraryBakingSystem`). **Scene setup still required:** create an `_ItemLibrary` asset + `ItemSO`s, add `ItemLibraryAuthoring`, build consumable prefabs (Bandage/MedKit/Bread/Water), and wire `handSocket` on the citizen prefab for visual weapon attach.
 

@@ -33,6 +33,36 @@ public enum BehaviorCommandType : byte
     // Writes the interaction target to RecentInteraction so the unit won't immediately re-select it.
     // IntParam = unused. FloatParam = cooldown seconds (default 30 if 0).
     ReleaseInteraction,
+
+    // Jump back to command index IntParam until ANY ticked Qualifier flag is true (OR semantics).
+    // FloatParam = range for TargetOutOfRange. Duration = loop timeout seconds (0 = global default).
+    // Guards: timeout + iteration cap — a loop can never hang a unit.
+    LoopUntil,
+
+    // Deactivates the Action animation layer (plays AnimationType.None). Non-blocking;
+    // legal in interruptionCleanup. IntParam/FloatParam/Duration unused.
+    StopAnimation,
+
+    // Plays the unit's own animation for stateMachine.action, resolved per-unit from
+    // UnitDataBlob.actionAnimations (zombie claws, citizen punches — same behavior asset).
+    // FloatParam = speed (0 = 1x). Looping = loop the clip. IntParam/Duration unused.
+    PlayActionAnimation,
+}
+
+// Exit conditions for LoopUntil (and later: early-exit on blocking commands).
+// OR semantics — exit when ANY ticked flag evaluates true.
+// Missing-data convention: a qualifier whose referenced data is gone evaluates TRUE (exit),
+// so loops can never spin on a despawned target. Append-only.
+[System.Flags]
+public enum LoopQualifier : ushort
+{
+    None                     = 0,
+    TargetDead               = 1 << 0, // stateMachine.targetEntity has Dead enabled, or entity gone
+    TargetLost               = 1 << 1, // target has no LocalTransform (despawned)
+    TargetOutOfRange         = 1 << 2, // distance(unit, target) > command.FloatParam
+    TimerExpired             = 1 << 3, // stateMachine.LoopTimer >= command.Duration
+    MotivationSatisfied      = 1 << 4, // Motivation[QualifierIntParam].value >= QualifierFloatParam
+    TargetNotEngagedWithSelf = 1 << 5, // target's StateMachine.targetEntity != self (Talk partner lost)
 }
 
 public enum ConsiderationType : byte
@@ -154,6 +184,7 @@ public enum BehaviorType : byte
     Sit,
     Pickup,
     Talk,
+    MeleeContinuous,
 }
 
 public enum UnitStateType

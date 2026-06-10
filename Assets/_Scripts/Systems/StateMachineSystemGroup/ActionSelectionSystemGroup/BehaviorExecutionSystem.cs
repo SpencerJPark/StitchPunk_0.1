@@ -3,6 +3,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 // Runs the Execute → Complete phase machine for all UtilityBrain units.
 // Execution sequences are fully authored in BehaviorSO. Designers compose behaviors from
@@ -23,6 +24,8 @@ public partial struct BehaviorExecutionSystem : ISystem
     private ComponentLookup<Dead>               _deadLookup;
     private ComponentLookup<AnimationRequest>   _animationRequestLookup;
     private BufferLookup<SetAnimation>          _setAnimationLookup;
+    private BufferLookup<Motivation>            _motivationLookup;
+    private ComponentLookup<StateMachine>       _stateMachineLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -30,6 +33,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BehaviorLibrary>();
         state.RequireForUpdate<SpatialHashRegistry>();
+        state.RequireForUpdate<UnitDataLibrary>();
         _transformLookup         = state.GetComponentLookup<LocalTransform>(true);
         _attackRequestLookup     = state.GetComponentLookup<AttackRequest>(false);
         _pickupRequestLookup     = state.GetComponentLookup<PickupRequest>(false);
@@ -41,6 +45,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _deadLookup              = state.GetComponentLookup<Dead>(true);
         _animationRequestLookup  = state.GetComponentLookup<AnimationRequest>(false);
         _setAnimationLookup      = state.GetBufferLookup<SetAnimation>(false);
+        _motivationLookup        = state.GetBufferLookup<Motivation>(true);
+        _stateMachineLookup      = state.GetComponentLookup<StateMachine>(true);
     }
 
     [BurstCompile]
@@ -57,9 +63,12 @@ public partial struct BehaviorExecutionSystem : ISystem
         _deadLookup.Update(ref state);
         _animationRequestLookup.Update(ref state);
         _setAnimationLookup.Update(ref state);
+        _motivationLookup.Update(ref state);
+        _stateMachineLookup.Update(ref state);
 
         BehaviorLibrary      behaviorLib  = SystemAPI.GetSingleton<BehaviorLibrary>();
         SpatialHashRegistry  registry     = SystemAPI.GetSingleton<SpatialHashRegistry>();
+        BlobAssetReference<UnitLibraryBlob> unitLibrary = SystemAPI.GetSingleton<UnitDataLibrary>().library;
         float                deltaTime    = SystemAPI.Time.DeltaTime;
         EntityCommandBuffer.ParallelWriter ecb = SystemAPI
             .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
@@ -72,6 +81,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         state.Dependency = new BehaviorExecutionJob
         {
             behaviorLib              = behaviorLib.blob,
+            unitLibrary              = unitLibrary,
             transformLookup          = _transformLookup,
             attackRequestLookup      = _attackRequestLookup,
             pickupRequestLookup      = _pickupRequestLookup,
@@ -83,6 +93,8 @@ public partial struct BehaviorExecutionSystem : ISystem
             deadLookup               = _deadLookup,
             animationRequestLookup   = _animationRequestLookup,
             setAnimationLookup       = _setAnimationLookup,
+            motivationLookup         = _motivationLookup,
+            stateMachineLookup       = _stateMachineLookup,
             waypointCells            = registry.waypointCells,
             deltaTime                = deltaTime,
             ecb                      = ecb,
@@ -98,11 +110,18 @@ public partial struct BehaviorExecutionSystem : ISystem
 public partial struct BehaviorExecutionJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BehaviorLibraryBlob>       behaviorLib;
+    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>           unitLibrary;
     [ReadOnly] public ComponentLookup<LocalTransform>                transformLookup;
     [ReadOnly] public ComponentLookup<UnitEquip>                     unitEquipLookup;
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity>        waypointCells;
     [ReadOnly] public ComponentLookup<NavigationWaypoint>            waypointLookup;
     [ReadOnly] public ComponentLookup<Dead>                          deadLookup;
+    [ReadOnly] public BufferLookup<Motivation>                       motivationLookup;
+
+    // Read-only lookup aliases the StateMachine this job writes by ref. Safe: qualifier checks only
+    // read OTHER units' StateMachine (the target's), and each unit writes only its own.
+    [ReadOnly] [NativeDisableContainerSafetyRestriction]
+    public ComponentLookup<StateMachine> stateMachineLookup;
 
     // NativeDisableParallelForRestriction is safe: each unit/item is owned by at most one
     // executing behavior at a time, so no two threads write to the same component.
@@ -127,7 +146,9 @@ public partial struct BehaviorExecutionJob : IJobEntity
         ref PathRequest                        pathRequest,
         EnabledRefRW<PathRequest>              pathRequestEnabled,
         ref DynamicBuffer<RecentWaypoint>      recentWaypoints,
-        ref DynamicBuffer<RecentInteraction>   recentInteractions)
+        ref DynamicBuffer<RecentInteraction>   recentInteractions,
+        in DynamicBuffer<AvailableAttack>      availableAttacks,
+        in UtilityBrain                        brain)
     {
         if (stateMachine.activeBehavior == BehaviorType.None) return;
 
@@ -138,7 +159,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
         {
             case BehaviorPhase.Execute:
                 RunExecute(entityIndex, unit, ref stateMachine, ref pathRequest, pathRequestEnabled,
-                    in transform, ref behavior, ref recentWaypoints, ref recentInteractions);
+                    in transform, ref behavior, ref recentWaypoints, ref recentInteractions,
+                    in availableAttacks, in brain);
                 break;
 
             case BehaviorPhase.Complete:
@@ -156,6 +178,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 stateMachine.currentPhase        = BehaviorPhase.Execute;
                 stateMachine.CurrentCommandIndex = 0;
                 stateMachine.CommandTimer        = 0f;
+                stateMachine.LoopTimer           = 0f;
+                stateMachine.LoopIterations      = 0;
                 break;
         }
     }
@@ -169,13 +193,19 @@ public partial struct BehaviorExecutionJob : IJobEntity
         in LocalTransform                 transform,
         ref BehaviorConfigBlob            behavior,
         ref DynamicBuffer<RecentWaypoint> recentWaypoints,
-        ref DynamicBuffer<RecentInteraction> recentInteractions)
+        ref DynamicBuffer<RecentInteraction> recentInteractions,
+        in DynamicBuffer<AvailableAttack> availableAttacks,
+        in UtilityBrain                   brain)
     {
         if (stateMachine.CurrentCommandIndex >= behavior.executionSequence.Length)
         {
             stateMachine.currentPhase = BehaviorPhase.Complete;
             return;
         }
+
+        // Wall time since behavior start — read by LoopUntil; unlike CommandTimer it survives
+        // blocking commands resetting their own timers.
+        stateMachine.LoopTimer += deltaTime;
 
         ref BehaviorCommand cmd =
             ref behavior.executionSequence[stateMachine.CurrentCommandIndex];
@@ -201,9 +231,71 @@ public partial struct BehaviorExecutionJob : IJobEntity
                     in transform, ref recentWaypoints);
                 return; // blocking
 
+            case BehaviorCommandType.LoopUntil:
+            {
+                bool qualified = BehaviorQualifiers.Evaluate(unit, in cmd, in stateMachine,
+                    in transform, in transformLookup, in deadLookup,
+                    in motivationLookup, in stateMachineLookup);
+
+                // Safety guards — always armed, regardless of ticked qualifiers.
+                float timeout    = cmd.Duration > 0f ? cmd.Duration : BehaviorQualifiers.DEFAULT_LOOP_TIMEOUT;
+                bool  timedOut   = stateMachine.LoopTimer >= timeout;
+                bool  capReached = stateMachine.LoopIterations >= BehaviorQualifiers.MAX_LOOP_ITERATIONS;
+
+                if (qualified || timedOut || capReached)
+                {
+                    if (!qualified && loggingEnabled)
+                        LogUtil.Log(ref ecb, entityIndex,
+                            $"[BehaviorExecution] LoopUntil guard fired in {stateMachine.activeBehavior} " +
+                            $"(timedOut: {timedOut}, iterations: {stateMachine.LoopIterations})",
+                            LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
+
+                    stateMachine.CurrentCommandIndex++;
+                    stateMachine.LoopTimer      = 0f;
+                    stateMachine.LoopIterations = 0;
+                }
+                else
+                {
+                    stateMachine.CurrentCommandIndex =
+                        math.clamp(cmd.IntParam, 0, stateMachine.CurrentCommandIndex);
+                    stateMachine.LoopIterations++;
+                }
+
+                stateMachine.CommandTimer = 0f;
+                return; // owns its advancement
+            }
+
             case BehaviorCommandType.RequestAttack:
+                // AttackRequestSystem reads targetEntity/attackType and the swing timer, so a fresh
+                // request must be written each swing — enabling alone would reuse stale hitFired/elapsed.
                 if (attackRequestLookup.HasComponent(unit))
-                    attackRequestLookup.SetComponentEnabled(unit, true);
+                {
+                    AttackType attackType = AttackType.None;
+                    for (int i = 0; i < availableAttacks.Length; i++)
+                    {
+                        if (availableAttacks[i].actionType != stateMachine.action) continue;
+                        attackType = availableAttacks[i].attackType;
+                        break;
+                    }
+
+                    if (attackType != AttackType.None && stateMachine.targetEntity != Entity.Null)
+                    {
+                        attackRequestLookup[unit] = new AttackRequest
+                        {
+                            targetEntity = stateMachine.targetEntity,
+                            attackType   = attackType,
+                            hitFired     = false,
+                            elapsed      = 0f,
+                        };
+                        attackRequestLookup.SetComponentEnabled(unit, true);
+                    }
+                    else if (loggingEnabled)
+                    {
+                        LogUtil.Log(ref ecb, entityIndex,
+                            $"[BehaviorExecution] RequestAttack skipped — no attack mapped to {stateMachine.action} or no target",
+                            LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
+                    }
+                }
                 break;
 
             case BehaviorCommandType.RequestPickup:
@@ -227,8 +319,31 @@ public partial struct BehaviorExecutionJob : IJobEntity
                         layer     = AnimationLayerType.Action,
                         animation = (AnimationType)cmd.IntParam,
                         speed     = cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
+                        looping   = cmd.Looping,
                     });
                     animationRequestLookup.SetComponentEnabled(unit, true);
+                }
+                break;
+
+            case BehaviorCommandType.PlayActionAnimation:
+                if (animationRequestLookup.HasComponent(unit) && setAnimationLookup.HasBuffer(unit))
+                {
+                    int unitIndex = unitLibrary.Value.FindByUnitType(brain.unitType);
+                    AnimationType actionAnimation = unitIndex >= 0
+                        ? AIUtils.GetAnimationByAction(ref unitLibrary.Value.units[unitIndex], stateMachine.action)
+                        : AnimationType.None;
+
+                    if (actionAnimation != AnimationType.None)
+                    {
+                        setAnimationLookup[unit].Add(new SetAnimation
+                        {
+                            layer     = AnimationLayerType.Action,
+                            animation = actionAnimation,
+                            speed     = cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
+                            looping   = cmd.Looping,
+                        });
+                        animationRequestLookup.SetComponentEnabled(unit, true);
+                    }
                 }
                 break;
 

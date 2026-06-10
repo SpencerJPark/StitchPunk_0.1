@@ -47,7 +47,7 @@ MonoBehaviour:
     animation: 1
   - action: 2
     animation: 2
-  - action: 19
+  - action: 17
     animation: 37
   stanceAnimations:
   - stance: 0
@@ -55,9 +55,9 @@ MonoBehaviour:
     movingAnimation: 0
   idleAnimation: 1
   movingAnimation: 2
-  attackFactions: 
+  attackFactions: 05
   attacks:
-  - action: 19
+  - action: 17
     attack: 2
   moveSpeed: 3
   rotationSpeed: 10

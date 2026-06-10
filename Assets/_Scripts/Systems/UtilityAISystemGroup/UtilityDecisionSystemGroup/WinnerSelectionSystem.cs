@@ -113,5 +113,7 @@ public partial struct WinnerSelectJob : IJobEntity
         stateMachine.currentPhase        = BehaviorPhase.Execute;
         stateMachine.CurrentCommandIndex = 0;
         stateMachine.CommandTimer        = 0f;
+        stateMachine.LoopTimer           = 0f;
+        stateMachine.LoopIterations      = 0;
     }
 }

@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 37ae3b292cc59f347a88c9c4d609ca4e, type: 3}
-  m_Name: CitizenBrain
+  m_Name: RotterBrain
   m_EditorClassIdentifier: StitchPunk.Data::BrainConfigSO
-  unitType: 2
+  unitType: 4
   actions:
   - {fileID: 11400000, guid: 79f119d1c12740642990f18c6c499045, type: 2}
   - {fileID: 11400000, guid: 4ae5c294eb7b4988a7325b92665b7cc8, type: 2}

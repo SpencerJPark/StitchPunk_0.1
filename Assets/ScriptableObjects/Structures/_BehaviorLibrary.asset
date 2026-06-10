@@ -14,3 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviorLibrarySO
   behaviors:
   - {fileID: 11400000, guid: d69009064a378c444bb7f29651f8f874, type: 2}
+  - {fileID: 11400000, guid: 539079dc90ac4f8c98f9537a1557c1a9, type: 2}

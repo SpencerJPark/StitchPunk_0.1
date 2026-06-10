@@ -43,6 +43,8 @@ public struct StateMachine : IComponentData
     public int           CurrentCommandIndex;
     public float         CommandTimer;
     public StanceType    currentStance;    // written by Approach command; read by locomotion system
+    public float         LoopTimer;        // wall time since behavior start; survives blocking commands (CommandTimer doesn't)
+    public ushort        LoopIterations;   // LoopUntil jump-back count; hard cap guard
 }
 
 // Internal Context

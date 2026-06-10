@@ -8,14 +8,26 @@ public class BehaviorCommandAuthoring
 {
     public BehaviorCommandType type;
 
-    [Tooltip("Animation hash, faction id, dialogue node id, etc. (meaning depends on type)")]
+    [Tooltip("Animation hash, faction id, dialogue node id, etc. (meaning depends on type). LoopUntil: jump-back command index.")]
     public int IntParam;
 
-    [Tooltip("Damage amount, cash value, dash speed, etc. (meaning depends on type)")]
+    [Tooltip("Damage amount, cash value, dash speed, etc. (meaning depends on type). LoopUntil: range for TargetOutOfRange.")]
     public float FloatParam;
 
-    [Tooltip("How long this step runs before the next one (seconds)")]
+    [Tooltip("How long this step runs before the next one (seconds). LoopUntil: loop timeout (0 = default 60s)")]
     public float Duration;
+
+    [Tooltip("LoopUntil exit conditions — exit when ANY ticked flag is true")]
+    public LoopQualifier Qualifier;
+
+    [Tooltip("Qualifier param: (int)NeedType for MotivationSatisfied")]
+    public int QualifierIntParam;
+
+    [Tooltip("Qualifier param: motivation threshold for MotivationSatisfied")]
+    public float QualifierFloatParam;
+
+    [Tooltip("PlayAnimation: loop the clip until stopped (StopAnimation or interrupt cleanup)")]
+    public bool Looping;
 }
 
 // A reusable executed sequence ("verb") — e.g. MeleeSwing, Wander. Bound to a UtilityActionSO and

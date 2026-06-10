@@ -50,13 +50,7 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
             {
                 BehaviorCommandAuthoring authored = execSource[commandIndex];
                 if (authored == null) continue;
-                execBuilder[commandIndex] = new BehaviorCommand
-                {
-                    type       = authored.type,
-                    IntParam   = authored.IntParam,
-                    FloatParam = authored.FloatParam,
-                    Duration   = authored.Duration,
-                };
+                execBuilder[commandIndex] = BakeCommand(authored, commandIndex, behaviorSO.name);
             }
 
             // Interruption cleanup sequence
@@ -68,13 +62,14 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
             {
                 BehaviorCommandAuthoring authored = cleanupSource[commandIndex];
                 if (authored == null) continue;
-                cleanupBuilder[commandIndex] = new BehaviorCommand
-                {
-                    type       = authored.type,
-                    IntParam   = authored.IntParam,
-                    FloatParam = authored.FloatParam,
-                    Duration   = authored.Duration,
-                };
+
+                if (IsBlockingCommand(authored.type))
+                    UnityEngine.Debug.LogError(
+                        $"[BehaviorLibraryBaking] '{behaviorSO.name}' interruptionCleanup[{commandIndex}] is " +
+                        $"{authored.type} — blocking commands are not allowed in cleanup (it runs in one frame) " +
+                        "and will be skipped at runtime.");
+
+                cleanupBuilder[commandIndex] = BakeCommand(authored, commandIndex, behaviorSO.name);
             }
         }
 
@@ -88,6 +83,45 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
 
             holder.ValueRW.blob = blobRef;
         }
+    }
+
+    // Copies one authored command into blob form. Invalid LoopUntil jump targets degrade to a
+    // no-op (immediate-timeout loop) so a bad asset skips the loop instead of hanging a unit.
+    private static BehaviorCommand BakeCommand(BehaviorCommandAuthoring authored, int commandIndex, string assetName)
+    {
+        BehaviorCommand command = new BehaviorCommand
+        {
+            type                = authored.type,
+            IntParam            = authored.IntParam,
+            FloatParam          = authored.FloatParam,
+            Duration            = authored.Duration,
+            Qualifier           = authored.Qualifier,
+            QualifierIntParam   = authored.QualifierIntParam,
+            QualifierFloatParam = authored.QualifierFloatParam,
+            Looping             = authored.Looping,
+        };
+
+        if (authored.type == BehaviorCommandType.LoopUntil
+            && (authored.IntParam < 0 || authored.IntParam >= commandIndex))
+        {
+            UnityEngine.Debug.LogError(
+                $"[BehaviorLibraryBaking] '{assetName}' command [{commandIndex}] LoopUntil jump index " +
+                $"{authored.IntParam} must be >= 0 and < {commandIndex}. Baking as no-op (exits immediately).");
+            command.Qualifier = LoopQualifier.None;
+            command.Duration  = 0.01f;
+            command.IntParam  = commandIndex; // self-target is never taken because the timeout fires first
+        }
+
+        return command;
+    }
+
+    // Blocking commands own their advancement across frames — illegal in the one-frame cleanup pass.
+    private static bool IsBlockingCommand(BehaviorCommandType type)
+    {
+        return type == BehaviorCommandType.Approach
+            || type == BehaviorCommandType.WaitTime
+            || type == BehaviorCommandType.FleeFromTarget
+            || type == BehaviorCommandType.LoopUntil;
     }
 
     public void OnDestroy(ref SystemState state)
