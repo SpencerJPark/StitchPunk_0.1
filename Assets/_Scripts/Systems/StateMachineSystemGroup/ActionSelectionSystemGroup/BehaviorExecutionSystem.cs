@@ -26,6 +26,7 @@ public partial struct BehaviorExecutionSystem : ISystem
     private BufferLookup<SetAnimation>          _setAnimationLookup;
     private BufferLookup<Motivation>            _motivationLookup;
     private ComponentLookup<StateMachine>       _stateMachineLookup;
+    private ComponentLookup<SocialInvite>       _socialInviteLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -47,6 +48,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         _setAnimationLookup      = state.GetBufferLookup<SetAnimation>(false);
         _motivationLookup        = state.GetBufferLookup<Motivation>(true);
         _stateMachineLookup      = state.GetComponentLookup<StateMachine>(true);
+        _socialInviteLookup      = state.GetComponentLookup<SocialInvite>(true);
     }
 
     [BurstCompile]
@@ -65,6 +67,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         _setAnimationLookup.Update(ref state);
         _motivationLookup.Update(ref state);
         _stateMachineLookup.Update(ref state);
+        _socialInviteLookup.Update(ref state);
 
         BehaviorLibrary      behaviorLib  = SystemAPI.GetSingleton<BehaviorLibrary>();
         SpatialHashRegistry  registry     = SystemAPI.GetSingleton<SpatialHashRegistry>();
@@ -95,6 +98,7 @@ public partial struct BehaviorExecutionSystem : ISystem
             setAnimationLookup       = _setAnimationLookup,
             motivationLookup         = _motivationLookup,
             stateMachineLookup       = _stateMachineLookup,
+            socialInviteLookup       = _socialInviteLookup,
             waypointCells            = registry.waypointCells,
             deltaTime                = deltaTime,
             ecb                      = ecb,
@@ -117,6 +121,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
     [ReadOnly] public ComponentLookup<NavigationWaypoint>            waypointLookup;
     [ReadOnly] public ComponentLookup<Dead>                          deadLookup;
     [ReadOnly] public BufferLookup<Motivation>                       motivationLookup;
+    [ReadOnly] public ComponentLookup<SocialInvite>                  socialInviteLookup;
 
     // Read-only lookup aliases the StateMachine this job writes by ref. Safe: qualifier checks only
     // read OTHER units' StateMachine (the target's), and each unit writes only its own.
@@ -169,12 +174,13 @@ public partial struct BehaviorExecutionJob : IJobEntity
 
                 if (loggingEnabled)
                     LogUtil.Log(ref ecb, entityIndex,
-                        $"[BehaviorExecution] Behavior {stateMachine.activeBehavior} complete (action: {stateMachine.action})",
+                        $"[BehaviorExecution] Entity {unit.Index} behavior {stateMachine.activeBehavior.Name()} complete (action: {stateMachine.action.Name()})",
                         LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
                 stateMachine.action              = ActionType.Idle;
                 stateMachine.activeBehavior      = BehaviorType.None;
                 stateMachine.targetEntity        = Entity.Null;
+                stateMachine.activePriority      = 0;
                 stateMachine.currentPhase        = BehaviorPhase.Execute;
                 stateMachine.CurrentCommandIndex = 0;
                 stateMachine.CommandTimer        = 0f;
@@ -218,13 +224,23 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 return; // blocking
 
             case BehaviorCommandType.WaitTime:
+            {
                 stateMachine.CommandTimer += deltaTime;
-                if (stateMachine.CommandTimer >= cmd.Duration)
+
+                // Qualifier-as-early-exit: any ticked flag ends the wait before Duration
+                // (e.g. Talk's WaitTime exits when the partner dies or disengages).
+                bool earlyExit = cmd.Qualifier != LoopQualifier.None
+                    && BehaviorQualifiers.Evaluate(unit, in cmd, in stateMachine,
+                        in transform, in transformLookup, in deadLookup,
+                        in motivationLookup, in stateMachineLookup);
+
+                if (stateMachine.CommandTimer >= cmd.Duration || earlyExit)
                 {
                     stateMachine.CurrentCommandIndex++;
                     stateMachine.CommandTimer = 0f;
                 }
                 return; // blocking
+            }
 
             case BehaviorCommandType.FleeFromTarget:
                 RunFlee(ref stateMachine, ref pathRequest, pathRequestEnabled,
@@ -245,10 +261,12 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 if (qualified || timedOut || capReached)
                 {
                     if (!qualified && loggingEnabled)
+                    {
+                        int timedOutFlag = timedOut ? 1 : 0; // hoisted: Burst forbids control flow inside format arguments (BC1352)
                         LogUtil.Log(ref ecb, entityIndex,
-                            $"[BehaviorExecution] LoopUntil guard fired in {stateMachine.activeBehavior} " +
-                            $"(timedOut: {timedOut}, iterations: {stateMachine.LoopIterations})",
+                            $"[BehaviorExecution] LoopUntil guard fired in {stateMachine.activeBehavior.Name()} (timedOut: {timedOutFlag}, iterations: {stateMachine.LoopIterations})",
                             LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
+                    }
 
                     stateMachine.CurrentCommandIndex++;
                     stateMachine.LoopTimer      = 0f;
@@ -292,7 +310,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
                     else if (loggingEnabled)
                     {
                         LogUtil.Log(ref ecb, entityIndex,
-                            $"[BehaviorExecution] RequestAttack skipped — no attack mapped to {stateMachine.action} or no target",
+                            $"[BehaviorExecution] RequestAttack skipped — no attack mapped to {stateMachine.action.Name()} or no target",
                             LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
                     }
                 }
@@ -344,6 +362,33 @@ public partial struct BehaviorExecutionJob : IJobEntity
                         });
                         animationRequestLookup.SetComponentEnabled(unit, true);
                     }
+                }
+                break;
+
+            case BehaviorCommandType.RequestSocialResponse:
+                // Written via ECB, not a lookup: multiple initiators may target the same invitee
+                // in one frame, so the "one owner" rule that makes the other lookups safe doesn't
+                // hold. SocialResponseSystem consumes the invite next frame.
+                if (stateMachine.targetEntity != Entity.Null
+                    && socialInviteLookup.HasComponent(stateMachine.targetEntity))
+                {
+                    ecb.SetComponent(entityIndex, stateMachine.targetEntity,
+                        new SocialInvite { initiator = unit });
+                    ecb.SetComponentEnabled<SocialInvite>(entityIndex, stateMachine.targetEntity, true);
+                }
+                break;
+
+            case BehaviorCommandType.StopAnimation:
+                if (animationRequestLookup.HasComponent(unit) && setAnimationLookup.HasBuffer(unit))
+                {
+                    setAnimationLookup[unit].Add(new SetAnimation
+                    {
+                        layer     = AnimationLayerType.Action,
+                        animation = AnimationType.None,
+                        speed     = 1f,
+                        looping   = false,
+                    });
+                    animationRequestLookup.SetComponentEnabled(unit, true);
                 }
                 break;
 
@@ -513,18 +558,26 @@ public partial struct BehaviorExecutionJob : IJobEntity
             AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetPos, stoppingDist);
         }
 
-        // Re-path if a non-waypoint target (e.g. a moving enemy) has shifted more than 1 m.
+        // Moving targets (units): re-path when the target drifts from the pathed point, and
+        // measure ARRIVAL against the live target — the pathed point is stale by up to the
+        // repath threshold, and checking against it deadlocks when both units stand close but
+        // the stale point sits just out of stopping range (neither arrival nor re-path fires).
         const float REPATH_THRESHOLD_SQ = 1f;
-        if (pathRequestEnabled.ValueRO
-            && !waypointLookup.HasComponent(stateMachine.targetEntity)
-            && transformLookup.TryGetComponent(stateMachine.targetEntity, out LocalTransform livePos)
-            && math.distancesq(livePos.Position, pathRequest.targetPosition) > REPATH_THRESHOLD_SQ)
+        float3 arrivalPoint = pathRequest.targetPosition;
+        if (!waypointLookup.HasComponent(stateMachine.targetEntity)
+            && transformLookup.TryGetComponent(stateMachine.targetEntity, out LocalTransform livePos))
         {
-            AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, livePos.Position, stoppingDist);
+            arrivalPoint = livePos.Position;
+
+            if (pathRequestEnabled.ValueRO
+                && math.distancesq(livePos.Position, pathRequest.targetPosition) > REPATH_THRESHOLD_SQ)
+            {
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, livePos.Position, stoppingDist);
+            }
         }
 
         float arrivalSq = stoppingDist * stoppingDist;
-        if (math.distancesq(transform.Position, pathRequest.targetPosition) <= arrivalSq)
+        if (math.distancesq(transform.Position, arrivalPoint) <= arrivalSq)
         {
             AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
             stateMachine.CurrentCommandIndex++;

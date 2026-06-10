@@ -47,6 +47,11 @@ public enum BehaviorCommandType : byte
     // UnitDataBlob.actionAnimations (zombie claws, citizen punches — same behavior asset).
     // FloatParam = speed (0 = 1x). Looping = loop the clip. IntParam/Duration unused.
     PlayActionAnimation,
+
+    // Enables SocialInvite on stateMachine.targetEntity (via ECB — multiple initiators may target
+    // the same invitee in one frame). SocialResponseSystem accepts or declines next frame.
+    // Non-blocking. IntParam/FloatParam/Duration unused.
+    RequestSocialResponse,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).
@@ -185,6 +190,7 @@ public enum BehaviorType : byte
     Pickup,
     Talk,
     MeleeContinuous,
+    MeleeSingle,
 }
 
 public enum UnitStateType

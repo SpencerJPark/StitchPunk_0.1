@@ -82,7 +82,10 @@
       "Bash(echo \"Loop started in background \\(PID: $!\\)\")",
       "Bash(pip install *)",
       "Skill(dots-unit-ai)",
-      "Bash(findstr /n \"SystemGroup\\\\|UpdateInGroup\" Assets/_Scripts/Systems/SystemGroups.cs)"
+      "Bash(findstr /n \"SystemGroup\\\\|UpdateInGroup\" Assets/_Scripts/Systems/SystemGroups.cs)",
+      "PowerShell(Get-Process Unity -ErrorAction SilentlyContinue)",
+      "PowerShell(1..2 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\(\"N\"\\) })",
+      "PowerShell($log = \"$env:LOCALAPPDATA\\\\Unity\\\\Editor\\\\Editor.log\"; \\(Get-Item $log\\).LastWriteTime; Get-Content $log -Tail 80 | Select-String -Pattern \"error CS|CompilerOutput|Compilation|exception|Bake\" -Context 0,1 | Select-Object -Last 30)"
     ]
   }
 }

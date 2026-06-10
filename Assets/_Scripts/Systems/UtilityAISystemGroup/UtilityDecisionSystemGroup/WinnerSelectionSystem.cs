@@ -8,6 +8,9 @@ using Unity.Entities;
 //   2. Highest priority tier gate — lower-priority options are ignored.
 //   3. Within the top tier: highest totalUtility wins.
 // Does not interrupt an in-flight behavior with the same action.
+// Never clobbers a live behavior: when one is active, the winner is written to the StateMachine
+// pending fields only if it outranks activePriority; BehaviorInterruptSystem performs the swap
+// same-frame after running interruptionCleanup.
 [BurstCompile]
 [UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderLast = true)]
 public partial struct WinnerSelectionSystem : ISystem
@@ -43,6 +46,7 @@ public partial struct WinnerSelectionSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(UtilityBrain))]
+[WithDisabled(typeof(Dead))]
 public partial struct WinnerSelectJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
@@ -52,6 +56,7 @@ public partial struct WinnerSelectJob : IJobEntity
 
     public void Execute(
         [EntityIndexInQuery] int         entityIndex,
+        Entity                           entity,
         ref StateMachine                 stateMachine,
         in DynamicBuffer<UtilityActions> actions)
     {
@@ -102,18 +107,40 @@ public partial struct WinnerSelectJob : IJobEntity
         if (best.actionDefIndex >= 0 && best.actionDefIndex < aiConfig.Value.actionDefs.Length)
             behavior = aiConfig.Value.actionDefs[best.actionDefIndex].behavior;
 
+        int winnerPriority = best.isPlayerOrdered ? int.MaxValue : best.priority;
+
+        if (stateMachine.activeBehavior == BehaviorType.None)
+        {
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, entityIndex,
+                    $"[WinnerSelection] Entity {entity.Index} selected action: {best.actionType.Name()} behavior: {behavior.Name()} utility: {best.totalUtility:G}",
+                    LogLevel.Info, timestamp, category: LogCategory.AI);
+
+            stateMachine.action              = best.actionType;
+            stateMachine.activeBehavior      = behavior;
+            stateMachine.targetEntity        = best.targetEntity;
+            stateMachine.activePriority      = winnerPriority;
+            stateMachine.currentPhase        = BehaviorPhase.Execute;
+            stateMachine.CurrentCommandIndex = 0;
+            stateMachine.CommandTimer        = 0f;
+            stateMachine.LoopTimer           = 0f;
+            stateMachine.LoopIterations      = 0;
+            return;
+        }
+
+        // A behavior is live — preempt only when the winner outranks it. Pending fields are
+        // consumed by BehaviorInterruptSystem this frame; live state is never touched here.
+        if (winnerPriority <= stateMachine.activePriority && !best.isPlayerOrdered)
+            return;
+
         if (loggingEnabled)
             LogUtil.Log(ref ecb, entityIndex,
-                $"[WinnerSelection] Selected action: {best.actionType} behavior: {behavior} utility: {best.totalUtility:G}",
+                $"[WinnerSelection] Entity {entity.Index} preempting {stateMachine.activeBehavior.Name()} (priority {stateMachine.activePriority}) with {best.actionType.Name()} behavior: {behavior.Name()} (priority {winnerPriority})",
                 LogLevel.Info, timestamp, category: LogCategory.AI);
 
-        stateMachine.action              = best.actionType;
-        stateMachine.activeBehavior      = behavior;
-        stateMachine.targetEntity        = best.targetEntity;
-        stateMachine.currentPhase        = BehaviorPhase.Execute;
-        stateMachine.CurrentCommandIndex = 0;
-        stateMachine.CommandTimer        = 0f;
-        stateMachine.LoopTimer           = 0f;
-        stateMachine.LoopIterations      = 0;
+        stateMachine.pendingAction   = best.actionType;
+        stateMachine.pendingBehavior = behavior;
+        stateMachine.pendingTarget   = best.targetEntity;
+        stateMachine.pendingPriority = winnerPriority;
     }
 }

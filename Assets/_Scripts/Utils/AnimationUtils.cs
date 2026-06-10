@@ -19,6 +19,14 @@ using Unity.Entities;
         float speed = 1f,
         bool looping = true)
         {
+        // Setting None deactivates the layer — there is no "None" clip to play.
+        // This is how the StopAnimation behavior command tears down looping action animations.
+            if (animation == AnimationType.None)
+            {
+                ClearLayer(ref layers, layerType);
+                return;
+            }
+
         // Find existing layer slot
             for (int i = 0; i < layers.Length; i++)
             {

@@ -58,6 +58,9 @@ public static class UnitBakingUtil
 
         baker.AddComponent<SocialValidationRequest>(entity);
         baker.SetComponentEnabled<SocialValidationRequest>(entity, false);
+
+        baker.AddComponent<SocialInvite>(entity);
+        baker.SetComponentEnabled<SocialInvite>(entity, false);
         
 
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);

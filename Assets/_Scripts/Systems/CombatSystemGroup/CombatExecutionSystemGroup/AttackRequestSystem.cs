@@ -122,13 +122,13 @@ public partial struct AttackRequestJob : IJobEntity
                 });
                 if (loggingEnabled)
                     LogUtil.Log(ref ecb,
-                        $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.sqrt(distanceSq):F2})",
+                        $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f})",
                         LogLevel.Info, timestamp, category: LogCategory.Combat);
             }
             else if (loggingEnabled)
             {
                 LogUtil.Log(ref ecb,
-                    $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.sqrt(distanceSq):F2} > {hitRange:F2})",
+                    $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f} > {hitRange})",
                     LogLevel.Info, timestamp, category: LogCategory.Combat);
             }
         }

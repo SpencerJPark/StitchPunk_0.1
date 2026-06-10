@@ -45,6 +45,14 @@ public struct StateMachine : IComponentData
     public StanceType    currentStance;    // written by Approach command; read by locomotion system
     public float         LoopTimer;        // wall time since behavior start; survives blocking commands (CommandTimer doesn't)
     public ushort        LoopIterations;   // LoopUntil jump-back count; hard cap guard
+
+    // Preemption — WinnerSelection never clobbers a live behavior; it writes pending fields and
+    // BehaviorInterruptSystem (same frame, before execution) runs interruptionCleanup then swaps.
+    public int           activePriority;   // priority of the selection that started activeBehavior; player orders = int.MaxValue
+    public ActionType    pendingAction;    // pendingBehavior != None marks a pending preemption
+    public BehaviorType  pendingBehavior;
+    public Entity        pendingTarget;
+    public int           pendingPriority;
 }
 
 // Internal Context
@@ -130,7 +138,16 @@ public struct DangerSignal : IComponentData
 
 
 
-public struct SocialValidationRequest : IComponentData, IEnableableComponent { }
+public struct SocialValidationRequest : IComponentData, IEnableableComponent { } // legacy pre-migration — unused, removal candidate
+
+// Talk invitation written by the RequestSocialResponse behavior command (initiator → target).
+// SocialResponseSystem consumes it: accept = invitee's StateMachine is set to Talk targeting the
+// initiator (direct when idle, pending fields when busy); decline = invite disabled, the initiator
+// exits its WaitTime via the TargetNotEngagedWithSelf qualifier.
+public struct SocialInvite : IComponentData, IEnableableComponent
+{
+    public Entity initiator;
+}
 
 public struct MotivationChangeRequest : IBufferElementData
 {

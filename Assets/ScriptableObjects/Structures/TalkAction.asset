@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ff33f565c4eb5d41a987fdc91cd5788, type: 3}
+  m_Name: TalkAction
+  m_EditorClassIdentifier: StitchPunk.Data::UtilityActionSO
+  actionType: 10
+  priority: 1
+  targeting: 1
+  behavior: {fileID: 11400000, guid: 4f2e718be8e2499284e194de3757b44f, type: 2}
+  maxCandidates: 1
+  considerations:
+  - input: 4
+    needType: 4
+    traitType: 0
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: -0.95
+        outSlope: -0.95
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 1
+        value: 0.05
+        inSlope: -0.95
+        outSlope: -0.95
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    weight: 1

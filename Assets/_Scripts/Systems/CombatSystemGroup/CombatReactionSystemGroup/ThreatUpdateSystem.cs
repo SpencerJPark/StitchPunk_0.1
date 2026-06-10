@@ -15,7 +15,20 @@ public partial struct ThreatUpdateSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        state.Dependency = new ThreatUpdateJob().ScheduleParallel(state.Dependency);
+        bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
+            || (loggingCfg.EnabledCategories & (int)LogCategory.Combat) != 0;
+
+        EntityCommandBuffer.ParallelWriter ecb = SystemAPI
+            .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+            .CreateCommandBuffer(state.WorldUnmanaged)
+            .AsParallelWriter();
+
+        state.Dependency = new ThreatUpdateJob
+        {
+            ecb            = ecb,
+            loggingEnabled = loggingEnabled,
+            timestamp      = SystemAPI.Time.ElapsedTime,
+        }.ScheduleParallel(state.Dependency);
     }
 }
 
@@ -26,7 +39,15 @@ public partial struct ThreatUpdateJob : IJobEntity
     private const float REACTION_TIME = 0.3f;
     private const float THREAT_TTL    = 4f;
 
-    public void Execute(in DynamicBuffer<Hurt> hurtBuffer, ref DynamicBuffer<ThreatEntry> threatBuffer)
+    public EntityCommandBuffer.ParallelWriter ecb;
+    public bool   loggingEnabled;
+    public double timestamp;
+
+    public void Execute(
+        Entity                       entity,
+        [EntityIndexInQuery] int     entityIndex,
+        in DynamicBuffer<Hurt>       hurtBuffer,
+        ref DynamicBuffer<ThreatEntry> threatBuffer)
     {
         if (hurtBuffer.Length == 0)
             return;
@@ -61,6 +82,11 @@ public partial struct ThreatUpdateJob : IJobEntity
                     reactionDelay  = REACTION_TIME,
                     staleTimer     = THREAT_TTL,
                 });
+
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb, entityIndex,
+                        $"[ThreatUpdate] Entity {entity.Index} gained ThreatEntry for attacker {hurt.attackerEntity.Index} (damage {hurt.damageAmount})",
+                        LogLevel.Info, timestamp, category: LogCategory.Combat);
             }
         }
     }

@@ -68,7 +68,9 @@ public partial struct ConsiderationScoringJob : IJobEntity
                 continue;
 
             ref ActionDefBlob actionDef = ref aiConfig.Value.actionDefs[entry.actionDefIndex];
-            entry.priority = actionDef.priority;
+            // Preserve awareness-set priority: normal emitters leave it 0 so actionDef wins;
+            // awareness systems (e.g. SelfDefence) may set it higher and must not be stomped.
+            entry.priority = math.max(actionDef.priority, entry.priority);
 
             int considerationCount = actionDef.considerations.Length;
             if (considerationCount == 0)

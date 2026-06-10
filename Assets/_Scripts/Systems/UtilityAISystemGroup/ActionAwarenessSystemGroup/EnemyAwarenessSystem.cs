@@ -167,6 +167,7 @@ public partial struct CombatAwarenessJob : IJobEntity
                 {
                     actionType      = actionType,
                     actionDefIndex  = defIndex,
+                    priority = 3,
                     needsValidation = false,
                     targetEntity    = nearestHostile,
                 });
@@ -175,7 +176,7 @@ public partial struct CombatAwarenessJob : IJobEntity
 
             if (loggingEnabled)
                 LogUtil.Log(ref ecb,
-                    $"[EnemyAwareness] Entity {self.Index} found hostile {nearestHostile.Index} at dist {nearestDist:F2}. Actions added: {addedCount}",
+                    $"[EnemyAwareness] Entity {self.Index} found hostile {nearestHostile.Index} at dist {math.round(nearestDist * 100f) / 100f}. Actions added: {addedCount}",
                     LogLevel.Info, timestamp, category: LogCategory.AI);
         }
     }

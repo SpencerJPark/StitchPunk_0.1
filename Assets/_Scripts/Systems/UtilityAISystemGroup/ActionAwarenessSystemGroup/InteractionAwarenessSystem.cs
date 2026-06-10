@@ -40,6 +40,7 @@ public partial struct InteractionAwarenessSystem : ISystem
             interactionLookup  = interactionLookup,
             interactionLibrary = interactionLib.library,
             aiConfig           = brainLibrary.blob,
+            timestamp          = SystemAPI.Time.ElapsedTime,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -53,6 +54,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<Interaction>                interactionLookup;
     [ReadOnly] public BlobAssetReference<InteractionLibraryBlob>  interactionLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>        aiConfig;
+    public double timestamp;
 
     public void Execute(
         Entity entity,
@@ -104,8 +106,10 @@ public partial struct InteractionAwarenessJob : IJobEntity
         in DynamicBuffer<RecentInteraction>      recentInteractions,
         ref DynamicBuffer<UtilityActions>        options)
     {
+        // Expiry-aware: an entry only blocks while its cooldown is still running.
         for (int i = 0; i < recentInteractions.Length; i++)
-            if (recentInteractions[i].entity == target) return;
+            if (recentInteractions[i].entity == target
+                && recentInteractions[i].cooldownEndTime > (float)timestamp) return;
 
         if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform))
             return;

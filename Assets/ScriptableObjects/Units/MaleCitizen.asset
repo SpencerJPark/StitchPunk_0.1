@@ -55,7 +55,7 @@ MonoBehaviour:
     movingAnimation: 0
   idleAnimation: 1
   movingAnimation: 2
-  attackFactions: 05
+  attackFactions:
   attacks:
   - action: 17
     attack: 2
