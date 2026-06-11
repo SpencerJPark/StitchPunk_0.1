@@ -26,7 +26,8 @@ MovementFollowerSystemGroup     — reads path data and produces a desired veloc
   PlayerFollowerSystem          — player character movement
 
 MovementExecutionSystemGroup    — applies final velocity to transforms
-  UnitMoverSystem               — integrates velocity → position
+  LocomotionStanceSystem        — syncs StateMachine.currentStance → Movement.isRunning + LocomotionStance.stance (runs before UnitMoverSystem)
+  UnitMoverSystem               — integrates velocity → position (picks runSpeed when isRunning)
   UnitGravitySystem             — applies gravity on Y axis
   StairTransitionSystem         — handles stair/level transition triggers
   SetupUnitMoverDefaultPositionSystem — initialises position on first frame
@@ -43,6 +44,7 @@ MovementExecutionSystemGroup    — applies final velocity to transforms
 | `FlowFieldFollowerSystem` | `MovementFollowerSystemGroup/FlowFieldFollowerSystem.cs` |
 | `DStarLiteFollowerSystem` | `MovementFollowerSystemGroup/DStarLiteFollowerSystem.cs` |
 | `PlayerFollowerSystem` | `MovementFollowerSystemGroup/PlayerFollowerSystem.cs` |
+| `LocomotionStanceSystem` | `MovementExecutionSystemGroup/LocomotionStanceSystem.cs` |
 | `UnitMoverSystem` | `MovementExecutionSystemGroup/UnitMoverSystem.cs` |
 | `UnitGravitySystem` | `MovementExecutionSystemGroup/UnitGravitySystem.cs` |
 | `StairTransitionSystem` | `MovementExecutionSystemGroup/StairTransitionSystem.cs` |
@@ -67,7 +69,7 @@ The system switches a unit between `FlowFieldFollower` and `DStarLiteFollower` (
 
 | Component | File | Purpose |
 |---|---|---|
-| `UnitMover` | `MovementComponents.cs` | moveSpeed, rotationSpeed, targetPosition, isMoving |
+| `Movement` | `MovementComponents.cs` | moveSpeed, runSpeed, rotationSpeed, targetPosition, isMoving, isRunning. Speeds for brain units come from `UnitSO` (overridden post-bake by `UnitSpeedBakingSystem`); `MovementAuthoring` values are authoritative only for non-brain units (player) |
 | `UnitGravity` | `MovementComponents.cs` | fallSpeed, verticalVelocity |
 | `HordeMembership` | `MovementComponents.cs` | hordeId, hordeEntity, formationOffset, priority |
 | `Horde` | `MovementComponents.cs` | Shared target + flowfield index + member count |

@@ -42,6 +42,7 @@ public class UnitSO : ScriptableObject
     
     [Header("Movement")]
     public float moveSpeed = 5f;
+    public float runSpeed = 9f;
     public float rotationSpeed = 10f;
     
     // [Header("Spawn Cost")]

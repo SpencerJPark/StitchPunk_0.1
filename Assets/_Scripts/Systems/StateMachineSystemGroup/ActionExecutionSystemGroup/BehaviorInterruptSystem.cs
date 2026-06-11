@@ -148,6 +148,9 @@ public partial struct BehaviorInterruptJob : IJobEntity
         }
 
         stateMachine.currentPhase        = BehaviorPhase.Execute;
+        // Back to walking — a swapped-in pending behavior re-sets stance via its own
+        // Approach/FleeFromTarget command on its first Execute tick.
+        stateMachine.currentStance       = StanceType.Normal;
         stateMachine.CurrentCommandIndex = 0;
         stateMachine.CommandTimer        = 0f;
         stateMachine.LoopTimer           = 0f;

@@ -182,6 +182,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 stateMachine.targetEntity        = Entity.Null;
                 stateMachine.activePriority      = 0;
                 stateMachine.currentPhase        = BehaviorPhase.Execute;
+                stateMachine.currentStance       = StanceType.Normal;
                 stateMachine.CurrentCommandIndex = 0;
                 stateMachine.CommandTimer        = 0f;
                 stateMachine.LoopTimer           = 0f;

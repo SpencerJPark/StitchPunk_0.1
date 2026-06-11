@@ -20,6 +20,15 @@ public static class UnitBakingUtil
 
         baker.AddComponent(entity, new Awareness { range = unitSo.awarenessRange });
 
+        // UnitSO is the source of truth for brain-unit speeds. MovementAuthoring adds the
+        // Movement component; UnitSpeedBakingSystem overwrites its values with these.
+        baker.AddComponent(entity, new UnitSpeedBakingData
+        {
+            moveSpeed     = unitSo.moveSpeed,
+            runSpeed      = unitSo.runSpeed,
+            rotationSpeed = unitSo.rotationSpeed,
+        });
+
         baker.AddComponent<AggressiveState>(entity);
         baker.SetComponentEnabled<AggressiveState>(entity, false);
 
