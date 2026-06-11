@@ -85,7 +85,10 @@
       "Bash(findstr /n \"SystemGroup\\\\|UpdateInGroup\" Assets/_Scripts/Systems/SystemGroups.cs)",
       "PowerShell(Get-Process Unity -ErrorAction SilentlyContinue)",
       "PowerShell(1..2 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\(\"N\"\\) })",
-      "PowerShell($log = \"$env:LOCALAPPDATA\\\\Unity\\\\Editor\\\\Editor.log\"; \\(Get-Item $log\\).LastWriteTime; Get-Content $log -Tail 80 | Select-String -Pattern \"error CS|CompilerOutput|Compilation|exception|Bake\" -Context 0,1 | Select-Object -Last 30)"
+      "PowerShell($log = \"$env:LOCALAPPDATA\\\\Unity\\\\Editor\\\\Editor.log\"; \\(Get-Item $log\\).LastWriteTime; Get-Content $log -Tail 80 | Select-String -Pattern \"error CS|CompilerOutput|Compilation|exception|Bake\" -Context 0,1 | Select-Object -Last 30)",
+      "PowerShell(1..9 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\('N'\\) })",
+      "PowerShell($dir = 'C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\StateMachineSystemGroup\\\\ActionExecutionSystemGroup'; $names = 'MeleeContinuousActionSystem','MeleeSingleActionSystem','TalkActionSystem','PickupItemActionSystem','SitActionSystem','WanderActionSystem','FleeActionSystem','InteractActionSystem'; foreach \\($n in $names\\) { Remove-Item -Force -Confirm:$false \"$dir\\\\$n.cs\", \"$dir\\\\$n.cs.meta\" }; Get-ChildItem $dir | Select-Object -ExpandProperty Name)",
+      "PowerShell(git -C C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk status --short)"
     ]
   }
 }

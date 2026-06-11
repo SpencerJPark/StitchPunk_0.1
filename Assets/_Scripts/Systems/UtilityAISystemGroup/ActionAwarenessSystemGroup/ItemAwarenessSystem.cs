@@ -26,6 +26,7 @@ public partial struct ItemAwarenessSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<ItemLibrary>();
         state.RequireForUpdate<EffectLibrary>();
+        state.RequireForUpdate<BrainLibrary>();
         state.RequireForUpdate<SpatialHashRegistry>();
 
         _unitEquipLookup  = state.GetComponentLookup<UnitEquip>(true);
@@ -46,6 +47,8 @@ public partial struct ItemAwarenessSystem : ISystem
             SystemAPI.GetSingleton<ItemLibrary>().library;
         BlobAssetReference<EffectLibraryBlob> effectLibrary =
             SystemAPI.GetSingleton<EffectLibrary>().library;
+        BlobAssetReference<BrainLibraryBlob> aiConfig =
+            SystemAPI.GetSingleton<BrainLibrary>().blob;
 
         SpatialHashRegistry registry = SystemAPI.GetSingleton<SpatialHashRegistry>();
 
@@ -66,6 +69,7 @@ public partial struct ItemAwarenessSystem : ISystem
             transformLookup = _transformLookup,
             itemLibrary     = itemLibrary,
             effectLibrary   = effectLibrary,
+            aiConfig        = aiConfig,
             unitEquipLookup = _unitEquipLookup,
             ecb             = ecb,
             loggingEnabled  = loggingEnabled,
@@ -85,6 +89,7 @@ public partial struct ItemAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform>               transformLookup;
     [ReadOnly] public BlobAssetReference<ItemLibraryBlob>           itemLibrary;
     [ReadOnly] public BlobAssetReference<EffectLibraryBlob>         effectLibrary;
+    [ReadOnly] public BlobAssetReference<BrainLibraryBlob>          aiConfig;
     [ReadOnly] public ComponentLookup<UnitEquip>                    unitEquipLookup;
     public EntityCommandBuffer.ParallelWriter ecb;
     public bool                              loggingEnabled;
@@ -96,6 +101,7 @@ public partial struct ItemAwarenessJob : IJobEntity
         in LocalTransform               transform,
         in Awareness                    awareness,
         in Health                       health,
+        in UtilityBrain                 brain,
         in CurrentAction                currentAction,
         in DynamicBuffer<ThreatEntry>   threats,
         ref DynamicBuffer<Motivation>   motivations,
@@ -212,55 +218,75 @@ public partial struct ItemAwarenessJob : IJobEntity
         // Weapon — urgent: arm up to defend. SelfDefence motivation drives the blob scoring curve.
         if (nearestWeapon != Entity.Null)
         {
-            AIUtils.SetMotivationValue(ref motivations, NeedType.SelfDefence, 100f);
-            options.Add(new UtilityActions
+            int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.EquipWeapon);
+            if (defIndex >= 0)
             {
-                actionType      = ActionType.EquipWeapon,
-                needsValidation = false,
-                targetEntity    = nearestWeapon,
-            });
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found weapon {nearestWeapon.Index}. Action: EquipWeapon", LogLevel.Info, timestamp, category: LogCategory.Items);
+                AIUtils.SetMotivationValue(ref motivations, NeedType.SelfDefence, 100f);
+                options.Add(new UtilityActions
+                {
+                    actionType      = ActionType.EquipWeapon,
+                    actionDefIndex  = defIndex,
+                    needsValidation = false,
+                    targetEntity    = nearestWeapon,
+                });
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found weapon {nearestWeapon.Index}. Action: EquipWeapon", LogLevel.Info, timestamp, category: LogCategory.Items);
+            }
         }
 
         // Healing — SelfPreservation motivation drives the blob scoring curve.
         if (nearestHeal != Entity.Null)
         {
-            float urgency = (1f - healthRatio) * 100f;
-            SetMotivationAtLeast(ref motivations, NeedType.SelfPreservation, urgency);
-            options.Add(new UtilityActions
+            int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.UseHealingItem);
+            if (defIndex >= 0)
             {
-                actionType      = ActionType.UseHealingItem,
-                needsValidation = false,
-                targetEntity    = nearestHeal,
-            });
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found heal item {nearestHeal.Index}. Action: UseHealingItem", LogLevel.Info, timestamp, category: LogCategory.Items);
+                float urgency = (1f - healthRatio) * 100f;
+                SetMotivationAtLeast(ref motivations, NeedType.SelfPreservation, urgency);
+                options.Add(new UtilityActions
+                {
+                    actionType      = ActionType.UseHealingItem,
+                    actionDefIndex  = defIndex,
+                    needsValidation = false,
+                    targetEntity    = nearestHeal,
+                });
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found heal item {nearestHeal.Index}. Action: UseHealingItem", LogLevel.Info, timestamp, category: LogCategory.Items);
+            }
         }
 
         // Food — Hunger motivation drives blob scoring curve.
         if (nearestFood != Entity.Null)
         {
-            options.Add(new UtilityActions
+            int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Eat);
+            if (defIndex >= 0)
             {
-                actionType      = ActionType.Eat,
-                needsValidation = false,
-                targetEntity    = nearestFood,
-            });
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found food {nearestFood.Index}. Action: Eat", LogLevel.Info, timestamp, category: LogCategory.Items);
+                options.Add(new UtilityActions
+                {
+                    actionType      = ActionType.Eat,
+                    actionDefIndex  = defIndex,
+                    needsValidation = false,
+                    targetEntity    = nearestFood,
+                });
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found food {nearestFood.Index}. Action: Eat", LogLevel.Info, timestamp, category: LogCategory.Items);
+            }
         }
 
         if (nearestDrink != Entity.Null)
         {
-            options.Add(new UtilityActions
+            int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Drink);
+            if (defIndex >= 0)
             {
-                actionType      = ActionType.Drink,
-                needsValidation = false,
-                targetEntity    = nearestDrink,
-            });
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found drink {nearestDrink.Index}. Action: Drink", LogLevel.Info, timestamp, category: LogCategory.Items);
+                options.Add(new UtilityActions
+                {
+                    actionType      = ActionType.Drink,
+                    actionDefIndex  = defIndex,
+                    needsValidation = false,
+                    targetEntity    = nearestDrink,
+                });
+                if (loggingEnabled)
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found drink {nearestDrink.Index}. Action: Drink", LogLevel.Info, timestamp, category: LogCategory.Items);
+            }
         }
     }
 

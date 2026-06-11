@@ -57,7 +57,7 @@ They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, whi
 | `UnitAuthoring.cs` | Core unit identity — links to UnitSO, sets UnitType |
 | `AnimatorAuthoring.cs` | Links animation library blob to the entity |
 | `CitizenBrainAuthoring.cs` | Bakes motivation defaults and brain identity |
-| `InteractionAuthoring.cs` | Marks an object as a waypoint interaction target |
+| `InteractionAuthoring.cs` | Bakes `Interaction { action = actionType }` (+ optional `PlayerInteractable`) — the action keys into the enum-indexed `InteractionLibrary` blob; spatial hash registers the entity under the blob's `satisfiedNeed` |
 | `UnitSpawnerAuthoring.cs` | Configures the spawner with prefab references |
 | `UnitLibraryAuthoring.cs` | Bakes all UnitSOs into a unified BlobAsset |
 | `Ragdoll2DRootAuthoring.cs` | Place on root body entity only. Drag in `visualChild` and `joints` list. Baker writes `Ragdoll2DConfig` + `Ragdoll2DJointRef` buffer to root; `Ragdoll2DBakingSystem` then adds ragdoll components to the child entities |

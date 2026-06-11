@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 // Reads the scored UtilityActions buffer and writes the winning action to StateMachine.
 // Selection rules (in order):
@@ -98,10 +99,19 @@ public partial struct WinnerSelectJob : IJobEntity
         if (!found) return;
 
         // Don't interrupt an in-flight behavior with the same action — let it complete naturally.
-        if (best.actionType == stateMachine.action && stateMachine.activeBehavior != BehaviorType.None)
-            return;
-        if (best.actionType == stateMachine.action && best.targetEntity == stateMachine.targetEntity)
-            return;
+        // Exception: a player order to a different target/destination always re-targets (orders
+        // are one-shot consumed by MinionActionSelectionSystem, so this can't re-preempt every frame).
+        bool sameTarget = best.targetEntity == stateMachine.targetEntity
+            && best.hasTargetPosition == stateMachine.hasTargetPosition
+            && math.all(best.targetPosition == stateMachine.targetPosition);
+        bool playerRetarget = best.isPlayerOrdered && !sameTarget;
+        if (!playerRetarget)
+        {
+            if (best.actionType == stateMachine.action && stateMachine.activeBehavior != BehaviorType.None)
+                return;
+            if (best.actionType == stateMachine.action && sameTarget)
+                return;
+        }
 
         BehaviorType behavior = BehaviorType.None;
         if (best.actionDefIndex >= 0 && best.actionDefIndex < aiConfig.Value.actionDefs.Length)
@@ -119,6 +129,8 @@ public partial struct WinnerSelectJob : IJobEntity
             stateMachine.action              = best.actionType;
             stateMachine.activeBehavior      = behavior;
             stateMachine.targetEntity        = best.targetEntity;
+            stateMachine.targetPosition      = best.targetPosition;
+            stateMachine.hasTargetPosition   = best.hasTargetPosition;
             stateMachine.activePriority      = winnerPriority;
             stateMachine.currentPhase        = BehaviorPhase.Execute;
             stateMachine.CurrentCommandIndex = 0;
@@ -138,9 +150,11 @@ public partial struct WinnerSelectJob : IJobEntity
                 $"[WinnerSelection] Entity {entity.Index} preempting {stateMachine.activeBehavior.Name()} (priority {stateMachine.activePriority}) with {best.actionType.Name()} behavior: {behavior.Name()} (priority {winnerPriority})",
                 LogLevel.Info, timestamp, category: LogCategory.AI);
 
-        stateMachine.pendingAction   = best.actionType;
-        stateMachine.pendingBehavior = behavior;
-        stateMachine.pendingTarget   = best.targetEntity;
-        stateMachine.pendingPriority = winnerPriority;
+        stateMachine.pendingAction            = best.actionType;
+        stateMachine.pendingBehavior          = behavior;
+        stateMachine.pendingTarget            = best.targetEntity;
+        stateMachine.pendingTargetPosition    = best.targetPosition;
+        stateMachine.pendingHasTargetPosition = best.hasTargetPosition;
+        stateMachine.pendingPriority          = winnerPriority;
     }
 }

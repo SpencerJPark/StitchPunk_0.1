@@ -1,18 +1,21 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 // Translates active player commands into high-priority UtilityActions buffer entries for
 // player-controlled units. Runs AFTER AIAwarenessSystemGroup (buffer already cleared this frame)
 // and BEFORE StateMachineSystemGroup. isPlayerOrdered = true causes WinnerSelectionSystem to
 // skip scoring and pick this entry unconditionally.
 //
-// Move-to-position (OnMinionMoveCommand) is not yet wired — needs targetPosition support
-// in StateMachine. Tracked in UtilityAI.md Phase 4 notes.
+// Commands are consumed one-shot: disabled the frame they are translated into an option. The
+// order lives on in StateMachine after WinnerSelection — no per-frame re-emit needed (and
+// re-emitting would re-preempt every frame under WinnerSelection's player-retarget exemption).
 [BurstCompile]
 [UpdateInGroup(typeof(MinionActionSelectionSystemGroup))]
 public partial struct MinionActionSelectionSystem : ISystem
 {
+    private ComponentLookup<OnMinionMoveCommand>     _moveCmdLookup;
     private ComponentLookup<OnMinionAttackCommand>   _attackCmdLookup;
     private ComponentLookup<OnMinionInteractCommand> _interactCmdLookup;
     private ComponentLookup<OnMinionFollowCommand>   _followCmdLookup;
@@ -22,9 +25,10 @@ public partial struct MinionActionSelectionSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BrainLibrary>();
-        _attackCmdLookup   = state.GetComponentLookup<OnMinionAttackCommand>(true);
-        _interactCmdLookup = state.GetComponentLookup<OnMinionInteractCommand>(true);
-        _followCmdLookup   = state.GetComponentLookup<OnMinionFollowCommand>(true);
+        _moveCmdLookup     = state.GetComponentLookup<OnMinionMoveCommand>(false);
+        _attackCmdLookup   = state.GetComponentLookup<OnMinionAttackCommand>(false);
+        _interactCmdLookup = state.GetComponentLookup<OnMinionInteractCommand>(false);
+        _followCmdLookup   = state.GetComponentLookup<OnMinionFollowCommand>(false);
     }
 
     [BurstCompile]
@@ -32,6 +36,7 @@ public partial struct MinionActionSelectionSystem : ISystem
     {
         if (!SystemAPI.HasSingleton<Player>()) return;
 
+        _moveCmdLookup.Update(ref state);
         _attackCmdLookup.Update(ref state);
         _interactCmdLookup.Update(ref state);
         _followCmdLookup.Update(ref state);
@@ -51,6 +56,7 @@ public partial struct MinionActionSelectionSystem : ISystem
         {
             aiConfig           = brainLibrary.blob,
             playerEntity       = playerEntity,
+            moveCmdLookup      = _moveCmdLookup,
             attackCmdLookup    = _attackCmdLookup,
             interactCmdLookup  = _interactCmdLookup,
             followCmdLookup    = _followCmdLookup,
@@ -66,9 +72,11 @@ public partial struct MinionActionSelectionSystem : ISystem
 public partial struct MinionActionWriteJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>    aiConfig;
-    [ReadOnly] public ComponentLookup<OnMinionAttackCommand>  attackCmdLookup;
-    [ReadOnly] public ComponentLookup<OnMinionInteractCommand> interactCmdLookup;
-    [ReadOnly] public ComponentLookup<OnMinionFollowCommand>  followCmdLookup;
+    // Read-write: commands are disabled (consumed) after being translated into an option.
+    public ComponentLookup<OnMinionMoveCommand>     moveCmdLookup;
+    public ComponentLookup<OnMinionAttackCommand>   attackCmdLookup;
+    public ComponentLookup<OnMinionInteractCommand> interactCmdLookup;
+    public ComponentLookup<OnMinionFollowCommand>   followCmdLookup;
     public Entity             playerEntity;
     public EntityCommandBuffer ecb;
     public bool               loggingEnabled;
@@ -79,6 +87,26 @@ public partial struct MinionActionWriteJob : IJobEntity
         in UtilityBrain                  brain,
         ref DynamicBuffer<UtilityActions> options)
     {
+        // Move — Wander behavior toward a raw ground position (no target entity).
+        if (moveCmdLookup.HasComponent(unit) && moveCmdLookup.IsComponentEnabled(unit))
+        {
+            float3 destination = moveCmdLookup[unit].destination;
+            int    defIndex    = BrainBlobUtils.GetActionDefIndex(
+                ref aiConfig.Value, brain.unitType, ActionType.Wander);
+            options.Add(new UtilityActions
+            {
+                actionType        = ActionType.Wander,
+                targetEntity      = Entity.Null,
+                targetPosition    = destination,
+                hasTargetPosition = true,
+                actionDefIndex    = defIndex,
+                isPlayerOrdered   = true,
+            });
+            moveCmdLookup.SetComponentEnabled(unit, false);
+            if (loggingEnabled)
+                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Move to ({destination.x:G}, {destination.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
+        }
+
         // Attack — path to target, then RequestAttack.
         if (attackCmdLookup.HasComponent(unit) && attackCmdLookup.IsComponentEnabled(unit))
         {
@@ -92,6 +120,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 actionDefIndex  = defIndex,
                 isPlayerOrdered = true,
             });
+            attackCmdLookup.SetComponentEnabled(unit, false);
             if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Attack {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
@@ -109,11 +138,13 @@ public partial struct MinionActionWriteJob : IJobEntity
                 actionDefIndex  = defIndex,
                 isPlayerOrdered = true,
             });
+            interactCmdLookup.SetComponentEnabled(unit, false);
             if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Interact {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
         // Follow — shadow the player by using Wander toward the player entity.
+        // UnitSelectionManager re-enables this every frame while F is held.
         if (followCmdLookup.HasComponent(unit) && followCmdLookup.IsComponentEnabled(unit))
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(
@@ -125,6 +156,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 actionDefIndex  = defIndex,
                 isPlayerOrdered = true,
             });
+            followCmdLookup.SetComponentEnabled(unit, false);
             if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Follow player", LogLevel.Info, timestamp, category: LogCategory.AI);
         }

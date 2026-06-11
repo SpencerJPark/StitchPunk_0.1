@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a6322016adc15af4689fbbdbfde8f0a0, type: 3}
-  m_Name: MeleeContinuousBehaviour
+  m_Name: PickupBehaviour
   m_EditorClassIdentifier: StitchPunk.Data::BehaviorSO
-  behaviorType: 7
+  behaviorType: 5
   executionSequence:
   - type: 6
-    IntParam: 2
-    FloatParam: 0.7
+    IntParam: 0
+    FloatParam: 1.5
     Duration: 0
     Qualifier: 0
     QualifierIntParam: 0
@@ -29,15 +29,7 @@ MonoBehaviour:
     Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0
-    Looping: 0
-  - type: 7
-    IntParam: 0
-    FloatParam: 0
-    Duration: 0
-    Qualifier: 0
-    QualifierIntParam: 0
-    QualifierFloatParam: 0
-    Looping: 0
+    Looping: 1
   - type: 5
     IntParam: 0
     FloatParam: 0
@@ -46,11 +38,19 @@ MonoBehaviour:
     QualifierIntParam: 0
     QualifierFloatParam: 0
     Looping: 0
-  - type: 12
+  - type: 8
     IntParam: 0
-    FloatParam: 12
-    Duration: 45
-    Qualifier: 7
+    FloatParam: 0
+    Duration: 0
+    Qualifier: 0
+    QualifierIntParam: 0
+    QualifierFloatParam: 0
+    Looping: 0
+  - type: 13
+    IntParam: 0
+    FloatParam: 0
+    Duration: 0
+    Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0
     Looping: 0

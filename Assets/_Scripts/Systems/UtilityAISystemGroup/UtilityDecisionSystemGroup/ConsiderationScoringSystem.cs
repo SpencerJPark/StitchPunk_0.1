@@ -53,6 +53,7 @@ public partial struct ConsiderationScoringJob : IJobEntity
         Entity                                   unit,
         in LocalTransform                        unitTransform,
         in Health                                health,
+        in Awareness                             awareness,
         in DynamicBuffer<Motivation>             motivations,
         ref DynamicBuffer<UtilityActions>        actions)
     {
@@ -85,11 +86,14 @@ public partial struct ConsiderationScoringJob : IJobEntity
                 && targetTransformLookup.TryGetComponent(entry.targetEntity, out LocalTransform tgt))
                 targetDist = math.distance(unitTransform.Position, tgt.Position);
 
+            // 0 = on top of the target, 1 = at the edge of this unit's awareness range.
+            float normalizedDist = math.saturate(targetDist / math.max(awareness.range, 0.001f));
+
             float product = 1f;
             for (int c = 0; c < considerationCount; c++)
             {
                 ref ConsiderationBlob consideration = ref actionDef.considerations[c];
-                float inputValue = ReadInput(unit, ref consideration, healthRatio, targetDist, in motivations);
+                float inputValue = ReadInput(unit, ref consideration, healthRatio, normalizedDist, in motivations);
                 float curveScore = consideration.Evaluate(inputValue);
                 product *= curveScore * consideration.weight;
             }
@@ -104,7 +108,7 @@ public partial struct ConsiderationScoringJob : IJobEntity
         Entity                           unit,
         ref ConsiderationBlob            consideration,
         float                            healthRatio,
-        float                            targetDist,
+        float                            normalizedDist,
         in DynamicBuffer<Motivation>     motivations)
     {
         switch (consideration.input)
@@ -116,7 +120,7 @@ public partial struct ConsiderationScoringJob : IJobEntity
                 return GetMotivationRatio(in motivations, consideration.needType);
 
             case ConsiderationType.DistanceToTarget:
-                return math.saturate(targetDist / 50f);
+                return normalizedDist;
 
             case ConsiderationType.Trait:
                 return GetTraitValue(unit, consideration.traitType);

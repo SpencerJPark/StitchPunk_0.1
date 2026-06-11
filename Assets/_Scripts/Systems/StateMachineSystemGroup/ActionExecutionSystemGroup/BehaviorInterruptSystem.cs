@@ -117,14 +117,18 @@ public partial struct BehaviorInterruptJob : IJobEntity
                     $"[BehaviorInterrupt] Entity {unit.Index} interrupted {stateMachine.activeBehavior.Name()} (action: {stateMachine.action.Name()}) — reset to Idle",
                     LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
-            stateMachine.action          = ActionType.Idle;
-            stateMachine.activeBehavior  = BehaviorType.None;
-            stateMachine.targetEntity    = Entity.Null;
-            stateMachine.activePriority  = 0;
-            stateMachine.pendingAction   = ActionType.Idle;
-            stateMachine.pendingBehavior = BehaviorType.None;
-            stateMachine.pendingTarget   = Entity.Null;
-            stateMachine.pendingPriority = 0;
+            stateMachine.action                   = ActionType.Idle;
+            stateMachine.activeBehavior           = BehaviorType.None;
+            stateMachine.targetEntity             = Entity.Null;
+            stateMachine.targetPosition           = default;
+            stateMachine.hasTargetPosition        = false;
+            stateMachine.activePriority           = 0;
+            stateMachine.pendingAction            = ActionType.Idle;
+            stateMachine.pendingBehavior          = BehaviorType.None;
+            stateMachine.pendingTarget            = Entity.Null;
+            stateMachine.pendingTargetPosition    = default;
+            stateMachine.pendingHasTargetPosition = false;
+            stateMachine.pendingPriority          = 0;
 
             // ClearOptions excludes dead units, so a corpse would otherwise keep stale options.
             actions.Clear();
@@ -137,14 +141,18 @@ public partial struct BehaviorInterruptJob : IJobEntity
                     $"[BehaviorInterrupt] Entity {unit.Index} preempted {stateMachine.activeBehavior.Name()} (action: {stateMachine.action.Name()}) with {stateMachine.pendingBehavior.Name()} (action: {stateMachine.pendingAction.Name()})",
                     LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
-            stateMachine.action          = stateMachine.pendingAction;
-            stateMachine.activeBehavior  = stateMachine.pendingBehavior;
-            stateMachine.targetEntity    = stateMachine.pendingTarget;
-            stateMachine.activePriority  = stateMachine.pendingPriority;
-            stateMachine.pendingAction   = ActionType.Idle;
-            stateMachine.pendingBehavior = BehaviorType.None;
-            stateMachine.pendingTarget   = Entity.Null;
-            stateMachine.pendingPriority = 0;
+            stateMachine.action                   = stateMachine.pendingAction;
+            stateMachine.activeBehavior           = stateMachine.pendingBehavior;
+            stateMachine.targetEntity             = stateMachine.pendingTarget;
+            stateMachine.targetPosition           = stateMachine.pendingTargetPosition;
+            stateMachine.hasTargetPosition        = stateMachine.pendingHasTargetPosition;
+            stateMachine.activePriority           = stateMachine.pendingPriority;
+            stateMachine.pendingAction            = ActionType.Idle;
+            stateMachine.pendingBehavior          = BehaviorType.None;
+            stateMachine.pendingTarget            = Entity.Null;
+            stateMachine.pendingTargetPosition    = default;
+            stateMachine.pendingHasTargetPosition = false;
+            stateMachine.pendingPriority          = 0;
         }
 
         stateMachine.currentPhase        = BehaviorPhase.Execute;

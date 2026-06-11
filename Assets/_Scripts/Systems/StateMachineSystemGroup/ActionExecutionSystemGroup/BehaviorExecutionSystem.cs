@@ -180,6 +180,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 stateMachine.action              = ActionType.Idle;
                 stateMachine.activeBehavior      = BehaviorType.None;
                 stateMachine.targetEntity        = Entity.Null;
+                stateMachine.targetPosition      = default;
+                stateMachine.hasTargetPosition   = false;
                 stateMachine.activePriority      = 0;
                 stateMachine.currentPhase        = BehaviorPhase.Execute;
                 stateMachine.currentStance       = StanceType.Normal;
@@ -496,6 +498,12 @@ public partial struct BehaviorExecutionJob : IJobEntity
         Entity item = stateMachine.targetEntity;
         if (item == Entity.Null || !pickupRequestLookup.HasComponent(item)) return;
 
+        // Re-validate: another unit may have claimed the item during the approach.
+        if (equipByLookup.HasComponent(item)
+            && equipByLookup[item].owner != Entity.Null
+            && equipByLookup[item].owner != unit)
+            return;
+
         if (equipByLookup.HasComponent(item))
             equipByLookup[item] = new EquipBy { owner = unit };
 
@@ -521,13 +529,23 @@ public partial struct BehaviorExecutionJob : IJobEntity
         float                     stoppingDist,
         int                       stanceIntParam)
     {
-        if (stateMachine.targetEntity == Entity.Null)
+        // Raw position target (player move orders): no entity to track — path once and wait
+        // for arrival. The moving-target block below degrades safely (lookups miss on Null).
+        if (stateMachine.targetEntity == Entity.Null && stateMachine.hasTargetPosition)
+        {
+            if (!pathRequestEnabled.ValueRO)
+            {
+                stateMachine.currentStance = (StanceType)stanceIntParam;
+                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled,
+                    stateMachine.targetPosition, stoppingDist);
+            }
+        }
+        else if (stateMachine.targetEntity == Entity.Null)
         {
             stateMachine.currentPhase = BehaviorPhase.Complete;
             return;
         }
-
-        if (!pathRequestEnabled.ValueRO)
+        else if (!pathRequestEnabled.ValueRO)
         {
             // Dead target — give up immediately rather than pathing to a corpse.
             if (deadLookup.TryGetComponent(stateMachine.targetEntity, out Dead dead)

@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ff33f565c4eb5d41a987fdc91cd5788, type: 3}
-  m_Name: WanderAction
+  m_Name: UseHealingItemAction
   m_EditorClassIdentifier: StitchPunk.Data::UtilityActionSO
-  actionType: 1
+  actionType: 26
   priority: 1
   targeting: 1
-  behavior: {fileID: 11400000, guid: d69009064a378c444bb7f29651f8f874, type: 2}
-  maxCandidates: 8
+  behavior: {fileID: 11400000, guid: d822db314c6b4d888711083108a16af8, type: 2}
+  maxCandidates: 1
   considerations:
-  - input: 2
+  - input: 0
     needType: 0
     traitType: 0
     curve:

@@ -19,12 +19,14 @@ public struct ActionSelectionValidationRequest: IComponentData, IEnableableCompo
 public struct UtilityActions : IBufferElementData
 {
     public Entity targetEntity;
+    public float3 targetPosition;     // raw position target (valid only when hasTargetPosition)
     public ActionType actionType;
     public int priority;
     public float totalUtility;
     public int actionDefIndex;
     public bool needsValidation;
     public bool isPlayerOrdered;
+    public bool hasTargetPosition;    // explicit flag — float3.zero is a legal position
 }
 
 
@@ -39,6 +41,8 @@ public struct StateMachine : IComponentData
     public ActionType    action;
     public BehaviorType  activeBehavior;
     public Entity        targetEntity;
+    public float3        targetPosition;     // raw position target (valid only when hasTargetPosition)
+    public bool          hasTargetPosition;  // Approach paths here when targetEntity is Null
     public BehaviorPhase currentPhase;
     public int           CurrentCommandIndex;
     public float         CommandTimer;
@@ -52,6 +56,8 @@ public struct StateMachine : IComponentData
     public ActionType    pendingAction;    // pendingBehavior != None marks a pending preemption
     public BehaviorType  pendingBehavior;
     public Entity        pendingTarget;
+    public float3        pendingTargetPosition;
+    public bool          pendingHasTargetPosition;
     public int           pendingPriority;
 }
 

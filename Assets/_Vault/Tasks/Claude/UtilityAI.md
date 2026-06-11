@@ -61,24 +61,34 @@ StateMachineSystemGroup
 - [x] Extend BehaviorCommandType: RequestAttack, RequestPickup, ModifyMotivation
 - [x] Extend BehaviorType: MeleeSwing, Flee, Sit, Pickup, Talk
 - [x] BehaviorExecutionSystem handles all new command types + full lookup set for pickup flow
-- [ ] **IN UNITY EDITOR** — author BehaviorSO assets for each domain:
-  - Wander: confirm existing WanderBehaviorSO asset + NavigationAwarenessSystem works end-to-end
-  - MeleeSwing: Approach (stoppingDist=melee range, stance=Run) → RequestAttack
-  - Flee: Approach (away from threat — needs custom approach direction logic, see notes)
-  - Sit: Approach → WaitTime (Duration = sit length) → ModifyMotivation (Energy/Fun)
-  - Pickup: Approach (stoppingDist=pickup range) → RequestPickup
-  - Talk: Approach → WaitTime → ModifyMotivation (Social)
-- [ ] Author UtilityActionSO assets + add to BrainSO for each unit type
-- [ ] Wire each BrainSO into BrainLibrarySO
-- [ ] Retire old execution systems once BehaviorSOs cover each domain
+- [x] BehaviorSO assets authored for all domains:
+  - Wander/MeleeContinuous/MeleeSingle/Flee/Talk existed already
+  - SitBehaviour: Approach(1.35) → PlayAnimation(Sit, loop) → WaitTime(8s) → ModifyMotivation(Energy +50) → ReleaseInteraction(60) → StopAnimation
+  - PickupBehaviour (shared by EquipWeapon/UseHealingItem/Eat/Drink): Approach(1.5) → PlayActionAnimation → WaitTime(1s) → RequestPickup → StopAnimation
+  - Note: WaitTime in Sit/Pickup uses Qualifier=None — TargetDead would exit instantly on
+    chairs/items (missing-Dead-data evaluates true)
+- [x] UtilityActionSO assets: SitAction, EquipWeaponAction, UseHealingItemAction, EatAction, DrinkAction — added to CitizenBrain (Rotter intentionally skipped)
+- [x] _BehaviorLibrary wired with SitBehaviour + PickupBehaviour; _BrainLibrary unchanged
+- [x] ItemAwarenessSystem now sets actionDefIndex on all four emissions (was defaulting to slot 0) and skips when the brain lacks the action
+- [x] New ItemConsumeSystem (before ItemEquipSystem): consumables → HealRequest or MotivationChangeRequest + destroy; weapons fall through to equip. RunRequestPickup re-validates the item wasn't claimed mid-approach
+- [x] Retire old execution systems once BehaviorSOs cover each domain — all 8 commented legacy systems deleted
+- [x] Sit interaction source (close-out 2026-06-10): Chair.asset configured (Sit, Energy/50, range 1.5, duration 8, maxOccupants 1) + added to _InteractionLibrary; a Sit chair entity already existed in DOTSTestScene (actionType 16)
+- [x] **Bug fix** — InteractionAuthoring.Baker never baked `authoring.actionType` into `Interaction` (every interaction entity baked as Idle → spatial hash never registered it → InteractionAwareness could never emit Sit/Bathroom). Now bakes `action = authoring.actionType`
+- [x] Item asset setup (close-out 2026-06-10): Bandage/MedKit/Bread/Water ItemSOs created (Consumable; Healing/Healing/Feed/Hydrate); Feed + Hydrate EffectSOs created (both restore Hunger — no Thirst NeedType exists and DrinkAction already scores Hunger); _EffectLibrary updated; _ItemLibrary fixed (listed None twice, Rock missing) → now None/Rock/Bandage/MedKit/Bread/Water
+  - Note: EffectLibrary is enum-indexed, so Bandage and MedKit share Healing's value (50); differentiating needs a second healing EffectType
+- [ ] **IN UNITY EDITOR** — place consumable item GameObjects (Bandage/MedKit/Bread/Water, itemType 6/7/8/9) in DOTSTestScene with ItemAuthoring + visuals (the Rock object is the model); add handSocket child to citizen prefab + assign on CitizenBrainAuthoring (caution: CitizenBrain.prefab carries stale serialized fields `body`/`awarenessRange` and no unitLibrary — verify which object holds the live authoring)
+- [ ] **IN UNITY EDITOR** — suspicious scene data: an InteractionAuthoring in DOTSTestScene has actionType 3 (= Death); likely meant Bathroom (15)
 
 ### Phase 4 — Player unit wiring ✅ DONE
 - [x] MinionActionSelectionSystem — new system in MinionActionSelectionSystemGroup
 - [x] Handles: OnMinionAttackCommand → MeleeSingle, OnMinionInteractCommand → Interact, OnMinionFollowCommand → Wander(player entity)
 - [x] All entries written with isPlayerOrdered=true — WinnerSelectionSystem picks unconditionally
 - [x] Uses ComponentLookup for each command so missing commands are silently skipped
-- [ ] **TODO: OnMinionMoveCommand** (move-to-position) — needs float3 targetPosition added to StateMachine + UtilityActions; skipped for now
-- [ ] Verify: enable OnMinionAttackCommand on a minion → StateMachine.action = MeleeSingle this frame
+- [x] OnMinionMoveCommand (move-to-position): float3 targetPosition + hasTargetPosition added to UtilityActions + StateMachine (incl. pending* variants). Move order = Wander with targetEntity=Null; RunApproach paths to the raw position. Detection is the explicit hasTargetPosition bool (float3.zero is a legal click)
+- [x] Command delivery fixed — was a dead end (UnitSelectionManager wrote commands to the player entity; the job read them off minions). Now: UnitBakingUtil.AddPlayerControlled bakes all five OnMinion*Command slots disabled; UnitSelectionManager fans commands out to each selected minion + enables PlayerUnitBrain; MinionActionSelectionSystem consumes commands one-shot (disables after emitting)
+- [x] WinnerSelection guard relaxed: a player order to a different target/position preempts a live same-action behavior (one-shot consumption prevents per-frame re-preempt). Interrupt/Complete/SocialResponse paths clear/transfer the position fields
+- [ ] Verify in play mode: right-click ground → [MinionOrder] Move log → unit paths there → returns to AI autonomy; second order mid-move re-targets; OnMinionAttackCommand → MeleeSingle
+- [ ] **DEFERRED: OnMinionDefendCommand** (decision 2026-06-10) — baked + fanned out (Shift+right-click in UnitSelectionManager) but not read by MinionActionSelectionSystem; needs a Defend/Guard ActionType + BehaviorType + DefendBehaviour asset (move to position, hold, attack enemies entering radius). Out of scope for V3 close-out
 
 ### Phase 5 — Cleanup ✅ DONE
 - [x] Deleted: MotivationScoringSystem, ActionPrioritySystem, PersonalityContextSystem
@@ -111,7 +121,9 @@ StateMachineSystemGroup
 ## Notes
 
 - Requests (PathRequest, AttackRequest, PickupRequest) are the API boundary between StateMachine and downstream systems — StateMachine emits them, downstream systems respond
-- SelfDefenceAwarenessSystem stubbed — Phase 3 should re-implement interrupt logic with UtilityBrain
-- SocialAwarenessSystem stubbed — Phase 3 migration target
-- PickupRequest lives on the item entity (not unit), enabled by callers, consumed by ItemEquipSystem
+- PickupRequest lives on the item entity (not unit), enabled by callers; ItemConsumeSystem intercepts consumables before ItemEquipSystem links weapons
 - UtilityBrain.unitType now populated from UnitSO.unitType in UnitBakingUtil
+- SitBehaviour hardcodes Energy +50 (legacy read InteractionBlob.satisfiedNeed/restorationAmount per asset) — a future ModifyMotivationFromInteraction command would restore data-driven values
+- Heal/Eat/Drink share priority tier 1 with Wander — consideration curves decide; may need tuning
+- RotterBrain has no Interact/Sit/Pickup actions — minion Interact orders on rotters resolve defIndex −1 → behavior None (pre-existing)
+- Close-out 2026-06-10: BehaviorExecutionSystem.cs physically moved into ActionExecutionSystemGroup/ (its UpdateInGroup was already correct); the now-empty StateMachineSystemGroup/ActionSelectionSystemGroup/ folder was deleted (ConsiderationScoring/WinnerSelection live in UtilityAISystemGroup/UtilityDecisionSystemGroup/ and update in ActionSelectionSystemGroup via attribute)

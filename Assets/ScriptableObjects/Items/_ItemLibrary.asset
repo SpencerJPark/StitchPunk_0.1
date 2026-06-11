@@ -14,3 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::ItemLibrarySO
   items:
   - {fileID: 11400000, guid: aa4c355f431f67c4389c0a25fa396f35, type: 2}
+  - {fileID: 11400000, guid: 1c8cef07985dc1c49bcef07495faca29, type: 2}
+  - {fileID: 11400000, guid: ff2b2d4e29ca4a98a6ef23320fb680da, type: 2}
+  - {fileID: 11400000, guid: 9006f14e8c304ae6814a6c1134e3f37b, type: 2}
+  - {fileID: 11400000, guid: c645e2b76a084361817f083832bced3c, type: 2}
+  - {fileID: 11400000, guid: 3cf0f1151ad54e03bb05c7ca250eaa57, type: 2}

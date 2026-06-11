@@ -259,20 +259,34 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private void HandleCommand()
     {
-        // Only issue commands if at least one minion is selected.
+        // Only issue commands if at least one minion is selected. Commands are stamped on each
+        // selected minion (baked by UnitBakingUtil.AddPlayerControlled) and consumed one-shot by
+        // MinionActionSelectionSystem.
         EntityQuery selectedMinions = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<Selected, Minion>()
             .Build(entityManager);
         if (selectedMinions.IsEmpty) return;
 
+        NativeArray<Entity> minions = selectedMinions.ToEntityArray(Allocator.Temp);
+
         // F key → follow player regardless of cursor position.
         if (Keyboard.current[Key.F].isPressed)
         {
-            entityManager.SetComponentEnabled<OnMinionFollowCommand>(playerEntity, true);
+            for (int i = 0; i < minions.Length; i++)
+            {
+                if (!entityManager.HasComponent<OnMinionFollowCommand>(minions[i])) continue;
+                entityManager.SetComponentEnabled<OnMinionFollowCommand>(minions[i], true);
+                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+            }
+            minions.Dispose();
             return;
         }
 
-        if (physicsQuery.IsEmpty) return;
+        if (physicsQuery.IsEmpty)
+        {
+            minions.Dispose();
+            return;
+        }
         PhysicsWorldSingleton physics = physicsQuery.GetSingleton<PhysicsWorldSingleton>();
         UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetCursorScreenPosition());
 
@@ -300,16 +314,28 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             if (isHostile)
             {
                 // Right-click hostile → attack command (minion retains control even if hit).
-                entityManager.SetComponentData(playerEntity, new OnMinionAttackCommand { targetEntity = target });
-                entityManager.SetComponentEnabled<OnMinionAttackCommand>(playerEntity, true);
+                for (int i = 0; i < minions.Length; i++)
+                {
+                    if (!entityManager.HasComponent<OnMinionAttackCommand>(minions[i])) continue;
+                    entityManager.SetComponentData(minions[i], new OnMinionAttackCommand { targetEntity = target });
+                    entityManager.SetComponentEnabled<OnMinionAttackCommand>(minions[i], true);
+                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+                }
+                minions.Dispose();
                 return;
             }
 
             // Right-click interactable entity (non-hostile, non-minion) → interact command.
             if (entityManager.HasComponent<Interaction>(target))
             {
-                entityManager.SetComponentData(playerEntity, new OnMinionInteractCommand { targetEntity = target });
-                entityManager.SetComponentEnabled<OnMinionInteractCommand>(playerEntity, true);
+                for (int i = 0; i < minions.Length; i++)
+                {
+                    if (!entityManager.HasComponent<OnMinionInteractCommand>(minions[i])) continue;
+                    entityManager.SetComponentData(minions[i], new OnMinionInteractCommand { targetEntity = target });
+                    entityManager.SetComponentEnabled<OnMinionInteractCommand>(minions[i], true);
+                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+                }
+                minions.Dispose();
                 return;
             }
         }
@@ -319,18 +345,30 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         // Shift + right-click on ground → defend position.
         if (Keyboard.current[Key.LeftShift].isPressed || Keyboard.current[Key.RightShift].isPressed)
         {
-            entityManager.SetComponentData(playerEntity, new OnMinionDefendCommand
+            for (int i = 0; i < minions.Length; i++)
             {
-                position = worldPos,
-                radius   = 5f,
-            });
-            entityManager.SetComponentEnabled<OnMinionDefendCommand>(playerEntity, true);
+                if (!entityManager.HasComponent<OnMinionDefendCommand>(minions[i])) continue;
+                entityManager.SetComponentData(minions[i], new OnMinionDefendCommand
+                {
+                    position = worldPos,
+                    radius   = 5f,
+                });
+                entityManager.SetComponentEnabled<OnMinionDefendCommand>(minions[i], true);
+                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+            }
+            minions.Dispose();
             return;
         }
 
         // Default: move to ground position under the cursor.
-        entityManager.SetComponentData(playerEntity, new OnMinionMoveCommand { destination = worldPos });
-        entityManager.SetComponentEnabled<OnMinionMoveCommand>(playerEntity, true);
+        for (int i = 0; i < minions.Length; i++)
+        {
+            if (!entityManager.HasComponent<OnMinionMoveCommand>(minions[i])) continue;
+            entityManager.SetComponentData(minions[i], new OnMinionMoveCommand { destination = worldPos });
+            entityManager.SetComponentEnabled<OnMinionMoveCommand>(minions[i], true);
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+        }
+        minions.Dispose();
     }
 
     #endregion

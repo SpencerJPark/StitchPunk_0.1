@@ -18,6 +18,7 @@ public class InteractionAuthoring : MonoBehaviour
 
             AddComponent(entity, new Interaction
             {
+                action = authoring.actionType,
             });
             SetComponentEnabled<Interaction>(entity, true);
 

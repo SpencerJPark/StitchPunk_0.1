@@ -1,203 +1,155 @@
 ---
-tags: [memory, code, systems, ai, action, decision, orchestration]
+tags: [memory, code, systems, ai, action, decision, orchestration, statemachine]
 related: "[[Systems]], [[Components]], [[Systems_Movement]]"
 ---
 
 # AI & Action Architecture — Context
 
-> **⚠ Migration note (2026-06):** the sections below largely describe the **pre-migration** architecture (`ActionOption` buffer, per-action systems, `ActionInterruptSystem`, `SelectionFunctions`). The current architecture is the **behavior-command state machine** — see `Assets/CLAUDE.md` current-status and the summary here:
->
-> - Awareness systems (UtilityAISystemGroup) append `UtilityActions` entries → `ConsiderationScoringSystem` scores them (preserves awareness-set `priority` via `max(actionDef.priority, entry.priority)`) → `WinnerSelectionSystem` (skips dead units) assigns the winner into `StateMachine`.
-> - **Preemption (P2):** WinnerSelection never clobbers a live behavior. Idle → direct assign + `activePriority` (player orders = `int.MaxValue`). Live behavior → writes `pending*` fields only when the winner outranks `activePriority`.
-> - **`BehaviorInterruptSystem`** (ActionExecutionSystemGroup, OrderFirst — after selection, before `BehaviorExecutionSystem`, so pending never outlives the frame) is the single teardown path. Triggered by `ActionInterruptRequest` (death/revive/path-stuck) or pending fields. Runs the behavior's `interruptionCleanup` blob (non-blocking commands only: ModifyMotivation, ReleaseInteraction, StopAnimation — bake-validated), then `AIUtils.HaltPathing` + disables `AttackRequest`. Interrupt beats pending: interrupt resets to Idle and clears `UtilityActions` (corpses keep stale options since ClearOptions excludes dead); pending swaps in the new behavior with its priority.
-> - **`SelfDefenceAwarenessSystem`** (current version): reads `ThreatEntry` (written by `ThreatUpdateSystem` on Hurt, pruned by `ThreatDecaySystem`), ticks the 0.3s `reactionDelay` flinch, picks the highest-threat alive in-range attacker, emits per-attack `UtilityActions` at priority 3 (`SELF_DEFENCE_PRIORITY` — above combat 2 / wander 1) and sets BloodLust = 100. Does NOT fire `ActionInterruptRequest` — the pending path carries the chosen action; `IsCombatAction()` on the running action is the no-reactivation guard.
-> - `StopAnimation` command + `AnimationType.None` → `AnimationUtils.SetLayer` now deactivates the layer (ClearLayer) when animation is None.
-> - **Talk (P3b, current version):** `SocialAwarenessSystem` (initiator — socialFactions scan, expiry-aware RecentInteraction filter, skips busy partners) → Talk option tier 1 → `TalkBehaviour.asset` (`Approach 1.35 → RequestSocialResponse → PlayAnimation Talking loop → WaitTime 10s w/ qualifier TargetDead|TargetNotEngagedWithSelf → ModifyMotivation Social +50 → ReleaseInteraction 60 → StopAnimation`; cleanup: StopAnimation + ReleaseInteraction). `RequestSocialResponse` command enables `SocialInvite { initiator }` on the target via ECB (multiple initiators may hit one invitee — no lookup writes). `SocialResponseSystem` (UtilityAISystemGroup, after awareness, before StateMachine group) consumes invites same-frame: accept = direct StateMachine assign when idle / pending fields when busy (≤ talk priority, non-combat); decline = disable only. WaitTime now supports qualifier early-exit (any blocking-command qualifier work reuses `BehaviorQualifiers.Evaluate`). `SocialValidationRequest` is legacy-unused (removal candidate).
-> - **`FleeAwarenessSystem`** (P3a, current version): same candidate scan as SelfDefence (flinch passed, alive, in awareness range), emits one Flee option targeting the top aggressor. Priority tiers: Wander 1 → aggression 2 → self-defence fight / flee 3 (utility curves on `FleeAction.asset` — Health inverse × Bravery inverse — decide fight vs flee) → **critical flee 4** when `health < 0.3` and `(1 − health) × (1 − bravery) > 0.35` (breaks off an active fight via the pending path). Citizens only (`FleeAction` is in CitizenBrain, not RotterBrain). Execution = `FleeFromTarget` command (`BehaviorExecutionJob.RunFlee`) authored in `FleeBehaviour.asset`.
+> Updated 2026-06 after the Utility AI Refactor V3 (see `_Vault/Tasks/Claude/utilityai.md`).
+> The old ActionOption/per-action-system architecture is **gone** — the 8 legacy execution
+> systems (MeleeSingle/MeleeContinuous/Talk/PickupItem/Sit/Wander/Flee/Interact) were deleted.
+> Execution is the behavior-command state machine described below.
 
-## Overview: Three-Layer Separation
+## Overview: Pipeline
 
 ```
-Decision Layer    → How does a unit choose what to do?
-Selection Layer   → Unified picker from scored options
-Orchestration     → Actions coordinate requests to downstream systems
+UtilityAISystemGroup
+  ├── AIMotivationSystemGroup        (decay, MotivationChangeRequest, etc.)
+  └── AIAwarenessSystemGroup         (awareness → UtilityActions buffer entries)
+        SocialResponseSystem         (after awareness — consumes SocialInvite)
+
+MinionActionSelectionSystemGroup     (player orders → UtilityActions, isPlayerOrdered=true)
+
+StateMachineSystemGroup
+  ├── ActionSelectionSystemGroup
+  │     ConsiderationScoringSystem   (blob curves → totalUtility, priority)
+  │     WinnerSelectionSystem        (OrderLast — picks winner → StateMachine)
+  └── ActionExecutionSystemGroup
+        BehaviorInterruptSystem      (OrderFirst — interrupts + pending swaps)
+        BehaviorExecutionSystem      (walks BehaviorConfigBlob → emits requests)
 ```
 
-AI is a **decision layer only** — it never moves a unit, fires an attack, or plays an animation. It writes scored `ActionOption` entries to a buffer. The selection and execution layers are shared by both player-guided and AI-guided units.
+AI is a **decision layer only** — awareness writes scored options; a single interpreter
+(`BehaviorExecutionSystem`) executes whatever wins by walking the authored command sequence.
 
----
+## Decision Layer — awareness systems (AIAwarenessSystemGroup)
 
-## Decision Layer
+All append `UtilityActions` entries. Every emission MUST set `actionDefIndex` via
+`BrainBlobUtils.GetActionDefIndex(ref blob, brain.unitType, actionType)` and **skip the Add when
+< 0** (unit's brain lacks the action). `ConsiderationScoringSystem` fills `priority` from the
+actionDef (`max(actionDef.priority, entry.priority)` — awareness may pre-bump it).
 
-### MinionActionSelectionSystemGroup
-
-Runs before `AIActionSelectionSystemGroup`. Handles **player-guided entities** (`PlayerControlled` enabled).
-
-- Reads `PlayerOrder` component set by `MinionCommandSystem` (in `PlayerEquipmentSystemGroup`)
-- Writes `ActionOption` buffer entries directly from the player's command
-- Entities in this group skip the AI scoring pipeline entirely
-
-### AIActionSelectionSystemGroup
-
-Handles **utility-guided entities** (`PlayerControlled` disabled). Contains two sub-groups:
-
-#### AIMotivationSystemGroup
-
-Motivation decay and personality context. Runs before `AIAwarenessSystemGroup`.
-
-| System | Purpose |
+| System | Emits |
 |---|---|
-| `MotivationDecaySystem` (OrderFirst) | Resets `contextMultiplier` to 1.0, decays `value` by `decayRate × deltaTime` |
-| `MotivationChangeRequestSystem` | Applies batched `MotivationChangeRequest` entries (Add / Set mode) |
-| `PersonalityContextSystem` | Writes `contextMultiplier` per motivation from `Personality` traits (socialAffinity, wanderlust, gluttony) |
+| `ClearOptionsSystem` (OrderFirst) | clears the buffer (skips dead units) |
+| `ThreatDecaySystem` (OrderFirst) | prunes stale `ThreatEntry` |
+| `EnemyAwarenessSystem` | attack options (priority 2) |
+| `SelfDefenceAwarenessSystem` | fight-back at priority 3 after 0.3s flinch (`ThreatEntry`) |
+| `FleeAwarenessSystem` | Flee at tier 3; bumped to 4 when health<30% & `(1−hp)×(1−bravery)>0.35` (citizens only) |
+| `InteractionAwarenessSystem` | interact options from the interaction spatial hash (keyed by `satisfiedNeed`) |
+| `SocialAwarenessSystem` | Talk option, tier 1 |
+| `ItemAwarenessSystem` | EquipWeapon (threatened+unarmed), UseHealingItem (hurt), Eat/Drink (idle) — from `ItemLibrary`/`EffectLibrary` blobs |
+| `Schedule`/`Weather`/`Enviroment` AwarenessSystem | stubs — future phases |
 
-#### AIAwarenessSystemGroup
+## UtilityActions / StateMachine (Components/AI/UtilityAiComponents.cs)
 
-Perception + option generation. Runs before `AIScoringSystemGroup`.
+`UtilityActions`: targetEntity, **targetPosition + hasTargetPosition** (raw position target —
+explicit bool because float3.zero is a legal position), actionType, priority, totalUtility,
+actionDefIndex, needsValidation, isPlayerOrdered.
 
-| System | Purpose |
-|---|---|
-| `ClearOptionsSystem` (OrderFirst) | Clears the `ActionOption` buffer |
-| `ThreatDecaySystem` (OrderFirst) | Prunes stale `ThreatEntry` records before consumers read. Dead/despawned attackers removed immediately; everything else decays via `ThreatEntry.staleTimer` (refreshed on each hit by `ThreatUpdateSystem`, TTL const `THREAT_TTL` ≈ 4s) so active combat never expires but a disengaged enemy is forgotten |
-| `EnemyAwarenessSystem` | Detects hostiles → sets BloodLust = 100, injects attack options (priority 2) |
-| `SelfDefenceAwarenessSystem` | Detects incoming threats → injects fight-back options (priority 2); fires `ActionInterruptRequest` when not already in combat |
-| `FleeAwarenessSystem` | Decision-point flee: only when `ActionRequest` is enabled **and** the unit has active threats (`ThreatEntry`). Sets SelfPreservation = 100 and injects a Flee option (priority 2) scored `(1 − healthRatio) × (1 − bravery)`. No interrupt, no bracket tracking — melee-single units re-decide each swing |
-| `InteractionAwarenessSystem` | Spatial-hash query per motivation → injects interaction options with `advertisedDelta = blob.restorationAmount` |
-| `SocialAwarenessSystem` | Finds nearby friendly NPCs → injects Talk option with `advertisedDelta = 40f` |
-| `ItemAwarenessSystem` | Scans loose items (`EquiptBy.owner == Entity.Null`) within `Awareness.range` (direct query scan, no spatial hash). Emits pickup options: **weapon** when threatened + unarmed (`SelfDefence`, priority 2; suppressed if `UnitEquipt.equiptItemEntity` set), **healing** when `health < 100%` (`SelfPreservation`, priority 0, utility scaled by `1 − healthRatio`), **food/drink** when no threat & not in combat (priority 0, `advertisedDelta = restorationAmount`). Item category + effect read from the `ItemLibrary` blob keyed by `ItemType` |
-| `EnvironmentalAwarenessSystem` | Environment context — stub |
+`StateMachine`: action, activeBehavior, targetEntity, **targetPosition/hasTargetPosition**,
+currentPhase, CurrentCommandIndex/CommandTimer/LoopTimer/LoopIterations, currentStance,
+activePriority, and `pending*` mirrors (incl. pendingTargetPosition/pendingHasTargetPosition).
 
-#### AIScoringSystemGroup
+## Selection — WinnerSelectionSystem
 
-Scores and prunes the `ActionOption` buffer.
+1. `isPlayerOrdered` entry wins unconditionally (priority recorded as `int.MaxValue`).
+2. Else: highest priority tier gate → highest totalUtility within the tier.
+3. Same-action guard: won't restart an identical action — EXCEPT a player order to a different
+   target/position, which re-targets (safe: orders are one-shot consumed).
+4. Idle (`activeBehavior == None`) → direct assign (incl. position fields). Live behavior →
+   `pending*` fields only when winner outranks `activePriority`; `BehaviorInterruptSystem`
+   performs the swap same-frame.
 
-| System | Purpose |
-|---|---|
-| `MotivationScoringSystem` | **Need-delta formula**: `advertisedDelta != 0` → `(curve(current) − curve(future)) × utilityScore × contextMultiplier`; `advertisedDelta == 0` → `curve(value) × utilityScore × contextMultiplier` (fallback for combat context-flags) |
-| `ActionPrioritySystem` | Keeps only the highest-priority tier; lower tiers are removed |
+## Execution — BehaviorExecutionSystem
 
----
+Walks the active behavior's `executionSequence` (`BlobArray<BehaviorCommand>` from `BehaviorSO`
+assets baked into the enum-indexed `BehaviorLibrary` blob). Blocking commands: Approach, WaitTime,
+FleeFromTarget, LoopUntil. Fire-and-advance: PlayAnimation, PlayActionAnimation, RequestAttack,
+RequestPickup, ModifyMotivation, ReleaseInteraction, StopAnimation, RequestSocialResponse.
 
-## Selection Layer — ActionSelectionSystemGroup
+- **Approach**: paths to `targetEntity` (waypoint scatter, moving-target repath) — or, when
+  `targetEntity == Null && hasTargetPosition`, paths once to the raw `targetPosition` (no repath).
+  `targetEntity == Null` with no position → Complete.
+- **RequestPickup**: re-validates the item is still loose (EquipBy.owner null or self), claims it
+  (EquipBy/AttachedTo), enables `PickupRequest` + `AttachItemRequest` on the item.
+- **WaitTime qualifier caution**: qualifiers use missing-data-evaluates-TRUE semantics — never put
+  `TargetDead` on a WaitTime whose target is a chair/item (no Dead component → instant exit).
+- Behavior Complete → reset to Idle, clear target entity AND position fields.
 
-Unified selection — runs after both decision groups, regardless of whether the options came from player commands or AI scoring.
+## Interrupts — BehaviorInterruptSystem (OrderFirst in execution group)
 
-**`ActionSelectionSystem`** — three-stage job pipeline:
+Single teardown path for `ActionInterruptRequest` (death/revive/path-stuck → reset to Idle, clear
+options + position fields) and pending preemptions (runs old behavior's `interruptionCleanup` —
+non-blocking commands only, bake-validated — then swaps pending → active incl. position fields).
+`SocialResponseSystem` writes StateMachine directly (accept while idle) or via pending; both paths
+clear the position fields.
 
-1. **Filter to highest priority tier** — eliminates lower-priority options so combat always beats idle
-2. **Sort by score (descending)**
-3. **Random pick from top 3** — prevents AI indecision; reduces re-evaluation cost
+## Player / minion command pipeline (Phase 4, current)
 
-After selection:
-- Writes `CurrentAction` (actionType + targetEntity)
-- Disables `ActionRequest` (prevents re-running selection this cycle)
-- Calls `SelectionFunctions` Burst function pointer table to `SetComponentEnabled` the correct action tag
+- `UnitBakingUtil.AddPlayerControlled` bakes `PlayerUnitBrain` (disabled) + all five
+  `OnMinion*Command` components (disabled) onto any unit with `unitSo.canBePlayerControlled`.
+- `UnitSelectionManager.HandleCommand()` (MonoBehaviour) fans the command out to **each selected
+  minion** (`Selected`+`Minion` query): sets data, enables the command, enables `PlayerUnitBrain`.
+  Right-click hostile = Attack; interactable = Interact; ground = Move; Shift+ground = Defend
+  (fanned out but not yet consumed); F (held) = Follow.
+- `MinionActionSelectionSystem` translates enabled commands into `isPlayerOrdered` options and
+  **consumes them one-shot** (`SetComponentEnabled(unit, false)` — lookups are read-write).
+  Move = `ActionType.Wander` + `targetEntity Null` + `targetPosition`; Follow = Wander targeting
+  the player entity (re-enabled every frame while F held).
 
-**`SelectionFunctions.cs`** — Burst-compiled static methods, one per `ActionType`, stored in a jump table indexed by `(int)ActionType`. Enables the corresponding enableable tag component on the entity.
+## Item pickup flow (Phase 3, current)
 
----
+`ItemAwareness` option → PickupBehaviour (`Approach 1.5 → PlayActionAnimation → WaitTime 1s →
+RequestPickup → StopAnimation`) → item gets `PickupRequest`:
+- `ItemConsumeSystem` (ItemEquipSystemGroup, **before** ItemEquipSystem): Consumable category →
+  `HealRequest` (EffectType.Healing) or `MotivationChangeRequest` per effect behaviour on the
+  owner, disables both requests, destroys the item via ECB.
+- `ItemEquipSystem`: anything still flagged (weapons) → links UnitEquip/EquipSocket.
 
-## Orchestration Layer — ActionExecutionSystemGroup
+## Authored assets (Assets/ScriptableObjects/Structures/)
 
-Actions are **coordinators, not executors**. An action system runs while its enableable tag component is active and follows this pattern:
+- Behaviors (`BehaviorSO`, keyed by BehaviorType): Wander, MeleeContinuous, MeleeSingle, Flee,
+  Talk, **Sit** (`Approach 1.35 → PlayAnimation Sit loop → WaitTime 8s → ModifyMotivation Energy
+  +50 → ReleaseInteraction 60 → StopAnimation`), **Pickup** (shared by all four item actions).
+- Actions (`UtilityActionSO`): WanderAction, FleeAction, TalkAction, MeleeContinuous/SingleAction,
+  **SitAction, EquipWeaponAction (priority 2), UseHealingItemAction, EatAction, DrinkAction**.
+- `CitizenBrain` (unitType 2) holds all of the above; `RotterBrain` (unitType 4) is combat+wander
+  only. `_BehaviorLibrary` / `_BrainLibrary` feed `BehaviorLibraryBakingSystem` /
+  `BrainLibraryBakingSystem` (PostBakingSystemGroup).
 
-```
-1. Validate preconditions (target alive? in range?)
-2. Out of range → enable PathRequest (MovementSystemGroup handles it)
-3. In range → halt path, enable AttackRequest or other downstream request
-4. On completion → re-enable ActionRequest to restart the cycle
-```
+## Adding a new behavior domain
 
-### Current Action Systems
-
-| System | Tag | Pattern |
-|---|---|---|
-| `MeleeSingleActionSystem` | `MeleeSingleAction` | Validate → path → halt → enable `AttackRequest` → enable `ActionTimer` (single shot) |
-| `MeleeContinuousActionSystem` | `MeleeContinuousAction` | Same as single, but re-fires `AttackRequest` each time `ActionTimer` expires |
-| `FleeActionSystem` | `FleeAction` | Run (`Movement.isRunning`) to a multi-hop away-from-attacker waypoint chain (nearest waypoint each hop, up to 4, until beyond the attacker's `Awareness.range`); re-enables `ActionRequest` on arrival so flee re-chains until threat decays |
-| `WanderExecutionSystem` | `WanderAction` | Pick random nearby point → path → idle briefly → re-enable `ActionRequest` |
-| `SitActionSystem` | `SitAction` | Path to interaction entity → play sit animation → countdown → apply satisfaction → re-enable `ActionRequest`. **Reference for all interaction actions.** |
-| `PickupItemActionSystem` | `PickupItemAction` | Path to target item → arrive (`ItemBlob.pickupRange`) → animate + `ActionTimer` → on completion branch by `ItemCategory`: **weapon** = replicate equip linking (set `EquiptBy`/`AttachedTo`, enable `EquipAction` + `AttachItemRequest`; `ItemEquipSystem` finalises the slot), **healing** = enable `HealRequest{healAmount}`, **food/drink** = add `MotivationChangeRequest` then destroy item via ECB. Single-threaded `.Schedule()` (writes item entities via `ComponentLookup`). Serves the `EquipWeapon` / `UseHealingItem` / `Eat` / `Drink` ActionTypes |
-| `ActionInterruptSystem` | — | OrderFirst; detects `ActionInterruptRequest`, disables active action tag, halts path, re-enables `ActionRequest` |
-| `ActionTimerSystem` | `ActionTimer` | Ticks down `time` — action systems check expiry themselves |
-
-### Interruption System
-
-`ActionInterruptRequest` (IEnableableComponent) is baked onto all AI units by `UnitBakingUtil.BakeRequirements`.
-
-**Who enables it:** `MinionCommandSystem` (player override), damage systems *(future)*, threat detection *(future)*
-
-`ActionInterruptSystem` runs OrderFirst in `ActionExecutionSystemGroup`:
-1. Disables the active action tag via switch on `CurrentAction.actionType`
-2. Halts pathing, clears `ArrivedAtTarget`
-3. For sit: enables `SitReleaseRequest` if unit was mid-sit (occupant cleanup)
-4. Re-enables `ActionRequest` unless `PlayerControlled` is enabled
-
-**Adding interrupt support to a new action:** add a case to `ActionInterruptSystem.DeactivateActionTag`.
-
-### Environmental Awareness Pipeline
-
-`SpatialHashSystem` (in `GameManagerSystemGroup`) rebuilds `SpatialHashRegistry` each frame. Keys each `InteractionProvider` entity by `(cell, MotivationType)` using its `MotivationSatisfaction` buffer.
-
-`EnvironmentalAwarenessSystem` (in `AIAwarenessSystemGroup`) queries the hash per NPC motivation need, filters by `Interaction.allowedUnitTypeMask` (0 = any; bit N = `UnitType` N), adds `ActionOption` scored by distance.
-
-### Interaction Action Pattern (per-type, not generic)
-
-Each `ActionType` that maps to an environmental interaction gets its own execution system — no shared generic system. `SitActionSystem` is the reference.
-
-**States use `ArrivedAtTarget` as flag:** disabled = pathing; enabled = executing interaction.
-
-**Occupant flow:** `ValidateInteractionJob` increments on selection. Decrement via `SitReleaseRequest` + `SitReleaseJob` (single-threaded after parallel `.Complete()`).
-
-### Downstream Request Types
-
-| Request | Who enables it | Who consumes it |
-|---|---|---|
-| `PathRequest` | Any action needing movement | `MovementSystemGroup` |
-| `AttackRequest` | Melee/ranged action systems | `AttackResolutionSystem` (CombatSystemGroup) |
-| `SitReleaseRequest` | `SitJob` on completion / `ActionInterruptSystem` on interrupt | `SitReleaseJob` (decrements `occupantCount`) |
-
----
-
-## Component State Machine
-
-```
-ActionRequest (enabled)                  → selection pipeline runs this frame
-ActionInterruptRequest (enabled)         → ActionInterruptSystem will abort current action
-Action tag (e.g. SitAction)             → that action's execution system is active
-ArrivedAtTarget (enabled)               → unit has reached target; in "executing" phase
-PathRequest (enabled)                   → MovementSystemGroup picks this up
-AttackRequest (enabled)                 → CombatResolutionSystemGroup picks this up
-SitReleaseRequest (enabled)             → SitReleaseJob will decrement occupantCount this frame
-```
-
----
-
-## Adding a New Interaction Action
-
-1. Confirm `ActionType.Foo` exists in `Data/Enums/AiEnums.cs`
-2. Add tag: `public struct FooAction : IComponentData, IEnableableComponent {}` (in `AiComponents.cs`)
-3. Add `FooEnable` to `SelectionFunctions.cs` (takes `bool enabled`, sets it on the tag)
-4. Register in **both** function tables — they share the same delegate but serve opposite purposes:
-   - `ActionSelectionSystem.OnCreate` → `_functionTable[(int)ActionType.Foo] = ... FooEnable` (enables on selection)
-   - `ActionInterruptSystem.OnCreate` → same line (disables on interrupt, passing `false`)
-5. Wire in brain bakers: `UnitBakingUtil.AddAction<TBaker, FooAction>` + `FooReleaseRequest` if needed
-6. Write `FooActionSystem` in `ActionExecutionSystemGroup/` — copy `SitActionSystem` as the template
-7. For occupant management: add a `FooReleaseRequest` + `FooReleaseJob` following the Sit pattern
-
----
+1. `BehaviorType.Foo` in `AiEnums.cs` (append-only) + `ActionType` if needed.
+2. Author `FooBehaviour.asset` (BehaviorSO): executionSequence + non-blocking interruptionCleanup.
+3. Author `FooAction.asset` (UtilityActionSO): actionType, priority tier, considerations
+   (Motivation ratio = `(value+100)/200`, 1 = satisfied → use inverse curves for needs).
+4. Add behavior to `_BehaviorLibrary.asset`, action to the relevant Brain asset.
+5. Emit options from an awareness system (set actionDefIndex, skip when < 0).
+6. New command types go in `BehaviorCommandType` + `BehaviorExecutionSystem.RunExecute` switch
+   (+ `BehaviorInterruptSystem.RunCleanupCommand` if legal in cleanup).
 
 ## Key Files
 
-| File | Path | Role |
-|---|---|---|
-| `SystemGroups.cs` | `Systems/` | Declares all group ordering |
-| `ActionSelectionSystem.cs` | `Systems/ActionSystemGroup/ActionSelectionSystemGroup/` | Top-3 random pick + state setup |
-| `SelectionFunctions.cs` | `Systems/ActionSystemGroup/ActionSelectionSystemGroup/` | Burst function pointer table |
-| `MeleeSingleActionSystem.cs` | `Systems/ActionSystemGroup/ActionExecutionSystemGroup/` | Reference implementation |
-| `MeleeContinuousActionSystem.cs` | `Systems/ActionSystemGroup/ActionExecutionSystemGroup/` | Reference implementation |
-| `EnemyAwarenessSystem.cs` | `Systems/AIActionSelectionSystemGroup/AIAwarenessSystemGroup/` | Hostile detection → attack options |
-| `MotivationScoringSystem.cs` | `Systems/AIActionSelectionSystemGroup/AIScoringSystemGroup/` | Utility scoring |
-| `ActionPrioritySystem.cs` | `Systems/AIActionSelectionSystemGroup/AIScoringSystemGroup/` | Tier bonuses + pruning |
-| `AiComponents.cs` | `Components/AI/` | ActionRequest, CurrentAction, ActionOption buffer, Motivation buffer, all action tags |
-| `AttackComponents.cs` | `Components/Units/` | AttackRequest, CombatTarget, AvailableAttack buffer |
+| File | Role |
+|---|---|
+| `Systems/SystemGroups.cs` | group ordering |
+| `Components/AI/UtilityAiComponents.cs` | UtilityActions, StateMachine, Motivation, ThreatEntry |
+| `Systems/UtilityAISystemGroup/UtilityDecisionSystemGroup/ConsiderationScoringSystem.cs` | scoring |
+| `Systems/UtilityAISystemGroup/UtilityDecisionSystemGroup/WinnerSelectionSystem.cs` | winner → StateMachine |
+| `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/BehaviorExecutionSystem.cs` | command interpreter |
+| `Systems/StateMachineSystemGroup/ActionExecutionSystemGroup/BehaviorInterruptSystem.cs` | teardown/preemption |
+| `Systems/MinionActionSelectionSystemGroup/MinionActionSelectionSystem.cs` | player orders |
+| `Systems/ItemSystemGroup/ItemEquipSystemGroup/ItemConsumeSystem.cs` | consumable branch |
+| `Utils/BrainBlobUtils.cs`, `Utils/BehaviorQualifiers.cs`, `Utils/AIUtils.cs` | helpers |
+| `Data/SOs/BehaviorSO.cs`, `Data/SOs/UtilityActionSO.cs`, `Data/SOs/BrainSO.cs` | authoring SOs |

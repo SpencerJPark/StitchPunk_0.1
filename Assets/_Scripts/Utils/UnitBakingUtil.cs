@@ -193,6 +193,19 @@ public static class UnitBakingUtil
     {
         baker.AddComponent<PlayerUnitBrain>(entity);
         baker.SetComponentEnabled<PlayerUnitBrain>(entity, startControlled);
+
+        // Per-minion command slots — UnitSelectionManager fans commands out to selected minions;
+        // MinionActionSelectionSystem consumes them one-shot (disables after emitting an option).
+        baker.AddComponent<OnMinionMoveCommand>(entity);
+        baker.SetComponentEnabled<OnMinionMoveCommand>(entity, false);
+        baker.AddComponent<OnMinionAttackCommand>(entity);
+        baker.SetComponentEnabled<OnMinionAttackCommand>(entity, false);
+        baker.AddComponent<OnMinionInteractCommand>(entity);
+        baker.SetComponentEnabled<OnMinionInteractCommand>(entity, false);
+        baker.AddComponent<OnMinionFollowCommand>(entity);
+        baker.SetComponentEnabled<OnMinionFollowCommand>(entity, false);
+        baker.AddComponent<OnMinionDefendCommand>(entity);
+        baker.SetComponentEnabled<OnMinionDefendCommand>(entity, false);
     }
 
     public static Motivation DefaultBehaviour(NeedType type)

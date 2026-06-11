@@ -124,6 +124,8 @@ public partial struct SocialResponseJob : IJobEntity
             stateMachine.action              = ActionType.Talk;
             stateMachine.activeBehavior      = BehaviorType.Talk;
             stateMachine.targetEntity        = initiator;
+            stateMachine.targetPosition      = default;
+            stateMachine.hasTargetPosition   = false;
             stateMachine.activePriority      = talkPriority;
             stateMachine.currentPhase        = BehaviorPhase.Execute;
             stateMachine.CurrentCommandIndex = 0;
@@ -135,10 +137,12 @@ public partial struct SocialResponseJob : IJobEntity
         {
             // Mid-behavior (e.g. Wander) — go through the pending path so
             // BehaviorInterruptSystem runs the old behavior's cleanup before the swap.
-            stateMachine.pendingAction   = ActionType.Talk;
-            stateMachine.pendingBehavior = BehaviorType.Talk;
-            stateMachine.pendingTarget   = initiator;
-            stateMachine.pendingPriority = talkPriority;
+            stateMachine.pendingAction            = ActionType.Talk;
+            stateMachine.pendingBehavior          = BehaviorType.Talk;
+            stateMachine.pendingTarget            = initiator;
+            stateMachine.pendingTargetPosition    = default;
+            stateMachine.pendingHasTargetPosition = false;
+            stateMachine.pendingPriority          = talkPriority;
         }
 
         if (loggingEnabled)

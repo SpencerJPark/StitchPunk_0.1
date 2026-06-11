@@ -29,17 +29,17 @@ MonoBehaviour:
   randomMotivationsTotal: 3
   randomMotivations: 0c0000000e0000000f000000100000001100000012000000130000001400000015000000
   motivationDecayRates:
-  - motivationType: 1
+  - needType: 1
     decayRate: 0.5
-  - motivationType: 2
+  - needType: 2
     decayRate: 0.05
-  - motivationType: 3
+  - needType: 3
     decayRate: 0.5
-  - motivationType: 6
+  - needType: 6
     decayRate: 0.5
-  - motivationType: 4
+  - needType: 4
     decayRate: 0.3
-  - motivationType: 8
+  - needType: 8
     decayRate: 1
   socialFactions: 0306080902
   actionAnimations:
@@ -55,9 +55,10 @@ MonoBehaviour:
     movingAnimation: 0
   idleAnimation: 1
   movingAnimation: 2
-  attackFactions:
+  attackFactions: 
   attacks:
   - action: 17
     attack: 2
-  moveSpeed: 3
+  moveSpeed: 1
+  runSpeed: 2.2
   rotationSpeed: 10
