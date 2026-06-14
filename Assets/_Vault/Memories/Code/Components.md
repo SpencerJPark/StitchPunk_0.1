@@ -47,8 +47,11 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `FactoryComponents.cs` | `Components/Structures/` | `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer, `FactoryGridConfig` singleton, `FactoryGridCell` buffer |
 | `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
 | `SceneTags.cs` | `Components/Tags/` | `MainMenuTag`, `GameSceneTag` |
-| `GameDataComponents.cs` | `Components/Save/` | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
+| `GameDataComponents.cs` | `Components/Save/` | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` (now incl. master/music/sfx/ambient volume floats — persisted via IPersist) |
 | `Dialogue.cs` | `Components/AI/` | `DialogueProvider` (enableable, on NPC), `DialogueManagerTag`, `ActiveDialogue` (enableable, singleton), `OnDialogueEvent` (enableable, singleton), `PlayedDialogue` (buffer on GameData), `DialogueFlag` (buffer on GameData) |
+| `SoundComponents.cs` | `Components/Audio/` | Sound System: `PlaySound` (one-frame one-shot signal — LogMessage lifecycle), `LoopingSound` (enableable, on emitter), `ListenerPosition` + `CameraView` (singletons written by AudioManager), `ResolvedVoice` + `ResolvedVoices` (singleton `NativeList`, owned by VoiceSelectionSystem), `MusicState` (singleton layer weights) |
+| `SoundLibraryComponents.cs` | `Components/Audio/` | `SoundLibrary` (singleton blob holder), `SoundLibraryReference` (bake-time `UnityObjectRef<SoundLibrarySO>`) |
+| `WorldStateComponents.cs` | `Components/World/` | `WorldMoodState` enum (Explore/Tension/Combat) + `WorldMood` singleton — global mood written idempotently via `WorldMoodUtil`; read by music now + NPC behaviours later |
 
 ---
 

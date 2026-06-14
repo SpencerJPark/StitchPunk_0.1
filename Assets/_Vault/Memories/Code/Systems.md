@@ -47,6 +47,7 @@ DesignSystemGroup            — DesignChangeSystem: runtime body-part re-skin (
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — UnitSpawnerSystem only: instantiate/reclaim, enable NewlySpawned
   ├── SpawnInitSystemGroup   — all spawn-frame init systems filter on [WithAll<NewlySpawned>]
+  ├── SoundSystemGroup       — gather/cull requested sounds → ResolvedVoices/WorldMood/MusicState (AudioManager reads them in LateUpdate)
   ├── (loose systems)        — pool return, event resets, Ragdoll2DSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
   └── SaveSystemGroup        — play time tracking, auto-save timer, save/load (OrderLast)
 PresentationSystemGroup      — selection outlines (runs after transforms settled)
@@ -250,6 +251,18 @@ Runs in `SimulationSystemGroup`, `[UpdateAfter(HealthSystemGroup)] [UpdateBefore
 | System | File | Purpose |
 |---|---|---|
 | `DesignChangeSystem` | `DesignChangeSystem.cs` | Consumes enabled `ChangeDesignRequest`: upserts each `(target, imageIndex)` into `PersistedDesign.slots` (so the new look persists), fans it to child quads via `DesignApplyUtil.ApplySlot`, then disables the request. Main-thread `ComponentLookup` writes (never `.Run()`). First caller: human→zombie skin swap |
+
+#### SoundSystemGroup (`SoundSystemGroup/`)
+
+"ECS decides, MonoBehaviour plays." Runs late (after SpawnInit, before Despawn) so it sees every sound emitted during gameplay + spawn-init. `AudioManager` (`MonoBehaviours/Managers/AudioManager.cs`, `PersistentSingleton`) reads the singletons each LateUpdate and drives a 32-AudioSource pool through an AudioMixer.
+
+| System | File | Purpose |
+|---|---|---|
+| `VoiceSelectionSystem` | `VoiceSelectionSystem.cs` | Owns the `ResolvedVoices` singleton (`NativeList`, Persistent). Gathers one-shot `PlaySound` + enabled `LoopingSound`, scores by priority+distance to `ListenerPosition`, applies per-type `maxConcurrent`, writes top ≤32, then `DestroyEntity` the `PlaySound` query (loops persist). Not Burst (structural change). |
+| `WorldMoodSystem` | `WorldMoodSystem.cs` | Sets the `WorldMood` singleton from camera-visible state (`CameraView`): `AttackRequest` in view → Combat, non-empty `ThreatEntry` in view → Tension, else Explore. Idempotent via `WorldMoodUtil`. |
+| `MusicStateSystem` | `MusicStateSystem.cs` | Maps `WorldMood` → `MusicState` layer target weights (AudioManager crossfades to them). |
+
+One-shot SFX are emitted via `SoundUtil.Play/PlayOn` (ECB; the LogMessage pattern). Animation-locked SFX fire from `AnimationSoundMarkerSystem` (`AnimationExecutionSystemGroup`, after `AnimationTimeSystem`) on clip marker crossings. Behaviour cues use the `PlaySound` `BehaviorCommandType` (fire-and-advance in `BehaviorExecutionSystem`). Blob: `SoundLibraryBakingSystem` (PostBakingSystemGroup) builds `SoundLibraryBlob` enum-indexed (clips stay managed on `AudioManager`).
 
 #### DespawnSystemGroup (`DespawnSystemGroup/`)
 

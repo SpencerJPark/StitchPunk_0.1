@@ -20,6 +20,12 @@ public struct AnimationTargetTrackBlob
     public BlobArray<KeyframeBlob> keyframes;
 }
 
+public struct SoundMarkerBlob
+{
+    public SoundType type;
+    public float normalizedTime;
+}
+
 public struct AnimationClipBlob
 {
     public AnimationType animationType;
@@ -28,6 +34,7 @@ public struct AnimationClipBlob
     public bool allowBlendIn;
     public bool allowBlendOut;
     public BlobArray<AnimationTargetTrackBlob> animationTargetTracks;
+    public BlobArray<SoundMarkerBlob> soundMarkers;
 }
 
 public struct AnimationLibraryBlob

@@ -52,6 +52,10 @@ public enum BehaviorCommandType : byte
     // the same invitee in one frame). SocialResponseSystem accepts or declines next frame.
     // Non-blocking. IntParam/FloatParam/Duration unused.
     RequestSocialResponse,
+
+    // Emits a one-shot PlaySound following the unit (a behaviour-level audio cue, e.g. a yell on Flee).
+    // IntParam = (int)SoundType. Fire-and-advance. Append-only — never reorder existing values.
+    PlaySound,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).

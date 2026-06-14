@@ -408,6 +408,11 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 }
                 break;
 
+            case BehaviorCommandType.PlaySound:
+                // Behaviour-level audio cue (e.g. a yell when Flee starts). Fire-and-advance.
+                SoundUtil.PlayOn(ref ecb, entityIndex, (SoundType)cmd.IntParam, unit);
+                break;
+
             default:
                 break;
         }

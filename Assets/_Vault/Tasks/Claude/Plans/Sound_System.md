@@ -1,6 +1,6 @@
 # Sound System — Design Spec
 
-> **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
+> **Status:** 🔨 built — all code landed (data layer, one-shot + loop paths, voice selection, WorldMood/music, animation markers, PlaySound behavior command, settings). Editor assets + play-test pending → see [`../../Spencer/verify-sound-system.md`](../../Spencer/verify-sound-system.md).
 > **Raw source:** [`../futureneedsplan.md`](../futureneedsplan.md) → "soundsystemgroup"
 ---
 
@@ -233,11 +233,13 @@ Add `PlaySound` to the `BehaviorCommand` blob enum (alongside `PlayAnimation`). 
 
 ---
 
-## Open decisions (collected)
+## Open decisions (collected — resolved at build)
 
-- [ ] §2 — `SoundSystemGroup` placement: `LateSimulationSystemGroup` vs sim group after `AnimationSystemGroup`.
-- [ ] §5 — voice pool size N (default 32).
-- [ ] §5 — combat/tension detection source + tension health threshold.
-- [ ] §6 — `AudioListener` rides the camera in both control modes.
-- [ ] §7 — sound-marker shape + which animation system fires them.
-- [ ] §9 — default volume levels.
+- [x] §2 — placement: **`SoundSystemGroup` in `LateSimulationSystemGroup`** (`UpdateAfter SpawnInitSystemGroup`, `UpdateBefore DespawnSystemGroup`).
+- [x] §5 — voice pool **N = 32**.
+- [x] §5 — detection **redesigned**: a generic **`WorldMood` singleton** (`Explore/Tension/Combat`) set idempotently via `WorldMoodUtil` from **camera-visible** state — Combat = `AttackRequest` in view, Tension = non-empty `ThreatEntry` in view. `MusicStateSystem` maps `WorldMood → MusicState` weights. (No health threshold — replaced by camera visibility per Spencer.)
+- [x] §6 — `AudioListener` rides the active camera; `AudioManager` publishes the camera ground point + `cameraViewRadius`.
+- [x] §7 — `SoundMarker { SoundType type; float normalizedTime }`; `AnimationSoundMarkerSystem` fires on crossings after `AnimationTimeSystem`.
+- [x] §9 — defaults: master 1.0, music 0.7, sfx 0.9, ambient 0.7 (in `GameSettings`, persisted).
+
+**Build note:** `WorldMood` (`Components/World/WorldStateComponents.cs`) + `WorldMoodUtil` were added as a generic world-state layer (reusable by NPC behaviours later), feeding `MusicState`. Everything is code-complete and inert until the Editor assets in the Spencer verify file exist (`AudioMixer`, clips, populated `_SoundLibrary`, `AudioManager` in scene, music stems).

@@ -134,6 +134,13 @@ public partial class SpawnSystemGroup : ComponentSystemGroup { }
 [UpdateBefore(typeof(DespawnSystemGroup))]
 public partial class SpawnInitSystemGroup : ComponentSystemGroup { }
 
+// Gathers/culls requested sounds late (after all gameplay + spawn-init has emitted them) and writes
+// the ResolvedVoices + WorldMood + MusicState singletons the AudioManager reads each LateUpdate.
+[UpdateInGroup(typeof(LateSimulationSystemGroup))]
+[UpdateAfter(typeof(SpawnInitSystemGroup))]
+[UpdateBefore(typeof(DespawnSystemGroup))]
+public partial class SoundSystemGroup : ComponentSystemGroup { }
+
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 public partial class DespawnSystemGroup : ComponentSystemGroup { }
 

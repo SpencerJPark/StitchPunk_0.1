@@ -16,6 +16,12 @@ public class GameDataAuthoring : MonoBehaviour
     [Tooltip("Flipbook animation playback rate shared across all animated units.")]
     public int animationFrameRate = 24;
 
+    [Header("Audio (0–1, persisted)")]
+    [Range(0f, 1f)] public float masterVolume  = 1f;
+    [Range(0f, 1f)] public float musicVolume   = 0.7f;
+    [Range(0f, 1f)] public float sfxVolume     = 0.9f;
+    [Range(0f, 1f)] public float ambientVolume = 0.7f;
+
     public class Baker : Baker<GameDataAuthoring>
     {
         public override void Bake(GameDataAuthoring authoring)
@@ -40,7 +46,11 @@ public class GameDataAuthoring : MonoBehaviour
 
             AddComponent(entity, new GameSettings
             {
-                animationFrameRate = authoring.animationFrameRate
+                animationFrameRate = authoring.animationFrameRate,
+                masterVolume       = authoring.masterVolume,
+                musicVolume        = authoring.musicVolume,
+                sfxVolume          = authoring.sfxVolume,
+                ambientVolume      = authoring.ambientVolume,
             });
 
             // Dialogue persistent state

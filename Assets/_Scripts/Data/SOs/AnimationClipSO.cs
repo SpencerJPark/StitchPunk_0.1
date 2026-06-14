@@ -14,7 +14,19 @@ public class AnimationClipSO : ScriptableObject
     
     [SerializeField]
     public List<PartTrack> partTracks = new List<PartTrack>();
-    
+
+    [Tooltip("Sounds fired when clip playback crosses each marker's normalized time " +
+             "(emitted as a PlaySound following the animating unit).")]
+    [SerializeField]
+    public List<SoundMarker> soundMarkers = new List<SoundMarker>();
+
+    [Serializable]
+    public class SoundMarker
+    {
+        [SearchableEnum] public SoundType type;
+        [Range(0f, 1f)] public float normalizedTime;
+    }
+
     [Serializable]
     public class PartTrack
     {

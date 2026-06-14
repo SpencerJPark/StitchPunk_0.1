@@ -26,4 +26,10 @@ public struct PlayTimeTracker : IComponentData, IPersist
 public struct GameSettings : IComponentData, IPersist
 {
     public int animationFrameRate;
+
+    // Audio bus volumes (0–1), applied to the AudioMixer by AudioManager. Persist via IPersist.
+    public float masterVolume;
+    public float musicVolume;
+    public float sfxVolume;
+    public float ambientVolume;
 }

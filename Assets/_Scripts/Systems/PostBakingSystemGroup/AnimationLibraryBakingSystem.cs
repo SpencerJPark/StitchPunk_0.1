@@ -37,6 +37,7 @@ public partial struct AnimationLibraryBakingSystem : ISystem
             clipsBuilder[i].animationType = (AnimationType)i;
             clipsBuilder[i].duration = 0;
             builder.Allocate(ref clipsBuilder[i].animationTargetTracks, 0);
+            builder.Allocate(ref clipsBuilder[i].soundMarkers, 0);
         }
         
         foreach (var clipSO in librarySO.clips)
@@ -51,7 +52,19 @@ public partial struct AnimationLibraryBakingSystem : ISystem
             clipBlob.looping = clipSO.looping;
             clipBlob.allowBlendIn = clipSO.allowBlendIn;
             clipBlob.allowBlendOut = clipSO.allowBlendOut;
-            
+
+            // Fill sound markers immediately (don't hold the BlobBuilderArray across the next Allocate).
+            int soundMarkerCount = clipSO.soundMarkers != null ? clipSO.soundMarkers.Count : 0;
+            var soundMarkersBuilder = builder.Allocate(ref clipBlob.soundMarkers, soundMarkerCount);
+            for (int s = 0; s < soundMarkerCount; s++)
+            {
+                soundMarkersBuilder[s] = new SoundMarkerBlob
+                {
+                    type           = clipSO.soundMarkers[s].type,
+                    normalizedTime = clipSO.soundMarkers[s].normalizedTime,
+                };
+            }
+
             var tracksBuilder = builder.Allocate(ref clipBlob.animationTargetTracks, clipSO.partTracks.Count);
             
             for (int t = 0; t < clipSO.partTracks.Count; t++)

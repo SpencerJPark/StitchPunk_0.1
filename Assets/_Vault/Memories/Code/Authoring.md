@@ -67,6 +67,8 @@ They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, whi
 | `GameDataAuthoring.cs` | Bakes the GameData singleton entity — place one in every game scene. Inspector exposes `autoSaveIntervalSeconds` and `animationFrameRate`. Adds `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings`, `PlayedDialogue` buffer, `DialogueFlag` buffer |
 | `DialogueManagerAuthoring.cs` | Place ONE per scene that uses dialogue. Bakes the DialogueManager singleton entity with `DialogueManagerTag`, `ActiveDialogue` (disabled), `OnDialogueEvent` (disabled) |
 | `DialogueProviderAuthoring.cs` | Add to an NPC GO to give it player-triggerable dialogue. Assign a `DialogueSequenceSO`. Bakes `DialogueProvider` (enabled) + `PlayerInteractable` (unless `InteractionAuthoring` with `playerInteractable=true` is also present) |
+| `SoundLibraryAuthoring.cs` | Place on one scene GO. `DependsOn(library)`, bakes `SoundLibrary` + `SoundLibraryReference` (→ `SoundLibraryBakingSystem` builds the blob). Mirrors `ItemLibraryAuthoring` |
+| `AmbientSoundAuthoring.cs` | Place on a world emitter (machine/fire/wind). Bakes `LoopingSound { type, volumeMul, pitchMul }` (enabled by `startEnabled`). AudioManager maps the entity→voice and stops it when disabled/destroyed |
 
 ---
 
