@@ -43,6 +43,7 @@ CombatSystemGroup
   ├── CombatResolutionSystemGroup — attack resolution, player attacks
   └── CombatReactionSystemGroup  — damage application; MinionAutoCounterSystem releases PlayerControlled on hit
 HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
+DesignSystemGroup            — DesignChangeSystem: runtime body-part re-skin (after Health, before Animation)
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — UnitSpawnerSystem only: instantiate/reclaim, enable NewlySpawned
   ├── SpawnInitSystemGroup   — all spawn-frame init systems filter on [WithAll<NewlySpawned>]
@@ -238,7 +239,17 @@ Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlyS
 | `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Alive`→on, `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off |
 | `AnimatorTargetInitSystem` | `AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer — ECB.Instantiate does not reliably remap refs inside dynamic buffers |
 | `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
+| `DesignRandomizeSystem` | `DesignRandomizeSystem.cs` | `[UpdateAfter(AnimatorTargetInitSystem)] [UpdateBefore(MinionRestoreApplySystem)]` Rolls a random in-range texture index per `DesignPart` into `PersistedDesign`, disables `RandomizeDesign`. `IJobEntity.ScheduleParallel` (root-only writes) |
+| `DesignApplySystem` | `DesignApplySystem.cs` | `[UpdateAfter(MinionRestoreApplySystem)] [UpdateBefore(SpawnInitCleanupSystem)]` Fans `PersistedDesign.slots` to child quads (via `AnimatorTarget` → `ComponentLookup`, main thread like `Ragdoll2DSpawnInitSystem`), writing `baseImageIndex` + `ImageIndex`. Restored indices win (runs after restore). Shares `DesignApplyUtil.ApplySlot` with `DesignChangeSystem` |
 | `SpawnInitCleanupSystem` | `SpawnInitCleanupSystem.cs` | `[OrderLast]` Disables `NewlySpawned`; component persists on entity for re-enablement on next pool reclaim |
+
+### DesignSystemGroup (`Systems/DesignSystemGroup/`)
+
+Runs in `SimulationSystemGroup`, `[UpdateAfter(HealthSystemGroup)] [UpdateBefore(AnimationSystemGroup)]` — so a conversion-fired re-skin lands after revive/swap logic and before `UpdateImageIndexSystem` pushes `_ImageIndex`.
+
+| System | File | Purpose |
+|---|---|---|
+| `DesignChangeSystem` | `DesignChangeSystem.cs` | Consumes enabled `ChangeDesignRequest`: upserts each `(target, imageIndex)` into `PersistedDesign.slots` (so the new look persists), fans it to child quads via `DesignApplyUtil.ApplySlot`, then disables the request. Main-thread `ComponentLookup` writes (never `.Run()`). First caller: human→zombie skin swap |
 
 #### DespawnSystemGroup (`DespawnSystemGroup/`)
 

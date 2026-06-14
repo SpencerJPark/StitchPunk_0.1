@@ -34,8 +34,9 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 | Player Resource System (inventory/resources) | — | ⬜ not started |
 | Game UI — Health | — | ⬜ not started |
 | Minion Systems → new state machine | — | ⬜ not started |
+| **Minion Revival & Life-State** (revive→zombie minion via `SwapBrainRequest`, `Alive` deprecation) | [MinionRevival_System.md](MinionRevival_System.md) | ✅ spec ready |
 | Animations (content) | — | ⬜ not started |
-| Random Unit Designs | — | ⬜ not started |
+| **Unit Design** (per-part random texture indices, minion persistence) | [UnitDesign_System.md](UnitDesign_System.md) | 🔨 built — code landed, verify pending |
 | Human → Zombie Conversion | — | ⬜ not started |
 | Menu UI | — | ⬜ not started |
 | Interactions/Behaviors (bulk, AI-assisted SO setup) | — | ⬜ not started |

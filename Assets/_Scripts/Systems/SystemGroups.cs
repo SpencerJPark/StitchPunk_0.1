@@ -106,6 +106,14 @@ public partial class CombatSystemGroup : ComponentSystemGroup { }
 public partial class HealthSystemGroup : ComponentSystemGroup { }
 
 
+// Runs after health/revive (so a conversion can re-skin) and before animation (so the image-index
+// push in AnimationExecutionSystemGroup picks up the change the same frame). Home of DesignChangeSystem.
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(HealthSystemGroup))]
+[UpdateBefore(typeof(AnimationSystemGroup))]
+public partial class DesignSystemGroup : ComponentSystemGroup { }
+
+
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 public partial class AnimationSystemGroup : ComponentSystemGroup { }
 
