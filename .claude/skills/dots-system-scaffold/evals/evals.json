@@ -1,0 +1,23 @@
+{
+  "skill_name": "dots-system-scaffold",
+  "evals": [
+    {
+      "id": "thirst-prepass",
+      "prompt": "Scaffold a new pre-pass system for the Stitch Punk Unity DOTS project called ThirstPrePassSystem. It lives in AIAwarenessSystemGroup and must run after MotivationDecaySystem. On every unit with ActiveBrain, if the unit also has a MouthDry IComponentData component present, find the entry in the Behaviour buffer whose behaviourType equals BehaviourType.Thirst and set its contextMultiplier to 2.0. Follow the project's conventions from _Vault/Memories/Code/RULES.md (no var, explicit types, BurstCompile on struct + every method, etc.). Write only the C# file content — a single .cs file.",
+      "expected_output": "A single .cs file implementing ThirstPrePassSystem with: [BurstCompile] on the ISystem struct and on OnCreate/OnUpdate/OnDestroy, [UpdateInGroup(typeof(AIAwarenessSystemGroup))], [UpdateAfter(typeof(MotivationDecaySystem))], a ScheduleParallel job that iterates DynamicBuffer<Behaviour>, writes back mutated elements, no var, explicit types everywhere. The file should compile against the existing project.",
+      "files": []
+    },
+    {
+      "id": "worker-arrival",
+      "prompt": "Scaffold a new Unity DOTS system for Stitch Punk called WorkerArrivalSystem in the BuildingsSystemGroup. On every entity with a CarryTask enableable component enabled and a LocalTransform, if the distance (XZ only) from the entity's position to the CarryTask.targetStationPosition is less than 0.5 units, disable CarryTask and enable an AtStation enableable component on the same entity. Use the Stitch Punk conventions from _Vault/Memories/Code/RULES.md (no var, explicit types, BurstCompile etc.). Write only the C# file.",
+      "expected_output": "A single .cs file with [BurstCompile] attributes, RequireForUpdate<GameSceneTag>, ScheduleParallel, explicit types, no var, no single-letter names for anything semantic. Execute should use EnabledRefRW on CarryTask and AtStation.",
+      "files": []
+    },
+    {
+      "id": "death-propagate",
+      "prompt": "Scaffold a cross-entity Unity DOTS system for Stitch Punk called DeathPropagateSystem in HealthSystemGroup that runs after DeathSystem. For every body entity with Dead enabled, look up the linked brain via the BrainLink IComponentData (field name: `brain`, type: Entity) and disable the NeedsAction enableable component on that brain entity. Each body has a unique brain so parallel scheduling is safe. Follow _Vault/Memories/Code/RULES.md conventions and the ComponentLookup attribute rules. Write only the C# file.",
+      "expected_output": "A single .cs file using ComponentLookup<NeedsAction> declared as a field, initialized in OnCreate, .Update(ref state) called in OnUpdate, [NativeDisableParallelForRestriction] attribute (since parallel-safe), `using Unity.Collections;` present, BurstCompile attributes, ScheduleParallel (NOT Schedule) since each body touches a unique brain.",
+      "files": []
+    }
+  ]
+}

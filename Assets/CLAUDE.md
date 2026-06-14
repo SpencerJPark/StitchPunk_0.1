@@ -44,7 +44,7 @@ Vault Structure — `_Vault/`
 
 | Directory | Purpose |
 |---|---|
-| `_Vault/Memories/Code/` | Per-folder context files (read before working in that folder) |
+| `_Vault/Memories/Code/` | Per-folder context files (read before working in that folder). See [`Skills.md`](_Vault/Memories/Code/Skills.md) — index of the project DOTS scaffolding skills (canonical copies live in `.claude/skills/`). |
 | `_Vault/Tasks/Active/` | In-flight tasks — create one `.md` per task using `_Template.md` |
 | `_Vault/Tasks/Done/` | Completed tasks — move finished tasks here |
 | `_Vault/Raw/` | Unstructured ideas — drop notes here; ingest into context files when ready |
