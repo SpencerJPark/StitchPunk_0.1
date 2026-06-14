@@ -18,12 +18,12 @@ public struct AutoSaveTimer : IComponentData
     public float intervalSeconds;
 }
 
-public struct PlayTimeTracker : IComponentData
+public struct PlayTimeTracker : IComponentData, IPersist
 {
     public double totalSeconds; // double for long-session precision
 }
 
-public struct GameSettings : IComponentData
+public struct GameSettings : IComponentData, IPersist
 {
     public int animationFrameRate;
 }

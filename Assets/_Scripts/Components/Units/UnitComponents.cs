@@ -35,7 +35,7 @@ public struct Hurt : IBufferElementData
     public float launchForceY;
     public float launchForceX;
 }
-public struct Health : IComponentData
+public struct Health : IComponentData, IPersist
 {
     public int healthAmount;
     public int healthAmountMax;
@@ -78,7 +78,7 @@ public struct LocomotionStance : IComponentData
 // Player actions
 public struct Undead : IComponentData, IEnableableComponent { }
 public struct ReviveRequest : IComponentData, IEnableableComponent { }
-public struct Minion: IComponentData, IEnableableComponent { }
+public struct Minion: IComponentData, IEnableableComponent, IPersist { }
 public struct Selected : IComponentData, IEnableableComponent
 {
     public Entity visualEntity;

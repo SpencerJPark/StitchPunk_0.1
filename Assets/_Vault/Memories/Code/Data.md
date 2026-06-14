@@ -119,23 +119,27 @@ Static helper class used by `PostBakingSystemGroup` baking systems. Provides:
 
 ## Save File DTOs (`Data/Structs/SaveFile.cs`)
 
-Plain C# classes with `[Serializable]` for `JsonUtility`. **Never put ECS types** (`float3`, `quaternion`, `Entity`) in these — flatten to primitives. The systems that read/write these are in SaveSystemGroup — see [[Systems]].
+Plain C# classes with `[Serializable]` for `JsonUtility`. **These hold only JsonUtility-safe primitives** (strings, ints, arrays) — `JsonUtility` still can't serialize `float3`/`quaternion`/`Entity`, so component state is captured generically as **Base64 raw bytes** inside `ComponentRecord.data` (the ECS types ride inside the blob, never as raw fields). The hand-written `PlayerSaveData`/`SettingsSaveData` are gone — see the generic serializer in [[Systems]] (SaveSystemGroup).
 
 ```
 SaveFile
-    int              version
-    PlayerSaveData   player
-    SettingsSaveData settings
+    int             version
+    SaveHeader      header
+    EntityRecord[]  entities
 
-PlayerSaveData
-    float  posX/Y/Z, rotX/Y/Z/W     — position + rotation
-    int    currentHp, maxHp
-    double totalPlaySeconds
-    int    equippedItemType          — int cast of ItemType enum (restore TODO: needs spawn/equip integration)
-    int    itemSlot1–4               — int cast of ItemType enum
+SaveHeader
+    long    timestampUnix
+    double  totalPlaySeconds
+    string  sceneLabel
 
-SettingsSaveData
-    int    animationFrameRate
+EntityRecord
+    string            role           — "Player" | "GameData" (SaveRoles constants)
+    ComponentRecord[] components
+
+ComponentRecord
+    string  type       — assembly-qualified type name (short-name fallback on load)
+    bool    enabled    — for IEnableableComponent; ignored otherwise
+    string  data       — Base64 of the component struct's raw bytes
 ```
 
-Save files are written to `Application.persistentDataPath/save_slot_N.json`. Use `SavePaths.GetSlotPath(slot)` to resolve the path.
+The encoder (`SaveSerialization.cs`) is a swappable seam — a future named-field JSON encoder (migration-resilient) can replace the raw-bytes one without touching the DTO or systems. Save files are written to `Application.persistentDataPath/save_slot_N.json`. Use `SavePaths.GetSlotPath(slot)` to resolve the path.

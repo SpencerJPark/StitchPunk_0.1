@@ -3,7 +3,7 @@ using Unity.Entities;
 
 /// <summary>
 /// Ticks the auto-save interval. When the timer elapses, enables SaveRequest (slot 0)
-/// on the save entity so SaveSystem will write on the next update.
+/// on the save entity so PersistentSaveSystem will write on the next update.
 /// Resets the timer immediately so the next interval starts from zero.
 /// Does nothing if a SaveRequest is already pending (avoids stacked triggers).
 /// </summary>

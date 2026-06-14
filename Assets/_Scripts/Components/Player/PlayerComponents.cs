@@ -52,7 +52,7 @@ public struct OnEquipmentSlotPlayerInput : IComponentData, IEnableableComponent
 {
     public int slot;
 }
-public struct PlayerEquipmentSlots : IComponentData
+public struct PlayerEquipmentSlots : IComponentData, IPersist
 {
     public ItemType itemSlot1;
     public ItemType itemSlot2;

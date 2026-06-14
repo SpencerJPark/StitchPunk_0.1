@@ -257,18 +257,24 @@ Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlyS
 
 ### SaveSystemGroup (`Systems/SaveSystemGroup/`)
 
-Runs `OrderLast` inside `LateSimulationSystemGroup` — after all spawns, despawns, and events have settled. Systems that need to trigger a save or load enable `SaveRequest` / `LoadRequest` (both `IEnableableComponent`) on the GameData entity (identified by `GameDataTag`). See [[Components]] for the component definitions and [[Data]] for save file DTOs.
+Runs `OrderLast` inside `LateSimulationSystemGroup` — after all spawns, despawns, and events have settled. Systems that need to trigger a save or load enable `SaveRequest` / `LoadRequest` (both `IEnableableComponent`) on the GameData entity (identified by `GameDataTag`). The MonoBehaviour `SaveLoadBridge` (`MonoBehaviours/SaveLoadBridge.cs`) is the UI/manual seam — its `RequestSave/RequestLoad` flip those requests and it draws a debug 2-button OnGUI. See [[Components]] for the component definitions and [[Data]] for save file DTOs.
+
+**Generic, marker-driven serializer (v1).** Saving is no longer hand-written per-field. Any unmanaged value component marked with the `IPersist` interface (`Components/Save/PersistComponents.cs`) — plus an explicit externals list for unmodifiable Unity types like `LocalTransform` — is snapshotted automatically. `PersistRegistry` builds the saveable `ComponentType` set once (assembly scan ∪ externals, excluding any type with an `Entity`/`BlobAssetReference` field). `SaveSerialization` is the encoder seam: it copies each component's **raw bytes → Base64** (reflection `GetComponentData<T>` + `Marshal`/`GCHandle` pin) and back. To persist a new component, just add `, IPersist` to it — no system changes.
+
+**v1 scope:** persists the **Player** and **GameData** singletons only (located by tag — no `PersistId`/minion/remap yet). Currently marked `IPersist`: `Health`, `PlayerEquipmentSlots`, `GameSettings`, `PlayTimeTracker` (+ `LocalTransform` via externals). Deferred to later `Save_System.md` phases: `PersistId` + multi-entity iteration, minion respawn, `EntityRemapSystem` (Entity-field relinking), travel autosave, design buffers, slot UI.
 
 | System | File | Purpose |
 |---|---|---|
 | `PlayTimeTrackerSystem` | `PlayTimeTrackerSystem.cs` | Accumulates `DeltaTime` into `PlayTimeTracker.totalSeconds` each frame |
 | `AutoSaveTimerSystem` | `AutoSaveTimerSystem.cs` | Ticks `AutoSaveTimer`; enables `SaveRequest { slot = 0 }` when interval elapses |
-| `SaveSystem` | `SaveSystem.cs` | Consumes `SaveRequest`; snapshots player components → `SaveFile` DTO → JSON on disk |
-| `LoadSystem` | `LoadSystem.cs` | Consumes `LoadRequest`; reads JSON → restores player transform, health, item slots |
+| `PersistentSaveSystem` | `PersistentSaveSystem.cs` | Consumes `SaveRequest`; `SaveSerialization.WriteEntity` over Player+GameData singletons → `SaveFile` DTO → JSON on disk |
+| `PersistentLoadSystem` | `PersistentLoadSystem.cs` | Consumes `LoadRequest`; reads JSON → `SaveSerialization.ApplyEntity` restores each record onto its singleton (by `role`) |
+
+`SaveSerialization.cs` (non-system helper) holds the encoder; `SaveSystem.cs`/`LoadSystem.cs` were **deleted** (superseded).
 
 **Slot convention:** slot `0` = auto-save, slots `1–3` = manual slots.  
 **Save path:** `Application.persistentDataPath/save_slot_{N}.json` (see `SavePaths.cs`).  
-**No `[BurstCompile]`** on `SaveSystem` / `LoadSystem` — `JsonUtility` and `System.IO` are managed. `PlayTimeTrackerSystem` and `AutoSaveTimerSystem` are fully Burst-compiled.
+**No `[BurstCompile]`** on `PersistentSaveSystem` / `PersistentLoadSystem` / `SaveSerialization` — reflection, `JsonUtility`, and `System.IO` are managed. `PlayTimeTrackerSystem` and `AutoSaveTimerSystem` are fully Burst-compiled.
 
 ---
 

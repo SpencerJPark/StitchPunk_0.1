@@ -3,7 +3,7 @@ using Unity.Entities;
 
 /// <summary>
 /// Accumulates unscaled delta time into PlayTimeTracker each frame.
-/// Runs first in SaveSystemGroup so the time is current before SaveSystem snapshots it.
+/// Runs first in SaveSystemGroup so the time is current before PersistentSaveSystem snapshots it.
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(SaveSystemGroup), OrderFirst = true)]

@@ -6,6 +6,8 @@ using UnityEngine.InputSystem;
 
 public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 {
+    public static PlayerInputManager Instance { get; private set; }
+
     #region Fields
     [SerializeField] private PlayerInput playerInput;
 
@@ -17,14 +19,20 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private ActionMaps targetActionMap;
     private bool hasPendingMapSwitch;
 
+    private bool menuOpen;
+    private ActionMaps mapBeforeMenu;
+
     private const string PLAYER_ACTION_MAP_NAME = "Player";
     private const string CONTROL_UNITS_ACTION_MAP_NAME = "ControlUnits";
+    private const string UI_ACTION_MAP_NAME = "UI";
     private const float ROLL_DURATION = 0.5f;
     #endregion
 
     #region Initialization
     private void Awake()
     {
+        Instance = this;
+
         if (playerInput == null)
             playerInput = GetComponent<PlayerInput>();
 
@@ -39,10 +47,17 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
         hasPendingMapSwitch = false;
         playerEntityResolved = false;
+        menuOpen = false;
     }
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
     private void OnDisable() => UpdateManager.UnregisterObserver(this);
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
     #endregion
 
     private bool TryResolvePlayerEntity()
@@ -117,7 +132,50 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             playerInput?.SwitchCurrentActionMap(CONTROL_UNITS_ACTION_MAP_NAME);
             CameraManager.Instance.SwitchCamera(CinemachineCameraType.ControlUnits);
         }
+        else if (newMap == ActionMaps.Menu)
+        {
+            // Switch to the UI map: disables gameplay input while the menu is up. Camera unchanged.
+            playerInput?.SwitchCurrentActionMap(UI_ACTION_MAP_NAME);
+        }
     }
+
+    #region Menu
+
+    // Bound (via PlayerInput Unity Events) to BOTH the gameplay "ToggleMenu" action and the
+    // "UI/Cancel" action, so the same key opens (from gameplay) and closes (from the menu).
+    public void OnToggleMenu(InputAction.CallbackContext context)
+    {
+        if (!context.performed) return;
+
+        if (menuOpen)
+            CloseMenu();
+        else
+            OpenMenu();
+    }
+
+    private void OpenMenu()
+    {
+        if (menuOpen || !TryResolvePlayerEntity()) return;
+
+        PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+        mapBeforeMenu = actionMap.activeActionMap;
+
+        menuOpen = true;
+        ApplyActionMapSwitch(ActionMaps.Menu);
+        GameMenuManager.Instance?.Show();
+    }
+
+    // Public so the menu's Close button can call it through PlayerInputManager.Instance.
+    public void CloseMenu()
+    {
+        if (!menuOpen || !TryResolvePlayerEntity()) return;
+
+        menuOpen = false;
+        ApplyActionMapSwitch(mapBeforeMenu);
+        GameMenuManager.Instance?.Hide();
+    }
+
+    #endregion
 
     #region PlayerControl
 
