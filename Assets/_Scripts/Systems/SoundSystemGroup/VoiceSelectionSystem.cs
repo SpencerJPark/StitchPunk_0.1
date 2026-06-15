@@ -59,7 +59,7 @@ public partial struct VoiceSelectionSystem : ISystem
         _transformLookup.Update(ref state);
 
         BlobAssetReference<SoundLibraryBlob> libraryRef = SystemAPI.GetSingleton<SoundLibrary>().library;
-        ref readonly SoundLibraryBlob lib = ref libraryRef.Value;
+        ref SoundLibraryBlob lib = ref libraryRef.Value;
         float3 listenerPos = SystemAPI.HasSingleton<ListenerPosition>()
             ? SystemAPI.GetSingleton<ListenerPosition>().value
             : float3.zero;

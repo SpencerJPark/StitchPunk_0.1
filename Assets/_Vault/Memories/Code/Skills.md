@@ -3,17 +3,26 @@
 > **Skills are version-controlled in the repo at `.claude/skills/`** (repo root, outside `Assets/`). That folder is the single source of truth — Claude Code loads project skills only from there, and it commits/syncs across computers via git.
 > This page is a **read-only index** for browsing in Obsidian. To edit a skill, change its `SKILL.md` in `.claude/skills/` and commit. (Links below point outside the Obsidian vault root, so they may not be clickable in Obsidian — open the path in your editor / file browser.)
 
-These are custom skills for Stitch Punk. The `dots-*` scaffolding skills generate code; `dots-task-creator` is a workflow skill that authors plans. Reference the scaffolders by name in plan docs under a **`Skills Needed`** heading so the right one is used at build time.
+These are custom skills for Stitch Punk. The `dots-*` scaffolding skills generate code; `dots-task-creator` authors plans and `execute-plan` builds them. Reference the scaffolders by name in plan docs under a **`Skills Needed`** heading so the right one is used at build time.
 
 ---
 
 ## dots-task-creator *(workflow skill — not a scaffolder)*
 `.claude/skills/dots-task-creator/SKILL.md`
 
-Authors a **self-contained system design/plan doc** in `Assets/_Vault/Tasks/Claude/Plans/`. Runs a batched Q&A to lock architecture decisions, flags which scaffolding skills the build will use (under `Skills Needed`), and writes the spec from a template with `← DECISION` markers + build phases. **Planning only — writes no code** (a separate execution skill builds an approved plan).
+Authors a **self-contained system design/plan doc** in `Assets/_Vault/Tasks/Plans/`. Runs a batched Q&A to lock architecture decisions, flags which scaffolding skills the build will use (under `Skills Needed`), and writes the spec from a template with `← DECISION` markers + build phases. **Planning only — writes no code** (`execute-plan` builds an approved plan).
 
-**Use when:** "plan the X system", "flesh out X", "spec out Y", "make a plan for Z". **Not for:** building/implementing, or scaffolding individual C# files (use the `dots-*` skills).
+**Use when:** "plan the X system", "flesh out X", "spec out Y", "make a plan for Z". **Not for:** building/implementing (use `execute-plan`), or scaffolding individual C# files (use the `dots-*` skills).
 **References:** `planning-questions.md` (question checklist), `plan-template.md` (spec skeleton)
+
+---
+
+## execute-plan *(workflow skill — the execution counterpart to dots-task-creator)*
+`.claude/skills/execute-plan/SKILL.md`
+
+**Builds** an approved plan from `Assets/_Vault/Tasks/Plans/`. Asks clarifying questions until every `← DECISION` marker + ambiguity is resolved, builds phase-by-phase using the `dots-*` skills the plan lists under `Skills Needed`, does full vault housekeeping (plan status + Plans/README + memory docs), then `git mv`s the completed plan into `Assets/_Vault/Tasks/Verification/` with a `verify-<system>.md` steps file and commits + pushes to `main`. (No Unity compile here — correctness is static review; compile + play-test live in the moved verification steps.)
+
+**Use when:** "execute / build / enact / implement the X plan", "build out the approved spec". **Not for:** planning (use `dots-task-creator`), scaffolding a single file (use the `dots-*` skills), or debugging.
 
 ---
 

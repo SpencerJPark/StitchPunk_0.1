@@ -88,7 +88,14 @@
       "PowerShell($log = \"$env:LOCALAPPDATA\\\\Unity\\\\Editor\\\\Editor.log\"; \\(Get-Item $log\\).LastWriteTime; Get-Content $log -Tail 80 | Select-String -Pattern \"error CS|CompilerOutput|Compilation|exception|Bake\" -Context 0,1 | Select-Object -Last 30)",
       "PowerShell(1..9 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\('N'\\) })",
       "PowerShell($dir = 'C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk\\\\Assets\\\\_Scripts\\\\Systems\\\\StateMachineSystemGroup\\\\ActionExecutionSystemGroup'; $names = 'MeleeContinuousActionSystem','MeleeSingleActionSystem','TalkActionSystem','PickupItemActionSystem','SitActionSystem','WanderActionSystem','FleeActionSystem','InteractActionSystem'; foreach \\($n in $names\\) { Remove-Item -Force -Confirm:$false \"$dir\\\\$n.cs\", \"$dir\\\\$n.cs.meta\" }; Get-ChildItem $dir | Select-Object -ExpandProperty Name)",
-      "PowerShell(git -C C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk status --short)"
+      "PowerShell(git -C C:\\\\Users\\\\spenc\\\\Documents\\\\GitHub\\\\Stitch_Punk status --short)",
+      "PowerShell(1..7 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\(\"N\"\\) })",
+      "Bash(git push *)",
+      "PowerShell(1..21 | ForEach-Object { [guid]::NewGuid\\(\\).ToString\\(\"N\"\\) })",
+      "PowerShell([guid]::NewGuid\\(\\).ToString\\(\"N\"\\))",
+      "Bash(git mv *)",
+      "Bash(git reset *)",
+      "Bash(git ls-tree *)"
     ]
   }
 }
