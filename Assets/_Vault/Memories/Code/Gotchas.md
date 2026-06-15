@@ -98,7 +98,7 @@ Keep these lookups in execution systems only. Scoring systems should query brain
 
 ## IEnableableComponent vs AddComponent/RemoveComponent
 
-For components that toggle frequently (e.g. `NeedsAction`, `Attack`, `Alive`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (e.g. adding `BrainLink` to a body that never had it). Full list of enableable components is in [[Components]].
+For components that toggle frequently (e.g. `NeedsAction`, `Attack`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (e.g. adding `BrainLink` to a body that never had it). Full list of enableable components is in [[Components]].
 
 ---
 

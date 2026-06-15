@@ -71,7 +71,7 @@
 //
 //             // Target Detection
 //             foreach (var (enemyTransform, enemyEntity) in SystemAPI.Query<RefRO<LocalTransform>>()
-//                          .WithAll<Health, Alive>().WithNone<Player, PlayerImmune>().WithEntityAccess())
+//                          .WithAll<Health>().WithNone<Player, PlayerImmune, Dead>().WithEntityAccess())
 //             {
 //                 float3 toEnemy = enemyTransform.ValueRO.Position - playerPos;
 //                 toEnemy.y = 0f;

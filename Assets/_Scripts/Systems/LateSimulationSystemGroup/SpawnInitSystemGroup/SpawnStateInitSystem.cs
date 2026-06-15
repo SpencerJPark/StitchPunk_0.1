@@ -18,7 +18,6 @@ using Unity.Entities;
 [BurstCompile]
 public partial struct SpawnStateInitSystem : ISystem
 {
-    private ComponentLookup<Alive>             _aliveLookup;
     private ComponentLookup<Dead>              _deadLookup;
     private ComponentLookup<Ragdoll2DLaunch>   _ragdollLaunchLookup;
     private ComponentLookup<Undead>            _undeadLookup;
@@ -35,7 +34,6 @@ public partial struct SpawnStateInitSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        _aliveLookup           = state.GetComponentLookup<Alive>(false);
         _deadLookup            = state.GetComponentLookup<Dead>(false);
         _ragdollLaunchLookup   = state.GetComponentLookup<Ragdoll2DLaunch>(false);
         _undeadLookup          = state.GetComponentLookup<Undead>(false);
@@ -52,7 +50,6 @@ public partial struct SpawnStateInitSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        _aliveLookup.Update(ref state);
         _deadLookup.Update(ref state);
         _ragdollLaunchLookup.Update(ref state);
         _undeadLookup.Update(ref state);
@@ -68,9 +65,7 @@ public partial struct SpawnStateInitSystem : ISystem
         foreach (var (_, entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
         {
-            // Health / life state — must start alive.
-            if (_aliveLookup.HasComponent(entity))
-                _aliveLookup.SetComponentEnabled(entity, true);
+            // Health / life state — Dead disabled means alive; units start alive.
             if (_deadLookup.HasComponent(entity))
                 _deadLookup.SetComponentEnabled(entity, false);
 

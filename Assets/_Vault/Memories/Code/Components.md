@@ -30,7 +30,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `SpatialHashRegistry.cs` | `Components/AI/` | `SpatialHashRegistry` singleton (two NativeParallelMultiHashMaps) |
 | `CombatAI.cs` | `Components/AI/` | `Faction`, `ThreatEntry` buffer, `CombatTarget` (enableable), `ChaseConfig`, `MeleeAttackConfig`, `FactionRegistry` singleton |
 | `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimatorTarget` buffer, `AnimationTargetTag`, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent` |
-| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Alive`, `Dead`, `Hurt` buffer, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
+| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Hurt` buffer, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
 | `UnitDesignComponents.cs` | `Components/Units/` | `UnitSkinColor`, `UnitHairColor`, `UnitHeadShape`, `UnitNoseShape`, `RandomizeDesign`, design tags |
 | `DesignComponents.cs` | `Components/Units/` | Unit Design System: `DesignPart` buffer + `DesignRange` buffer (baked config), `DesignSlot` (blittable entry), `PersistedDesign` (`IPersist`, chosen indices — auto-saved), `ChangeDesignRequest` (enableable, runtime re-skin batch). All on the root body entity |
 | `UnitVisualComponents.cs` | `Components/Units/` | `Outline`, `OutlineChild`, `OutlinedTag` |
@@ -194,8 +194,7 @@ UnitData                UnitType unitType
 UnitStateData           UnitState state
 UnitAction              ActionType current
 
-Alive (enableable)      tag
-Dead (enableable)       tag
+Dead (enableable)       tag — SOLE life-state: enabled = dead, disabled = alive (Alive deprecated)
 
 Hurt (buffer)           Entity attackerEntity, float distance, int damageAmount
 Health                  int healthAmount, int healthAmountMax

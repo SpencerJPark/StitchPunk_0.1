@@ -16,7 +16,7 @@
 // {
 //     private NativeList<CounterAlert>         alertList;
 //     private ComponentLookup<PlayerOrder>     playerOrderLookup;
-//     private ComponentLookup<Alive>           aliveLookup;
+//     private ComponentLookup<Dead>           aliveLookup;
 //     private ComponentLookup<LocalTransform>  transformLookup;
 //
 //     [BurstCompile]
@@ -26,7 +26,7 @@
 //         state.RequireForUpdate<AttackLibrary>();
 //         alertList         = new NativeList<CounterAlert>(16, Allocator.Persistent);
 //         playerOrderLookup = state.GetComponentLookup<PlayerOrder>(true);
-//         aliveLookup       = state.GetComponentLookup<Alive>(true);
+//         aliveLookup       = state.GetComponentLookup<Dead>(true);
 //         transformLookup   = state.GetComponentLookup<LocalTransform>(true);
 //     }
 //
@@ -74,7 +74,7 @@
 // {
 //     public  NativeList<CounterAlert>                    alertList;
 //     [ReadOnly] public ComponentLookup<PlayerOrder>      playerOrderLookup;
-//     [ReadOnly] public ComponentLookup<Alive>            aliveLookup;
+//     [ReadOnly] public ComponentLookup<Dead>            aliveLookup;
 //     [ReadOnly] public ComponentLookup<LocalTransform>   transformLookup;
 //     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
 //
@@ -160,7 +160,7 @@
 //
 //     [ReadOnly] public NativeList<CounterAlert>              alertEntries;
 //     [ReadOnly] public ComponentLookup<PlayerOrder>          playerOrderLookup;
-//     [ReadOnly] public ComponentLookup<Alive>                aliveLookup;
+//     [ReadOnly] public ComponentLookup<Dead>                aliveLookup;
 //     [ReadOnly] public ComponentLookup<LocalTransform>       transformLookup;
 //     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
 //

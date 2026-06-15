@@ -305,8 +305,8 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         if (physics.CollisionWorld.CastRay(rayInput, out Unity.Physics.RaycastHit hit))
         {
             Entity target    = hit.Entity;
-            bool   isHostile = entityManager.HasComponent<Alive>(target)
-                            && entityManager.IsComponentEnabled<Alive>(target)
+            bool   isHostile = entityManager.HasComponent<Dead>(target)
+                            && !entityManager.IsComponentEnabled<Dead>(target)
                             && !entityManager.HasComponent<PlayerImmune>(target)
                             && (!entityManager.HasComponent<Minion>(target)
                                 || !entityManager.IsComponentEnabled<Minion>(target));

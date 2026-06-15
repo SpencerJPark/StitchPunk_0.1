@@ -51,6 +51,7 @@ public partial struct UnitLibraryBakingSystem : ISystem
 
             unitsArray[i].unitType             = unitSO.unitType;
             unitsArray[i].factionType          = unitSO.factionType;
+            unitsArray[i].becomesUnitType      = unitSO.becomesUnitType;
             unitsArray[i].canBePlayerControlled = unitSO.canBePlayerControlled;
             unitsArray[i].awarenessRange       = unitSO.awarenessRange;
             unitsArray[i].idleAnimation        = unitSO.idleAnimation;

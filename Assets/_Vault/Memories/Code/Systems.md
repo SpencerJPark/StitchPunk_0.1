@@ -205,10 +205,11 @@ Runs after `MovementSystemGroup`, before `CombatSystemGroup`. Handles factory pr
 
 | System | File | Purpose |
 |---|---|---|
-| `DeathSystem` | `DeathSystem.cs` | Detects zero health, enables `Dead`, disables `Alive` |
+| `DeathSystem` | `DeathSystem.cs` | First-death-frame work (enable `Dead` upstream in `DamageApplicationSystem`); latches on `UnitAction.current == ActionType.Death` (set here) so it runs once per death. Halts pathing, fires `ActionInterruptRequest`, cancels in-flight `AttackRequest`. `Alive` deprecated — `Dead` is the sole life-state. |
 | `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Hurt` buffer to determine fall direction (away from attacker), enables and resets `Ragdoll2D` + `Ragdoll2DJoint` components with randomised flail velocity |
 | `HealSystem` | `HealSystem.cs` | Applies `Heal` component when enabled |
-| `ReviveSystem` | `ReviveSystem.cs` | Handles `Revive` — re-enables unit from dead state |
+| `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, `UnitAction`→Idle (re-arms death latch). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
+| `SwapBrainSystem` | `SwapBrainSystem.cs` | `[UpdateAfter(ReviveRequestSystem)]`. Consumes an enabled `SwapBrainRequest`: re-keys `UtilityBrain.unitType`/`UnitData.unitType`, `Faction`, and rebuilds the `AttackFaction`/`AvailableAttack`/`Motivation` buffers from `UnitDataLibrary[newUnit]`; fires `ActionInterruptRequest`; consumes the request via ECB. Generic brain-swap hook (revive, future feral turn, debug). Rebuilt motivations are zero-decay (blob has no decay data). |
 | `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
 
@@ -237,7 +238,7 @@ Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlyS
 
 | System | File | Purpose |
 |---|---|---|
-| `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Alive`→on, `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off |
+| `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off (units start alive = `Dead` disabled), `UtilityBrain`→on |
 | `AnimatorTargetInitSystem` | `AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer — ECB.Instantiate does not reliably remap refs inside dynamic buffers |
 | `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
 | `DesignRandomizeSystem` | `DesignRandomizeSystem.cs` | `[UpdateAfter(AnimatorTargetInitSystem)] [UpdateBefore(MinionRestoreApplySystem)]` Rolls a random in-range texture index per `DesignPart` into `PersistedDesign`, disables `RandomizeDesign`. `IJobEntity.ScheduleParallel` (root-only writes) |

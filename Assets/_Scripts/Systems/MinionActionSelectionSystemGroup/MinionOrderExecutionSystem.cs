@@ -22,7 +22,7 @@
 // public partial struct MinionOrderExecutionSystem : ISystem
 // {
 //     private ComponentLookup<LocalTransform> transformLookup;
-//     private ComponentLookup<Alive>          aliveLookup;
+//     private ComponentLookup<Dead>          aliveLookup;
 //
 //     private const float ARRIVE_RANGE   = 0.5f;
 //     private const float INTERACT_RANGE = 1.5f;
@@ -32,7 +32,7 @@
 //     {
 //         state.RequireForUpdate<GameSceneTag>();
 //         transformLookup = state.GetComponentLookup<LocalTransform>(true);
-//         aliveLookup     = state.GetComponentLookup<Alive>(true);
+//         aliveLookup     = state.GetComponentLookup<Dead>(true);
 //     }
 //
 //     [BurstCompile]
@@ -60,7 +60,7 @@
 // public partial struct MinionOrderExecutionJob : IJobEntity
 // {
 //     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-//     [ReadOnly] public ComponentLookup<Alive>          aliveLookup;
+//     [ReadOnly] public ComponentLookup<Dead>          aliveLookup;
 //     public            float                           arriveRangeSq;
 //     public            float                           interactRangeSq;
 //

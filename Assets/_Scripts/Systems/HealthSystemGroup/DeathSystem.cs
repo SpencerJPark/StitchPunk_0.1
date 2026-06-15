@@ -63,21 +63,21 @@ public partial struct DeathJob : IJobEntity
         in LocalTransform transform,
         ref UnitAction unitAction,
         ref Movement mover,
-        EnabledRefRW<Alive>            aliveEnabled,
         EnabledRefRW<PathRequest>      pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarEnabled,
         EnabledRefRW<FlowFieldFollower> flowFieldEnabled,
         EnabledRefRW<HordeMembership>  hordeMembershipEnabled)
     {
-        // Guard: Alive is still enabled only on the first death frame.
-        // Subsequent frames the unit is already fully in death state — skip to avoid
-        // re-triggering ActionInterruptRequest on every frame while dead.
-        if (!aliveEnabled.ValueRO)
+        // Guard: only run the first-death-frame work once. The job itself sets
+        // unitAction.current = Death below, so this self-latches; subsequent frames the
+        // unit is already fully in death state — skip to avoid re-triggering
+        // ActionInterruptRequest every frame while dead. Revive resets current to Idle,
+        // which re-arms this latch for a re-killed reanimated minion.
+        if (unitAction.current == ActionType.Death)
             return;
 
         // 1. Flip life/death state flags
         unitAction.current             = ActionType.Death;
-        aliveEnabled.ValueRW           = false;
         pathRequestEnabled.ValueRW     = false;
         dStarEnabled.ValueRW           = false;
         flowFieldEnabled.ValueRW       = false;

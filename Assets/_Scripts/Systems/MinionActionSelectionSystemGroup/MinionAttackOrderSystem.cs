@@ -17,13 +17,13 @@
 // [UpdateInGroup(typeof(StateMachineSystemGroup))]
 // public partial struct MinionAttackOrderSystem : ISystem
 // {
-//     private ComponentLookup<Alive> aliveLookup;
+//     private ComponentLookup<Dead> aliveLookup;
 //
 //     [BurstCompile]
 //     public void OnCreate(ref SystemState state)
 //     {
 //         state.RequireForUpdate<GameSceneTag>();
-//         aliveLookup = state.GetComponentLookup<Alive>(true);
+//         aliveLookup = state.GetComponentLookup<Dead>(true);
 //     }
 //
 //     [BurstCompile]
@@ -46,7 +46,7 @@
 // [WithPresent(typeof(AttackRequest), typeof(ActionRequest))]
 // public partial struct MinionAttackOrderJob : IJobEntity
 // {
-//     [ReadOnly] public ComponentLookup<Alive> aliveLookup;
+//     [ReadOnly] public ComponentLookup<Dead> aliveLookup;
 //
 //     public void Execute(
 //         in ActionTimer             actionTimer,

@@ -19,6 +19,8 @@ public struct UnitDataBlob
     public UnitType unitType;
     public FactionType factionType;
     public bool canBePlayerControlled;
+    // Authored zombie/conversion form for this unit; None = does not convert.
+    public UnitType becomesUnitType;
     public float awarenessRange;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;

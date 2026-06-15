@@ -63,7 +63,7 @@ public partial struct BillboardJob : IJobEntity {
 
         if (!isDead)
         {
-            // Alive: full billboard — always track camera on all axes
+            // Living (Dead disabled): full billboard — always track camera on all axes
             localTransform.ValueRW.Rotation = targetLocal;
             return;
         }

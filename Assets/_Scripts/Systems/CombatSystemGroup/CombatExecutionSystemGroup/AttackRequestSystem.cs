@@ -10,7 +10,7 @@ public partial struct AttackRequestSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
     private BufferLookup<Hurt>             hurtBufferLookup;
-    private ComponentLookup<Alive>         aliveLookup;
+    private ComponentLookup<Dead>          deadLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -20,7 +20,7 @@ public partial struct AttackRequestSystem : ISystem
 
         transformLookup  = state.GetComponentLookup<LocalTransform>(true);
         hurtBufferLookup = state.GetBufferLookup<Hurt>(false);
-        aliveLookup      = state.GetComponentLookup<Alive>(true);
+        deadLookup       = state.GetComponentLookup<Dead>(true);
     }
 
     [BurstCompile]
@@ -28,7 +28,7 @@ public partial struct AttackRequestSystem : ISystem
     {
         transformLookup.Update(ref state);
         hurtBufferLookup.Update(ref state);
-        aliveLookup.Update(ref state);
+        deadLookup.Update(ref state);
 
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
@@ -46,7 +46,7 @@ public partial struct AttackRequestSystem : ISystem
         {
             transformLookup  = transformLookup,
             hurtBufferLookup = hurtBufferLookup,
-            aliveLookup      = aliveLookup,
+            deadLookup       = deadLookup,
             attackLibrary    = attackLibrary,
             deltaTime        = SystemAPI.Time.DeltaTime,
             ecb              = ecb,
@@ -66,7 +66,7 @@ public partial struct AttackRequestJob : IJobEntity
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     public            BufferLookup<Hurt>              hurtBufferLookup;
-    [ReadOnly] public ComponentLookup<Alive>          aliveLookup;
+    [ReadOnly] public ComponentLookup<Dead>           deadLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
     public float              deltaTime;
     public EntityCommandBuffer ecb;
@@ -97,8 +97,10 @@ public partial struct AttackRequestJob : IJobEntity
 
         Entity victim = attackRequest.targetEntity;
 
-        bool victimAlive = aliveLookup.HasComponent(victim) &&
-                           aliveLookup.IsComponentEnabled(victim);
+        // Present-and-not-dead: Dead is the sole life-state, so a valid victim has the
+        // Dead component present but disabled.
+        bool victimAlive = deadLookup.HasComponent(victim) &&
+                           !deadLookup.IsComponentEnabled(victim);
 
         if (victimAlive &&
             transformLookup.TryGetComponent(victim, out LocalTransform victimTransform) &&

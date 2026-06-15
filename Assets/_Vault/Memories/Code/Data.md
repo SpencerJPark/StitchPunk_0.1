@@ -80,6 +80,8 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 
 `UnitSO` is a per-unit-type data asset (stats, prefab refs, default motivation values). `UnitLibrarySO` is the registry that holds all `UnitSO`s and bakes them together into `UnitLibraryBlob`. When adding a new unit type, you need both — see [[Authoring]] for the full setup steps.
 
+`UnitSO.becomesUnitType` / `UnitDataBlob.becomesUnitType` (`UnitType`, default `None`) declares the unit's revived/converted form (e.g. `MaleCitizen → PlayerZombie`). `None` = does not convert. Read by `ReviveRequestSystem` to drive `SwapBrainSystem` (see [[Systems]]).
+
 ---
 
 ## Global Constants (`Data/GlobalGameData.cs`)

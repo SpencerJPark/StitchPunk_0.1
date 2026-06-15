@@ -18,7 +18,8 @@ public struct Target : IComponentData, IEnableableComponent
 }
 
 // Health
-public struct Alive : IComponentData, IEnableableComponent { }
+// Life-state is a single enableable: Dead enabled = dead, Dead disabled = alive.
+// (The former `Alive` component was deprecated — see MinionRevival_System.)
 public struct Dead : IComponentData, IEnableableComponent { }
 public struct Hurt : IBufferElementData
 {

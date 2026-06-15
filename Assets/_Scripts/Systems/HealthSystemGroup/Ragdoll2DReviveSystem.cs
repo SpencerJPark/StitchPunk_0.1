@@ -3,7 +3,7 @@ using Unity.Transforms;
 
 /// <summary>
 /// Cleans up the fake ragdoll when a unit is revived.
-/// Runs after ReviveSystem (which disables Dead / enables Alive).
+/// Runs after ReviveSystem (which disables Dead).
 /// Detects "just revived but ragdoll still active" by querying
 /// Ragdoll2DConfig with Dead disabled, then checking whether
 /// Ragdoll2D is still enabled on the visual child.

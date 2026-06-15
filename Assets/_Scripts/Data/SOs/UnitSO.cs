@@ -10,6 +10,9 @@ public class UnitSO : ScriptableObject
     [SearchableEnum] public UnitType unitType;
     public FactionType factionType;
     public bool canBePlayerControlled = false;
+    // The form this unit becomes when revived/converted (e.g. Citizen -> PlayerZombie).
+    // None = "does not convert" — revival just stands the same brain back up.
+    [SearchableEnum] public UnitType becomesUnitType;
     
     [Header("Prefab GameObject")]
     public GameObject prefab;
