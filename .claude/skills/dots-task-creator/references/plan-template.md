@@ -1,6 +1,6 @@
 # Plan Template — DOTS system spec
 
-Copy this skeleton into `Assets/_Vault/Tasks/Claude/Plans/<System>_System.md` and fill every section with **real type and file references** found while grounding in the codebase. Delete sections that genuinely don't apply (e.g. AI integration for a non-behavioural system). Replace all `<…>` placeholders. Use `← DECISION:` inline for sub-choices left to Spencer and mirror them in the closing checklist.
+Copy this skeleton into `Assets/_Vault/Tasks/Plans/<System>_System.md` and fill every section with **real type and file references** found while grounding in the codebase. Delete sections that genuinely don't apply (e.g. AI integration for a non-behavioural system). Replace all `<…>` placeholders. Use `← DECISION:` inline for sub-choices left to Spencer and mirror them in the closing checklist.
 
 ---
 
@@ -12,7 +12,7 @@ Copy this skeleton into `Assets/_Vault/Tasks/Claude/Plans/<System>_System.md` an
 
 ---
 
-**Skills Needed** (project skills in `.claude/skills/` — see [Skills index](../../../Memories/Code/Skills.md)):
+**Skills Needed** (project skills in `.claude/skills/` — see [Skills index](../../Memories/Code/Skills.md)):
 - `<skill-name>` — <what it scaffolds here> (§<n>)
 - …
 
@@ -66,7 +66,7 @@ Copy this skeleton into `Assets/_Vault/Tasks/Claude/Plans/<System>_System.md` an
 ---
 
 ## Notes on filling it in
-- The **Skills Needed** relative link assumes the doc lives in `Tasks/Claude/Plans/`. Adjust the `../` depth if the location differs.
+- The **Skills Needed** relative link assumes the doc lives in `Tasks/Plans/` (so `../../Memories/Code/Skills.md`). Adjust the `../` depth if the location differs.
 - Prefer naming **real** components/systems/files (from grounding) over inventing names — a plan that names `AttackRequest`, `SystemGroups.cs`, `GameSettings`, etc. is executable; a vague one is not.
 - Keep it **scannable but executable**: enough detail to build from, not a novel. Describe a repeated pattern once and point to representative files rather than enumerating every file.
 - After writing, register the doc in `Plans/README.md` (status `✅ spec ready`).
