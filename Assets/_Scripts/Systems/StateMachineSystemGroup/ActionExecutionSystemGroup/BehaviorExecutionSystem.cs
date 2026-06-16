@@ -109,7 +109,10 @@ public partial struct BehaviorExecutionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrain))]
+// WithPresent (not WithAll): the StateMachine/execution half must run even when UtilityBrain is
+// disabled — corpses (their death behavior still executes) and player minions (decisions come from
+// the player, the brain is off). brain.unitType stays readable under WithPresent.
+[WithPresent(typeof(UtilityBrain))]
 [WithPresent(typeof(PathRequest))]
 public partial struct BehaviorExecutionJob : IJobEntity
 {

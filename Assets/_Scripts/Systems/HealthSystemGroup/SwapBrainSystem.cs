@@ -45,13 +45,18 @@ public partial struct SwapBrainSystem : ISystem
 }
 
 [BurstCompile]
+// WithPresent(UtilityBrain): a revived minion has UtilityBrain DISABLED (death turned the utility
+// AI off and revive leaves it off — decisions come from the player). The swap must still run to
+// rebuild faction/attacks/motivations, so match the brain whether enabled or disabled; ref
+// UtilityBrain stays writable under WithPresent.
+[WithPresent(typeof(UtilityBrain))]
 public partial struct SwapBrainJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> unitLibrary;
     public EntityCommandBuffer.ParallelWriter ecb;
 
-    // SwapBrainRequest (in) and UtilityBrain (ref) are enableable — the in/ref params filter
-    // the query to entities where both are enabled. The request is consumed via the ECB.
+    // SwapBrainRequest (in) is the enabled trigger; UtilityBrain (ref) is matched via WithPresent
+    // (above), so the swap runs even while the brain is disabled. The request is consumed via the ECB.
     public void Execute(
         [ChunkIndexInQuery] int sortKey,
         Entity entity,

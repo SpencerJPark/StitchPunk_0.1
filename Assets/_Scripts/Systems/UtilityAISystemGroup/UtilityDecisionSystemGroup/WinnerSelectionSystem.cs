@@ -46,7 +46,9 @@ public partial struct WinnerSelectionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrain))]
+// WithPresent (not WithAll): selection must turn a player minion's UtilityActions into a
+// StateMachine decision even though its UtilityBrain is disabled (decisions come from the player).
+[WithPresent(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
 public partial struct WinnerSelectJob : IJobEntity
 {

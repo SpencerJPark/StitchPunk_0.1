@@ -5,7 +5,7 @@ using Unity.Entities;
 [UpdateInGroup(typeof(HealthSystemGroup))]
 public partial struct ReviveRequestSystem : ISystem
 {
-    private ComponentLookup<UtilityBrain>           aiBrainLookup;
+    private ComponentLookup<PlayerUnitBrain>        playerBrainLookup;
     private ComponentLookup<ActionInterruptRequest> interruptLookup;
     private ComponentLookup<SwapBrainRequest>       swapBrainLookup;
     private ComponentLookup<Minion>                 minionLookup;
@@ -15,16 +15,16 @@ public partial struct ReviveRequestSystem : ISystem
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<UnitDataLibrary>();
-        aiBrainLookup   = state.GetComponentLookup<UtilityBrain>(false);
-        interruptLookup = state.GetComponentLookup<ActionInterruptRequest>(false);
-        swapBrainLookup = state.GetComponentLookup<SwapBrainRequest>(false);
-        minionLookup    = state.GetComponentLookup<Minion>(false);
+        playerBrainLookup = state.GetComponentLookup<PlayerUnitBrain>(false);
+        interruptLookup   = state.GetComponentLookup<ActionInterruptRequest>(false);
+        swapBrainLookup   = state.GetComponentLookup<SwapBrainRequest>(false);
+        minionLookup      = state.GetComponentLookup<Minion>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        aiBrainLookup.Update(ref state);
+        playerBrainLookup.Update(ref state);
         interruptLookup.Update(ref state);
         swapBrainLookup.Update(ref state);
         minionLookup.Update(ref state);
@@ -34,11 +34,11 @@ public partial struct ReviveRequestSystem : ISystem
 
         state.Dependency = new ReviveJob
         {
-            aiBrainLookup   = aiBrainLookup,
-            interruptLookup = interruptLookup,
-            swapBrainLookup = swapBrainLookup,
-            minionLookup    = minionLookup,
-            unitLibrary     = unitLibrary,
+            playerBrainLookup = playerBrainLookup,
+            interruptLookup   = interruptLookup,
+            swapBrainLookup   = swapBrainLookup,
+            minionLookup      = minionLookup,
+            unitLibrary       = unitLibrary,
         }.Schedule(state.Dependency);
     }
 }
@@ -48,7 +48,7 @@ public partial struct ReviveRequestSystem : ISystem
 [WithPresent(typeof(Undead))]
 public partial struct ReviveJob : IJobEntity
 {
-    public ComponentLookup<UtilityBrain>           aiBrainLookup;
+    public ComponentLookup<PlayerUnitBrain>        playerBrainLookup;
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
     public ComponentLookup<SwapBrainRequest>       swapBrainLookup;
     public ComponentLookup<Minion>                 minionLookup;
@@ -63,6 +63,16 @@ public partial struct ReviveJob : IJobEntity
         EnabledRefRW<Undead>        undeadEnabled,
         EnabledRefRW<Dead>          deadEnabled)
     {
+        // Only a corpse with a declared converted form (becomesUnitType) can be revived. With no
+        // zombie form there is nothing to reanimate into — consume the request and stay dead.
+        int srcIdx = unitLibrary.Value.FindByUnitType(unitData.unitType);
+        UnitType becomes = srcIdx >= 0 ? unitLibrary.Value.units[srcIdx].becomesUnitType : UnitType.None;
+        if (becomes == UnitType.None || !swapBrainLookup.HasComponent(entity))
+        {
+            reviveEnabled.ValueRW = false;
+            return;
+        }
+
         health.healthAmount   = health.healthAmountMax;
         reviveEnabled.ValueRW = false;
         undeadEnabled.ValueRW = true;
@@ -73,28 +83,21 @@ public partial struct ReviveJob : IJobEntity
         // Clear the death latch so a re-killed reanimated unit re-enters DeathSystem.
         unitAction.current = ActionType.Idle;
 
-        // Conversion: if this unit declares a zombie/converted form, stamp + enable
-        // SwapBrainRequest so SwapBrainSystem (same frame, after this) rebuilds its brain,
-        // and make it a selectable Minion. Single-threaded .Schedule() makes these
-        // ComponentLookup writes safe.
-        int srcIdx = unitLibrary.Value.FindByUnitType(unitData.unitType);
-        if (srcIdx >= 0)
-        {
-            UnitType becomes = unitLibrary.Value.units[srcIdx].becomesUnitType;
-            if (becomes != UnitType.None && swapBrainLookup.HasComponent(entity))
-            {
-                swapBrainLookup[entity] = new SwapBrainRequest { newUnit = becomes };
-                swapBrainLookup.SetComponentEnabled(entity, true);
+        // Convert the brain to the zombie form — SwapBrainSystem (same frame, after this) rebuilds
+        // faction/attacks/motivations — and hand the unit to the player: enable Minion (selectable)
+        // + PlayerUnitBrain (decisions now come from player commands). UtilityBrain stays DISABLED
+        // (death left it off) — a revived minion is never driven by utility AI. Single-threaded
+        // .Schedule() makes these ComponentLookup writes safe.
+        swapBrainLookup[entity] = new SwapBrainRequest { newUnit = becomes };
+        swapBrainLookup.SetComponentEnabled(entity, true);
 
-                if (minionLookup.HasComponent(entity))
-                    minionLookup.SetComponentEnabled(entity, true);
-            }
-        }
+        if (minionLookup.HasComponent(entity))
+            minionLookup.SetComponentEnabled(entity, true);
+        if (playerBrainLookup.HasComponent(entity))
+            playerBrainLookup.SetComponentEnabled(entity, true);
 
-        // Re-enable AI brain and fire an interrupt so the action system tears down
-        // DeathAction and re-enters action selection on the next frame.
-        if (aiBrainLookup.HasComponent(entity))
-            aiBrainLookup.SetComponentEnabled(entity, true);
+        // Fire an interrupt so the action system tears down DeathAction and re-enters action
+        // selection on the next frame.
         if (interruptLookup.HasComponent(entity))
             interruptLookup.SetComponentEnabled(entity, true);
     }

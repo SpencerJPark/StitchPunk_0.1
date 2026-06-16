@@ -68,7 +68,10 @@ public partial struct MinionActionSelectionSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrain), typeof(PlayerUnitBrain))]
+// Gate on PlayerUnitBrain only (player decisions). WithPresent(UtilityBrain) keeps brain.unitType
+// readable while UtilityBrain is disabled — a player minion's utility AI no longer drives it.
+[WithAll(typeof(PlayerUnitBrain))]
+[WithPresent(typeof(UtilityBrain))]
 public partial struct MinionActionWriteJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>    aiConfig;

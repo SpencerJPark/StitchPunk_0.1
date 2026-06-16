@@ -19,7 +19,9 @@ public partial struct ClearOptionsSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrain))]
+// WithPresent (not WithAll): the UtilityActions buffer must be cleared each frame for player minions
+// too (UtilityBrain disabled) — otherwise their player/self-defence options would accumulate.
+[WithPresent(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
 public partial struct ClearOptionsJob : IJobEntity
 {

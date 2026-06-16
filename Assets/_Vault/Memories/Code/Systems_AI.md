@@ -108,6 +108,30 @@ clear the position fields.
   Move = `ActionType.Wander` + `targetEntity Null` + `targetPosition`; Follow = Wander targeting
   the player entity (re-enabled every frame while F held).
 
+## Brain control split — UtilityBrain = decision, StateMachine = execution
+
+The AI is two independently-gated halves. **`UtilityBrain` (enableable) gates ONLY the decision /
+awareness half** — awareness systems, `ConsiderationScoringSystem`, `MotivationChangeRequestSystem`
+keep `[WithAll(typeof(UtilityBrain))]`. **The execution + shared selection/clear half must run even
+when `UtilityBrain` is disabled**, so it gates `[WithPresent(typeof(UtilityBrain))]` (matches
+present-but-disabled, keeps `in/ref UtilityBrain` readable): `BehaviorExecutionSystem`,
+`BehaviorInterruptSystem`, `WinnerSelectionSystem`, `ClearOptionsSystem`. `SwapBrainSystem` is also
+`WithPresent` so a conversion runs with the brain off.
+
+- **Death = blank slate:** `DeathSystem` disables `UtilityBrain` and clears `ThreatEntry` /
+  `MotivationChangeRequest` / `RecentInteraction` + resets `AttackRequest`. The StateMachine half
+  still executes the death behavior (that's why execution is `WithPresent`).
+- **Revive = player control:** `ReviveRequestSystem` enables `PlayerUnitBrain` + `Minion`, **never
+  re-enables `UtilityBrain`** — a minion is driven by player commands, not utility AI. A corpse
+  whose `becomesUnitType == None` is **not revivable** (request consumed, stays dead).
+- **`MinionActionSelectionSystem`** now gates `[WithAll(PlayerUnitBrain)]` + `WithPresent(UtilityBrain)`.
+- **`MinionSelfDefenceAwarenessSystem`** (`MinionActionSelectionSystemGroup`, gated
+  `[WithAll(PlayerUnitBrain)][WithDisabled(UtilityBrain)]`) emits self-defence at priority 3.
+  Player orders run at `activePriority = int.MaxValue`, so self-defence only fires when the minion is
+  uncommanded — "self-defend unless ordered" with no extra state.
+- *Limitation:* `MotivationChangeRequest` is not drained for minions (system stays UtilityBrain-gated);
+  benign for zero-decay zombies, cleared on death.
+
 ## Item pickup flow (Phase 3, current)
 
 `ItemAwareness` option → PickupBehaviour (`Approach 1.5 → PlayActionAnimation → WaitTime 1s →
@@ -150,6 +174,7 @@ RequestPickup → StopAnimation`) → item gets `PickupRequest`:
 | `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/BehaviorExecutionSystem.cs` | command interpreter |
 | `Systems/StateMachineSystemGroup/ActionExecutionSystemGroup/BehaviorInterruptSystem.cs` | teardown/preemption |
 | `Systems/MinionActionSelectionSystemGroup/MinionActionSelectionSystem.cs` | player orders |
+| `Systems/MinionActionSelectionSystemGroup/MinionSelfDefenceAwarenessSystem.cs` | minion self-defence when uncommanded |
 | `Systems/ItemSystemGroup/ItemEquipSystemGroup/ItemConsumeSystem.cs` | consumable branch |
 | `Utils/BrainBlobUtils.cs`, `Utils/BehaviorQualifiers.cs`, `Utils/AIUtils.cs` | helpers |
 | `Data/SOs/BehaviorSO.cs`, `Data/SOs/UtilityActionSO.cs`, `Data/SOs/BrainSO.cs` | authoring SOs |

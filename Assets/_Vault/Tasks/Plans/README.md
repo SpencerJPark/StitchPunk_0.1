@@ -28,6 +28,7 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 | System | Doc | Status |
 |---|---|---|
 | **Sound** (SFX / ambient loops / layered music) | [Sound_System.md](Sound_System.md) | ✅ spec ready |
+| **DamageEvent** (attack/damage refactor → one-frame signal entity, deletes Hurt buffer) | [DamageEvent_System.md](DamageEvent_System.md) | ✅ spec ready |
 | Dialogue System + UI | — | ⬜ not started |
 | **Save System** (generic `IPersist` serializer, minion design, travel + manual save) | [Save_System.md](Save_System.md) | ✅ spec ready |
 | Building System (structures, storage) | — | ⬜ not started |
@@ -35,6 +36,7 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 | Game UI — Health | — | ⬜ not started |
 | Minion Systems → new state machine | — | ⬜ not started |
 | **Minion Revival & Life-State** (revive→zombie minion via `SwapBrainRequest`, `Alive` deprecation) | [MinionRevival_System.md](../Verification/MinionRevival_System.md) | 🔨 built — code landed (Ph1–4), verify pending |
+| **Brain Control Split** (UtilityBrain=decision / StateMachine=execution; death blank-slate, player-controlled revive, minion self-defence) | [BrainControlSplit_System.md](../Verification/BrainControlSplit_System.md) | 🔨 built — code landed, verify pending |
 | Animations (content) | — | ⬜ not started |
 | **Unit Design** (per-part random texture indices, minion persistence) | [UnitDesign_System.md](UnitDesign_System.md) | 🔨 built — code landed, verify pending |
 | Human → Zombie Conversion | — | ⬜ not started |

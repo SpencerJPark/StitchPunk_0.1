@@ -58,7 +58,9 @@ public partial struct BehaviorInterruptSystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrain))]
+// WithPresent (not WithAll): teardown must run with UtilityBrain disabled — the death interrupt
+// fires on corpses (UtilityBrain off) and pending-preemption swaps happen on player minions.
+[WithPresent(typeof(UtilityBrain))]
 [WithPresent(typeof(ActionInterruptRequest))]
 [WithPresent(typeof(PathRequest))]
 public partial struct BehaviorInterruptJob : IJobEntity
