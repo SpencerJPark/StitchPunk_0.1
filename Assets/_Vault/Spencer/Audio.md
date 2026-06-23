@@ -1,6 +1,6 @@
 ---
 tags: [task, spencer, audio, music, sfx, voice]
-related: "[[Demo/Phases]], [[Tasks/Spencer/Art_Assets]]"
+related: "[[Demo/Phases]], [[Spencer/Art_Assets]]"
 ---
 
 # Audio Assets Needed

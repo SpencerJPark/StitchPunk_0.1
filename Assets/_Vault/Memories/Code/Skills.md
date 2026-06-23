@@ -57,6 +57,13 @@ Scaffolds or extends a **unit AI decision behaviour**: awareness systems that em
 
 **Use when:** "make units react to X", "add a daily schedule", "units should panic when Y", "add an awareness system", "wire up ActionType.Foo", "add an interrupt for W". **Not for:** blob libraries (use `dots-blob-library`), bakers (use `dots-authoring-baker`), or generic non-AI systems (use `dots-system-scaffold`).
 
+## dots-test
+`.claude/skills/dots-test/SKILL.md`
+
+Scaffolds a **Unity Test Runner fixture** (and the `StitchPunk.Tests` asmdef if missing) — EditMode for pure-logic/value-type code (no World), PlayMode for `ISystem`/`ComponentLookup`/World-bound integration. Enforces the project conventions in test code and writes characterization tests that pin **actual** behaviour. EditMode targets live under `Assets/_Scripts/Tests/`.
+
+**Use when:** "add a test for X", "unit-test the curve/scoring/grid math", "set up the test assembly", "add an EditMode/PlayMode test". **Not for:** running the suite (Window ▸ General ▸ Test Runner, user-driven) or non-test gameplay code.
+
 ---
 
 *Maintained alongside the code it scaffolds. When you add or rename a skill in `.claude/skills/`, update this index.*

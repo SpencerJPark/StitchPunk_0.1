@@ -57,7 +57,7 @@ This will be part of animation, I will need to explore the best way to support c
 
 ### 1. Dialogue System + NPC Dialogue Components
 - **Enables scenes:** 03, 05, 08, 12, 13, 14, 15
-- **Design gate:** Dialogue format answered in [[Tasks/Spencer/Design_Decisions]]
+- **Design gate:** Dialogue format answered in [[Spencer/Design_Decisions]]
 - **Notes:** Keep it minimal for the demo — one speaker at a time, subtitle or speech bubble style. NPC dialogue data should be SO-driven and baked into BlobAssets per [[Memories/Code/RULES]]. Dialogue trigger is an IEnableableComponent on the NPC entity. See [[Memories/Code/Authoring]] for baking pattern.
 
 ### 2. Narrative Event System
@@ -83,12 +83,12 @@ This will be part of animation, I will need to explore the best way to support c
 
 ### 7. RTS Camera Mode + UI + Wave Summoning
 - **Enables scenes:** 07, 14
-- **Design gate:** RTS UI layout, unit cap, summoning cost answered in [[Tasks/Spencer/Design_Decisions]]
+- **Design gate:** RTS UI layout, unit cap, summoning cost answered in [[Spencer/Design_Decisions]]
 - **Notes:** Camera toggles to top-down on RTS mode enter. UI shows selected units, summon buttons, resource count. Wave summoning creates units from a pool near the player's base. Reuses horde system from [[Memories/Code/Systems_Movement]].
 
 ### 8. Caravan Driving Entity + Input
 - **Enables scenes:** 12, 13
-- **Design gate:** Caravan perspective (top-down or 3rd-person) answered in [[Tasks/Spencer/Design_Decisions]]
+- **Design gate:** Caravan perspective (top-down or 3rd-person) answered in [[Spencer/Design_Decisions]]
 - **Notes:** Caravan is an entity with `UnitMover`-style movement but driven by player input rather than pathfinding. PlayerFollowerSystem may be reusable — check [[Memories/Code/Systems_Movement]].
 
 ### 9. Camp Mode (Mini RTS Base)
@@ -97,12 +97,12 @@ This will be part of animation, I will need to explore the best way to support c
 
 ### 10. Factory Production Line (Minimal)
 - **Enables scenes:** 16
-- **Design gate:** Factory UI granularity answered in [[Tasks/Spencer/Design_Decisions]]
+- **Design gate:** Factory UI granularity answered in [[Spencer/Design_Decisions]]
 - **Notes:** Demo scope: 1 product, 1 production line, 1 buyer, 1 trade route. Do not build the full economy. Undead staff the line (reuses revival + minion assignment). Product output triggers a trade event.
 
 ### 11. Notebook/Journal UI + Suspect Tracker
 - **Enables scenes:** 11 (and forward)
-- **Design gate:** Photo vs silhouette format answered in [[Tasks/Spencer/Design_Decisions]]
+- **Design gate:** Photo vs silhouette format answered in [[Spencer/Design_Decisions]]
 - **Notes:** The group photo from scene 11 becomes the suspect board. Player taps a face to view details. Status: unknown → investigated → cleared/suspect. UI only — no gameplay logic in the demo.
 
 ### 12. Fire/Hazard System

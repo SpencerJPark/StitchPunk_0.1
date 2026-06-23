@@ -1,6 +1,6 @@
 ---
 tags: [task, spencer, design, decisions]
-related: "[[Tasks/Claude/Code_Systems]], [[Demo/Phases]]"
+related: "[[Tasks/Plans/README|Tasks/Plans]], [[Demo/Phases]]"
 ---
 
 # Design Decisions — Answer These First

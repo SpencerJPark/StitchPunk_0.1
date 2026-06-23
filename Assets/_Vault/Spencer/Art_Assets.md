@@ -1,6 +1,6 @@
 ---
 tags: [task, spencer, art, environments, characters]
-related: "[[Demo/Phases]], [[Tasks/Spencer/Audio]]"
+related: "[[Demo/Phases]], [[Spencer/Audio]]"
 ---
 
 # Art Assets Needed
@@ -77,7 +77,7 @@ Grouped by demo phase. Check off when the asset is in Unity and set up. See [[De
 - [ ] Roadside traveller NPCs (scene 13, background)
 
 ### Assets
-- [ ] Caravan exterior model — horse-drawn or steam-powered? (confirm in [[Tasks/Spencer/Design_Decisions]])
+- [ ] Caravan exterior model — horse-drawn or steam-powered? (confirm in [[Spencer/Design_Decisions]])
 - [ ] Resources (scene 14) — what items can be gathered from the camp environment?
 
 ---
@@ -107,7 +107,7 @@ Grouped by demo phase. Check off when the asset is in Unity and set up. See [[De
 - [ ] Brain device (key item — carried since scene 09)
 - [ ] Record player prop (the brain mounts onto it)
 - [ ] World map art — stylised, full scope, zooms out from city location
-- [ ] Professor's voice (audio) → see [[Tasks/Spencer/Audio]]
+- [ ] Professor's voice (audio) → see [[Spencer/Audio]]
 
 ---
 

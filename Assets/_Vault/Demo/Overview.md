@@ -1,6 +1,6 @@
 ---
 tags: [demo, roadmap, overview]
-related: "[[Demo/Phases]], [[Tasks/Claude/Code_Systems]], [[Tasks/Spencer/Design_Decisions]]"
+related: "[[Demo/Phases]], [[Tasks/Plans/README|Tasks/Plans]], [[Spencer/Design_Decisions]]"
 ---
 
 # Stitch Punk — Demo Overview
@@ -32,7 +32,7 @@ The demo covers every major system through narrative rather than explicit tutori
 | Spawn init pattern | ✅ BUILT | NewlySpawned, SpawnInitSystemGroup |
 | Save system | ✅ BUILT | SaveSystemGroup, JSON slots |
 | Solo combat (attack/throw) | 🔄 IN PROGRESS | Mechanics built; fencing duel AI opponent + animations needed |
-| NPC AI (citizen behavior) | 🔄 IN PROGRESS | Bug: PlayerControlled bake fix needed — see [[Tasks/Claude/Code_Bugs]] |
+| NPC AI (citizen behavior) | 🔄 IN PROGRESS | Bug: PlayerControlled bake fix needed |
 | Dialogue system | ⬜ NEEDED | Required for scene 05, 08, 12, 13, 14, 15 |
 | Narrative event system | ⬜ NEEDED | Scripted sequences, triggered cutscenes |
 | Cinematic camera | ⬜ NEEDED | Per-scene camera overrides |
@@ -69,7 +69,7 @@ The demo covers every major system through narrative rather than explicit tutori
 12. **NPC crowd system** — city scene, profile early
 13. **World map UI** — demo sting, implement last
 
-See [[Tasks/Claude/Code_Systems]] for implementation task list. See [[Tasks/Spencer/Design_Decisions]] for open questions blocking implementation.
+See [[Tasks/Plans/README|Tasks/Plans]] for the build queue. See [[Spencer/Design_Decisions]] for open questions blocking implementation.
 
 ---
 

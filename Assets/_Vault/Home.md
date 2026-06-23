@@ -21,26 +21,20 @@ This is the knowledge base for **Stitch Punk** — a 2.5D necro-engineering RTS 
 
 ## Parallel Work Lanes
 
-Spencer and Claude work in parallel. Each has their own task queue.
+Spencer and Claude work in parallel.
 
 ### Claude's Queue
-Claude can pick these up and execute autonomously in any session.
-
-| File | Contents |
-|---|---|
-| [[Tasks/Claude/Code_Bugs]] | Known bugs — root cause + fix instructions ready to execute |
-| [[Tasks/Claude/Code_Systems]] | New systems in recommended build order |
-| [[Tasks/Claude/Marketing_Copy]] | Copy and devlog scripts Claude can draft |
+Claude's build queue lives in [[Tasks/Plans/README|Tasks/Plans]] (specs ready to build) and `Tasks/Verification/` (built, awaiting a verify pass). Cross-session notes live in the Claude Code memory store.
 
 ### Spencer's Queue
-Tasks only Spencer can do. **Answer [[Tasks/Spencer/Design_Decisions]] first** — those are blocking Claude.
+Tasks only Spencer can do. **Answer [[Spencer/Design_Decisions]] first** — those are blocking Claude.
 
 | File | Contents |
 |---|---|
-| [[Tasks/Spencer/Design_Decisions]] | Open design questions — answer these to unblock Claude |
-| [[Tasks/Spencer/Art_Assets]] | All environments, characters, animations by phase |
-| [[Tasks/Spencer/Audio]] | Music, SFX, voice acting |
-| [[Tasks/Spencer/Content_Recording]] | Devlog recording schedule tied to demo milestones |
+| [[Spencer/Design_Decisions]] | Open design questions — answer these to unblock Claude |
+| [[Spencer/Art_Assets]] | All environments, characters, animations by phase |
+| [[Spencer/Audio]] | Music, SFX, voice acting |
+| [[Spencer/Content_Recording]] | Devlog recording schedule tied to demo milestones |
 
 ---
 
@@ -80,9 +74,9 @@ Read the relevant file before working in any `_Scripts/` subfolder.
 
 ## How Claude Uses This Vault
 
-1. **Start of session** → check [[Tasks/Claude/Code_Bugs]] and [[Tasks/Claude/Code_Systems]] for what to work on.
+1. **Start of session** → check [[Tasks/Plans/README|Tasks/Plans]] for specs to build and `Tasks/Verification/` for work awaiting a verify pass.
 2. **Before any folder** → read the Code Memory file from the table above.
-3. **Design questions** → check [[Tasks/Spencer/Design_Decisions]] before building systems that need them answered.
+3. **Design questions** → check [[Spencer/Design_Decisions]] before building systems that need them answered.
 4. **After solving a non-obvious problem** → update [[Memories/Code/Gotchas]] or the relevant memory file.
 5. **Scene complete** → check it off in [[Demo/Phases]].
 6. **New system added** → update the relevant `Memories/Code/` file and add it to [[Demo/Overview]] build status.

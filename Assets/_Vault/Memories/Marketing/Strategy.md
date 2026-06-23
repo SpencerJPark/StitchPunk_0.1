@@ -1,6 +1,6 @@
 ---
 tags: [memory, marketing, strategy, audience]
-related: "[[Tasks/Spencer/Content_Recording]], [[Tasks/Claude/Marketing_Copy]]"
+related: "[[Spencer/Content_Recording]]"
 ---
 
 # Marketing Strategy — Audience Building
@@ -20,7 +20,7 @@ Both audiences build together. The devlogs serve both.
 
 ## Content Cadence
 
-One devlog per major system shipped. Tied to [[Tasks/Spencer/Content_Recording]] milestone gates:
+One devlog per major system shipped. Tied to [[Spencer/Content_Recording]] milestone gates:
 
 | Devlog | System milestone | Estimated timing |
 |---|---|---|

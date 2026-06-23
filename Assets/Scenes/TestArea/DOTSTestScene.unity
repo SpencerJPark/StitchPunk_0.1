@@ -2732,7 +2732,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::LoggingConfigAuthoring
   ai: 0
   stateMachine: 1
-  combat: 1
+  combat: 0
   movement: 0
   social: 0
   items: 0

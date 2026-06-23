@@ -1,6 +1,6 @@
 ---
 tags: [demo, phases, checklist]
-related: "[[Demo/Overview]], [[Tasks/Claude/Code_Systems]], [[Tasks/Spencer/Art_Assets]]"
+related: "[[Demo/Overview]], [[Tasks/Plans/README|Tasks/Plans]], [[Spencer/Art_Assets]]"
 ---
 
 # Demo — Phase Checklist
@@ -75,7 +75,7 @@ Legend: ✅ BUILT · 🔄 IN PROGRESS · ⬜ NEEDED · `[C]` = blocked on Claude
 
 - [ ] **13. Drive the caravan** — ⬜ NEEDED `[B]`
   - Systems: Caravan driving ⬜, Open world scene ⬜, Companion dialogue ⬜
-  - Blocked on: Caravan driving + open world `[C]`, road environment + LOD setup `[S]`; also needs [[Tasks/Spencer/Design_Decisions]] — caravan perspective answered
+  - Blocked on: Caravan driving + open world `[C]`, road environment + LOD setup `[S]`; also needs [[Spencer/Design_Decisions]] — caravan perspective answered
 
 - [ ] **14. Bandit encounter — hybrid RTS** — ⬜ NEEDED `[B]`
   - Systems: Camp mode ⬜, Resource gathering ⬜, RTS combat ⬜, Corpse collection ⬜, Bandit AI
@@ -91,7 +91,7 @@ Legend: ✅ BUILT · 🔄 IN PROGRESS · ⬜ NEEDED · `[C]` = blocked on Claude
 
 - [ ] **16. The factory — first product** — ⬜ NEEDED `[B]`
   - Systems: Factory/production line ⬜ (minimal), Trade/buyer system ⬜ (minimal)
-  - Blocked on: Factory systems `[C]`; factory interior art + production line visuals `[S]`; also needs [[Tasks/Spencer/Design_Decisions]] — factory UI granularity answered
+  - Blocked on: Factory systems `[C]`; factory interior art + production line visuals `[S]`; also needs [[Spencer/Design_Decisions]] — factory UI granularity answered
 
 - [ ] **17. Settle in — caravan & room customisation** — ⬜ NEEDED `[B]`
   - Systems: Caravan customisation UI ⬜, Room/base UI ⬜

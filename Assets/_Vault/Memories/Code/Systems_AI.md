@@ -5,7 +5,7 @@ related: "[[Systems]], [[Components]], [[Systems_Movement]]"
 
 # AI & Action Architecture — Context
 
-> Updated 2026-06 after the Utility AI Refactor V3 (see `_Vault/Tasks/Claude/utilityai.md`).
+> Updated 2026-06 after the Utility AI Refactor V3.
 > The old ActionOption/per-action-system architecture is **gone** — the 8 legacy execution
 > systems (MeleeSingle/MeleeContinuous/Talk/PickupItem/Sit/Wander/Flee/Interact) were deleted.
 > Execution is the behavior-command state machine described below.
