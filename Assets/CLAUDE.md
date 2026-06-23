@@ -28,11 +28,17 @@ Folder Map — Read Before Working
 | `_Scripts/Components/` | [Components.md](_Vault/Memories/Code/Components.md) | IComponentData / IBufferElementData conventions |
 | `_Scripts/Components/Save/` | [Components.md](_Vault/Memories/Code/Components.md) | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` |
 | `_Scripts/Systems/` | [Systems.md](_Vault/Memories/Code/Systems.md) | System group order, ISystem rules, Burst |
-| `_Scripts/Systems/MinionActionSelectionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Player-guided decision: PlayerOrder → ActionOption |
-| `_Scripts/Systems/AIActionSelectionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Utility-guided decision: awareness + scoring → ActionOption |
-| `_Scripts/Systems/ActionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Unified selection + action orchestration (PathRequest, AttackRequest) |
+| `_Scripts/Systems/MinionActionSelectionSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Player-guided decision: PlayerOrder → `StateMachine` |
+| `_Scripts/Systems/UtilityAISystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Utility-guided decision: motivation + awareness + scoring → `StateMachine` (`ConsiderationScoringSystem`, `WinnerSelectionSystem`) |
+| `_Scripts/Systems/StateMachineSystemGroup/` | [Systems_AI.md](_Vault/Memories/Code/Systems_AI.md) | Action selection + behavior-command execution (`BehaviorExecutionSystem`, `BehaviorInterruptSystem`; PathRequest, AttackRequest) |
+| `_Scripts/Systems/PlayerSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Player pipeline: input → narrative → dialogue → equipment |
+| `_Scripts/Systems/ItemSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Pickup/equip/consume, thrown items |
 | `_Scripts/Systems/AnimationSystemGroup/` | [Systems_Animation.md](_Vault/Memories/Code/Systems_Animation.md) | Layered quad animation, clip SO pipeline |
 | `_Scripts/Systems/MovementSystemGroup/` | [Systems_Movement.md](_Vault/Memories/Code/Systems_Movement.md) | Flowfield, D* Lite, horde formation |
+| `_Scripts/Systems/BuildingsSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Factory grid + station production loop |
+| `_Scripts/Systems/CombatSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Attack execution + combat reactions (threat, knockback-on-death) |
+| `_Scripts/Systems/HealthSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Damage, death/revive, life-state |
+| `_Scripts/Systems/DesignSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Re-skin / appearance changes (`DesignChangeSystem`) |
 | `_Scripts/Systems/SaveSystemGroup/` | [Systems.md](_Vault/Memories/Code/Systems.md) | Play time tracking, auto-save timer, save/load to JSON on disk |
 | `_Scripts/Data/` | [Data.md](_Vault/Memories/Code/Data.md) | ScriptableObject pattern, BlobAsset baking, enums, save DTOs |
 | `_Scripts/Core/` | [Core.md](_Vault/Memories/Code/Core.md) | Singletons, legacy files, what to avoid |
@@ -44,7 +50,7 @@ Vault Structure — `_Vault/`
 
 | Directory | Purpose |
 |---|---|
-| `_Vault/Memories/Code/` | Per-folder context files (read before working in that folder). See [`Skills.md`](_Vault/Memories/Code/Skills.md) — index of the project DOTS scaffolding skills (canonical copies live in `.claude/skills/`). |
+| `_Vault/Memories/Code/` | Per-folder context files (read before working in that folder). See [`Skills.md`](_Vault/Memories/Code/Skills.md) — index of the project DOTS scaffolding skills (canonical copies live in `.claude/skills/`) — and [`Gotchas.md`](_Vault/Memories/Code/Gotchas.md) — non-obvious pitfalls and silent-failure traps; skim it before debugging a "should-work" bug. |
 | `_Vault/Tasks/Active/` | In-flight tasks — create one `.md` per task using `_Template.md` |
 | `_Vault/Tasks/Done/` | Completed tasks — move finished tasks here |
 | `_Vault/Raw/` | Unstructured ideas — drop notes here; ingest into context files when ready |
