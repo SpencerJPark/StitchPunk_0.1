@@ -95,7 +95,8 @@
       "PowerShell([guid]::NewGuid\\(\\).ToString\\(\"N\"\\))",
       "Bash(git mv *)",
       "Bash(git reset *)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "mcp__unity-mcp__Unity_GetConsoleLogs"
     ]
   }
 }
