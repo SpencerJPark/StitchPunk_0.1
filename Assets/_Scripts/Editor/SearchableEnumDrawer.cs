@@ -35,6 +35,9 @@ public class SearchableEnumDrawer : PropertyDrawer
                 names,
                 selectedIndex =>
                 {
+                    if (selectedIndex < 0 || selectedIndex >= names.Length)
+                        return;
+
                     SerializedProperty prop = obj.FindProperty(path);
                     prop.enumValueIndex = selectedIndex;
                     obj.ApplyModifiedProperties();
@@ -65,11 +68,20 @@ class EnumSearchDropdown : AdvancedDropdown
 
     protected override AdvancedDropdownItem BuildRoot()
     {
-        var root = new AdvancedDropdownItem("Select");
-        for (int i = 0; i < names.Length; i++)
-            root.AddChild(new AdvancedDropdownItem(names[i]) { id = i });
+        AdvancedDropdownItem root = new AdvancedDropdownItem("Select");
+        for (int index = 0; index < names.Length; index++)
+            root.AddChild(new AdvancedDropdownItem(names[index]) { id = index });
         return root;
     }
 
-    protected override void ItemSelected(AdvancedDropdownItem item) => onSelected(item.id);
+    protected override void ItemSelected(AdvancedDropdownItem item)
+    {
+        // Search mode rebuilds the item tree, so item.id is unreliable — resolve
+        // the enum index by matching the displayed name back to our names array.
+        int resolvedIndex = Array.IndexOf(names, item.name);
+        if (resolvedIndex < 0)
+            resolvedIndex = item.id;
+
+        onSelected(resolvedIndex);
+    }
 }

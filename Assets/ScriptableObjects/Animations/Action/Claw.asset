@@ -18,3 +18,6 @@ MonoBehaviour:
   allowBlendIn: 1
   allowBlendOut: 1
   partTracks: []
+  soundMarkers:
+  - type: 2
+    normalizedTime: 0.205

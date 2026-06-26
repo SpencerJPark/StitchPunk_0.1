@@ -1261,6 +1261,7 @@ GameObject:
   - component: {fileID: 795723641}
   - component: {fileID: 795723644}
   - component: {fileID: 795723643}
+  - component: {fileID: 795723645}
   m_Layer: 0
   m_Name: EntityLibraries
   m_TagString: Untagged
@@ -1339,6 +1340,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BrainLibraryAuthoring
   library: {fileID: 11400000, guid: f900edf180ec02d4aa0fd4326dd1afb0, type: 2}
+--- !u!114 &795723645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f89137216ed74f9cb759e7db5bcdfca9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::SoundLibraryAuthoring
+  library: {fileID: 11400000, guid: 4f505c160197d164bb9898afe331f479, type: 2}
 --- !u!1 &878687314
 GameObject:
   m_ObjectHideFlags: 0
@@ -2731,7 +2745,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::LoggingConfigAuthoring
   ai: 0
-  stateMachine: 1
+  stateMachine: 0
   combat: 0
   movement: 0
   social: 0

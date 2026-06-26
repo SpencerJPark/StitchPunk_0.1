@@ -96,7 +96,12 @@
       "Bash(git mv *)",
       "Bash(git reset *)",
       "Bash(git ls-tree *)",
-      "mcp__unity-mcp__Unity_GetConsoleLogs"
+      "mcp__unity-mcp__Unity_GetConsoleLogs",
+      "mcp__unity-mcp__Unity_RunCommand",
+      "Read(//c/Users/spenc/.unity/relay//**)",
+      "Read(//c/Users/spenc/.unity//**)",
+      "Bash(echo \"----\")",
+      "Read(//c/Users/spenc/AppData/Local/Unity/Editor/**)"
     ]
   }
 }

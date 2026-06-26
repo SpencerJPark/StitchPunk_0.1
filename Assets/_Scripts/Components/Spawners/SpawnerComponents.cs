@@ -1,5 +1,10 @@
 ﻿using Unity.Entities;
 
+public struct Despawn : IComponentData, IEnableableComponent
+{
+    
+}
+
 public struct UnitSpawner : IComponentData, IEnableableComponent
 {
     public UnitType unitType;
