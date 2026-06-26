@@ -38,6 +38,12 @@ public class PlayerControllerAuthoring : MonoBehaviour
                 factionType = FactionType.Player,
             });
 
+            // Reviver targeting: PlayerTargetingSystem writes the nearest PlayerInteractable
+            // (e.g. a revivable corpse) here; PlayerReviverSystem reads it. Both query
+            // WithPresent<Target>, so the component must exist on the player — baked disabled
+            // (no target until one is in range). The player is not a UnitAuthoring entity, so
+            // this is the only place Target gets added to the player.
+
             AddComponent(entity, new MovePlayerInput());
             SetComponentEnabled<MovePlayerInput>(entity, false);
 

@@ -19,6 +19,18 @@ public class UndeadAuthoring : MonoBehaviour
 
             AddComponent<ReviveRequest>(entity);
             SetComponentEnabled<ReviveRequest>(entity, false);
+
+            // Make a revivable unit targetable by the reviver — but only once it dies.
+            // Baked disabled; DeathSystem enables it on death, ReviveRequestSystem disables it on revive.
+            // Skip if another authoring on this GO already provides PlayerInteractable (avoids dup-bake).
+            InteractionAuthoring interactionAuth = GetComponent<InteractionAuthoring>();
+            DialogueProviderAuthoring dialogueAuth = GetComponent<DialogueProviderAuthoring>();
+            bool alreadyProvided = (interactionAuth != null && interactionAuth.playerInteractable) || dialogueAuth != null;
+            if (!alreadyProvided)
+            {
+                AddComponent(entity, new PlayerInteractable());
+                SetComponentEnabled<PlayerInteractable>(entity, false);
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ public partial struct DeathSystem : ISystem
     private ComponentLookup<ActionInterruptRequest> interruptLookup;
     private ComponentLookup<AttackRequest>          pendingAttackLookup;
     private ComponentLookup<UtilityBrain>           utilityBrainLookup;
+    private ComponentLookup<PlayerInteractable>     playerInteractableLookup;
     private BufferLookup<ThreatEntry>               threatLookup;
     private BufferLookup<MotivationChangeRequest>   motivationRequestLookup;
     private BufferLookup<RecentInteraction>         recentInteractionLookup;
@@ -18,12 +19,13 @@ public partial struct DeathSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        interruptLookup         = state.GetComponentLookup<ActionInterruptRequest>(false);
-        pendingAttackLookup     = state.GetComponentLookup<AttackRequest>(false);
-        utilityBrainLookup      = state.GetComponentLookup<UtilityBrain>(false);
-        threatLookup            = state.GetBufferLookup<ThreatEntry>(false);
-        motivationRequestLookup = state.GetBufferLookup<MotivationChangeRequest>(false);
-        recentInteractionLookup = state.GetBufferLookup<RecentInteraction>(false);
+        interruptLookup          = state.GetComponentLookup<ActionInterruptRequest>(false);
+        pendingAttackLookup      = state.GetComponentLookup<AttackRequest>(false);
+        utilityBrainLookup       = state.GetComponentLookup<UtilityBrain>(false);
+        playerInteractableLookup = state.GetComponentLookup<PlayerInteractable>(false);
+        threatLookup             = state.GetBufferLookup<ThreatEntry>(false);
+        motivationRequestLookup  = state.GetBufferLookup<MotivationChangeRequest>(false);
+        recentInteractionLookup  = state.GetBufferLookup<RecentInteraction>(false);
     }
 
     [BurstCompile]
@@ -32,6 +34,7 @@ public partial struct DeathSystem : ISystem
         interruptLookup.Update(ref state);
         pendingAttackLookup.Update(ref state);
         utilityBrainLookup.Update(ref state);
+        playerInteractableLookup.Update(ref state);
         threatLookup.Update(ref state);
         motivationRequestLookup.Update(ref state);
         recentInteractionLookup.Update(ref state);
@@ -46,12 +49,13 @@ public partial struct DeathSystem : ISystem
 
         state.Dependency = new DeathJob
         {
-            interruptLookup         = interruptLookup,
-            pendingAttackLookup     = pendingAttackLookup,
-            utilityBrainLookup      = utilityBrainLookup,
-            threatLookup            = threatLookup,
-            motivationRequestLookup = motivationRequestLookup,
-            recentInteractionLookup = recentInteractionLookup,
+            interruptLookup          = interruptLookup,
+            pendingAttackLookup      = pendingAttackLookup,
+            utilityBrainLookup       = utilityBrainLookup,
+            playerInteractableLookup = playerInteractableLookup,
+            threatLookup             = threatLookup,
+            motivationRequestLookup  = motivationRequestLookup,
+            recentInteractionLookup  = recentInteractionLookup,
             ecb                     = ecb,
             loggingEnabled          = loggingEnabled,
             timestamp               = SystemAPI.Time.ElapsedTime,
@@ -69,6 +73,7 @@ public partial struct DeathJob : IJobEntity
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
     public ComponentLookup<AttackRequest>          pendingAttackLookup;
     public ComponentLookup<UtilityBrain>           utilityBrainLookup;
+    public ComponentLookup<PlayerInteractable>     playerInteractableLookup;
     public BufferLookup<ThreatEntry>               threatLookup;
     public BufferLookup<MotivationChangeRequest>   motivationRequestLookup;
     public BufferLookup<RecentInteraction>         recentInteractionLookup;
@@ -106,6 +111,12 @@ public partial struct DeathJob : IJobEntity
         // 2. Stop movement and snap target
         mover.isMoving       = false;
         mover.targetPosition = transform.Position;
+
+        // 2b. Corpse becomes targetable by the player's reviver (PlayerTargetingSystem scans
+        //     PlayerInteractable). Only revivable units (UndeadAuthoring) carry the component,
+        //     so this is a no-op on everything else.
+        if (playerInteractableLookup.HasComponent(entity))
+            playerInteractableLookup.SetComponentEnabled(entity, true);
 
         // 3. Fire ActionInterruptRequest — the interrupt system will disable the current
         //    action tag cleanly and transition to DeathAction next frame.

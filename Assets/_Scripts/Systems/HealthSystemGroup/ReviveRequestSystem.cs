@@ -9,16 +9,18 @@ public partial struct ReviveRequestSystem : ISystem
     private ComponentLookup<ActionInterruptRequest> interruptLookup;
     private ComponentLookup<SwapBrainRequest>       swapBrainLookup;
     private ComponentLookup<Minion>                 minionLookup;
+    private ComponentLookup<PlayerInteractable>     playerInteractableLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<UnitDataLibrary>();
-        playerBrainLookup = state.GetComponentLookup<PlayerUnitBrain>(false);
-        interruptLookup   = state.GetComponentLookup<ActionInterruptRequest>(false);
-        swapBrainLookup   = state.GetComponentLookup<SwapBrainRequest>(false);
-        minionLookup      = state.GetComponentLookup<Minion>(false);
+        playerBrainLookup        = state.GetComponentLookup<PlayerUnitBrain>(false);
+        interruptLookup          = state.GetComponentLookup<ActionInterruptRequest>(false);
+        swapBrainLookup          = state.GetComponentLookup<SwapBrainRequest>(false);
+        minionLookup             = state.GetComponentLookup<Minion>(false);
+        playerInteractableLookup = state.GetComponentLookup<PlayerInteractable>(false);
     }
 
     [BurstCompile]
@@ -28,6 +30,7 @@ public partial struct ReviveRequestSystem : ISystem
         interruptLookup.Update(ref state);
         swapBrainLookup.Update(ref state);
         minionLookup.Update(ref state);
+        playerInteractableLookup.Update(ref state);
 
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
@@ -38,6 +41,7 @@ public partial struct ReviveRequestSystem : ISystem
             interruptLookup   = interruptLookup,
             swapBrainLookup   = swapBrainLookup,
             minionLookup      = minionLookup,
+            playerInteractableLookup = playerInteractableLookup,
             unitLibrary       = unitLibrary,
         }.Schedule(state.Dependency);
     }
@@ -52,6 +56,7 @@ public partial struct ReviveJob : IJobEntity
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
     public ComponentLookup<SwapBrainRequest>       swapBrainLookup;
     public ComponentLookup<Minion>                 minionLookup;
+    public ComponentLookup<PlayerInteractable>     playerInteractableLookup;
     public BlobAssetReference<UnitLibraryBlob>     unitLibrary;
 
     public void Execute(
@@ -79,6 +84,10 @@ public partial struct ReviveJob : IJobEntity
         // Dead disabled = alive. Disabling it also drops this entity from the [WithAll(Dead)]
         // filter next frame, so the revive runs exactly once.
         deadEnabled.ValueRW   = false;
+
+        // Alive again — no longer a reviver target (DeathSystem re-enables this on re-kill).
+        if (playerInteractableLookup.HasComponent(entity))
+            playerInteractableLookup.SetComponentEnabled(entity, false);
 
         // Clear the death latch so a re-killed reanimated unit re-enters DeathSystem.
         unitAction.current = ActionType.Idle;

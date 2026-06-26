@@ -48,8 +48,8 @@ MonoBehaviour:
   - stance: 2
     idleAnimation: 1
     movingAnimation: 3
-  idleAnimation: 0
-  movingAnimation: 0
+  idleAnimation: 1
+  movingAnimation: 2
   attackFactions: 
   attacks:
   - action: 17

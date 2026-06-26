@@ -27,12 +27,14 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 
 | System | Doc | Status |
 |---|---|---|
+| **Player Attack** (melee swing → AttackRequest; separate CombatTarget; revives PlayerAttackSystem) | [PlayerAttack_System.md](PlayerAttack_System.md) | ✅ spec ready |
 | **Sound** (SFX / ambient loops / layered music) | [Sound_System.md](Sound_System.md) | ✅ spec ready |
 | **DamageEvent** (attack/damage refactor → one-frame signal entity, deletes Hurt buffer) | [DamageEvent_System.md](DamageEvent_System.md) | ✅ spec ready |
 | Dialogue System + UI | — | ⬜ not started |
 | **Save System** (generic `IPersist` serializer, minion design, travel + manual save) | [Save_System.md](Save_System.md) | ✅ spec ready |
 | Building System (structures, storage) | — | ⬜ not started |
-| Player Resource System (inventory/resources) | — | ⬜ not started |
+| **Despawn System** (central `Despawn` funnel: pool-vs-destroy via `DespawnMode` + `PoolOwner`, per-type cap, `Lifetime` TTL producer) | [Despawn_System.md](Despawn_System.md) | ✅ spec ready |
+| **Player Resource System** (`ResourceStack` ledger + delta-buffer mutation + IPersist snapshot + HUD) | [PlayerResource_System.md](PlayerResource_System.md) | ✅ spec ready |
 | Game UI — Health | — | ⬜ not started |
 | Minion Systems → new state machine | — | ⬜ not started |
 | **Minion Revival & Life-State** (revive→zombie minion via `SwapBrainRequest`, `Alive` deprecation) | [MinionRevival_System.md](../Verification/MinionRevival_System.md) | 🔨 built — code landed (Ph1–4), verify pending |

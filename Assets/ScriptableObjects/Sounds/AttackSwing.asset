@@ -21,6 +21,6 @@ MonoBehaviour:
   loop: 0
   priority: 128
   minDistance: 1
-  maxDistance: 30
+  maxDistance: 200
   maxConcurrent: 8
   dedupWindow: 0.05
