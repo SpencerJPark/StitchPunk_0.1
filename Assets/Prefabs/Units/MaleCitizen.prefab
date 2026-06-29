@@ -2159,7 +2159,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 21
+  animationTarget: 22
   characterRoot: {fileID: 9101195342176660511}
   baseImageIndex: 0
 --- !u!114 &7964888395680943672
@@ -4540,6 +4540,7 @@ GameObject:
   - component: {fileID: 81547783365101107}
   - component: {fileID: 3781486699761808551}
   - component: {fileID: 5385637352373302489}
+  - component: {fileID: 1792128399591610932}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -4839,6 +4840,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionAuthoring
   actionType: 10
   playerInteractable: 1
+--- !u!114 &1792128399591610932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfa4a7c782bd420c820466dd6ace6f18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::DesignAuthoring
+  reloadDesign: 1
+  parts:
+  - target: 16
+    ranges:
+    - min: 0
+      max: 39
+  - target: 22
+    ranges:
+    - min: 0
+      max: 63
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0

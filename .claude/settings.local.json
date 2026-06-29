@@ -101,7 +101,9 @@
       "Read(//c/Users/spenc/.unity/relay//**)",
       "Read(//c/Users/spenc/.unity//**)",
       "Bash(echo \"----\")",
-      "Read(//c/Users/spenc/AppData/Local/Unity/Editor/**)"
+      "Read(//c/Users/spenc/AppData/Local/Unity/Editor/**)",
+      "Bash(tasklist)",
+      "Bash(PYTHONIOENCODING=utf-8 python -)"
     ]
   }
 }

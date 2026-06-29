@@ -29,6 +29,10 @@ public partial struct DesignApplySystem : ISystem
         _imageIndexLookup.Update(ref state);
         _restPoseLookup.Update(ref state);
 
+        // Main-thread ComponentLookup writes below conflict with UpdateImageIndexJob (reads ImageIndex)
+        // still in flight from a prior frame — complete the input dependency before writing.
+        state.CompleteDependency();
+
         foreach (var (persistedDesign, targets) in
             SystemAPI.Query<RefRO<PersistedDesign>, DynamicBuffer<AnimatorTarget>>()
                 .WithAll<NewlySpawned>())

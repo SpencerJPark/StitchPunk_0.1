@@ -12,6 +12,11 @@ using UnityEngine;
 /// </summary>
 public class DesignAuthoring : MonoBehaviour
 {
+    [Tooltip("Pre-placed (subscene-baked) units never pass through the runtime spawner, so the design " +
+             "pipeline never runs on them. Check this to enable NewlySpawned at bake so they roll + apply " +
+             "a random design once on load. Leave unchecked for prefabs spawned at runtime (handled already).")]
+    public bool reloadDesign;
+
     [Tooltip("Per body part: one or more valid [min,max] index ranges into the texture array. " +
              "On spawn a random index is rolled uniformly across the union of all ranges for that " +
              "part — keep zombie slices out of these ranges so randomization only picks human parts.")]
@@ -55,6 +60,11 @@ public class DesignAuthoring : MonoBehaviour
             // Runtime re-skin hook — baked present + disabled, enabled by callers (e.g. zombie conversion).
             AddComponent<ChangeDesignRequest>(entity);
             SetComponentEnabled<ChangeDesignRequest>(entity, false);
+
+            // Pre-placed units: flag for DesignReloadBakingSystem to enable NewlySpawned (runs the
+            // spawn-init design pipeline once on load). Bake-only marker, stripped from the runtime world.
+            if (authoring.reloadDesign)
+                AddComponent<DesignReloadOnBake>(entity);
         }
     }
 }

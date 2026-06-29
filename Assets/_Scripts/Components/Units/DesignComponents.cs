@@ -46,3 +46,11 @@ public struct ChangeDesignRequest : IComponentData, IEnableableComponent
 {
     public FixedList512Bytes<DesignSlot> changes;
 }
+
+// Bake-time only: added by DesignAuthoring when `reloadDesign` is checked. Pre-placed (subscene-baked)
+// units never pass through UnitSpawnerSystem, so NewlySpawned is never enabled and the spawn-init
+// design pipeline (AnimatorTargetInitSystem → DesignRandomizeSystem → DesignApplySystem) never runs.
+// DesignReloadBakingSystem (PostBakingSystemGroup) enables NewlySpawned on these flagged units after
+// all bakers complete, so they roll + apply a random design once on load. Stripped from the runtime world.
+[BakingType]
+public struct DesignReloadOnBake : IComponentData { }
