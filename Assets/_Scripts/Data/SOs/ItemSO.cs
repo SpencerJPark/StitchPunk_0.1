@@ -8,7 +8,7 @@ public class ItemSO : ScriptableObject
 
     [Header("Weapon")]
     [Tooltip("Attack this weapon enables when wielded. Damage / range / timing live on the AttackSO.")]
-    [SearchableEnum] public AttackType weaponAttack;
+    [SearchableEnum] public DamageSource weaponAttack;
 
     [Tooltip("Optional on-hit effect (poison, fire, etc). Leave None for vanilla damage.")]
     [SearchableEnum] public EffectType onHitEffect;

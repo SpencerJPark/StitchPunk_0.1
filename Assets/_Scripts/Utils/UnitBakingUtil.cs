@@ -75,7 +75,7 @@ public static class UnitBakingUtil
         DynamicBuffer<AvailableAttack> availableAttackBuffer = baker.AddBuffer<AvailableAttack>(entity);
         if (unitSo.attacks != null)
             foreach (AttackActionMapping mapping in unitSo.attacks)
-                availableAttackBuffer.Add(new AvailableAttack { actionType = mapping.action, attackType = mapping.attack });
+                availableAttackBuffer.Add(new AvailableAttack { actionType = mapping.action, damageSource = mapping.attack });
 
         System.Random braveRng       = new System.Random();
         float         braveBase      = unitSo.bravery        + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.braveryVariance;

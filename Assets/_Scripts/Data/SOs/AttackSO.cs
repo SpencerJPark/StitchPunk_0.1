@@ -5,7 +5,8 @@ using UnityEngine.Serialization;
 public class AttackSO : ScriptableObject
 {
     [Tooltip("Attack Name")]
-    [SearchableEnum] public AttackType attackType;
+    [FormerlySerializedAs("attackType")]
+    [SearchableEnum] public DamageSource damageSource;
 
     [FormerlySerializedAs("attackEffect")] [Tooltip("Damage Behaviour")]
     [SearchableEnum] public DamageBehaviour damageBehaviour;

@@ -42,8 +42,8 @@ public struct ActionAnimationMappingBlob
 
 public struct AttackActionMappingBlob
 {
-    public ActionType action;
-    public AttackType attack;
+    public ActionType   action;
+    public DamageSource attack;
 }
 
 public struct StanceAnimationBlob

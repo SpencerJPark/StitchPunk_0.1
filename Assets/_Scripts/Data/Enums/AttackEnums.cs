@@ -1,4 +1,4 @@
-﻿public enum AttackType
+﻿public enum DamageSource   // was AttackType — attack + environmental damage origins
 {
     None,
     Instant,
@@ -12,6 +12,11 @@
     ShootOneHand,
     ShootTwoHand,
     Explode,
+    // v2 environmental — sourceless / non-attack damage origins
+    Fall,
+    Hazard,
+    Burn,
+    Drown,
 }
 
 public enum DamageBehaviour // attack effect behaviour

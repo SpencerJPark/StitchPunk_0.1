@@ -10,7 +10,7 @@ public class PlayerControllerAuthoring : MonoBehaviour
     public GameObject aimIndicator;
 
     [Header("Combat")]
-    [SearchableEnum] public AttackType defaultAttack = AttackType.Slash;
+    [SearchableEnum] public DamageSource defaultAttack = DamageSource.Slash;
 
     [Header("Debug — Starting Equipment")]
     [SearchableEnum] public ItemType debugSlot1 = ItemType.None;
@@ -56,7 +56,7 @@ public class PlayerControllerAuthoring : MonoBehaviour
             AddComponent(entity, new ZoomPlayerInput());
             SetComponentEnabled<ZoomPlayerInput>(entity, false);
 
-            AddComponent(entity, new PlayerSelectedAttack { attackType = controllerAuthoring.defaultAttack });
+            AddComponent(entity, new PlayerSelectedAttack { damageSource = controllerAuthoring.defaultAttack });
 
             AddComponent(entity, new OnAttackPlayerInput());
             SetComponentEnabled<OnAttackPlayerInput>(entity, false);

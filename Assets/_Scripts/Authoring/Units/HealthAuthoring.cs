@@ -15,7 +15,6 @@ public class HealthAuthoring : MonoBehaviour {
             });
             AddComponent<Dead>(entity);
             SetComponentEnabled<Dead>(entity, false);
-            AddBuffer<Hurt>(entity);
             AddComponent<HealRequest>(entity);
             SetComponentEnabled<HealRequest>(entity, false);
         }

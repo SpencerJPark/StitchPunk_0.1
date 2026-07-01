@@ -9,50 +9,57 @@ using Unity.Transforms;
 public partial struct AttackRequestSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
-    private BufferLookup<Hurt>             hurtBufferLookup;
     private ComponentLookup<Dead>          deadLookup;
 
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<AttackLibrary>();
+        state.RequireForUpdate<DamageBus>();
 
-        transformLookup  = state.GetComponentLookup<LocalTransform>(true);
-        hurtBufferLookup = state.GetBufferLookup<Hurt>(false);
-        deadLookup       = state.GetComponentLookup<Dead>(true);
+        transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        deadLookup      = state.GetComponentLookup<Dead>(true);
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         transformLookup.Update(ref state);
-        hurtBufferLookup.Update(ref state);
         deadLookup.Update(ref state);
 
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
 
+        // Recycled DamageBus queue (v2) — each attacker Enqueues its own DamageEvent value; no entity
+        // create/destroy. NativeQueue.ParallelWriter is safe from ScheduleParallel.
+        NativeQueue<DamageEvent>.ParallelWriter damageWriter =
+            SystemAPI.GetSingleton<DamageBus>().raw.AsParallelWriter();
+
         bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
             || (loggingCfg.EnabledCategories & (int)LogCategory.Combat) != 0;
 
-        EntityCommandBuffer ecb = loggingEnabled
+        EntityCommandBuffer.ParallelWriter logEcb = loggingEnabled
             ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged)
+                .AsParallelWriter()
             : default;
 
-        // Single-threaded: multiple attackers may write to the same target's Hurt buffer
         state.Dependency = new AttackRequestJob
         {
-            transformLookup  = transformLookup,
-            hurtBufferLookup = hurtBufferLookup,
-            deadLookup       = deadLookup,
-            attackLibrary    = attackLibrary,
-            deltaTime        = SystemAPI.Time.DeltaTime,
-            ecb              = ecb,
-            loggingEnabled   = loggingEnabled,
-            timestamp        = SystemAPI.Time.ElapsedTime,
-        }.Schedule(state.Dependency);
+            transformLookup = transformLookup,
+            deadLookup      = deadLookup,
+            attackLibrary   = attackLibrary,
+            deltaTime       = SystemAPI.Time.DeltaTime,
+            damageWriter    = damageWriter,
+            logEcb          = logEcb,
+            loggingEnabled  = loggingEnabled,
+            timestamp       = SystemAPI.Time.ElapsedTime,
+        }.ScheduleParallel(state.Dependency);
+
+        // Manual dependency wiring — a NativeQueue through a singleton bypasses ECS auto-tracking,
+        // so hand this producer's write handle to the bus owner (the EntityCommandBufferSystem
+        // pattern). Fetch the managed owner here rather than storing a GC reference in the struct.
+        state.World.GetExistingSystemManaged<DamageBusSystem>()
+            .AddJobHandleForProducer(state.Dependency);
     }
 }
 
@@ -65,15 +72,16 @@ public partial struct AttackRequestJob : IJobEntity
     private const float HIT_RANGE_MULT = 1.5f;
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-    public            BufferLookup<Hurt>              hurtBufferLookup;
     [ReadOnly] public ComponentLookup<Dead>           deadLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
-    public float              deltaTime;
-    public EntityCommandBuffer ecb;
-    public bool               loggingEnabled;
-    public double             timestamp;
+    public float                                    deltaTime;
+    public NativeQueue<DamageEvent>.ParallelWriter  damageWriter;
+    public EntityCommandBuffer.ParallelWriter       logEcb;
+    public bool                                     loggingEnabled;
+    public double                                   timestamp;
 
     public void Execute(
+        [ChunkIndexInQuery] int     sortKey,
         Entity                      attackerEntity,
         in LocalTransform           attackerTransform,
         ref AttackRequest           attackRequest,
@@ -82,7 +90,7 @@ public partial struct AttackRequestJob : IJobEntity
         if (attackRequest.hitFired)
             return;
 
-        int attackIndex = (int)attackRequest.attackType;
+        int attackIndex = (int)attackRequest.damageSource;
         if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
             return;
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
@@ -103,40 +111,47 @@ public partial struct AttackRequestJob : IJobEntity
                            !deadLookup.IsComponentEnabled(victim);
 
         if (victimAlive &&
-            transformLookup.TryGetComponent(victim, out LocalTransform victimTransform) &&
-            hurtBufferLookup.HasBuffer(victim))
+            transformLookup.TryGetComponent(victim, out LocalTransform victimTransform))
         {
             float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
             float hitRange   = attackBlob.range * HIT_RANGE_MULT;
 
             if (distanceSq <= hitRange * hitRange)
             {
-                hurtBufferLookup[victim].Add(new Hurt
+                // Confirmed hit — Enqueue a DamageEvent value into the bus (range/alive validation
+                // stays producer-side, so whiffs never enqueue). AOE-tagged attacks are expanded to
+                // per-target events by DamageResolutionSystem; SingleTarget flows straight through.
+                damageWriter.Enqueue(new DamageEvent
                 {
-                    attackerEntity = attackerEntity,
-                    attackType     = attackBlob.attackType,
-                    distance       = math.sqrt(distanceSq),
-                    damageAmount   = attackBlob.damageAmount,
-                    hitSourceX     = attackerTransform.Position.x,
-                    ragdollForce   = attackBlob.ragdollForce,
-                    launchForceY   = attackBlob.launchForceY,
-                    launchForceX   = attackBlob.launchForceX,
+                    targetEntity    = victim,
+                    sourceEntity    = attackerEntity,
+                    damageSource    = attackBlob.damageSource,
+                    damageAmount    = attackBlob.damageAmount,
+                    distance        = math.sqrt(distanceSq),
+                    hitSourceX      = attackerTransform.Position.x,
+                    ragdollForce    = attackBlob.ragdollForce,
+                    launchForceY    = attackBlob.launchForceY,
+                    launchForceX    = attackBlob.launchForceX,
+                    damageBehaviour = attackBlob.damageBehaviour,
+                    sourcePosition  = attackerTransform.Position,
+                    range           = attackBlob.range,
                 });
+
                 if (loggingEnabled)
-                    LogUtil.Log(ref ecb,
+                    LogUtil.Log(ref logEcb, sortKey,
                         $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f})",
                         LogLevel.Info, timestamp, category: LogCategory.Combat);
             }
             else if (loggingEnabled)
             {
-                LogUtil.Log(ref ecb,
+                LogUtil.Log(ref logEcb, sortKey,
                     $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f} > {hitRange})",
                     LogLevel.Info, timestamp, category: LogCategory.Combat);
             }
         }
         else if (loggingEnabled)
         {
-            LogUtil.Log(ref ecb,
+            LogUtil.Log(ref logEcb, sortKey,
                 $"[Attack] Skipped — target {victim.Index} not alive or invalid",
                 LogLevel.Info, timestamp, category: LogCategory.Combat);
         }

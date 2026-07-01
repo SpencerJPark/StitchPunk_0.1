@@ -57,7 +57,7 @@ public partial struct ItemLibraryBakingSystem : ISystem
     {
         itemType          = (ItemType)i,
         category          = ItemCategory.None,
-        weaponAttack      = AttackType.None,
+        weaponAttack      = DamageSource.None,
         onHitEffect       = EffectType.None,
         consumeEffect     = EffectType.None,
         pickupRange       = 1.5f,

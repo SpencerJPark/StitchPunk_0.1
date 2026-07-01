@@ -7,7 +7,7 @@ using Unity.Transforms;
 // Self-defence for player-controlled minions. A revived minion is driven by player commands
 // (PlayerUnitBrain) with its utility AI off (UtilityBrain disabled), so the normal
 // SelfDefenceAwarenessSystem — gated on UtilityBrain — never fires for it. This is the minion-side
-// equivalent: when the minion has taken hits (ThreatEntry, written by ThreatUpdateSystem which is
+// equivalent: when the minion has taken hits (ThreatEntry, written by DamageEventSystem which is
 // not gated on any brain), emit combat options against the highest-threat attacker at
 // SELF_DEFENCE_PRIORITY (3).
 //

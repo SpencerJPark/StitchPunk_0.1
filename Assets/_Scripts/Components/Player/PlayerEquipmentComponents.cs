@@ -8,5 +8,5 @@ public struct OnPlayerReviverEquip : IComponentData, IEnableableComponent
 
 public struct PlayerSelectedAttack : IComponentData
 {
-    public AttackType attackType;
+    public DamageSource damageSource;
 }

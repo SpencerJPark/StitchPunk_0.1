@@ -30,7 +30,10 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `SpatialHashRegistry.cs` | `Components/AI/` | `SpatialHashRegistry` singleton (two NativeParallelMultiHashMaps) |
 | `CombatAI.cs` | `Components/AI/` | `Faction`, `ThreatEntry` buffer, `CombatTarget` (enableable), `ChaseConfig`, `MeleeAttackConfig`, `FactionRegistry` singleton |
 | `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimatorTarget` buffer, `AnimationTargetTag`, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent` |
-| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Hurt` buffer, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
+| `DamageEvent.cs` | `Components/Combat/` | `DamageEvent` — **plain value struct** (NOT `IComponentData`), queued in the `DamageBus`. `sourceEntity` (Null = environmental) + `damageSource` + damage/knockback/AOE fields |
+| `DamageBus.cs` | `Components/Combat/` | `DamageBus` singleton — recycled `NativeQueue<DamageEvent>` transport (`raw` + `resolved`). Owned/disposed by `DamageBusSystem` |
+| `Hazard.cs` | `Components/Combat/` | `HazardZone` — proximity damage zone (spikes): `damageAmount`, `damageSource`, `radius`, `retriggerInterval`, `lastTriggerTime` (whole-zone gate), kill-knockback fields |
+| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
 | `UnitDesignComponents.cs` | `Components/Units/` | `UnitSkinColor`, `UnitHairColor`, `UnitHeadShape`, `UnitNoseShape`, `RandomizeDesign`, design tags |
 | `DesignComponents.cs` | `Components/Units/` | Unit Design System: `DesignPart` buffer + `DesignRange` buffer (baked config), `DesignSlot` (blittable entry), `PersistedDesign` (`IPersist`, chosen indices — auto-saved), `ChangeDesignRequest` (enableable, runtime re-skin batch). All on the root body entity |
 | `UnitVisualComponents.cs` | `Components/Units/` | `Outline`, `OutlineChild`, `OutlinedTag` |
@@ -71,7 +74,7 @@ SelectedAction              ActionCategory category, Entity targetEntity, float3
 NeedsAction (enableable)    tag — enable to trigger AI scoring/selection pipeline
 ActionOption (buffer)       float score, ActionCategory category, Entity targetEntity, float3 targetPosition
 Behaviour (buffer)          BehaviourType behaviourType, MotivationType targetMotivation,
-                            ActionType actionType, int value, AttackType attackType,
+                            ActionType actionType, int value, DamageSource damageSource,
                             FactionType hostileFaction, float range
 PlayerControlled (enableable) tag — enabled when minion is under player command
 PlayerOrder                 float3 destination, Entity targetEntity, CommandType commandType
@@ -196,13 +199,23 @@ UnitAction              ActionType current
 
 Dead (enableable)       tag — SOLE life-state: enabled = dead, disabled = alive (Alive deprecated)
 
-Hurt (buffer)           Entity attackerEntity, float distance, int damageAmount
+DamageEvent             PLAIN VALUE STRUCT (not IComponentData) queued in the DamageBus (v2).
+                        targetEntity, sourceEntity (Null = environmental/sourceless), damageSource,
+                        damageAmount, distance, kill-knockback fields, + AOE (damageBehaviour,
+                        sourcePosition, range). Producers Enqueue → DamageResolutionSystem expands AOE →
+                        DamageEventSystem drains. No entity create/destroy. See
+                        Tasks/Verification/DamageEvent_v2_System.md
+DamageBus (singleton)   recycled NativeQueue<DamageEvent> raw + resolved (Components/Combat/DamageBus.cs).
+                        Owned/created/disposed by DamageBusSystem (Persistent). Manual job-dep wiring —
+                        AddJobHandleForProducer / ProducerHandle (ECB-owner pattern).
+HazardZone              proximity damage zone (Components/Combat/Hazard.cs) — spike-trap example.
+                        damageAmount, damageSource, radius, retriggerInterval, lastTriggerTime.
 Health                  int healthAmount, int healthAmountMax
 HealthBar               Entity barVisualEntity, Entity healthEntity
 CombatTarget            Entity entity
 AttackCooldown          float timer
 Attack (enableable)     tag
-AttackData              AttackType attackType
+AttackData              DamageSource damageSource
 PlayerImmune            tag — prevents player attack targeting
 
 Heal (enableable)       int healAmount
@@ -457,7 +470,7 @@ Ragdoll2D (enableable, on visual root child entity)
     float       fallSpeed           — authored, used as fall speed reference
     float       bodyZAngle          — current Z tilt (simulation state, reset each death)
     quaternion  initialRotation     — captured from LocalTransform at death (used by revive to restore)
-    float       fallSideSign        — +1 fall right / -1 fall left (set from Hurt buffer attacker X position)
+    float       fallSideSign        — +1 fall right / -1 fall left (set from Health.killSourceX, captured by DamageEventSystem)
 
 Ragdoll2DJoint (enableable, on joint pivot entities)
     float       groundBuffer        — how far above root.Y to stop the joint (prevents ground clip)

@@ -290,24 +290,24 @@ public partial struct BehaviorExecutionJob : IJobEntity
             }
 
             case BehaviorCommandType.RequestAttack:
-                // AttackRequestSystem reads targetEntity/attackType and the swing timer, so a fresh
+                // AttackRequestSystem reads targetEntity/damageSource and the swing timer, so a fresh
                 // request must be written each swing — enabling alone would reuse stale hitFired/elapsed.
                 if (attackRequestLookup.HasComponent(unit))
                 {
-                    AttackType attackType = AttackType.None;
+                    DamageSource damageSource = DamageSource.None;
                     for (int i = 0; i < availableAttacks.Length; i++)
                     {
                         if (availableAttacks[i].actionType != stateMachine.action) continue;
-                        attackType = availableAttacks[i].attackType;
+                        damageSource = availableAttacks[i].damageSource;
                         break;
                     }
 
-                    if (attackType != AttackType.None && stateMachine.targetEntity != Entity.Null)
+                    if (damageSource != DamageSource.None && stateMachine.targetEntity != Entity.Null)
                     {
                         attackRequestLookup[unit] = new AttackRequest
                         {
                             targetEntity = stateMachine.targetEntity,
-                            attackType   = attackType,
+                            damageSource = damageSource,
                             hitFired     = false,
                             elapsed      = 0f,
                         };

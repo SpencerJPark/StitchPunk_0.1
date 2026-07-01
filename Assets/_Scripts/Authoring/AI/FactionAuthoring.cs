@@ -10,7 +10,7 @@ using UnityEngine;
 ///   - Undead unit bodies   (FactionType.Undead)
 ///   - Any entity that can be targeted or tracked by combat AI
 ///
-/// The ThreatEntry buffer is populated at runtime by ThreatUpdateSystem whenever
+/// The ThreatEntry buffer is populated at runtime by DamageEventSystem whenever
 /// this entity takes damage — attackers accumulate a threat score used to bias
 /// target selection toward whoever is hurting the unit.
 /// </summary>

@@ -5,7 +5,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 // Fight-back half of fight-or-flight: when a unit has taken hits (ThreatEntry written by
-// ThreatUpdateSystem), emit combat options targeting the highest-threat attacker at
+// DamageEventSystem), emit combat options targeting the highest-threat attacker at
 // SELF_DEFENCE_PRIORITY — above normal combat (2) and wander (1) — so WinnerSelection preempts
 // the current behavior via the pending path. Deliberately NOT gated on ActionRequest: the
 // override must fire mid-behavior. Does not enable ActionInterruptRequest — the interrupt path

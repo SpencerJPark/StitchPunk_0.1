@@ -1,6 +1,6 @@
 # DamageEvent System — Attack/Damage Refactor to Signal-Entity Model
 
-> **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
+> **Status:** ✔️ built & compiled (2026-07-01) · all 4 build phases landed, `Hurt` buffer removed. In-Editor play verification pending — see [`../Verification/verify-damage-event.md`](../Verification/verify-damage-event.md).
 > **Raw source:** [`../Plans/futureneedsplan.md`](futureneedsplan.md) → combat/damage decoupling (no dedicated braindump anchor — Spencer-requested refactor).
 
 ---

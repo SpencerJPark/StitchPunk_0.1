@@ -21,7 +21,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        int attackCount = BlobLibraryUtils.EnumCount<AttackType>();
+        int attackCount = BlobLibraryUtils.EnumCount<DamageSource>();
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref AttackLibraryBlob root = ref builder.ConstructRoot<AttackLibraryBlob>();
@@ -31,7 +31,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
             attacksBuilder, attackCount,
             DefaultAttack,
             librarySO.attacks,
-            so => (int)so.attackType,
+            so => (int)so.damageSource,
             MapAttack
         );
 
@@ -58,7 +58,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
 
     static AttackBlob DefaultAttack(int i) => new AttackBlob
     {
-        attackType      = (AttackType)i,
+        damageSource    = (DamageSource)i,
         damageBehaviour = DamageBehaviour.SinlgeTarget,
         damageAmount    = 0,
         range           = 0f,
@@ -71,7 +71,7 @@ public partial struct AttackLibraryBakingSystem : ISystem
 
     static AttackBlob MapAttack(AttackSO so) => new AttackBlob
     {
-        attackType      = so.attackType,
+        damageSource    = so.damageSource,
         damageBehaviour = so.damageBehaviour,
         damageAmount    = so.damageAmount,
         range           = so.range,

@@ -2,7 +2,7 @@ using Unity.Entities;
 
 public struct AttackBlob
 {
-    public AttackType attackType;
+    public DamageSource damageSource;
     public DamageBehaviour damageBehaviour;
     public int damageAmount;
     public float range;

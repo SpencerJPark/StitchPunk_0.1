@@ -4,7 +4,7 @@ using Unity.Entities;
 
 // Prunes stale ThreatEntry records before the awareness consumers (SelfDefence, Flee) read them.
 // Dead/despawned attackers are removed immediately so units never fight or flee a corpse; everything
-// else decays via staleTimer, which ThreatUpdateSystem refreshes on each hit — so an actively
+// else decays via staleTimer, which DamageEventSystem refreshes on each hit — so an actively
 // attacking enemy never expires, while a disengaged one is forgotten once its timer runs out.
 [BurstCompile]
 [UpdateInGroup(typeof(AIAwarenessSystemGroup), OrderFirst = true)]

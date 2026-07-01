@@ -51,7 +51,7 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 |---|---|---|
 | `UnitLibrarySO` + `UnitSO` | `UnitType` | Unit stats, prefab refs, base motivation weights |
 | `AnimationLibrarySO` + `AnimationClipSO` | `AnimationType` | All animation clip data — used by [[Systems_Animation]] |
-| `AttackLibrarySO` + `AttackSO` | `AttackType` | Attack stats, ranges, damage |
+| `AttackLibrarySO` + `AttackSO` | `DamageSource` (was `AttackType`) | Attack stats, ranges, damage |
 | `AIScoringLibrary` + `AIScoringCurveSO` | `MotivationType` | Scoring curve shapes per motivation — used by [[Systems_AI]] |
 | `BuildingTypeListSO` + `BuildingTypeSO` | `BuildingType` | Building stats and prefab refs |
 | `ResourceTypeListSO` + `ResourceTypeSO` | `ResourceType` | Resource display names, icons, caps |

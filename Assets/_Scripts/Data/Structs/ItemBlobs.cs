@@ -4,7 +4,7 @@ public struct ItemBlob
 {
     public ItemType     itemType;
     public ItemCategory category;
-    public AttackType   weaponAttack;
+    public DamageSource weaponAttack;
     public EffectType   onHitEffect;
     public EffectType   consumeEffect;
     public float        pickupRange;

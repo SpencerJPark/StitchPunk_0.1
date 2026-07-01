@@ -5,8 +5,8 @@ using Unity.Transforms;
 /// <summary>
 /// Detects freshly dead units and enables/resets the fake ragdoll components.
 /// Dead stays enabled until revived — Ragdoll2DReviveSystem handles cleanup.
-/// Reads the Hurt buffer to determine which side the killing blow came from
-/// so the body falls away from the attacker.
+/// Reads Health.kill* (captured by DamageEventSystem on the lethal DamageEvent) to
+/// determine which side the killing blow came from so the body falls away from the attacker.
 /// </summary>
 [UpdateInGroup(typeof(HealthSystemGroup))]
 [UpdateAfter(typeof(DeathSystem))]
@@ -46,8 +46,8 @@ public partial struct Ragdoll2DInitSystem : ISystem
             // Skip if already ragdolling (Dead stays enabled until revived)
             if (ragdollLookup.IsComponentEnabled(visualRoot)) continue;
 
-            // Determine fall direction from the kill source baked by DamageApplicationJob.
-            // The Hurt buffer is already cleared by the time we run, so we read Health.killSourceX.
+            // Determine fall direction from the kill source captured by DamageEventSystem
+            // on the lethal DamageEvent, read here from Health.killSourceX.
             // Positive Z rotation tilts the character top to the LEFT:
             //   source left of unit  → fall right → negative Z → fallSideSign = -1
             //   source right of unit → fall left  → positive Z → fallSideSign = +1

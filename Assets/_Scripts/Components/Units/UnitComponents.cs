@@ -21,32 +21,17 @@ public struct Target : IComponentData, IEnableableComponent
 // Life-state is a single enableable: Dead enabled = dead, Dead disabled = alive.
 // (The former `Alive` component was deprecated — see MinionRevival_System.)
 public struct Dead : IComponentData, IEnableableComponent { }
-public struct Hurt : IBufferElementData
-{
-    public Entity attackerEntity;
-    public AttackType attackType;
-    public float distance;
-    public int damageAmount;
-    // World-X of the hit source — used by ragdoll init for fall direction.
-    // Works even when attackerEntity is Null (thrown items).
-    public float hitSourceX;
-    // Scales ragdoll violence (joint flail speed, body fall speed). 1 = baseline.
-    public float ragdollForce;
-    // Per-attack launch arc forces. 0 = no arc (character just tips over).
-    public float launchForceY;
-    public float launchForceX;
-}
 public struct Health : IComponentData, IPersist
 {
     public int healthAmount;
     public int healthAmountMax;
-    // Snapshot of the killing blow — written by DamageApplicationJob before
-    // the Hurt buffer is cleared, then read by Ragdoll2DInitSystem.
+    // Snapshot of the killing blow — written by DamageEventSystem on the lethal
+    // DamageEvent, then read by Ragdoll2DInitSystem.
     public float killSourceX;
     public float killRagdollForce;
     public float killLaunchForceY;
     public float killLaunchForceX;
-    public AttackType killAttackType;
+    public DamageSource killDamageSource;
 }
 public struct HealRequest : IComponentData, IEnableableComponent
 {

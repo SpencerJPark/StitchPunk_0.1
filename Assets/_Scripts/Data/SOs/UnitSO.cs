@@ -85,7 +85,7 @@ public struct ActionAnimationMapping
 public struct AttackActionMapping
 {
     [SearchableEnum] public ActionType action;
-    [SearchableEnum] public AttackType attack;
+    [SearchableEnum] public DamageSource attack;
 }
 
 [Serializable]

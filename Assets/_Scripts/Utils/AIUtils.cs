@@ -117,21 +117,21 @@ public static class AIUtils
         pathRequestEnabled.ValueRW = true;
     }
 
-    public static AttackType GetAttackByAction(ref UnitDataBlob unitBlob, ActionType actionType)
+    public static DamageSource GetAttackByAction(ref UnitDataBlob unitBlob, ActionType actionType)
     {
         for (int i = 0; i < unitBlob.attacks.Length; i++)
         {
             if (unitBlob.attacks[i].action == actionType)
                 return unitBlob.attacks[i].attack;
         }
-        return AttackType.None;
+        return DamageSource.None;
     }
 
-    public static ActionType GetActionByAttack(ref UnitDataBlob unitBlob, AttackType attackType)
+    public static ActionType GetActionByAttack(ref UnitDataBlob unitBlob, DamageSource damageSource)
     {
         for (int i = 0; i < unitBlob.attacks.Length; i++)
         {
-            if (unitBlob.attacks[i].attack == attackType)
+            if (unitBlob.attacks[i].attack == damageSource)
                 return unitBlob.attacks[i].action;
         }
         return ActionType.Idle;

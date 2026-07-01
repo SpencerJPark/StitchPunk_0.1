@@ -93,7 +93,7 @@ public partial struct SwapBrainJob : IJobEntity
             availableAttacks.Add(new AvailableAttack
             {
                 actionType = entry.attacks[i].action,
-                attackType = entry.attacks[i].attack,
+                damageSource = entry.attacks[i].attack,
             });
 
         motivations.Clear();

@@ -152,9 +152,9 @@ public partial struct CombatAwarenessJob : IJobEntity
             int addedCount = 0;
             for (int a = 0; a < unitBlob.attacks.Length; a++)
             {
-                ActionType actionType = unitBlob.attacks[a].action;
-                AttackType attackType = unitBlob.attacks[a].attack;
-                int        attackIndex = (int)attackType;
+                ActionType   actionType   = unitBlob.attacks[a].action;
+                DamageSource damageSource = unitBlob.attacks[a].attack;
+                int          attackIndex  = (int)damageSource;
                 if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
                     continue;
                 float attackRange = attackLibrary.Value.attacks[attackIndex].range;

@@ -6,11 +6,11 @@ public class AttackLibrarySO : ScriptableObject
 {
     public List<AttackSO> attacks = new List<AttackSO>();
 
-    public AttackSO GetAttack(AttackType attackType)
+    public AttackSO GetAttack(DamageSource damageSource)
     {
         foreach (var attack in attacks)
         {
-            if (attack != null && attack.attackType == attackType)
+            if (attack != null && attack.damageSource == damageSource)
                 return attack;
         }
         return null;
