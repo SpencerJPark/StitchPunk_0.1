@@ -29,21 +29,23 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `Interactions.cs` | `Components/AI/` | `Interaction`, `InteractionTimer`, `InteractionOccupant` buffer, interaction-type components |
 | `SpatialHashRegistry.cs` | `Components/AI/` | `SpatialHashRegistry` singleton (two NativeParallelMultiHashMaps) |
 | `CombatAI.cs` | `Components/AI/` | `Faction`, `ThreatEntry` buffer, `CombatTarget` (enableable), `ChaseConfig`, `MeleeAttackConfig`, `FactionRegistry` singleton |
-| `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimatorTarget` buffer, `AnimationTargetTag`, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent` |
+| `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent`. ⚠ `AnimatorTarget` buffer + `AnimationTargetTag` were **unified into `BodyPart` / `BodyPartInfo`** (CharacterRig refactor) — see `BodyPartComponents.cs` |
+| `BodyPartComponents.cs` | `Components/Units/` | **CharacterRig registry:** `BodyPart` buffer (root, replaces `AnimatorTarget` — `entity`+`target`+`partDef`+`flags`), `BodyPartInfo` (each part child, replaces `AnimationTargetTag`), `CharacterPalette` (`IPersist`, skin/hair colour indices), `CharacterRigConfig` + `RagdollJointBakeData` (both `[BakingType]`) |
+| `PartLibraryComponents.cs` | `Components/Units/` | `PartLibrary` (singleton blob holder), `PartLibraryReference` (bake-time `UnityObjectRef<PartLibrarySO>`) — enum-indexed per-part static config (design grid + ragdoll zones) |
 | `DamageEvent.cs` | `Components/Combat/` | `DamageEvent` — **plain value struct** (NOT `IComponentData`), queued in the `DamageBus`. `sourceEntity` (Null = environmental) + `damageSource` + damage/knockback/AOE fields |
 | `DamageBus.cs` | `Components/Combat/` | `DamageBus` singleton — recycled `NativeQueue<DamageEvent>` transport (`raw` + `resolved`). Owned/disposed by `DamageBusSystem` |
 | `Hazard.cs` | `Components/Combat/` | `HazardZone` — proximity damage zone (spikes): `damageAmount`, `damageSource`, `radius`, `retriggerInterval`, `lastTriggerTime` (whole-zone gate), kill-knockback fields |
 | `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
-| `UnitDesignComponents.cs` | `Components/Units/` | `UnitSkinColor`, `UnitHairColor`, `UnitHeadShape`, `UnitNoseShape`, `RandomizeDesign`, design tags |
-| `DesignComponents.cs` | `Components/Units/` | Unit Design System: `DesignPart` buffer + `DesignRange` buffer (baked config), `DesignSlot` (blittable entry), `PersistedDesign` (`IPersist`, chosen indices — auto-saved), `ChangeDesignRequest` (enableable, runtime re-skin batch). All on the root body entity |
+| `UnitDesignComponents.cs` | `Components/Units/` | `RandomizeDesign` (enableable), design tags. ⚠ `UnitSkinColor`/`UnitHairColor`/`UnitHeadShape`/`UnitNoseShape` removed — `CharacterPalette` is their successor |
+| `DesignComponents.cs` | `Components/Units/` | **Semantic** Unit Design: `DesignSlot` (`target`+`shapeIndex`), `PersistedDesign` (`IPersist`, rolled shapes — auto-saved), `PaletteChange`/`ShapeOverride`, `ChangeDesignRequest` (enableable, semantic re-skin: palette shift + shape overrides), `DesignReloadOnBake` (`[BakingType]`). Colours live in `CharacterPalette`; slices re-derived through the `PartLibrary` blob grid. ⚠ `DesignPart`/`DesignRange` buffers removed |
 | `UnitVisualComponents.cs` | `Components/Units/` | `Outline`, `OutlineChild`, `OutlinedTag` |
 | `MovementComponents.cs` | `Components/Movement/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
 | `PathfindingComponents.cs` | `Components/Movement/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
 | `SpawnerComponents.cs` | `Components/Spawners/` | `UnitSpawner`, `PoolOwner`, `NeedsAnimatorInit` |
-| `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef` |
+| `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
-| `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, on visual root child), `Ragdoll2DJoint` (enableable, on joint pivot entities), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DJointRef` buffer |
+| `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, on visual root child), `Ragdoll2DJoint` (enableable, on joint pivots — baked `settleSpeed`), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable). ⚠ `Ragdoll2DJointRef`/`Ragdoll2DJointZone` buffers removed — joints come from the `BodyPart` buffer (`RagdollJoint` flag), landing zones from the `PartLibrary` blob via `PartDefId` |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
 | `ItemLibraryComponents.cs` | `Components/Items/` | `ItemLibrary` (singleton blob holder), `ItemLibraryReference` (bake-time `UnityObjectRef<ItemLibrarySO>`) — item `ItemCategory` + effect data for AI item awareness. `PickupItemAction` tag itself lives in `AiComponents.cs` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `UnitPrefabEntry` |
@@ -170,14 +172,9 @@ AnimationLayer (buffer, capacity 8)
     bool                active
     bool                looping
 
-AnimatorTarget (buffer, capacity 32)
-    Entity              entity      — the quad entity for this body part
-    AnimationTarget     target      — which body part (enum)
-    ⚠ Entity refs here are NOT remapped by ECB.Instantiate.
-      AnimatorTargetInitSystem rebuilds this buffer for newly spawned units via NeedsAnimatorInit.
-
-AnimationTargetTag          AnimationTarget target  — on each quad entity, names which part it is
-BaseParent                  Entity baseParentEntity — on each quad, points to the root body entity (IS remapped by Instantiate)
+BaseParent                  Entity baseParentEntity — on each part, points to the root body entity (IS remapped by Instantiate)
+    ⚠ AnimatorTarget buffer + AnimationTargetTag were unified into BodyPart / BodyPartInfo
+      (see Unit Components → CharacterRig registry below). Animation now reads the root's BodyPart buffer.
 AnimationTargetRestPose     float3 localPosition, float rotation, float2 scale, int baseImageIndex
 AnimationTargetPose         float3 localPosition, float rotation, float2 scale, int imageIndex
 ImageIndex                  int index, bool onUpdate
@@ -229,6 +226,33 @@ Selected (enableable)
     bool    onSelected      — true on the frame selection starts
     bool    onDeselected    — true on the frame selection ends
 ```
+
+---
+
+## CharacterRig registry (`Components/Units/BodyPartComponents.cs`)
+
+The unified per-part registry (CharacterRig refactor) — replaces `AnimatorTarget`, `DesignPart`/`DesignRange`, `Ragdoll2DJointRef`/`Zone`, and the equip-socket registry. Assembled at bake by `CharacterRigBakingSystem` and at spawn by `BodyPartInitSystem` (both from `BodyPartInfo` + `BaseParent`). Static per-part config lives in the `PartLibrary` blob; entities carry only a `PartDefId` index.
+
+```
+BodyPart (buffer, capacity 32, on the root)   -- replaces AnimatorTarget
+    Entity          entity      — the child part entity
+    AnimationTarget target      — which part (single identity key everywhere)
+    PartDefId       partDef     — index into the PartLibrary blob (design grid + ragdoll zones)
+    BodyPartFlags   flags       — HasQuad | DesignSlot | RagdollJoint | ItemSocket
+    ⚠ Entity refs NOT remapped by Instantiate — BodyPartInitSystem rebuilds on NewlySpawned.
+
+BodyPartInfo (on each part child)             -- replaces AnimationTargetTag
+    AnimationTarget target; PartDefId partDef; BodyPartFlags flags
+
+CharacterPalette (IPersist, on the root)
+    byte skinColor; byte hairColor            — colour-column indices; drive every part via colorAxis.
+    Zombify = ChangeDesignRequest{ paletteChanges.skin = zombieColumn }; SkinColor-axis parts (incl. eyes) re-derive.
+
+CharacterRigConfig      [BakingType] marker on the root (added by CharacterRigAuthoring)
+RagdollJointBakeData    [BakingType] per-joint override carrier (settleSpeedOverride, groundBufferOverride)
+```
+
+Enums (`Data/Enums/PartEnums.cs`): `PartDefId : short` (one per interchangeable part KIND, L/R share a kind), `PaletteGroup : byte {None, SkinColor, HairColor}`, `GridMode : byte {StrideFormula, ExplicitTable}`, `[Flags] BodyPartFlags : byte`.
 
 ---
 
@@ -480,14 +504,11 @@ Ragdoll2DJoint (enableable, on joint pivot entities)
 
 Ragdoll2DConfig (static, on root body entity — never toggled)
     Entity      visualRoot          — the visual child entity that tilts on Z
-    float       groundBuffer        — authored default, propagated to joints at death
-    float       fallSpeed           — authored, passed through to Ragdoll2D
-
-Ragdoll2DJointRef (buffer, capacity 8, on root body entity)
-    Entity      joint               — each joint pivot entity
+    float       groundBufferForward/Backward, tiltOffsetForward/Backward, fallSpeed
 ```
 
-**Entity placement:**
-- `Ragdoll2DConfig` + `Ragdoll2DJointRef` buffer → **root body entity** (baked by `Ragdoll2DRootAuthoring`)
-- `Ragdoll2D` → **visual root child** (added disabled by `Ragdoll2DBakingSystem`)
-- `Ragdoll2DJoint` → **each joint pivot entity** (added disabled by `Ragdoll2DBakingSystem`)
+**Entity placement (CharacterRig refactor):**
+- `Ragdoll2DConfig` + `Ragdoll2DLaunch` → **root body entity** (baked by `CharacterRigAuthoring`)
+- `Ragdoll2D` → **visual root child** (added disabled by `CharacterRigBakingSystem`)
+- `Ragdoll2DJoint` → **each joint pivot entity** (added disabled by `CharacterRigBakingSystem`, `settleSpeed` from override-or-blob)
+- Joints are discovered at death/revive by walking the root's **`BodyPart` buffer** for `RagdollJoint`-flagged entries; **landing zones** come from the `PartLibrary` blob via each joint's `PartDefId` (no per-root zone buffer anymore). `Ragdoll2DJointRef`/`Ragdoll2DJointZone` are gone.

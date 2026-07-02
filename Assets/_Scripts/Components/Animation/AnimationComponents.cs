@@ -23,24 +23,14 @@ public struct AnimationLayer : IBufferElementData
     public bool looping;
 }
 
-[InternalBufferCapacity(32)]
-public struct AnimatorTarget : IBufferElementData
-{
-    public Entity entity;
-    public AnimationTarget target;
-}
-
 // Unit Visual Components
 public struct Billboard : IComponentData
 {
     public Entity parentEntity;
 }
 
-// Animation Targets
-public struct AnimationTargetTag : IComponentData
-{
-    public AnimationTarget target;
-}
+// Part identity (AnimationTargetTag) and the root part registry (AnimatorTarget buffer) were unified
+// into BodyPartInfo / BodyPart — see Components/Units/BodyPartComponents.cs.
 
 public struct BaseParent : IComponentData
 {

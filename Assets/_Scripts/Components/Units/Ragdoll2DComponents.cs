@@ -53,21 +53,6 @@ public struct Ragdoll2DLaunch : IComponentData, IEnableableComponent
     public float groundY;   // root Y at death — clamp target when landing
 }
 
-[InternalBufferCapacity(8)]
-public struct Ragdoll2DJointRef : IBufferElementData
-{
-    public Entity joint;
-    public float settleSpeed;  // deg/s to reach the target angle (resolved in baker, default 360)
-    // Index range into the root entity's Ragdoll2DJointZone buffer
-    public int zoneStart;
-    public int zoneCount;
-}
-
-// Landing zones for a joint — packed per-root, indexed via Ragdoll2DJointRef.zoneStart/zoneCount.
-// At death, one zone is picked randomly and a random angle within it becomes the joint's target.
-[InternalBufferCapacity(16)]
-public struct Ragdoll2DJointZone : IBufferElementData
-{
-    public float min;
-    public float max;
-}
+// Ragdoll2DJointRef / Ragdoll2DJointZone were removed. Joints are now discovered through the root's
+// BodyPart buffer (BodyPartFlags.RagdollJoint entries) and their landing zones + settle speed come
+// from the PartLibrary blob via the joint's PartDefId. Ragdoll2DJoint carries the baked settleSpeed.

@@ -33,10 +33,10 @@ public partial struct Ragdoll2DReviveSystem : ISystem
         launchLookup.Update(ref state);
         transformLookup.Update(ref state);
 
-        foreach (var (config, joints, rootEntity) in
+        foreach (var (config, parts, rootEntity) in
             SystemAPI.Query<
                 RefRO<Ragdoll2DConfig>,
-                DynamicBuffer<Ragdoll2DJointRef>>()
+                DynamicBuffer<BodyPart>>()
                     .WithDisabled<Dead>()
                     .WithEntityAccess())
         {
@@ -65,10 +65,12 @@ public partial struct Ragdoll2DReviveSystem : ISystem
                 t.Rotation = ragdoll.initialRotation;
             }
 
-            // Reset and disable each joint
-            for (int i = 0; i < joints.Length; i++)
+            // Reset and disable each ragdoll joint (RagdollJoint-flagged BodyPart entries)
+            for (int i = 0; i < parts.Length; i++)
             {
-                Entity jointEntity = joints[i].joint;
+                if ((parts[i].flags & BodyPartFlags.RagdollJoint) == 0) continue;
+
+                Entity jointEntity = parts[i].entity;
                 if (jointEntity == Entity.Null) continue;
                 if (!jointLookup.HasComponent(jointEntity)) continue;
                 if (!jointLookup.IsComponentEnabled(jointEntity)) continue;

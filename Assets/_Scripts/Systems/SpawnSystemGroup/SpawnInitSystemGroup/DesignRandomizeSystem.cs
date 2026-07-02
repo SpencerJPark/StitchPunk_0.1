@@ -3,13 +3,15 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Rolls a random valid texture-array index per declared body part on first spawn, writing the
-// result into PersistedDesign. Runs after AnimatorTargetInitSystem and before MinionRestoreApplySystem
-// so a restored minion's saved indices overwrite the (wasted) roll before DesignApplySystem fans them
-// out. One-shot: consumes RandomizeDesign by disabling it (pooled/reclaimed units keep their look).
+// Rolls a per-character palette (skin + hair colour) once and a random shape per design-driven body
+// part on first spawn, writing the shapes into PersistedDesign and the colours into CharacterPalette.
+// Colour counts and shape counts come from the PartLibrary blob (data-driven, no enum reflection in
+// Burst). Runs after BodyPartInitSystem (buffer built) and before MinionRestoreApplySystem (a restored
+// minion's saved shapes/palette overwrite the wasted roll before DesignApplySystem fans them out).
+// One-shot: consumes RandomizeDesign by disabling it.
 [BurstCompile]
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
-[UpdateAfter(typeof(AnimatorTargetInitSystem))]
+[UpdateAfter(typeof(BodyPartInitSystem))]
 [UpdateBefore(typeof(MinionRestoreApplySystem))]
 public partial struct DesignRandomizeSystem : ISystem
 {
@@ -17,13 +19,22 @@ public partial struct DesignRandomizeSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<PartLibrary>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        PartLibrary library = SystemAPI.GetSingleton<PartLibrary>();
+        if (!library.library.IsCreated)
+            return;
+
         uint seedBase = (uint)(SystemAPI.Time.ElapsedTime * 1000.0) + 1u; // never 0
-        state.Dependency = new DesignRandomizeJob { seedBase = seedBase }.ScheduleParallel(state.Dependency);
+        state.Dependency = new DesignRandomizeJob
+        {
+            seedBase = seedBase,
+            library  = library.library,
+        }.ScheduleParallel(state.Dependency);
     }
 }
 
@@ -32,48 +43,53 @@ public partial struct DesignRandomizeSystem : ISystem
 public partial struct DesignRandomizeJob : IJobEntity
 {
     public uint seedBase;
+    [ReadOnly] public BlobAssetReference<PartLibraryBlob> library;
 
     public void Execute(
-        [EntityIndexInQuery] int idx,
-        in DynamicBuffer<DesignPart> parts,
-        in DynamicBuffer<DesignRange> ranges,
+        [EntityIndexInQuery] int indexInQuery,
+        in DynamicBuffer<BodyPart> parts,
+        ref CharacterPalette palette,
         ref PersistedDesign persistedDesign,
         EnabledRefRW<RandomizeDesign> randomizeDesignEnabled)
     {
-        Random rng = Random.CreateFromIndex(seedBase + (uint)idx);
-        persistedDesign.slots.Clear();
+        Random random = Random.CreateFromIndex(seedBase + (uint)indexInQuery);
 
-        for (int p = 0; p < parts.Length; p++)
+        // Colour counts are data-driven: widest column set across parts on each axis.
+        int skinColorCount = 1;
+        int hairColorCount = 1;
+        for (int i = 0; i < parts.Length; i++)
         {
-            DesignPart part = parts[p];
-            if (part.rangeCount <= 0)
+            if ((parts[i].flags & BodyPartFlags.DesignSlot) == 0)
                 continue;
 
-            // Uniform over the union of valid slices: weight each range by its size.
-            int total = 0;
-            for (int r = 0; r < part.rangeCount; r++)
-            {
-                DesignRange range = ranges[part.rangeStart + r];
-                total += range.max - range.min + 1;
-            }
-            if (total <= 0)
+            int defIndex = (int)parts[i].partDef;
+            if (defIndex < 0 || defIndex >= library.Value.parts.Length)
                 continue;
 
-            int roll = rng.NextInt(0, total); // [0, total)
-            int chosen = ranges[part.rangeStart].min;
-            for (int r = 0; r < part.rangeCount; r++)
-            {
-                DesignRange range = ranges[part.rangeStart + r];
-                int size = range.max - range.min + 1;
-                if (roll < size)
-                {
-                    chosen = range.min + roll;
-                    break;
-                }
-                roll -= size;
-            }
+            ref PartDef def = ref library.Value.parts[defIndex];
+            if (def.colorAxis == PaletteGroup.SkinColor)
+                skinColorCount = math.max(skinColorCount, def.colorCount);
+            else if (def.colorAxis == PaletteGroup.HairColor)
+                hairColorCount = math.max(hairColorCount, def.colorCount);
+        }
 
-            persistedDesign.slots.Add(new DesignSlot { target = (int)part.target, imageIndex = chosen });
+        palette.skinColor = (byte)random.NextInt(0, math.max(1, skinColorCount));
+        palette.hairColor = (byte)random.NextInt(0, math.max(1, hairColorCount));
+
+        persistedDesign.slots.Clear();
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if ((parts[i].flags & BodyPartFlags.DesignSlot) == 0)
+                continue;
+
+            int defIndex = (int)parts[i].partDef;
+            if (defIndex < 0 || defIndex >= library.Value.parts.Length)
+                continue;
+
+            ref PartDef def = ref library.Value.parts[defIndex];
+            int shapeCount = math.max(1, def.shapeCount);
+            int shapeIndex = random.NextInt(0, shapeCount);
+            persistedDesign.slots.Add(new DesignSlot { target = (int)parts[i].target, shapeIndex = shapeIndex });
         }
 
         randomizeDesignEnabled.ValueRW = false;

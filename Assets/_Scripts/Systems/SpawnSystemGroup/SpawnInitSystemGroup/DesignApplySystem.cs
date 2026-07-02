@@ -1,24 +1,25 @@
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 
-// Fans the chosen indices in PersistedDesign out to the child quads on spawn. Runs after
-// MinionRestoreApplySystem (so a restored minion's saved indices win over the fresh roll) and before
-// SpawnInitCleanupSystem (which disables NewlySpawned). Writes child entities via ComponentLookup on
-// the main thread — mirrors Ragdoll2DSpawnInitSystem; spawn-init volume is low. Never .Run().
+// Re-derives every design-driven part's slice from the rolled shapes (PersistedDesign) + palette
+// (CharacterPalette) through the PartLibrary blob grid, and fans the results to the child quads on
+// spawn. Runs after MinionRestoreApplySystem (so a restored minion's saved shapes/palette win over
+// the fresh roll) and before SpawnInitCleanupSystem (which disables NewlySpawned). Writes child
+// entities via ComponentLookup on the main thread — mirrors Ragdoll2DSpawnInitSystem. Never .Run().
 [BurstCompile]
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
 [UpdateAfter(typeof(MinionRestoreApplySystem))]
 [UpdateBefore(typeof(SpawnInitCleanupSystem))]
 public partial struct DesignApplySystem : ISystem
 {
-    private ComponentLookup<ImageIndex>             _imageIndexLookup;
+    private ComponentLookup<ImageIndex>              _imageIndexLookup;
     private ComponentLookup<AnimationTargetRestPose> _restPoseLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<PartLibrary>();
         _imageIndexLookup = state.GetComponentLookup<ImageIndex>(false);
         _restPoseLookup   = state.GetComponentLookup<AnimationTargetRestPose>(false);
     }
@@ -26,6 +27,10 @@ public partial struct DesignApplySystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        PartLibrary library = SystemAPI.GetSingleton<PartLibrary>();
+        if (!library.library.IsCreated)
+            return;
+
         _imageIndexLookup.Update(ref state);
         _restPoseLookup.Update(ref state);
 
@@ -33,17 +38,17 @@ public partial struct DesignApplySystem : ISystem
         // still in flight from a prior frame — complete the input dependency before writing.
         state.CompleteDependency();
 
-        foreach (var (persistedDesign, targets) in
-            SystemAPI.Query<RefRO<PersistedDesign>, DynamicBuffer<AnimatorTarget>>()
+        foreach (var (parts, persistedDesign, palette) in
+            SystemAPI.Query<DynamicBuffer<BodyPart>, RefRO<PersistedDesign>, RefRO<CharacterPalette>>()
                 .WithAll<NewlySpawned>())
         {
-            FixedList512Bytes<DesignSlot> slots = persistedDesign.ValueRO.slots;
-            for (int i = 0; i < slots.Length; i++)
-            {
-                DesignApplyUtil.ApplySlot(
-                    targets, slots[i].target, slots[i].imageIndex,
-                    ref _imageIndexLookup, ref _restPoseLookup);
-            }
+            DesignApplyUtil.ApplyDesign(
+                parts,
+                persistedDesign.ValueRO.slots,
+                palette.ValueRO,
+                ref library.library.Value,
+                ref _imageIndexLookup,
+                ref _restPoseLookup);
         }
     }
 }

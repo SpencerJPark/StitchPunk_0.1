@@ -70,7 +70,8 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `ScoringLibraryBakingSystem` | `ScoringLibraryBakingSystem.cs` | AIScoringLibrarySO → AIScoringLibraryBlob |
 | `AttackLibraryBakingSystem` | `AttackLibraryBakingSystem.cs` | AttackLibrarySO → AttackLibraryBlob |
 | `FactoryLibraryBakingSystem` | `FactoryLibraryBakingSystem.cs` | FactoryLibrarySO → FactoryLibraryBlob (recipes blob for ProductionSystem) |
-| `Ragdoll2DBakingSystem` | `Ragdoll2DBakingSystem.cs` | Adds `Ragdoll2D` (disabled) to visual root child, `Ragdoll2DJoint` (disabled) to each joint pivot — cannot be done in baker because they are other GOs' entities |
+| `PartLibraryBakingSystem` | `PartLibraryBakingSystem.cs` | PartLibrarySO → PartLibraryBlob (enum-indexed per-part design grid + ragdoll zones; CharacterRig) |
+| `CharacterRigBakingSystem` | `CharacterRigBakingSystem.cs` | `[UpdateAfter(PartLibraryBakingSystem)]` Builds the root `BodyPart` buffer from `BodyPartInfo`+`BaseParent`; stamps `Ragdoll2D`/`Ragdoll2DJoint` (disabled) with settle speed from override-or-blob. Replaces `CharacterBodyPartBakingSystem` + `Ragdoll2DBakingSystem` (both deleted) |
 
 ---
 
@@ -94,7 +95,10 @@ Runs inside `SimulationSystemGroup`, before `MinionActionSelectionSystemGroup`. 
 | System | File | Purpose |
 |---|---|---|
 | `PlayerRollInputSystem` | `PlayerInputSystemGroup/PlayerRollInputSystem.cs` | Ticks down `OnRollPlayerInput.rollTime`, disables when expired |
-| `PlayerTargetingSystem` | `PlayerInputSystemGroup/PlayerTargetingSystem.cs` | Finds nearest `PlayerInteractable` in range; enables/disables `Target` on the player |
+| `PlayerTargetingSystem` | `PlayerInputSystemGroup/PlayerTargetingSystem.cs` | Finds nearest `PlayerInteractable` in range; enables/disables `Target` on the player (interaction targeting) |
+| `PlayerCombatTargetingSystem` | `PlayerInputSystemGroup/PlayerCombatTargetingSystem.cs` | Finds nearest **damageable** entity (`Health`, alive, `WithNone<Player, PlayerImmune, Dead>`) within `COMBAT_TARGET_RANGE` (5f); enables/disables `CombatTarget` on the player. Combat targeting is kept separate from interaction `Target`. |
+| `PlayerAttackCooldownSystem` | `PlayerInputSystemGroup/PlayerAttackCooldownSystem.cs` | Ticks down `AttackCooldown.remaining`, disables when expired (mirrors `PlayerRollInputSystem`) |
+| `PlayerAttackSystem` | `PlayerInputSystemGroup/PlayerAttackSystem.cs` | **Player melee (v1).** On `OnAttackPlayerInput` + off `AttackCooldown` + `CombatTarget` in `AttackBlob.range`: snap-faces the target, writes `AttackRequest { damageSource }` (consumed same-frame by `AttackRequestSystem`), pushes the swing anim (Action layer via `AIUtils.GetAnimationByAction`), starts `AttackCooldown = max(cooldown, hitTime+0.05)`. The player is the one combatant that bypasses the AI decision/execution split — it writes `AttackRequest` directly. Retaliation is left entirely to the existing AI threat systems. |
 | `PlayerAimSystem` | `PlayerInputSystemGroup/PlayerAimSystem.cs` | Reads `LookPlayerInput` while aiming; updates `AimDirection`, rotates player, shows/hides aim indicator |
 | `PlayerEquipmentInputSystem` | `PlayerInputSystemGroup/PlayerEquipmentInputSystem.cs` | Resolves `OnEquipmentSlotPlayerInput.slot` → `ItemType` via `PlayerEquipmentSlots`; fires the matching equipment event (`OnPlayerReviverEquipt` etc.) |
 
@@ -213,7 +217,7 @@ Combat runs on a **recycled `NativeQueue<DamageEvent>` bus (v2)** — no per-uni
 | System | File | Purpose |
 |---|---|---|
 | `DeathSystem` | `DeathSystem.cs` | First-death-frame work (`Dead` is enabled upstream in `DamageEventSystem`); latches on `UnitAction.current == ActionType.Death` (set here) so it runs once per death. Halts pathing, fires `ActionInterruptRequest`, cancels in-flight `AttackRequest`. **Enables `PlayerInteractable` (if present) so a revivable corpse becomes targetable by the player reviver** (`PlayerTargetingSystem` scans `PlayerInteractable`; only `UndeadAuthoring` units carry it, baked disabled). `Alive` deprecated — `Dead` is the sole life-state. |
-| `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Health.kill*` (captured by `DamageEventSystem` on the lethal event) to determine fall direction (away from attacker), enables and resets `Ragdoll2D` + `Ragdoll2DJoint` components with randomised flail velocity |
+| `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Health.kill*` for fall direction, enables/resets `Ragdoll2D` + each `RagdollJoint`-flagged `BodyPart`'s `Ragdoll2DJoint` — landing zones read from the `PartLibrary` blob via the joint's `PartDefId` (requires `PartLibrary`) |
 | `HealSystem` | `HealSystem.cs` | Applies `Heal` component when enabled |
 | `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, `UnitAction`→Idle (re-arms death latch), disables `PlayerInteractable` (alive again → no longer a reviver target). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
 | `SwapBrainSystem` | `SwapBrainSystem.cs` | `[UpdateAfter(ReviveRequestSystem)]`. Consumes an enabled `SwapBrainRequest`: re-keys `UtilityBrain.unitType`/`UnitData.unitType`, `Faction`, and rebuilds the `AttackFaction`/`AvailableAttack`/`Motivation` buffers from `UnitDataLibrary[newUnit]`; fires `ActionInterruptRequest`; consumes the request via ECB. Generic brain-swap hook (revive, future feral turn, debug). Rebuilt motivations are zero-decay (blob has no decay data). |
@@ -246,10 +250,10 @@ Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlyS
 | System | File | Purpose |
 |---|---|---|
 | `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off (units start alive = `Dead` disabled), `UtilityBrain`→on |
-| `AnimatorTargetInitSystem` | `AnimatorTargetInitSystem.cs` | Rebuilds `AnimatorTarget` buffer — ECB.Instantiate does not reliably remap refs inside dynamic buffers |
+| `BodyPartInitSystem` | `BodyPartInitSystem.cs` | Rebuilds the root `BodyPart` buffer on `NewlySpawned` units from `BodyPartInfo`+`BaseParent` (carries `partDef`+`flags`) — ECB.Instantiate does not reliably remap refs inside dynamic buffers. Replaces `AnimatorTargetInitSystem` |
 | `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
-| `DesignRandomizeSystem` | `DesignRandomizeSystem.cs` | `[UpdateAfter(AnimatorTargetInitSystem)] [UpdateBefore(MinionRestoreApplySystem)]` Rolls a random in-range texture index per `DesignPart` into `PersistedDesign`, disables `RandomizeDesign`. `IJobEntity.ScheduleParallel` (root-only writes) |
-| `DesignApplySystem` | `DesignApplySystem.cs` | `[UpdateAfter(MinionRestoreApplySystem)] [UpdateBefore(SpawnInitCleanupSystem)]` Fans `PersistedDesign.slots` to child quads (via `AnimatorTarget` → `ComponentLookup`, main thread like `Ragdoll2DSpawnInitSystem`), writing `baseImageIndex` + `ImageIndex`. Restored indices win (runs after restore). Shares `DesignApplyUtil.ApplySlot` with `DesignChangeSystem` |
+| `DesignRandomizeSystem` | `DesignRandomizeSystem.cs` | `[UpdateAfter(BodyPartInitSystem)] [UpdateBefore(MinionRestoreApplySystem)]` Rolls a per-character `CharacterPalette` (skin/hair colour, counts from blob) + a random shape per `DesignSlot`-flagged `BodyPart` into `PersistedDesign`, disables `RandomizeDesign`. `IJobEntity.ScheduleParallel`, reads `PartLibrary` blob |
+| `DesignApplySystem` | `DesignApplySystem.cs` | `[UpdateAfter(MinionRestoreApplySystem)] [UpdateBefore(SpawnInitCleanupSystem)]` Re-derives every `DesignSlot` part's slice from `PersistedDesign` shapes + `CharacterPalette` through the `PartLibrary` blob grid, writes `baseImageIndex` + `ImageIndex` (main thread). Restored shapes win. Shares `DesignApplyUtil.ApplyDesign` with `DesignChangeSystem` |
 | `SpawnInitCleanupSystem` | `SpawnInitCleanupSystem.cs` | `[OrderLast]` Disables `NewlySpawned`; component persists on entity for re-enablement on next pool reclaim |
 
 ### DesignSystemGroup (`Systems/DesignSystemGroup/`)
@@ -258,7 +262,7 @@ Runs in `SimulationSystemGroup`, `[UpdateAfter(HealthSystemGroup)] [UpdateBefore
 
 | System | File | Purpose |
 |---|---|---|
-| `DesignChangeSystem` | `DesignChangeSystem.cs` | Consumes enabled `ChangeDesignRequest`: upserts each `(target, imageIndex)` into `PersistedDesign.slots` (so the new look persists), fans it to child quads via `DesignApplyUtil.ApplySlot`, then disables the request. Main-thread `ComponentLookup` writes (never `.Run()`). First caller: human→zombie skin swap |
+| `DesignChangeSystem` | `DesignChangeSystem.cs` | Consumes enabled `ChangeDesignRequest`: applies `paletteChanges` to `CharacterPalette` + `shapeOverrides` to `PersistedDesign`, then re-derives EVERY `DesignSlot` part through the blob grid (`DesignApplyUtil.ApplyDesign`) and disables the request. Zombify = `paletteChanges.skin = zombieColumn`. Main-thread writes, requires `PartLibrary` |
 
 #### SoundSystemGroup (`SoundSystemGroup/`)
 

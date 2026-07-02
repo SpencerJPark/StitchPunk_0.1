@@ -5,7 +5,7 @@ using Unity.Entities;
 /// Patches restored minions the frame after <c>PersistentLoadSystem</c> instantiated them.
 ///
 /// Runs in SpawnInitSystemGroup AFTER <c>SpawnStateInitSystem</c> (which resets Minion→off,
-/// Dead→off on NewlySpawned) and <c>AnimatorTargetInitSystem</c> (which rebuilds the body-part
+/// Dead→off on NewlySpawned) and <c>BodyPartInitSystem</c> (which rebuilds the body-part
 /// buffer), so the generically-restored component data + enabled bits stick instead of being
 /// clobbered. The saved record travels via <see cref="MinionRestoreQueue"/>, keyed by the
 /// <c>RestorePending.recordId</c> stamped at instantiate time.
@@ -14,7 +14,7 @@ using Unity.Entities;
 /// </summary>
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
 [UpdateAfter(typeof(SpawnStateInitSystem))]
-[UpdateAfter(typeof(AnimatorTargetInitSystem))]
+[UpdateAfter(typeof(BodyPartInitSystem))]
 public partial struct MinionRestoreApplySystem : ISystem
 {
     public void OnCreate(ref SystemState state)

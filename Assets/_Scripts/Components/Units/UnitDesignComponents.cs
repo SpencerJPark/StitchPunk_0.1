@@ -4,28 +4,8 @@ using Unity.Mathematics;
 
 public struct RandomizeDesign : IComponentData, IEnableableComponent {}
 
-// Buffer element for parts
-
-public struct UnitSkinColor : IComponentData
-{
-    public SkinColor skinColor;
-}
-
-public struct UnitHairColor : IComponentData
-{
-    public HairColor hairColor;
-}
-
-public struct UnitHeadShape : IComponentData
-{
-    public HeadShape headShape;
-}
-
-public struct UnitNoseShape : IComponentData
-{
-    public NoseShape noseShape;
-}
-
+// UnitSkinColor / UnitHairColor / UnitHeadShape / UnitNoseShape were removed — CharacterPalette
+// (BodyPartComponents.cs) is their semantic successor (skin/hair colour indices per character).
 
 // Design Tags live on the parts
 public struct UnitHairDesign : IComponentData { }

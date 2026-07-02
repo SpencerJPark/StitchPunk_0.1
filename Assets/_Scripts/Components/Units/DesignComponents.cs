@@ -1,56 +1,59 @@
 using Unity.Collections;
 using Unity.Entities;
 
-// Unit Design System — per-instance visual identity (texture-array image indices per body part).
-// All components live on the ROOT body entity; child quads are resolved at runtime through the
-// AnimatorTarget buffer (rebuilt from BaseParent by AnimatorTargetInitSystem). See
-// _Vault/Tasks/Claude/Plans/UnitDesign_System.md.
+// Unit Design System — per-instance visual identity, now semantic (shape + palette) instead of raw
+// texture-array slice indices. Static per-part config (variant grid, colour axis) lives in the
+// PartLibrary blob; the root carries only the rolled shape per part (PersistedDesign) and the
+// character-level colours (CharacterPalette, in BodyPartComponents.cs). Slices are re-derived through
+// the blob grid at apply time. Parts are resolved through the root's BodyPart buffer.
+// PersistedDesign's format change breaks old saves — accepted, no migration.
 
-// Config — baked by DesignAuthoring. Mirrors the Ragdoll2DJointRef/Zone flat-buffer shape:
-// each part holds a [rangeStart, rangeCount) window into the DesignRange buffer.
-[InternalBufferCapacity(16)]
-public struct DesignPart : IBufferElementData
-{
-    public AnimationTarget target;  // which body part this entry customizes
-    public int rangeStart;          // window start into the DesignRange buffer
-    public int rangeCount;          // number of ranges for this part
-}
-
-// Config — flat list of valid [min,max] index ranges, windowed by DesignPart.
-[InternalBufferCapacity(32)]
-public struct DesignRange : IBufferElementData
-{
-    public int min;                 // inclusive valid texture-array index
-    public int max;                 // inclusive
-}
-
-// Blittable result entry. Unmanaged (two ints) so it rides inside a FixedList.
+// Blittable result entry: the chosen SHAPE for a part (was: raw imageIndex). Two ints so it rides a
+// FixedList. Colour is not stored per-slot — it comes from CharacterPalette via the part's colorAxis.
 public struct DesignSlot
 {
-    public int target;              // (int)AnimationTarget
-    public int imageIndex;          // chosen slice
+    public int target;      // (int)AnimationTarget
+    public int shapeIndex;  // chosen shape variant, in [0, PartDef.shapeCount)
 }
 
-// Result + persistence. A value-type IPersist IComponentData with no Entity/Blob fields is
-// auto-discovered by PersistRegistry and round-tripped by the generic save pipeline with no
-// per-field code (~64 slot cap >> ~36 AnimationTarget parts).
+// Result + persistence. Value-type IPersist IComponentData with no Entity/Blob fields → auto-discovered
+// by PersistRegistry and round-tripped by the generic save pipeline with no per-field code.
 public struct PersistedDesign : IComponentData, IPersist
 {
     public FixedList512Bytes<DesignSlot> slots;
 }
 
-// Runtime re-skin request — a caller fills `changes` with explicit (target, imageIndex) entries
-// and enables the component; DesignChangeSystem upserts them into PersistedDesign, applies them to
-// the child quads, then disables it. NOT IPersist — the request itself is never saved.
-public struct ChangeDesignRequest : IComponentData, IEnableableComponent
+// A requested palette shift per group. NoChange (-1) leaves that group untouched. Zombification =
+// paletteChanges.skin = zombie column; every SkinColor-axis part re-derives its slice automatically.
+public struct PaletteChange
 {
-    public FixedList512Bytes<DesignSlot> changes;
+    public const short NoChange = -1;
+
+    public short skin;   // new CharacterPalette.skinColor, or NoChange
+    public short hair;   // new CharacterPalette.hairColor, or NoChange
 }
 
-// Bake-time only: added by DesignAuthoring when `reloadDesign` is checked. Pre-placed (subscene-baked)
-// units never pass through UnitSpawnerSystem, so NewlySpawned is never enabled and the spawn-init
-// design pipeline (AnimatorTargetInitSystem → DesignRandomizeSystem → DesignApplySystem) never runs.
-// DesignReloadBakingSystem (PostBakingSystemGroup) enables NewlySpawned on these flagged units after
-// all bakers complete, so they roll + apply a random design once on load. Stripped from the runtime world.
+// A rare explicit shape swap that bypasses randomization (e.g. force a specific head shape on convert).
+public struct ShapeOverride
+{
+    public int target;      // (int)AnimationTarget
+    public int shapeIndex;
+}
+
+// Runtime re-skin request — a caller sets palette shifts and/or explicit shape overrides and enables
+// the component; DesignChangeSystem applies them to CharacterPalette / PersistedDesign, re-derives all
+// design slices through the blob grid, fans them to the child quads, then disables the request.
+// NOT IPersist — the request itself is never saved.
+public struct ChangeDesignRequest : IComponentData, IEnableableComponent
+{
+    public PaletteChange paletteChanges;
+    public FixedList128Bytes<ShapeOverride> shapeOverrides;
+}
+
+// Bake-time only: added by CharacterRigAuthoring when `reloadDesign` is checked. Pre-placed
+// (subscene-baked) units never pass through UnitSpawnerSystem, so NewlySpawned is never enabled and
+// the spawn-init design pipeline never runs. DesignReloadBakingSystem (PostBakingSystemGroup) enables
+// NewlySpawned on these flagged units after all bakers complete, so they roll + apply a random design
+// once on load. Stripped from the runtime world.
 [BakingType]
 public struct DesignReloadOnBake : IComponentData { }

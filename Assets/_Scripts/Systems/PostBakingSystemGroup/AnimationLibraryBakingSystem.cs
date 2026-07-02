@@ -121,37 +121,5 @@ public partial struct AnimationLibraryBakingSystem : ISystem
     }
 }
 
-[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
-[UpdateInGroup(typeof(PostBakingSystemGroup))]
-public partial struct CharacterBodyPartBakingSystem : ISystem
-{
-    public void OnUpdate(ref SystemState state)
-    {
-        // Clear first to prevent duplicate entries on incremental rebakes.
-        foreach (var buffer in SystemAPI.Query<DynamicBuffer<AnimatorTarget>>())
-        {
-            buffer.Clear();
-        }
-
-        // Populate for subscene (non-prefab) entities only.
-        // Prefab-referenced entities (e.g. baked via UnitLibraryAuthoring) are handled
-        // at runtime by AnimatorTargetInitSystem, which uses BaseParent lookups to build
-        // the buffer with correct entity references after Instantiate.
-        foreach (var (partTag, parentChar, entity) in
-            SystemAPI.Query<RefRO<AnimationTargetTag>, RefRO<BaseParent>>()
-                .WithEntityAccess())
-        {
-            Entity characterEntity = parentChar.ValueRO.baseParentEntity;
-
-            if (SystemAPI.HasBuffer<AnimatorTarget>(characterEntity))
-            {
-                var buffer = SystemAPI.GetBuffer<AnimatorTarget>(characterEntity);
-                buffer.Add(new AnimatorTarget
-                {
-                    entity = entity,
-                    target = partTag.ValueRO.target
-                });
-            }
-        }
-    }
-}
+// CharacterBodyPartBakingSystem (bake-time AnimatorTarget assembly) was replaced by
+// CharacterRigBakingSystem, which builds the unified BodyPart buffer from BodyPartInfo + BaseParent.

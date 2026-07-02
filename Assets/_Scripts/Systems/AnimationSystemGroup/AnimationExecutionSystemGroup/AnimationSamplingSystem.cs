@@ -69,7 +69,7 @@ public partial struct SampleLayeredAnimationJob : IJobEntity
     
     public void Execute(
         in DynamicBuffer<AnimationLayer> layers,
-        in DynamicBuffer<AnimatorTarget> targets)
+        in DynamicBuffer<BodyPart> targets)
     {
         for (int i = 0; i < targets.Length; i++)
         {

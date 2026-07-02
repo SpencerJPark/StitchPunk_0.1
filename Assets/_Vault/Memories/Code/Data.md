@@ -56,6 +56,7 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 | `BuildingTypeListSO` + `BuildingTypeSO` | `BuildingType` | Building stats and prefab refs |
 | `ResourceTypeListSO` + `ResourceTypeSO` | `ResourceType` | Resource display names, icons, caps |
 | `ItemLibrarySO` + `ItemSO` | `ItemType` | Item `ItemCategory` + effect data (heal amount, satisfied motivation, restoration, pickup range) — used by `ItemAwarenessSystem`; consumed downstream by `ItemConsumeSystem` (consumables) / `ItemEquipSystem` (weapons) via `PickupBehaviour` + `RequestPickup`. Baked by `ItemLibraryBakingSystem` into `ItemLibraryBlob` (holder: `ItemLibrary`) |
+| `PartLibrarySO` + `PartDefinitionSO` | `PartDefId` | **CharacterRig** per-part static config: design grid (`GridMode` StrideFormula/ExplicitTable, `baseSlice`/`shapeCount`/`colorCount`/`colorAxis`/`sliceTable`) + ragdoll (`defaultSettleSpeed`, landing `zones`). Baked by `PartLibraryBakingSystem` into `PartLibraryBlob` (`PartDef` entries with nested `BlobArray<int>` table + `BlobArray<float2>` zones; holder: `PartLibrary`). Read by design (`DesignRandomize`/`Apply`/`Change`) + ragdoll (`Ragdoll2DInitSystem`) + `CharacterRigBakingSystem` |
 
 ---
 

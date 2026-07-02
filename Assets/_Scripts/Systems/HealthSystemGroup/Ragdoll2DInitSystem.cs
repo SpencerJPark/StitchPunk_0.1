@@ -7,6 +7,10 @@ using Unity.Transforms;
 /// Dead stays enabled until revived — Ragdoll2DReviveSystem handles cleanup.
 /// Reads Health.kill* (captured by DamageEventSystem on the lethal DamageEvent) to
 /// determine which side the killing blow came from so the body falls away from the attacker.
+///
+/// Joints are now discovered through the root's BodyPart buffer (RagdollJoint-flagged entries); each
+/// joint's landing zones come from the PartLibrary blob via its PartDefId, and its settle speed is the
+/// baked value on the Ragdoll2DJoint component (resolved at bake from override / blob default).
 /// </summary>
 [UpdateInGroup(typeof(HealthSystemGroup))]
 [UpdateAfter(typeof(DeathSystem))]
@@ -14,11 +18,12 @@ public partial struct Ragdoll2DInitSystem : ISystem
 {
     private ComponentLookup<Ragdoll2D>       ragdollLookup;
     private ComponentLookup<Ragdoll2DLaunch> launchLookup;
-    private ComponentLookup<LocalTransform>    transformLookup;
+    private ComponentLookup<LocalTransform>  transformLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<PartLibrary>();
         ragdollLookup   = state.GetComponentLookup<Ragdoll2D>(false);
         launchLookup    = state.GetComponentLookup<Ragdoll2DLaunch>(false);
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
@@ -26,15 +31,18 @@ public partial struct Ragdoll2DInitSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
+        PartLibrary library = SystemAPI.GetSingleton<PartLibrary>();
+        if (!library.library.IsCreated)
+            return;
+
         ragdollLookup.Update(ref state);
         launchLookup.Update(ref state);
         transformLookup.Update(ref state);
 
-        foreach (var (config, joints, zones, health, entity) in
+        foreach (var (config, parts, health, entity) in
             SystemAPI.Query<
                 RefRO<Ragdoll2DConfig>,
-                DynamicBuffer<Ragdoll2DJointRef>,
-                DynamicBuffer<Ragdoll2DJointZone>,
+                DynamicBuffer<BodyPart>,
                 RefRO<Health>>()
                     .WithAll<Dead>()
                     .WithPresent<Ragdoll2DLaunch>()
@@ -46,9 +54,7 @@ public partial struct Ragdoll2DInitSystem : ISystem
             // Skip if already ragdolling (Dead stays enabled until revived)
             if (ragdollLookup.IsComponentEnabled(visualRoot)) continue;
 
-            // Determine fall direction from the kill source captured by DamageEventSystem
-            // on the lethal DamageEvent, read here from Health.killSourceX.
-            // Positive Z rotation tilts the character top to the LEFT:
+            // Determine fall direction from the kill source captured on the lethal DamageEvent.
             //   source left of unit  → fall right → negative Z → fallSideSign = -1
             //   source right of unit → fall left  → positive Z → fallSideSign = +1
             float fallSideSign = -1f;
@@ -60,7 +66,7 @@ public partial struct Ragdoll2DInitSystem : ISystem
 
             float ragdollForce = math.max(0.1f, health.ValueRO.killRagdollForce);
 
-            // Reset and enable body tilt — fallSpeed scales how fast the body tips over
+            // Reset and enable body tilt — fallSpeed scales how fast the body tips over.
             ref Ragdoll2D ragdoll = ref ragdollLookup.GetRefRW(visualRoot).ValueRW;
             ragdoll.groundBuffer    = fallSideSign >= 0f
                 ? config.ValueRO.groundBufferForward
@@ -76,8 +82,7 @@ public partial struct Ragdoll2DInitSystem : ISystem
                 : quaternion.identity;
             ragdollLookup.SetComponentEnabled(visualRoot, true);
 
-            // Enable arc launch on the root entity.
-            // launchForceY/X are direct velocities (units/s) authored per-attack — no scaling.
+            // Enable arc launch on the root entity (direct velocities, authored per-attack — no scaling).
             if (launchLookup.HasComponent(entity))
             {
                 float groundY = transformLookup.HasComponent(entity) ? transformLookup[entity].Position.y : 0f;
@@ -90,12 +95,14 @@ public partial struct Ragdoll2DInitSystem : ISystem
                 launchLookup.SetComponentEnabled(entity, true);
             }
 
-            // Reset and enable each joint — pick a random target angle from the authored landing zones
-            var rng = new Unity.Mathematics.Random((uint)(entity.Index + 1));
+            // Reset and enable each ragdoll joint — pick a random target angle from the blob zones.
+            Random random = new Random((uint)(entity.Index + 1));
 
-            for (int i = 0; i < joints.Length; i++)
+            for (int i = 0; i < parts.Length; i++)
             {
-                Entity jointEntity = joints[i].joint;
+                if ((parts[i].flags & BodyPartFlags.RagdollJoint) == 0) continue;
+
+                Entity jointEntity = parts[i].entity;
                 if (jointEntity == Entity.Null) continue;
                 if (!state.EntityManager.HasComponent<Ragdoll2DJoint>(jointEntity)) continue;
 
@@ -103,19 +110,24 @@ public partial struct Ragdoll2DInitSystem : ISystem
                     ? transformLookup[jointEntity]
                     : LocalTransform.Identity;
 
-                // Pick a random zone then a random angle within it
                 float targetAngle = 0f;
-                int zoneCount = joints[i].zoneCount;
-                if (zoneCount > 0)
+                int defIndex = (int)parts[i].partDef;
+                if (defIndex >= 0 && defIndex < library.library.Value.parts.Length)
                 {
-                    int zoneIdx = joints[i].zoneStart + rng.NextInt(0, zoneCount);
-                    var zone = zones[zoneIdx];
-                    targetAngle = rng.NextFloat(zone.min, zone.max);
+                    ref PartDef def = ref library.library.Value.parts[defIndex];
+                    if (def.zones.Length > 0)
+                    {
+                        int zoneIndex = random.NextInt(0, def.zones.Length);
+                        float2 zone = def.zones[zoneIndex];
+                        targetAngle = random.NextFloat(zone.x, zone.y);
+                    }
                 }
+
+                float settleSpeed = state.EntityManager.GetComponentData<Ragdoll2DJoint>(jointEntity).settleSpeed;
 
                 state.EntityManager.SetComponentData(jointEntity, new Ragdoll2DJoint
                 {
-                    settleSpeed          = joints[i].settleSpeed,
+                    settleSpeed          = settleSpeed,
                     targetAngle          = targetAngle,
                     currentZAngle        = 0f,
                     initialLocalRotation = jointTransform.Rotation

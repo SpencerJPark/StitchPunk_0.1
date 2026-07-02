@@ -27,7 +27,7 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 
 | System | Doc | Status |
 |---|---|---|
-| **Player Attack** (melee swing → AttackRequest; separate CombatTarget; revives PlayerAttackSystem) | [PlayerAttack_System.md](PlayerAttack_System.md) | ✅ spec ready |
+| **Player Attack** (melee swing → AttackRequest; separate CombatTarget; revives PlayerAttackSystem) | [PlayerAttack_System.md](../Verification/PlayerAttack_System.md) | 🔨 built — code landed, verify pending |
 | **Sound** (SFX / ambient loops / layered music) | [Sound_System.md](Sound_System.md) | ✅ spec ready |
 | **DamageEvent** (attack/damage refactor → one-frame signal entity, deletes Hurt buffer) | [DamageEvent_System.md](../Completed/DamageEvent_System.md) | 🔨 built — code landed, verify pending |
 | **DamageEvent v2** (NativeQueue bus + source-agnostic DamageSource + AOE friendly-fire + spike hazard) | [DamageEvent_v2_System.md](../Verification/DamageEvent_v2_System.md) | 🔨 built — code landed, verify pending |
@@ -42,6 +42,7 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 | **Brain Control Split** (UtilityBrain=decision / StateMachine=execution; death blank-slate, player-controlled revive, minion self-defence) | [BrainControlSplit_System.md](../Verification/BrainControlSplit_System.md) | 🔨 built — code landed, verify pending |
 | Animations (content) | — | ⬜ not started |
 | **Unit Design** (per-part random texture indices, minion persistence) | [UnitDesign_System.md](UnitDesign_System.md) | 🔨 built — code landed, verify pending |
+| **Character Rig** (unified `BodyPart` registry + `PartLibrary` blob + shape×color design grid; replaces Design/Ragdoll2D/AnimationTarget/Animator authorings; enables palette-swap zombification) | [CharacterRig_System.md](../Verification/CharacterRig_System.md) | 🔨 built — code landed, verify + Editor migration pending |
 | Human → Zombie Conversion | — | ⬜ not started |
 | Menu UI | — | ⬜ not started |
 | Interactions/Behaviors (bulk, AI-assisted SO setup) | — | ⬜ not started |

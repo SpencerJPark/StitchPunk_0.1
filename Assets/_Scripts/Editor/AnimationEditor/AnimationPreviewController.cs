@@ -199,14 +199,14 @@ public class AnimationPreviewController : MonoBehaviour
         
         try
         {
-            using var query = entityManager.CreateEntityQuery(typeof(AnimationLayer), typeof(AnimatorTarget));
+            using var query = entityManager.CreateEntityQuery(typeof(AnimationLayer), typeof(BodyPart));
             var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
-            
+
             if (showDebugLog) Debug.Log($"[PreviewController] RebuildLayers: Found {entities.Length} animator entities");
-            
+
             if (entities.Length == 0)
             {
-                Debug.LogError("[PreviewController] No animator entities found! Make sure your character has AnimatorAuthoring component.");
+                Debug.LogError("[PreviewController] No animator entities found! Make sure your character has CharacterRigAuthoring component.");
                 entities.Dispose();
                 return;
             }
@@ -366,12 +366,12 @@ public class AnimationPreviewController : MonoBehaviour
             
             timeControlEntity = timeQuery.GetSingletonEntity();
             
-            using var animQuery = entityManager.CreateEntityQuery(typeof(AnimationLayer), typeof(AnimatorTarget));
+            using var animQuery = entityManager.CreateEntityQuery(typeof(AnimationLayer), typeof(BodyPart));
             int animCount = animQuery.CalculateEntityCount();
             
             if (animCount == 0)
             {
-                if (showDebugLog) Debug.LogWarning("[PreviewController] No animator entities found. Add AnimatorAuthoring to your character.");
+                if (showDebugLog) Debug.LogWarning("[PreviewController] No animator entities found. Add CharacterRigAuthoring to your character.");
                 return;
             }
             

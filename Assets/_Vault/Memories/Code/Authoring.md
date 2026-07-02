@@ -35,7 +35,7 @@ public class FooAuthoring : MonoBehaviour {
 
 A unit is **two linked prefabs**:
 
-- **Body prefab** — contains the visual hierarchy (layered quads), `UnitAuthoring`, `AnimatorAuthoring`, `UnitMoverAuthoring`, `HealthAuthoring`, `AttackAuthoring`, etc. This is what moves and gets animated.
+- **Body prefab** — contains the visual hierarchy (layered quads), `UnitAuthoring`, `CharacterRigAuthoring` (root) with a `BodyPartAuthoring` on each part GO, `UnitMoverAuthoring`, `HealthAuthoring`, `AttackAuthoring`, etc. This is what moves and gets animated.
 - **Brain prefab** — contains `CitizenBrainAuthoring` (or equivalent), motivation components, action buffer. This is what makes decisions.
 
 They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, which store a cross-reference entity on each side. See [[Systems_AI]] for Brain/Body runtime behaviour.
@@ -55,13 +55,14 @@ They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, whi
 | File | Purpose |
 |---|---|
 | `UnitAuthoring.cs` | Core unit identity — links to UnitSO, sets UnitType |
-| `AnimatorAuthoring.cs` | Links animation library blob to the entity |
+| `CharacterRigAuthoring.cs` | **Root of a character rig** (CharacterRig refactor — replaces `AnimatorAuthoring` + `Ragdoll2DAuthoring` + `DesignAuthoring`). Bakes starting `AnimationLayer` buffer + `SetAnimation` + `AnimationRequest`, ragdoll root config (`Ragdoll2DConfig` + `Ragdoll2DLaunch`), design state (`RandomizeDesign` + `PersistedDesign` + `CharacterPalette` + `ChangeDesignRequest`), empty `BodyPart` buffer, `CharacterRigConfig`, and `DesignReloadOnBake` when `reloadDesign` is set |
+| `BodyPartAuthoring.cs` | **One per rig part GO** (replaces `AnimationTargetAuthoring` + `AnimationTargetNoIndexAuthoring` + `BaseParentAuthoring` on parts). Bakes `BodyPartInfo` (target + `PartDefinitionSO`.id + role flags), `BaseParent`, the animation pose set, `ImageIndex`/`ImageIndexOverride` **only when the GO renders**, and `RagdollJointBakeData` when `isRagdollJoint`. ⚠ remove the old `BaseParentAuthoring` from parts to avoid a duplicate `BaseParent` bake error |
 | `CitizenBrainAuthoring.cs` | Bakes motivation defaults and brain identity |
 | `InteractionAuthoring.cs` | Bakes `Interaction { action = actionType }` (+ optional `PlayerInteractable`) — the action keys into the enum-indexed `InteractionLibrary` blob; spatial hash registers the entity under the blob's `satisfiedNeed` |
 | `UnitSpawnerAuthoring.cs` | Configures the spawner with prefab references |
 | `UnitLibraryAuthoring.cs` | Bakes all UnitSOs into a unified BlobAsset |
-| `Ragdoll2DRootAuthoring.cs` | Place on root body entity only. Drag in `visualChild` and `joints` list. Baker writes `Ragdoll2DConfig` + `Ragdoll2DJointRef` buffer to root; `Ragdoll2DBakingSystem` then adds ragdoll components to the child entities |
-| `DesignAuthoring.cs` | Place on root body GO. Per-part `[min,max]` valid texture-index ranges; Baker flattens to `DesignPart` + `DesignRange` buffers (mirrors `Ragdoll2DAuthoring`), bakes `RandomizeDesign` (enabled), empty `PersistedDesign`, and `ChangeDesignRequest` (disabled). Drives the Unit Design System ([[Systems]] `DesignRandomizeSystem`/`DesignApplySystem`/`DesignChangeSystem`) |
+| `PartLibraryAuthoring.cs` | Place on one scene GO. `DependsOn(library)`, bakes `PartLibrary` + `PartLibraryReference` (→ `PartLibraryBakingSystem` builds the blob). Mirrors `ItemLibraryAuthoring` |
+| ~~`Ragdoll2DAuthoring.cs`~~ / ~~`DesignAuthoring.cs`~~ / ~~`AnimatorAuthoring.cs`~~ / ~~`AnimationTargetAuthoring.cs`~~ / ~~`AnimationTargetNoIndexAuthoring.cs`~~ | **Deleted** in the CharacterRig refactor — replaced by `CharacterRigAuthoring` (root) + `BodyPartAuthoring` (parts) + `PartLibraryAuthoring` (scene). Existing prefabs/subscenes must be re-authored (see `Tasks/Verification/verify-characterrig.md`) |
 | `ItemAuthoring.cs` | Bakes item identity + `ThrownItem` with per-item `throwSpeed`, `throwArc`, `throwDamage` |
 | `Hazards/HazardAuthoring.cs` | Proximity damage zone (spike-trap example, v2 environmental damage). Plain authored fields `damageAmount`/`radius`/`retriggerInterval` (+ kill-knockback feel); `TransformUsageFlags.Dynamic` for position; bakes `HazardZone` (`damageSource = Hazard`, `lastTriggerTime = -inf`). Read by `HazardZoneSystem` |
 | `PlayerAuthoring.cs` | Bakes player entity; assign `aimIndicator` child GO for the aim arrow visual |

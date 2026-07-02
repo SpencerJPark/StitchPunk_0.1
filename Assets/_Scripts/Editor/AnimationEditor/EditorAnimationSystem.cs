@@ -97,7 +97,7 @@ public partial struct EditorAnimationSystem : ISystem
             var animatedPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetPose>(false);
             var restPoseLookup = SystemAPI.GetComponentLookup<AnimationTargetRestPose>(true);
             
-            foreach (var (layers, targets) in SystemAPI.Query<DynamicBuffer<AnimationLayer>, DynamicBuffer<AnimatorTarget>>())
+            foreach (var (layers, targets) in SystemAPI.Query<DynamicBuffer<AnimationLayer>, DynamicBuffer<BodyPart>>())
             {
                 for (int i = 0; i < targets.Length; i++)
                 {
