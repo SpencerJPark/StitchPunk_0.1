@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29bf68ecdea0481cbfcfc1056733fa84, type: 3}
+  m_Name: MaleHair
+  m_EditorClassIdentifier: StitchPunk.Data::PartDefinitionSO
+  id: 9
+  group: Hair
+  ranges:
+  - tag: None
+    min: 0
+    max: 0
+    step: 1
+    randomizable: 0
+  - tag: Dark
+    min: 1
+    max: 10
+    step: 1
+    randomizable: 1
+  - tag: Brown
+    min: 11
+    max: 20
+    step: 1
+    randomizable: 1
+  - tag: LightBrown
+    min: 21
+    max: 30
+    step: 1
+    randomizable: 1
+  - tag: Blonde
+    min: 31
+    max: 40
+    step: 1
+    randomizable: 1
+  - tag: Grey
+    min: 41
+    max: 50
+    step: 1
+    randomizable: 1
+  - tag: Red
+    min: 51
+    max: 60
+    step: 1
+    randomizable: 1
+  - tag: Clown
+    min: 61
+    max: 62
+    step: 1
+    randomizable: 1
+  - tag: Alt
+    min: 63
+    max: 63
+    step: 1
+    randomizable: 0
+  defaultSettleSpeed: 8
+  zones: []

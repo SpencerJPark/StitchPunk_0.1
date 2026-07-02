@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Entities;
 
 // Unified character-rig registry. Replaces the four disconnected per-part registries
@@ -27,14 +28,22 @@ public struct BodyPartInfo : IComponentData
     public BodyPartFlags flags;
 }
 
-// Per-character rolled colour identity on the root. Indices into each part's colour axis: skinColor
-// indexes the SkinColor column set, hairColor the HairColor column set. Blittable (two bytes, no
-// Entity/Blob) so it rides the generic IPersist save path with no per-field code. Zombification =
-// a ChangeDesignRequest that sets skinColor to the zombie column; SkinColor-axis parts re-derive.
+// One resolved (group → tag) assignment on a character, e.g. group "Skin" → tag "Tan".
+public struct PaletteEntry
+{
+    public FixedString32Bytes group;
+    public FixedString32Bytes tag;
+}
+
+// Per-character rolled colour identity on the root: the active tag per palette group. Rolled once by
+// DesignRandomizeSystem and shared by every part in that group (so hair + mustache always match).
+// Blittable (fixed strings, no Entity/Blob) so it rides the generic IPersist save path with no
+// per-field code. Zombification = a ChangeDesignRequest that sets the "Skin" group's tag to "Zombie";
+// every Skin-group part with a matching range re-derives its slice, shape preserved. Get/set the tag
+// for a group through DesignApplyUtil.GetTag / SetTag.
 public struct CharacterPalette : IComponentData, IPersist
 {
-    public byte skinColor;
-    public byte hairColor;
+    public FixedList512Bytes<PaletteEntry> groups;
 }
 
 // Baking-only marker on a character root, added by CharacterRigAuthoring. Lets CharacterRigBakingSystem

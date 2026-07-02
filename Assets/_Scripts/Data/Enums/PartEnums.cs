@@ -2,45 +2,33 @@ using System;
 
 // Character-rig part identity + config enums. Feeds the PartLibrary blob (Data-Blob-Pointer pattern,
 // same shape as ItemType → ItemLibraryBlob). One PartDefId value per interchangeable part KIND — the
-// L/R instances of a limb share a kind (LowerLeftArm and LowerRightArm both point at HumanArmLower).
+// L/R instances of a limb share a kind (LowerLeftArm and LowerRightArm both point at MaleArmLower).
 
 public enum PartDefId : short
 {
     None,
-    HumanHead,
-    HumanTorso,
-    HumanArmUpper,
-    HumanArmLower,
-    HumanHand,
-    HumanLegUpper,
-    HumanLegLower,
-    HumanFoot,
-    HumanHair,
-    HumanMustache,
-    HumanEye,
-    HumanEyebrow,
-    HumanMouth,
-    HumanNose,
-    HumanEar,
+    MaleHead,
+    MaleTorso,
+    MaleArmUpper,
+    MaleArmLower,
+    MaleHand,
+    MaleLegUpper,
+    MaleLegLower,
+    MaleFoot,
+    MaleHair,
+    MaleMustache,
+    MaleRightEye,
+    MaleLeftEye,
+    MaleRightEyebrow,
+    MaleLeftEyebrow,
+    MaleMouth,
+    MaleNose,
+    MaleEar,
 }
 
-// Which per-character palette axis a part derives its colour column from. Zombification enables a
-// ChangeDesignRequest that sets CharacterPalette.skinColor → the zombie column; every part whose
-// colorAxis is SkinColor (head, arms, eyes, …) re-derives its slice automatically. HairColor parts
-// (hair, mustache) follow the hair axis and stay untouched by a skin conversion.
-public enum PaletteGroup : byte
-{
-    None,
-    SkinColor,
-    HairColor,
-}
-
-// How a PartDef resolves a (shape, color) pair to a texture-array slice.
-public enum GridMode : byte
-{
-    StrideFormula,   // baseSlice + shape * colorCount + color   (clean re-exported arrays)
-    ExplicitTable,   // sliceTable[shape * colorCount + color]    (existing irregular arrays)
-}
+// Palette groups are now free-text string tags (authored on PartDefinitionSO.group and stored per
+// character in CharacterPalette), not an enum — so new groups can be added without code changes.
+// A part follows its group's rolled tag; e.g. group "Skin" → tag "Zombie" recolours all skin parts.
 
 // Role flags carried per BodyPart entry so the root buffer describes each part's capabilities
 // without a separate lookup. HasQuad = renders (has ImageIndex/pose); DesignSlot = randomizable

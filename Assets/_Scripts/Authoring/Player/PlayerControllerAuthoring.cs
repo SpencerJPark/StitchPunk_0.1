@@ -58,6 +58,14 @@ public class PlayerControllerAuthoring : MonoBehaviour
 
             AddComponent(entity, new PlayerSelectedAttack { damageSource = controllerAuthoring.defaultAttack });
 
+            // Player melee combat scaffolding — maintained/consumed by the PlayerInputSystemGroup
+            // combat systems. Both start disabled: no target and off cooldown.
+            AddComponent(entity, new CombatTarget());
+            SetComponentEnabled<CombatTarget>(entity, false);
+
+            AddComponent(entity, new AttackCooldown());
+            SetComponentEnabled<AttackCooldown>(entity, false);
+
             AddComponent(entity, new OnAttackPlayerInput());
             SetComponentEnabled<OnAttackPlayerInput>(entity, false);
 
@@ -135,7 +143,9 @@ public class PlayerControllerAuthoring : MonoBehaviour
             DynamicBuffer<PlayerHordeSlot> hordeSlots = AddBuffer<PlayerHordeSlot>(entity);
             for (int slotIndex = 0; slotIndex < 4; slotIndex++)
             {
-                Entity hordeEntity = CreateAdditionalEntity(TransformUsageFlags.None);
+                // Named so the Entities window doesn't show these as "Player" duplicates.
+                Entity hordeEntity = CreateAdditionalEntity(
+                    TransformUsageFlags.None, false, $"Player Horde {slotIndex + 1}");
 
                 Entity markerEntity = Entity.Null;
                 if (controllerAuthoring.groupOrderMarkers != null

@@ -3,6 +3,10 @@ tags: [task, spencer, art, environments, characters]
 related: "[[Demo/Phases]], [[Spencer/Audio]]"
 ---
 
+// --dangerously-skip-permissions
+
+
+
 # Art Assets Needed
 
 Grouped by demo phase. Check off when the asset is in Unity and set up. See [[Demo/Phases]] for which scene each asset is used in.

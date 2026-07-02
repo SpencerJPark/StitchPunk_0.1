@@ -246,7 +246,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 653683984}
-  - component: {fileID: 653683983}
   - component: {fileID: 653683982}
   - component: {fileID: 653683985}
   m_Layer: 0
@@ -268,23 +267,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Entities.Hybrid::Unity.Entities.Hybrid.Baking.LinkedEntityGroupAuthoring
---- !u!114 &653683983
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 653683981}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da03443cf962d5341bcf2132bae8432d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimatorAuthoring
-  startingLayers:
-  - layer: 4
-    animation: 18
-    speed: 1
-    looping: 1
 --- !u!4 &653683984
 Transform:
   m_ObjectHideFlags: 0
@@ -1013,21 +995,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7473371058932725646}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
---- !u!114 &4855798389662787948
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9010889994563223997}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
-  animationTarget: 17
-  characterRoot: {fileID: 653683981}
-  baseImageIndex: 0
 --- !u!4 &4879868962506235960
 Transform:
   m_ObjectHideFlags: 0
@@ -1576,7 +1543,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetAuthoring
   animationTarget: 19
   characterRoot: {fileID: 653683981}
-  baseImageIndex: 1
+  baseImageIndex: 0
 --- !u!1 &7968623207646656297
 GameObject:
   m_ObjectHideFlags: 0
@@ -1778,7 +1745,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4879868962506235960}
-  - component: {fileID: 4855798389662787948}
   - component: {fileID: 1296764417}
   m_Layer: 0
   m_Name: LeftEyeBrowControl

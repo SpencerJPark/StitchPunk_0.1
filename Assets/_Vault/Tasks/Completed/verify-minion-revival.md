@@ -48,6 +48,7 @@ Spec: [`MinionRevival_System.md`](MinionRevival_System.md).
       `UnitData.unitType` / `UtilityBrain.unitType = PlayerZombie`; `Faction` = the zombie faction;
       `AttackFaction` lists humans; `AvailableAttack` lists the bite; `Motivation` refilled
       (zero-decay is expected).
+- 
 
 ### Phase 4 — Revive → conversion
 - [ ] Equip the reviver, target a corpse, revive. The corpse rises as a `PlayerZombie`:

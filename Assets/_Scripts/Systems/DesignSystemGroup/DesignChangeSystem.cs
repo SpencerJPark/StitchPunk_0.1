@@ -43,11 +43,9 @@ public partial struct DesignChangeSystem : ISystem
                 DynamicBuffer<BodyPart>>()
                 .WithEntityAccess())
         {
-            PaletteChange paletteChanges = changeRequest.ValueRO.paletteChanges;
-            if (paletteChanges.skin != PaletteChange.NoChange)
-                palette.ValueRW.skinColor = (byte)paletteChanges.skin;
-            if (paletteChanges.hair != PaletteChange.NoChange)
-                palette.ValueRW.hairColor = (byte)paletteChanges.hair;
+            FixedList512Bytes<PaletteEntry> paletteChanges = changeRequest.ValueRO.paletteChanges;
+            for (int i = 0; i < paletteChanges.Length; i++)
+                DesignApplyUtil.SetTag(ref palette.ValueRW.groups, paletteChanges[i].group, paletteChanges[i].tag);
 
             FixedList128Bytes<ShapeOverride> shapeOverrides = changeRequest.ValueRO.shapeOverrides;
             for (int i = 0; i < shapeOverrides.Length; i++)

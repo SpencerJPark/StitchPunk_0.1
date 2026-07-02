@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29bf68ecdea0481cbfcfc1056733fa84, type: 3}
+  m_Name: Nose
+  m_EditorClassIdentifier: StitchPunk.Data::PartDefinitionSO
+  id: 16
+  group: Skin
+  ranges:
+  - tag: White
+    min: 0
+    max: 11
+    step: 1
+    randomizable: 1
+  - tag: Tan
+    min: 12
+    max: 23
+    step: 1
+    randomizable: 1
+  - tag: Brown
+    min: 24
+    max: 35
+    step: 1
+    randomizable: 1
+  - tag: Black
+    min: 36
+    max: 47
+    step: 1
+    randomizable: 1
+  - tag: Zombie
+    min: 48
+    max: 62
+    step: 1
+    randomizable: 1
+  - tag: ZombieBloody
+    min: 48
+    max: 59
+    step: 1
+    randomizable: 0
+  - tag: ZombieRare
+    min: 60
+    max: 63
+    step: 1
+    randomizable: 1
+  defaultSettleSpeed: 8
+  zones: []

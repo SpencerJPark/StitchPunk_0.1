@@ -1,21 +1,29 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
 // Shared, immutable per-part static config, baked once into an enum-indexed blob by
-// PartLibraryBakingSystem and read from Burst jobs via the PartLibrary singleton. Mirrors
-// ItemLibraryBlob's shape. Entities carry only a PartDefId index into `parts`.
+// PartLibraryBakingSystem and read from Burst jobs via the PartLibrary singleton. Design is a
+// tag-driven range list: each part belongs to a palette `group` (e.g. "Skin", "Hair", or empty for
+// none), and lists ranges each tagged with a colour/group label. The character rolls one tag per
+// group (saved in CharacterPalette, shared by every part in that group); a part's slice is looked up
+// by offset within the ranges whose tag matches the character's tag for its group (plus any
+// empty-tag / colour-independent ranges). Entities carry only a PartDefId index into `parts`.
+
+public struct PartTagRange
+{
+    public FixedString32Bytes tag;        // colour/group label; empty = colour-independent ("any")
+    public int  min;                       // inclusive first slice
+    public int  max;                       // inclusive last slice
+    public int  step;                      // stride between slices (1 = contiguous; 2 = every other, e.g. interleaved eyes)
+    public bool randomizable;              // eligible for random spawn rolls (false = reached only via ChangeDesignRequest, e.g. Zombie)
+}
 
 public struct PartDef
 {
     public PartDefId id;
-
-    // Design grid — resolves a (shape, color) pair to a texture-array slice.
-    public GridMode     mode;
-    public int          baseSlice;    // StrideFormula anchor
-    public int          shapeCount;   // number of shape variants (randomize picks [0, shapeCount))
-    public int          colorCount;   // number of colour columns per shape
-    public PaletteGroup colorAxis;    // which CharacterPalette value drives the colour column
-    public BlobArray<int> sliceTable; // ExplicitTable mode: length shapeCount * colorCount
+    public FixedString32Bytes group;       // shared palette group this part follows ("Skin"/"Hair"/empty)
+    public BlobArray<PartTagRange> ranges;
 
     // Ragdoll config for parts flagged RagdollJoint.
     public float             defaultSettleSpeed; // deg/s toward the landing angle (0 = fall back to 8)

@@ -8,12 +8,14 @@ using Unity.Entities;
 // the blob grid at apply time. Parts are resolved through the root's BodyPart buffer.
 // PersistedDesign's format change breaks old saves — accepted, no migration.
 
-// Blittable result entry: the chosen SHAPE for a part (was: raw imageIndex). Two ints so it rides a
-// FixedList. Colour is not stored per-slot — it comes from CharacterPalette via the part's colorAxis.
+// Blittable result entry: the chosen SHAPE OFFSET for a part — the position within the part's tag
+// pool (the ranges matching the character's tag for its group, plus colour-independent ranges), so a
+// tag swap keeps the shape. Colour is not stored per-slot — it comes from CharacterPalette via the
+// part's group. Two ints so it rides a FixedList.
 public struct DesignSlot
 {
     public int target;      // (int)AnimationTarget
-    public int shapeIndex;  // chosen shape variant, in [0, PartDef.shapeCount)
+    public int shapeIndex;  // offset into the part's tag pool (see DesignApplyUtil.SliceAtOffset)
 }
 
 // Result + persistence. Value-type IPersist IComponentData with no Entity/Blob fields → auto-discovered
@@ -23,30 +25,21 @@ public struct PersistedDesign : IComponentData, IPersist
     public FixedList512Bytes<DesignSlot> slots;
 }
 
-// A requested palette shift per group. NoChange (-1) leaves that group untouched. Zombification =
-// paletteChanges.skin = zombie column; every SkinColor-axis part re-derives its slice automatically.
-public struct PaletteChange
-{
-    public const short NoChange = -1;
-
-    public short skin;   // new CharacterPalette.skinColor, or NoChange
-    public short hair;   // new CharacterPalette.hairColor, or NoChange
-}
-
 // A rare explicit shape swap that bypasses randomization (e.g. force a specific head shape on convert).
 public struct ShapeOverride
 {
     public int target;      // (int)AnimationTarget
-    public int shapeIndex;
+    public int shapeIndex;  // offset into the part's tag pool
 }
 
-// Runtime re-skin request — a caller sets palette shifts and/or explicit shape overrides and enables
-// the component; DesignChangeSystem applies them to CharacterPalette / PersistedDesign, re-derives all
-// design slices through the blob grid, fans them to the child quads, then disables the request.
+// Runtime re-skin request — a caller sets palette tag changes (group → new tag) and/or explicit shape
+// overrides and enables the component; DesignChangeSystem upserts the tags into CharacterPalette and
+// the overrides into PersistedDesign, re-derives every design slice through the blob, fans them to the
+// child quads, then disables the request. Zombification = paletteChanges { group "Skin", tag "Zombie" }.
 // NOT IPersist — the request itself is never saved.
 public struct ChangeDesignRequest : IComponentData, IEnableableComponent
 {
-    public PaletteChange paletteChanges;
+    public FixedList512Bytes<PaletteEntry> paletteChanges;
     public FixedList128Bytes<ShapeOverride> shapeOverrides;
 }
 

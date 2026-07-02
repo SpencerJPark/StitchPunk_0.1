@@ -117,3 +117,22 @@ public struct OnCommandPlayerInput : IComponentData, IEnableableComponent { }
 
 // Fired when the player snaps the control units camera back to the player.
 public struct OnSnapCameraBackInput : IComponentData, IEnableableComponent { }
+
+// ─── Player melee combat ──────────────────────────────────────────────────────
+// The player is directly controlled, so it bypasses the AI decision/execution split
+// and writes AttackRequest itself. These two components support that path.
+
+// Combat-specific target, distinct from the interaction `Target`. Maintained each
+// frame by PlayerCombatTargetingSystem: enabled = a valid damageable entity is in range.
+public struct CombatTarget : IComponentData, IEnableableComponent
+{
+    public Entity entity;
+}
+
+// Per-swing cadence gate for the player melee (replaces the deleted ActionTimer).
+// Enabled = on cooldown; PlayerAttackCooldownSystem ticks `remaining` to 0 then disables.
+// Mirrors the OnRollPlayerInput cooldown pattern.
+public struct AttackCooldown : IComponentData, IEnableableComponent
+{
+    public float remaining;
+}

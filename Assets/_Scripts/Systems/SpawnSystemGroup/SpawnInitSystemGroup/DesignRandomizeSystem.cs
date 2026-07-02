@@ -3,12 +3,12 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Rolls a per-character palette (skin + hair colour) once and a random shape per design-driven body
-// part on first spawn, writing the shapes into PersistedDesign and the colours into CharacterPalette.
-// Colour counts and shape counts come from the PartLibrary blob (data-driven, no enum reflection in
-// Burst). Runs after BodyPartInitSystem (buffer built) and before MinionRestoreApplySystem (a restored
-// minion's saved shapes/palette overwrite the wasted roll before DesignApplySystem fans them out).
-// One-shot: consumes RandomizeDesign by disabling it.
+// Rolls a per-character palette (one randomizable tag per group, e.g. Skin=Tan, Hair=Blonde) once and
+// a random shape offset per design-driven body part on first spawn. Tags + counts are data-driven from
+// the PartLibrary blob ranges (no enum reflection in Burst). The palette is shared, so hair + mustache
+// always match. Runs after BodyPartInitSystem (buffer built) and before MinionRestoreApplySystem (a
+// restored minion's saved palette/shapes overwrite the wasted roll before DesignApplySystem fans it
+// out). One-shot: consumes RandomizeDesign by disabling it.
 [BurstCompile]
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
 [UpdateAfter(typeof(BodyPartInitSystem))]
@@ -54,42 +54,40 @@ public partial struct DesignRandomizeJob : IJobEntity
     {
         Random random = Random.CreateFromIndex(seedBase + (uint)indexInQuery);
 
-        // Colour counts are data-driven: widest column set across parts on each axis.
-        int skinColorCount = 1;
-        int hairColorCount = 1;
-        for (int i = 0; i < parts.Length; i++)
+        // Roll one randomizable tag per group, shared across every part in that group.
+        palette.groups.Clear();
+        FixedList512Bytes<FixedString32Bytes> groups = default;
+        DesignApplyUtil.CollectGroups(parts, ref library.Value, ref groups);
+        for (int g = 0; g < groups.Length; g++)
         {
-            if ((parts[i].flags & BodyPartFlags.DesignSlot) == 0)
+            FixedList512Bytes<FixedString32Bytes> tags = default;
+            DesignApplyUtil.CollectRandomTags(parts, groups[g], ref library.Value, ref tags);
+            if (tags.Length == 0)
                 continue;
 
-            int defIndex = (int)parts[i].partDef;
-            if (defIndex < 0 || defIndex >= library.Value.parts.Length)
-                continue;
-
-            ref PartDef def = ref library.Value.parts[defIndex];
-            if (def.colorAxis == PaletteGroup.SkinColor)
-                skinColorCount = math.max(skinColorCount, def.colorCount);
-            else if (def.colorAxis == PaletteGroup.HairColor)
-                hairColorCount = math.max(hairColorCount, def.colorCount);
+            FixedString32Bytes chosen = tags[random.NextInt(0, tags.Length)];
+            palette.groups.Add(new PaletteEntry { group = groups[g], tag = chosen });
         }
 
-        palette.skinColor = (byte)random.NextInt(0, math.max(1, skinColorCount));
-        palette.hairColor = (byte)random.NextInt(0, math.max(1, hairColorCount));
-
+        // Roll a shape offset within each part's tag pool.
         persistedDesign.slots.Clear();
-        for (int i = 0; i < parts.Length; i++)
+        for (int p = 0; p < parts.Length; p++)
         {
-            if ((parts[i].flags & BodyPartFlags.DesignSlot) == 0)
+            if ((parts[p].flags & BodyPartFlags.DesignSlot) == 0)
                 continue;
 
-            int defIndex = (int)parts[i].partDef;
+            int defIndex = (int)parts[p].partDef;
             if (defIndex < 0 || defIndex >= library.Value.parts.Length)
                 continue;
 
             ref PartDef def = ref library.Value.parts[defIndex];
-            int shapeCount = math.max(1, def.shapeCount);
-            int shapeIndex = random.NextInt(0, shapeCount);
-            persistedDesign.slots.Add(new DesignSlot { target = (int)parts[i].target, shapeIndex = shapeIndex });
+            FixedString32Bytes tag = DesignApplyUtil.GetTag(palette.groups, def.group);
+            int poolSize = DesignApplyUtil.TagPoolSize(ref def, tag);
+            if (poolSize <= 0)
+                continue;
+
+            int offset = random.NextInt(0, poolSize);
+            persistedDesign.slots.Add(new DesignSlot { target = (int)parts[p].target, shapeIndex = offset });
         }
 
         randomizeDesignEnabled.ValueRW = false;
