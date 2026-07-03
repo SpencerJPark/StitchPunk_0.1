@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 // Translates active player commands into high-priority UtilityActions buffer entries for
-// player-controlled units. Runs AFTER AIAwarenessSystemGroup (buffer already cleared this frame)
+// player-controlled units. Runs AFTER UtilityAwarenessSystemGroup (buffer already cleared this frame)
 // and BEFORE StateMachineSystemGroup. isPlayerOrdered = true causes WinnerSelectionSystem to
 // skip scoring and pick this entry unconditionally.
 //

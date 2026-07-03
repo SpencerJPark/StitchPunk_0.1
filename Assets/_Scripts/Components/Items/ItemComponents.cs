@@ -30,31 +30,15 @@ public struct AttachedTo : IComponentData // goes on item
     public Entity socket;
 }
 
-public struct SpawnItemRequest : IComponentData, IEnableableComponent
-{
-    public ItemType itemType;
-    public Entity socket;
-}
-
-public struct DespawnItemRequest : IComponentData, IEnableableComponent
-{
-    public Entity itemEntity;
-}
-
 public struct AttachItemRequest : IComponentData, IEnableableComponent
 {
     public ItemType itemType;
     public Entity socket;
 }
 
-public struct UseItemRequest : IComponentData, IEnableableComponent { }
-
 // Enabled on an item to request that it be picked up and linked to its EquipBy owner.
 // Consumed by ItemEquipSystem; callers set EquipBy + AttachedTo before enabling this.
 public struct PickupRequest : IComponentData, IEnableableComponent { }
-
-// Enabled on an item to request that it be unlinked from its owner and dropped.
-public struct DropRequest : IComponentData, IEnableableComponent { }
 
 public struct ThrownItemRequest : IComponentData, IEnableableComponent
 {

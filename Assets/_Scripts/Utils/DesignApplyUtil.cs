@@ -34,6 +34,15 @@ public static class DesignApplyUtil
             return;
         }
 
+        if (groups.Length >= groups.Capacity)
+        {
+            // See the ceiling note on CharacterPalette.groups (~7 entries). Dropping the tag with a
+            // warning beats the FixedList throw this would otherwise become at runtime.
+            UnityEngine.Debug.LogWarning(
+                (Unity.Collections.FixedString128Bytes)"[CharacterPalette] palette group capacity reached — new group dropped (raise groups size).");
+            return;
+        }
+
         groups.Add(new PaletteEntry { group = group, tag = tag });
     }
 

@@ -12,7 +12,7 @@ using Unity.Transforms;
 // Consumable effects are resolved via EffectLibraryBlob — EffectType decides the slot, behaviours[0] the motivation.
 // Loose items are those with EquipBy.owner == Entity.Null; registered in SpatialHashRegistry.itemCells each frame.
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct ItemAwarenessSystem : ISystem
 {
     private ComponentLookup<UnitEquip>     _unitEquipLookup;

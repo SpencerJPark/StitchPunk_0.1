@@ -44,6 +44,7 @@ public partial struct PartLibraryBakingSystem : ISystem
         }
 
         // Overwrite the slots that have an authored SO.
+        bool[] slotAuthored = new bool[partCount];
         foreach (PartDefinitionSO partSO in librarySO.parts)
         {
             if (partSO == null) continue;
@@ -51,9 +52,15 @@ public partial struct PartLibraryBakingSystem : ISystem
             int slot = (int)partSO.id;
             if (slot < 0 || slot >= partCount) continue;
 
+            if (slotAuthored[slot])
+                UnityEngine.Debug.LogWarning(
+                    $"[PartLibraryBaking] Duplicate PartDefId {partSO.id} — '{partSO.name}' overwrites an " +
+                    "earlier SO with the same id (last-one-wins). Fix the library so each id is authored once.");
+            slotAuthored[slot] = true;
+
             ref PartDef def = ref partsBuilder[slot];
             def.id                 = partSO.id;
-            def.group              = ToFixed(partSO.group);
+            def.group              = ToFixed(partSO.group, partSO.name, "group");
             def.defaultSettleSpeed = partSO.defaultSettleSpeed > 0f ? partSO.defaultSettleSpeed : 8f;
 
             // Fill ranges immediately (don't hold the BlobBuilderArray across the next Allocate).
@@ -64,7 +71,7 @@ public partial struct PartLibraryBakingSystem : ISystem
                 PartRange source = partSO.ranges[rangeIndex];
                 rangesBuilder[rangeIndex] = new PartTagRange
                 {
-                    tag          = ToFixed(source.tag),
+                    tag          = ToFixed(source.tag, partSO.name, "range tag"),
                     min          = source.min,
                     max          = source.max,
                     step         = source.step > 0 ? source.step : 1,
@@ -99,12 +106,20 @@ public partial struct PartLibraryBakingSystem : ISystem
         }
     }
 
-    // Managed-side string → FixedString32Bytes (baking is not Burst). Truncates silently if too long.
-    private static FixedString32Bytes ToFixed(string value)
+    // Managed-side string → FixedString32Bytes (baking is not Burst). Warns on truncation —
+    // two tags longer than the ~29-byte capacity would otherwise silently collide into one tag.
+    private static FixedString32Bytes ToFixed(string value, string assetName, string fieldDescription)
     {
         FixedString32Bytes result = default;
-        if (!string.IsNullOrEmpty(value))
-            result.CopyFromTruncated(value);
+        if (string.IsNullOrEmpty(value)) return result;
+
+        if (System.Text.Encoding.UTF8.GetByteCount(value) > FixedString32Bytes.UTF8MaxLengthInBytes)
+            UnityEngine.Debug.LogWarning(
+                $"[PartLibraryBaking] '{assetName}' {fieldDescription} '{value}' exceeds " +
+                $"{FixedString32Bytes.UTF8MaxLengthInBytes} UTF-8 bytes and will be TRUNCATED — " +
+                "long tags can silently collide. Shorten the string.");
+
+        result.CopyFromTruncated(value);
         return result;
     }
 }

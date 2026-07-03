@@ -2,6 +2,7 @@
     "name": "StitchPunk.Tests",
     "rootNamespace": "",
     "references": [
+        "GUID:f1045488f3cb5c5428ccaf14e6d565d4",
         "GUID:f6d3133ab89495c40a933922769e2c5c",
         "GUID:7ff523084e6eb6a4bab4fb71b3b9fcb3",
         "GUID:8dfb72a3ac2144b4e9a720c0c1008aab",

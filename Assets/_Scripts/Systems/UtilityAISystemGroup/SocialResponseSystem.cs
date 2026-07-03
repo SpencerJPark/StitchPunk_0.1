@@ -12,7 +12,7 @@ using Unity.Entities;
 // No Dead filter on the query — dead invitees must still consume (decline) their invite.
 [BurstCompile]
 [UpdateInGroup(typeof(UtilityAISystemGroup))]
-[UpdateAfter(typeof(AIAwarenessSystemGroup))]
+[UpdateAfter(typeof(UtilityAwarenessSystemGroup))]
 public partial struct SocialResponseSystem : ISystem
 {
     private ComponentLookup<StateMachine> _stateMachineLookup;

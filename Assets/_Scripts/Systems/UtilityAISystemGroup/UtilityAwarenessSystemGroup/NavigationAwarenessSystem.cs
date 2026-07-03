@@ -5,7 +5,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct NavigationAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;

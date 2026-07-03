@@ -13,7 +13,7 @@ using Unity.Transforms;
 // IsCombatAction() is the no-reactivation guard: once fighting (or fleeing), stop re-emitting.
 // Flee branch + bravery choice are Phase 3a.
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 [UpdateAfter(typeof(EnemyAwarenessSystem))]
 public partial struct SelfDefenceAwarenessSystem : ISystem
 {

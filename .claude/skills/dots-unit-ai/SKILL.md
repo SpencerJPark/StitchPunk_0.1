@@ -27,8 +27,8 @@ SimulationSystemGroup
   PlayerSystemGroup                  <- player input only
   MinionActionSelectionSystemGroup   <- player-commanded units
   AIActionSelectionSystemGroup       <- utility-driven AI
-    AIMotivationSystemGroup
-    AIAwarenessSystemGroup           <- writes ActionOption buffer entries
+    UtilityMotivationSystemGroup
+    UtilityAwarenessSystemGroup           <- writes ActionOption buffer entries
       [your new awareness system here]
     AIScoringSystemGroup             <- multiplies utility by motivation curves
   ActionSystemGroup                  <- shared by ALL unit types
@@ -131,15 +131,15 @@ public enum ActionType { ..., ExplosionReaction, RainReaction }
 
 ## Step 2 -- Write the Awareness System
 
-**Folder:** `Assets/_Scripts/Systems/AIActionSelectionSystemGroup/AIAwarenessSystemGroup/`
-**Group:** `[UpdateInGroup(typeof(AIAwarenessSystemGroup))]`
+**Folder:** `Assets/_Scripts/Systems/AIActionSelectionSystemGroup/UtilityAwarenessSystemGroup/`
+**Group:** `[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]`
 **Filter:** `WithAll<ActionRequest, AIBrain>()` -- only run for AI units that need a new decision.
 
 The system's only job is to inspect the world and append zero or more `ActionOption` entries to the unit's buffer. It must never touch `CurrentAction`, action tags, or request components.
 
 ```csharp
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct EnvironmentalAwarenessSystem : ISystem
 {
     [BurstCompile]
@@ -384,7 +384,7 @@ If a new behaviour should apply to minions *under player control*, add it to `Mi
 ## Checklist for a New Behaviour
 
 - [ ] `AiEnums.cs` -- new `MotivationType` if needed, new `ActionType` always
-- [ ] `AIAwarenessSystemGroup/` -- new awareness system appending `ActionOption` entries
+- [ ] `UtilityAwarenessSystemGroup/` -- new awareness system appending `ActionOption` entries
 - [ ] `SelectionFunctions.cs` -- register function pointer for the new `ActionType`
 - [ ] `AiComponents.cs` -- new `IEnableableComponent` tag (only if new execution logic)
 - [ ] Authoring baker -- `AddComponent` + `SetComponentEnabled(false)` for the new tag

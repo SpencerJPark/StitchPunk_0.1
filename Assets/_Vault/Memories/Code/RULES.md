@@ -53,6 +53,15 @@ Never omit `[ReadOnly]` on a lookup that isn't written to. Burst uses it to vali
 
 ---
 
+## System placement & structure (enforced by SystemPlacementConformanceTests)
+
+- **Every system declares `[UpdateInGroup]`.** A forgotten attribute silently auto-creates the system at an arbitrary point in `SimulationSystemGroup`.
+- **A system file lives in the folder named after the group it updates in.** The folder tree under `Systems/` IS the group tree. Exemptions require an entry + reason in `SystemPlacementConformanceTests.PlacementExemptions`.
+- **Every `ComponentSystemGroup` is declared in `SystemGroups.cs`** — the single ordering manifest. Never declare a group inline next to a system.
+- **Scene gating is group-level.** Top-level feature groups derive from `GameSceneSystemGroup` (gates on `GameSceneTag` once). New systems declare only their DATA requirements — do not add per-system `RequireForUpdate<GameSceneTag>`.
+- **Commented-out systems never stay in `Systems/`** — park dead code in `Core/Unused/` (or delete; git remembers).
+- **Cross-feature communication goes through the contract components** indexed in [[Contracts]] (requests/events + the DamageBus). A behavior command or system that needs 3+ foreign-domain lookups should become a request handled by that domain instead.
+
 ## General
 
 - No `#region` blocks — organise with clear method/field ordering instead.

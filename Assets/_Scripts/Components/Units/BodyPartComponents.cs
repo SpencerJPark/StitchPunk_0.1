@@ -43,6 +43,10 @@ public struct PaletteEntry
 // for a group through DesignApplyUtil.GetTag / SetTag.
 public struct CharacterPalette : IComponentData, IPersist
 {
+    // CEILING: FixedList512Bytes<PaletteEntry> holds at most ~7 entries (PaletteEntry is 64B).
+    // Palette groups are free-text and designed to grow without code changes — the 8th distinct
+    // group would fail at RUNTIME, not bake. DesignApplyUtil.SetTag guards + warns at capacity
+    // instead of throwing. Revisit the backing size before shipping >6 distinct groups.
     public FixedList512Bytes<PaletteEntry> groups;
 }
 

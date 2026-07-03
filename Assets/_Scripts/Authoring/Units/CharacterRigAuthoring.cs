@@ -122,15 +122,15 @@ public class CharacterRigAuthoring : MonoBehaviour
 
         private static void SortLayers(ref DynamicBuffer<AnimationLayer> layers)
         {
-            for (int i = 0; i < layers.Length - 1; i++)
+            for (int sortPass = 0; sortPass < layers.Length - 1; sortPass++)
             {
-                for (int j = 0; j < layers.Length - 1 - i; j++)
+                for (int compareIndex = 0; compareIndex < layers.Length - 1 - sortPass; compareIndex++)
                 {
-                    if ((int)layers[j].layer > (int)layers[j + 1].layer)
+                    if ((int)layers[compareIndex].layer > (int)layers[compareIndex + 1].layer)
                     {
-                        AnimationLayer temp = layers[j];
-                        layers[j] = layers[j + 1];
-                        layers[j + 1] = temp;
+                        AnimationLayer swapTemp = layers[compareIndex];
+                        layers[compareIndex] = layers[compareIndex + 1];
+                        layers[compareIndex + 1] = swapTemp;
                     }
                 }
             }

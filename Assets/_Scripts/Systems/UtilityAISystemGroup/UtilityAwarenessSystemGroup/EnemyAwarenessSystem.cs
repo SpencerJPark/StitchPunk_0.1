@@ -16,7 +16,7 @@ using Unity.Transforms;
 /// above civilian interaction scores (0-1) without hardcoding magic numbers.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct EnemyAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform>  transformLookup;

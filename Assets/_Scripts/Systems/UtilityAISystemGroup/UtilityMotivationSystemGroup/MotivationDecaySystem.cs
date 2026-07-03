@@ -4,13 +4,13 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 /// <summary>
-/// Runs first in AIAwarenessSystemGroup each selection cycle.
+/// Runs first in UtilityAwarenessSystemGroup each selection cycle.
 /// Resets contextMultiplier to 1.0 (pre-pass systems set it fresh each frame)
 /// and applies decay to motivation values.
 /// Only processes entities that currently need an action — mid-execution units skip decay.
 /// </summary>
 [BurstCompile]
-[UpdateInGroup(typeof(AIMotivationSystemGroup))]
+[UpdateInGroup(typeof(UtilityMotivationSystemGroup))]
 [UpdateAfter(typeof(MotivationChangeRequestSystem))]
 public partial struct MotivationDecaySystem : ISystem
 {

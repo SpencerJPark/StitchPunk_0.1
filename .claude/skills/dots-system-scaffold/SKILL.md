@@ -33,7 +33,7 @@ Before writing the file, consult these in order:
 
 Ask yourself: "What phase of the frame does this logic belong in?"
 
-- Awareness/perception/context boost → `AIAwarenessSystemGroup`
+- Awareness/perception/context boost → `UtilityAwarenessSystemGroup`
 - Scoring AI options → `AIScoringSystemGroup`
 - Selecting a single chosen action → `AISelectionSystemGroup`
 - Executing the chosen action (move, attack, interact) → `AIExecutionSystemGroup`
@@ -139,7 +139,7 @@ public partial struct ReplaceWithJob : IJobEntity
 }
 ```
 
-Exemplar: `Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDecaySystem.cs`.
+Exemplar: `Assets/_Scripts/Systems/AISystemGroup/UtilityAwarenessSystemGroup/MotivationDecaySystem.cs`.
 
 ### Template C — cross-entity mutation via ComponentLookup
 
@@ -199,7 +199,7 @@ Rule of thumb: if `Execute` starts with an early-return that checks a component'
 `Assets/_Scripts/Systems/<SystemGroupName>/<YourSystemName>.cs` — the path mirrors the group.
 
 Examples:
-- `Systems/AISystemGroup/AIAwarenessSystemGroup/CuriosityPrePassSystem.cs`
+- `Systems/AISystemGroup/UtilityAwarenessSystemGroup/CuriosityPrePassSystem.cs`
 - `Systems/HealthSystemGroup/BleedSystem.cs`
 - `Systems/BuildingsSystemGroup/WorkerAssignmentSystem.cs`
 

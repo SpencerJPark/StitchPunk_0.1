@@ -1,4 +1,4 @@
-﻿
+
 public enum BehaviorPhase : byte
 {
     Approach,
@@ -195,11 +195,6 @@ public enum BehaviorType : byte
     Talk,
     MeleeContinuous,
     MeleeSingle,
-}
-
-public enum UnitStateType
-{
-    None,
 }
 
 public enum StanceType

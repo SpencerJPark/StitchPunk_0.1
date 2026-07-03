@@ -7,7 +7,7 @@ using Unity.Entities;
 // else decays via staleTimer, which DamageEventSystem refreshes on each hit — so an actively
 // attacking enemy never expires, while a disengaged one is forgotten once its timer runs out.
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup), OrderFirst = true)]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup), OrderFirst = true)]
 public partial struct ThreatDecaySystem : ISystem
 {
     private ComponentLookup<Dead> deadLookup;

@@ -5,7 +5,7 @@ using Unity.Collections;
 using Unity.Transforms;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct InteractionAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;

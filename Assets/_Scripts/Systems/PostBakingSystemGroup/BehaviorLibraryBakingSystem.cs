@@ -50,6 +50,13 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
             {
                 BehaviorCommandAuthoring authored = execSource[commandIndex];
                 if (authored == null) continue;
+
+                if (!BehaviorCommandCatalog.IsImplemented(authored.type))
+                    UnityEngine.Debug.LogWarning(
+                        $"[BehaviorLibraryBaking] '{behaviorSO.name}' executionSequence[{commandIndex}] is " +
+                        $"{authored.type} — no interpreter arm exists (see BehaviorCommandCatalog); " +
+                        "it will no-op at runtime.");
+
                 execBuilder[commandIndex] = BakeCommand(authored, commandIndex, behaviorSO.name);
             }
 
@@ -63,7 +70,13 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
                 BehaviorCommandAuthoring authored = cleanupSource[commandIndex];
                 if (authored == null) continue;
 
-                if (IsBlockingCommand(authored.type))
+                if (!BehaviorCommandCatalog.IsImplemented(authored.type))
+                    UnityEngine.Debug.LogWarning(
+                        $"[BehaviorLibraryBaking] '{behaviorSO.name}' interruptionCleanup[{commandIndex}] is " +
+                        $"{authored.type} — no interpreter arm exists (see BehaviorCommandCatalog); " +
+                        "it will no-op at runtime.");
+
+                if (BehaviorCommandCatalog.IsBlocking(authored.type))
                     UnityEngine.Debug.LogError(
                         $"[BehaviorLibraryBaking] '{behaviorSO.name}' interruptionCleanup[{commandIndex}] is " +
                         $"{authored.type} — blocking commands are not allowed in cleanup (it runs in one frame) " +
@@ -113,15 +126,6 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
         }
 
         return command;
-    }
-
-    // Blocking commands own their advancement across frames — illegal in the one-frame cleanup pass.
-    private static bool IsBlockingCommand(BehaviorCommandType type)
-    {
-        return type == BehaviorCommandType.Approach
-            || type == BehaviorCommandType.WaitTime
-            || type == BehaviorCommandType.FleeFromTarget
-            || type == BehaviorCommandType.LoopUntil;
     }
 
     public void OnDestroy(ref SystemState state)

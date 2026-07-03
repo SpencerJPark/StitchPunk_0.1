@@ -2,7 +2,7 @@ using Unity.Burst;
 using Unity.Entities;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup), OrderFirst = true)]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup), OrderFirst = true)]
 public partial struct ClearOptionsSystem : ISystem
 {
     [BurstCompile]

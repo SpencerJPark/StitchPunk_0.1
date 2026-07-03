@@ -37,7 +37,7 @@ MovementExecutionSystemGroup    — applies final velocity to transforms
 
 | System | File |
 |---|---|
-| `FlowFieldSystem` | `MovementRoutingSystemGroup/FlowFeildSystem.cs` ⚠ typo in filename |
+| `FlowFieldSystem` | `MovementRoutingSystemGroup/FlowFieldSystem.cs` |
 | `DStarLiteSystem` | `MovementRoutingSystemGroup/DStarLiteSystem.cs` |
 | `PathfindingCoordinatorSystem` | `MovementCoordinatorSystemGroup/PathfindingCoordinatorSystem.cs` |
 | `GridSystem` | `MovementCoordinatorSystemGroup/GridSystem.cs` |
@@ -49,8 +49,6 @@ MovementExecutionSystemGroup    — applies final velocity to transforms
 | `UnitGravitySystem` | `MovementExecutionSystemGroup/UnitGravitySystem.cs` |
 | `StairTransitionSystem` | `MovementExecutionSystemGroup/StairTransitionSystem.cs` |
 | `SetupUnitMoverDefaultPositionSystem` | `MovementExecutionSystemGroup/SetupUnitMoverDefaultPositionSystem.cs` |
-
-> ⚠ `FlowFeildSystem.cs` has a typo in the filename ("Feild" not "Field"). Do not rename without updating all references. See [[Gotchas]] for the filenames section.
 
 ---
 

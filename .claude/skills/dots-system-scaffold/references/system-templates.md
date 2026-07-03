@@ -58,7 +58,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 partial struct MotivationDecaySystem : ISystem
 {
     [BurstCompile]
@@ -92,7 +92,7 @@ public partial struct MotivationDecayJob : IJobEntity
 }
 ```
 
-Exemplar: `Assets/_Scripts/Systems/AISystemGroup/AIAwarenessSystemGroup/MotivationDecaySystem.cs`.
+Exemplar: `Assets/_Scripts/Systems/AISystemGroup/UtilityAwarenessSystemGroup/MotivationDecaySystem.cs`.
 
 ---
 
@@ -168,7 +168,7 @@ using Unity.Burst;
 using Unity.Entities;
 
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 [UpdateAfter(typeof(MotivationDecaySystem))]
 public partial struct CuriosityPrePassSystem : ISystem
 {
@@ -197,7 +197,7 @@ public partial struct CuriosityPrePassJob : IJobEntity
 }
 ```
 
-Exemplar: `SafetyPrePassSystem.cs` under `AIAwarenessSystemGroup`.
+Exemplar: `SafetyPrePassSystem.cs` under `UtilityAwarenessSystemGroup`.
 
 ---
 

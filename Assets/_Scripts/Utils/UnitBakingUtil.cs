@@ -65,9 +65,6 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
         
 
-        baker.AddComponent<SocialValidationRequest>(entity);
-        baker.SetComponentEnabled<SocialValidationRequest>(entity, false);
-
         baker.AddComponent<SocialInvite>(entity);
         baker.SetComponentEnabled<SocialInvite>(entity, false);
         

@@ -8,7 +8,7 @@ using Unity.Entities;
 /// Rebuilds the FactionRegistry singleton every frame.
 /// Mirrors SpatialHashSystem but for body entities keyed by FactionType.
 ///
-/// Runs in AIAwarenessSystemGroup so the registry is ready before
+/// Runs in UtilityAwarenessSystemGroup so the registry is ready before
 /// AIScoringSystemGroup and AIExecutionSystemGroup run their targeting queries.
 ///
 /// Only alive entities (Dead disabled or no Dead component) are indexed.

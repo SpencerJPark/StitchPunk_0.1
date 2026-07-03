@@ -11,7 +11,7 @@ using Unity.Transforms;
 // Approach → RequestSocialResponse (SocialInvite on the partner) → SocialResponseSystem accepts
 // or declines next frame.
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct SocialAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform> _transformLookup;

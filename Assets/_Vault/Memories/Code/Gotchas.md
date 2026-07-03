@@ -11,18 +11,19 @@ Things that are not derivable from reading the code at a glance. Read this befor
 
 ## Spawning
 
-### AnimatorTarget buffer is not remapped by ECB.Instantiate
-`DynamicBuffer<AnimatorTarget>` stores entity refs to quad child entities. `ECB.Instantiate` does NOT reliably remap these. See [[Systems_Animation]] for the full animation system context.
+### Entity refs inside dynamic buffers are not remapped by ECB.Instantiate
+Entity references stored inside a `DynamicBuffer` (today: the root `BodyPart` buffer's child-part
+refs) are NOT reliably remapped by `ECB.Instantiate`. This killed the pre-rig `AnimatorTarget`
+buffer and the rig commit inherited the same physics.
 
-**Fix in place (two-part):**
+**Fix in place:** `BodyPartInitSystem` (SpawnInitSystemGroup) rebuilds the `BodyPart` buffer on
+every `NewlySpawned` unit from `BodyPartInfo` + `BaseParent`, walking `DynamicBuffer<LinkedEntityGroup>`
+— the actual remap table `ECB.Instantiate` uses, so it is correct regardless of prefab nesting.
+(The pre-rig `AnimatorAuthoring`/`AnimatorTargetInitSystem` version of this fix was deleted with
+the CharacterRig commit; the lesson stands.)
 
-1. `AnimatorAuthoring.Baker` now populates `AnimatorTarget` at bake time via `GetComponentsInChildren<AnimationTargetAuthoring>()` + `GetComponentsInChildren<AnimationTargetNoIndexAuthoring>()`. This gives scene entities a correct buffer from baking (they never get `NeedsAnimatorInit`).
-
-2. `UnitSpawnerSystem` adds `NeedsAnimatorInit` to each new body. `AnimatorTargetInitSystem` (runs after in `SpawnSystemGroup`) clears and rebuilds the buffer using `DynamicBuffer<LinkedEntityGroup>` — NOT `BaseParent` matching. `LinkedEntityGroup` is the actual remapping table `ECB.Instantiate` uses, so it is guaranteed correct regardless of inspector setup or nested prefab depth.
-
-**Why the old approach (BaseParent matching) was wrong:** It required every quad's `characterRoot` inspector field to be set to the exact body root GO. Any quad with `characterRoot` pointing to an intermediate parent (head, torso, etc.) would be silently skipped. This is why "only eyebrow animates" — only the eyebrow happened to have `characterRoot` set correctly.
-
-**Consequence:** Any system that reads `AnimatorTarget` will see a potentially unreliable buffer on the exact spawn frame (AnimationSystemGroup runs before SpawnSystemGroup). From frame 2 onward the buffer is correct.
+**Consequence:** never trust baked entity refs inside buffers on the exact spawn frame; rebuild
+from `LinkedEntityGroup` in `SpawnInitSystemGroup` (see the Spawn Init Pattern in [[Systems]]).
 
 ---
 
@@ -33,15 +34,16 @@ The body prefab has no `BrainLinkAuthoring`, so `BrainLink` does not exist on ba
 
 ---
 
-### NeedsAction enabled bit is not reliably copied by ECB.Instantiate
-`IEnableableComponent` enabled bits are not guaranteed to be copied correctly by `ECB.Instantiate` for entities that are not the root of a `LinkedEntityGroup`. `UnitSpawnerSystem` explicitly calls `ecb.SetComponentEnabled<NeedsAction>(newBrain, true)` to force it on.
+### Enableable bits are not reliably copied by ECB.Instantiate (spawn AND pool reclaim)
+`IEnableableComponent` enabled bits are not guaranteed to be copied correctly by `ECB.Instantiate`
+for entities that are not the root of a `LinkedEntityGroup`, and a reclaimed pool unit keeps
+whatever bits its previous life left behind. `SpawnStateInitSystem` (SpawnInitSystemGroup) is the
+single reset point: it forces every root-entity enableable to its spawn-frame default
+(`Dead` off, `UtilityBrain` on, requests off — see its table in [[Systems]]).
 
-**Consequence:** If a new brain type is added and its brain prefab instantiation doesn't explicitly enable `NeedsAction`, the AI scoring pipeline will never process it. See [[Systems_AI]] for the full AI startup checklist.
-
----
-
-### Pool reclaim path re-enables NeedsAction too
-When reclaiming a dormant pool unit (not instantiating), `UnitSpawnerSystem` also explicitly sets `NeedsAction` enabled on the brain. Do not assume it carries over from the previous activation.
+**Consequence:** a new enableable component with a required spawn default gets a line in
+`SpawnStateInitSystem`, not an ad-hoc set in the spawner. (The pre-rig `NeedsAction` version of
+this trap is gone — `NeedsAction` only survives in `Core/Unused/`.)
 
 ---
 
@@ -58,18 +60,11 @@ UnitPrefabEntry prefabs = SystemAPI.GetComponent<UnitPrefabEntry>(libraryEntity)
 
 ---
 
-### Motivations are 9 separate components, not one
-There is no single "Motivations" component. Each motivation is its own `IComponentData` (e.g. `HungerMotivation`, `EnergyMotivation`). Each scoring system queries exactly one motivation struct. If you need to read all 9, you must name all 9 in the query. See [[Components]] for the full motivation component list, and [[Systems_AI]] for the scoring pipeline.
-
----
-
-## Filenames
-
-### FlowFeildSystem.cs has a typo
-The file is `FlowFeildSystem.cs` (Feild, not Field). The system is correctly named `FlowFieldSystem` in code. Do not fix the filename without updating all `[UpdateInGroup]` / `[UpdateAfter]` references and the `.asmdef` if applicable. See [[Systems_Movement]] for the full file map.
-
-### MotivationDegregationSystem.cs has a typo
-The file and class are named `MotivationDegregationSystem` (Degregation, not Degradation). Match this spelling exactly when referencing it in `[UpdateAfter]` attributes.
+### Motivations are ONE buffer, keyed by NeedType
+Motivations live in a single `DynamicBuffer<Motivation>` on the brain, keyed by `NeedType` —
+the old one-component-per-motivation model (`HungerMotivation` etc.) is gone. Mutate them via the
+`MotivationChangeRequest` buffer (consumed by `MotivationChangeRequestSystem`), never by writing
+the buffer from another feature. See [[Systems_AI]] for the needs-based scoring pipeline.
 
 ---
 
@@ -98,7 +93,7 @@ Keep these lookups in execution systems only. Scoring systems should query brain
 
 ## IEnableableComponent vs AddComponent/RemoveComponent
 
-For components that toggle frequently (e.g. `NeedsAction`, `Attack`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (e.g. adding `BrainLink` to a body that never had it). Full list of enableable components is in [[Components]].
+For components that toggle frequently (e.g. `AttackRequest`, `PathRequest`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (e.g. adding `BrainLink` to a body that never had it). Full list of enableable components is in [[Components]].
 
 ---
 

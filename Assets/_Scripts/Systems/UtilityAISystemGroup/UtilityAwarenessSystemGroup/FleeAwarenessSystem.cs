@@ -13,7 +13,7 @@ using Unity.Transforms;
 // Deliberately NOT gated on ActionRequest — the override must fire mid-behavior.
 // IsCombatAction() in SelfDefence covers Flee, so neither system re-emits while fleeing.
 [BurstCompile]
-[UpdateInGroup(typeof(AIAwarenessSystemGroup))]
+[UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 [UpdateAfter(typeof(SelfDefenceAwarenessSystem))]
 public partial struct FleeAwarenessSystem : ISystem
 {

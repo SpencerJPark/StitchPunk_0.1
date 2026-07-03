@@ -13,48 +13,57 @@ All game logic lives here. Read the context file for each sub-group before worki
 
 ```
 PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component distribution (runs once at bake time)
-GameManagerSystemGroup       — world-level: floating origin, player input, aim, horde state
+GameManagerSystemGroup       — WORLD SERVICES (not scene-gated): registries, spatial hashes, DamageBus reset, floating origin, horde state
 PlayerSystemGroup            — all player-driven logic
-  ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, equipment dispatch
+  ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, attacks, aim, equipment dispatch
   ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
   ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
-  └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions, minion commands
-MinionActionSelectionSystemGroup — player-guided: reads PlayerOrder → writes ActionOption
-AIActionSelectionSystemGroup     — utility-guided: see [[Systems_AI]]
-  ├── AIAwarenessSystemGroup     — perception + motivation decay
-  └── AIScoringSystemGroup       — utility scoring
-ActionSystemGroup                — unified action pipeline: see [[Systems_AI]]
-  ├── ActionSelectionSystemGroup — picks from ActionOption buffer, enables action tag
-  └── ActionExecutionSystemGroup — orchestrates PathRequest / AttackRequest / etc.
+  └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions (reviver)
+UtilityAISystemGroup         — decision inputs: see [[Systems_AI]]
+  ├── UtilityMotivationSystemGroup — motivation change requests + decay
+  └── UtilityAwarenessSystemGroup  — awareness systems populate the UtilityActions buffer
+MinionActionSelectionSystemGroup — player-guided: consumes minion orders → writes StateMachine directly
+StateMachineSystemGroup      — decision resolution + behavior execution: see [[Systems_AI]]
+  ├── ActionSelectionSystemGroup — ConsiderationScoringSystem + WinnerSelectionSystem → StateMachine
+  └── ActionExecutionSystemGroup — BehaviorInterruptSystem (OrderFirst) + BehaviorExecutionSystem (the interpreter)
 ItemSystemGroup
-  ├── ItemEquipSystemGroup (OrderFirst) — equip, pickup, attach, unequip
+  ├── ItemEquipSystemGroup (OrderFirst) — equip, consume, pickup, attach, unequip
   └── ThrownItemSystemGroup            — thrown item movement, proximity hit detection
+MovementSystemGroup          — see [[Systems_Movement]]
+  ├── MovementCoordinatorSystemGroup — grid, path requests, stuck checks, formation offsets
+  ├── MovementRoutingSystemGroup     — flowfield / D* Lite path calculation
+  ├── MovementFollowerSystemGroup    — smooth path following
+  └── MovementExecutionSystemGroup   — writes final position/rotation to transforms
+BuildingsSystemGroup         — factory production loop (PARKED — ProductionSystem + FactoryLibraryBakingSystem live commented-out in Core/Unused/)
+CombatSystemGroup
+  ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)
+  └── CombatReactionSystemGroup  — DamageResolutionSystem + DamageEventSystem (bus drain + apply)
+HealthSystemGroup            — death, fake ragdoll init, heal, revive, brain swap, health bar updates
+DesignSystemGroup            — DesignChangeSystem: runtime body-part re-skin (after Health, before Animation)
 AnimationSystemGroup         — see [[Systems_Animation]]
   ├── AnimationAssignmentSystemGroup — decides which clip to play per layer
-  └── AnimationExecutionSystemGroup — advances time, samples keyframes, applies pose
-MovementSystemGroup          — see [[Systems_Movement]]
-  ├── MovementRoutingSystemGroup     — flowfield / D* Lite path calculation
-  ├── MovementCoordinatorSystemGroup — horde formation offsets
-  ├── MovementFollowerSystemGroup    — smooth path following
-  └── MovementExecutionSystemGroup  — writes final position/rotation to transforms
-BuildingsSystemGroup         — factory production loop (Phase 1 complete)
-  └── ProductionSystem       — checks inputs+workers, ticks progress, writes outputs
-CombatSystemGroup
-  ├── CombatResolutionSystemGroup — attack resolution, player attacks
-  └── CombatReactionSystemGroup  — damage application; MinionAutoCounterSystem releases PlayerControlled on hit
-HealthSystemGroup            — death, fake ragdoll init, heal, revive, ragdoll revive cleanup, health bar updates
-DesignSystemGroup            — DesignChangeSystem: runtime body-part re-skin (after Health, before Animation)
+  └── AnimationExecutionSystemGroup  — advances time, samples keyframes, applies pose
 LateSimulationSystemGroup
-  ├── SpawnSystemGroup       — UnitSpawnerSystem only: instantiate/reclaim, enable NewlySpawned
+  ├── SpawnSystemGroup       — UnitSpawnerSystem: instantiate/reclaim, enable NewlySpawned
   ├── SpawnInitSystemGroup   — all spawn-frame init systems filter on [WithAll<NewlySpawned>]
   ├── SoundSystemGroup       — gather/cull requested sounds → ResolvedVoices/WorldMood/MusicState (AudioManager reads them in LateUpdate)
-  ├── (loose systems)        — pool return, event resets, Ragdoll2DSystem (runs here so it fires AFTER ApplyAnimatedPoseSystem)
+  ├── DespawnSystemGroup     — UnitPoolReturnSystem
+  ├── (raw members)          — Ragdoll2DSystem, OrderMarkerSystem, SelectedVisualSystem (documented conformance exemptions)
   └── SaveSystemGroup        — play time tracking, auto-save timer, save/load (OrderLast)
-PresentationSystemGroup      — selection outlines (runs after transforms settled)
+PresentationSystemGroup      — InteractionHighlightSystem (outline systems parked in Core/Unused/)
 ```
 
-System group definitions live in `SystemGroups.cs`.
-`SystemGroups.cs` orchestrates the order systems execute and is organized in that same order (top down) for easy to read logic.
+### Structural conformance (2026-07 pass)
+
+`SystemGroups.cs` is the **single manifest**: every group is declared there, top-down in execution order. Three rules are now *enforced* by `Assets/_Scripts/Tests/SystemPlacementConformanceTests.cs` + `SystemGroupOrderTests.cs` (EditMode — run via Test Runner):
+
+1. Every system carries `[UpdateInGroup]` (a forgotten attribute silently auto-creates in `SimulationSystemGroup`).
+2. A system file lives in the folder named after its group — the folder tree IS the group tree (3 documented exemptions in the test).
+3. Every adjacent pair in the pipelines above has an explicit `UpdateBefore`/`UpdateAfter` edge, and no ordering edge crosses a parent-group boundary (Unity ignores those silently).
+
+**Scene gating is group-level:** top-level feature groups derive from `GameSceneSystemGroup` (declared at the top of `SystemGroups.cs`), which does `RequireForUpdate<GameSceneTag>()` once for the whole feature. New systems only declare their own DATA requirements (`RequireForUpdate<SomeLibrary>`); the per-system `GameSceneTag` require is legacy boilerplate (harmless, being phased out). `FeatureConfigAuthoring` (Authoring/Tags/) bakes per-feature plug tags (`CombatFeature` etc.) for scene-level feature toggles — the group-side `RequireForUpdate<XFeature>` wiring is a planned follow-up (see Tasks/Plans).
+
+The cross-feature request/event API surface is indexed in [[Contracts]] — read it before making one feature touch another.
 
 ---
 
@@ -67,9 +76,8 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 |---|---|---|
 | `AnimationLibraryBakingSystem` | `AnimationLibraryBakingSystem.cs` | AnimationLibrarySO → AnimationLibraryBlob |
 | `UnitLibraryBakingSystem` | `UnitLibraryBakingSystem.cs` | UnitLibrarySO → UnitLibraryBlob + UnitPrefabEntry |
-| `ScoringLibraryBakingSystem` | `ScoringLibraryBakingSystem.cs` | AIScoringLibrarySO → AIScoringLibraryBlob |
 | `AttackLibraryBakingSystem` | `AttackLibraryBakingSystem.cs` | AttackLibrarySO → AttackLibraryBlob |
-| `FactoryLibraryBakingSystem` | `FactoryLibraryBakingSystem.cs` | FactoryLibrarySO → FactoryLibraryBlob (recipes blob for ProductionSystem) |
+| `FactoryLibraryBakingSystem` | `Core/Unused/FactoryLibraryBakingSystem.cs` (**parked** with ProductionSystem) | FactoryLibrarySO → FactoryLibraryBlob (recipes blob for ProductionSystem) |
 | `PartLibraryBakingSystem` | `PartLibraryBakingSystem.cs` | PartLibrarySO → PartLibraryBlob (enum-indexed per-part design grid + ragdoll zones; CharacterRig) |
 | `CharacterRigBakingSystem` | `CharacterRigBakingSystem.cs` | `[UpdateAfter(PartLibraryBakingSystem)]` Builds the root `BodyPart` buffer from `BodyPartInfo`+`BaseParent`; stamps `Ragdoll2D`/`Ragdoll2DJoint` (disabled) with settle speed from override-or-blob. Replaces `CharacterBodyPartBakingSystem` + `Ragdoll2DBakingSystem` (both deleted) |
 
@@ -77,12 +85,16 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 
 ### GameManagerSystemGroup (`Systems/GameManagerSystemGroup/`)
 
+**Charter: world services.** Frame-setup infrastructure only — registries, spatial hashes, event buses, floating origin. Runs `OrderFirst` (before every feature) and is deliberately **not** scene-gated at group level. Features may read its singletons; it never reads feature state. Gameplay logic does not belong here.
+
 | System | File | Purpose |
 |---|---|---|
+| `DamageBusSystem` | `DamageBusSystem.cs` | Owns + resets the recycled `DamageBus` NativeQueues, carries the producer JobHandle (see CombatSystemGroup section) |
+| `FactionRegistrySystem` | `FactionRegistrySystem.cs` | Maintains the per-faction entity registry singleton |
+| `InteractionSpatialHashSystem` | `InteractionSpatialHashSystem.cs` | Rebuilds the interaction/waypoint spatial hash (`SpatialHashRegistry`) |
+| `WaypointRegistrationSystem` | `WaypointRegistrationSystem.cs` | Registers `NavigationWaypoint` entities into the registry |
 | `FloatingWorldOriginSystem` | `FloatingWorldOriginSystem.cs` | Recenters world origin to prevent float precision loss |
 | `HordeSystem` | `HordeSystem.cs` | Creates/destroys horde entities, manages membership |
-| `PlayerInputSystem` | `PlayerInputSystem.cs` | Reads `PlayerInputData` singleton, enables input tag components |
-| `PlayerAimSystem` | `PlayerAimSystem.cs` | While `AimPlayerInput` is enabled: reads `LookPlayerInput`, updates `AimDirection`, rotates player, shows/hides aim indicator |
 
 ---
 
@@ -129,7 +141,8 @@ Runs inside `SimulationSystemGroup`, before `MinionActionSelectionSystemGroup`. 
 | System | File | Purpose |
 |---|---|---|
 | `PlayerReviverSystem` | `PlayerEquipmentSystemGroup/PlayerReviverSystem.cs` | When `OnPlayerReviverEquipt` is enabled and `Target` is valid: enables `Revive` on the target entity |
-| `MinionCommandSystem` | `PlayerEquipmentSystemGroup/MinionCommandSystem.cs` | Reads `OnMinionMoveCommand`/`OnMinionInteractCommand` from player; writes `PlayerOrder` + enables `PlayerControlled` on each Selected+Minion brain; writes `PathRequest` on bodies for move commands |
+
+> `MinionCommandSystem` is **parked** in `Core/Unused/` — minion orders now flow `UnitSelectionManager` (Mono) → `OnMinion*Command` → `MinionActionSelectionSystem`.
 
 ---
 
@@ -159,9 +172,11 @@ Runs before `AIActionSelectionSystemGroup`. Handles player-commanded units (`Pla
 
 Runs after `MovementSystemGroup`, before `CombatSystemGroup`. Handles factory production. Requires a `FactoryLibrary` singleton entity (baked by `FactoryLibraryAuthoring`) to be present in the scene.
 
+> ⚠ **PARKED (2026-07):** `ProductionSystem` and `FactoryLibraryBakingSystem` are fully commented out and moved to `Core/Unused/`. The ECS data layer (grid, station components, authoring, library SO types) still exists, but the production loop does not run. Re-enabling = restore both files to their group folders, uncomment, and complete the setup steps below.
+
 | System | File | Purpose |
 |---|---|---|
-| `ProductionSystem` | `ProductionSystem.cs` | Checks idle stations for inputs+workers (`StartProductionJob`); ticks active cycles and writes outputs (`TickProductionJob`) |
+| `ProductionSystem` | `Core/Unused/ProductionSystem.cs` (parked) | Checks idle stations for inputs+workers (`StartProductionJob`); ticks active cycles and writes outputs (`TickProductionJob`) |
 
 **Key components:** `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer — see [[Components]].
 
@@ -276,18 +291,18 @@ Runs in `SimulationSystemGroup`, `[UpdateAfter(HealthSystemGroup)] [UpdateBefore
 
 One-shot SFX are emitted via `SoundUtil.Play/PlayOn` (ECB; the LogMessage pattern). Animation-locked SFX fire from `AnimationSoundMarkerSystem` (`AnimationExecutionSystemGroup`, after `AnimationTimeSystem`) on clip marker crossings. Behaviour cues use the `PlaySound` `BehaviorCommandType` (fire-and-advance in `BehaviorExecutionSystem`). Blob: `SoundLibraryBakingSystem` (PostBakingSystemGroup) builds `SoundLibraryBlob` enum-indexed (clips stay managed on `AudioManager`).
 
-#### DespawnSystemGroup (`DespawnSystemGroup/`)
+#### DespawnSystemGroup (`Systems/DespawnSystemGroup/` — top-level folder; Spawn/SpawnInit/Despawn are LateSimulation siblings, not nested groups)
 
 | System | File | Purpose |
 |---|---|---|
-| `UnitPoolReturnSystem` | `../UnitPoolReturnSystem.cs` | Adds `Disabled` to units > 200 units from the player; returns them to the pool |
+| `UnitPoolReturnSystem` | `UnitPoolReturnSystem.cs` | Adds `Disabled` to units > 200 units from the player; returns them to the pool |
 
-#### Loose systems (LateSimulationSystemGroup)
+#### Raw LateSimulationSystemGroup members (documented conformance exemptions)
 
 | System | File | Purpose |
 |---|---|---|
-| `ResetEventsSystem` | `ResetEventsSystem.cs` | Clears one-frame event flags (onSelected, onDeselected, etc.) |
-| `Ragdoll2DSystem` | `../HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88°, decays joint angular velocity, ground-clamps joints. Runs here (not HealthSystemGroup) so it fires AFTER `ApplyAnimatedPoseSystem` |
+| `Ragdoll2DSystem` | `HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88°, decays joint angular velocity, ground-clamps joints. Runs here (not HealthSystemGroup) so it fires AFTER `ApplyAnimatedPoseSystem` |
+| `OrderMarkerSystem` / `SelectedVisualSystem` | `PresentationSystemGroup/` | Presentation visuals that run after simulation settles |
 
 ---
 
@@ -319,9 +334,11 @@ Runs after all transforms have settled.
 
 | System | File | Purpose |
 |---|---|---|
-| `OutlineSystem` | `OutlineSystem.cs` | Drives outline render feature for selected units |
-| `OutlineLayerUpdateSystem` | `OutlineLayerUpdateSystem.cs` | Updates per-layer outline state |
-| `SelectedVisualSystem` | `SelectedVisualSystem.cs` | Shows/hides selection circle visual under units |
+| `InteractionHighlightSystem` | `InteractionHighlightSystem.cs` | Highlights the player's current interaction target |
+| `OrderMarkerSystem` | `OrderMarkerSystem.cs` | Move-order marker visual (updates in raw `LateSimulationSystemGroup` — exempted) |
+| `SelectedVisualSystem` | `SelectedVisualSystem.cs` | Shows/hides selection circle visual under units (raw `LateSimulationSystemGroup` — exempted) |
+
+> `OutlineSystem` / `OutlineLayerUpdateSystem` are **parked** in `Core/Unused/`.
 
 ---
 

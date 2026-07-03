@@ -57,6 +57,13 @@ Scaffolds or extends a **unit AI decision behaviour**: awareness systems that em
 
 **Use when:** "make units react to X", "add a daily schedule", "units should panic when Y", "add an awareness system", "wire up ActionType.Foo", "add an interrupt for W". **Not for:** blob libraries (use `dots-blob-library`), bakers (use `dots-authoring-baker`), or generic non-AI systems (use `dots-system-scaffold`).
 
+## dots-feature-group
+`.claude/skills/dots-feature-group/SKILL.md`
+
+Scaffolds a complete **new top-level feature system group**: the `GameSceneSystemGroup`-derived declaration in `SystemGroups.cs` with explicit pipeline edges, the matching `Systems/<Name>SystemGroup/` folder, optional feature plug tag + `FeatureConfigAuthoring` checkbox, the `SystemGroupOrderTests` registration, and the [[Contracts]] documentation row.
+
+**Use when:** "add a new feature group", "create a WeatherSystemGroup", "make X a pluggable feature", or a new domain needs its own top-level slot in the frame pipeline. **Not for:** single systems in an existing group (`dots-system-scaffold`) or nested child groups.
+
 ## dots-test
 `.claude/skills/dots-test/SKILL.md`
 

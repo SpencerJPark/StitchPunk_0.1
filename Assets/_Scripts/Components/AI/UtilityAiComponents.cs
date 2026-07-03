@@ -144,8 +144,6 @@ public struct DangerSignal : IComponentData
 
 
 
-public struct SocialValidationRequest : IComponentData, IEnableableComponent { } // legacy pre-migration — unused, removal candidate
-
 // Talk invitation written by the RequestSocialResponse behavior command (initiator → target).
 // SocialResponseSystem consumes it: accept = invitee's StateMachine is set to Talk targeting the
 // initiator (direct when idle, pending fields when busy); decline = invite disabled, the initiator

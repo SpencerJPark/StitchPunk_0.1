@@ -14,8 +14,8 @@ related: "[[Systems]], [[Components]], [[Systems_Movement]]"
 
 ```
 UtilityAISystemGroup
-  ├── AIMotivationSystemGroup        (decay, MotivationChangeRequest, etc.)
-  └── AIAwarenessSystemGroup         (awareness → UtilityActions buffer entries)
+  ├── UtilityMotivationSystemGroup        (decay, MotivationChangeRequest, etc.)
+  └── UtilityAwarenessSystemGroup         (awareness → UtilityActions buffer entries)
         SocialResponseSystem         (after awareness — consumes SocialInvite)
 
 MinionActionSelectionSystemGroup     (player orders → UtilityActions, isPlayerOrdered=true)
@@ -32,7 +32,7 @@ StateMachineSystemGroup
 AI is a **decision layer only** — awareness writes scored options; a single interpreter
 (`BehaviorExecutionSystem`) executes whatever wins by walking the authored command sequence.
 
-## Decision Layer — awareness systems (AIAwarenessSystemGroup)
+## Decision Layer — awareness systems (UtilityAwarenessSystemGroup)
 
 All append `UtilityActions` entries. Every emission MUST set `actionDefIndex` via
 `BrainBlobUtils.GetActionDefIndex(ref blob, brain.unitType, actionType)` and **skip the Add when
@@ -169,9 +169,9 @@ RequestPickup → StopAnimation`) → item gets `PickupRequest`:
 |---|---|
 | `Systems/SystemGroups.cs` | group ordering |
 | `Components/AI/UtilityAiComponents.cs` | UtilityActions, StateMachine, Motivation, ThreatEntry |
-| `Systems/UtilityAISystemGroup/UtilityDecisionSystemGroup/ConsiderationScoringSystem.cs` | scoring |
-| `Systems/UtilityAISystemGroup/UtilityDecisionSystemGroup/WinnerSelectionSystem.cs` | winner → StateMachine |
-| `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/BehaviorExecutionSystem.cs` | command interpreter |
+| `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/ConsiderationScoringSystem.cs` | scoring |
+| `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/WinnerSelectionSystem.cs` | winner → StateMachine |
+| `Systems/StateMachineSystemGroup/ActionExecutionSystemGroup/BehaviorExecutionSystem.cs` | command interpreter |
 | `Systems/StateMachineSystemGroup/ActionExecutionSystemGroup/BehaviorInterruptSystem.cs` | teardown/preemption |
 | `Systems/MinionActionSelectionSystemGroup/MinionActionSelectionSystem.cs` | player orders |
 | `Systems/MinionActionSelectionSystemGroup/MinionSelfDefenceAwarenessSystem.cs` | minion self-defence when uncommanded |
