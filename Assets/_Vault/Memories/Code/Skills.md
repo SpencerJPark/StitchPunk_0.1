@@ -71,6 +71,14 @@ Scaffolds a **Unity Test Runner fixture** (and the `StitchPunk.Tests` asmdef if 
 
 **Use when:** "add a test for X", "unit-test the curve/scoring/grid math", "set up the test assembly", "add an EditMode/PlayMode test". **Not for:** running the suite (Window ▸ General ▸ Test Runner, user-driven) or non-test gameplay code.
 
+## shader-edit
+`.claude/skills/shader-edit/SKILL.md`
+
+Authors **Unity 6.5 reflection-API HLSL nodes** (`UNITY_EXPORT_REFLECTION`, one node per file, `StitchPunk.*` provider keys under `Assets/Shaders/Nodes/`) and performs **programmatic `.shadergraph` surgery** — adding nodes/properties/edges, rewiring, signature-change slot rebuilds, orphan sweeps — with backup + referential validation via bundled scripts (`shadergraph_lib.py`, `validate_shadergraph.py`). Encodes the hard-won gotchas: meta GUIDs before import, importer NREs on missing subgraph refs, slot numbering, the no-Unity-MCP verification loop, stale-subscene-bake errors.
+
+**Use when:** "add/change a shader node", "wire X into the shader graph", "new HLSL node", "tune the painterly/cel look", "shader import error", or before touching anything under `Assets/Shaders/`. **Not for:** render-feature C# or DOTS systems.
+**References:** `reflection-nodes.md`, `shadergraph-surgery.md` · **Scripts:** `shadergraph_lib.py`, `validate_shadergraph.py`
+
 ---
 
 *Maintained alongside the code it scaffolds. When you add or rename a skill in `.claude/skills/`, update this index.*

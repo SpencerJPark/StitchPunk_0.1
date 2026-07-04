@@ -1,0 +1,119 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-1950424694832112086
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Editor::UnityEditor.Rendering.Universal.AssetVersion
+  version: 10
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Painterly
+  m_Shader: {fileID: -6465566751694194690, guid: 107c3c8609e98b24981439f3c2bf5fb5, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - SHADOWCASTER
+  - MOTIONVECTORS
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _DetailTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: a45432932370dd74fa426457ddf4811d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlphaClip: 0
+    - _AlphaToMask: 0
+    - _Blend: 0
+    - _CastShadows: 0
+    - _Channel: 0
+    - _Contrast: 1.25
+    - _Cull: 2
+    - _DstBlend: 0
+    - _DstBlendAlpha: 0
+    - _EdgeDiffuse: 0.25
+    - _EdgeDistanceAttenuation: 0.5
+    - _EdgeRimAttenuation: 0.3
+    - _EdgeRimOffset: 0.5
+    - _EdgeShadowAttenuation: 0.35
+    - _EdgeSpecular: 0.1
+    - _EdgeSpecularOffset: 0.1
+    - _HueJitter: 0.05
+    - _HueShift: 0
+    - _InteractableHighlight: 0.06
+    - _IsInteractable: 0
+    - _NormalStrength: 0.4
+    - _PositionA: 0.05
+    - _PositionB: 0.35
+    - _PositionC: 0.65
+    - _PositionD: 0.95
+    - _PositionScale: 1
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _RampSmoothness: 0.35
+    - _RimThreshold: 0.1
+    - _Saturation: 1
+    - _Smoothness: 0.15
+    - _SrcBlend: 1
+    - _SrcBlendAlpha: 1
+    - _StopCount: 4
+    - _Strength: 0
+    - _Surface: 0
+    - _UVJitter: 1
+    - _UniformTiling: 1
+    - _Value: 0.9
+    - _ValueJitter: 0.2
+    - _ZTest: 4
+    - _ZWrite: 1
+    - _ZWriteControl: 0
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ColorA: {r: 0.09999997, g: 0.15999997, b: 0.079999976, a: 1}
+    - _ColorB: {r: 0.21999997, g: 0.34999996, b: 0.11999995, a: 1}
+    - _ColorC: {r: 0.45, g: 0.54999995, b: 0.17999998, a: 1}
+    - _ColorD: {r: 0.75, g: 0.72, b: 0.34999996, a: 1}
+    - _Detail_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Detail_Tilling: {r: 0, g: 0, b: 0, a: 0}
+    - _Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Tilling: {r: 1, g: 1, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -136,7 +136,7 @@ Play `DOTSTestScene`:
 - **Ph2:** trigger `DebugResourceSourceSystem` (debug key / authoring) → `ResourceStack` amounts move and **clamp at 0 and at `cap`**; over-spend floors at 0; the `ResourceChangeRequest` buffer empties each frame.
 - **Ph3:** via `SaveLoadBridge.RequestSave`, save → mutate → load → amounts return to saved values; confirm `PlayerResourcesSnapshot` matches `ResourceStack` post-save.
 - **Ph4:** HUD labels match the inspector counts and update in real time.
-- **Compile gate:** clean `Unity_GetConsoleLogs` (no `CS####` / Burst `BC####`) after each phase.
+- **Compile gate:** clean Console (no `CS####` / Burst `BC####`) after each phase — user-checked after focusing Unity, or via the Editor log (no Unity MCP).
 - **Spencer-only (Editor):** building the HUD Canvas/prefab and visual styling; confirming the debug source wiring.
 
 ## Open decisions (collected)

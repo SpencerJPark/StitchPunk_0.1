@@ -43,6 +43,7 @@ Folder Map — Read Before Working
 | `_Scripts/Data/` | [Data.md](_Vault/Memories/Code/Data.md) | ScriptableObject pattern, BlobAsset baking, enums, save DTOs |
 | `_Scripts/Core/` | [Core.md](_Vault/Memories/Code/Core.md) | Singletons, legacy files, what to avoid |
 | `_Scripts/MonoBehaviours/` | [MonoBehaviours.md](_Vault/Memories/Code/MonoBehaviours.md) | Managers, input, camera (non-ECS layer) |
+| `Shaders/` | [Shaders.md](_Vault/Memories/Code/Shaders.md) | Shader graphs, cel-shading HLSL, reflection-API node library (Painterly) |
 
 Vault Structure — `_Vault/`
 

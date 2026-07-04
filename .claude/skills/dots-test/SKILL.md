@@ -158,4 +158,4 @@ namespace StitchPunk.Tests.PlayMode
 
 ## Verify
 
-Tests are run by the user via **Window ▸ General ▸ Test Runner** (EditMode or PlayMode tab → Run All) — there is no headless runner wired up. After writing a fixture, confirm a clean compile with the Unity MCP `Unity_GetConsoleLogs` tool before handing off, then ask the user to run the suite.
+Tests are run by the user via **Window ▸ General ▸ Test Runner** (EditMode or PlayMode tab → Run All) — there is no headless runner wired up. After writing a fixture, confirm a clean compile before handing off (ask the user to check the Console after focusing Unity, or grep the Editor log for `error CS`/`BC` — there is no Unity MCP), then ask the user to run the suite.

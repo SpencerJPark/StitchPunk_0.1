@@ -58,4 +58,4 @@ Use `dots-system-scaffold` for each system, `dots-blob-library` if the feature h
 
 ## Verify
 
-Compile clean (`Unity_GetConsoleLogs`), then run the EditMode Test Runner — `SystemPlacementConformanceTests` + `SystemGroupOrderTests` green means the feature is structurally sound before it has any behavior.
+Compile clean (Console checked by the user after focusing Unity, or grep the Editor log for `error CS`/`BC` — there is no Unity MCP), then run the EditMode Test Runner — `SystemPlacementConformanceTests` + `SystemGroupOrderTests` green means the feature is structurally sound before it has any behavior.

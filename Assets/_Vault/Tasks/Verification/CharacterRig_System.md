@@ -151,7 +151,7 @@ Both existing entry patterns are preserved (request model, on the entity acted o
 
 ## 10. Verification
 
-Per phase, the standard loop: save `.cs` → `Unity_GetConsoleLogs (Error)` clean → rebake (`DOTSTestScene` reopen) → Play.
+Per phase, the standard loop: save `.cs` → Console clean (user check after focusing Unity; no Unity MCP) → rebake (`DOTSTestScene` reopen) → Play.
 - **P1:** Entities window → library entity has `PartLibrary` with expected def count.
 - **P2:** citizen idles/walks (pose fan-out works); spawn via `UnitSpawnerSystem` → `BodyPart` buffer correct from frame 2 (inspect in Entities window); no collapsed quads on spawn frame.
 - **P3:** spawn 10 citizens → each has uniform skin across head/arms, varied between citizens; enable a `ChangeDesignRequest { skin = Zombie }` on one in the inspector → head/arms/eyes flip to zombie variants, hair/clothes untouched; save + reload → same look (`PersistedDesign` + `CharacterPalette` round-trip).

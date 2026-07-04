@@ -44,15 +44,13 @@ For every **new `.cs` file and new folder**, hand-generate a Unity `.meta` so th
 
 Generate GUIDs with `[guid]::NewGuid().ToString("N")` (PowerShell). Match an existing `.cs.meta` in the repo for the exact block shape.
 
-### 5. Compile gate (Unity MCP when connected) + static self-review
+### 5. Compile gate (manual — no Unity MCP) + static self-review
 Always do the **static review** against the in-repo patterns you read in step 3 (group/order attributes, `IsCreated` dispose guards on blobs/native containers, one-shot `DestroyEntity(query)` lifecycle, enableable-request consume/disable, blittable `IPersist` structs, etc.).
 
-Then attempt the **MCP compile gate** — the running Editor recompiles on focus, so the console is the truth source for whether the code builds:
-- Call `mcp__unity-mcp__Unity_GetConsoleLogs` (`logTypes: "Error"`) after the files are written. Zero compile errors / Burst (`BC####`) warnings = gate passed; fix anything it surfaces and re-check before moving on.
-- For a system with an on-screen result, capture `mcp__unity-mcp__Unity_SceneView_Capture2DScene` (or `Unity_Camera_Capture`) to sanity-check visual state.
-- If the call returns a connection error ("Connection revoked" / not connected), the Editor isn't reachable — **say so plainly**, fall back to static review only, and leave the real compile + play-test to the verification steps (step 7). Do not block the build on an unavailable Editor.
-
-(Read-only MCP tools must be allow-listed in `.claude/settings.local.json` to run without prompting — `Unity_GetConsoleLogs`, `Unity_SceneView_Capture2DScene`, `Unity_SceneView_CaptureMultiAngleSceneView`, `Unity_Camera_Capture`, `Unity_FindProjectAssets`. State-mutating MCP tools, e.g. `Unity_RunCommand`, stay gated.)
+There is **no Unity MCP / Editor bridge** — do not attempt `mcp__unity-mcp__*` tools. The compile gate is manual:
+- Ask the user to focus Unity (triggers a recompile) and report the Console, or grep the Editor log (`C:/Users/spenc/AppData/Local/Unity/Editor/Editor.log`) for fresh `error CS####` / Burst `BC####` lines after they have done so. Zero errors = gate passed; fix anything surfaced and re-check.
+- For a system with an on-screen result, ask the user to confirm visual state (or paste a screenshot).
+- If the user isn't at the Editor, **say so plainly**, rely on static review only, and leave the real compile + play-test to the verification steps (step 7). Do not block the build on an unavailable Editor.
 
 ### 6. Full housekeeping
 Keep the vault current (per `Assets/CLAUDE.md`):
