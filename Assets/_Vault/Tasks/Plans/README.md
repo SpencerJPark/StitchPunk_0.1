@@ -40,6 +40,8 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 | Minion Systems → new state machine | — | ⬜ not started |
 | **Behavior Bake Validation** (shared command catalog; bake warns on unimplemented BehaviorSO commands) | [BehaviorBakeValidation_System.md](../Verification/BehaviorBakeValidation_System.md) | 🔨 built — awaiting Editor compile + verify |
 | **Direction System** (facing representation — DECISION-FIRST, blocks part-SO authoring) | [Direction_System.md](Direction_System.md) | ✅ spec ready |
+| **Directional Texture Packing + Recolor** (4 facings → RGBA channels + mirror-flip 8-way; grayscale mask → palette ColorRamp recolor; implements Direction §Option B) | [DirectionalTexturePacking_System.md](DirectionalTexturePacking_System.md) | ✅ spec ready |
+| **Painterly Gradient-Map** (64×64 gradient atlas as UV palette; mesh UV picks colour, lighting shades; PainterlyGradientMap node + PainterlyPaletteShader + LUT generator) | [PainterlyGradientMap_Shader.md](../Verification/PainterlyGradientMap_Shader.md) | 🔨 built — Editor verify pending |
 | **Zombie Conversion** (ZombifyRequest composes SwapBrainRequest + ChangeDesignRequest) | [ZombieConversion_System.md](ZombieConversion_System.md) | ✅ spec ready |
 | **Minion Order Robustness** (order-time attack resolution from AvailableAttack; Stop/ReturnToPlayer verbs) | [MinionOrderRobustness_System.md](MinionOrderRobustness_System.md) | ✅ spec ready |
 | **Behavior Command Split** (extract interpreter switch arms into Utils/BehaviorCommands; pure refactor) | [BehaviorCommandSplit_System.md](BehaviorCommandSplit_System.md) | ✅ spec ready |
@@ -52,6 +54,7 @@ Each plan doc lists, near the top under a **`Skills Needed`** heading, the **pro
 | **CharacterRig Finish + Hardening** (verify-doc rewrite, bake warnings, palette guard, PartDefId decision) | [CharacterRigHardening_System.md](CharacterRigHardening_System.md) | ◐ code items 2/3/5/6 built; verify-doc rewrite + PartDefId decision remain |
 | **Minion Revival & Life-State** (revive→zombie minion via `SwapBrainRequest`, `Alive` deprecation) | [MinionRevival_System.md](../Verification/MinionRevival_System.md) | 🔨 built — code landed (Ph1–4), verify pending |
 | **Brain Control Split** (UtilityBrain=decision / StateMachine=execution; death blank-slate, player-controlled revive, minion self-defence) | [BrainControlSplit_System.md](../Verification/BrainControlSplit_System.md) | 🔨 built — code landed, verify pending |
+| **Cutscene & Animation Stage** (edit-mode PreviewSceneStage editor replaces hybrid preview scene; CutsceneSO multi-actor tracks → blob → CutscenePlaybackSystem) | [Cutscene_System.md](Cutscene_System.md) | ✅ spec ready |
 | Animations (content) | — | ⬜ not started |
 | **Unit Design** (per-part random texture indices, minion persistence) | [UnitDesign_System.md](UnitDesign_System.md) | 🔨 built — code landed, verify pending |
 | **Character Rig** (unified `BodyPart` registry + `PartLibrary` blob + shape×color design grid; replaces Design/Ragdoll2D/AnimationTarget/Animator authorings; enables palette-swap zombification) | [CharacterRig_System.md](../Verification/CharacterRig_System.md) | 🔨 built — code landed, verify + Editor migration pending |

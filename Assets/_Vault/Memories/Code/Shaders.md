@@ -6,7 +6,7 @@ custom-function files are gone):
 
 | Folder | Holds |
 |---|---|
-| `Graphs/` | Production shader graphs: `2DShader`, `2DTextureArrayShader` (unit parts), `3DShader` (environment/props), `PainterlyShader` (painterly single-texture environment look) — all four use the **Cel Shaded Lighting** reflection node |
+| `Graphs/` | Production shader graphs: `2DShader`, `2DTextureArrayShader` (unit parts), `3DShader` (environment/props), `PainterlyShader` (painterly single-texture environment look), `PainterlyPaletteShader` (UV-palette variant of PainterlyShader — see below) — all use the **Cel Shaded Lighting** reflection node |
 | `RenderFeatures/` | Hand-written `.shader` passes driven by the renderer features: `ViewSpaceNormalsCapture`, `RobertsCrossEdgeDetection`, `SilhouetteOutline`. **This is the live outline pipeline** (`RobertsCrossRenderFeature` + `SilhouetteOutlineFeature` in `Game_Renderer.asset`) |
 | `SubGraphs/` | Only `WorldSpaceSurfaceData` — bundles Position/Normal/View geometry-context nodes for the lighting inputs; correctly a subgraph (HLSL functions can't access geometry implicitly), used by all production graphs |
 | `Nodes/` | **Reflection-API node library** — one Shader Graph node per `.hlsl` file (see below) |
@@ -62,7 +62,32 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   master-stack Normal block for tangent normal maps). Mask generator:
   `Assets/_Scripts/Editor/PainterlyMaskGenerator.cs` → **Stitch Punk ▸ Generate
   Painterly Mask Texture** → `Assets/Textures/Painterly/T_PainterlyMask.png`
-  (tileable, linear, R/G/B = three independent stroke layers).
+  (tileable, linear, R/G/B = three independent stroke layers). Hand-painted
+  masks: paint three plain grayscale PNGs (`Mask_R/G/B.png`, same folder) and
+  run **Stitch Punk ▸ Pack Painterly Mask From Grayscale Files**
+  (`PainterlyMaskPacker.cs`) — packs into T_PainterlyMask.png in place,
+  preserving GUID/import settings; missing files = flat mid gray.
+
+## Painterly palette atlas — `PainterlyPaletteShader` (2026-07-04)
+
+A UV-driven palette variant of `PainterlyShader`: the mesh UV samples a **64×64 gradient atlas**
+(`_GradientLUT`) to pick a **base colour per part** (sword hilt → brown row, blade → grey row);
+Cel Shaded Lighting does the shading. The stroke mask (`_MainTex`) no longer drives colour here —
+it feeds **only** Height To Normal (the painterly surface). A material needs BOTH textures set.
+
+- **Node:** `Nodes/Painterly/PainterlyGradientMap.hlsl` (`StitchPunk.PainterlyGradientMap`) —
+  `saturate(uv)` sample of the LUT, colour out only. Thin, self-contained (no `PainterlyCommon`).
+- **Graph:** `Graphs/PainterlyPaletteShader.shadergraph` — built by duplicating `PainterlyShader`
+  and swapping the albedo source: a built-in **Sample Texture 2D** (`_GradientLUT`, mesh UV) feeds
+  the albedo Multiply's A input in place of `Painterly Color`'s colour out. `Painterly Color`
+  stays (its Mask Value out still drives Height To Normal). The graph uses the **built-in** sampler
+  rather than the reflected node — cloning reflected texture/sampler slots has no safe same-file
+  template; behaviour matches because the LUT imports **Clamp**. Swap the node in by hand if wanted.
+- **LUT authoring:** `Data/SOs/PainterlyGradientLUTSO.cs` (a `List<Gradient>`, one per colour zone)
+  → **Stitch Punk ▸ Generate Painterly Gradient LUT** (`Editor/PainterlyGradientLUTGenerator.cs`)
+  bakes `Textures/Painterly/T_PainterlyGradientLUT.png` (gradient index 0 = top band; equal row
+  bands give UV tolerance) + a `_rows.txt` reference sheet (UV.y band → zone). Importer: **sRGB on,
+  Clamp, Point, no mips, uncompressed** — Point + Clamp keep colour zones crisp (no row bleed).
 
 ## Migration log (2026-07-04, complete)
 
