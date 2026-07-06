@@ -100,6 +100,9 @@ public class BodyPartAuthoring : MonoBehaviour
             {
                 AddComponent(entity, new ImageIndex { index = authoring.baseImageIndex, onUpdate = true });
                 AddComponent(entity, new ImageIndexOverride { Value = 0 });
+                // Per-instance tint, neutral white so parts render at their authored colour
+                // until a skin/design system writes a colour. Drives _BaseColor (Hybrid Per Instance).
+                AddComponent(entity, new BodyPartTint { Value = new float4(1f, 1f, 1f, 1f) });
             }
 
             if (authoring.isRagdollJoint)

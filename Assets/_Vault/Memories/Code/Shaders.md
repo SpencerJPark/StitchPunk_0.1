@@ -46,6 +46,31 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   shader-graph outline rebuild (the old shader-graph outline chain was dead and
   was deleted).
 - **`Nodes/Utility/`** — `IfAnyNonZero`.
+- **`Nodes/Sprite/`** — outline-safe multiply-tint for baked vector sprites
+  (from `_Vault/Tasks/Materials/info.md`). `SpriteTint` (single zone:
+  `baseColor.rgb * tint.rgb`; black outline `0*tint=0` stays black) and
+  `SpriteTintMasked` (up to 3 zones via an R/G/B mask baked on the same UVs,
+  outline/detail pass through the free channel). Library/hand-wire nodes — the
+  production 2D graphs already do the single-zone multiply via `_BaseColor`
+  (see below), so these are for new graphs or the future multi-zone parts.
+
+## Per-instance sprite tint — `_BaseColor` (2026-07-05)
+
+Both `2DShader` and `2DTextureArrayShader` already multiply their sprite by a
+`_BaseColor` colour property (`texture sample × _BaseColor → Cel Shaded
+Lighting → Base Color`) — that IS the outline-safe multiply-tint. `_BaseColor`
+is now **Hybrid Per Instance** (`overrideHLSLDeclaration:true`,
+`hlslDeclarationOverride:3`) in both graphs, matching `_ImageIndex` /
+`_IsInteractable`. The DOTS override is `BodyPartTint : IComponentData`
+(`[MaterialProperty("_BaseColor")]`, `float4 Value`) in
+`Components/Animation/AnimationComponents.cs`, baked **white (1,1,1,1)** on every
+rendering body part by `BodyPartAuthoring` (alongside `ImageIndexOverride`).
+White = authored colour unchanged; a skin/design system writes per-part colours
+and the crowd still batches into one draw call. **Gotcha:** because the part
+carries a per-instance override, color-picking `_BaseColor` on the *material*
+no longer drives baked parts (the component wins) — set the entity's
+`BodyPartTint.Value` to tint a specific part. Bake the sprite atlas
+**white-fill / black-outline** or the multiply muddies the colour.
 - **`Nodes/Painterly/`** — single-RGB-mask painterly setup (recreation of the
   Unreal color-curve workflow in `_Vault/Tasks/Materials/Transcript.md`; wiring
   guide: `_Vault/Tasks/Materials/PainterlyShader_Guide.md`, migration checklist:

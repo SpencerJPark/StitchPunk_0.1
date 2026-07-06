@@ -65,6 +65,19 @@ public struct ImageIndexOverride : IComponentData
     public float Value;
 }
 
+// Per-instance sprite tint. Drives the _BaseColor shader property (Hybrid Per
+// Instance in the 2D graphs) so every body-part quad can carry its own colour
+// while the whole crowd still batches into one draw call. Multiply-tint: the
+// sprite is baked white-fill / black-outline, so Value multiplies the fill and
+// the black outline (0 * tint = 0) survives untouched. White (1,1,1,1) = the
+// authored sprite unchanged. Baked white by BodyPartAuthoring; a skin/design
+// system writes per-part colours.
+[MaterialProperty("_BaseColor")]
+public struct BodyPartTint : IComponentData
+{
+    public float4 Value; // RGBA, multiplies the sprite
+}
+
 // Damage color bool propertyBlock
 // tint for effects
 // disolve
