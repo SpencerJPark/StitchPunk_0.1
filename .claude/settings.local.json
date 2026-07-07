@@ -109,7 +109,10 @@
       "Bash(git rm *)",
       "Bash(rm -f \"Assets/_Scripts/Systems/CombatSystemGroup/CombatEventCommandBufferSystem.cs\" \"Assets/_Scripts/Systems/CombatSystemGroup/CombatEventCommandBufferSystem.cs.meta\")",
       "Bash(xargs cat)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(cp /c/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/Shaders/Graphs/2DTextureArrayShader.shadergraph /c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/2DTextureArrayShader.shadergraph.bak)",
+      "Bash(cp /c/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/Shaders/Graphs/2DShader.shadergraph /c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/2DShader.shadergraph.bak)",
+      "Read(//c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/**)"
     ]
   }
 }

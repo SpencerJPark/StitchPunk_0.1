@@ -136,7 +136,7 @@ public class AnimationPreviewController : MonoBehaviour
         
         if (userScrubbed)
         {
-            if (showDebugLog) Debug.Log($"[PreviewController] User scrubbed to {normalizedTime}");
+            // No log here — this fires every frame while the playhead is dragged.
             timeControl.normalizedTime = normalizedTime;
             SyncTimeToLayers(normalizedTime);
             OnTimeChanged?.Invoke(normalizedTime);
@@ -154,41 +154,8 @@ public class AnimationPreviewController : MonoBehaviour
         entityManager.SetComponentData(timeControlEntity, timeControl);
         lastSentNormalizedTime = timeControl.normalizedTime;
         
-        // Debug: Show current layer state every few seconds
-        if (showDebugLog && Time.frameCount % 300 == 0)
-        {
-            LogCurrentState();
-        }
     }
-    
-    private void LogCurrentState()
-    {
-        if (!IsWorldValid()) return;
-        
-        try
-        {
-            using var query = entityManager.CreateEntityQuery(typeof(AnimationLayer));
-            var entities = query.ToEntityArray(Unity.Collections.Allocator.Temp);
-            
-            
-            foreach (var entity in entities)
-            {
-                var layers = entityManager.GetBuffer<AnimationLayer>(entity);
-                
-                for (int i = 0; i < layers.Length; i++)
-                {
-                    var layer = layers[i];
-                }
-            }
-            
-            entities.Dispose();
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"[PreviewController] LogCurrentState error: {e.Message}");
-        }
-    }
-    
+
     private void RebuildLayers(bool preserveTime = false)
     {
         if (!IsWorldValid())

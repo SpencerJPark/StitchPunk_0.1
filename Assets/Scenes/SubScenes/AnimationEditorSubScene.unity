@@ -190,6 +190,8 @@ GameObject:
   m_Component:
   - component: {fileID: 383547442}
   - component: {fileID: 383547441}
+  - component: {fileID: 383547444}
+  - component: {fileID: 383547443}
   m_Layer: 0
   m_Name: AnimationEditorSceneTag
   m_TagString: Untagged
@@ -224,6 +226,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &383547443
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 383547440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63cf0e8b316b37c4894ae53bf2435325, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::GameDataAuthoring
+  autoSaveIntervalSeconds: 300
+  animationFrameRate: 24
+  masterVolume: 1
+  musicVolume: 0.7
+  sfxVolume: 0.9
+  ambientVolume: 0.7
+--- !u!114 &383547444
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 383547440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53af5ed8563681448afa32a424ede525, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::GameSceneTagAuthoring
 --- !u!1 &653683981
 GameObject:
   m_ObjectHideFlags: 0

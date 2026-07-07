@@ -43,6 +43,8 @@ public class AnimationClipEditorWindow : EditorWindow
     private static readonly Color PLAYHEAD_COLOR = Color.red;
     private static readonly Color TIMELINE_BG = new Color(0.18f, 0.18f, 0.18f);
     
+    private GUIStyle cachedStatusStyle;
+
     // Cached timeline rect for input handling
     private float cachedTimelineStartX;
     private float cachedScaledWidth;
@@ -70,13 +72,21 @@ public class AnimationClipEditorWindow : EditorWindow
         EditorApplication.update -= OnEditorUpdate;
     }
     
+    // Repaint cadence for the playhead while previewing. Play mode drives the player loop by
+    // itself — never call QueuePlayerLoopUpdate here, it stacks extra simulation ticks on top of
+    // the normal loop and multiplies the cost of every system in the preview world.
+    private const double RepaintIntervalSeconds = 1.0 / 20.0;
+    private double lastRepaintTime;
+
     private void OnEditorUpdate()
     {
-        if (previewController != null)
-        {
-            Repaint();
-            EditorApplication.QueuePlayerLoopUpdate();
-        }
+        if (previewController == null) return;
+
+        double now = EditorApplication.timeSinceStartup;
+        if (now - lastRepaintTime < RepaintIntervalSeconds) return;
+
+        lastRepaintTime = now;
+        Repaint();
     }
     
     private void OnInspectorUpdate()
@@ -245,9 +255,12 @@ public class AnimationClipEditorWindow : EditorWindow
         
         if (hasController)
         {
-            GUIStyle statusStyle = new GUIStyle(EditorStyles.miniLabel);
-            statusStyle.normal.textColor = previewController.isPlaying ? Color.green : Color.yellow;
-            EditorGUILayout.LabelField(previewController.isPlaying ? "▶ PLAYING" : "⏸ PAUSED", statusStyle, GUILayout.Width(80));
+            if (cachedStatusStyle == null)
+            {
+                cachedStatusStyle = new GUIStyle(EditorStyles.miniLabel);
+            }
+            cachedStatusStyle.normal.textColor = previewController.isPlaying ? Color.green : Color.yellow;
+            EditorGUILayout.LabelField(previewController.isPlaying ? "▶ PLAYING" : "⏸ PAUSED", cachedStatusStyle, GUILayout.Width(80));
         }
         
         GUILayout.FlexibleSpace();

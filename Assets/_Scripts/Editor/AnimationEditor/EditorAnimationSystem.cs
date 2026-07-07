@@ -209,30 +209,22 @@ public partial struct EditorAnimationSystem : ISystem
         ref AnimatedProperties appliedProperties)
     {
         if (clip.partTracks == null) return;
-    
-        Debug.Log($"[SampleClipSO] Clip: {clip.name}, Target: {target}, Tracks: {clip.partTracks.Count}");
-    
+
         foreach (var track in clip.partTracks)
         {
             if (track == null) continue;
-        
-            Debug.Log($"  Track: {track.animationTarget}, Props: {track.animatedProperties}, Keyframes: {track.keyframes?.Count ?? 0}");
-        
+
             if (track.animationTarget != target) continue;
             if (track.keyframes == null || track.keyframes.Count == 0) continue;
-        
+
             AnimatedProperties propsToApply = track.animatedProperties & ~appliedProperties;
-            Debug.Log($"  PropsToApply: {propsToApply}, HasImageIndex: {(track.animatedProperties & AnimatedProperties.ImageIndex) != 0}");
-        
+
             if (propsToApply == AnimatedProperties.None) continue;
-        
+
             var sampled = SampleKeyframesSO(track, normalizedTime);
-            Debug.Log($"  Sampled imageIndex: {sampled.imageIndex}");
-        
+
             ApplyTrackToPose(track, sampled, propsToApply, ref position, ref rotation, ref scale, ref imageIndex);
-        
-            Debug.Log($"  After apply - imageIndex: {imageIndex}");
-        
+
             appliedProperties |= track.animatedProperties;
         }
     }

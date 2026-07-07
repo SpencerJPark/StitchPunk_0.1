@@ -114,3 +114,13 @@ AnimationExecutionSystemGroup
 5. The baking system will pick it up automatically on next bake.
 
 Use the custom **Animation Editor** (`Editor/AnimationEditor/`) to preview clips without entering play mode.
+
+---
+
+## Animation Editor preview path (Editor/AnimationEditor/)
+
+Separate from the runtime pipeline: in `AnimationEditorScene.unity` (play mode), `EditorAnimationSystem` samples the `AnimationClipSO` **directly** (no blob, no rebake needed per edit) and writes `AnimationTargetPose`; the runtime `ApplyAnimatedPoseSystem` applies it to transforms. Requirements for the preview world (all bake from the `GameSceneTag` prefab, which must be inside `AnimationEditorSubScene`): `GameSettings` (gates `EditorAnimationSystem`) and `GameSceneTag` (gates `AnimationSystemGroup` → pose apply). The runtime samplers (`AnimationTimeSystem`/`AnimationSamplingSystem`) stay off in this scene because no `AnimationLibrary` blob is baked there — the SO path is the sole driver, no conflict.
+
+**Perf gotchas (hit 2026-07, editor ran at 14 FPS):**
+- Never put `Debug.Log` in `EditorAnimationSystem.SampleClipSO` or anything per-part/per-track — at 24 samples/s × 13 parts × N tracks it's thousands of logs/sec and each editor log captures a stack trace.
+- `AnimationClipEditorWindow.OnEditorUpdate` must NOT call `EditorApplication.QueuePlayerLoopUpdate()` in play mode — it stacks extra simulation ticks on top of the normal player loop. Repaint is throttled to 20 Hz there.
