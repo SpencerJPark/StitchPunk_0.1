@@ -1,4 +1,5 @@
 using Unity.Entities;
+using Unity.Mathematics;
 using Unity.Transforms;
 
 /// <summary>
@@ -46,13 +47,18 @@ public partial struct Ragdoll2DReviveSystem : ISystem
             // Nothing to clean up if ragdoll was never activated
             if (!ragdollLookup.IsComponentEnabled(visualRoot)) continue;
 
-            // Reset root entity position to the ground anchor and disable launch
+            // Disable + zero the launch. The root stays where the corpse came to rest — the driver
+            // already landed it on real ground (raycast), so no stored groundY restore is needed.
             if (launchLookup.HasComponent(rootEntity) && launchLookup.IsComponentEnabled(rootEntity))
             {
-                float groundY = launchLookup[rootEntity].groundY;
+                launchLookup.GetRefRW(rootEntity).ValueRW = new Ragdoll2DLaunch
+                {
+                    velocity    = float3.zero,
+                    restitution = 0f,
+                    airborne    = 0,
+                    sleeping    = 0,
+                };
                 launchLookup.SetComponentEnabled(rootEntity, false);
-                if (transformLookup.HasComponent(rootEntity))
-                    transformLookup.GetRefRW(rootEntity).ValueRW.Position.y = groundY;
             }
 
             // Reset and disable body tilt

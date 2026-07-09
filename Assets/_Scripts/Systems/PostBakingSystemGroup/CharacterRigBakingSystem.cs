@@ -54,8 +54,8 @@ public partial struct CharacterRigBakingSystem : ISystem
 
         // --- 2. Ragdoll stamp (INCLUDING prefabs) ---
         NativeList<Entity> visualRoots = new NativeList<Entity>(Allocator.Temp);
-        NativeList<(Entity entity, float settleSpeed)> jointParts =
-            new NativeList<(Entity, float)>(Allocator.Temp);
+        NativeList<(Entity entity, float settleSpeed, float segmentLength, float weight)> jointParts =
+            new NativeList<(Entity, float, float, float)>(Allocator.Temp);
 
         EntityQuery rootQuery = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<Ragdoll2DConfig>()
@@ -83,8 +83,19 @@ public partial struct CharacterRigBakingSystem : ISystem
             if ((info.flags & BodyPartFlags.RagdollJoint) == 0) continue;
             if (entityManager.HasComponent<Ragdoll2DJoint>(partEntity)) continue;
 
-            float settleSpeed = ResolveSettleSpeed(entityManager, partEntity, info.partDef, partBlob);
-            jointParts.Add((partEntity, settleSpeed));
+            float settleSpeed   = ResolveSettleSpeed(entityManager, partEntity, info.partDef, partBlob);
+            float segmentLength = 0.5f;
+            float weight        = 1f;
+            if (partBlob.IsCreated)
+            {
+                int defIndex = (int)info.partDef;
+                if (defIndex >= 0 && defIndex < partBlob.Value.parts.Length)
+                {
+                    segmentLength = partBlob.Value.parts[defIndex].ragdollSegmentLength;
+                    weight        = partBlob.Value.parts[defIndex].ragdollWeight;
+                }
+            }
+            jointParts.Add((partEntity, settleSpeed, segmentLength, weight));
         }
         partEntities.Dispose();
 
@@ -103,8 +114,11 @@ public partial struct CharacterRigBakingSystem : ISystem
             entityManager.AddComponentData(jointParts[index].entity, new Ragdoll2DJoint
             {
                 settleSpeed          = jointParts[index].settleSpeed,
+                segmentLength        = jointParts[index].segmentLength,
+                weight               = jointParts[index].weight,
                 targetAngle          = 0f,
                 currentZAngle        = 0f,
+                angularVelocity      = 0f,
                 initialLocalRotation = quaternion.identity,
             });
             entityManager.SetComponentEnabled<Ragdoll2DJoint>(jointParts[index].entity, false);

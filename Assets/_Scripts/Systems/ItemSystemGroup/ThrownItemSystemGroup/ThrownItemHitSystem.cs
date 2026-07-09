@@ -110,7 +110,6 @@ public partial struct ThrownItemHitSystem : ISystem
                     damageSource    = DamageSource.Throw,
                     damageAmount    = itemBlob.throwDamage,
                     distance        = math.sqrt(distSq),
-                    hitSourceX      = itemPos.x,
                     ragdollForce    = itemBlob.throwRagdollForce,
                     launchForceY    = itemBlob.throwLaunchForceY,
                     launchForceX    = itemBlob.throwLaunchForceX,

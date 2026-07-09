@@ -78,7 +78,6 @@ public partial struct HazardZoneSystem : ISystem
                     damageSource    = hazard.damageSource,
                     damageAmount    = hazard.damageAmount,
                     distance        = math.sqrt(distanceSq),
-                    hitSourceX      = hazardPos.x,   // §7: tip away from the hazard
                     ragdollForce    = hazard.ragdollForce,
                     launchForceY    = hazard.launchForceY,
                     launchForceX    = hazard.launchForceX,

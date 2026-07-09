@@ -119,23 +119,37 @@ InvalidOperationException: Structural changes are not allowed while iterating ov
 
 ---
 
-## Fake Ragdoll — Known Issues (WIP)
+## Ragdoll — Gotchas (2026-07 rework)
 
-Ragdoll components are documented in [[Components]]. Issues below are open bugs.
+Ragdoll components are documented in [[Components]]; the system lives in `RagdollSystemGroup`
+(`Tasks/Verification/Ragdoll2D_System.md`). The pre-rework "known issues" (joint ground clamp,
+settle-to-rest drift) are gone with the old per-joint velocity/clamp code.
 
-### Ground clamp must compare JOINT world Y, not root world Y
-The ground clamp logic in `Ragdoll2DSystem` needs to compare the **joint entity's** `LocalToWorld.Position.y` against `rootWorldY + groundBuffer`. An earlier version compared `root.LocalToWorld.y` against the same expression — since both sides derived from the root, the condition was always true and velocity was zeroed every frame (joints never moved).
+### ApplyPoseJob stomps corpse poses — sleeping corpses must still re-write rotations
+`ApplyAnimatedPoseSystem.ApplyPoseJob` writes EVERY entity with `AnimationTargetPose` +
+`LocalTransform` each frame — including all parts of dead units. The ragdoll driver runs later in
+the frame and overwrites, which is why it must keep re-asserting rotations even when a corpse is
+`sleeping` (dynamics skipped, pose write kept). If corpses ever snap back to their animated pose,
+something broke this ordering.
 
-**Always use `.WithEntityAccess()` on the joint query and check `localToWorldLookup[jointEntity].Position.y`.**
+### The CorpseCells map bypasses ECS dependency tracking
+`CorpseCells` hands a `NativeParallelMultiHashMap` through a singleton. `CorpseCellSystem` clears
+it each frame on the main thread — any job reading it MUST register via
+`CorpseCellSystem.AddJobHandleForReader` (Ragdoll2DSystem does), or the clear races the read.
+Same pattern and reason as `DamageBusSystem.AddJobHandleForProducer`.
 
-### Visual child Y offset is not accounted for — clips through ground (OPEN BUG)
-When the visual root child tilts on Z, its top swings downward toward the ground. Because the visual child's Y position above the root is not factored into the tilt, the top of the character (and its limbs) can intersect the ground plane during the fall.
+### Visual child Y offset is not accounted for — clips through ground (OPEN BUG, pre-existing)
+When the visual root child tilts on Z, its top swings downward toward the ground. The Z-tilt pivot
+is at the visual child's local origin (root/feet level) but the geometry extends upward, so a 90°
+tilt rotates the top of the character to ground level and below.
 
-**Root cause:** The Z-tilt pivot is at the visual child's local origin (which is at the root/feet level), but the character geometry extends upward from there. A 90° tilt rotates the top of the character down to ground level and below.
+**Possible fix direction:** Translate the visual child upward by half its height when tilting, so
+the rotation pivot is at the character's centre of mass. Or raise the root entity's Y on death.
 
-**Possible fix direction:** Translate the visual child upward by half its height when tilting, so the rotation pivot is at the character's center of mass. Or raise the root entity's Y by the same amount on death.
+---
 
-### Joints return to rest pose after settling (OPEN BUG)
-Once `zAngularVelocity` decays near zero and the ground clamp nudge-back fires (`nextAngle *= 0.5f`), repeated small halving drives `currentZAngle` toward 0 — which visually looks like the joints are snapping back to their rest rotation.
+## DOTS `[MaterialProperty]` colours skip sRGB→linear — convert with `.linear`
 
-**Possible fix direction:** Once velocity is fully damped and no ground contact is happening, freeze `currentZAngle` at its current value instead of continuing to nudge it. Add a "settled" flag or a minimum velocity threshold below which no further angle updates are applied.
+A `Color` written into a `[MaterialProperty("_BaseColor")]` component (e.g. `BodyPartTint`) is uploaded to the GPU as a **raw `float4`**. Unlike the material inspector — which auto-converts Shader Graph colour properties from sRGB to linear — the DOTS instancing path does **no conversion**. In a Linear-colour-space project (this one: `m_ActiveColorSpace: 1`) that makes every tint too bright / washed-out (a mid-tone sRGB `0.5` should be linear `~0.21`), so a multiply-tint looks weak and "whiter than expected."
+
+**Fix:** bake `authoring.tintColor.linear` (not the raw `.r/.g/.b`) into the `float4`. Any future runtime system that writes a `Color` into a material-property component must do the same `.linear` conversion. See `BodyPartAuthoring.Baker`.

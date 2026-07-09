@@ -155,7 +155,7 @@ public partial class AnimationSystemGroup : GameSceneSystemGroup { }
         public partial class AnimationExecutionSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
-// LateSimulationSystemGroup pipeline: Spawn → SpawnInit → Sound → Despawn → Save
+// LateSimulationSystemGroup pipeline: Spawn → SpawnInit → Ragdoll → Sound → Despawn → Save
 // --------------------------------------------------------------------------------------------
 
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
@@ -165,6 +165,14 @@ public partial class SpawnSystemGroup : GameSceneSystemGroup { }
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 [UpdateBefore(typeof(DespawnSystemGroup))]
 public partial class SpawnInitSystemGroup : GameSceneSystemGroup { }
+
+// Drives the corpse ragdoll (3D flight, plane-space flail, authored settle) after every gameplay
+// and spawn-init transform write of the frame — nothing later stomps corpse poses. Runs before
+// Sound so landing/bounce events can emit SoundRequests same-frame once wired.
+[UpdateInGroup(typeof(LateSimulationSystemGroup))]
+[UpdateAfter(typeof(SpawnInitSystemGroup))]
+[UpdateBefore(typeof(SoundSystemGroup))]
+public partial class RagdollSystemGroup : GameSceneSystemGroup { }
 
 // Gathers/culls requested sounds late (after all gameplay + spawn-init has emitted them) and writes
 // the ResolvedVoices + WorldMood + MusicState singletons the AudioManager reads each LateUpdate.

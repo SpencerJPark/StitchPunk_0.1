@@ -35,7 +35,8 @@ Keep this file current: add a row when you add a request component; delete the r
 
 | Contract | Owner | Producers | Resolution / consumer |
 |---|---|---|---|
-| `DamageEvent` via `DamageBus` | DamageBusSystem (GameManagerSystemGroup, OrderFirst — resets queues, carries producer JobHandle) | AttackRequestSystem, HazardZoneSystem, ThrownItemHitSystem, PlayerAttackSystem | DamageResolutionSystem (raw → resolved), DamageEventSystem (applies) |
+| `DamageEvent` via `DamageBus` | DamageBusSystem (GameManagerSystemGroup, OrderFirst — resets queues, carries producer JobHandle) | AttackRequestSystem, HazardZoneSystem, ThrownItemHitSystem, PlayerAttackSystem | DamageResolutionSystem (raw → resolved), DamageEventSystem (applies). ⚠ 2026-07 ragdoll rework: `hitSourceX` deleted — every producer sets `sourcePosition` (float3, drives AOE + ragdoll launch direction); events carry `flailIntensity`/`spin`/`restitution`; the lethal event's values land in `Health.kill*` (incl. `killSourcePosition`) |
+| `CorpseCells` map | CorpseCellSystem (GameManagerSystemGroup — rebuilds each frame from settled corpses, carries reader JobHandle via `AddJobHandleForReader`) | (rebuild is the producer) | Ragdoll2DSystem (RagdollSystemGroup) reads pile height at landing |
 
 ## Removed (2026-07-02 structural pass)
 

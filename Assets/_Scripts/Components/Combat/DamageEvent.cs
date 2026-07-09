@@ -18,13 +18,17 @@ public struct DamageEvent   // queued value, not a component
 
     // Death-only knockback — captured into Health.kill* on the lethal event, read by
     // Ragdoll2DInitSystem. Works even when sourceEntity is Null (thrown items / hazards).
-    public float hitSourceX;             // world-X of the hit source -> ragdoll fall direction
+    // The ragdoll launch direction comes from sourcePosition (below), which every producer sets.
     public float ragdollForce;           // scales ragdoll violence. 1 = baseline
-    public float launchForceY;           // launch arc forces. 0 = no arc (character just tips over)
-    public float launchForceX;
+    public float launchForceY;           // upward launch velocity. 0 = no arc (character just tips over)
+    public float launchForceX;           // horizontal launch velocity, away from sourcePosition
+    public float flailIntensity;         // joint flail scale. 0 = baseline (treated as 1 at init)
+    public float spin;                   // deg/s airborne tumble. 0 = none
+    public float restitution;            // bounce energy kept. 0 = use RagdollSimConfig default
 
-    // AOE — DamageResolutionSystem reads these when damageBehaviour == AreaOfEffect.
+    // Set by EVERY producer: the world position of whatever caused the hit (attacker, thrown item,
+    // hazard, AOE origin). Drives both AOE expansion and the ragdoll launch direction.
     public DamageBehaviour damageBehaviour;
-    public float3          sourcePosition;   // AOE origin
+    public float3          sourcePosition;
     public float           range;            // AOE radius
 }

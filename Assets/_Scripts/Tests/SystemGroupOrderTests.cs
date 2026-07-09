@@ -36,6 +36,7 @@ namespace StitchPunk.Tests
         {
             typeof(SpawnSystemGroup),
             typeof(SpawnInitSystemGroup),
+            typeof(RagdollSystemGroup),
             typeof(SoundSystemGroup),
             typeof(DespawnSystemGroup),
             typeof(SaveSystemGroup),

@@ -130,11 +130,14 @@ public partial struct DamageEventSystem : ISystem
             if (health.healthAmount <= 0)
             {
                 // Captured for Ragdoll2DInitSystem, which reads Health.kill* after death.
-                health.killSourceX      = damageEvent.hitSourceX;
-                health.killRagdollForce = damageEvent.ragdollForce;
-                health.killLaunchForceY = damageEvent.launchForceY;
-                health.killLaunchForceX = damageEvent.launchForceX;
-                health.killDamageSource = damageEvent.damageSource;
+                health.killSourcePosition = damageEvent.sourcePosition;
+                health.killRagdollForce   = damageEvent.ragdollForce;
+                health.killLaunchForceY   = damageEvent.launchForceY;
+                health.killLaunchForceX   = damageEvent.launchForceX;
+                health.killFlailIntensity = damageEvent.flailIntensity;
+                health.killSpin           = damageEvent.spin;
+                health.killRestitution    = damageEvent.restitution;
+                health.killDamageSource   = damageEvent.damageSource;
                 deadLookup.SetComponentEnabled(target, true);
 
                 if (healthLogging)

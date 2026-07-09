@@ -21,7 +21,6 @@ These are `RegulatorSingleton<T>` or `PersistentSingleton<T>` instances that liv
 | `CameraManager` | Controls cinemachine camera state, target switching |
 | `BuildingPlacementManager` | Ghost preview and placement confirmation for buildings |
 | `ResourceManager` | Tracks global resource counts (non-ECS; will likely migrate to DOTS later) |
-| `RagDollManager` | Spawns and manages physics ragdoll objects on unit death |
 
 ---
 

@@ -37,6 +37,14 @@ public class PartDefinitionSO : ScriptableObject
     [Tooltip("Landing zones (degrees, local Z). One is picked at random on death and a random angle " +
              "within it becomes the joint target.")]
     public List<LandingZone> zones = new();
+
+    [Tooltip("Flail pendulum length (world units) for a RagdollJoint part — pivot-to-tip reach of " +
+             "the limb it bends. Shorter = twitchier flail. 0 = default (0.5).")]
+    public float ragdollSegmentLength = 0.5f;
+
+    [Tooltip("Flail weight for a RagdollJoint part — scales inherited motion and the landing kick. " +
+             "0 = default (1).")]
+    public float ragdollWeight = 1f;
 }
 
 [Serializable]

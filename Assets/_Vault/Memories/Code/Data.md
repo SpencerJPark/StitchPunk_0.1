@@ -51,12 +51,14 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 |---|---|---|
 | `UnitLibrarySO` + `UnitSO` | `UnitType` | Unit stats, prefab refs, base motivation weights |
 | `AnimationLibrarySO` + `AnimationClipSO` | `AnimationType` | All animation clip data — used by [[Systems_Animation]] |
-| `AttackLibrarySO` + `AttackSO` | `DamageSource` (was `AttackType`) | Attack stats, ranges, damage |
+| `AttackLibrarySO` + `AttackSO` | `DamageSource` (was `AttackType`) | Attack stats, ranges, damage + ragdoll response (`ragdollForce`/`launchForceX/Y`/flail/spin/restitution). Optional `ragdollProfile` (`RagdollProfileSO`) — flattened over the inline fields at bake by `AttackLibraryBakingSystem` |
+| `RagdollProfileSO` | — (flattened into `AttackBlob`) | Shared ragdoll response for a family of attacks (launch, flail, spin, restitution). Referenced by `AttackSO.ragdollProfile`; zero runtime indirection |
+| `RagdollConfigSO` | — (flat singleton) | Global ragdoll sim tuning (gravity, drag, restitution, bounce/sleep thresholds, corpse-stack cells). Baked to the `RagdollSimConfig` singleton by `RagdollSimConfigAuthoring` — NOT a blob; systems have identical built-in fallbacks |
 | `AIScoringLibrary` + `AIScoringCurveSO` | `MotivationType` | Scoring curve shapes per motivation — used by [[Systems_AI]] |
 | `BuildingTypeListSO` + `BuildingTypeSO` | `BuildingType` | Building stats and prefab refs |
 | `ResourceTypeListSO` + `ResourceTypeSO` | `ResourceType` | Resource display names, icons, caps |
 | `ItemLibrarySO` + `ItemSO` | `ItemType` | Item `ItemCategory` + effect data (heal amount, satisfied motivation, restoration, pickup range) — used by `ItemAwarenessSystem`; consumed downstream by `ItemConsumeSystem` (consumables) / `ItemEquipSystem` (weapons) via `PickupBehaviour` + `RequestPickup`. Baked by `ItemLibraryBakingSystem` into `ItemLibraryBlob` (holder: `ItemLibrary`) |
-| `PartLibrarySO` + `PartDefinitionSO` | `PartDefId` | **CharacterRig** per-part static config: design grid (`GridMode` StrideFormula/ExplicitTable, `baseSlice`/`shapeCount`/`colorCount`/`colorAxis`/`sliceTable`) + ragdoll (`defaultSettleSpeed`, landing `zones`). Baked by `PartLibraryBakingSystem` into `PartLibraryBlob` (`PartDef` entries with nested `BlobArray<int>` table + `BlobArray<float2>` zones; holder: `PartLibrary`). Read by design (`DesignRandomize`/`Apply`/`Change`) + ragdoll (`Ragdoll2DInitSystem`) + `CharacterRigBakingSystem` |
+| `PartLibrarySO` + `PartDefinitionSO` | `PartDefId` | **CharacterRig** per-part static config: design grid (`GridMode` StrideFormula/ExplicitTable, `baseSlice`/`shapeCount`/`colorCount`/`colorAxis`/`sliceTable`) + ragdoll (`defaultSettleSpeed`, landing `zones`, flail `ragdollSegmentLength`/`ragdollWeight`). Baked by `PartLibraryBakingSystem` into `PartLibraryBlob` (`PartDef` entries with nested `BlobArray<int>` table + `BlobArray<float2>` zones; holder: `PartLibrary`). Read by design (`DesignRandomize`/`Apply`/`Change`) + ragdoll (`Ragdoll2DInitSystem`) + `CharacterRigBakingSystem` |
 
 ---
 

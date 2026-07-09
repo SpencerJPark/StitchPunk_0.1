@@ -36,9 +36,11 @@ public partial struct PartLibraryBakingSystem : ISystem
         for (int index = 0; index < partCount; index++)
         {
             ref PartDef def = ref partsBuilder[index];
-            def.id                 = (PartDefId)index;
-            def.group              = default;
-            def.defaultSettleSpeed = 8f;
+            def.id                   = (PartDefId)index;
+            def.group                = default;
+            def.defaultSettleSpeed   = 8f;
+            def.ragdollSegmentLength = 0.5f;
+            def.ragdollWeight        = 1f;
             builder.Allocate(ref def.ranges, 0);
             builder.Allocate(ref def.zones, 0);
         }
@@ -59,9 +61,11 @@ public partial struct PartLibraryBakingSystem : ISystem
             slotAuthored[slot] = true;
 
             ref PartDef def = ref partsBuilder[slot];
-            def.id                 = partSO.id;
-            def.group              = ToFixed(partSO.group, partSO.name, "group");
-            def.defaultSettleSpeed = partSO.defaultSettleSpeed > 0f ? partSO.defaultSettleSpeed : 8f;
+            def.id                   = partSO.id;
+            def.group                = ToFixed(partSO.group, partSO.name, "group");
+            def.defaultSettleSpeed   = partSO.defaultSettleSpeed > 0f ? partSO.defaultSettleSpeed : 8f;
+            def.ragdollSegmentLength = partSO.ragdollSegmentLength > 0f ? partSO.ragdollSegmentLength : 0.5f;
+            def.ragdollWeight        = partSO.ragdollWeight > 0f ? partSO.ragdollWeight : 1f;
 
             // Fill ranges immediately (don't hold the BlobBuilderArray across the next Allocate).
             int rangeCount = partSO.ranges != null ? partSO.ranges.Count : 0;

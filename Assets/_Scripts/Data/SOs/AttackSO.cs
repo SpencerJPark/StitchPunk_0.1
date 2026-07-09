@@ -17,6 +17,12 @@ public class AttackSO : ScriptableObject
     [Tooltip("How close to perform attack")]
     public float range;
 
+    [Header("Ragdoll Profile")]
+    [Tooltip("Optional shared ragdoll response. When assigned, its values are flattened into the " +
+             "AttackBlob at bake and the inline ragdoll/launch fields below are IGNORED. Leave null " +
+             "to author this attack's response inline.")]
+    public RagdollProfileSO ragdollProfile;
+
     [Tooltip("Scales ragdoll violence on kill. 1 = baseline (sword). 0.5 = weak/glancing. 2+ = heavy/explosive.")]
     public float ragdollForce = 1f;
 

@@ -38,9 +38,6 @@ namespace StitchPunk.Tests
         private static readonly Dictionary<string, string> PlacementExemptions =
             new Dictionary<string, string>
             {
-                // Physics-driven ragdoll sync must run after all simulation transforms settle;
-                // it lives with the Health feature that owns ragdoll lifecycle.
-                { "Ragdoll2DSystem.cs", "LateSimulationSystemGroup" },
                 // Presentation-only marker/selection visuals deliberately run after simulation.
                 { "OrderMarkerSystem.cs", "LateSimulationSystemGroup" },
                 { "SelectedVisualSystem.cs", "LateSimulationSystemGroup" },

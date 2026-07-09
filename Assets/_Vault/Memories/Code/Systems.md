@@ -46,9 +46,10 @@ AnimationSystemGroup         — see [[Systems_Animation]]
 LateSimulationSystemGroup
   ├── SpawnSystemGroup       — UnitSpawnerSystem: instantiate/reclaim, enable NewlySpawned
   ├── SpawnInitSystemGroup   — all spawn-frame init systems filter on [WithAll<NewlySpawned>]
+  ├── RagdollSystemGroup     — Ragdoll2DSystem: corpse flight/flail/settle (after all transform writes, before Sound for future landing SFX)
   ├── SoundSystemGroup       — gather/cull requested sounds → ResolvedVoices/WorldMood/MusicState (AudioManager reads them in LateUpdate)
   ├── DespawnSystemGroup     — UnitPoolReturnSystem
-  ├── (raw members)          — Ragdoll2DSystem, OrderMarkerSystem, SelectedVisualSystem (documented conformance exemptions)
+  ├── (raw members)          — OrderMarkerSystem, SelectedVisualSystem (documented conformance exemptions)
   └── SaveSystemGroup        — play time tracking, auto-save timer, save/load (OrderLast)
 PresentationSystemGroup      — InteractionHighlightSystem (outline systems parked in Core/Unused/)
 ```
@@ -79,7 +80,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `AttackLibraryBakingSystem` | `AttackLibraryBakingSystem.cs` | AttackLibrarySO → AttackLibraryBlob |
 | `FactoryLibraryBakingSystem` | `Core/Unused/FactoryLibraryBakingSystem.cs` (**parked** with ProductionSystem) | FactoryLibrarySO → FactoryLibraryBlob (recipes blob for ProductionSystem) |
 | `PartLibraryBakingSystem` | `PartLibraryBakingSystem.cs` | PartLibrarySO → PartLibraryBlob (enum-indexed per-part design grid + ragdoll zones; CharacterRig) |
-| `CharacterRigBakingSystem` | `CharacterRigBakingSystem.cs` | `[UpdateAfter(PartLibraryBakingSystem)]` Builds the root `BodyPart` buffer from `BodyPartInfo`+`BaseParent`; stamps `Ragdoll2D`/`Ragdoll2DJoint` (disabled) with settle speed from override-or-blob. Replaces `CharacterBodyPartBakingSystem` + `Ragdoll2DBakingSystem` (both deleted) |
+| `CharacterRigBakingSystem` | `CharacterRigBakingSystem.cs` | `[UpdateAfter(PartLibraryBakingSystem)]` Builds the root `BodyPart` buffer from `BodyPartInfo`+`BaseParent`; stamps `Ragdoll2D`/`Ragdoll2DJoint` (disabled) with settle speed from override-or-blob plus flail `segmentLength`/`weight` from the `PartDef`. Replaces `CharacterBodyPartBakingSystem` + `Ragdoll2DBakingSystem` (both deleted) |
 
 ---
 
@@ -90,6 +91,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | System | File | Purpose |
 |---|---|---|
 | `DamageBusSystem` | `DamageBusSystem.cs` | Owns + resets the recycled `DamageBus` NativeQueues, carries the producer JobHandle (see CombatSystemGroup section) |
+| `CorpseCellSystem` | `CorpseCellSystem.cs` | **Managed** (`SystemBase`) owner of the `CorpseCells` corpse-stacking hash (`NativeParallelMultiHashMap<int2,float>`, Persistent). Rebuilt from scratch each frame from SETTLED corpses (`Ragdoll2DLaunch` enabled + sleeping) — revive/despawn bookkeeping is free. Carries the reader JobHandle (`AddJobHandleForReader`, completed before the clear) because the map bypasses ECS dependency tracking; `Ragdoll2DSystem` is the reader (landing pile height) |
 | `FactionRegistrySystem` | `FactionRegistrySystem.cs` | Maintains the per-faction entity registry singleton |
 | `InteractionSpatialHashSystem` | `InteractionSpatialHashSystem.cs` | Rebuilds the interaction/waypoint spatial hash (`SpatialHashRegistry`) |
 | `WaypointRegistrationSystem` | `WaypointRegistrationSystem.cs` | Registers `NavigationWaypoint` entities into the registry |
@@ -232,14 +234,14 @@ Combat runs on a **recycled `NativeQueue<DamageEvent>` bus (v2)** — no per-uni
 | System | File | Purpose |
 |---|---|---|
 | `DeathSystem` | `DeathSystem.cs` | First-death-frame work (`Dead` is enabled upstream in `DamageEventSystem`); latches on `UnitAction.current == ActionType.Death` (set here) so it runs once per death. Halts pathing, fires `ActionInterruptRequest`, cancels in-flight `AttackRequest`. **Enables `PlayerInteractable` (if present) so a revivable corpse becomes targetable by the player reviver** (`PlayerTargetingSystem` scans `PlayerInteractable`; only `UndeadAuthoring` units carry it, baked disabled). `Alive` deprecated — `Dead` is the sole life-state. |
-| `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Health.kill*` for fall direction, enables/resets `Ragdoll2D` + each `RagdollJoint`-flagged `BodyPart`'s `Ragdoll2DJoint` — landing zones read from the `PartLibrary` blob via the joint's `PartDefId` (requires `PartLibrary`) |
+| `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Health.kill*` (full `killSourcePosition` float3): derives `fallSideSign` (X) + a real 3D launch velocity (horizontal away from source × `killLaunchForceX` + up × `killLaunchForceY`), seeds `Ragdoll2DLaunch` (restitution = per-attack or `RagdollSimConfig` default, `airborne=1`), copies flail/spin onto `Ragdoll2D`, resets each `RagdollJoint`-flagged joint (zone target from `PartLibrary` blob, launch-proportional trail kick on `angularVelocity`, baked settle/segment/weight preserved). Requires `PartLibrary` |
 | `HealSystem` | `HealSystem.cs` | Applies `Heal` component when enabled |
 | `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, `UnitAction`→Idle (re-arms death latch), disables `PlayerInteractable` (alive again → no longer a reviver target). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
 | `SwapBrainSystem` | `SwapBrainSystem.cs` | `[UpdateAfter(ReviveRequestSystem)]`. Consumes an enabled `SwapBrainRequest`: re-keys `UtilityBrain.unitType`/`UnitData.unitType`, `Faction`, and rebuilds the `AttackFaction`/`AvailableAttack`/`Motivation` buffers from `UnitDataLibrary[newUnit]`; fires `ActionInterruptRequest`; consumes the request via ECB. Generic brain-swap hook (revive, future feral turn, debug). Rebuilt motivations are zero-decay (blob has no decay data). |
 | `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
 
-> ⚠ **`Ragdoll2DSystem` does NOT run in HealthSystemGroup** — it is in `LateSimulationSystemGroup` so it runs *after* `ApplyAnimatedPoseSystem`, which would otherwise overwrite the ragdoll transforms every frame.
+> ⚠ **`Ragdoll2DSystem` does NOT run in HealthSystemGroup** — it lives in the declared `RagdollSystemGroup` (`LateSimulationSystemGroup`, SpawnInit → Ragdoll → Sound) so it runs *after* `ApplyAnimatedPoseSystem`, which stomps every part `LocalTransform` unconditionally each frame — this is also why sleeping corpses still re-write their settled rotations.
 
 ---
 
@@ -249,7 +251,7 @@ Runs at end of frame. Safe zone for spawn/despawn and event cleanup.
 
 Sub-group execution order:
 ```
-SpawnSystemGroup       → SpawnInitSystemGroup → DespawnSystemGroup → SaveSystemGroup (OrderLast)
+SpawnSystemGroup → SpawnInitSystemGroup → RagdollSystemGroup → SoundSystemGroup → DespawnSystemGroup → SaveSystemGroup (OrderLast)
 ```
 
 #### SpawnSystemGroup (`SpawnSystemGroup/`)
@@ -266,7 +268,7 @@ Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlyS
 |---|---|---|
 | `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off (units start alive = `Dead` disabled), `UtilityBrain`→on |
 | `BodyPartInitSystem` | `BodyPartInitSystem.cs` | Rebuilds the root `BodyPart` buffer on `NewlySpawned` units from `BodyPartInfo`+`BaseParent` (carries `partDef`+`flags`) — ECB.Instantiate does not reliably remap refs inside dynamic buffers. Replaces `AnimatorTargetInitSystem` |
-| `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
+| `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities, and zeroes + disables the root's `Ragdoll2DLaunch` (airborne/sleeping flags) — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
 | `DesignRandomizeSystem` | `DesignRandomizeSystem.cs` | `[UpdateAfter(BodyPartInitSystem)] [UpdateBefore(MinionRestoreApplySystem)]` Rolls a per-character `CharacterPalette` (skin/hair colour, counts from blob) + a random shape per `DesignSlot`-flagged `BodyPart` into `PersistedDesign`, disables `RandomizeDesign`. `IJobEntity.ScheduleParallel`, reads `PartLibrary` blob |
 | `DesignApplySystem` | `DesignApplySystem.cs` | `[UpdateAfter(MinionRestoreApplySystem)] [UpdateBefore(SpawnInitCleanupSystem)]` Re-derives every `DesignSlot` part's slice from `PersistedDesign` shapes + `CharacterPalette` through the `PartLibrary` blob grid, writes `baseImageIndex` + `ImageIndex` (main thread). Restored shapes win. Shares `DesignApplyUtil.ApplyDesign` with `DesignChangeSystem` |
 | `SpawnInitCleanupSystem` | `SpawnInitCleanupSystem.cs` | `[OrderLast]` Disables `NewlySpawned`; component persists on entity for re-enablement on next pool reclaim |
@@ -297,11 +299,18 @@ One-shot SFX are emitted via `SoundUtil.Play/PlayOn` (ECB; the LogMessage patter
 |---|---|---|
 | `UnitPoolReturnSystem` | `UnitPoolReturnSystem.cs` | Adds `Disabled` to units > 200 units from the player; returns them to the pool |
 
+#### RagdollSystemGroup (`Systems/RagdollSystemGroup/`)
+
+Declared in `SystemGroups.cs` (SpawnInit → Ragdoll → Sound). Everything that moves a corpse after death lives here; init/revive stay in `HealthSystemGroup`.
+
+| System | File | Purpose |
+|---|---|---|
+| `Ragdoll2DSystem` | `Ragdoll2DSystem.cs` | One `ScheduleParallel` job over ragdolling roots (children written via `[NativeDisableParallelForRestriction]` lookups — disjoint per root). ① FLIGHT: integrates the float3 launch velocity, ground height from a `CollisionWorld` raycast (GROUND/STRUCTURES/OBJECTS + corpse-pile offset from `CorpseCells`), wall bounces (STRUCTURES/WALLS) via restitution. ② FLAIL: each joint = 1-segment pendulum (angle + angular velocity) driven by gravity minus anchor acceleration (weightless in freefall); impacts kick it. ③ SETTLE: grounded joints exp-lerp to their authored zone angle (v1 formula) + flail rings out; body tilt steps to ±88° with airborne spin settling to the nearest full turn. Quiet corpses set `sleeping=1` — dynamics skip but settled rotations are still re-written (ApplyPoseJob stomps). Registers its read with `CorpseCellSystem.AddJobHandleForReader`. Falls back to built-in `RagdollSimConfig` defaults when the authoring isn't baked |
+
 #### Raw LateSimulationSystemGroup members (documented conformance exemptions)
 
 | System | File | Purpose |
 |---|---|---|
-| `Ragdoll2DSystem` | `HealthSystemGroup/Ragdoll2DSystem.cs` | Drives fake ragdoll each frame: lerps body Z tilt toward ±88°, decays joint angular velocity, ground-clamps joints. Runs here (not HealthSystemGroup) so it fires AFTER `ApplyAnimatedPoseSystem` |
 | `OrderMarkerSystem` / `SelectedVisualSystem` | `PresentationSystemGroup/` | Presentation visuals that run after simulation settles |
 
 ---

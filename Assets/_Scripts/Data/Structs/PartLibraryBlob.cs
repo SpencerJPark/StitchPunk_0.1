@@ -26,8 +26,10 @@ public struct PartDef
     public BlobArray<PartTagRange> ranges;
 
     // Ragdoll config for parts flagged RagdollJoint.
-    public float             defaultSettleSpeed; // deg/s toward the landing angle (0 = fall back to 8)
-    public BlobArray<float2> zones;              // landing zones (x = min, y = max), one picked at death
+    public float             defaultSettleSpeed;  // deg/s toward the landing angle (0 = fall back to 8)
+    public float             ragdollSegmentLength; // pendulum length (world units) for the flail; default 0.5
+    public float             ragdollWeight;        // scales inherited motion + landing impulse; default 1
+    public BlobArray<float2> zones;               // landing zones (x = min, y = max), one picked at death
 }
 
 public struct PartLibraryBlob

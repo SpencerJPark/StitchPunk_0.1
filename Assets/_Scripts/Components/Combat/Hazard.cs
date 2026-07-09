@@ -13,8 +13,9 @@ public struct HazardZone : IComponentData
     public float        retriggerInterval;   // seconds between fires (whole-zone gate)
     public float        lastTriggerTime;     // ElapsedTime of the last fire; -inf so it fires immediately
 
-    // Death-only knockback feel (captured into Health.kill* on a lethal hit). hitSourceX is the
-    // zone's own X (§7 decision — the unit tips away from the hazard).
+    // Death-only knockback feel (captured into Health.kill* on a lethal hit). The DamageEvent's
+    // sourcePosition is the zone's own position, so the unit tips/launches away from the hazard.
+    // Flail/spin/restitution aren't authored per-hazard — the ragdoll uses its baseline defaults.
     public float ragdollForce;
     public float launchForceY;
     public float launchForceX;

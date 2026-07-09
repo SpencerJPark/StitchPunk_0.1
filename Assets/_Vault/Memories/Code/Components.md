@@ -45,7 +45,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
-| `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, on visual root child), `Ragdoll2DJoint` (enableable, on joint pivots — baked `settleSpeed`), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable). ⚠ `Ragdoll2DJointRef`/`Ragdoll2DJointZone` buffers removed — joints come from the `BodyPart` buffer (`RagdollJoint` flag), landing zones from the `PartLibrary` blob via `PartDefId` |
+| `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, visual root child — tilt/spin/flail), `Ragdoll2DJoint` (enableable, joint pivots — baked settle/segment/weight + pendulum flail state), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable — float3 flight velocity, restitution, airborne/sleeping), `RagdollSimConfig` (flat singleton, global tuning), `CorpseCells` (singleton corpse-stacking hash). ⚠ joints come from the `BodyPart` buffer (`RagdollJoint` flag), landing zones from the `PartLibrary` blob via `PartDefId` |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
 | `ItemLibraryComponents.cs` | `Components/Items/` | `ItemLibrary` (singleton blob holder), `ItemLibraryReference` (bake-time `UnityObjectRef<ItemLibrarySO>`) — item `ItemCategory` + effect data for AI item awareness. `PickupItemAction` tag itself lives in `AiComponents.cs` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `UnitPrefabEntry` |
@@ -485,30 +485,49 @@ DialogueFlag (buffer)       int flagId     — story flags set by player choices
 
 ---
 
-## Fake Ragdoll Components (`Components/Units/Ragdoll2DComponents.cs`)
+## Ragdoll Components (`Components/Units/Ragdoll2DComponents.cs`)
 
-Visual-only death ragdoll for quad-based characters. All components are `IEnableableComponent` — they stay on the entity permanently and are toggled to support revive. See [[Gotchas]] for known ragdoll bugs.
+Procedural death ragdoll for quad-based characters (2026-07 rework: real 3D flight + plane-space
+flail; see `Tasks/Verification/Ragdoll2D_System.md`). All ragdoll components are
+`IEnableableComponent` — they stay on the entity permanently and are toggled to support revive.
 
 ```
 Ragdoll2D (enableable, on visual root child entity)
-    float       fallSpeed           — authored, used as fall speed reference
-    float       bodyZAngle          — current Z tilt (simulation state, reset each death)
-    quaternion  initialRotation     — captured from LocalTransform at death (used by revive to restore)
-    float       fallSideSign        — +1 fall right / -1 fall left (set from Health.killSourceX, captured by DamageEventSystem)
+    float       fallSpeed           — tip-over speed (config.fallSpeed × killRagdollForce at init)
+    float       groundBuffer/tiltOffset — copied from Ragdoll2DConfig per fall direction at init
+    float       flailIntensity      — per-attack joint flail scale (Health.killFlailIntensity, 0 → 1)
+    float       spin                — deg/s airborne tumble (killSpin × fallSideSign); damps on ground
+    float       bodyZAngle          — current Z tilt (can wind past 360° under spin; settles to nearest turn)
+    quaternion  initialRotation     — captured at death (used by revive to restore)
+    float       fallSideSign        — +1 fall right / -1 fall left (from Health.killSourcePosition.x)
 
 Ragdoll2DJoint (enableable, on joint pivot entities)
-    float       groundBuffer        — how far above root.Y to stop the joint (prevents ground clip)
-    float       zAngularVelocity    — current angular speed in deg/s (set randomly 120–360 on death)
-    float       currentZAngle       — current Z rotation offset from rest (simulation state)
+    float       settleSpeed/segmentLength/weight — BAKED (override-or-PartDef blob); preserved across deaths
+    float       targetAngle         — zone-picked at death (PartLibrary blob via PartDefId)
+    float       currentZAngle       — simulation state
+    float       angularVelocity     — deg/s flail pendulum state (seeded with a launch trail kick)
     quaternion  initialLocalRotation — captured at death (used by revive to restore)
 
 Ragdoll2DConfig (static, on root body entity — never toggled)
     Entity      visualRoot          — the visual child entity that tilts on Z
     float       groundBufferForward/Backward, tiltOffsetForward/Backward, fallSpeed
+
+Ragdoll2DLaunch (enableable, on root body entity)
+    float3      velocity            — real 3D flight velocity (direction from kill source)
+    float       restitution         — bounce energy kept (per-attack, or RagdollSimConfig default)
+    byte        airborne / sleeping — flight phase flag / all-quiet flag (sleeping = zero dynamics cost)
+
+RagdollSimConfig (singleton, baked by RagdollSimConfigAuthoring — flat floats, NOT a blob)
+    gravity, horizontalDrag, defaultRestitution, bounceMinSpeed, groundRaycastDistance,
+    landingImpulseScale, flailDamping, sleepAngularSpeedDeg, corpseCellSize/StackOffset/StackMax
+    (systems fall back to identical built-in defaults when the authoring isn't baked)
+
+CorpseCells (singleton, owned by CorpseCellSystem)
+    NativeParallelMultiHashMap<int2, float> map — settled corpses per XZ cell, rebuilt each frame
 ```
 
 **Entity placement (CharacterRig refactor):**
 - `Ragdoll2DConfig` + `Ragdoll2DLaunch` → **root body entity** (baked by `CharacterRigAuthoring`)
 - `Ragdoll2D` → **visual root child** (added disabled by `CharacterRigBakingSystem`)
-- `Ragdoll2DJoint` → **each joint pivot entity** (added disabled by `CharacterRigBakingSystem`, `settleSpeed` from override-or-blob)
+- `Ragdoll2DJoint` → **each joint pivot entity** (added disabled by `CharacterRigBakingSystem`; `settleSpeed` from override-or-blob, `segmentLength`/`weight` from the `PartDef`)
 - Joints are discovered at death/revive by walking the root's **`BodyPart` buffer** for `RagdollJoint`-flagged entries; **landing zones** come from the `PartLibrary` blob via each joint's `PartDefId` (no per-root zone buffer anymore). `Ragdoll2DJointRef`/`Ragdoll2DJointZone` are gone.
