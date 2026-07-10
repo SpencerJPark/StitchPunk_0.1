@@ -88,10 +88,12 @@ no longer drives baked parts (the component wins) — set the entity's
   `Assets/_Scripts/Editor/PainterlyMaskGenerator.cs` → **Stitch Punk ▸ Generate
   Painterly Mask Texture** → `Assets/Textures/Painterly/T_PainterlyMask.png`
   (tileable, linear, R/G/B = three independent stroke layers). Hand-painted
-  masks: paint three plain grayscale PNGs (`Mask_R/G/B.png`, same folder) and
-  run **Stitch Punk ▸ Pack Painterly Mask From Grayscale Files**
-  (`PainterlyMaskPacker.cs`) — packs into T_PainterlyMask.png in place,
-  preserving GUID/import settings; missing files = flat mid gray.
+  masks: paint three plain grayscale PNGs (`Mask_R/G/B.png`, same folder), then
+  pack them with **Window ▸ Stitch Punk ▸ Texture Channel Packer** — wire each
+  file's R channel into the output R/G/B slots, bake over `T_PainterlyMask.png`,
+  and save a recipe beside it for one-click repacks. The bake overwrites in
+  place, preserving GUID/import settings. (This replaced the fixed-purpose
+  `PainterlyMaskPacker.cs` menu item, deleted 2026-07-09.) See [[Editor]].
 
 ## Painterly palette atlas — `PainterlyPaletteShader` (2026-07-04)
 
