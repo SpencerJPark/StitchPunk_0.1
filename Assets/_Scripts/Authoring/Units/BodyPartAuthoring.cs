@@ -26,6 +26,11 @@ public class BodyPartAuthoring : MonoBehaviour
     [Tooltip("First texture-array slice for this part before any design roll. Ignored for non-rendering parts.")]
     public int baseImageIndex;
 
+    [Tooltip("Per-instance multiply tint for this part's sprite (drives _BaseColor). White = authored " +
+             "colour unchanged; black outline survives (0 * tint = 0). Ignored for non-rendering parts. " +
+             "Placeholder until a global palette/skin system writes the colour.")]
+    public Color tintColor = Color.white;
+
     [Tooltip("This part is a ragdoll bend pivot — CharacterRigBakingSystem stamps Ragdoll2DJoint on it.")]
     public bool isRagdollJoint;
 
@@ -100,9 +105,16 @@ public class BodyPartAuthoring : MonoBehaviour
             {
                 AddComponent(entity, new ImageIndex { index = authoring.baseImageIndex, onUpdate = true });
                 AddComponent(entity, new ImageIndexOverride { Value = 0 });
-                // Per-instance tint, neutral white so parts render at their authored colour
-                // until a skin/design system writes a colour. Drives _BaseColor (Hybrid Per Instance).
-                AddComponent(entity, new BodyPartTint { Value = new float4(1f, 1f, 1f, 1f) });
+                // Per-instance tint (drives _BaseColor, Hybrid Per Instance). Set per-part in the
+                // authoring inspector; white leaves the authored sprite unchanged. A future global
+                // palette/skin system will overwrite this at runtime.
+                // Convert sRGB → linear: the DOTS MaterialProperty upload is raw (unlike the material
+                // inspector, which auto-converts colour properties), and the project renders in Linear.
+                Color linearTint = authoring.tintColor.linear;
+                AddComponent(entity, new BodyPartTint
+                {
+                    Value = new float4(linearTint.r, linearTint.g, linearTint.b, linearTint.a),
+                });
             }
 
             if (authoring.isRagdollJoint)

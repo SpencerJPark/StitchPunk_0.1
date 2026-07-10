@@ -1,12 +1,12 @@
 fileFormatVersion: 2
-guid: d540bacedc6f866479336283fb59b8c7
+guid: d7d25faa35891e949acedcb2fd3b7987
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
     mipMapMode: 0
-    enableMipMap: 0
+    enableMipMap: 1
     sRGBTexture: 1
     linearTexture: 0
     fadeOut: 0
@@ -57,8 +57,8 @@ TextureImporter:
   textureType: 0
   textureShape: 4
   singleChannelComponent: 0
-  flipbookRows: 8
-  flipbookColumns: 8
+  flipbookRows: 4
+  flipbookColumns: 4
   maxTextureSizeSet: 0
   compressionQualitySet: 0
   textureFormatSet: 0

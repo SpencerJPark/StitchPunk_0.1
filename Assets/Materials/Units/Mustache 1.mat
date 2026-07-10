@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Eyebrows
+  m_Name: Mustache 1
   m_Shader: {fileID: -6465566751694194690, guid: d7c4d50d47942aa44b714ba0240727de, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -22,6 +22,7 @@ Material:
     RenderType: TransparentCutout
   disabledShaderPasses:
   - MOTIONVECTORS
+  - SHADOWCASTER
   m_LockedProperties: _AtlasWidth
   m_SavedProperties:
     serializedVersion: 3
@@ -71,7 +72,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Texture2D_Array:
-        m_Texture: {fileID: 18700000, guid: d7d25faa35891e949acedcb2fd3b7987, type: 3}
+        m_Texture: {fileID: 18700000, guid: cd48d20f6a926fb489df2a89e23538df, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TextureArray_35172cf51cc441b1bfb7a71938a5f1f8_MainTex_2972538029_Texture2D:
@@ -100,7 +101,7 @@ Material:
     - _Blend: 0
     - _BlendModePreserveSpecular: 0
     - _BumpScale: 1
-    - _CastShadows: 1
+    - _CastShadows: 0
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
     - _Cull: 2
@@ -120,7 +121,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _ImageIndex: 9.02
+    - _ImageIndex: 4
     - _InteractableHighlight: 0.03
     - _IsInteractable: 0
     - _Metallic: 0
@@ -148,7 +149,7 @@ Material:
     - _ZWrite: 1
     - _ZWriteControl: 1
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.9137255, g: 0.8862745, b: 0.5764706, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}

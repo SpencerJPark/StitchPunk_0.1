@@ -116,6 +116,58 @@ it feeds **only** Height To Normal (the painterly surface). A material needs BOT
   bands give UV tolerance) + a `_rows.txt` reference sheet (UV.y band → zone). Importer: **sRGB on,
   Clamp, Point, no mips, uncompressed** — Point + Clamp keep colour zones crisp (no row bleed).
 
+## Custom hand-authored mips (Texture Packer) — you set the count, no auto-fill (2026-07-07)
+
+`Editor/TextureArrayBuilder.cs` (`TexturePackerBuilder` custom inspector on `TexturePackerConfig`)
+builds a `Texture2D` or `Texture2DArray` from **explicitly assigned per-level textures** — so mips
+are hand-authored (painterly/pixel control) instead of Unity's box-filter blur. How it works:
+
+- **The mip count *is* your array length.** It allocates `new Texture2D(baseSize, baseSize, format,
+  mips.Length, linear)` (array path: `mipCount = slices[0].mips.Length`, and every slice must match
+  or it errors `inconsistent mip count`), `SetPixels(src.GetPixels(), m)` per level, then
+  **`Apply(false)`** — the `false` means **do NOT auto-generate mips**. Unity never fills missing
+  lower levels; the chain ends at your last provided one.
+- **Stopping early is fine — sampling clamps to your smallest level.** You do *not* need to go down
+  to 1×1. Mips only matter for **minification** (sprite drawn smaller than native); with our fairly
+  fixed 2.5D camera, slices rarely render far below native, so a shallow chain is plenty.
+- **Per-level requirements:** each `mips[m]` must be the exact halved dimension (mip0 = baseSize²,
+  mip1 = (baseSize/2)², …) or `SetPixels` throws; every source needs **Read/Write enabled** (else
+  `needs Read/Write enabled`). Output asset is written next to the config (`_Tex.asset` / `_Array.asset`).
+
+**Decision (2026-07-07):** for the 256px unit slices we author the chain down to **32** only
+(256 → 128 → 64 → 32 = 4 levels, mips 0–3) and stop. Below 32 is imperceptible at our on-screen
+sizes and just clamps. Only add a 16 level if the most zoomed-out framing shrinks a unit to a few
+pixels and shows shimmer.
+
+## Outline features are incompatible with MSAA — use post-process AA (2026-07-06)
+
+**Do not turn on MSAA in the URP asset (`Game_RPAsset.asset`, `m_MSAA`). Keep it at 1
+(off).** The two outline renderer features (`RobertsCrossRenderFeature`,
+`SilhouetteOutlineFeature` in `Core/RenderFeatures/`) fundamentally conflict with MSAA:
+
+- Each capture pass renders normals/silhouette into an offscreen color RT while sharing
+  the camera depth read-only via `SetRenderAttachmentDepth(activeDepthTexture, Read)`
+  (so occluded outline-layer geometry isn't outlined through walls). Render Graph
+  requires all attachments in a pass to agree on MSAA sample count.
+- Turn MSAA on → the shared depth is multisampled → the capture throws
+  **"Mismatch in number of MSAA samples ... Expected 2 but got None"** (the trailing
+  `ZBinningJob`/`ForwardLights` error is just cascade noise — ignore it). This is *our*
+  Normal Capture Pass, **not** SSAO/Decals/Depth-Priming (none of those are on the
+  renderer — don't chase them).
+- Matching the capture RT's `msaaSamples` to the camera makes it compile but then the
+  outline shader (`RobertsCrossEdgeDetection.shader`, plain `TEXTURE2D` +
+  `SAMPLE_TEXTURE2D`) can't sample a multisampled texture → *"A multisampled texture
+  being bound to a non-multisampled sampler. Disabling ..."* → outline silently gone.
+  Tried and reverted; would need a `Texture2DMS` shader rewrite or an extra resolve pass.
+
+**Resolution (chosen): post-process AA instead of MSAA.** For flat 2.5D quads MSAA only
+AAs geometry edges anyway — the visible aliasing is on shader-drawn outlines and sprite
+alpha, which post AA handles and MSAA does not. The game camera prefab
+`Assets/Prefabs/SetUp/Main Camera 1.prefab` is already configured this way:
+`m_RenderPostProcessing: 1`, `m_Antialiasing: 2` (**SMAA**), `m_AntialiasingQuality: 2`.
+So the config is already correct — just never raise `m_MSAA`. Switch-perf alt: FXAA
+(`m_Antialiasing: 1`) is cheaper than SMAA if needed.
+
 ## Migration log (2026-07-04, complete)
 
 - All `_float/_half` custom-function HLSL converted or deleted; the three

@@ -22,6 +22,7 @@ Material:
     RenderType: TransparentCutout
   disabledShaderPasses:
   - MOTIONVECTORS
+  - SHADOWCASTER
   m_LockedProperties: _AtlasWidth
   m_SavedProperties:
     serializedVersion: 3
@@ -71,7 +72,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Texture2D_Array:
-        m_Texture: {fileID: 18700000, guid: 1f5977b7718b3a042a03bcc26364e772, type: 3}
+        m_Texture: {fileID: 18700000, guid: 740d28b056e397043920f4c43d8f9d9c, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TextureArray_35172cf51cc441b1bfb7a71938a5f1f8_MainTex_2972538029_Texture2D:
@@ -100,7 +101,7 @@ Material:
     - _Blend: 0
     - _BlendModePreserveSpecular: 0
     - _BumpScale: 1
-    - _CastShadows: 1
+    - _CastShadows: 0
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
     - _Cull: 2
@@ -121,6 +122,8 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _ImageIndex: 0
+    - _InteractableHighlight: 0.03
+    - _IsInteractable: 0
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005

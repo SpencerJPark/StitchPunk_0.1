@@ -3,7 +3,7 @@ tags: [task, spencer, art, environments, characters]
 related: "[[Demo/Phases]], [[Spencer/Audio]]"
 ---
 
-// --dangerously-skip-permissions
+// claude --dangerously-skip-permissions
 
 
 
