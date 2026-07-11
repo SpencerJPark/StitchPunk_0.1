@@ -121,7 +121,10 @@ public static class TexturePackerBaker
             if (packedImporter != null)
             {
                 packedImporter.sRGBTexture = false;
-                packedImporter.mipmapEnabled = true;
+                packedImporter.mipmapEnabled = false;
+                // Block compression (BC/DXT) corrupts hard channel-mask edges into
+                // mismatched blocks — packed data textures must stay uncompressed.
+                packedImporter.textureCompression = TextureImporterCompression.Uncompressed;
                 packedImporter.wrapMode = TextureWrapMode.Repeat;
                 packedImporter.alphaSource = needsAlpha
                     ? TextureImporterAlphaSource.FromInput

@@ -638,7 +638,7 @@ MonoBehaviour:
   characterRoot: {fileID: 653683981}
   partDef: {fileID: 11400000, guid: 6d976bae68e6356478dbb5e456fcd374, type: 2}
   baseImageIndex: 0
-  tintColor: {r: 0.9529412, g: 0.81960785, b: 0.7529412, a: 1}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
   isRagdollJoint: 0
   isItemSocket: 0
   settleSpeedOverride: 0
@@ -760,7 +760,7 @@ Transform:
   m_GameObject: {fileID: 7473371058932725646}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.21560001, y: 0.8510001, z: -0.44810998}
+  m_LocalPosition: {x: 0.2243, y: 0.8462, z: -0.44810998}
   m_LocalScale: {x: 0.125, y: 0.125, z: 0.125}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1063,7 +1063,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 7e47ac514c769064995dc3a0903aff78, type: 2}
+  - {fileID: 2100000, guid: 33cc5ccdb45146788234cef6d2a7f642, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1647,7 +1647,7 @@ MonoBehaviour:
   characterRoot: {fileID: 653683981}
   partDef: {fileID: 11400000, guid: 42693f2c498ae0c45bd04ef17b54561b, type: 2}
   baseImageIndex: 0
-  tintColor: {r: 0.9529412, g: 0.81960785, b: 0.7529412, a: 1}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
   isRagdollJoint: 0
   isItemSocket: 0
   settleSpeedOverride: 0
@@ -1676,7 +1676,7 @@ MonoBehaviour:
   characterRoot: {fileID: 653683981}
   partDef: {fileID: 11400000, guid: a69a2cc4e69acc14a8fe0f67d2d4b554, type: 2}
   baseImageIndex: 0
-  tintColor: {r: 0.9529412, g: 0.81960785, b: 0.7529412, a: 1}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
   isRagdollJoint: 1
   isItemSocket: 0
   settleSpeedOverride: 0

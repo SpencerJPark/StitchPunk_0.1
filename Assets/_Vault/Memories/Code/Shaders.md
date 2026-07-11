@@ -6,7 +6,7 @@ custom-function files are gone):
 
 | Folder | Holds |
 |---|---|
-| `Graphs/` | Production shader graphs: `2DShader`, `2DTextureArrayShader` (unit parts), `3DShader` (environment/props), `PainterlyShader` (painterly single-texture environment look), `PainterlyPaletteShader` (UV-palette variant of PainterlyShader — see below) — all use the **Cel Shaded Lighting** reflection node |
+| `Graphs/` | Production shader graphs: `2DShader`, `2DTextureArrayShader` (unit parts), `2DPackedRecolorShader` (channel-packed recolorable unit parts — see below), `3DShader` (environment/props), `PainterlyShader` (painterly single-texture environment look), `PainterlyPaletteShader` (UV-palette variant of PainterlyShader — see below) — all use the **Cel Shaded Lighting** reflection node |
 | `RenderFeatures/` | Hand-written `.shader` passes driven by the renderer features: `ViewSpaceNormalsCapture`, `RobertsCrossEdgeDetection`, `SilhouetteOutline`. **This is the live outline pipeline** (`RobertsCrossRenderFeature` + `SilhouetteOutlineFeature` in `Game_Renderer.asset`) |
 | `SubGraphs/` | Only `WorldSpaceSurfaceData` — bundles Position/Normal/View geometry-context nodes for the lighting inputs; correctly a subgraph (HLSL functions can't access geometry implicitly), used by all production graphs |
 | `Nodes/` | **Reflection-API node library** — one Shader Graph node per `.hlsl` file (see below) |
@@ -53,6 +53,28 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   outline/detail pass through the free channel). Library/hand-wire nodes — the
   production 2D graphs already do the single-zone multiply via `_BaseColor`
   (see below), so these are for new graphs or the future multi-zone parts.
+  `PackedChannelRecolor` (2026-07-11) — composites a channel-PACKED mask texture
+  (Texture Channel Packer output) into a recolorable sprite: R = base fill,
+  G = layer 2 on top, B = layer 3 on top, A = literal output alpha. Each layer's
+  RGBA color input tints with its RGB; the color's **alpha is the layer's blend
+  strength** (0 = layer off — e.g. hide the bloody mouth), base layer ignores its
+  alpha. Unclaimed pixels composite black, so outlines survive recoloring.
+
+## Packed-channel recolor graph — `2DPackedRecolorShader` (2026-07-11)
+
+Duplicate of `2DTextureArrayShader` with the albedo path swapped: `Sample
+Texture 2D Array (_Texture2D_Array, _ImageIndex)` → **Packed Channel Recolor**
+(→ its Recolored Alpha drives the Alpha block) → `× Cel Shaded Lighting →
+interactable Branch`. The old sample-tint Multiply is gone — **`_BaseColor` IS
+the base (R) layer color**, so the existing per-instance `BodyPartTint`
+component drives the base recolor with no new plumbing (its alpha is ignored:
+base is always on). `_SecondaryColor` (G) and `_TertiaryColor` (B)
+(ColorShaderProperty, **Hybrid Per Instance**) feed the top layers; toggle a
+layer per unit by writing its color's ALPHA (0 = hidden). Test material:
+`Materials/Units/PackedRecolorTest.mat` (binds `T_Packed2` — the 8×8 head
+flipbook imported as a Texture2DArray). DOTS per-instance override components
+for _SecondaryColor/_TertiaryColor are **not yet written** (follow the
+`BodyPartTint` pattern in `Components/Animation/AnimationComponents.cs`).
 
 ## Per-instance sprite tint — `_BaseColor` (2026-07-05)
 
