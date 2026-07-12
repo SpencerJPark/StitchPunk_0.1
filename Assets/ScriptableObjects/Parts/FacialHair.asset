@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 29bf68ecdea0481cbfcfc1056733fa84, type: 3}
-  m_Name: RightEyeBrow
+  m_Name: FacialHair
   m_EditorClassIdentifier: StitchPunk.Data::PartDefinitionSO
-  id: 13
+  id: 10
   group: Hair
-  textureArray: {fileID: 18700000, guid: d7d25faa35891e949acedcb2fd3b7987, type: 3}
+  textureArray: {fileID: 18700000, guid: 7e473cadeb65d944c872598771582bb1, type: 3}
   designs: []

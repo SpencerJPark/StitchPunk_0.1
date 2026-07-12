@@ -14,51 +14,51 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::PartDefinitionSO
   id: 9
   group: Hair
-  ranges:
-  - tag: None
-    min: 0
-    max: 0
-    step: 1
-    randomizable: 0
-  - tag: Dark
-    min: 1
-    max: 10
-    step: 1
-    randomizable: 1
-  - tag: Brown
-    min: 11
-    max: 20
-    step: 1
-    randomizable: 1
-  - tag: LightBrown
-    min: 21
-    max: 30
-    step: 1
-    randomizable: 1
-  - tag: Blonde
-    min: 31
-    max: 40
-    step: 1
-    randomizable: 1
-  - tag: Grey
-    min: 41
-    max: 50
-    step: 1
-    randomizable: 1
-  - tag: Red
-    min: 51
-    max: 60
-    step: 1
-    randomizable: 1
-  - tag: Clown
-    min: 61
-    max: 62
-    step: 1
-    randomizable: 1
-  - tag: Alt
-    min: 63
-    max: 63
-    step: 1
-    randomizable: 0
-  defaultSettleSpeed: 8
-  zones: []
+  textureArray: {fileID: 0}
+  designs:
+  - tag: Normal
+    useFullTextureRange: 1
+    minTextureIndex: 0
+    maxTextureIndex: 0
+    step: 0
+    primaryColor:
+      palette: 4
+      useFullRange: 1
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    secondaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    tertiaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+  - tag: WithHat
+    useFullTextureRange: 1
+    minTextureIndex: 0
+    maxTextureIndex: 0
+    step: 0
+    primaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    secondaryColor:
+      palette: 4
+      useFullRange: 1
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    tertiaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0

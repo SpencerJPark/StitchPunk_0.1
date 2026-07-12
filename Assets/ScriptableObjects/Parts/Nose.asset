@@ -14,41 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::PartDefinitionSO
   id: 16
   group: Skin
-  ranges:
-  - tag: White
-    min: 0
-    max: 11
-    step: 1
-    randomizable: 1
-  - tag: Tan
-    min: 12
-    max: 23
-    step: 1
-    randomizable: 1
-  - tag: Brown
-    min: 24
-    max: 35
-    step: 1
-    randomizable: 1
-  - tag: Black
-    min: 36
-    max: 47
-    step: 1
-    randomizable: 1
-  - tag: Zombie
-    min: 48
-    max: 62
-    step: 1
-    randomizable: 1
-  - tag: ZombieBloody
-    min: 48
-    max: 59
-    step: 1
-    randomizable: 0
-  - tag: ZombieRare
-    min: 60
-    max: 63
-    step: 1
-    randomizable: 1
-  defaultSettleSpeed: 8
-  zones: []
+  textureArray: {fileID: 18700000, guid: 740d28b056e397043920f4c43d8f9d9c, type: 3}
+  designs: []

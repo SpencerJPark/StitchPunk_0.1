@@ -14,41 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::PartDefinitionSO
   id: 14
   group: Hair
-  ranges:
-  - tag: Alt
-    min: 1
-    max: 3
-    step: 2
-    randomizable: 1
-  - tag: Dark
-    min: 5
-    max: 13
-    step: 2
-    randomizable: 1
-  - tag: Brown
-    min: 15
-    max: 23
-    step: 2
-    randomizable: 1
-  - tag: LightBrown
-    min: 25
-    max: 33
-    step: 2
-    randomizable: 1
-  - tag: Blonde
-    min: 35
-    max: 43
-    step: 2
-    randomizable: 1
-  - tag: Grey
-    min: 45
-    max: 53
-    step: 2
-    randomizable: 1
-  - tag: Red
-    min: 55
-    max: 63
-    step: 2
-    randomizable: 1
-  defaultSettleSpeed: 0
-  zones: []
+  textureArray: {fileID: 18700000, guid: d7d25faa35891e949acedcb2fd3b7987, type: 3}
+  designs: []
