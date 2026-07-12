@@ -80,8 +80,9 @@ public struct BodyPartTint : IComponentData
 
 // Per-instance colour for the packed mask's G layer (drives _SecondaryColor on the packed 2D
 // graphs, Hybrid Per Instance). PackedChannelRecolor uses RGB as the layer tint and ALPHA as the
-// layer blend strength (0 hides the layer). Baked white/alpha-1 by BodyPartAuthoring so unpaletted
-// parts match the shader defaults; DesignApplyUtil.ApplyDesign writes palette colours over it.
+// layer blend strength (0 hides the layer). Baked white by BodyPartAuthoring with alpha from its
+// useLayerChannels flag (0 = the part's mask doesn't use G/B — stray channel data can never
+// composite); DesignApplyUtil.ApplyDesign writes palette colours over it.
 [MaterialProperty("_SecondaryColor")]
 public struct BodyPartSecondaryTint : IComponentData
 {

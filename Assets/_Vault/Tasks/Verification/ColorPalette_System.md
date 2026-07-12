@@ -254,6 +254,6 @@ Standard loop per phase: save → Spencer focuses Unity (compile) → grep Edito
 ## Open decisions (resolved in the 2026-07-11 pre-build Q&A)
 
 - [x] §4 — enum ships the planned 7 (`None/World/Skin/ZombieSkin/Blood/Hair/Shirts`); append later as art needs them.
-- [x] §5 — baked default alpha = **1** (white, fully blended — matches the shader property defaults).
+- [x] §5 — baked default alpha: superseded by `BodyPartAuthoring.useLayerChannels` (2026-07-11) — default **0** (G/B layers dead; stray channel data in packed greyscale sources was compositing, e.g. on heads), tick the flag on parts whose masks genuinely use G/B. Palette-driven slots re-activate layers regardless.
 - [x] §8 — palette assets live in `Assets/ScriptableObjects/Colors/`.
 - [ ] Art migration order: which rigs/arrays move to `2DPackedArrayShader` packed masks first (colour only shows on packed-mask parts) — Editor/art task, tracked in verify-colorpalette.md notes.

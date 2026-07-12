@@ -34,6 +34,13 @@ public class BodyPartAuthoring : MonoBehaviour
              "Placeholder until a global palette/skin system writes the colour.")]
     public Color tintColor = Color.white;
 
+    [Tooltip("This part's packed mask genuinely uses the G/B layer channels (e.g. a bloody-mouth " +
+             "overlay). Unchecked (default) bakes the secondary/tertiary layer tints with ALPHA 0 — " +
+             "PackedChannelRecolor treats alpha as layer blend strength, so stray G/B data in the " +
+             "texture can never composite. Palette designs that write those slots re-activate the " +
+             "layers regardless (their colour alpha wins at apply).")]
+    public bool useLayerChannels;
+
     [Tooltip("This part is an item attach socket (e.g. ItemLeftHand). Flagged in the BodyPart buffer.")]
     public bool isItemSocket;
 
@@ -110,13 +117,15 @@ public class BodyPartAuthoring : MonoBehaviour
                 {
                     Value = new float4(linearTint.r, linearTint.g, linearTint.b, linearTint.a),
                 });
-                // Packed-recolor layer tints (_SecondaryColor/_TertiaryColor). White with alpha 1
-                // matches the shader property defaults, so unpaletted parts show their mask's G/B
-                // layers untinted. DesignApplyUtil.ApplyDesign writes palette colours over these on
+                // Packed-recolor layer tints (_SecondaryColor/_TertiaryColor). Alpha = layer blend
+                // strength in PackedChannelRecolor: parts whose masks don't use G/B bake alpha 0 so
+                // stray channel data (e.g. greyscale sources copied into every channel) can never
+                // composite. DesignApplyUtil.ApplyDesign writes palette colours over these on
                 // design-slot parts; keeping the components on every rendering part keeps one
                 // batchable archetype.
-                AddComponent(entity, new BodyPartSecondaryTint { Value = new float4(1f, 1f, 1f, 1f) });
-                AddComponent(entity, new BodyPartTertiaryTint { Value = new float4(1f, 1f, 1f, 1f) });
+                float layerAlpha = authoring.useLayerChannels ? 1f : 0f;
+                AddComponent(entity, new BodyPartSecondaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
+                AddComponent(entity, new BodyPartTertiaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
             }
         }
     }
