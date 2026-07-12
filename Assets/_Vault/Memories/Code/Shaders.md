@@ -59,6 +59,13 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   RGBA color input tints with its RGB; the color's **alpha is the layer's blend
   strength** (0 = layer off — e.g. hide the bloody mouth), base layer ignores its
   alpha. Unclaimed pixels composite black, so outlines survive recoloring.
+  `PackedChannelSwitch` (2026-07-11) — TWO-VARIANT packed sprite: one slice
+  carries two shape/alpha pairs; a switch picks the pair. Normal = R shape ×
+  color, G alpha; alt = B shape × color, A alpha. Built for hair-under-hats
+  (alt = hat-hugging silhouette, same slice + rolled colour); wire Use Alt
+  Shape to a per-instance float property so equipment code flips it per
+  character (0–1 cross-fades). Needs a hair variant graph of the packed array
+  shader (not yet built).
 
 ## Packed-channel recolor graph — `2DPackedRecolorShader` (2026-07-11)
 
