@@ -15,4 +15,50 @@ MonoBehaviour:
   id: 16
   group: Skin
   textureArray: {fileID: 18700000, guid: 740d28b056e397043920f4c43d8f9d9c, type: 3}
-  designs: []
+  designs:
+  - tag: Human
+    useFullTextureRange: 1
+    minTextureIndex: 0
+    maxTextureIndex: 0
+    step: 0
+    primaryColor:
+      palette: 2
+      useFullRange: 1
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    secondaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    tertiaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+  - tag: Zombie
+    useFullTextureRange: 1
+    minTextureIndex: 0
+    maxTextureIndex: 0
+    step: 0
+    primaryColor:
+      palette: 2
+      useFullRange: 1
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 1
+    secondaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
+    tertiaryColor:
+      palette: 0
+      useFullRange: 0
+      minColorIndex: 0
+      maxColorIndex: 0
+      useAlternateColor: 0
