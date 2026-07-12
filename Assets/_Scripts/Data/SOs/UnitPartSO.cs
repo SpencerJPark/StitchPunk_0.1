@@ -26,7 +26,12 @@ public class UnitPartSO : ScriptableObject
              "Every part with the same group name shares the character's rolled tag for that group. " +
              "Leave empty for a part with no shared tag (its designs' tags are used as-is).")]
     public string group = "";
-    
+
+    [Tooltip("This part's texture array — only needed so designs with 'Use Full Texture Range' can " +
+             "resolve 'all slices' to the array's real depth at bake. Designs with hand-authored " +
+             "index spans ignore it.")]
+    public Texture2DArray textureArray;
+
     public List<PartDesign> designs = new();
 }
 
@@ -36,12 +41,19 @@ public class PartDesign
     [Tooltip("Colour/group tag. Empty = colour-independent (always available, never recoloured).")]
     public string tag = "";
 
+    [Tooltip("This design spans the ENTIRE texture array (resolved from the part's textureArray at " +
+             "bake) — no index bookkeeping needed. Untick to author a slice span by hand.")]
+    public bool useFullTextureRange = true;
+
+    [ShowWhen("useFullTextureRange", false)]
     [Tooltip("First texture-array slice (inclusive).")]
     public int minTextureIndex;
 
+    [ShowWhen("useFullTextureRange", false)]
     [Tooltip("Last texture-array slice (inclusive).")]
     public int maxTextureIndex;
 
+    [ShowWhen("useFullTextureRange", false)]
     [Tooltip("Stride between slices. 1 = every index (contiguous). 2 = every other (e.g. interleaved " +
              "left/right eyes: right = min 0 step 2, left = min 1 step 2). For a hand-picked set of " +
              "unrelated indices, add one range per index with min == max and the same tag.")]

@@ -79,12 +79,36 @@ public partial struct PartLibraryBakingSystem : ISystem
                     continue;
                 }
 
+                // "Full texture range" resolves to the part's real array depth here at bake — the
+                // runtime pool math needs true slice counts (an oversized span would bias random
+                // rolls onto GPU-clamped end slices).
+                int minTextureIndex = source.minTextureIndex;
+                int maxTextureIndex = source.maxTextureIndex;
+                int step            = source.step > 0 ? source.step : 1;
+                if (source.useFullTextureRange)
+                {
+                    minTextureIndex = 0;
+                    step            = 1;
+                    if (partSO.textureArray != null)
+                    {
+                        maxTextureIndex = partSO.textureArray.depth - 1;
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogWarning(
+                            $"[PartLibraryBaking] '{partSO.name}' design {designIndex} uses Full Texture Range " +
+                            "but the part has no textureArray assigned — baking a single slice (0). " +
+                            "Assign the array or untick and author the span.");
+                        maxTextureIndex = 0;
+                    }
+                }
+
                 designsBuilder[designIndex] = new PartDesignDef
                 {
                     tag             = ToFixed(source.tag, partSO.name, "design tag"),
-                    minTextureIndex = source.minTextureIndex,
-                    maxTextureIndex = source.maxTextureIndex,
-                    step            = source.step > 0 ? source.step : 1,
+                    minTextureIndex = minTextureIndex,
+                    maxTextureIndex = maxTextureIndex,
+                    step            = step,
                     primaryColor    = ToPaletteSlot(source.primaryColor),
                     secondaryColor  = ToPaletteSlot(source.secondaryColor),
                     tertiaryColor   = ToPaletteSlot(source.tertiaryColor),
