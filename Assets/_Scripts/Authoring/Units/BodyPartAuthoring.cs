@@ -2,14 +2,16 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 // One per part GameObject in a character rig — quad, ragdoll joint pivot, or item socket. Replaces
 // AnimationTargetAuthoring + AnimationTargetNoIndexAuthoring + BaseParentAuthoring on rig parts:
 //   • bakes BodyPartInfo (self-description: target + partDef + role flags),
 //   • bakes BaseParent so the root can rebuild its BodyPart buffer after Instantiate,
 //   • bakes the animation pose set (rest/animated pose + PostTransformMatrix) for every part,
-//   • adds ImageIndex/ImageIndexOverride only when the GO actually renders (folds the no-index case),
-//   • bakes RagdollJointBakeData (baking-only) when this part is a ragdoll joint pivot.
+//   • adds ImageIndex/ImageIndexOverride only when the GO actually renders (folds the no-index case).
+// DESIGN only — ragdoll physics lives on RagdollJointAuthoring (dedicated joint empties); this baker
+// merely flags the part as a joint in the rig registry when that component sits on the same GO.
 // CharacterRigBakingSystem assembles the root buffer and stamps Ragdoll2D/Ragdoll2DJoint from these.
 public class BodyPartAuthoring : MonoBehaviour
 {
@@ -19,9 +21,10 @@ public class BodyPartAuthoring : MonoBehaviour
     [Tooltip("The character root GameObject this part belongs to (baked into BaseParent).")]
     public GameObject characterRoot;
 
+    [FormerlySerializedAs("partDef")]
     [Tooltip("Static config for this part KIND (design grid + ragdoll zones). Optional — leave null " +
              "for parts with no design variants and no ragdoll config; the part still animates.")]
-    public PartDefinitionSO partDef;
+    public UnitPartSO unitPartDef;
 
     [Tooltip("First texture-array slice for this part before any design roll. Ignored for non-rendering parts.")]
     public int baseImageIndex;
@@ -31,45 +34,37 @@ public class BodyPartAuthoring : MonoBehaviour
              "Placeholder until a global palette/skin system writes the colour.")]
     public Color tintColor = Color.white;
 
-    [Tooltip("This part is a ragdoll bend pivot — CharacterRigBakingSystem stamps Ragdoll2DJoint on it.")]
-    public bool isRagdollJoint;
-
     [Tooltip("This part is an item attach socket (e.g. ItemLeftHand). Flagged in the BodyPart buffer.")]
     public bool isItemSocket;
-
-    [Tooltip("Per-placement ragdoll settle speed (deg/s). 0 = use the PartDefinitionSO default.")]
-    public float settleSpeedOverride;
-
-    [Tooltip("Reserved per-placement ragdoll ground buffer override. 0 = use the global root buffer.")]
-    public float groundBufferOverride;
 
     public class Baker : Baker<BodyPartAuthoring>
     {
         public override void Bake(BodyPartAuthoring authoring)
         {
             bool hasRenderer = authoring.GetComponent<Renderer>() != null;
+            bool isRagdollJoint = authoring.GetComponent<RagdollJointAuthoring>() != null;
 
             Entity entity = GetEntity(hasRenderer
                 ? TransformUsageFlags.Dynamic | TransformUsageFlags.NonUniformScale
                 : TransformUsageFlags.Dynamic);
 
-            PartDefId partDefId = PartDefId.None;
-            if (authoring.partDef != null)
+            UnitPartId unitPartId = UnitPartId.None;
+            if (authoring.unitPartDef != null)
             {
-                DependsOn(authoring.partDef);
-                partDefId = authoring.partDef.id;
+                DependsOn(authoring.unitPartDef);
+                unitPartId = authoring.unitPartDef.id;
             }
 
             BodyPartFlags flags = BodyPartFlags.None;
             if (hasRenderer)                 flags |= BodyPartFlags.HasQuad;
-            if (authoring.partDef != null)   flags |= BodyPartFlags.DesignSlot;
-            if (authoring.isRagdollJoint)    flags |= BodyPartFlags.RagdollJoint;
+            if (authoring.unitPartDef != null)   flags |= BodyPartFlags.DesignSlot;
+            if (isRagdollJoint)              flags |= BodyPartFlags.RagdollJoint;
             if (authoring.isItemSocket)      flags |= BodyPartFlags.ItemSocket;
 
             AddComponent(entity, new BodyPartInfo
             {
                 target  = authoring.target,
-                partDef = partDefId,
+                unitPart = unitPartId,
                 flags   = flags,
             });
 
@@ -115,15 +110,13 @@ public class BodyPartAuthoring : MonoBehaviour
                 {
                     Value = new float4(linearTint.r, linearTint.g, linearTint.b, linearTint.a),
                 });
-            }
-
-            if (authoring.isRagdollJoint)
-            {
-                AddComponent(entity, new RagdollJointBakeData
-                {
-                    settleSpeedOverride  = authoring.settleSpeedOverride,
-                    groundBufferOverride = authoring.groundBufferOverride,
-                });
+                // Packed-recolor layer tints (_SecondaryColor/_TertiaryColor). White with alpha 1
+                // matches the shader property defaults, so unpaletted parts show their mask's G/B
+                // layers untinted. DesignApplyUtil.ApplyDesign writes palette colours over these on
+                // design-slot parts; keeping the components on every rendering part keeps one
+                // batchable archetype.
+                AddComponent(entity, new BodyPartSecondaryTint { Value = new float4(1f, 1f, 1f, 1f) });
+                AddComponent(entity, new BodyPartTertiaryTint { Value = new float4(1f, 1f, 1f, 1f) });
             }
         }
     }

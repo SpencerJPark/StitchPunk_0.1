@@ -26,7 +26,7 @@ Keep this file current: add a row when you add a request component; delete the r
 | `AttachItemRequest` | BehaviorExecution, PlayerPickupSystem, ItemConsumeSystem | `ItemSystemGroup` — ItemAttachSystem |
 | `ThrownItemRequest` | PlayerUnequipSystem | `ItemSystemGroup` — ThrownItemSystem + ThrownItemHitSystem |
 | `AnimationRequest` | BehaviorExecution/Interrupt, PlayerAttackSystem | `AnimationSystemGroup` — AnimationRequestSystem |
-| `ChangeDesignRequest` | (re-skin callers; currently only consumed) | `DesignSystemGroup` — DesignChangeSystem |
+| `ChangeDesignRequest` | (re-skin callers; currently only consumed) | `DesignSystemGroup` — DesignChangeSystem. Payload: shape `paletteChanges`/`shapeOverrides` + `alternateColorMode` (Enable = zombify: every palette entry shows its `alternative` colour, rolled identity kept) |
 | `SaveRequest` / `LoadRequest` | AutoSaveTimerSystem; SaveLoadBridge + DebugSaveMenu (Mono) | `SaveSystemGroup` — PersistentSaveSystem / PersistentLoadSystem |
 | `OnDialogueEvent` | DialogueUIManager (Mono) | `DialogueSystemGroup` — DialogueEventSystem; NarrativeDialogueBridgeSystem bridges to narrative |
 | `OnNarrativeEvent` | NarrativeProximitySystem, NarrativeDialogueBridgeSystem | NarrativeEventManager (Mono, async via UniTask) |

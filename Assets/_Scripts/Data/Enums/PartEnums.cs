@@ -4,7 +4,7 @@ using System;
 // same shape as ItemType → ItemLibraryBlob). One PartDefId value per interchangeable part KIND — the
 // L/R instances of a limb share a kind (LowerLeftArm and LowerRightArm both point at MaleArmLower).
 
-public enum PartDefId : short
+public enum UnitPartId : short
 {
     None,
     MaleHead,

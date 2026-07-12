@@ -9,7 +9,7 @@ using Unity.Entities;
 // PersistedDesign's format change breaks old saves — accepted, no migration.
 
 // Blittable result entry: the chosen SHAPE OFFSET for a part — the position within the part's tag
-// pool (the ranges matching the character's tag for its group, plus colour-independent ranges), so a
+// pool (the designs matching the character's tag for its group, plus tag-independent designs), so a
 // tag swap keeps the shape. Colour is not stored per-slot — it comes from CharacterPalette via the
 // part's group. Two ints so it rides a FixedList.
 public struct DesignSlot
@@ -32,15 +32,38 @@ public struct ShapeOverride
     public int shapeIndex;  // offset into the part's tag pool
 }
 
-// Runtime re-skin request — a caller sets palette tag changes (group → new tag) and/or explicit shape
-// overrides and enables the component; DesignChangeSystem upserts the tags into CharacterPalette and
-// the overrides into PersistedDesign, re-derives every design slice through the blob, fans them to the
-// child quads, then disables the request. Zombification = paletteChanges { group "Skin", tag "Zombie" }.
-// NOT IPersist — the request itself is never saved.
+// How a ChangeDesignRequest touches the character's alternate-colour mode.
+public enum AlternateColorMode : byte
+{
+    Unchanged,  // leave CharacterPalette.useAlternateColors as-is
+    Enable,     // switch every palette slot to its alternative colour (zombify)
+    Disable,    // back to the primary colours (revert)
+}
+
+// Runtime re-skin request — a caller sets palette tag changes (group → new tag), an alternate-colour
+// mode switch, and/or explicit shape overrides and enables the component; DesignChangeSystem upserts
+// them into CharacterPalette / PersistedDesign, re-derives every design slice + colour through the
+// blobs, fans them to the child quads, then disables the request. Zombification =
+// paletteChanges { group "Skin", tag "Zombie" } (parts with zombie shapes) +
+// alternateColorMode = Enable (every palette entry shows its zombie `alternative`, rolled identity
+// kept). NOT IPersist — the request itself is never saved (the upserted CharacterPalette state is
+// what persists).
 public struct ChangeDesignRequest : IComponentData, IEnableableComponent
 {
     public FixedList512Bytes<PaletteEntry> paletteChanges;
     public FixedList128Bytes<ShapeOverride> shapeOverrides;
+    public AlternateColorMode alternateColorMode;
+}
+
+// Bake-time authored roll pool on a character root (from CharacterRigAuthoring.randomTags): the
+// shape tags a random spawn may roll, per group. The SO stays purely descriptive — designs whose
+// tag appears in no entry (e.g. "Zombie") are reachable only via ChangeDesignRequest. Read by
+// DesignRandomizeSystem; one entry per (group, tag) candidate.
+[InternalBufferCapacity(8)]
+public struct RandomTagOption : IBufferElementData
+{
+    public FixedString32Bytes group;
+    public FixedString32Bytes tag;
 }
 
 // Bake-time only: added by CharacterRigAuthoring when `reloadDesign` is checked. Pre-placed

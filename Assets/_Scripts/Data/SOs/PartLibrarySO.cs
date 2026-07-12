@@ -7,11 +7,11 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "_PartLibrary", menuName = "Units/Part Library")]
 public class PartLibrarySO : ScriptableObject
 {
-    public List<PartDefinitionSO> parts = new();
+    public List<UnitPartSO> parts = new();
 
-    public PartDefinitionSO GetPart(PartDefId id)
+    public UnitPartSO GetPart(UnitPartId id)
     {
-        foreach (PartDefinitionSO part in parts)
+        foreach (UnitPartSO part in parts)
         {
             if (part != null && part.id == id)
                 return part;

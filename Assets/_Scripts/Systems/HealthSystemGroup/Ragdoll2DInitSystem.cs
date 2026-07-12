@@ -10,8 +10,9 @@ using Unity.Transforms;
 /// the real 3D launch direction (horizontal away from the source + authored up-velocity).
 ///
 /// Joints are discovered through the root's BodyPart buffer (RagdollJoint-flagged entries); each
-/// joint's landing zones come from the PartLibrary blob via its PartDefId, and its baked
-/// settleSpeed / segmentLength / weight (resolved at bake) are preserved across the state reset.
+/// joint owns its physics config — landing zones in its RagdollLandingZone buffer and baked
+/// settleSpeed / segmentLength / weight (from RagdollJointAuthoring), preserved across the state
+/// reset. Fully independent of the design PartLibrary blob.
 /// The flail is seeded with a launch-proportional angular kick so limbs trail from frame one.
 /// </summary>
 [UpdateInGroup(typeof(HealthSystemGroup))]
@@ -23,24 +24,21 @@ public partial struct Ragdoll2DInitSystem : ISystem
     // Fraction of the launch speed converted into the initial limb trail kick.
     private const float LAUNCH_KICK_SCALE    = 0.25f;
 
-    private ComponentLookup<Ragdoll2D>       ragdollLookup;
-    private ComponentLookup<Ragdoll2DLaunch> launchLookup;
-    private ComponentLookup<LocalTransform>  transformLookup;
+    private ComponentLookup<Ragdoll2D>        ragdollLookup;
+    private ComponentLookup<Ragdoll2DLaunch>  launchLookup;
+    private ComponentLookup<LocalTransform>   transformLookup;
+    private BufferLookup<RagdollLandingZone>  landingZoneLookup;
 
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<PartLibrary>();
-        ragdollLookup   = state.GetComponentLookup<Ragdoll2D>(false);
-        launchLookup    = state.GetComponentLookup<Ragdoll2DLaunch>(false);
-        transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        ragdollLookup     = state.GetComponentLookup<Ragdoll2D>(false);
+        launchLookup      = state.GetComponentLookup<Ragdoll2DLaunch>(false);
+        transformLookup   = state.GetComponentLookup<LocalTransform>(true);
+        landingZoneLookup = state.GetBufferLookup<RagdollLandingZone>(true);
     }
 
     public void OnUpdate(ref SystemState state)
     {
-        PartLibrary library = SystemAPI.GetSingleton<PartLibrary>();
-        if (!library.library.IsCreated)
-            return;
-
         float defaultRestitution = SystemAPI.TryGetSingleton(out RagdollSimConfig simConfig)
             ? simConfig.defaultRestitution
             : FALLBACK_RESTITUTION;
@@ -48,6 +46,7 @@ public partial struct Ragdoll2DInitSystem : ISystem
         ragdollLookup.Update(ref state);
         launchLookup.Update(ref state);
         transformLookup.Update(ref state);
+        landingZoneLookup.Update(ref state);
 
         foreach ((RefRO<Ragdoll2DConfig> config, DynamicBuffer<BodyPart> parts, RefRO<Health> health, Entity entity) in
             SystemAPI.Query<
@@ -127,8 +126,8 @@ public partial struct Ragdoll2DInitSystem : ISystem
                 launchLookup.SetComponentEnabled(entity, true);
             }
 
-            // Reset and enable each ragdoll joint — pick a random target angle from the blob zones
-            // and seed the flail with a launch-proportional trail kick.
+            // Reset and enable each ragdoll joint — pick a random target angle from the joint's
+            // authored landing zones and seed the flail with a launch-proportional trail kick.
             Random random = new Random((uint)(entity.Index + 1));
             float launchSpeed = math.length(launchVelocity);
 
@@ -145,14 +144,13 @@ public partial struct Ragdoll2DInitSystem : ISystem
                     : LocalTransform.Identity;
 
                 float targetAngle = 0f;
-                int defIndex = (int)parts[i].partDef;
-                if (defIndex >= 0 && defIndex < library.library.Value.parts.Length)
+                if (landingZoneLookup.HasBuffer(jointEntity))
                 {
-                    ref PartDef def = ref library.library.Value.parts[defIndex];
-                    if (def.zones.Length > 0)
+                    DynamicBuffer<RagdollLandingZone> zones = landingZoneLookup[jointEntity];
+                    if (zones.Length > 0)
                     {
-                        int zoneIndex = random.NextInt(0, def.zones.Length);
-                        float2 zone = def.zones[zoneIndex];
+                        int zoneIndex = random.NextInt(0, zones.Length);
+                        float2 zone = zones[zoneIndex].zone;
                         targetAngle = random.NextFloat(zone.x, zone.y);
                     }
                 }

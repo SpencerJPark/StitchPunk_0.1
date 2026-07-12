@@ -48,7 +48,7 @@ public partial struct BodyPartInitSystem : ISystem
             {
                 entity  = entity,
                 target  = info.ValueRO.target,
-                partDef = info.ValueRO.partDef,
+                unitPart = info.ValueRO.unitPart,
                 flags   = info.ValueRO.flags,
             });
         }

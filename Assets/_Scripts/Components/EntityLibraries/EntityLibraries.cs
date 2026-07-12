@@ -85,3 +85,17 @@ public struct BrainLibraryEntry : IBufferElementData
 }
 
 
+// Colour palettes (enum-indexed by ColorPaletteType) — the single source of truth for every colour
+// in the game. Read by the design pipeline (DesignRandomizeSystem colour roll,
+// DesignApplyUtil.ResolveColor); future world/UI consumers read the same singleton.
+public struct ColorPaletteLibrary : IComponentData
+{
+    public BlobAssetReference<ColorPaletteLibraryBlob> blob;
+}
+
+public struct ColorPaletteLibraryReference : IComponentData
+{
+    public UnityObjectRef<ColorPaletteLibrarySO> library;
+}
+
+

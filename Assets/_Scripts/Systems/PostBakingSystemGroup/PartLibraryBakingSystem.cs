@@ -1,11 +1,11 @@
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
 
 // Bakes the PartLibrarySO into an enum-indexed PartLibraryBlob (Data-Blob-Pointer pattern), one
-// PartDef slot per PartDefId. Mirrors ItemLibraryBakingSystem; the nested BlobArrays (ranges, zones)
-// are hand-built. Tag/group strings are copied into FixedString32Bytes (Burst-safe). Every slot gets
-// a safe default so a missing SO can never index out of range at runtime.
+// PartDef slot per UnitPartId. Mirrors ItemLibraryBakingSystem; the nested design BlobArrays are
+// hand-built. Tag/group strings are copied into FixedString32Bytes (Burst-safe). Every slot gets a
+// safe default so a missing SO can never index out of range at runtime. DESIGN only — ragdoll
+// config bakes through RagdollJointAuthoring on the joint empties, never through this blob.
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct PartLibraryBakingSystem : ISystem
@@ -26,28 +26,24 @@ public partial struct PartLibraryBakingSystem : ISystem
 
         if (librarySO == null) return;
 
-        int partCount = BlobLibraryUtils.EnumCount<PartDefId>();
+        int partCount = BlobLibraryUtils.EnumCount<UnitPartId>();
 
         using BlobBuilder builder = new BlobBuilder(Allocator.Temp);
         ref PartLibraryBlob root = ref builder.ConstructRoot<PartLibraryBlob>();
         BlobBuilderArray<PartDef> partsBuilder = builder.Allocate(ref root.parts, partCount);
 
-        // Seed every slot with a safe default (no design ranges, no ragdoll zones).
+        // Seed every slot with a safe default (no designs).
         for (int index = 0; index < partCount; index++)
         {
             ref PartDef def = ref partsBuilder[index];
-            def.id                   = (PartDefId)index;
-            def.group                = default;
-            def.defaultSettleSpeed   = 8f;
-            def.ragdollSegmentLength = 0.5f;
-            def.ragdollWeight        = 1f;
-            builder.Allocate(ref def.ranges, 0);
-            builder.Allocate(ref def.zones, 0);
+            def.id    = (UnitPartId)index;
+            def.group = default;
+            builder.Allocate(ref def.designs, 0);
         }
 
         // Overwrite the slots that have an authored SO.
         bool[] slotAuthored = new bool[partCount];
-        foreach (PartDefinitionSO partSO in librarySO.parts)
+        foreach (UnitPartSO partSO in librarySO.parts)
         {
             if (partSO == null) continue;
 
@@ -56,37 +52,44 @@ public partial struct PartLibraryBakingSystem : ISystem
 
             if (slotAuthored[slot])
                 UnityEngine.Debug.LogWarning(
-                    $"[PartLibraryBaking] Duplicate PartDefId {partSO.id} — '{partSO.name}' overwrites an " +
+                    $"[PartLibraryBaking] Duplicate UnitPartId {partSO.id} — '{partSO.name}' overwrites an " +
                     "earlier SO with the same id (last-one-wins). Fix the library so each id is authored once.");
             slotAuthored[slot] = true;
 
             ref PartDef def = ref partsBuilder[slot];
-            def.id                   = partSO.id;
-            def.group                = ToFixed(partSO.group, partSO.name, "group");
-            def.defaultSettleSpeed   = partSO.defaultSettleSpeed > 0f ? partSO.defaultSettleSpeed : 8f;
-            def.ragdollSegmentLength = partSO.ragdollSegmentLength > 0f ? partSO.ragdollSegmentLength : 0.5f;
-            def.ragdollWeight        = partSO.ragdollWeight > 0f ? partSO.ragdollWeight : 1f;
+            def.id    = partSO.id;
+            def.group = ToFixed(partSO.group, partSO.name, "group");
 
-            // Fill ranges immediately (don't hold the BlobBuilderArray across the next Allocate).
-            int rangeCount = partSO.ranges != null ? partSO.ranges.Count : 0;
-            BlobBuilderArray<PartTagRange> rangesBuilder = builder.Allocate(ref def.ranges, rangeCount);
-            for (int rangeIndex = 0; rangeIndex < rangeCount; rangeIndex++)
+            int designCount = partSO.designs != null ? partSO.designs.Count : 0;
+            BlobBuilderArray<PartDesignDef> designsBuilder = builder.Allocate(ref def.designs, designCount);
+            for (int designIndex = 0; designIndex < designCount; designIndex++)
             {
-                PartRange source = partSO.ranges[rangeIndex];
-                rangesBuilder[rangeIndex] = new PartTagRange
+                PartDesign source = partSO.designs[designIndex];
+                if (source == null)
                 {
-                    tag          = ToFixed(source.tag, partSO.name, "range tag"),
-                    min          = source.min,
-                    max          = source.max,
-                    step         = source.step > 0 ? source.step : 1,
-                    randomizable = source.randomizable,
+                    // A default struct would be a phantom 1-slice empty-tag design (slice 0 in every
+                    // pool) — bake an inverted span instead so RangeCount resolves to 0.
+                    designsBuilder[designIndex] = new PartDesignDef
+                    {
+                        tag             = default,
+                        minTextureIndex = 0,
+                        maxTextureIndex = -1,
+                        step            = 1,
+                    };
+                    continue;
+                }
+
+                designsBuilder[designIndex] = new PartDesignDef
+                {
+                    tag             = ToFixed(source.tag, partSO.name, "design tag"),
+                    minTextureIndex = source.minTextureIndex,
+                    maxTextureIndex = source.maxTextureIndex,
+                    step            = source.step > 0 ? source.step : 1,
+                    primaryColor    = ToPaletteSlot(source.primaryColor),
+                    secondaryColor  = ToPaletteSlot(source.secondaryColor),
+                    tertiaryColor   = ToPaletteSlot(source.tertiaryColor),
                 };
             }
-
-            int zoneCount = partSO.zones != null ? partSO.zones.Count : 0;
-            BlobBuilderArray<float2> zoneBuilder = builder.Allocate(ref def.zones, zoneCount);
-            for (int zoneIndex = 0; zoneIndex < zoneCount; zoneIndex++)
-                zoneBuilder[zoneIndex] = new float2(partSO.zones[zoneIndex].min, partSO.zones[zoneIndex].max);
         }
 
         BlobAssetReference<PartLibraryBlob> blobRef =
@@ -108,6 +111,30 @@ public partial struct PartLibraryBakingSystem : ISystem
             if (holder.ValueRO.library.IsCreated)
                 holder.ValueRW.library.Dispose();
         }
+    }
+
+    // Managed PaletteSlot (SO class) → blittable PartPaletteSlot. Null-safe: an unset inspector
+    // slot bakes as unused (palette None). Indices clamp into short range, never negative, and the
+    // window end never precedes its start.
+    private static PartPaletteSlot ToPaletteSlot(PaletteSlot source)
+    {
+        if (source == null) return default;
+
+        int minIndex = source.minColorIndex;
+        if (minIndex < 0) minIndex = 0;
+        if (minIndex > short.MaxValue) minIndex = short.MaxValue;
+
+        int maxIndex = source.maxColorIndex;
+        if (maxIndex < minIndex) maxIndex = minIndex;
+        if (maxIndex > short.MaxValue) maxIndex = short.MaxValue;
+
+        return new PartPaletteSlot
+        {
+            palette           = source.palette,
+            minColorIndex     = (short)minIndex,
+            maxColorIndex     = (short)maxIndex,
+            useAlternateColor = source.useAlternateColor,
+        };
     }
 
     // Managed-side string → FixedString32Bytes (baking is not Burst). Warns on truncation —

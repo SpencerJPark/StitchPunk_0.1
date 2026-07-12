@@ -78,6 +78,24 @@ public struct BodyPartTint : IComponentData
     public float4 Value; // RGBA, multiplies the sprite
 }
 
+// Per-instance colour for the packed mask's G layer (drives _SecondaryColor on the packed 2D
+// graphs, Hybrid Per Instance). PackedChannelRecolor uses RGB as the layer tint and ALPHA as the
+// layer blend strength (0 hides the layer). Baked white/alpha-1 by BodyPartAuthoring so unpaletted
+// parts match the shader defaults; DesignApplyUtil.ApplyDesign writes palette colours over it.
+[MaterialProperty("_SecondaryColor")]
+public struct BodyPartSecondaryTint : IComponentData
+{
+    public float4 Value; // RGB layer tint, A = blend strength
+}
+
+// Per-instance colour for the packed mask's B layer (drives _TertiaryColor). Same semantics as
+// BodyPartSecondaryTint.
+[MaterialProperty("_TertiaryColor")]
+public struct BodyPartTertiaryTint : IComponentData
+{
+    public float4 Value; // RGB layer tint, A = blend strength
+}
+
 // Damage color bool propertyBlock
 // tint for effects
 // disolve

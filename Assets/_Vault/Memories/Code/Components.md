@@ -29,15 +29,15 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `Interactions.cs` | `Components/AI/` | `Interaction`, `InteractionTimer`, `InteractionOccupant` buffer, interaction-type components |
 | `SpatialHashRegistry.cs` | `Components/AI/` | `SpatialHashRegistry` singleton (two NativeParallelMultiHashMaps) |
 | `CombatAI.cs` | `Components/AI/` | `Faction`, `ThreatEntry` buffer, `CombatTarget` (enableable), `ChaseConfig`, `MeleeAttackConfig`, `FactionRegistry` singleton |
-| `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent`. ⚠ `AnimatorTarget` buffer + `AnimationTargetTag` were **unified into `BodyPart` / `BodyPartInfo`** (CharacterRig refactor) — see `BodyPartComponents.cs` |
-| `BodyPartComponents.cs` | `Components/Units/` | **CharacterRig registry:** `BodyPart` buffer (root, replaces `AnimatorTarget` — `entity`+`target`+`partDef`+`flags`), `BodyPartInfo` (each part child, replaces `AnimationTargetTag`), `CharacterPalette` (`IPersist`, skin/hair colour indices), `CharacterRigConfig` + `RagdollJointBakeData` (both `[BakingType]`) |
+| `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent`, per-instance tints `BodyPartTint` (`_BaseColor`) + `BodyPartSecondaryTint` (`_SecondaryColor`) + `BodyPartTertiaryTint` (`_TertiaryColor`) — packed-recolor layer colours, baked white by `BodyPartAuthoring`, written by `DesignApplyUtil.ApplyDesign` (alpha = layer blend strength on G/B). ⚠ `AnimatorTarget` buffer + `AnimationTargetTag` were **unified into `BodyPart` / `BodyPartInfo`** (CharacterRig refactor) — see `BodyPartComponents.cs` |
+| `BodyPartComponents.cs` | `Components/Units/` | **CharacterRig registry:** `BodyPart` buffer (root, replaces `AnimatorTarget` — `entity`+`target`+`partDef`+`flags`), `BodyPartInfo` (each part child, replaces `AnimationTargetTag`), `CharacterPalette` (`IPersist`: `groups` shape tags + `colors` rolled `ColorChoice` per `ColorPaletteType` + `useAlternateColors` conversion mode), `CharacterRigConfig` + `RagdollJointBakeData` (both `[BakingType]`; the latter now carries the joint's RESOLVED settle/segment/weight from `RagdollJointAuthoring`) |
 | `PartLibraryComponents.cs` | `Components/Units/` | `PartLibrary` (singleton blob holder), `PartLibraryReference` (bake-time `UnityObjectRef<PartLibrarySO>`) — enum-indexed per-part static config (design grid + ragdoll zones) |
 | `DamageEvent.cs` | `Components/Combat/` | `DamageEvent` — **plain value struct** (NOT `IComponentData`), queued in the `DamageBus`. `sourceEntity` (Null = environmental) + `damageSource` + damage/knockback/AOE fields |
 | `DamageBus.cs` | `Components/Combat/` | `DamageBus` singleton — recycled `NativeQueue<DamageEvent>` transport (`raw` + `resolved`). Owned/disposed by `DamageBusSystem` |
 | `Hazard.cs` | `Components/Combat/` | `HazardZone` — proximity damage zone (spikes): `damageAmount`, `damageSource`, `radius`, `retriggerInterval`, `lastTriggerTime` (whole-zone gate), kill-knockback fields |
 | `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
 | `UnitDesignComponents.cs` | `Components/Units/` | `RandomizeDesign` (enableable), design tags. ⚠ `UnitSkinColor`/`UnitHairColor`/`UnitHeadShape`/`UnitNoseShape` removed — `CharacterPalette` is their successor |
-| `DesignComponents.cs` | `Components/Units/` | **Semantic** Unit Design: `DesignSlot` (`target`+`shapeIndex`), `PersistedDesign` (`IPersist`, rolled shapes — auto-saved), `PaletteChange`/`ShapeOverride`, `ChangeDesignRequest` (enableable, semantic re-skin: palette shift + shape overrides), `DesignReloadOnBake` (`[BakingType]`). Colours live in `CharacterPalette`; slices re-derived through the `PartLibrary` blob grid. ⚠ `DesignPart`/`DesignRange` buffers removed |
+| `DesignComponents.cs` | `Components/Units/` | **Semantic** Unit Design: `DesignSlot` (`target`+`shapeIndex`), `PersistedDesign` (`IPersist`, rolled shapes — auto-saved), `ShapeOverride`, `ChangeDesignRequest` (enableable, semantic re-skin: shape-tag `paletteChanges` + `shapeOverrides` + `alternateColorMode` Enable/Disable), `RandomTagOption` buffer (authored roll pool from `CharacterRigAuthoring.randomTags` — what a random spawn may look like), `DesignReloadOnBake` (`[BakingType]`). Colours live in `CharacterPalette`; slices re-derived through the `PartLibrary` blob, colours through the `ColorPaletteLibrary` blob. ⚠ `DesignPart`/`DesignRange` buffers removed |
 | `UnitVisualComponents.cs` | `Components/Units/` | `Outline`, `OutlineChild`, `OutlinedTag` |
 | `MovementComponents.cs` | `Components/Movement/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
 | `PathfindingComponents.cs` | `Components/Movement/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
@@ -45,10 +45,10 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
-| `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, visual root child — tilt/spin/flail), `Ragdoll2DJoint` (enableable, joint pivots — baked settle/segment/weight + pendulum flail state), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable — float3 flight velocity, restitution, airborne/sleeping), `RagdollSimConfig` (flat singleton, global tuning), `CorpseCells` (singleton corpse-stacking hash). ⚠ joints come from the `BodyPart` buffer (`RagdollJoint` flag), landing zones from the `PartLibrary` blob via `PartDefId` |
+| `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, visual root child — tilt/spin/flail), `Ragdoll2DJoint` (enableable, joint pivots — baked settle/segment/weight + pendulum flail state), `RagdollLandingZone` buffer (authored zones on each joint, from `RagdollJointSO` via `RagdollJointAuthoring`), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable — float3 flight velocity, restitution, airborne/sleeping), `RagdollSimConfig` (flat singleton, global tuning), `CorpseCells` (singleton corpse-stacking hash). ⚠ joints come from the `BodyPart` buffer (`RagdollJoint` flag); ragdoll config is fully separate from the design `PartLibrary` blob |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
 | `ItemLibraryComponents.cs` | `Components/Items/` | `ItemLibrary` (singleton blob holder), `ItemLibraryReference` (bake-time `UnityObjectRef<ItemLibrarySO>`) — item `ItemCategory` + effect data for AI item awareness. `PickupItemAction` tag itself lives in `AiComponents.cs` |
-| `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `UnitPrefabEntry` |
+| `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `ColorPaletteLibrary` (+`ColorPaletteLibraryReference`), `UnitPrefabEntry` |
 | `FactoryComponents.cs` | `Components/Structures/` | `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer, `FactoryGridConfig` singleton, `FactoryGridCell` buffer |
 | `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
 | `SceneTags.cs` | `Components/Tags/` | `MainMenuTag`, `GameSceneTag` |
@@ -245,14 +245,18 @@ BodyPartInfo (on each part child)             -- replaces AnimationTargetTag
     AnimationTarget target; PartDefId partDef; BodyPartFlags flags
 
 CharacterPalette (IPersist, on the root)
-    byte skinColor; byte hairColor            — colour-column indices; drive every part via colorAxis.
-    Zombify = ChangeDesignRequest{ paletteChanges.skin = zombieColumn }; SkinColor-axis parts (incl. eyes) re-derive.
+    FixedList512Bytes<PaletteEntry> groups   — active SHAPE tag per free-text group (e.g. "Skin"→"Tan")
+    FixedList64Bytes<ColorChoice>   colors   — rolled COLOUR index per ColorPaletteType (palette = sharing group)
+    byte useAlternateColors                  — 1 = every palette entry shows its ALTERNATIVE (zombie) variant
+    Zombify = ChangeDesignRequest{ paletteChanges("Skin"→"Zombie") + alternateColorMode = Enable };
+    parts re-derive shape slices + palette colours through DesignApplyUtil.ApplyDesign — rolled
+    identity is kept (pale skin → its corresponding pale-zombie alternative).
 
 CharacterRigConfig      [BakingType] marker on the root (added by CharacterRigAuthoring)
 RagdollJointBakeData    [BakingType] per-joint override carrier (settleSpeedOverride, groundBufferOverride)
 ```
 
-Enums (`Data/Enums/PartEnums.cs`): `PartDefId : short` (one per interchangeable part KIND, L/R share a kind), `PaletteGroup : byte {None, SkinColor, HairColor}`, `GridMode : byte {StrideFormula, ExplicitTable}`, `[Flags] BodyPartFlags : byte`.
+Enums: `UnitPartId : short` (`Data/Enums/PartEnums.cs`, one per interchangeable part KIND, L/R share a kind), `[Flags] BodyPartFlags : byte` (same file), `ColorPaletteType : byte` (`Data/Enums/ColorEnums.cs`, palette identity = colour sharing group). ⚠ shape groups are free-text strings now (no `PaletteGroup` enum); the old `GridMode` design grid is gone (tag ranges).
 
 ---
 

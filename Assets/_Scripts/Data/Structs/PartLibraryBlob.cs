@@ -1,35 +1,50 @@
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
 
-// Shared, immutable per-part static config, baked once into an enum-indexed blob by
-// PartLibraryBakingSystem and read from Burst jobs via the PartLibrary singleton. Design is a
-// tag-driven range list: each part belongs to a palette `group` (e.g. "Skin", "Hair", or empty for
-// none), and lists ranges each tagged with a colour/group label. The character rolls one tag per
-// group (saved in CharacterPalette, shared by every part in that group); a part's slice is looked up
-// by offset within the ranges whose tag matches the character's tag for its group (plus any
-// empty-tag / colour-independent ranges). Entities carry only a PartDefId index into `parts`.
+// Shared, immutable per-part DESIGN config, baked once into an enum-indexed blob by
+// PartLibraryBakingSystem and read from Burst jobs via the PartLibrary singleton. Design-only:
+// ragdoll/physics config lives on the joint empties (RagdollJointAuthoring → RagdollJointBakeData +
+// RagdollLandingZone buffer), fully separate from this blob.
+//
+// A part belongs to a shape-tag `group` and lists DESIGNS. Each design bundles one tagged
+// texture-slice span with its own palette slots, so shape and colour switch together: the character
+// rolls one tag per group (CharacterPalette.groups, shared by every part in that group), the part's
+// slice comes from the designs matching that tag (plus tag-independent empty-tag designs), and the
+// matched design's slots say which palette colours feed _BaseColor/_SecondaryColor/_TertiaryColor.
+// Entities carry only a UnitPartId index into `parts`.
 
-public struct PartTagRange
+// One palette reference on a design. The palette type is the colour sharing group — the character
+// rolls ONE index per ColorPaletteType (full palette length); the slot clamps that index into its
+// [minColorIndex, maxColorIndex] window at apply, so parts with the same window match exactly and a
+// narrowed window stays as close as possible. An unrolled palette falls back to minColorIndex (the
+// window start is the authored default). useAlternateColor statically shows the palette entry's
+// alternative variant for this slot (the character-level alt mode does the same for every slot).
+public struct PartPaletteSlot
 {
-    public FixedString32Bytes tag;        // colour/group label; empty = colour-independent ("any")
-    public int  min;                       // inclusive first slice
-    public int  max;                       // inclusive last slice
-    public int  step;                      // stride between slices (1 = contiguous; 2 = every other, e.g. interleaved eyes)
-    public bool randomizable;              // eligible for random spawn rolls (false = reached only via ChangeDesignRequest, e.g. Zombie)
+    public ColorPaletteType palette;        // None = slot unused (apply skips the property write)
+    public short            minColorIndex;  // window start — also the un-rolled default
+    public short            maxColorIndex;  // window end (inclusive; clamped to the palette length)
+    public bool             useAlternateColor; // always show the alternative variant (e.g. zombie skin)
+}
+
+// One look for a part: a tagged texture-slice span + the colours that go with it.
+public struct PartDesignDef
+{
+    public FixedString32Bytes tag;             // shape/colour label; empty = tag-independent ("any")
+    public int                minTextureIndex; // inclusive first texture-array slice
+    public int                maxTextureIndex; // inclusive last slice
+    public int                step;            // stride between slices (1 = contiguous; 2 = interleaved L/R)
+
+    public PartPaletteSlot primaryColor;    // → _BaseColor      (packed mask R, base fill)
+    public PartPaletteSlot secondaryColor;  // → _SecondaryColor (packed mask G layer)
+    public PartPaletteSlot tertiaryColor;   // → _TertiaryColor  (packed mask B layer)
 }
 
 public struct PartDef
 {
-    public PartDefId id;
-    public FixedString32Bytes group;       // shared palette group this part follows ("Skin"/"Hair"/empty)
-    public BlobArray<PartTagRange> ranges;
-
-    // Ragdoll config for parts flagged RagdollJoint.
-    public float             defaultSettleSpeed;  // deg/s toward the landing angle (0 = fall back to 8)
-    public float             ragdollSegmentLength; // pendulum length (world units) for the flail; default 0.5
-    public float             ragdollWeight;        // scales inherited motion + landing impulse; default 1
-    public BlobArray<float2> zones;               // landing zones (x = min, y = max), one picked at death
+    public UnitPartId id;
+    public FixedString32Bytes group;        // shared shape-tag group this part follows ("Skin"/"Hair"/empty)
+    public BlobArray<PartDesignDef> designs;
 }
 
 public struct PartLibraryBlob

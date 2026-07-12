@@ -31,16 +31,26 @@ public struct Ragdoll2D : IComponentData, IEnableableComponent
 // gravity + root-motion pseudo-forces while airborne, then handed to the authored settle lerp.
 public struct Ragdoll2DJoint : IComponentData, IEnableableComponent
 {
-    // Baked by CharacterRigBakingSystem (per-placement override / PartLibrary blob default)
+    // Baked by CharacterRigBakingSystem from the joint's RagdollJointBakeData (RagdollJointAuthoring)
     public float settleSpeed;   // exp-lerp rate toward targetAngle once grounded
-    public float segmentLength; // pendulum length for the flail (PartDef.ragdollSegmentLength)
-    public float weight;        // scales inherited motion + landing impulse (PartDef.ragdollWeight)
+    public float segmentLength; // pendulum length for the flail
+    public float weight;        // scales inherited motion + landing impulse
 
     // Simulation state (reset each death)
     public float targetAngle;     // randomly chosen from a landing zone at init
     public float currentZAngle;
     public float angularVelocity; // deg/s flail state
     public quaternion initialLocalRotation;
+}
+
+// ── On joint pivot entities — authored landing zones (degrees, local Z) ─────
+// Baked by RagdollJointAuthoring from its RagdollJointSO; Ragdoll2DInitSystem picks one at random
+// on death and rolls the joint's target angle inside it. Ragdoll config is fully separate from the
+// design pipeline (nothing ragdoll in the PartLibrary blob).
+[InternalBufferCapacity(4)]
+public struct RagdollLandingZone : IBufferElementData
+{
+    public float2 zone; // x = min°, y = max° (inclusive)
 }
 
 // ── On the root body entity — static config, never toggled ──────────────────

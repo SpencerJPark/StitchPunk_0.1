@@ -32,6 +32,22 @@ public class CharacterRigAuthoring : MonoBehaviour
              "a random design once on load. Leave unchecked for prefabs spawned at runtime.")]
     public bool reloadDesign;
 
+    [Tooltip("What a random spawn may roll, per shape-tag group: the character picks ONE tag per group " +
+             "from these lists (e.g. Skin: Pale/Tan/Dark). Designs whose tag is listed nowhere (e.g. " +
+             "\"Zombie\") are reachable only via ChangeDesignRequest. Authoring decides randomness — " +
+             "the UnitPartSO assets stay purely descriptive.")]
+    public List<RandomTagGroup> randomTags = new();
+
+    [System.Serializable]
+    public class RandomTagGroup
+    {
+        [Tooltip("Shape-tag group name, matching UnitPartSO.group (e.g. \"Skin\", \"Hair\").")]
+        public string group = "";
+
+        [Tooltip("The tags a random spawn may roll for this group.")]
+        public List<string> tags = new();
+    }
+
     [Header("Ragdoll")]
     [Tooltip("Bake the fake-ragdoll root config. Uncheck for characters that never ragdoll on death.")]
     public bool enableRagdoll = true;
@@ -92,6 +108,23 @@ public class CharacterRigAuthoring : MonoBehaviour
             AddComponent(entity, new CharacterPalette());
             AddComponent<ChangeDesignRequest>(entity);
             SetComponentEnabled<ChangeDesignRequest>(entity, false);
+
+            // Authoring-decided random roll pool: one entry per (group, tag) a spawn may roll.
+            DynamicBuffer<RandomTagOption> randomTagOptions = AddBuffer<RandomTagOption>(entity);
+            foreach (RandomTagGroup tagGroup in authoring.randomTags)
+            {
+                if (tagGroup == null || string.IsNullOrEmpty(tagGroup.group)) continue;
+
+                foreach (string tagName in tagGroup.tags)
+                {
+                    if (string.IsNullOrEmpty(tagName)) continue;
+
+                    RandomTagOption option = default;
+                    option.group.CopyFromTruncated(tagGroup.group);
+                    option.tag.CopyFromTruncated(tagName);
+                    randomTagOptions.Add(option);
+                }
+            }
 
             if (authoring.reloadDesign)
                 AddComponent<DesignReloadOnBake>(entity);
