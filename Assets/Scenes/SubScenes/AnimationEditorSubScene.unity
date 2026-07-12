@@ -338,6 +338,7 @@ MonoBehaviour:
     speed: 1
     looping: 1
   reloadDesign: 1
+  randomTags: []
   enableRagdoll: 1
   visualChild: {fileID: 0}
   bodyFallSpeed: 180
@@ -636,13 +637,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 24
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: 6d976bae68e6356478dbb5e456fcd374, type: 2}
+  unitPartDef: {fileID: 11400000, guid: 6d976bae68e6356478dbb5e456fcd374, type: 2}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!1 &3063929458238736078
 GameObject:
   m_ObjectHideFlags: 0
@@ -1299,13 +1298,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 20
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 0}
+  unitPartDef: {fileID: 0}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!4 &7103721774494699858
 Transform:
   m_ObjectHideFlags: 0
@@ -1335,13 +1332,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 22
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: f834add199e1235429b8011469876ff8, type: 2}
+  unitPartDef: {fileID: 11400000, guid: f834add199e1235429b8011469876ff8, type: 2}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!64 &7323800859754474168
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1398,13 +1393,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 21
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 0}
+  unitPartDef: {fileID: 0}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!4 &7638627330816481280
 Transform:
   m_ObjectHideFlags: 0
@@ -1469,13 +1462,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 19
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 0}
+  unitPartDef: {fileID: 0}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!1 &7968623207646656297
 GameObject:
   m_ObjectHideFlags: 0
@@ -1532,13 +1523,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 18
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: 7f2609a2507899d48b3e4f2f7de02a4f, type: 2}
+  unitPartDef: {fileID: 11400000, guid: 7f2609a2507899d48b3e4f2f7de02a4f, type: 2}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!64 &8153014078596977865
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1575,13 +1564,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 23
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: 7f7d41f83d2dc3c4c9d726ba0805258b, type: 2}
-  baseImageIndex: 0
-  tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  unitPartDef: {fileID: 11400000, guid: 7f7d41f83d2dc3c4c9d726ba0805258b, type: 2}
+  baseImageIndex: 3
+  tintColor: {r: 0.764151, g: 0.19824673, b: 0.19824673, a: 1}
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!23 &8225632836378888059
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1645,13 +1632,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 25
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: 42693f2c498ae0c45bd04ef17b54561b, type: 2}
+  unitPartDef: {fileID: 11400000, guid: 42693f2c498ae0c45bd04ef17b54561b, type: 2}
   baseImageIndex: 0
-  tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  tintColor: {r: 1, g: 1, b: 1, a: 0.25490198}
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!33 &8309298521867443607
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -1674,13 +1659,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 16
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: a69a2cc4e69acc14a8fe0f67d2d4b554, type: 2}
+  unitPartDef: {fileID: 11400000, guid: a69a2cc4e69acc14a8fe0f67d2d4b554, type: 2}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 1
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!4 &8823825511673768290
 Transform:
   m_ObjectHideFlags: 0
@@ -1710,13 +1693,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
   target: 17
   characterRoot: {fileID: 653683981}
-  partDef: {fileID: 11400000, guid: 7edfb8f6d8c550040b3835e4295d1194, type: 2}
+  unitPartDef: {fileID: 11400000, guid: 7edfb8f6d8c550040b3835e4295d1194, type: 2}
   baseImageIndex: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
-  isRagdollJoint: 0
+  useLayerChannels: 0
   isItemSocket: 0
-  settleSpeedOverride: 0
-  groundBufferOverride: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
