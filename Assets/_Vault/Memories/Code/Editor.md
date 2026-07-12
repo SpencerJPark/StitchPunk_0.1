@@ -31,6 +31,7 @@ single-character names, explicit types everywhere.
 | `PainterlyGradientLUTGenerator.cs` | Bakes the 64×64 gradient-map palette atlas (see [[Shaders]]). |
 | `ItemSOEditor.cs`, `BehaviorSOEditor.cs` | Custom inspectors for the SO data assets. |
 | `SearchableEnumDrawer.cs` | `PropertyDrawer` giving long enums a searchable popup. |
+| `ShowWhenDrawer.cs` | `PropertyDrawer` for `[ShowWhen("siblingBool", shownWhen)]` (`Data/Attributes/ShowWhenAttribute.cs`) — hides the field entirely unless a SIBLING bool matches; works in nested classes/list elements. Used by `PaletteSlot` (min/max only when `useFullRange` off) and `ColorVariation` (`alternative` only when `hasAlternative` on). |
 
 ---
 
