@@ -82,7 +82,12 @@ public partial struct ColorPaletteLibraryBakingSystem : ISystem
             for (int colorIndex = 0; colorIndex < paletteSO.colors.Length; colorIndex++)
             {
                 Color linearColor = paletteSO.colors[colorIndex].color.linear;
-                Color linearAlt = paletteSO.colors[colorIndex].alternative.linear;
+
+                // No authored alternative → bake the main colour into both slots, so alternate mode
+                // (zombify / slot useAlternateColor) simply keeps this entry unchanged at runtime.
+                Color linearAlt = paletteSO.colors[colorIndex].hasAlternative
+                    ? paletteSO.colors[colorIndex].alternative.linear
+                    : linearColor;
 
                 colorsBuilder[colorIndex] = new ColorBlob
                 {

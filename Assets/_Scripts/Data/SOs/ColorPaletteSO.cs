@@ -20,5 +20,10 @@ public class ColorPaletteSO : ScriptableObject
 public struct ColorVariation
 {
     public Color color;
+
+    [Tooltip("This entry has a distinct alternative (zombie/state or shade variant). Unchecked = " +
+             "alternate mode just shows the main color (the alternative field is ignored at bake).")]
+    public bool hasAlternative;
+
     public Color alternative;
 }
