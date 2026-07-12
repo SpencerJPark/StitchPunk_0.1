@@ -68,8 +68,12 @@ public class PaletteSlot
     [Tooltip("Which palette this slot draws from. None = slot unused (the part keeps its baked tint).")]
     [SearchableEnum] public ColorPaletteType palette = ColorPaletteType.None;
 
+    [Tooltip("Use the palette's ENTIRE colour range — min/max below are ignored, no index " +
+             "bookkeeping needed. Untick to narrow this slot to a window (fixed colour = [n,n]).")]
+    public bool useFullRange = true;
+
     public int minColorIndex;
     public int maxColorIndex;
-    
+
     public bool useAlternateColor = false;
 }

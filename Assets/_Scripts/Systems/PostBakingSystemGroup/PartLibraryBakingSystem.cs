@@ -114,11 +114,24 @@ public partial struct PartLibraryBakingSystem : ISystem
     }
 
     // Managed PaletteSlot (SO class) → blittable PartPaletteSlot. Null-safe: an unset inspector
-    // slot bakes as unused (palette None). Indices clamp into short range, never negative, and the
-    // window end never precedes its start.
+    // slot bakes as unused (palette None). useFullRange bakes a [0, short.MaxValue] window — the
+    // resolve-time clamp to the palette's real length turns that into "the whole palette", so the
+    // library never needs to know palette sizes. Indices clamp into short range, never negative,
+    // and the window end never precedes its start.
     private static PartPaletteSlot ToPaletteSlot(PaletteSlot source)
     {
         if (source == null) return default;
+
+        if (source.useFullRange)
+        {
+            return new PartPaletteSlot
+            {
+                palette           = source.palette,
+                minColorIndex     = 0,
+                maxColorIndex     = short.MaxValue,
+                useAlternateColor = source.useAlternateColor,
+            };
+        }
 
         int minIndex = source.minColorIndex;
         if (minIndex < 0) minIndex = 0;
