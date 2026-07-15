@@ -20,7 +20,10 @@ public partial struct ApplyAnimatedPoseSystem : ISystem
     }
 }
 
+// CameraVisible gate (part-level): off-screen parts keep their last pose — no transform writes, no
+// chunk dirtying. Sampling refreshes the pose the frame the rig re-enters view.
 [BurstCompile]
+[WithAll(typeof(CameraVisible))]
 public partial struct ApplyPoseJob : IJobEntity
 {
     public void Execute(
@@ -34,6 +37,7 @@ public partial struct ApplyPoseJob : IJobEntity
 }
 
 [BurstCompile]
+[WithAll(typeof(CameraVisible))]
 public partial struct ApplyAnimatedImageIndexJob : IJobEntity
 {
     public void Execute(

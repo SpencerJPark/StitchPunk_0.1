@@ -60,7 +60,11 @@ public partial struct AnimationSamplingSystem : ISystem
     }
 }
 
+// CameraVisible gate: sampling is the expensive per-part × per-layer × per-track work — skip it
+// entirely for off-screen rigs. AnimationTimeSystem stays UNGATED so layer timers keep advancing
+// off screen and units resume at the correct pose when they re-enter view.
 [BurstCompile]
+[WithAll(typeof(CameraVisible))]
 public partial struct SampleLayeredAnimationJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<AnimationLibraryBlob> library;

@@ -14,6 +14,11 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(SpawnSystemGroup))]
 public partial struct UnitSpawnerSystem : ISystem
 {
+    // Spawn points must land at least this far beyond the camera view radius so the player never
+    // sees a unit pop in. Larger than CameraVisibilitySystem's paddings on purpose.
+    private const float SPAWN_VIEW_PADDING = 10f;
+    private const int SPAWN_POSITION_ATTEMPTS = 8;
+
     private EntityQuery _poolQuery;
     private Random _random;
 
@@ -61,6 +66,12 @@ public partial struct UnitSpawnerSystem : ISystem
             return;
         }
 
+        // Spawn out of the player's view when the CameraView singleton is available (written by
+        // AudioManager from the active camera). Optional on purpose — scenes without it spawn anywhere.
+        bool avoidCameraView = SystemAPI.TryGetSingleton(out CameraView cameraView);
+        float noSpawnRadius = avoidCameraView ? cameraView.viewRadius + SPAWN_VIEW_PADDING : 0f;
+        float noSpawnRadiusSq = noSpawnRadius * noSpawnRadius;
+
         // --- Snapshot the current pool ---
         var pooledEntities = _poolQuery.ToEntityArray(Allocator.Temp);
         var pooledOwners   = _poolQuery.ToComponentDataArray<PoolOwner>(Allocator.Temp);
@@ -88,7 +99,8 @@ public partial struct UnitSpawnerSystem : ISystem
                 if (reclaimed.IsSet(i) || pooledOwners[i].unitType != targetType)
                     continue;
 
-                float3 pos = RandomPositionInRange(center, range, ref _random);
+                float3 pos = RandomSpawnPosition(center, range, ref _random,
+                    avoidCameraView, cameraView.center, noSpawnRadiusSq);
                 // Re-enable and reposition. ECB is FIFO, so Remove runs before SetComponent.
                 ecb.RemoveComponent<Disabled>(pooledEntities[i]);
                 ecb.SetComponent(pooledEntities[i], LocalTransform.FromPosition(pos));
@@ -101,7 +113,8 @@ public partial struct UnitSpawnerSystem : ISystem
             // Instantiate new entities for any remaining shortfall.
             for (int i = spawned; i < needed; i++)
             {
-                float3 pos = RandomPositionInRange(center, range, ref _random);
+                float3 pos = RandomSpawnPosition(center, range, ref _random,
+                    avoidCameraView, cameraView.center, noSpawnRadiusSq);
                 
                 Entity newBody = ecb.Instantiate(bodyPrefab);
                 ecb.SetComponent(newBody, LocalTransform.FromPosition(pos));
@@ -138,5 +151,28 @@ public partial struct UnitSpawnerSystem : ISystem
         float2 dir = random.NextFloat2Direction();
         float dist = random.NextFloat(0f, range);
         return center + new float3(dir.x * dist, 0f, dir.y * dist);
+    }
+
+    // Re-rolls until the candidate lands outside the camera's no-spawn radius. When the whole
+    // spawner area is on screen every attempt fails — spawn anyway (gameplay wins over hiding
+    // the pop-in).
+    private static float3 RandomSpawnPosition(
+        float3 center, float range, ref Random random,
+        bool avoidCameraView, float3 viewCenter, float noSpawnRadiusSq)
+    {
+        float3 candidate = RandomPositionInRange(center, range, ref random);
+        if (!avoidCameraView)
+            return candidate;
+
+        for (int attempt = 0; attempt < SPAWN_POSITION_ATTEMPTS; attempt++)
+        {
+            float2 offsetFromCamera = candidate.xz - viewCenter.xz;
+            if (math.lengthsq(offsetFromCamera) > noSpawnRadiusSq)
+                return candidate;
+
+            candidate = RandomPositionInRange(center, range, ref random);
+        }
+
+        return candidate;
     }
 }

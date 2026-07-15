@@ -26,6 +26,7 @@ These rules apply to **every file** in `_Scripts/`. No exceptions.
 - **Never allocate managed memory inside a Burst job** — no `new List<>`, no `string`, no boxing.
 - Use `NativeArray`, `NativeList`, `NativeHashMap`, etc. and dispose them properly (use `[DeallocateOnJobCompletion]` or manual `Dispose()` in `OnDestroy`).
 - Never write logic inside `IComponentData` structs — see [[Components]] for conventions.
+- **`CameraVisible` gates PRESENTATION only.** Animation sampling/apply, image-index pushes, and billboards may filter on it; simulation systems (AI, movement, combat, health, spawn logic) must NEVER — the world keeps running off screen, or behavior becomes camera-dependent and saves diverge.
 
 ## ScriptableObject → BlobAsset Pattern
 

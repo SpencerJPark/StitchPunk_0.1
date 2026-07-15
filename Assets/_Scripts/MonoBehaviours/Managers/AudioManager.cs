@@ -33,8 +33,15 @@ public class AudioManager : PersistentSingleton<AudioManager>
     public int poolSize = 32;
 
     [Header("Listener / view")]
-    [Tooltip("World radius around the camera ground point treated as 'on screen' for WorldMood + culling.")]
+    [Tooltip("Minimum/fallback world radius around the camera ground point treated as 'on screen' " +
+             "for WorldMood + visibility culling. The actual radius is computed each frame from the " +
+             "camera's ground-projected frustum corners (so zoom + map cam adapt automatically); " +
+             "this value is the floor, and the fallback when no corner ray hits the ground plane.")]
     public float cameraViewRadius = 25f;
+
+    [Tooltip("Ceiling on the computed view radius — keeps near-horizontal frustum corner rays from " +
+             "declaring the whole map 'on screen'.")]
+    public float maxCameraViewRadius = 120f;
 
     [Header("Music stems")]
     public AudioClip exploreMusic;
@@ -157,7 +164,41 @@ public class AudioManager : PersistentSingleton<AudioManager>
             _listenerQuery.SetSingleton(new ListenerPosition { value = ground });
 
         if (_cameraViewQuery.CalculateEntityCount() == 1)
-            _cameraViewQuery.SetSingleton(new CameraView { center = ground, viewRadius = cameraViewRadius });
+            _cameraViewQuery.SetSingleton(new CameraView { center = ground, viewRadius = ComputeGroundViewRadius(cam, ground) });
+    }
+
+    // Circumscribing ground-plane radius of what the camera actually sees: intersect the four
+    // viewport-corner rays with y = 0 and take the farthest hit from the ground center. Clamped to
+    // [cameraViewRadius, maxCameraViewRadius]; falls back to cameraViewRadius when no ray hits
+    // (camera looking up / parallel to the ground).
+    private float ComputeGroundViewRadius(Camera cam, float3 groundCenter)
+    {
+        float maxDistanceSq = 0f;
+        bool hitGround = false;
+
+        for (int cornerIndex = 0; cornerIndex < 4; cornerIndex++)
+        {
+            Vector3 viewportCorner = new Vector3(cornerIndex & 1, (cornerIndex >> 1) & 1, 0f);
+            Ray cornerRay = cam.ViewportPointToRay(viewportCorner);
+
+            if (Mathf.Abs(cornerRay.direction.y) < 0.001f)
+                continue;
+
+            float rayDistance = -cornerRay.origin.y / cornerRay.direction.y;
+            if (rayDistance <= 0f)
+                continue;
+
+            Vector3 groundHit = cornerRay.origin + cornerRay.direction * rayDistance;
+            float deltaX = groundHit.x - groundCenter.x;
+            float deltaZ = groundHit.z - groundCenter.z;
+            maxDistanceSq = Mathf.Max(maxDistanceSq, deltaX * deltaX + deltaZ * deltaZ);
+            hitGround = true;
+        }
+
+        if (!hitGround)
+            return cameraViewRadius;
+
+        return Mathf.Clamp(Mathf.Sqrt(maxDistanceSq), cameraViewRadius, maxCameraViewRadius);
     }
 
     private void ApplyMixerVolumes()

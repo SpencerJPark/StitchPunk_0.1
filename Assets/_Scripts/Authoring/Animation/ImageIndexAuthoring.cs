@@ -23,6 +23,11 @@ public class ImageIndexAuthoring : MonoBehaviour
             {
                 Value = 0
             });
+
+            // Standalone image-index quads belong to no rig, so CameraVisibilitySystem never flips
+            // this — it stays enabled and keeps the entity matching the gated presentation queries.
+            AddComponent<CameraVisible>(entity);
+            SetComponentEnabled<CameraVisible>(entity, true);
         }
     }
 }

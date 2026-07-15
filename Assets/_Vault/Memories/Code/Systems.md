@@ -98,6 +98,7 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `WaypointRegistrationSystem` | `WaypointRegistrationSystem.cs` | Registers `NavigationWaypoint` entities into the registry |
 | `FloatingWorldOriginSystem` | `FloatingWorldOriginSystem.cs` | Recenters world origin to prevent float precision loss |
 | `HordeSystem` | `HordeSystem.cs` | Creates/destroys horde entities, manages membership |
+| `CameraVisibilitySystem` | `CameraVisibilitySystem.cs` | Flips the `CameraVisible` enableable tag on rig roots + propagates to `BodyPart` children, from the `CameraView` singleton (XZ distance vs viewRadius, +5/+10 hysteresis paddings; `IgnoreComponentEnabledState` so off-screen roots re-enable). **Presentation-only gate** — animation sampling/apply/image-index/billboard chunk-filter on it; simulation systems must never gate on it. Prefab-lookup guard: spawn-frame `BodyPart` buffers still hold prefab entity refs — never written through (would corrupt the prefab's enable state); part sync self-heals via a drift check instead |
 
 ---
 

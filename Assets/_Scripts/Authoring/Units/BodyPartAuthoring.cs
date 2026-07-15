@@ -103,6 +103,11 @@ public class BodyPartAuthoring : MonoBehaviour
 
             AddComponent(entity, new PostTransformMatrix { Value = float4x4.identity });
 
+            // Camera-visibility gate (starts visible; CameraVisibilitySystem propagates the root's
+            // state here so part-level presentation jobs can chunk-filter on it).
+            AddComponent<CameraVisible>(entity);
+            SetComponentEnabled<CameraVisible>(entity, true);
+
             if (hasRenderer)
             {
                 AddComponent(entity, new ImageIndex { index = authoring.baseImageIndex, onUpdate = true });

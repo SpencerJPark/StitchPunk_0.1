@@ -31,6 +31,13 @@ Keep this file current: add a row when you add a request component; delete the r
 | `OnDialogueEvent` | DialogueUIManager (Mono) | `DialogueSystemGroup` — DialogueEventSystem; NarrativeDialogueBridgeSystem bridges to narrative |
 | `OnNarrativeEvent` | NarrativeProximitySystem, NarrativeDialogueBridgeSystem | NarrativeEventManager (Mono, async via UniTask) |
 
+## Read-only view/state singletons
+
+| Contract | Written by | Read by |
+|---|---|---|
+| `CameraView` (center + viewRadius) | AudioManager (Mono, each LateUpdate — radius computed from the camera's ground-projected frustum corners, clamped `[cameraViewRadius, maxCameraViewRadius]`) | WorldMoodSystem ("camera sees" tension), CameraVisibilitySystem (flips `CameraVisible`), UnitSpawnerSystem (spawns outside view + `SPAWN_VIEW_PADDING`) |
+| `CameraVisible` (enableable tag on rig roots, `BodyPart` children, standalone `ImageIndexAuthoring` quads) | CameraVisibilitySystem (GameManagerSystemGroup) | PRESENTATION ONLY: SampleLayeredAnimationJob, ApplyPoseJob/ApplyAnimatedImageIndexJob, UpdateImageIndexJob (`WithAll`), BillboardJob (parent lookup). ⚠ Simulation systems (AI/movement/combat/health) must NEVER gate on it |
+
 ## Bus contracts (NativeQueue singletons)
 
 | Contract | Owner | Producers | Resolution / consumer |

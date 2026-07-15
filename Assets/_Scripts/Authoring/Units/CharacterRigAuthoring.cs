@@ -102,6 +102,10 @@ public class CharacterRigAuthoring : MonoBehaviour
             AddBuffer<BodyPart>(entity);
             AddComponent<CharacterRigConfig>(entity);
 
+            // Camera-visibility gate (starts visible; CameraVisibilitySystem flips it from CameraView).
+            AddComponent<CameraVisible>(entity);
+            SetComponentEnabled<CameraVisible>(entity, true);
+
             // --- Design ---
             AddComponent<RandomizeDesign>(entity);
             SetComponentEnabled<RandomizeDesign>(entity, true);

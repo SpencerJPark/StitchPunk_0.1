@@ -12,11 +12,13 @@ partial struct BillboardSystem : ISystem {
 
     private ComponentLookup<LocalTransform> localTransformComponentLookup;
     private ComponentLookup<Dead>           deadLookup;
+    private ComponentLookup<CameraVisible>  cameraVisibleLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state) {
         localTransformComponentLookup = state.GetComponentLookup<LocalTransform>();
         deadLookup                    = state.GetComponentLookup<Dead>(true);
+        cameraVisibleLookup           = state.GetComponentLookup<CameraVisible>(true);
     }
 
     //[BurstCompile]
@@ -28,10 +30,12 @@ partial struct BillboardSystem : ISystem {
 
         localTransformComponentLookup.Update(ref state);
         deadLookup.Update(ref state);
+        cameraVisibleLookup.Update(ref state);
         BillboardJob billboardJob = new BillboardJob {
             cameraForward                 = cameraForward,
             localTransformComponentLookup = localTransformComponentLookup,
             deadLookup                    = deadLookup,
+            cameraVisibleLookup           = cameraVisibleLookup,
         };
         billboardJob.ScheduleParallel();
     }
@@ -44,6 +48,7 @@ partial struct BillboardSystem : ISystem {
 public partial struct BillboardJob : IJobEntity {
 
     [ReadOnly] public ComponentLookup<Dead> deadLookup;
+    [ReadOnly] public ComponentLookup<CameraVisible> cameraVisibleLookup;
 
     [NativeDisableParallelForRestriction] public ComponentLookup<LocalTransform> localTransformComponentLookup;
 
@@ -51,6 +56,11 @@ public partial struct BillboardJob : IJobEntity {
 
     public void Execute(in Billboard billboard, Entity entity) {
         Entity parent = billboard.parentEntity;
+
+        // CameraVisible gate: skip billboard rotation while the owning rig is off screen. Billboard
+        // quads aren't BodyPart entries, so read the parent rig's tag instead of carrying one.
+        if (cameraVisibleLookup.HasComponent(parent) && !cameraVisibleLookup.IsComponentEnabled(parent))
+            return;
 
         bool isDead = deadLookup.HasComponent(parent) && deadLookup.IsComponentEnabled(parent);
 

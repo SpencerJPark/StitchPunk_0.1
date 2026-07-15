@@ -70,12 +70,26 @@ AnimationAssignmentSystemGroup
   UnitFaceDirectionSystem        — sets Direction layer based on velocity
 
 AnimationExecutionSystemGroup
-  AnimationTimeSystem            — advances elapsed time, handles loop/clamp
-  AnimationSamplingSystem        — samples keyframes at current time
-  ApplyAnimatedPoseSystem        — writes position/rotation/scale to quad transforms
-  UpdateImageIndexSystem         — writes texture array index to MaterialPropertyBlock
-  BillboardSystem                — rotates root quad to always face camera
+  AnimationTimeSystem            — advances elapsed time, handles loop/clamp   [UNGATED — runs off screen]
+  AnimationSamplingSystem        — samples keyframes at current time           [gated: WithAll<CameraVisible> on roots]
+  ApplyAnimatedPoseSystem        — writes position/rotation/scale to quads     [gated: WithAll<CameraVisible> on parts]
+  UpdateImageIndexSystem         — writes texture array index to MPB           [gated: WithAll<CameraVisible> on parts]
+  BillboardSystem                — rotates root quad to always face camera     [gated: parent CameraVisible lookup]
 ```
+
+### Camera-visibility gating (`CameraVisible`)
+
+Off-screen rigs skip the expensive presentation work: `CameraVisibilitySystem` (GameManagerSystemGroup)
+flips the `CameraVisible` enableable tag on roots + parts from the `CameraView` singleton. Design:
+
+- **Timers keep advancing** (`AnimationTimeSystem` ungated) so units re-enter view at the correct
+  pose — sampling refreshes everything the first visible frame; no snap/stale-pose catch-up needed.
+- Assignment systems (`UnitAnimationAssignment`/`UnitFaceDirection`) stay ungated — they are
+  decision-side state, and gating them would desync `AnimationLayer` state off screen.
+- The tag is baked ENABLED by `CharacterRigAuthoring`/`BodyPartAuthoring`/`ImageIndexAuthoring`, so
+  worlds where `CameraVisibilitySystem` finds nothing to flip (e.g. the Animation Editor preview —
+  its `CameraView` stays at the default center 0 / radius 25 because no AudioManager writes it)
+  keep animating as long as the rig sits near the origin.
 
 ### File Paths (relative to `_Scripts/Systems/AnimationSystemGroup/`)
 
