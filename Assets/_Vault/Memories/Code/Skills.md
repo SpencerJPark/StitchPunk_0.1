@@ -81,4 +81,14 @@ Authors **Unity 6.5 reflection-API HLSL nodes** (`UNITY_EXPORT_REFLECTION`, one 
 
 ---
 
+## video-script *(content skill — not a scaffolder)*
+`.claude/skills/video-script/SKILL.md`
+
+Generates a **loose devlog video script + shot list** from what was actually built — code, vault design docs, and git history (feature mode: "video about the flee system"; time-window mode: "weekly update" → `git log --since`). Always asks format first (short-form Reels/TikTok/Shorts vs long-form YouTube devlog). Tone + audience come from [[Memories/Marketing/Strategy]]; planned devlog slots from `Spencer/Content_Recording.md`. Shots are limited to capturable footage (Play mode, Editor UI, code/IDE, vault art). Scripts save to `Assets/_Vault/Videos/`.
+
+**Use when:** "make me a video script", "devlog for X", "weekly update video", "script for a short/reel". **Not for:** marketing-strategy edits or store-page/announcement copy.
+**References:** `script-templates.md` (long/short-form skeletons + worked example)
+
+---
+
 *Maintained alongside the code it scaffolds. When you add or rename a skill in `.claude/skills/`, update this index.*
