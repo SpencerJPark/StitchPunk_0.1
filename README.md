@@ -5,7 +5,6 @@
 
 <img width="960" height="540" alt="StitchPunkTrailerGif" src="https://github.com/user-attachments/assets/47be679f-c4c8-4240-96a1-9713bdbf75e9" />
 <!-- ![Stitch Punk gameplay](docs/hero.gif) -->
-<p align="center"><em>▶ Screenshot / gameplay GIF goes here — see the comment above.</em></p>
 
 Stitch Punk is a solo, in-development project and my deep dive into **data-oriented game architecture**. The interesting part of this repository isn't a finished game — it's the engineering: a fully data-oriented simulation with a custom ECS animation pipeline, a utility-AI decision/execution split, incremental pathfinding for crowds, a data-driven design/appearance system, a reflection-API shader node library, and a suite of bespoke Unity editor tooling — all held to a strict, self-imposed set of engineering rules.
 
