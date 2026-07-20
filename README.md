@@ -1,15 +1,9 @@
+
 # Stitch Punk
 
 > A 2.5D real-time strategy game built from the ground up on **Unity DOTS** (Entities 6.5 / Jobs / Burst), where a necro-engineer reanimates corpses as Frankenstein minions, runs a factory, and unravels a murder mystery in a necromancy-powered industrial revolution.
 
-<!--
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │  HERO MEDIA — add a screenshot or gameplay GIF here before sharing.      │
-  │  This is the single highest-return addition to the README: a technical  │
-  │  reviewer decides in seconds whether to keep reading. Drop an image in   │
-  │  (e.g. docs/hero.gif or docs/screenshot.png) and swap the line below.    │
-  └─────────────────────────────────────────────────────────────────────────┘
--->
+<img width="960" height="540" alt="StitchPunkTrailerGif" src="https://github.com/user-attachments/assets/47be679f-c4c8-4240-96a1-9713bdbf75e9" />
 <!-- ![Stitch Punk gameplay](docs/hero.gif) -->
 <p align="center"><em>▶ Screenshot / gameplay GIF goes here — see the comment above.</em></p>
 
