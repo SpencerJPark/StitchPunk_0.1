@@ -1,0 +1,1027 @@
+# Phase B Architecture — DOTS Animation Toolkit
+
+**Repo:** `C:\Users\spenc\Documents\GitHub\Stitch_Punk` · **Date:** 2026-07-26 · **Author:** Architect agent (Phase B)
+**Inputs honored:** `Docs/AnimationToolkit/Phase_A_Audit.md` (approved), `Docs/AnimationToolkit/Phase_A_Review.md`, `Assets/_Vault/Memories/Code/RULES.md`, `Assets/CLAUDE.md`, `Assets/_Scripts/Systems/SystemGroups.cs`.
+
+This document is self-contained: a build agent implements any module from its contract (§8) plus the referenced sections without reading the audit or the host codebase. Where the audit's preserve/absorb/replace verdicts are overruled, the overrule is stated inline and collected in §10.
+
+**Section anchors**
+1. [Package identity & layout](#s1) · 2. [Domain model & glossary](#s2) · 3. [Authoring data model](#s3) · 4. [Bake pipeline](#s4) · 5. [Runtime architecture](#s5) · 6. [Shader architecture](#s6) · 7. [Editor architecture](#s7) · 8. [Integration contracts](#s8) · 9. [Module build plan](#s9) · 10. [Answers to the audit's open questions](#s10) · 11. [Test strategy](#s11) · 12. [Risks & documented limitations](#s12) · 13. [Stitch Punk migration appendix](#s13)
+
+---
+
+<a name="s1"></a>
+## 1. Package identity & layout
+
+### 1.1 Identity
+
+| Field | Value |
+|---|---|
+| Display name | **DOTS Animation Toolkit** (final — product-owner decision, 2026-07-27) |
+| Package id | `com.stitchpunk.dotsanimationtoolkit` (final, same decision) |
+| Version | `0.1.0` during Phase C; `1.0.0` at first publish |
+| Unity | `6000.5` minimum (`"unity": "6000.5"` in package.json) |
+| Root namespace | `StitchPunk.AnimationToolkit` (+ `.Authoring`, `.Editor` sub-namespaces) |
+| Dependencies (package.json) | `com.unity.entities: 6.5.0`, `com.unity.entities.graphics: 6.5.0`, `com.unity.burst: 1.8.29`, `com.unity.collections: 6.5.0`, `com.unity.mathematics: 1.4.0`, `com.unity.render-pipelines.universal: 17.5.0` |
+| Forbidden dependencies | Anything under `Assets/` of the host project; `com.unity.physics`; UniTask; Reflex; Rive. Zero references to Stitch Punk game code — enforced by asmdef reference lists and by the packaging conformance test (§8 M6). |
+
+Development happens as an **embedded package** at `Packages/com.stitchpunk.dotsanimationtoolkit/` inside this repo (standard UPM embedded-dev workflow). The host project may reference it, never the reverse.
+
+**Naming note (product-owner decision, 2026-07-27):** the product name is **DOTS Animation Toolkit** / `com.stitchpunk.dotsanimationtoolkit`. The C# root namespace and asmdef prefix deliberately remain `StitchPunk.AnimationToolkit` — inside code the DOTS qualifier is redundant (everything in the package is DOTS), and shorter type-qualified names read better in user projects. This is an intentional id↔namespace divergence, not an incomplete rename.
+
+### 1.2 Folder tree
+
+```
+Packages/com.stitchpunk.dotsanimationtoolkit/
+├── package.json
+├── CHANGELOG.md
+├── LICENSE.md
+├── README.md
+├── Runtime/
+│   ├── StitchPunk.AnimationToolkit.Runtime.asmdef
+│   ├── Identity/            (ClipId, TargetId, StableIdUtility-runtime half)
+│   ├── Components/          (all IComponentData / IBufferElementData / enableables)
+│   ├── Blobs/               (ClipRegistryBlob + child structs)
+│   ├── Sampling/            (ClipSampler static Burst functions, easing, wrap math)
+│   ├── Systems/             (all ISystems + AnimationToolkitSystemGroups.cs)
+│   └── Api/                 (AnimationCommandUtil, PlaybackQuery, ToolkitWorldControl)
+├── Authoring/
+│   ├── StitchPunk.AnimationToolkit.Authoring.asmdef
+│   ├── Assets/              (RigAsset, ClipAsset, ClipSetAsset, VatTextureSetAsset)
+│   ├── Build/               (ClipRegistryBuilder — SO → BlobBuilder, shared by Baker & editor preview)
+│   ├── Validation/          (ClipValidation rule set, ValidationMessage)
+│   └── Baking/              (ActorAuthoring, RigTargetAuthoring, all Bakers, RigBindingBakingSystem)
+├── Editor/
+│   ├── StitchPunk.AnimationToolkit.Editor.asmdef        (Editor-only)
+│   ├── ClipEditor/          (ClipEditorWindow + UXML/USS + timeline elements)
+│   ├── Preview/             (PreviewPlaybackDriver, PreviewRigMirror, thumbnail renderers)
+│   ├── VatBaking/           (VatTextureBaker core + VatBakeWindow)
+│   ├── Inspectors/          (RigAsset/ClipSetAsset/VatTextureSetAsset custom editors)
+│   └── Migration/           (StableId regeneration tooling, id-collision postprocessor)
+├── Shaders/
+│   ├── Includes/            (ToolkitVat.hlsl, ToolkitBillboard.hlsl, ToolkitFlipbook.hlsl,
+│   │                         ToolkitInstancing.hlsl)
+│   ├── SubGraphs/           (VatBoneSkin, VatVertexFetch, FlipbookSliceUV, AtlasFrameUV,
+│   │                         BillboardTransform .shadersubgraph)
+│   ├── Graphs/              (ToolkitVatLit, ToolkitVatUnlit, ToolkitSpriteLit .shadergraph)
+│   └── HandWritten/         (ToolkitVatCrowdUnlit.shader — explicit DOTS-instancing macro reference)
+├── Tests/
+│   ├── EditMode/
+│   │   └── StitchPunk.AnimationToolkit.Tests.EditMode.asmdef
+│   └── PlayMode/
+│       └── StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef
+├── Samples~/
+│   ├── CutoutCharacter/     (2D paper-doll rig, transform+flipbook clips, billboard, events)
+│   ├── VatCrowd/            (bone-VAT: source skinned mesh + prebaked textures + 1000-instance scene)
+│   └── CompositeActor/      (one actor mixing transform tracks + VAT sub-part + flipbook face
+│                             + billboard + LOD + camera-sync sample MonoBehaviour ToolkitCameraSync)
+└── Documentation~/
+    ├── index.md             (manual: quick start, per-technique guides)
+    ├── shader-contract.md   (the §6 property table, normative copy)
+    ├── integration.md       (system-group insertion, visibility provider, event consumption)
+    └── platform-notes.md    (Switch/console format + budget guidance, §12 excerpts)
+```
+
+### 1.3 Assembly definitions
+
+| asmdef | References | Platforms | Notes |
+|---|---|---|---|
+| `StitchPunk.AnimationToolkit.Runtime` | Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Transforms | All | No UnityEditor usage anywhere. `allowUnsafeCode: true` (blob building helpers). |
+| `StitchPunk.AnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. |
+| `StitchPunk.AnimationToolkit.Editor` | Runtime, Authoring, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | **["Editor"] only** | Windows, preview, VAT texture baker, inspectors, id tooling. This is the fix for the audit §1/§4 finding (host `StitchPunk.Editor.asmdef` ships in builds — the package must never repeat it; enforced by test, §8 M6). |
+| `StitchPunk.AnimationToolkit.Tests.EditMode` | Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Burst | ["Editor"] | Pure math/data/determinism/validation tests (§11). |
+| `StitchPunk.AnimationToolkit.Tests.PlayMode` | Runtime, Authoring, UnityEngine.TestRunner, Unity.Entities, Unity.Entities.Hybrid, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Transforms | All (test framework standard) | World/system integration tests (§11). |
+
+Shader folders carry no asmdef (no C#). Samples carry their own small asmdefs referencing Runtime+Authoring only.
+
+---
+
+<a name="s2"></a>
+## 2. Domain model & glossary
+
+### 2.1 Concept graph
+
+```
+RigAsset ──defines──> Targets (stable-id'd named slots) + Layers (ordered priority slots)
+   ▲                        ▲
+   │ scoped to              │ tracks bind to targets by TargetId
+ClipAsset ──contains──> TransformTracks / SpriteTracks / EventMarkers / VatSource
+   ▲
+   │ registered in
+ClipSetAsset ──references──> RigAsset + N ClipAssets + (optional) VatTextureSetAsset
+   ▲                                                        ▲
+   │ bound by                                               │ produced by VatTextureBaker from
+ActorAuthoring (prefab root) ── children ──> RigTargetAuthoring parts (quads / VAT meshes / flipbook quads)
+   │
+   └─ bakes to ──> Actor entity (ClipRegistry blob + PlaybackLayer buffer + command/event buffers)
+                       └── part entities (RigPartBinding + TargetPose + material-property components)
+```
+
+### 2.2 Glossary (final names — used consistently package-wide)
+
+| Term | Final type name | Definition |
+|---|---|---|
+| **Rig** | `RigAsset` | The authoring definition of an animatable thing: its named **targets**, its ordered **layers**, and per-target defaults (kind, bounds extents). One rig serves many clips and many actors. |
+| **Target** | `RigTargetDefinition` (row in `RigAsset`) | A named, stable-id'd slot a track can animate — a 2D cutout part quad, a flipbook plane, or a VAT sub-mesh. Identified by `TargetId` (never by name or list position). |
+| **Layer** | `LayerDefinition` (row in `RigAsset`) | A playback slot on the actor. Layer identity **is** its list position (index = priority; higher index composites later, i.e. wins). Names are cosmetic. Max 8 layers per rig. |
+| **Clip** | `ClipAsset` | One animation: duration, loop default, blend defaults, tracks, event markers, optional VAT source. Identified by `ClipId` (§3.4). |
+| **Track** | `TransformTrack` / `SpriteTrack` (serialized rows in `ClipAsset`) | A keyed curve bound to one target: TRS keys (transform technique) or sprite-frame keys (flipbook technique). |
+| **Technique** | `AnimTechnique` (enum: `TransformTracks`, `FlipbookSlice`, `FlipbookAtlas`, `BoneVat`, `VertexVat`) | How a target's animation reaches the screen. One clip may span several techniques across its targets. Billboarding is not a technique — it is a per-target render modifier (§6). |
+| **Clip set** | `ClipSetAsset` | The registry: rig + clips + optional VAT texture set. Replaces the audit's `AnimationLibrarySO` (audit §8: Replace — honored). Bakes to one `ClipRegistryBlob`. |
+| **Texture set** | `VatTextureSetAsset` | The baked VAT product: textures + runtime mesh + per-clip frame ranges + bounds + `setKey`. Generated only by `VatTextureBaker`; treated read-only by hand. |
+| **Actor** | entity baked from `ActorAuthoring` | A composed character instance: one root entity carrying playback state, N part entities carrying presentation state. "Composition" from the product scope = an actor whose parts use different techniques driven by the same layers. |
+| **Part** | entity baked from `RigTargetAuthoring` | One child entity bound to a rig target (`RigPartBinding`). |
+| **Event** | `EventMarker` → `AnimEventOutput` | A typed, keyed marker on a clip's timeline; emitted into a per-actor buffer at runtime. `ClipFinished` is a reserved built-in event. |
+| **Command** | `AnimationCommand` | The request API games write: Play / Queue / Stop / SetSpeed / SetTime per layer. |
+
+Naming rules: assets end in `Asset`; runtime components are nouns (`PlaybackLayer`); enableable tags are adjectives/states (`AnimVisible`, `AnimEventsPending`, `RigBindingUninitialized`); material-property components end in `Property`; systems end in `System`; blob structs end in `Blob`. `EnabledRefRW/RO` parameters are named `<component>Enabled` (host convention, adopted package-wide).
+
+---
+
+<a name="s3"></a>
+## 3. Authoring data model
+
+All authoring types live in `StitchPunk.AnimationToolkit.Authoring`. All are plain `ScriptableObject`s; tracks/keys/markers are `[Serializable]` classes **inline in the ClipAsset** (audit §8 absorbs the inline-track shape — sub-asset-per-keyframe was the orphaned `KeyframeSO` design and stays dead). The one sub-asset relationship: **ClipAssets may optionally be created as sub-assets of their ClipSetAsset** via the editor's "New Clip in Set" action, keeping a set self-contained for distribution; free-standing clip assets are equally valid — the builder only follows references.
+
+### 3.1 `RigAsset`
+
+```csharp
+public sealed class RigAsset : ScriptableObject
+{
+    [SerializeField] internal ulong stableId;                 // §3.4; asset-level identity
+    public List<RigTargetDefinition> targets;                 // unique stableId per row (uint)
+    public List<LayerDefinition> layers;                      // index = priority; max 8
+    public MirrorPair[] mirrorPairs;                          // user-configured L/R table for Mirror Clip
+}
+
+[Serializable] public sealed class RigTargetDefinition
+{
+    public string displayName;                                // freely renameable
+    [SerializeField] internal uint stableId;                  // generated on add; never edited
+    public TargetKind kind;                                   // Quad, VatMesh, FlipbookPlane
+    public float3 boundsExtents;                              // conservative local half-extents used
+                                                              // by bake-time bounds math (§4.6); default 0.5
+}
+
+[Serializable] public sealed class LayerDefinition
+{
+    public string displayName;                                // cosmetic only
+    public bool defaultActive;                                // seeded into PlaybackLayer at bake
+}
+
+[Serializable] public struct MirrorPair { public uint leftTargetId; public uint rightTargetId; }
+```
+
+Validation (surfaced per §7.6, enforced at bake per §4.5): target `stableId` unique within rig; ≤ 8 layers; ≥ 1 layer; `boundsExtents` ≥ 0.
+
+Design note — layers are deliberately **positional**, not stable-id'd: a layer's meaning *is* its compositing priority, so reordering is a semantic edit (unlike renaming a clip). Targets, whose meaning is independent of order, get stable ids.
+
+### 3.2 `ClipAsset`
+
+```csharp
+public sealed class ClipAsset : ScriptableObject
+{
+    [SerializeField] internal ulong stableId;                 // the ClipId value (§3.4)
+    public RigAsset rig;                                      // scope: tracks reference this rig's targets
+    [Min(0.001f)] public float duration;                      // seconds; validation floor 1 ms
+    public LoopMode defaultLoop;                              // Once, Loop, PingPong
+    [Min(0f)] public float defaultBlendIn;                    // seconds; 0 = pop
+    [Min(0f)] public float defaultBlendOut;
+    public List<TransformTrack> transformTracks;
+    public List<SpriteTrack> spriteTracks;
+    public List<EventMarker> events;
+    public VatClipSource vatSource;                           // optional; used only by VatTextureBaker
+}
+
+[Serializable] public sealed class TransformTrack
+{
+    public uint targetId;                                     // RigTargetDefinition.stableId
+    public TrackBlendOp blendOp;                              // Override, Additive
+    public AnimatedChannels channels;                         // [Flags]: PositionXY, LayerZ, RotationZ, Scale, SpriteFrame-excluded
+    public List<TransformKey> keys;                           // kept time-sorted by editor; bake re-verifies
+}
+
+[Serializable] public struct TransformKey
+{
+    public float normalizedTime;                              // [0,1]
+    public float3 position;                                   // x/y local offset, z = draw-layer order (audit §2.5 convention absorbed)
+    public float rotationZ;                                   // degrees
+    public float2 scale;                                      // negative = flip (applied via PostTransformMatrix, §5.6)
+    public Interpolation interpolation;                       // Linear, Step, EaseIn, EaseOut, EaseInOut (audit easings absorbed)
+}
+
+[Serializable] public sealed class SpriteTrack
+{
+    public uint targetId;
+    public SpriteFrameMode mode;                              // Slice (Texture2DArray index) or AtlasRect
+    public List<SpriteKey> keys;
+}
+
+[Serializable] public struct SpriteKey
+{
+    public float normalizedTime;
+    public int sliceIndex;                                    // Slice mode; -1 = no change (audit convention absorbed)
+    public float4 atlasRect;                                  // AtlasRect mode: scale.xy, offset.zw
+}
+
+[Serializable] public struct EventMarker
+{
+    public float normalizedTime;
+    public uint eventKey;                                     // user key ≥ 16; 0–15 reserved (§5.5, V09)
+    public int intParam;
+    public float floatParam;
+}
+
+[Serializable] public sealed class VatClipSource                // consumed only in-editor by VatTextureBaker
+{
+    public AnimationClip sourceClip;                          // Unity clip sampled at bake time
+    [Min(1f)] public float sampleFps;                         // default 30
+    public bool loopSafe;                                     // bake duplicate first frame at the end (§4.7)
+}
+```
+
+### 3.3 `ClipSetAsset` and `VatTextureSetAsset`
+
+```csharp
+public sealed class ClipSetAsset : ScriptableObject
+{
+    [SerializeField] internal ulong stableId;
+    public RigAsset rig;
+    public List<ClipAsset> clips;                             // all must reference the same rig
+    public VatTextureSetAsset vatTextures;                    // required iff any clip has a VatClipSource
+}
+
+public sealed class VatTextureSetAsset : ScriptableObject     // GENERATED by VatTextureBaker; fields read-only in inspector
+{
+    [SerializeField] internal ulong setKey;                   // stable id; the blob↔texture link key (§4.4)
+    public VatFlavor flavor;                                  // BoneMatrix, VertexPosition
+    public Texture2D boneTexture;                             // BoneMatrix flavor
+    public Texture2D positionTexture;                         // VertexPosition flavor
+    public Texture2D normalTexture;                           // VertexPosition flavor, optional
+    public Mesh runtimeMesh;                                  // static mesh with indices/weights packed in UV1/UV2 (bone flavor)
+    public int boneCount;                                     // bone flavor
+    public int vertexCount;                                   // vertex flavor
+    public int textureWidth;                                  // texel addressing params, mirrored into blob
+    public int rowsPerFrame;                                  // 1 for bone flavor; ceil(vertexCount/width) for vertex flavor
+    public List<VatClipRange> clipRanges;                     // one per baked clip
+    public ulong sourceHash;                                  // hash of (source mesh + clips + settings); staleness detection
+    public int schemaVersion;
+}
+
+[Serializable] public struct VatClipRange
+{
+    public ulong clipId;                                      // ClipAsset.stableId this range belongs to
+    public int frameStart;                                    // first global frame index in the texture
+    public int frameCount;                                    // includes the duplicated loop frame when loopSafe
+    public float fps;
+    public Bounds bounds;                                     // object-space AABB over all baked frames
+}
+```
+
+### 3.4 Identity scheme (the enum-ordinal replacement — exact specification)
+
+The audit (§3.1, §7, open question 1) shows enum-ordinal identity corrupts data on mid-enum insertion. Replacement:
+
+**ID type.** `ClipId` is a 64-bit value type in the Runtime asmdef:
+
+```csharp
+public readonly struct ClipId : IEquatable<ClipId>
+{
+    public readonly ulong Value;
+    public ClipId(ulong value) { Value = value; }
+    public bool IsValid => Value != 0;                        // 0 reserved = "none/invalid"
+}
+```
+
+`TargetId` is the analogous 32-bit struct wrapping `uint` (per-rig scope makes 32 bits ample; 0 reserved).
+
+**Generation.** When an identity-bearing asset (`ClipAsset`, `RigAsset`, `ClipSetAsset`, `VatTextureSetAsset`) or a `RigTargetDefinition` row is created and its `stableId == 0`, the Authoring layer assigns `stableId = Fold(Guid.NewGuid())` where `Fold` xors the GUID's high and low 64 bits (targets truncate to 32 bits). Assignment happens in `OnValidate` (covers Reset/duplication-then-clear) and in the editor asset factories. IDs are **random, not name-derived** — renames can never change identity.
+
+**Persistence.** `stableId` is a `[SerializeField] internal` field, hidden from direct editing, drawn read-only (hex) in a foldout by the custom inspectors. It never changes after creation except through the explicit remap tooling below.
+
+**Stability guarantees.** Rename-safe (id ≠ name), reorder-safe (lookups by id, never list index), move-safe (id ≠ path/GUID). Duplicating an asset copies the id: an `AssetPostprocessor` in the Editor asmdef maintains a project-wide id→GUID index; on import, if two assets share a `stableId`, the **newer** asset (by creation, i.e. the one just imported that isn't the indexed owner) gets a fresh id and a console warning naming both assets. This makes duplicate-then-edit workflows safe by default.
+
+**Remapping.** `Editor/Migration/StableIdRemapUtility` supports (a) "Adopt id from other asset" (delete-and-recreate recovery: point the new asset at the old id, with collision check) and (b) regenerate-with-log. There is no runtime remap table — ids are the canonical key end-to-end.
+
+**Collision policy.** 64-bit random ids make collisions negligible (< 10⁻⁹ at 100k clips); bake still validates uniqueness within a `ClipSetAsset` and **fails the bake** with both asset paths on violation.
+
+**Ergonomics.** Games reference clips as constants: the Editor menu action "Generate Clip Id Constants" writes a `public static class` of `public static readonly ClipId` fields (identifier-sanitized clip names) for a selected `ClipSetAsset` into a user-chosen file. Regeneration is idempotent; ids in the file are stable because the underlying ids are.
+
+**Runtime cost.** Commands carry `ClipId`; resolution to a dense blob index happens **once per Play/Queue command** via binary search over the blob's sorted id array (§4.3); per-frame code uses the cached dense index. This preserves the audit's O(1) steady-state praise (audit §7 "enum-indexed blob… O(1) clip fetch") while removing ordinal identity — a **partial overrule** of the audit's Absorb of the pre-filled-slot pattern: placeholder slots per enum value are replaced by resolve-time failure handling (§5.4), because a package cannot enumerate a closed clip universe.
+
+### 3.5 Validation rules (authoritative list; shared by inspectors, clip editor, and bake)
+
+`ClipValidation.Validate(...)` (Authoring asmdef, pure static, no UnityEditor) returns `ValidationMessage { Severity, code, assetContext, text }` lists. Rules:
+
+| Code | Severity | Rule |
+|---|---|---|
+| V01 | Error | `ClipAsset.duration < 0.001f` |
+| V02 | Error | Track `targetId` not present in `clip.rig` |
+| V03 | Error | Keys not strictly time-sorted (editor auto-sorts on edit; hand-edited assets fail here, mirroring audit §3.2's unvalidated-hand-edit gap) |
+| V04 | Error | `normalizedTime` outside [0,1] on any key/marker |
+| V05 | Error | Duplicate `ClipId` inside a `ClipSetAsset`; duplicate `TargetId` inside a `RigAsset` |
+| V06 | Error | Clip in set whose `rig != set.rig` |
+| V07 | Error | Set contains a VAT-sourced clip but `vatTextures == null`, or `vatTextures` lacks a `VatClipRange` for that `clipId` |
+| V08 | Error | `VatTextureSetAsset.sourceHash` mismatch vs current sources (stale bake) — recompute on demand in editor; at entity-bake time V08 downgrades to Warning (textures still work, just outdated) |
+| V09 | Error | `eventKey < 16` (0 = invalid, 1–15 reserved for built-ins, §5.5) |
+| V10 | Warning | Empty clip (no tracks, no events) — legal (poses = rest), flagged |
+| V11 | Warning | Clip listed twice in one set (deduped at bake) |
+| V12 | Warning | Blend default exceeds clip duration (clamped at bake) |
+| V13 | Error | Rig has 0 layers or > 8 layers |
+| V14 | Warning | Sprite `sliceIndex < -1` |
+
+---
+
+<a name="s4"></a>
+## 4. Bake pipeline
+
+### 4.1 Inventory
+
+| Piece | Kind | Asmdef | Responsibility |
+|---|---|---|---|
+| `ActorAuthoring` + `ActorBaker` | MonoBehaviour + `Baker<ActorAuthoring>` | Authoring | Root entity: builds the `ClipRegistryBlob` from the referenced `ClipSetAsset` (via `ClipRegistryBuilder`), registers it with `AddBlobAssetWithCustomHash`, adds all root components/buffers (§5.2), seeds starting layer state. `DependsOn` the set, rig, every clip, and the VAT texture set so edits retrigger baking. |
+| `RigTargetAuthoring` + `RigTargetBaker` | MonoBehaviour + Baker | Authoring | Part entity: `RigPartBinding` (bake-time `targetId`; dense index resolved by the baking system), `TargetRestPose` captured from the authoring transform, technique material-property components per `TargetKind`, `TransformUsageFlags.Dynamic | NonUniformScale` for quads (scale/flip support — fixing audit §2.1's dead-scale regression), identity `PostTransformMatrix`. |
+| `RigBindingBakingSystem` | `ISystem`, `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]`, `[UpdateInGroup(typeof(PostBakingSystemGroup))]`, `[BurstCompile]` | Authoring | Cross-entity pass: walks each actor's baked children, resolves each part's `targetId` → dense target index (order defined in §4.5), fills the root's `RigPartRef` buffer and each part's `RigPartBinding.targetIndex` + `actorRoot`. Errors (unknown targetId, duplicate binding) are reported via `Debug.LogError` with entity + asset context and the part is skipped. **Pure entity-data pass — Burst-compatible throughout; it touches no managed objects.** All managed validation (including the material↔texture-set check) lives in the managed Bakers (§4.4). |
+| `VatTextureBaker` | static editor class | Editor | Texture/mesh generation from skinned mesh + clips (§4.7). *Not* part of entity baking — it produces the `VatTextureSetAsset` that entity baking then consumes. Owned by module M2 (§8) even though it lives in the Editor asmdef. |
+
+**Decision — blob built in the Baker, not a baking system** (explicit deviation from the host's SO→Blob-in-`PostBakingSystemGroup` house pattern, which is a host convention, not an audit verdict): the registry blob is a pure function of ScriptableObject data with no cross-entity input, and `Baker.DependsOn` + `AddBlobAssetWithCustomHash` give incremental-rebake correctness and store-level dedup for free — exactly the two things the host's hand-rolled baking system gets wrong per the audit (§3.2: no dedup, multi-holder double-dispose). Cross-entity work (part index resolution) stays in `PostBakingSystemGroup` where it belongs. The blob's lifetime is owned by the BlobAssetStore — **no manual dispose anywhere**, which structurally eliminates the audit's double-dispose latent bug.
+
+### 4.2 Blob structs (exact sketches)
+
+```csharp
+public struct ClipRegistryBlob
+{
+    public int schemaVersion;                     // bump on any layout change; bake stamps it
+    public ulong setKey;                          // ClipSetAsset.stableId
+    public ulong vatSetKey;                       // VatTextureSetAsset.setKey or 0
+    public byte layerCount;
+    public BlobArray<ulong> sortedClipIds;        // ascending; binary-search key
+    public BlobArray<int> clipIndexById;          // parallel to sortedClipIds → index into clips
+    public BlobArray<ClipBlob> clips;
+    public BlobArray<uint> sortedTargetIds;       // ascending; targetId → dense index (position)
+    public BlobArray<float3> targetBoundsExtents; // per dense target index, from RigTargetDefinition
+    public VatTextureInfoBlob vatInfo;            // addressing params mirrored from the texture set
+}
+
+public struct ClipBlob
+{
+    public ulong clipId;
+    public FixedString64Bytes debugName;
+    public float duration;                        // seconds, ≥ 0.001
+    public LoopMode defaultLoop;
+    public float defaultBlendIn;                  // clamped ≤ duration
+    public float defaultBlendOut;
+    public BlobArray<TransformTrackBlob> transformTracks;   // sorted by dense target index
+    public BlobArray<SpriteTrackBlob> spriteTracks;         // sorted by dense target index
+    public BlobArray<EventMarkerBlob> events;               // sorted by normalizedTime, stable
+    public int vatFrameStart;                     // -1 when clip has no VAT range
+    public int vatFrameCount;
+    public float vatFps;
+    public AABB localBounds;                      // conservative actor-space bounds for this clip (§4.6)
+}
+
+public struct TransformTrackBlob
+{
+    public int targetIndex;                       // dense
+    public TrackBlendOp blendOp;
+    public AnimatedChannels channels;
+    public BlobArray<TransformKeyBlob> keys;      // sorted by time; interpolation resolved per key at bake
+}
+
+public struct TransformKeyBlob
+{
+    public float normalizedTime;
+    public float3 position;
+    public float rotationZ;                       // radians (converted at bake; authoring is degrees)
+    public float2 scale;
+    public Interpolation interpolation;
+}
+
+public struct SpriteTrackBlob
+{
+    public int targetIndex;
+    public SpriteFrameMode mode;
+    public BlobArray<SpriteKeyBlob> keys;         // sorted by time
+}
+
+public struct SpriteKeyBlob { public float normalizedTime; public int sliceIndex; public float4 atlasRect; }
+
+public struct EventMarkerBlob { public float normalizedTime; public uint eventKey; public int intParam; public float floatParam; }
+
+public struct VatTextureInfoBlob
+{
+    public VatFlavor flavor;
+    public int textureWidth;
+    public int rowsPerFrame;                      // 1 = bone flavor
+    public int boneOrVertexCount;
+}
+```
+
+**Textures never live in blobs** (hard constraint — honored): the blob stores only `vatSetKey` + addressing metadata. Texture objects reach the GPU via the material (§4.4).
+
+### 4.3 Lookup contract
+
+`ClipRegistryUtil.TryResolveClip(ref ClipRegistryBlob registry, ClipId clipId, out int clipIndex)` — binary search over `sortedClipIds`, `O(log n)`, Burst-compatible, called only when commands are applied (§5.4). `ResolveTargetIndex(ref registry, TargetId)` identical shape, used only at bind/bake time. Per-frame paths always use cached dense indices.
+
+### 4.4 Texture-set key scheme (blob metadata ↔ textures)
+
+Link key = `VatTextureSetAsset.setKey` (ulong, §3.4 identity rules), stored in `ClipRegistryBlob.vatSetKey` and in a per-actor component:
+
+```csharp
+public struct VatTextureBinding : IComponentData
+{
+    public ulong setKey;
+    public UnityObjectRef<Texture2D> boneOrPositionTexture;   // resolved from the SO at bake
+    public UnityObjectRef<Texture2D> normalTexture;           // Entity.Null-equivalent when absent
+}
+```
+
+Primary GPU binding is **material-level**: the actor's VAT material references the textures directly (shared material → shared batch). `VatTextureBinding` exists for (a) bake-time validation — performed in **`RigTargetBaker`** (Bakers are managed code, so Material access is legal there; the Bursted `RigBindingBakingSystem` never touches managed objects, §4.1): for `TargetKind.VatMesh` parts it reads the part Renderer's shared material (or the authoring `expectedMaterial` override when set) and the actor's `VatTextureSetAsset` via `GetComponentInParent<ActorAuthoring>()` (dependency-tracked by the Baker), and logs a warning when the material's `_VatBoneTex`/`_VatPosTex` slot differs from the set's textures — and (b) advanced hosts that build materials at runtime (sample shown in `CompositeActor`). Rationale: per-instance texture properties would break BRG batching; keys + shared materials keep one crowd = one batch.
+
+### 4.5 Determinism strategy
+
+A given set of source assets must produce a byte-identical blob on every bake, on every machine:
+
+1. **Canonical ordering.** Clips sorted by `clipId` ascending (list order irrelevant — duplicates deduped, V11). Targets sorted by `targetId` ascending; dense target index = position in that sorted order. Tracks sorted by dense target index (ties: transform before sprite; two tracks on the same target+kind sorted by authoring list order and **both kept** — see §5.6 multi-track rule, fixing the audit §3.4 editor/runtime divergence). Keys sorted by `normalizedTime` with stable original-order tie-break. Events likewise.
+2. **Canonical values.** Degrees→radians at bake; per-key interpolation stored resolved (audit's bake-resolved interpolation absorbed); blend defaults clamped; floats written as-is (no re-quantization — same input bits, same output bits).
+3. **Content hash.** `Unity.Collections.xxHash3.Hash64` (the collections package's 64-bit xxHash3 — no managed hashing) over a canonical byte stream built in an `UnsafeAppendBuffer`. Append order is normative: `schemaVersion` (int32), `setKey` (uint64), `vatSetKey` (uint64), `layerCount` (byte); then per clip **in `sortedClipIds` order**: `clipId` (uint64), `math.asuint(duration)`, `defaultLoop` (byte), `math.asuint(defaultBlendIn)`, `math.asuint(defaultBlendOut)`; then transform tracks in canonical order — per track: `targetIndex` (int32), `blendOp` (byte), `channels` (byte), key count (int32), then per key the `math.asuint` bits of every float field (`normalizedTime`, `position.xyz`, `rotationZ`, `scale.xy`) plus `interpolation` (byte); then sprite tracks, events, and the VAT fields (`vatFrameStart`, `vatFrameCount`, `math.asuint(vatFps)`) and `localBounds` (as `asuint` components) in the same per-field style. Floats are hashed **by bit pattern** via `math.asuint` — same input bits, same hash, no re-quantization. The `Unity.Entities.Hash128` passed to `AddBlobAssetWithCustomHash` is `new Hash128(lo32(contentHash), hi32(contentHash), (uint)schemaVersion, lo32(setKey) ^ hi32(setKey))` — **this is the BlobAssetStore dedup key**. Two actors sharing a `ClipSetAsset` share one blob; re-bakes with unchanged content are no-ops.
+4. **Determinism test** (§11): build the blob twice from the same fixture SOs in one editor session and from a shuffled clip/track list; assert identical content hash and identical `sortedClipIds`/`clips` streams.
+
+### 4.6 Bounds at bake
+
+Per clip: `localBounds` = union over transform tracks of, per key, `position.xy` offset ⊕ target's `boundsExtents` scaled by `max(|scale.x|, |scale.y|, 1)`, plus the rest-pose bounds of untracked targets; VAT clips union their `VatClipRange.bounds`. Conservative by construction (keys bound the extremes of all five interpolation modes because every easing here is monotonic between keys). Consumed by `RenderBoundsUpdateSystem` (§5.8). This answers audit open question 13: **yes, bake-time conservative bounds**.
+
+### 4.7 VAT texture baking design (`VatTextureBaker`)
+
+**Inputs:** a source prefab with `SkinnedMeshRenderer` (bone flavor) or any `Mesh`+clips (vertex flavor), the list of `ClipAsset`s (their `VatClipSource`s), a `VatBakeSettings { flavor, sampleFps default 30, precision, maxInfluences (1/2/4, default 4), bakeNormals }`.
+
+**Resampling policy:** each clip sampled at `sampleFps` (per-clip override wins over settings): `frameCount = round(duration × fps) + 1` — the last frame samples `t = duration` exactly. Clips marked `loopSafe` append **one more frame duplicating frame 0**, so the shader's `floor/floor+1` row lerp never reads across a clip boundary at the loop seam (§6.4). Sampling uses `clip.SampleAnimation(instance, t)` on a hidden temp instance inside `AnimationMode`-guarded scope; the temp instance is destroyed in a `finally`.
+
+**Bone flavor layout (priority flavor):**
+- One `Texture2D`, linear (sRGB off), no mips, point filter on X / bilinear conceptually on Y is done manually in-shader (§6.4), wrap = Clamp.
+- Texel `(b*3 + c, frameRow)` holds column `c` (0..2) of bone `b`'s object-space 3×4 skinning matrix rows (`float4` per texel: matrix row values; translation in the 4th components across the three texels). `width = boneCount × 3`; hard error if width > 2048 (682-bone ceiling — ample). `rowsPerFrame = 1`; global frame `f` occupies row `f`. Height = Σ frameCount over clips; error if > 8192 (platform-safe texture ceiling), with guidance to split sets.
+- Matrices are `worldToLocal-free`: `boneMatrix = bindPoseInverse × boneObjectSpaceTransform` — object-space in, object-space out; entity `LocalToWorld` does the rest. Object-space storage is the half-precision mitigation (§12 R2).
+- **Mesh conversion:** the baker writes a static `Mesh` asset: positions/normals/tangents/UV0 copied from the skinned mesh; `UV1 (TEXCOORD1) = float4 bone indices`, `UV2 (TEXCOORD2) = float4 bone weights` (top-`maxInfluences` weights renormalized, rest zeroed) — the product-scope-mandated UV-channel encoding.
+
+**Vertex flavor layout:**
+- Position texture: `width = min(nextPow2(vertexCount), 2048)`, `rowsPerFrame = ceil(vertexCount / width)`; vertex `v` of frame `f` at `(v % width, f × rowsPerFrame + v / width)`. Absolute object-space positions (not offsets) — simpler shader, same precision class. Optional normal texture, same layout.
+- `UV1.x = v` (vertex's own index) written into the runtime mesh so the shader can address its texel without SV_VertexID plumbing.
+
+**Precision/format choices per platform:**
+
+| Data | Default format | Rationale / platform notes |
+|---|---|---|
+| Bone matrix texture | `RGBAHalf` (R16G16B16A16_SFloat) | Universally supported incl. **Switch**; object-space translations of character-scale rigs stay ≪ half's 0.0005–0.001 precision band within ±2 (§12 R2). `RGBAFloat` opt-in per set for large creatures (memory ×2; discouraged on Switch in `platform-notes.md`, not blocked). |
+| Vertex position texture | `RGBAHalf`; `RGBAFloat` opt-in | Same. |
+| Vertex normal texture | `RGBAHalf` default; `RGBA8` octahedral-encoded opt-in ("compact normals") | RGBA8-octahedral halves memory for Switch crowds; decode is 6 ALU ops in `ToolkitVat.hlsl`. |
+| Block compression (BC/ASTC) | **Never** for VAT data | Block artifacts corrupt matrices/positions; enforced by the baker creating textures uncompressed and marking them `TextureImporterCompression.Uncompressed` (assets are generated with correct importer settings programmatically — the user never touches them). |
+
+All generated textures: sRGB **off** (carrying forward the audit's verified linear-data rule), readable **off**, mips **off**.
+
+**Outputs:** `VatTextureSetAsset` (+ textures + mesh as sub-assets of it, single self-contained artifact), `clipRanges` filled with per-clip `frameStart/frameCount/fps/bounds` (bounds measured from the sampled frames — exact, not estimated), `sourceHash` = `Unity.Collections.xxHash3.Hash64` over source mesh GUID+hash, clip GUIDs+lengths, and settings (same primitive as §4.5). Baking is deterministic given identical sources (same sampling times, same ordering: clips baked in `clipId` order).
+
+**Core is headless:** `VatTextureBaker.Bake(VatBakeInput, out VatBakeResult)` has no GUI dependency — EditMode tests drive it against a procedurally-built skinned mesh (§11). `VatBakeWindow` (§7) is a thin UI over it.
+
+---
+
+<a name="s5"></a>
+## 5. Runtime architecture
+
+### 5.1 System groups & host insertion
+
+```csharp
+namespace StitchPunk.AnimationToolkit
+{
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    public partial class AnimationToolkitSystemGroup : ComponentSystemGroup { }
+
+    [UpdateInGroup(typeof(AnimationToolkitSystemGroup), OrderFirst = true)]
+    public partial class AnimationToolkitBindingSystemGroup : ComponentSystemGroup { }
+
+    [UpdateInGroup(typeof(AnimationToolkitSystemGroup))]
+    [UpdateAfter(typeof(AnimationToolkitBindingSystemGroup))]
+    [UpdateBefore(typeof(AnimationToolkitPresentationSystemGroup))]
+    public partial class AnimationToolkitLogicSystemGroup : ComponentSystemGroup { }
+
+    [UpdateInGroup(typeof(AnimationToolkitSystemGroup), OrderLast = true)]
+    public partial class AnimationToolkitPresentationSystemGroup : ComponentSystemGroup { }
+}
+```
+
+- **No scene gating, no host tags.** The group runs whenever its queries match; an empty world costs nothing. Hosts that gate features (like Stitch Punk's `GameSceneSystemGroup`) disable the group wholesale via the provided helper `ToolkitWorldControl.SetEnabled(World world, bool enabled)` (sets `AnimationToolkitSystemGroup.Enabled`) — this replaces the audit §6.1 `GameSceneTag` coupling.
+- **Insertion into a host pipeline:** the package declares only `[UpdateInGroup(typeof(SimulationSystemGroup))]` — no Before/After edges, so it cannot conflict with host ordering. The host orders **its own** groups relative to the package type (e.g. Stitch Punk adds `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` to its `DesignSystemGroup`) — attributes live on host types referencing the package type, requiring zero package changes. Documented with the Stitch Punk-shaped example in `Documentation~/integration.md`.
+
+**Execution order diagram** (arrows = `UpdateBefore/After` edges inside the groups):
+
+```
+AnimationToolkitSystemGroup
+├─ AnimationToolkitBindingSystemGroup            (OrderFirst)
+│    └─ RigBindingSystem                          — spawn-time part re-binding
+├─ AnimationToolkitLogicSystemGroup               (ungated by visibility — timers run off-screen)
+│    ├─ CommandApplySystem                        — AnimationCommand → PlaybackLayer
+│    ├─ PlaybackTimeSystem        (after CommandApply)   — time/loop/pingpong/blend/finish/queue
+│    └─ EventEmissionSystem       (after PlaybackTime)   — clears + emits AnimEventOutput
+└─ AnimationToolkitPresentationSystemGroup        (gated on AnimVisible where marked ◆)
+     ├─ AnimLodDistanceSystem                     — optional, default-disabled
+     ├─ TransformSampleSystem     ◆ (after AnimLodDistance) — layers → TargetPose per part
+     ├─ TransformApplySystem      ◆ (after TransformSample) — TargetPose → LocalTransform + PostTransformMatrix
+     ├─ SpriteMaterialSystem      ◆ (after TransformSample) — sprite frames → _ImageIndex / _AtlasFrame
+     ├─ VatMaterialSystem         ◆ (after PlaybackTime, i.e. any presentation slot) — layers → _VatFrameA/B/_VatBlend
+     └─ RenderBoundsUpdateSystem    (after TransformSample; gated on the BoundsDirty enableable, §5.8 —
+                                     clip changes only, never per frame)
+```
+
+The ungated-logic / gated-presentation split absorbs the audit's praised design (audit §7 "visibility-gated presentation with ungated timers") verbatim.
+
+### 5.2 Runtime components (complete inventory)
+
+**Actor root** (added by `ActorBaker`):
+
+```csharp
+public struct ClipRegistry : IComponentData
+{
+    public BlobAssetReference<ClipRegistryBlob> value;        // BlobAssetStore-owned; never manually disposed
+}
+
+[InternalBufferCapacity(8)]
+public struct PlaybackLayer : IBufferElementData              // one element per rig layer, index = layer index
+{
+    public ClipId clip;             public int clipIndex;     // -1 = none/unresolved
+    public float time;              public float speed;       // seconds; speed may be negative (reverse)
+    public LoopMode loop;
+    public ClipId previousClip;     public int previousClipIndex;   // blend source
+    public float previousTime;      public float previousSpeed;
+    public float blendElapsed;      public float blendDuration;     // 0 = not blending
+    public ClipId queuedClip;       public float queuedSpeed;
+    public LoopMode queuedLoop;     public float queuedBlend;
+    public PlaybackFlags flags;     // Active | Blending | HasQueued | Finished | FinishedThisFrame
+}
+
+[InternalBufferCapacity(4)]
+public struct AnimationCommand : IBufferElementData
+{
+    public CommandKind kind;        // Play, Queue, Stop, SetSpeed, SetTime
+    public byte layerIndex;
+    public ClipId clip;
+    public float speed;             public LoopMode loop;
+    public float blendDuration;     // Play/Queue: crossfade in; Stop: fade-out; NaN = clip default
+    public float time;              // SetTime
+}
+public struct AnimationCommandPending : IComponentData, IEnableableComponent { }   // baked disabled
+
+[InternalBufferCapacity(4)]
+public struct AnimEventOutput : IBufferElementData
+{
+    public uint eventKey;           // user keys ≥ 16 (V09); 0 invalid, 1–15 reserved (ClipFinished = 1, ClipResolveFailed = 2)
+    public byte layerIndex;
+    public ClipId clip;
+    public int intParam;            public float floatParam;
+}
+public struct AnimEventsPending : IComponentData, IEnableableComponent { }         // baked disabled
+
+[InternalBufferCapacity(16)]
+public struct RigPartRef : IBufferElementData { public Entity part; public int targetIndex; }
+
+public struct RigBindingUninitialized : IComponentData, IEnableableComponent { }   // baked ENABLED (§5.3)
+public struct AnimVisible : IComponentData, IEnableableComponent { }               // baked ENABLED (§5.9)
+public struct BoundsDirty : IComponentData, IEnableableComponent { }               // baked ENABLED; clip-change signal (§5.8)
+public struct SampleSettings : IComponentData { public float rateHz; public float phase01; }  // 0 rate = every frame
+public struct AnimLod : IComponentData { public byte level; }                      // 0..3 (§5.10)
+public struct VatTextureBinding : IComponentData { /* §4.4 */ }
+```
+
+**Part child** (added by `RigTargetBaker`):
+
+```csharp
+public struct RigPartBinding : IComponentData { public Entity actorRoot; public int targetIndex; }
+public struct TargetRestPose : IComponentData { public float3 localPosition; public float rotationZ; public float2 scale; public int restSliceIndex; }
+public struct TargetPose : IComponentData { public float3 localPosition; public float rotationZ; public float2 scale; public int sliceIndex; public float4 atlasRect; }
+// + AnimVisible (propagated), + technique material-property components (§6.2), + PostTransformMatrix (identity)
+```
+
+**World singletons:**
+
+```csharp
+public struct AnimationToolkitConfig : IComponentData          // auto-created with defaults by
+{                                                              // ConfigBootstrapSystem if absent (zero-setup)
+    public float defaultSampleRateHz;                          // 0 = every frame (default)
+    public bool distanceLodEnabled;                            // default false
+    public float4 lodDistancesSq;                              // thresholds for AnimLodDistanceSystem
+}
+public struct AnimationToolkitCameraData : IComponentData      // written by host or by the sample
+{                                                              // ToolkitCameraSync MonoBehaviour (Samples~)
+    public float3 position;                                    // consumed only by AnimLodDistanceSystem
+}
+```
+
+### 5.3 `RigBindingSystem` (spawn remap)
+
+ECB-instantiate does not remap entity references inside dynamic buffers — the audit's proven fix (audit §3.3 `BodyPartInitSystem`) is absorbed: prefabs bake with `RigBindingUninitialized` **enabled**; instantiated copies therefore start enabled. `RigBindingSystem` queries enabled roots, rebuilds `RigPartRef` from `LinkedEntityGroup` (matching children by their `RigPartBinding.targetIndex`, which survives instantiation because it is plain data), rewrites `RigPartBinding.actorRoot`, then disables the tag. `[BurstCompile]`, `IJobEntity`, `ScheduleParallel` with `[NativeDisableParallelForRestriction]` lookups (each worker touches only its own actor's children).
+
+### 5.4 Playback state machine (`CommandApplySystem` + `PlaybackTimeSystem`)
+
+Per layer, the state machine has three states — **Stopped** (`!Active`), **Playing**, **Blending** (Playing + previous clip fading out) — plus a queued slot:
+
+- **Play(layer, clip, speed, loop, blend):** resolve `clip` → `clipIndex` (binary search, §4.3). Resolution failure ⇒ layer untouched, one `AnimEventOutput { eventKey = ReservedEventKeys.ClipResolveFailed }` emitted (reserved keys: 0 = invalid, `ClipFinished = 1`, `ClipResolveFailed = 2`, 3–15 reserved for future built-ins; user keys start at 16 — validation rule V09). Success ⇒ current clip (if any and `blend > 0`) is demoted to the `previous*` fields with its running time/speed; new clip starts at `time = 0` (or `duration` when `speed < 0`); `blendElapsed = 0`, `blendDuration = blend` (NaN ⇒ new clip's `defaultBlendIn`). `blend == 0` ⇒ hard cut (the old `SetLayer` pop, still available).
+- **Queue(...):** stores into `queued*`; `HasQueued` flag. One-deep by design (a deeper queue is game-side state; documented).
+- **Stop(layer, blend):** `blend == 0` ⇒ immediate deactivate; else current clip becomes `previous*` fading to nothing over `blend`, `clipIndex = -1`.
+- **PlaybackTimeSystem** advances `time += dt × speed` and `previousTime` likewise; advances `blendElapsed`; when `blendElapsed ≥ blendDuration` clears the blend. Loop handling per `LoopMode`: `Loop` = fmod wrap (wrap count preserved for event emission); `Once` = clamp at end, set `Finished | FinishedThisFrame`, deactivate after emitting; `PingPong` = time accumulates and sampling reflects it (`SamplePingPong(t) = duration − |duration − fmod(t, 2·duration)|`), never finishes. On finish with `HasQueued`: promote the queued clip with its blend (a finish-triggered crossfade from the final pose). Empty-duration guard: durations are ≥ 1 ms by validation (V01), so the audit's `float.MaxValue` completion hack is structurally impossible — a resolve failure emits `ClipResolveFailed` and the layer stays inactive, and `ClipFinished` is a real event, replacing the comment-mediated combat contract (audit §6.6).
+- Timers are **never** gated on `AnimVisible` (audit-absorbed contract): off-screen actors keep exact time, and events keep firing.
+
+**API surface** (games never touch buffers by hand):
+
+```csharp
+public static class AnimationCommandUtil        // Burst-compatible; callable from jobs holding the buffer + enabled-ref
+{
+    public static void Play(ref DynamicBuffer<AnimationCommand> commands, EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+                            byte layerIndex, ClipId clip, float speed = 1f, LoopMode loop = LoopMode.UseClipDefault, float blendDuration = float.NaN);
+    public static void Queue(/* same shape */);
+    public static void Stop(ref DynamicBuffer<AnimationCommand> commands, EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+                            byte layerIndex, float blendDuration = float.NaN);
+    public static void SetSpeed(...); public static void SetTime(...);
+}
+
+public static class PlaybackQuery               // read-side helpers over the PlaybackLayer buffer
+{
+    public static bool IsPlaying(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex, ClipId clip);
+    public static float NormalizedTime(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex);
+    public static bool FinishedThisFrame(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex);
+}
+```
+
+### 5.5 Events (`EventEmissionSystem`)
+
+Reserved keys: `ReservedEventKeys.ClipFinished = 1`, `ClipResolveFailed = 2`; user keys ≥ 16 (V09). Each frame the system **clears** each actor's `AnimEventOutput` buffer, disables `AnimEventsPending`, then emits: marker crossings between pre- and post-advance time (the audit's wrap-correct crossing math absorbed verbatim as a pure function `EventWrapMath.CollectCrossings` — including multi-wrap on large dt, and reverse-direction crossing when `speed < 0`), plus `ClipFinished` from `FinishedThisFrame`. Emission enables `AnimEventsPending` — consumers query the enableable, so event-less actors cost nothing. **Latency contract (documented):** events are valid from this group's execution until its next execution; host systems running earlier in the frame see the previous frame's events (1-frame latency); hosts that need same-frame events order themselves after `AnimationToolkitSystemGroup`.
+
+### 5.6 Transform technique (`TransformSampleSystem` → `TransformApplySystem`)
+
+`TransformSampleSystem` (`IJobEntity` over actor roots, `[WithAll(AnimVisible)]`, parts written via `[NativeDisableParallelForRestriction] ComponentLookup<TargetPose>` — each actor owns its parts): for each part, start from `TargetRestPose`, then composite layers **bottom-up (lowest index first)**:
+
+- For each active layer, sample each track bound to the part's `targetIndex` at that layer's effective time (PingPong-reflected; blend = also sample `previous*` and lerp poses by `w = blendElapsed / blendDuration` before compositing).
+- `Override` tracks replace exactly the channels in their `AnimatedChannels` mask; `Additive` tracks add position/rotation and multiply scale **onto the composited result of the layers below** — the sampler-semantics decision (audit open question 3): documented intent wins over the shipped claim-mask code; the claim mask is gone, replaced by natural bottom-up ordering (upper layers still win on contested channels because they composite later).
+- **All** tracks bound to a target apply, in canonical order — no first-match `break` — eliminating the audit §3.4 editor/runtime divergence by specification: there is exactly one sampler (§5.11).
+- Sample-rate quantization: an actor samples only on frames where `floor((elapsedTime + phase01 / rateHz) × rateHz)` advances, with `rateHz` from `SampleSettings` (fallback `AnimationToolkitConfig.defaultSampleRateHz`; 0 = every frame). `phase01` is baked from a hash of the authoring instance id and re-randomized by `RigBindingSystem` at spawn — per-entity phase spreads crowd sampling across frames (fixes the audit's global same-tick spike, open question 9). The sampled `normalizedTime` is **not** quantized (matches shipped runtime; the old editor-only quantization is dropped).
+
+`TransformApplySystem` writes, per part: `LocalTransform.Position` (xy offset + z layer order added to rest), `LocalTransform.Rotation` (Z), `LocalTransform.Scale = 1f`, and `PostTransformMatrix = float4x4.Scale(pose.scale.x, pose.scale.y, 1f)` — scale and flip (negative scale) are **live**, resolving the audit §2.1 dead-scale regression via the already-baked `NonUniformScale` path (open question 4 decision).
+
+### 5.7 Flipbook technique (`SpriteMaterialSystem`)
+
+Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (nearest-key, `-1` = keep current — audit convention absorbed) in `TransformSampleSystem` (same job — sprite keys are just another track kind). `SpriteMaterialSystem` copies pose → material-property components **directly**: `SpriteSliceProperty.Value = sliceIndex >= 0 ? sliceIndex : restSliceIndex` and `AtlasFrameProperty.Value = atlasRect`. The audit's two-hop `ImageIndex → ImageIndexOverride` staging with its rotted dirty flag is **replaced** (audit §8 verdict honored) by this single write. Design/skin systems in a host change the base look by writing `TargetRestPose.restSliceIndex` (same contract the host's DesignSystem relies on today, §13).
+
+### 5.8 VAT technique (`VatMaterialSystem`) and bounds
+
+For each actor whose registry has VAT clips: take the driving layer (parts declare it via `TargetKind.VatMesh` + the part-level `VatDriven { byte layerIndex }` component added by `RigTargetBaker`), compute:
+
+```
+localFrame(clip, t)  = clamp(fmod-or-clamp(t × clip.vatFps, per LoopMode), 0, clip.vatFrameCount − 1)
+_VatFrameA           = clip.vatFrameStart + localFrame(current)        // fractional global frame
+_VatFrameB           = previous clip active ? previousClip.vatFrameStart + localFrame(previous) : _VatFrameA
+_VatBlend            = blending ? blendElapsed / blendDuration : 0
+```
+
+written to the part's `VatFrameAProperty` / `VatFrameBProperty` / `VatBlendProperty`. The full CPU→GPU walk-through is §6.5. Loop seams are safe because loop-safe clips carry the duplicated final frame (§4.7), so `floor(frame)+1` never leaves the clip's row range.
+
+`RenderBoundsUpdateSystem`: gated on the **`BoundsDirty` enableable** — never a change-version filter on `PlaybackLayer`, which cannot work: `PlaybackTimeSystem` writes `time` into that buffer every frame for every active actor, so its change version bumps every frame and the filter would degenerate to always-true. The signal contract: `BoundsDirty` is baked **enabled** (guarantees a first-frame bounds write); it is **enabled by** `CommandApplySystem` whenever an applied Play/Stop changes any layer's `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, on Once-completion deactivation, and on blend completion (the previous clip leaves the union in all three). `RenderBoundsUpdateSystem` queries actors with `BoundsDirty` enabled (it runs after both writers — presentation group follows logic group, §5.1), computes the union of `localBounds` of all clips still referenced (current + blending previous, plus rest bounds), writes the root's `RenderBounds`, mirrors the union onto parts (conservative; per-part tightening is a non-goal), then **disables `BoundsDirty`** — the sole reset path. A frame with only time advance leaves the tag disabled and touches no bounds. Large-offset clips can no longer cull visibly (audit §7 bounds gap closed).
+
+### 5.9 Visibility boundary
+
+The package **owns** the enableable `AnimVisible` (default enabled = everything animates). It never sets it — any provider may: the host's culling system (Stitch Punk bridges `CameraVisible` → `AnimVisible`, §13), or nothing at all. Contract (documented, audit open question 8): presentation systems (◆ in §5.1) skip disabled actors; logic systems never look at it. Re-enable is self-healing: presentation systems run every frame for enabled actors, so the first visible frame re-samples and re-writes all properties — no dirty tracking needed.
+
+### 5.10 LOD design
+
+`AnimLod.level` (0–3) affects **CPU presentation only** — never timers, never events (gameplay correctness is LOD-independent):
+
+| Level | Effect |
+|---|---|
+| 0 | Full quality. |
+| 1 | Effective sample rate halved (`rateHz / 2`, or 30 Hz cap when rate = 0/uncapped). |
+| 2 | Quarter rate; transform blending visually snapped (weights clamp to 0/1; blend **timers** still advance normally — so a LOD swap mid-blend rejoins the correct weight, tested §11). |
+| 3 | Pose frozen unless the layer's clip changes; VAT properties still update at quarter rate (GPU cost is unaffected by CPU LOD). |
+
+Level is written by the host or by the optional `AnimLodDistanceSystem` (enabled via `AnimationToolkitConfig.distanceLodEnabled`, reads `AnimationToolkitCameraData`, squared-distance thresholds). Mesh-level LOD (swapping VAT mesh detail) is delegated to Entities Graphics' own LOD Group / MeshLOD path — the package does not duplicate it; the `VatCrowd` sample shows the combination.
+
+### 5.11 One sampler, everywhere
+
+`ClipSampler` (Runtime asmdef, `[BurstCompile]` static class, pure functions): `SamplePose(ref ClipBlob, int targetIndex, float normalizedTime, in TargetRestPose rest, out TargetPose)`, `CompositeLayers(...)`, easing functions, `EventWrapMath`, PingPong reflection, LoopMode time mapping. Runtime jobs, PlayMode tests, EditMode tests, and the editor preview (§7.3) all call these same functions — sampler divergence (audit §3.4) is eliminated structurally, not by discipline.
+
+### 5.12 Managed / un-Bursted inventory
+
+| Piece | Why managed | Player build? |
+|---|---|---|
+| `ToolkitCameraSync` MonoBehaviour | Reads `UnityEngine.Camera`; writes the `AnimationToolkitCameraData` singleton | Ships in **Samples~** only — not in Runtime/. Hosts with ECS-side camera data write the singleton themselves. |
+| `ConfigBootstrapSystem.OnCreate` | Singleton creation (main thread, once) | Runtime; `ISystem`, `[BurstCompile]` — not actually managed, listed for transparency: it does structural work in `OnCreate` only. |
+| Bakers, `ClipRegistryBuilder`, validation | Baking is managed by nature | Authoring asmdef; execution stripped from players by Unity. |
+| Everything under `Editor/` | Editor tooling | Never (Editor-only asmdef). |
+
+Every runtime per-frame system is `ISystem` + `[BurstCompile]` (struct and every method), jobs via `IJobEntity` `Schedule`/`ScheduleParallel` assigned to `state.Dependency`, never `.Run()`, `[ReadOnly]` from `Unity.Collections`, no `var`, no single-letter names, no per-frame managed allocations, structural changes via ECB only (the only structural ops at runtime are none — the package performs zero runtime structural changes; buffers and enableables cover everything). `SystemBase` count: **zero**.
+
+---
+
+<a name="s6"></a>
+## 6. Shader architecture
+
+### 6.1 Inventory
+
+| Artifact | Kind | Purpose |
+|---|---|---|
+| `ToolkitInstancing.hlsl` | include | The guarded DOTS-instancing block: `#ifdef UNITY_DOTS_INSTANCING_ENABLED` → `UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)` / one `UNITY_DOTS_INSTANCED_PROP` per row of §6.2 / `UNITY_DOTS_INSTANCING_END` + access macros. For hand-written shaders; ShaderGraph generates its own equivalent from Hybrid-Per-Instance declarations. |
+| `ToolkitVat.hlsl` | include | `VatBoneSkin(...)`, `VatVertexFetch(...)`: row addressing, manual frame lerp, dual-clip crossfade, octahedral normal decode. Pure functions — usable from Custom Function nodes and hand-written passes alike. |
+| `ToolkitBillboard.hlsl` | include | `BillboardTransform(positionOS, pivotOS, billboardParams, cameraPositionWS)` → camera-facing rotation in the vertex stage. **Facing source: `_WorldSpaceCameraPos` exclusively — never `UNITY_MATRIX_V`.** The per-camera position global holds the rendering camera's position throughout that camera's render, including the ShadowCaster/DepthOnly/DepthNormals/MotionVectors passes, whereas the view matrix belongs to the *light* during shadow rendering — a view-matrix billboard silently orients quads toward the light (forbidden by contract, §6.3). Modes (`billboardParams.x`): 0 = off, 1 = full (spherical: face `normalize(cameraPositionWS − pivotWS)`), 2 = Y-axis/upright (facing direction projected onto XZ), 3 = frozen-yaw (yaw locked to `billboardParams.y` radians, pitch follows camera — preserves the audit's dead-unit corpse behavior shader-side). |
+| `ToolkitFlipbook.hlsl` | include | `SliceUV(uv, imageIndex)` pass-through helpers + `AtlasFrameUV(uv, atlasRect)`. |
+| SubGraphs (`VatBoneSkin`, `VatVertexFetch`, `BillboardTransform`, `FlipbookSliceUV`, `AtlasFrameUV`) | `.shadersubgraph` | Custom Function nodes over the includes; the composable authoring surface for users' own graphs. **Standard Custom Function nodes, not the host's reflection-API node system** — the package must work in any Unity 6.5 project; the host may wrap the same includes in its reflection nodes locally. |
+| `ToolkitVatLit` / `ToolkitVatUnlit` | `.shadergraph` | Reference URP graphs, bone + vertex VAT variants via a static branch on a `_VatFlavor` material float; vertex stage = `VatBoneSkin`/`VatVertexFetch` (+ optional `BillboardTransform`); Lit = Opaque, AlphaClip optional, CastShadows on. |
+| `ToolkitSpriteLit` | `.shadergraph` | Quad/flipbook reference: slice (Texture2DArray) **and** atlas modes, billboard, `_BaseColor` multiply-tint (property name kept host-compatible per audit §5). |
+| `ToolkitVatCrowdUnlit.shader` | hand-written | The performance/crowd reference and the normative example of the explicit macro block + **all passes hand-declared**: `UniversalForward`, `ShadowCaster`, `DepthOnly`, `DepthNormals`, `MotionVectors` — each pass's vertex function calls the same VAT displacement. |
+
+### 6.2 Per-instance property table (normative — the CPU↔GPU contract)
+
+Every row is Hybrid-Per-Instance in graphs (`hlslDeclarationOverride: 3`) and in `ToolkitInstancing.hlsl`; every row has exactly one `[MaterialProperty]` component in the Runtime asmdef. Names are frozen at 1.0.
+
+| Shader property | Type | Component (Runtime) | Written by | Technique |
+|---|---|---|---|---|
+| `_ImageIndex` | float | `SpriteSliceProperty { float Value; }` | `SpriteMaterialSystem` | Flipbook (slice). Name preserved verbatim for host-shader compatibility (audit §8 Preserve). |
+| `_AtlasFrame` | float4 (scale.xy, offset.zw) | `AtlasFrameProperty { float4 Value; }` | `SpriteMaterialSystem` | Flipbook (atlas). |
+| `_VatFrameA` | float | `VatFrameAProperty { float Value; }` | `VatMaterialSystem` | VAT (both flavors): fractional **global frame index** of the current clip sample. |
+| `_VatFrameB` | float | `VatFrameBProperty { float Value; }` | `VatMaterialSystem` | VAT crossfade target sample. |
+| `_VatBlend` | float | `VatBlendProperty { float Value; }` | `VatMaterialSystem` | 0..1 crossfade weight A→B. |
+| `_BillboardParams` | float4 (x = mode, y = frozenYaw radians, zw reserved) | `BillboardParamsProperty { float4 Value; }` | game/host (or baked constant) | Billboard modifier. |
+| `_BaseColor` | float4 | *host-owned* (e.g. Stitch Punk's `BodyPartTint`) | host | Documented, not shipped — reference graphs declare it Hybrid-Per-Instance so host tint components bind unchanged. |
+
+Material-level (shared, **not** per-instance — anything per-instance here would break batching): `_VatBoneTex` / `_VatPosTex` / `_VatNormTex` (Texture2D), `_VatTexelParams` (float4: textureWidth, textureHeight, rowsPerFrame, boneOrVertexCount), `_VatFlavor`, `_MainTexArray` (Texture2DArray), `_MainTex`.
+
+### 6.3 Displacement in all passes
+
+- **ShaderGraph path:** vertex-stage position/normal/tangent modification in URP ShaderGraph is emitted into every generated pass — ShadowCaster, DepthOnly, DepthNormals, and MotionVectors included — so the reference graphs get correct shadows/depth/mv-depth by construction. Verified per-graph in Phase C by inspecting the generated shader (`Show Generated Code`) as a review gate (§9 C5/C6 DoD).
+- **Hand-written path:** `ToolkitVatCrowdUnlit.shader` declares each pass explicitly and calls the shared displacement — the file *is* the documentation of the pattern.
+- **Billboard facing across passes:** `BillboardTransform` derives facing exclusively from `_WorldSpaceCameraPos` (§6.1), so a billboarded quad presents the *same camera-facing geometry* in ShadowCaster, DepthOnly, DepthNormals, and MotionVectors as in the color pass. **Intended shadow behavior:** the quad casts the true shadow of its camera-facing orientation — silhouettes are self-consistent between what the camera sees and what the light shadows. Normative caveats (also in `shader-contract.md`): (a) shadows re-orient as the camera moves — inherent to imposters, negligible under the mostly-fixed 2.5D cameras this targets, visible under free orbit; (b) a camera-facing quad viewed edge-on by the light casts a near-degenerate thin shadow; (c) in renders not owned by a camera loop (e.g. lightmap baking), `_WorldSpaceCameraPos` is meaningless for facing — implementations must treat mode as 0 there (baked lighting of billboards is unsupported, documented).
+- **Motion-vector velocity caveat:** the MV pass renders VAT-displaced positions (correct depth), but the **velocity** it writes derives from the entity transform delta, not the deformation delta. Deformation-accurate velocity (previous-frame `_VatPrevFrameA/B/Blend` per-instance props + dual sampling in the MV pass) is designed but ships **default-off** behind the `_VAT_DEFORMATION_MV` shader feature in v1 — see §12 R6 for the risk entry and mitigation. This is a documented limitation, not an oversight; the audit found the host has motion vectors entirely unhandled today (§5), so v1 is a strict improvement.
+
+### 6.4 VAT sampling math (in `ToolkitVat.hlsl`)
+
+Bone flavor, per vertex:
+```
+frameA0 = floor(_VatFrameA); frameA1 = frameA0 + 1; fA = frac(_VatFrameA)
+row(f) = f                                  // rowsPerFrame == 1
+boneMatrix(b, f) = { tex[(b*3+0, f)], tex[(b*3+1, f)], tex[(b*3+2, f)] }   // 3 texel loads (Load, not Sample)
+skin(f) = Σ_i weight_i × boneMatrix(index_i, f) × positionOS               // indices/weights from UV1/UV2
+posA = lerp(skin(frameA0), skin(frameA1), fA)                              // manual frame lerp
+pos  = _VatBlend > 0 ? lerp(posA, posB /* same math on _VatFrameB */, _VatBlend) : posA
+```
+Worst case texel loads: 2 clips × 2 frames × 3 texels × 4 influences = 48; the crowd shader's 2-influence variant halves it; `_VatBlend == 0` branch skips the B path (dynamic branch, uniform per instance — cheap on all targets). Vertex flavor replaces the inner product with a direct position fetch at `(v % W, f × rowsPerFrame + v / W)` — 2–4 loads. Loop seams never read a neighboring clip because loop-safe clips duplicate frame 0 at their end (§4.7) and `Once` clips clamp CPU-side to `frameCount − 1` (frameA1 then reads one row past — with weight `fA = 0`, and the row exists because it is either the next clip's first row (valid numbers, zero weight) or the clamped texture edge).
+
+### 6.5 CPU↔GPU walk-through (the contract, end to end)
+
+Play `ClipId(0xA3…)` on layer 0 of a bone-VAT actor:
+1. Game calls `AnimationCommandUtil.Play(commands, commandPendingEnabled, 0, walkClipId)`.
+2. `CommandApplySystem` binary-searches `ClipRegistryBlob.sortedClipIds` → `clipIndex = 7`; writes `PlaybackLayer[0] { clip, clipIndex = 7, time = 0, … }`.
+3. `PlaybackTimeSystem` advances `time`.
+4. `VatMaterialSystem` reads `clips[7] { vatFrameStart = 120, vatFrameCount = 31, vatFps = 30 }`, computes `_VatFrameA = 120 + fmod(time × 30, 30)`, writes `VatFrameAProperty` on the VAT part entity.
+5. Entities Graphics uploads the per-instance property through BRG; the material's `_VatBoneTex` (bound once, shared) is read by `VatBoneSkin` at row `_VatFrameA` — displacement identical in Forward, ShadowCaster, DepthOnly, MotionVectors passes.
+
+### 6.6 Batching constraints (normative)
+
+- All per-frame variation travels through §6.2 per-instance properties — never material swaps, never `MaterialPropertyBlock`s, never per-instance textures. One clip set + one material = one BRG batch regardless of crowd size or per-actor clip/time/LOD.
+- Color-typed properties uploaded from C# must be **linear** (audit's verified sRGB rule carried forward; documented in `shader-contract.md`).
+- Texture2DArray flipbooks: array membership is material-level; `_ImageIndex` selects the slice per instance — batch-safe by design (host-proven, audit §5).
+
+---
+
+<a name="s7"></a>
+## 7. Editor architecture
+
+### 7.1 Window inventory
+
+| Window | Menu | Purpose |
+|---|---|---|
+| `ClipEditorWindow` | Window ▸ Animation Toolkit ▸ Clip Editor | The timeline editor + live preview + clip browser. Feature parity target = the audit §4 IMGUI window's verified feature list (clip selector, transport, zoomable timeline, draggable keys, double-click add, context inspector, full keyboard map, copy/paste, mirror/duplicate) rebuilt in UI Toolkit with complete Undo. Replaces the IMGUI window (audit §8 verdict honored). |
+| `VatBakeWindow` | Window ▸ Animation Toolkit ▸ VAT Baker | Wizard over `VatTextureBaker.Bake`: source prefab picker, clip list (from a `ClipSetAsset`), settings (§4.7), validation preflight, progress, result inspector link. |
+
+Plus custom inspectors (Editor/Inspectors/): `RigAsset` (target/layer lists with stable-id badges, mirror-pair table), `ClipSetAsset` (clip roster with per-clip validation status column, "New Clip in Set", "Generate Clip Id Constants"), `VatTextureSetAsset` (read-only stats: formats, memory, per-clip ranges; "Rebake" button when `sourceHash` is stale), `ActorAuthoring` (layer seed editor + "Open in Clip Editor").
+
+### 7.2 UXML/USS structure
+
+```
+Editor/ClipEditor/
+├── ClipEditorWindow.uxml        — root: <Toolbar> (transport, clip picker, snap/zoom, validation badge)
+│                                  <TwoPaneSplitView vertical>
+│                                    <TwoPaneSplitView horizontal>
+│                                      #clip-browser   (ListView of set's clips, search field)
+│                                      #timeline-pane  (see below)
+│                                      #inspector-pane (context inspector: clip / track / key / marker)
+│                                    #preview-pane     (Image bound to preview RT + preview toolbar)
+├── TimelinePane.uxml            — #track-headers (ListView) | #ruler (TimeRulerElement)
+│                                  #lanes (ScrollView of TrackLaneElement, custom VisualElement per track)
+│                                  #playhead (PlayheadElement, generateVisualContent painter)
+├── ClipEditor.uss               — all styling; USS variables for both editor themes
+└── Elements/                    — TrackLaneElement, KeyElement, TimeRulerElement, PlayheadElement,
+                                   EventLaneElement (markers), ValidationBadgeElement
+```
+
+No IMGUI anywhere (`OnGUI`, `GUILayout`, `Handles` are forbidden in package Editor code; the packaging conformance test greps for them, §8 M6). Custom drawing (key diamonds, ruler ticks, playhead) uses `generateVisualContent` mesh/painter APIs. Layout math lives once, in the elements — the audit's draw/hit-test drift bug class (duplicated rect math) is designed out by using the element tree's own layout for hit-testing.
+
+### 7.3 Preview strategy
+
+**Decision (audit open question 10): no ECS world, no play mode, no baking.** The preview is a **GameObject mirror** driven by the exact runtime math:
+
+1. On selection, `PreviewPlaybackDriver` builds a **transient `BlobAssetReference<ClipRegistryBlob>`** from the edited SOs via the same `ClipRegistryBuilder` the Baker uses (rebuilt debounced on any edit, ~µs for a clip set; disposed explicitly — transient blobs are the one manually-owned blob, and only in the editor).
+2. `PreviewRigMirror` instantiates a hidden preview instance — the `ActorAuthoring` prefab when one is assigned, else a flat auto-rig of unit quads from `RigAsset` targets — inside a `PreviewRenderUtility` scene.
+3. A 30 Hz editor tick samples via `ClipSampler.SamplePose/CompositeLayers` (the runtime functions, §5.11) at the scrubbed/playing time — including layer-stack preview mode (multiple clips on multiple layers, the audit's absorbed preview mode) — and applies poses to the mirror transforms + `MaterialPropertyBlock` writes for `_ImageIndex`/`_AtlasFrame`/`_VatFrameA/B`/`_VatBlend` (MPBs are fine here — preview GameObjects don't use BRG).
+4. `PreviewRenderUtility` renders to a RenderTexture shown in `#preview-pane`; orbit/zoom via pointer manipulators; repaint capped at 30 Hz (absorbing the audit's 20 Hz throttle lesson).
+
+Why this beats an editor ECS world: Entities Graphics in a non-default editor world is unsupported-territory; baking-in-edit-mode is exactly the dependency Q10 asks to avoid; and **visual parity is guaranteed by construction** because the pose math is the runtime's own Burst functions and the pixels go through the shipped shaders. What preview *cannot* show — BRG batching itself — is a profiling concern, not an authoring one; the live-SO-sampling authoring loop (zero rebake — the audit's "single best idea") is preserved, upgraded from a divergent managed sampler to the real one.
+
+### 7.4 Undo & multi-select
+
+- All field edits go through `SerializedObject`/`SerializedProperty` bindings (UI Toolkit `BindProperty`) — undo, dirtying, and prefab-override handling for free.
+- Gesture edits (key drag, marker drag, box-select move, paste, delete): `Undo.RecordObject(clipAsset, actionName)` **before** mutation, one `Undo.IncrementCurrentGroup` per gesture with `Undo.SetCurrentGroupName` + `CollapseUndoOperations` on pointer-up — a drag is one undo step. This closes the audit's partial-Undo gap (drag/inspector edits were SetDirty-only).
+- Multi-select: selection model = `HashSet<KeyAddress { trackKind, trackIndex, keyIndex }>`; operations iterate the set inside a single undo group. Cross-asset multi-select is out of scope for v1 (documented; per-asset selection only).
+- `Undo.undoRedoPerformed` → rebuild transient blob + repaint (preview always reflects undo state).
+
+### 7.5 Thumbnails / icons
+
+Custom editors override `RenderStaticPreview`: `ClipAsset` renders the preview mirror at `normalizedTime = 0.4` (mid-motion reads better than frame 0) through `PreviewRenderUtility`; `ClipSetAsset` renders its rig's rest pose; `VatTextureSetAsset` returns a downsampled copy of its primary texture. Static package icons (`.png` under `Editor/Icons/`, referenced via the asmdef-safe `EditorGUIUtility.TrIconContent` path) for windows and asset types.
+
+### 7.6 Validation surfacing
+
+One source of truth — `ClipValidation` (§3.5) — surfaced three ways: (a) inline `HelpBox`-equivalent UI Toolkit elements in inspectors, per offending row; (b) the Clip Editor toolbar badge (`ValidationBadgeElement`: error/warning count, click = popover listing messages, click message = focus offending key/track); (c) bake failure messages carry the same codes + asset paths, so an error seen in CI text matches what the editor shows.
+
+---
+
+<a name="s8"></a>
+## 8. Integration contracts
+
+Each module lists: OWNS (types it implements — exclusive write access), EXPOSES (the surface others compile against), DEPENDS (allowed references), ACCEPTANCE (tests + evidence that gate its Definition of Done). Types are specified in the referenced sections; a build agent needs only this section plus the referenced sketches. **No module may reference another module's internals — only its EXPOSES list.** Property names in §6.2 and validation codes in §3.5 are shared normative tables; changing either requires updating this document first.
+
+### M1 — Authoring & Data (asmdef: Authoring, plus identity structs in Runtime/Identity)
+
+- **OWNS:** `RigAsset`, `RigTargetDefinition`, `LayerDefinition`, `MirrorPair`, `ClipAsset`, `TransformTrack`, `TransformKey`, `SpriteTrack`, `SpriteKey`, `EventMarker`, `VatClipSource`, `ClipSetAsset`, `VatTextureSetAsset`, `VatClipRange` (§3.1–3.3); `ClipId`, `TargetId`, `StableIdUtility` (§3.4); `ClipValidation` + `ValidationMessage` (§3.5); `ClipRegistryBuilder` (SO graph → `BlobBuilder`-populated `ClipRegistryBlob` + content hash, implementing §4.2/§4.5 exactly).
+- **EXPOSES:** all of the above types public (asset fields public per sketches; `stableId` fields internal with `[InternalsVisibleTo]` for Editor + Tests asmdefs); `ClipRegistryBuilder.Build(ClipSetAsset, out BlobAssetReference<ClipRegistryBlob>, out Unity.Entities.Hash128 contentHash)`; `ClipValidation.ValidateClip / ValidateSet / ValidateRig`.
+- **DEPENDS:** Runtime asmdef (blob structs, enums, id structs), Unity.Entities, Unity.Collections, Unity.Mathematics. **No UnityEditor.**
+- **ACCEPTANCE (EditMode):** id auto-assignment on creation; id survives rename/reorder/move (serialize→deserialize fixture); every V-code in §3.5 has a fixture that triggers exactly it; builder determinism (§4.5 point 4); builder canonical ordering (shuffled input → identical hash); builder rejects V-errors by throwing `ClipValidationException` listing codes.
+
+### M2 — Baking (asmdef: Authoring/Baking + Editor/VatBaking)
+
+- **OWNS:** `ActorAuthoring`, `ActorBaker`, `RigTargetAuthoring`, `RigTargetBaker`, `RigBindingBakingSystem` (§4.1); `VatTextureBaker`, `VatBakeSettings`, `VatBakeInput`, `VatBakeResult` (§4.7); the `VatBakeWindow` UI shell is M5's, but its backend API is M2's.
+- **EXPOSES:** the two authoring MonoBehaviours (inspector-facing fields: `ActorAuthoring { ClipSetAsset clipSet; List<StartingLayerState> startingLayers; SampleSettings sampleOverride; bool addDistanceLod; }`, `RigTargetAuthoring { RigAsset rig; uint targetStableId; TargetKind kindOverride; Material expectedMaterial; }`); `VatTextureBaker.Bake(VatBakeInput, out VatBakeResult)` headless API; component/buffer layouts it must produce on baked entities are **M3's types** — M2 writes them per §4.1/§5.2 but does not define them.
+- **DEPENDS:** M1 (assets, builder, validation), M3's public components, Unity.Entities(+Hybrid); VatTextureBaker additionally UnityEditor (Editor asmdef only).
+- **ACCEPTANCE:** (PlayMode/baking tests) baking an `ActorAuthoring` prefab yields the §5.2 root archetype exactly (assert component-by-component incl. enableable initial states: `RigBindingUninitialized` enabled, `AnimationCommandPending`/`AnimEventsPending` disabled, `AnimVisible` enabled, `BoundsDirty` enabled); two actors sharing a set share one blob (reference equality via content hash); part entities carry `RigPartBinding` with correct dense indices for a 3-target fixture rig; unknown-target part logs error and is skipped without failing the bake; a material↔texture-set mismatch fixture logs exactly one warning from `RigTargetBaker` (§4.4). (EditMode) `VatTextureBaker` on a procedural 2-bone skinned cylinder: texture dimensions per §4.7 layout math; sampled matrix at (bone 1, frame k) reproduces the clip's transform at t = k/fps within half-precision tolerance; loop-safe clip's last frame equals frame 0 bit-exactly; `sourceHash` changes when any input changes; zero-bone input → `VatBakeResult.failed` with message (never throws past the API); vertex flavor row-wrapping addressing round-trips for vertexCount > width.
+
+### M3 — Runtime (asmdef: Runtime)
+
+- **OWNS:** everything in §5.2 (components, buffers, enableables, singletons), §4.2 blob structs, §5.1 system groups, all systems (`RigBindingSystem`, `CommandApplySystem`, `PlaybackTimeSystem`, `EventEmissionSystem`, `TransformSampleSystem`, `TransformApplySystem`, `SpriteMaterialSystem`, `VatMaterialSystem`, `RenderBoundsUpdateSystem`, `AnimLodDistanceSystem`, `ConfigBootstrapSystem`), `ClipSampler`/`EventWrapMath`/`ClipRegistryUtil` (§4.3, §5.11), `AnimationCommandUtil`/`PlaybackQuery`/`ToolkitWorldControl` (§5.4), material-property components (§6.2 rows), enums (`LoopMode { UseClipDefault, Once, Loop, PingPong }`, `AnimTechnique`, `TargetKind`, `TrackBlendOp`, `AnimatedChannels`, `SpriteFrameMode`, `VatFlavor`, `CommandKind`, `PlaybackFlags`, `Interpolation`, `ReservedEventKeys`).
+- **EXPOSES:** all component/buffer/singleton types, both static API classes, `ClipSampler` (for M5 preview + tests), the system group types (for host ordering attributes), `ToolkitWorldControl.SetEnabled`.
+- **DEPENDS:** Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Transforms. Nothing else. **No UnityEditor, no Authoring.**
+- **ACCEPTANCE:** (EditMode, pure functions) all five easings; loop/clamp/pingpong time mapping incl. negative speed; wrap-correct event crossing (single wrap, multi-wrap on large dt, reverse, marker exactly at 0 and at 1); bottom-up layer composition — Override channel masking, Additive-over-lower-layers (a fixture reproducing audit Q3's scenario asserts the *documented* semantics), blend-weight lerp; multi-track same-target applies all tracks; single-frame clip returns its only pose at every t; binary-search resolve hit/miss. (PlayMode, World tests) Play → layer active, correct clipIndex; blend: mid-blend pose is the lerp of both samples; queue promotes on finish with crossfade; Stop fade-out deactivates; `ClipFinished` emitted exactly once per Once-completion; `ClipResolveFailed` on unknown id, layer stays inactive; events cleared next frame, `AnimEventsPending` toggles correctly; ECB-instantiated actor re-binds parts (RigBinding) and animates; `RenderBounds` updates on clip change to the blob's `localBounds` union via `BoundsDirty` (enabled by Play/queue-promotion/finish/blend-completion, disabled after the bounds write; a frame with only time advance leaves `BoundsDirty` disabled and `RenderBounds` untouched — asserted explicitly); `AnimVisible` disabled → `TargetPose` frozen while `time` keeps advancing; re-enable → next-frame refresh; LOD 2 mid-blend swap → blend completes on schedule (§5.10); sample-rate phase spreads two actors onto different sample frames. Burst gate: all systems compile under Burst with safety checks on (no `BC` errors in test run logs).
+
+### M4 — Shaders (Shaders/ folders; no asmdef)
+
+- **OWNS:** every file in §6.1; the normative property table §6.2 (jointly with M3, which owns the C# side of each row).
+- **EXPOSES:** the include-function signatures (`VatBoneSkin`, `VatVertexFetch`, `BillboardTransform(positionOS, pivotOS, billboardParams, cameraPositionWS)`, `SliceUV`, `AtlasFrameUV` — exact parameter lists frozen in `shader-contract.md`, including the normative billboard facing rule: `_WorldSpaceCameraPos` only, `UNITY_MATRIX_V` forbidden, §6.3), the subgraph assets, the three reference graphs, the hand-written crowd shader, and the property/material-slot names.
+- **DEPENDS:** URP 17.5 shader library only. No C#.
+- **ACCEPTANCE:** all shaders compile for the URP target with zero warnings-as-errors; each reference graph's generated code contains the `UNITY_DOTS_INSTANCING_START` block with exactly the §6.2 properties (verified by a grep-style EditMode test over `ShaderUtil`-compiled output or the saved generated code); vertex displacement present in ShadowCaster/DepthOnly/DepthNormals/MotionVectors of both the generated graphs and the hand-written shader (grep the displacement function name per pass); **human-verified in-editor** (§11.4): VAT playback visually matches the source clip side-by-side, shadows follow displacement, billboard modes 0–3 behave **and a billboarded quad's shadow re-orients with camera orbit, not with the light** (the §6.3 facing contract, observed), slice + atlas flipbooks animate, one material + N actors = 1 BRG batch in the Rendering Debugger (screenshot evidence).
+
+### M5 — Editor UI (asmdef: Editor)
+
+- **OWNS:** `ClipEditorWindow` + all §7.2 elements/UXML/USS, `PreviewPlaybackDriver`, `PreviewRigMirror`, `VatBakeWindow` (UI shell), all custom inspectors (§7.1), thumbnail renderers (§7.5), `StableIdRemapUtility` + duplicate-id `AssetPostprocessor` (§3.4), clip utilities (Mirror-Clip using `RigAsset.mirrorPairs` — user-configured table, honoring the audit's Absorb condition — and Duplicate-Clip which mints a fresh `ClipId`).
+- **EXPOSES:** menu items and asset context actions only — no public API other classes depend on. (`VatBakeWindow` calls M2's `VatTextureBaker.Bake`; the timeline calls M1's validation + builder and M3's `ClipSampler`.)
+- **DEPENDS:** M1, M2 (headless baker API), M3 (`ClipSampler`, enums), UnityEditor, UI Toolkit.
+- **ACCEPTANCE:** (EditMode UI tests where automatable) window opens without exceptions on: empty selection, clip with 0 tracks, 200-track stress clip; every gesture edit produces exactly one undo step and `Undo.PerformUndo` restores byte-identical serialized asset (serialize-compare fixture for: key drag, key add, key delete, multi-key move, paste, marker drag); duplicate-asset import triggers id regeneration warning; Mirror Clip round-trips (mirror twice = original values within float tolerance) using a fixture mirror-pair table; preview transient blob rebuilds on edit and disposes on window close (no blob leaks — assert via `BlobAssetReference.IsCreated` tracking). **Human-verified:** timeline UX walkthrough (keyboard map parity with the audit §4 feature list), preview parity spot-check vs play-mode runtime for one fixture clip.
+
+### M6 — Packaging (package root)
+
+- **OWNS:** `package.json`, all asmdefs (§1.3), `Samples~` (three samples §1.2 incl. `ToolkitCameraSync`), `Documentation~` (four docs §1.2), CHANGELOG/LICENSE/README, and the **packaging conformance tests** (in Tests.EditMode): (a) every asmdef's reference list matches §1.3 exactly; (b) Editor asmdef is Editor-platform-only; (c) no file outside Editor/ or Tests/ references `UnityEditor` (regex scan); (d) no package file references `StitchPunk.` game namespaces or `Assets/` paths; (e) no `OnGUI`/`GUILayout`/`Handles.` in Editor sources; (f) Samples compile via their own asmdefs.
+- **EXPOSES:** the installable package.
+- **DEPENDS:** everything (assembles all modules).
+- **ACCEPTANCE:** conformance tests green; package passes Unity's package validation suite; a **clean Unity 6000.5 project** (no Stitch Punk code) with only the §1.1 dependencies compiles the package with zero errors/warnings and all EditMode tests pass there (the standalone-ness proof); samples import and their scenes open without missing references. Human evidence: player build (Windows) of the `VatCrowd` sample scene completes and contains no Editor asmdef (build report screenshot/log).
+
+---
+
+<a name="s9"></a>
+## 9. Module build plan (Phase C)
+
+Dependency-ordered; each step gates on its Definition of Done (DoD = module acceptance criteria from §8 that are implementable at that step, plus listed evidence). "Reviewer evidence" = what the adversarial reviewer receives.
+
+| Step | Module slice | Builds on | Definition of Done | Reviewer evidence |
+|---|---|---|---|---|
+| **C0** | M6 skeleton: package.json, folder tree, all 5 asmdefs (§1.3), empty test fixtures, conformance tests (a)–(e) | — | Package compiles empty in host repo; conformance tests green | Test Runner screenshot/log; asmdef file review |
+| **C1** | M3 data slice: enums, `ClipId`/`TargetId`, blob structs (§4.2), component/buffer definitions (§5.2), `ClipSampler` + `EventWrapMath` + `ClipRegistryUtil` pure functions | C0 | M3 EditMode pure-function acceptance list green (easings, wrap, composition, pingpong, resolve) | EditMode test run (list of test names + pass) |
+| **C2** | M1 complete: SOs, identity, validation, `ClipRegistryBuilder` | C1 | M1 acceptance green incl. determinism + id-stability fixtures | EditMode run; determinism test output showing identical hashes |
+| **C3** | M2 entity-baking slice: authorings, bakers, `RigBindingBakingSystem` | C2 | M2 baking acceptance green (archetype assertions, blob sharing, dense-index resolution) | PlayMode/baking test run |
+| **C4** | M3 systems slice: groups + all systems; transform + flipbook techniques end-to-end; events; bounds; LOD; visibility | C3 | M3 PlayMode acceptance green; Burst-clean; a host-shaped smoke scene (subscene with one cutout actor) animates in this repo | Test run; Editor.log grep clean of `error CS`/`BC`; user-confirmed on-screen clip playback |
+| **C5** | M4 slice 1: includes, `ToolkitInstancing.hlsl`, subgraphs, `ToolkitSpriteLit`, billboard; M3's sprite/billboard property components wired | C4 | M4 compile + instancing-block + pass-grep tests green for sprite graph; billboard modes human-verified | Generated-code excerpts; screenshots (billboard modes, flipbook anim, batch count) |
+| **C6** | M2 VAT slice (`VatTextureBaker`) + M3 `VatMaterialSystem` + M4 slice 2 (VAT includes/graphs/crowd shader) — bone flavor first, vertex flavor second | C5 | M2 VAT acceptance green (procedural-mesh fixtures); M4 VAT tests green; `VatCrowd` scene: 1000 instances, 1 batch, human-verified vs source clip | Test runs; Rendering Debugger screenshot; side-by-side clip comparison screenshot |
+| **C7** | M5 complete: Clip Editor, preview, VAT window, inspectors, id tooling, utilities | C6 | M5 acceptance green (undo fixtures, blob-leak check); human UX walkthrough signed off | Test run; undo serialize-compare output; user walkthrough notes |
+| **C8** | M6 completion: samples, Documentation~, clean-project verification, player-build check, **naming conformance check (name finalized 2026-07-27: DOTS Animation Toolkit / `com.stitchpunk.dotsanimationtoolkit`, §1.1)**, version 1.0.0 | C7 | Full M6 acceptance incl. clean-project run and Windows player build of VatCrowd | Clean-project test log; build report; final package validation output |
+
+Rules: no step starts before its predecessor's DoD evidence is filed; any §8 contract change discovered mid-build is a **stop-the-line** doc amendment (this file), not a silent divergence; every step lands with its tests in the same change set (tests are not a trailing phase).
+
+---
+
+<a name="s10"></a>
+## 10. Answers to the audit's open questions
+
+1. **Clip identity** — **Decided: 64-bit random stable ids** (`ClipId`, §3.4): generated from folded GUIDs at asset creation, serialized on the asset, never name-derived; blob carries a sorted id array; commands resolve to dense indices once per command via binary search. Not generics-over-user-enums: a package cannot force a closed enum universe on content teams, and generic component types would fragment the system/query surface. Migration for the ~21 host clips: converter tool + generated constants class, §13. *Partial overrule of the audit's Absorb on the pre-filled-slot blob:* placeholder-per-enum-value slots are impossible without a closed enum; graceful degradation is preserved via `ClipResolveFailed` events + inactive layers instead (§5.4).
+2. **Blend-in/out** — **Decided: in scope for v1.** Per-layer crossfade (current + previous clip with weights, §5.4/§5.6); the authored `allowBlendIn/Out` become real `defaultBlendIn/Out` seconds. VAT crossfades via dual-sample `_VatFrameB`/`_VatBlend` (§6.4); flipbook frames never blend — nearest wins at the blend midpoint (snap, documented). Rationale: "every transition pops" is a disqualifying defect in a commercial animation product; the data fields already exist and the audit flagged them as dead weight otherwise.
+3. **Additive semantics** — **Decided: additive over the composited lower layers** (the documented intent), implemented by bottom-up layer iteration replacing the claim mask (§5.6). Rationale: additive-over-rest makes an "add a bob on top of walk" layer ignore the walk — the observed behavior is a bug class, not a feature. Existing host clips authored against the accidental semantics are re-verified during migration (§13); the audit found no shipped content that depends on the difference on purpose.
+4. **Scale/flip** — **Decided: `PostTransformMatrix`** (§5.6): keeps `LocalTransform.Scale` uniform (child transforms unpolluted), and the authoring already bakes `NonUniformScale` flags for exactly this. Mirror Clip becomes visually real; the migration pass (§13) reviews clips whose flips were invisible-by-accident before turning them on.
+5. **Completion signaling** — **Decided: all three, layered:** `PlaybackFlags.Finished/FinishedThisFrame` on the layer (poll), the reserved `ClipFinished` event in `AnimEventOutput` (push, gated by `AnimEventsPending`), and `PlaybackQuery.NormalizedTime` (query). The duration-0/`float.MaxValue` hack is deleted; combat-style consumers subscribe to `ClipFinished` or hit-frame markers (§5.5).
+6. **Event system scope** — **Decided: generalized typed markers** (`EventMarker { eventKey, intParam, floatParam }`, §3.2/§5.5). Sound, hit-frames, VFX, footsteps are all user keys; the package owns emission (wrap-correct math absorbed verbatim), games own consumption. If Stitch Punk moves combat to hit-frame markers, `AttackRequestSystem`'s delta-time timing migrates to an event consumer — game-side change, §13.
+7. **Direction/8-way facing** — **Decided: data + helpers in the package, selection logic game-side.** The package ships `MirrorPair` tables (authored per rig) and the Mirror Clip utility; a directional *clip-set* convention (N clips + a `PlaybackQuery`-style pure helper for pick-nearest-facing) ships as part of the `CutoutCharacter` sample, not as a runtime system. Rationale: facing is driven by movement/AI state the package cannot know; the dead host system showed exactly this coupling failing. Deferred beyond v1: a first-class directional-variant asset — explicitly justified as sample-provable without new runtime surface.
+8. **Visibility boundary** — **Decided: package-owned enableable `AnimVisible` + external providers** (§5.9). Default-enabled, self-healing on re-enable, logic never gated. The host bridges its `CameraVisible` with a two-line system (§13). The package ships no culling provider of its own in v1 beyond the optional LOD distance system (which is LOD, not culling).
+9. **Frame-rate quantization** — **Decided: keep the retro look as an option, per-actor, phase-offset.** `SampleSettings { rateHz, phase01 }` (§5.6) with world default in `AnimationToolkitConfig`; per-entity phase from a spawn-time hash kills the all-rigs-same-tick spike. Time itself is never quantized — only sampling frequency (matches shipped runtime behavior; the editor-only normalizedTime quantization is dropped as the divergence it was).
+10. **Editor preview world** — **Decided: no ECS world at all** — GameObject mirror + transient blob + the runtime `ClipSampler` (§7.3). Parity is structural (same math, same shaders); baking-in-edit-mode and scene furniture (`GameSceneTag`, `GameSettings`, play mode) are all eliminated.
+11. **Shader ownership** — **Decided: both.** The package ships reference graphs/subgraphs/includes **and** the normative property contract (§6.2, mirrored in `Documentation~/shader-contract.md`) so hosts can keep their own graphs (Stitch Punk keeps its cel-shaded graphs and only consumes property names). Motion vectors: displacement in the MV pass is in scope (correct depth); deformation-accurate *velocity* ships default-off behind `_VAT_DEFORMATION_MV` (§6.3, risk R6).
+12. **`_UseAltShape`** — **Decided: game concern.** It is a Stitch Punk design-system switch, not an animation primitive. The package documents the `[MaterialProperty]`-component-per-named-property pattern (one page in `shader-contract.md`); the host adds its own component (§13 lists it as host work).
+13. **Bounds** — **Decided: yes** — conservative per-clip bounds at bake (§4.6), applied on clip change by `RenderBoundsUpdateSystem` via the `BoundsDirty` enableable (§5.8). VAT bounds are exact (measured from baked frames); transform bounds are conservative from key extremes ⊕ authored target extents.
+14. **Tests** — **Agreed and expanded:** the sampler is pure Burst functions with EditMode coverage from day one (§5.11, §11); determinism, VAT layout math, and undo integrity are additionally test-gated; tests land with their module, never after (§9 rules).
+
+---
+
+<a name="s11"></a>
+## 11. Test strategy
+
+### 11.1 Edit-mode (fast, no World unless noted)
+
+- **Pure math:** easings, loop/pingpong/negative-speed time mapping, event wrap crossings (incl. multi-wrap, reverse, boundary markers at t=0/t=1), layer composition semantics (Override masks, Additive-over-lower, blend lerp), multi-track ordering, binary-search resolve. (M3, §8.)
+- **Identity & data:** id generation/stability/duplication handling; all validation codes V01–V14 (positive + negative fixtures). (M1.)
+- **Determinism:** `ClipRegistryBuilder` double-build + shuffled-input build → identical content hash and blob streams; `VatTextureBaker` double-bake → identical `sourceHash` + texel data hash. (M1/M2.)
+- **VAT layout math:** bone/vertex texel addressing round-trips; loop-frame duplication; precision tolerance vs source clip on a procedural 2-bone rig; zero-bone and oversize-width failure paths. (M2.)
+- **Editor integrity:** one-undo-step-per-gesture with serialized round-trip equality; preview blob lifecycle (no leaks); mirror-clip involution. (M5.)
+- **Packaging conformance:** asmdef references, editor-only restriction, no-UnityEditor-outside-Editor, no-IMGUI, no-host-namespace scans. (M6.)
+
+### 11.2 Play-mode (World integration)
+
+Command→state machine transitions, blend/queue/stop flows, event emission + clearing + enableable gating, spawn re-binding after ECB instantiate, RenderBounds-on-clip-change via `BoundsDirty`, visibility freeze/refresh, LOD behaviors, sample-rate phase spread, Burst-clean system compilation — the M3 acceptance list (§8) verbatim. Baking tests (M2 acceptance) run here too.
+
+### 11.3 Product-owner edge cases (explicit fixtures, all automated)
+
+| Edge case | Test |
+|---|---|
+| Empty clip (no tracks/events) | Validates with V10 warning; bakes; playing it holds rest pose; `ClipFinished` fires at `duration` for Once. |
+| Single-frame clip | 1-key tracks return that pose at every t (EditMode); VAT `frameCount = 1` clamps addressing, no out-of-range row read (EditMode math + PlayMode property values). |
+| Zero-bone mesh | `VatTextureBaker` fails soft with message (bone flavor); vertex flavor proceeds. |
+| LOD swap mid-blend | Blend timer advances through the swap; final weight = 1 exactly at `blendDuration`; no pose discontinuity beyond the documented LOD-2 snap. |
+| Hot reload of authoring assets | Editor: transient preview blob rebuilds on `Undo.undoRedoPerformed`/edit (M5 test). Entity path: modifying a `ClipAsset` retriggers `ActorBaker` via `DependsOn` and produces a new content hash (baking test asserts hash change after a scripted field edit); live worlds keep the old blob until rebake — documented behavior, asserted not-crashing. |
+
+### 11.4 Human-verified in-editor (the documented handoff)
+
+Claude/CI cannot see pixels; the following are verified by the human per step (§9 evidence column) with screenshots into `Docs/AnimationToolkit/PhaseC_Evidence/`: on-screen playback parity (preview vs play mode vs source clip for VAT), shadow/depth correctness of displaced geometry, billboard modes under camera orbit, BRG batch counts in the Rendering Debugger, editor UX walkthrough (keyboard map, drag feel), player-build smoke of `VatCrowd`, and any Switch-hardware verification (format support is spec-safe per §4.7, but device memory/perf numbers are hardware-only — flagged as such in `platform-notes.md`).
+
+---
+
+<a name="s12"></a>
+## 12. Risks & documented limitations
+
+| # | Risk / limitation | Impact | Mitigation |
+|---|---|---|---|
+| R1 | **VAT crossfade blends matrices/positions linearly** — interpolating two unrelated poses distorts volume (no per-bone quaternion slerp on the GPU path); long crossfades between very different clips look rubbery. | Visual quality | Documented caveat with guidance (≤ 0.25 s crossfades between related clips; hard-cut for unrelated); `_VatBlend = 0` fast path costs nothing when unused; transform-track rigs blend properly and are the recommended technique where blend quality is paramount. |
+| R2 | **Half-float precision** — RGBAHalf bone/position texels quantize to ~0.0005–0.001 within ±2 units; rigs much larger than a few meters, or far-from-pivot verts, show stepping. | Visual quality on large creatures | Object-space storage keeps magnitudes small (§4.7); per-set `RGBAFloat` opt-in; baker logs a warning when any baked value exceeds ±32 (precision cliff heuristic). |
+| R3 | **Switch memory/bandwidth** — dual-clip, 4-influence bone VAT = up to 48 texel loads/vertex; vertex-flavor textures reach tens of MB for dense meshes. | Switch perf/memory | 2-influence bake option (default recommendation for crowds in `platform-notes.md`); crossfade branch skipped when `_VatBlend == 0`; uncompressed-format memory table per mesh size published in `platform-notes.md`; vertex flavor flagged as PC/console-first. |
+| R4 | **Batching pitfalls** — any per-instance texture or material swap splits BRG batches; a host writing colors without linear conversion ships wrong colors. | Perf / correctness | §6.6 normative rules; conformance is structural (no per-instance texture properties exist in the contract); sRGB rule documented and carried from the audit. |
+| R5 | **Blob schema evolution** — future field changes silently mis-read old baked scenes. | Data corruption | `schemaVersion` stamped in blob + checked by `ConfigBootstrapSystem`-adjacent validation at first access in dev builds (`UNITY_ASSERTIONS`), with a clear "rebake subscenes" error. |
+| R6 | **Motion-vector velocity for VAT** is transform-derived in v1 (deformation velocity off by default, §6.3) — TAA/motion-blur ghosting on fast deforming crowds. | Visual quality under TAA | Documented limitation; `_VAT_DEFORMATION_MV` feature designed (per-instance prev-frame props) and scheduled post-1.0; workaround guidance (reduce TAA feedback for crowd layers). |
+| R7 | **PlaybackLayer element size** (~88 B × 8 layers) exceeds comfortable `InternalBufferCapacity` in-chunk budgets on huge crowds. | Chunk occupancy | `[InternalBufferCapacity(8)]` is measured in C4 against a 10k-actor stress scene; falls to heap-backed buffers gracefully; if chunk pressure shows, the C4 DoD includes splitting blend state into a parallel buffer — decided by measurement, not speculation. |
+| R8 | **Editor preview ≠ BRG path** — preview renders via GameObjects, so BRG-specific defects (instancing macro bugs) don't show in preview. | Late defect discovery | The play-mode smoke scenes (C4/C6 DoD) are the BRG gate; preview is explicitly an authoring aid, stated in §7.3. |
+| R9 | **One-frame event latency** for consumers ordered before the package group (§5.5). | Gameplay timing nuance | Documented contract; hosts needing same-frame events order after the group (Stitch Punk's combat consumer does exactly this, §13). |
+| R10 | **Additive/scale semantic changes vs host content** (Q3/Q4 fixes change on-screen results of existing clips). | Host migration cost | Contained to the migration pass (§13): clip-by-clip visual review with the old tool still runnable side-by-side until cutover. |
+
+---
+
+<a name="s13"></a>
+## 13. Stitch Punk migration appendix (host-side; ships in `Docs/`, never in the package)
+
+Migration happens **after** Phase C, as host work. Old and new systems can coexist during it (different components, different groups).
+
+### 13.1 Mapping
+
+| Old (host) | New (package) | Action |
+|---|---|---|
+| `AnimationClipSO` (+ inline tracks/keys) | `ClipAsset` | One-shot converter (editor script, host-side): copies tracks/keys/easings; degrees kept (authoring stays degrees); `soundMarkers` → `EventMarker { eventKey = SoundEventKeys.For(SoundType), floatParam = 0 }` with a generated `SoundEventKeys` constants class (keys ≥ 16). |
+| `AnimationType` enum | `ClipId` + generated constants class (`StitchPunkClips.Walk` …) | Converter assigns fresh ids; "Generate Clip Id Constants" replaces enum call-sites mechanically. The 8 dead Direction values and dead blink variants are simply not converted. |
+| `AnimationTarget` enum (35 slots) | `RigAsset` targets ("Humanoid" rig asset) | Converter builds the rig from the enum, records enum→`TargetId` map for track conversion; mirror table from `AnimationClipUtilities`' hard-coded switch → `RigAsset.mirrorPairs`. |
+| `AnimationLayerType` (7 layers) | `LayerDefinition` list (same order = same priorities) | Direct. |
+| `AnimationLibrarySO` + `AnimationLibraryBakingSystem` + `AnimationLibrary(Reference)` | `ClipSetAsset` + `ActorBaker` blob | Delete after cutover (audit Replace verdict). |
+| `SetAnimation`/`AnimationRequest`/`AnimationUtils.SetLayer` | `AnimationCommand`/`AnimationCommandPending`/`AnimationCommandUtil` | `BehaviorExecutionSystem`, `BehaviorInterruptSystem`, `PlayerAttackSystem` call-sites rewritten (same shape: layer + clip + speed + loop, now + blend). `AnimationType.None`-clears-layer becomes `Stop(layer)`. |
+| `AnimationLayer` buffer | `PlaybackLayer` | State reads (e.g. `UnitAnimationAssignmentSystem`'s never-clobber-active-Action check) move to `PlaybackQuery`. |
+| `UnitAnimationAssignmentSystem` | stays host-side (audit verdict), re-targeted to the new API | Rewrite against `AnimationCommandUtil` + `UnitLibraryBlob` storing `ClipId` instead of `AnimationType`. |
+| `AnimationTimeSystem` duration-0 completion hack ↔ `AttackRequestSystem` | `ClipFinished` event / hit-frame `EventMarker` | Combat consumer system ordered **after** `AnimationToolkitSystemGroup` (R9); the stale-comment contract dies. |
+| `BodyPart`/`BodyPartInfo`/`BodyPartInitSystem` (animation slice) | `RigPartRef`/`RigPartBinding`/`RigBindingSystem` | Host keeps `BodyPart` for design/ragdoll/socket concerns; animation reads move to package components. `CharacterRigAuthoring`'s animation slice moves to `ActorAuthoring`; `BodyPartAuthoring`'s to `RigTargetAuthoring` (both host bakers slim down, audit §6.10). |
+| `CameraVisible` gating | `AnimVisible` | Two-line host bridge system in `GameManagerSystemGroup` after `CameraVisibilitySystem`: copy enabled-state root+parts. `CameraVisible` itself stays host-owned for non-animation presentation. |
+| `BillboardSystem` + `Billboard` | `_BillboardParams` per-instance property (shader-side) | Host system deleted; death-freeze behavior: the host's death handler writes mode 3 + current yaw into `BillboardParamsProperty`. *(Overrules the audit's Absorb of the CPU system — mandated by product scope §4; behavior preserved via mode 3.)* |
+| `ImageIndex` + `UpdateImageIndexSystem` + `ImageIndexOverride` | `SpriteSliceProperty` written by `SpriteMaterialSystem`; design changes write `TargetRestPose.restSliceIndex` | Delete two-hop path (audit Replace verdict). `DesignApplyUtil` retargets to `TargetRestPose` + tint components (tints are untouched — host-owned `_BaseColor`/`_Secondary`/`_Tertiary` keep working against package reference graphs or host graphs alike). |
+| `GameSettings.animationFrameRate` | `AnimationToolkitConfig.defaultSampleRateHz` (+ per-actor `SampleSettings`) | Save-file field deprecated (audit Replace verdict). |
+| Editor: `AnimationClipEditorWindow` + preview controller/systems/scenes (9 files) | `ClipEditorWindow` + package preview | Delete entire `Assets/_Scripts/Editor/AnimationEditor/` + both editor scenes after content team signs off on the new editor; this also removes the editor-code-in-builds leak for these files (the asmdef-wide fix remains separate host work). |
+| `KeyframeSO`/`DOTSKeyframe` | — | Delete (audit verdict; orphaned). |
+| `_UseAltShape` gap | host adds its own `[MaterialProperty("_UseAltShape")]` component per the documented pattern | Host work item (Q12). |
+
+### 13.2 Cutover order
+
+1. Install package; run converters (clips, rig, constants classes) — old pipeline untouched.
+2. Author one pilot unit on `ActorAuthoring`; verify side-by-side vs old pipeline in the test scene, including the Q3/Q4 semantic-change review of converted clips (R10).
+3. Rewrite the three request call-sites + `UnitAnimationAssignmentSystem`; add the `CameraVisible→AnimVisible` bridge and reorder the combat event consumer.
+4. Flip remaining units; delete the old systems/components/SOs listed above; move anything historical to `Core/Unused/` per host rules; update `_Vault/Memories/Code/Systems_Animation.md`.
+5. Only then: adopt VAT for crowds (new content, not a migration).
+
+---
+
+*End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*

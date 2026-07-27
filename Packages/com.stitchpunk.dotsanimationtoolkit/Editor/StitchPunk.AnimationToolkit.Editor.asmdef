@@ -1,0 +1,24 @@
+{
+    "name": "StitchPunk.AnimationToolkit.Editor",
+    "rootNamespace": "StitchPunk.AnimationToolkit.Editor",
+    "references": [
+        "StitchPunk.AnimationToolkit.Runtime",
+        "StitchPunk.AnimationToolkit.Authoring",
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

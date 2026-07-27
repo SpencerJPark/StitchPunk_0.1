@@ -76,3 +76,6 @@ Building1.blend
 /[Pp]ackages/*/
 !/[Pp]ackages/manifest.json
 !/[Pp]ackages/packages-lock.json
+
+# Embedded packages developed in this repo ARE source-controlled
+!/Packages/com.stitchpunk.dotsanimationtoolkit/

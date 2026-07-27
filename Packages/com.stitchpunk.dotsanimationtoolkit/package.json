@@ -1,0 +1,32 @@
+{
+  "name": "com.stitchpunk.dotsanimationtoolkit",
+  "displayName": "DOTS Animation Toolkit",
+  "version": "0.1.0",
+  "unity": "6000.5",
+  "description": "DOTS-native animation toolkit for Unity Entities: 2.5D cutout transform tracks, flipbook sprite animation, and bone/vertex animation textures (VAT), with blob-baked clip registries, Burst-compiled sampling, and an editor clip pipeline. Pre-release: version 0.1.0 contains the package skeleton only (build step C0); feature modules land in subsequent 0.x versions.",
+  "keywords": [
+    "dots",
+    "entities",
+    "ecs",
+    "animation",
+    "burst",
+    "vat",
+    "flipbook",
+    "cutout",
+    "2.5d",
+    "urp"
+  ],
+  "author": {
+    "name": "Stitch Punk",
+    "email": "spencerjamespark@gmail.com"
+  },
+  "dependencies": {
+    "com.unity.entities": "6.5.0",
+    "com.unity.entities.graphics": "6.5.0",
+    "com.unity.burst": "1.8.29",
+    "com.unity.collections": "6.5.0",
+    "com.unity.mathematics": "1.4.0",
+    "com.unity.render-pipelines.universal": "17.5.0"
+  },
+  "samples": []
+}
