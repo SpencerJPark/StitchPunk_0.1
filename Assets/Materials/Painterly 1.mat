@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Painterly 1
-  m_Shader: {fileID: -6465566751694194690, guid: 107c3c8609e98b24981439f3c2bf5fb5, type: 3}
+  m_Shader: {fileID: 4800000, guid: 587bb419c13041fe8b66389989b51bd8, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -18,7 +18,7 @@ Material:
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap:
-    RenderType: Opaque
+    GradientData: '{}'
   disabledShaderPasses:
   - MOTIONVECTORS
   - SHADOWCASTER
@@ -54,6 +54,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _GradientLUT:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 2800000, guid: a45432932370dd74fa426457ddf4811d, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -67,6 +71,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RampTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -116,6 +124,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
+    - _GradientRow: 0
     - _HueJitter: 0.05
     - _HueShift: 0
     - _InteractableHighlight: 0.06
@@ -143,7 +152,7 @@ Material:
     - _StopCount: 4
     - _Strength: 0
     - _Surface: 0
-    - _UVJitter: 0.432
+    - _UVJitter: 0.486
     - _UniformTiling: 1
     - _Value: 1
     - _ValueJitter: 0.15

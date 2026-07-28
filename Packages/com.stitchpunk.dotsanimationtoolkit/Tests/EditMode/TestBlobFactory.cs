@@ -1,0 +1,254 @@
+// Copyright (c) 2026 Stitch Punk. All rights reserved.
+
+using System;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
+
+namespace StitchPunk.AnimationToolkit.Tests.EditMode
+{
+    /// <summary>
+    /// Builds small clip/registry blob fixtures with BlobBuilder for the C1 pure-function tests.
+    /// Every returned BlobAssetReference is caller-owned and must be disposed by the test fixture.
+    /// </summary>
+    internal static class TestBlobFactory
+    {
+        internal sealed class ClipSpec
+        {
+            internal ulong clipId = 1;
+            internal string debugName = "TestClip";
+            internal float duration = 1f;
+            internal LoopMode defaultLoop = LoopMode.Once;
+            internal float defaultBlendIn;
+            internal float defaultBlendOut;
+            internal TransformTrackSpec[] transformTracks = Array.Empty<TransformTrackSpec>();
+            internal SpriteTrackSpec[] spriteTracks = Array.Empty<SpriteTrackSpec>();
+            internal EventSpec[] events = Array.Empty<EventSpec>();
+            internal int vatFrameStart = -1;
+            internal int vatFrameCount;
+            internal float vatFps;
+        }
+
+        internal sealed class TransformTrackSpec
+        {
+            internal int targetIndex;
+            internal TrackBlendOp blendOp = TrackBlendOp.Override;
+            internal AnimatedChannels channels = AnimatedChannels.PositionXY;
+            internal TransformKeySpec[] keys = Array.Empty<TransformKeySpec>();
+        }
+
+        internal struct TransformKeySpec
+        {
+            internal float normalizedTime;
+            internal float3 position;
+            internal float rotationZ;
+            internal float2 scale;
+            internal Interpolation interpolation;
+        }
+
+        internal sealed class SpriteTrackSpec
+        {
+            internal int targetIndex;
+            internal SpriteFrameMode mode = SpriteFrameMode.Slice;
+            internal SpriteKeySpec[] keys = Array.Empty<SpriteKeySpec>();
+        }
+
+        internal struct SpriteKeySpec
+        {
+            internal float normalizedTime;
+            internal int sliceIndex;
+            internal float4 atlasRect;
+        }
+
+        internal struct EventSpec
+        {
+            internal float normalizedTime;
+            internal uint eventKey;
+            internal int intParam;
+            internal float floatParam;
+        }
+
+        internal static TransformKeySpec Key(
+            float normalizedTime,
+            float positionX,
+            float positionY,
+            Interpolation interpolation = Interpolation.Linear,
+            float rotationZ = 0f,
+            float scaleX = 1f,
+            float scaleY = 1f,
+            float positionZ = 0f)
+        {
+            return new TransformKeySpec
+            {
+                normalizedTime = normalizedTime,
+                position = new float3(positionX, positionY, positionZ),
+                rotationZ = rotationZ,
+                scale = new float2(scaleX, scaleY),
+                interpolation = interpolation
+            };
+        }
+
+        internal static BlobAssetReference<ClipBlob> BuildClip(ClipSpec clipSpec)
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref ClipBlob clipRoot = ref builder.ConstructRoot<ClipBlob>();
+                FillClip(ref builder, ref clipRoot, clipSpec);
+                return builder.CreateBlobAssetReference<ClipBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Builds a registry whose <c>clips</c> array preserves the given spec order (dense
+        /// indices = spec order) while <c>sortedClipIds</c>/<c>clipIndexById</c> hold the
+        /// canonical ascending-id view over it, exercising the id → dense-index indirection.
+        /// </summary>
+        internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
+            ClipSpec[] clipSpecs,
+            uint[] targetIds,
+            ulong setKey = 1,
+            byte layerCount = 4)
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref ClipRegistryBlob registryRoot = ref builder.ConstructRoot<ClipRegistryBlob>();
+                registryRoot.schemaVersion = 1;
+                registryRoot.setKey = setKey;
+                registryRoot.vatSetKey = 0;
+                registryRoot.layerCount = layerCount;
+
+                BlobBuilderArray<ClipBlob> clipArray = builder.Allocate(ref registryRoot.clips, clipSpecs.Length);
+                for (int clipIndex = 0; clipIndex < clipSpecs.Length; clipIndex++)
+                {
+                    FillClip(ref builder, ref clipArray[clipIndex], clipSpecs[clipIndex]);
+                }
+
+                ulong[] sortedIds = new ulong[clipSpecs.Length];
+                int[] denseIndices = new int[clipSpecs.Length];
+                for (int clipIndex = 0; clipIndex < clipSpecs.Length; clipIndex++)
+                {
+                    sortedIds[clipIndex] = clipSpecs[clipIndex].clipId;
+                    denseIndices[clipIndex] = clipIndex;
+                }
+                Array.Sort(sortedIds, denseIndices);
+
+                BlobBuilderArray<ulong> sortedClipIdArray =
+                    builder.Allocate(ref registryRoot.sortedClipIds, clipSpecs.Length);
+                BlobBuilderArray<int> clipIndexByIdArray =
+                    builder.Allocate(ref registryRoot.clipIndexById, clipSpecs.Length);
+                for (int sortedIndex = 0; sortedIndex < clipSpecs.Length; sortedIndex++)
+                {
+                    sortedClipIdArray[sortedIndex] = sortedIds[sortedIndex];
+                    clipIndexByIdArray[sortedIndex] = denseIndices[sortedIndex];
+                }
+
+                uint[] sortedTargets = new uint[targetIds.Length];
+                Array.Copy(targetIds, sortedTargets, targetIds.Length);
+                Array.Sort(sortedTargets);
+
+                BlobBuilderArray<uint> sortedTargetIdArray =
+                    builder.Allocate(ref registryRoot.sortedTargetIds, sortedTargets.Length);
+                BlobBuilderArray<float3> targetBoundsExtentsArray =
+                    builder.Allocate(ref registryRoot.targetBoundsExtents, sortedTargets.Length);
+                for (int targetIndex = 0; targetIndex < sortedTargets.Length; targetIndex++)
+                {
+                    sortedTargetIdArray[targetIndex] = sortedTargets[targetIndex];
+                    targetBoundsExtentsArray[targetIndex] = new float3(0.5f, 0.5f, 0.5f);
+                }
+
+                registryRoot.vatInfo = new VatTextureInfoBlob
+                {
+                    flavor = VatFlavor.BoneMatrix,
+                    textureWidth = 0,
+                    rowsPerFrame = 1,
+                    boneOrVertexCount = 0
+                };
+
+                return builder.CreateBlobAssetReference<ClipRegistryBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        private static void FillClip(ref BlobBuilder builder, ref ClipBlob clip, ClipSpec clipSpec)
+        {
+            clip.clipId = clipSpec.clipId;
+            clip.debugName = new FixedString64Bytes(clipSpec.debugName);
+            clip.duration = clipSpec.duration;
+            clip.defaultLoop = clipSpec.defaultLoop;
+            clip.defaultBlendIn = clipSpec.defaultBlendIn;
+            clip.defaultBlendOut = clipSpec.defaultBlendOut;
+            clip.vatFrameStart = clipSpec.vatFrameStart;
+            clip.vatFrameCount = clipSpec.vatFrameCount;
+            clip.vatFps = clipSpec.vatFps;
+            clip.localBounds = new AABB { Center = float3.zero, Extents = float3.zero };
+
+            BlobBuilderArray<TransformTrackBlob> trackArray =
+                builder.Allocate(ref clip.transformTracks, clipSpec.transformTracks.Length);
+            for (int trackIndex = 0; trackIndex < clipSpec.transformTracks.Length; trackIndex++)
+            {
+                TransformTrackSpec trackSpec = clipSpec.transformTracks[trackIndex];
+                trackArray[trackIndex].targetIndex = trackSpec.targetIndex;
+                trackArray[trackIndex].blendOp = trackSpec.blendOp;
+                trackArray[trackIndex].channels = trackSpec.channels;
+                BlobBuilderArray<TransformKeyBlob> keyArray =
+                    builder.Allocate(ref trackArray[trackIndex].keys, trackSpec.keys.Length);
+                for (int keyIndex = 0; keyIndex < trackSpec.keys.Length; keyIndex++)
+                {
+                    TransformKeySpec keySpec = trackSpec.keys[keyIndex];
+                    keyArray[keyIndex] = new TransformKeyBlob
+                    {
+                        normalizedTime = keySpec.normalizedTime,
+                        position = keySpec.position,
+                        rotationZ = keySpec.rotationZ,
+                        scale = keySpec.scale,
+                        interpolation = keySpec.interpolation
+                    };
+                }
+            }
+
+            BlobBuilderArray<SpriteTrackBlob> spriteTrackArray =
+                builder.Allocate(ref clip.spriteTracks, clipSpec.spriteTracks.Length);
+            for (int spriteTrackIndex = 0; spriteTrackIndex < clipSpec.spriteTracks.Length; spriteTrackIndex++)
+            {
+                SpriteTrackSpec spriteTrackSpec = clipSpec.spriteTracks[spriteTrackIndex];
+                spriteTrackArray[spriteTrackIndex].targetIndex = spriteTrackSpec.targetIndex;
+                spriteTrackArray[spriteTrackIndex].mode = spriteTrackSpec.mode;
+                BlobBuilderArray<SpriteKeyBlob> spriteKeyArray =
+                    builder.Allocate(ref spriteTrackArray[spriteTrackIndex].keys, spriteTrackSpec.keys.Length);
+                for (int spriteKeyIndex = 0; spriteKeyIndex < spriteTrackSpec.keys.Length; spriteKeyIndex++)
+                {
+                    SpriteKeySpec spriteKeySpec = spriteTrackSpec.keys[spriteKeyIndex];
+                    spriteKeyArray[spriteKeyIndex] = new SpriteKeyBlob
+                    {
+                        normalizedTime = spriteKeySpec.normalizedTime,
+                        sliceIndex = spriteKeySpec.sliceIndex,
+                        atlasRect = spriteKeySpec.atlasRect
+                    };
+                }
+            }
+
+            BlobBuilderArray<EventMarkerBlob> eventArray =
+                builder.Allocate(ref clip.events, clipSpec.events.Length);
+            for (int eventIndex = 0; eventIndex < clipSpec.events.Length; eventIndex++)
+            {
+                EventSpec eventSpec = clipSpec.events[eventIndex];
+                eventArray[eventIndex] = new EventMarkerBlob
+                {
+                    normalizedTime = eventSpec.normalizedTime,
+                    eventKey = eventSpec.eventKey,
+                    intParam = eventSpec.intParam,
+                    floatParam = eventSpec.floatParam
+                };
+            }
+        }
+    }
+}

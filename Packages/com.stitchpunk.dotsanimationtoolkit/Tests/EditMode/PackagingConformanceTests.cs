@@ -76,6 +76,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     "Unity.Burst",
                     "Unity.Collections",
                     "Unity.Mathematics",
+                    "Unity.Mathematics.Extensions",
                     "Unity.Transforms"
                 },
                 expectedIncludePlatforms = new string[0],
@@ -92,7 +93,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     "Unity.Entities.Hybrid",
                     "Unity.Burst",
                     "Unity.Collections",
-                    "Unity.Mathematics"
+                    "Unity.Mathematics",
+                    "Unity.Mathematics.Extensions"
                 },
                 expectedIncludePlatforms = new string[0],
                 expectedAllowUnsafeCode = false
@@ -128,6 +130,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     "Unity.Entities",
                     "Unity.Collections",
                     "Unity.Mathematics",
+                    "Unity.Mathematics.Extensions",
                     "Unity.Burst"
                 },
                 expectedIncludePlatforms = new string[] { "Editor" },
@@ -146,6 +149,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     "Unity.Entities.Hybrid",
                     "Unity.Collections",
                     "Unity.Mathematics",
+                    "Unity.Mathematics.Extensions",
                     "Unity.Burst",
                     "Unity.Transforms"
                 },

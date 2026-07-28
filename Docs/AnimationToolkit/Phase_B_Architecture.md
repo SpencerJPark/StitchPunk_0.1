@@ -44,7 +44,8 @@ Packages/com.stitchpunk.dotsanimationtoolkit/
 │   ├── Blobs/               (ClipRegistryBlob + child structs)
 │   ├── Sampling/            (ClipSampler static Burst functions, easing, wrap math)
 │   ├── Systems/             (all ISystems + AnimationToolkitSystemGroups.cs)
-│   └── Api/                 (AnimationCommandUtil, PlaybackQuery, ToolkitWorldControl)
+│   └── Api/                 (AnimationCommandUtil, ClipRegistryUtil, PlaybackQuery,
+│                             ToolkitWorldControl)
 ├── Authoring/
 │   ├── StitchPunk.AnimationToolkit.Authoring.asmdef
 │   ├── Assets/              (RigAsset, ClipAsset, ClipSetAsset, VatTextureSetAsset)
@@ -86,11 +87,13 @@ Packages/com.stitchpunk.dotsanimationtoolkit/
 
 | asmdef | References | Platforms | Notes |
 |---|---|---|---|
-| `StitchPunk.AnimationToolkit.Runtime` | Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Transforms | All | No UnityEditor usage anywhere. `allowUnsafeCode: true` (blob building helpers). |
-| `StitchPunk.AnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. |
+| `StitchPunk.AnimationToolkit.Runtime` | Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Transforms | All | No UnityEditor usage anywhere. `allowUnsafeCode: true` (blob building helpers). |
+| `StitchPunk.AnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. |
 | `StitchPunk.AnimationToolkit.Editor` | Runtime, Authoring, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | **["Editor"] only** | Windows, preview, VAT texture baker, inspectors, id tooling. This is the fix for the audit §1/§4 finding (host `StitchPunk.Editor.asmdef` ships in builds — the package must never repeat it; enforced by test, §8 M6). |
-| `StitchPunk.AnimationToolkit.Tests.EditMode` | Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Burst | ["Editor"] | Pure math/data/determinism/validation tests (§11). |
-| `StitchPunk.AnimationToolkit.Tests.PlayMode` | Runtime, Authoring, UnityEngine.TestRunner, Unity.Entities, Unity.Entities.Hybrid, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Transforms | All (test framework standard) | World/system integration tests (§11). |
+| `StitchPunk.AnimationToolkit.Tests.EditMode` | Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst | ["Editor"] | Pure math/data/determinism/validation tests (§11). |
+| `StitchPunk.AnimationToolkit.Tests.PlayMode` | Runtime, Authoring, UnityEngine.TestRunner, Unity.Entities, Unity.Entities.Hybrid, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst, Unity.Transforms | All (test framework standard) | World/system integration tests (§11). |
+
+**`Unity.Mathematics.Extensions` is mandatory, not optional.** `Unity.Mathematics.AABB` is defined in that assembly (it ships inside the Entities package, not inside Unity.Mathematics), and C# requires a reference to the *defining* assembly. `ClipBlob.localBounds` is an `AABB` (§4.2) and §5.9's `RenderBoundsUpdateSystem` must write `RenderBounds.Value`, which is also an `AABB`; without the reference that mandated system cannot compile. The Authoring assembly needs it because `ClipRegistryBuilder` writes `localBounds` at bake (§4.6), and both test assemblies need it because they assert on the blob layout and on sampled bounds. Every reference list places it immediately after `Unity.Mathematics`, matching the convention already used for `Unity.Entities.Graphics` / `Unity.Entities.Hybrid`.
 
 Shader folders carry no asmdef (no C#). Samples carry their own small asmdefs referencing Runtime+Authoring only.
 
@@ -540,7 +543,7 @@ The ungated-logic / gated-presentation split absorbs the audit's praised design 
 ```csharp
 public struct ClipRegistry : IComponentData
 {
-    public BlobAssetReference<ClipRegistryBlob> value;        // BlobAssetStore-owned; never manually disposed
+    public BlobAssetReference<ClipRegistryBlob> Value;        // BlobAssetStore-owned; never manually disposed
 }
 
 [InternalBufferCapacity(8)]
@@ -551,6 +554,7 @@ public struct PlaybackLayer : IBufferElementData              // one element per
     public LoopMode loop;
     public ClipId previousClip;     public int previousClipIndex;   // blend source
     public float previousTime;      public float previousSpeed;
+    public LoopMode previousLoop;   // the mode the outgoing clip was actually playing under
     public float blendElapsed;      public float blendDuration;     // 0 = not blending
     public ClipId queuedClip;       public float queuedSpeed;
     public LoopMode queuedLoop;     public float queuedBlend;
@@ -590,12 +594,15 @@ public struct AnimLod : IComponentData { public byte level; }                   
 public struct VatTextureBinding : IComponentData { /* §4.4 */ }
 ```
 
+**Why `previousLoop` exists.** During a crossfade the outgoing clip's time must map through the loop mode it was *actually* playing under, not through its authored default. `CommandApplySystem` overwrites `layer.loop` when the incoming Play command carries a mode (§5.4), so the outgoing clip's mode is destroyed unless it is preserved here. Without the field, a Loop-default clip that was played `Once` and is then crossfaded out past its duration wraps to t = 0 instead of holding at the end — a pop in exactly the transition the blend exists to smooth (§10 answer 2 rates popping transitions as disqualifying). `CommandApplySystem` copies the outgoing `loop` into `previousLoop` at the same moment it copies `clip`/`time`/`speed` into the `previous*` slots; `UseClipDefault` in this field still resolves to the outgoing clip's authored default.
+
 **Part child** (added by `RigTargetBaker`):
 
 ```csharp
 public struct RigPartBinding : IComponentData { public Entity actorRoot; public int targetIndex; }
 public struct TargetRestPose : IComponentData { public float3 localPosition; public float rotationZ; public float2 scale; public int restSliceIndex; }
 public struct TargetPose : IComponentData { public float3 localPosition; public float rotationZ; public float2 scale; public int sliceIndex; public float4 atlasRect; }
+public struct VatDriven : IComponentData { public byte layerIndex; }   // VatMesh parts only: which layer drives the frames (§5.8)
 // + AnimVisible (propagated), + technique material-property components (§6.2), + PostTransformMatrix (identity)
 ```
 
@@ -622,7 +629,7 @@ ECB-instantiate does not remap entity references inside dynamic buffers — the 
 
 Per layer, the state machine has three states — **Stopped** (`!Active`), **Playing**, **Blending** (Playing + previous clip fading out) — plus a queued slot:
 
-- **Play(layer, clip, speed, loop, blend):** resolve `clip` → `clipIndex` (binary search, §4.3). Resolution failure ⇒ layer untouched, one `AnimEventOutput { eventKey = ReservedEventKeys.ClipResolveFailed }` emitted (reserved keys: 0 = invalid, `ClipFinished = 1`, `ClipResolveFailed = 2`, 3–15 reserved for future built-ins; user keys start at 16 — validation rule V09). Success ⇒ current clip (if any and `blend > 0`) is demoted to the `previous*` fields with its running time/speed; new clip starts at `time = 0` (or `duration` when `speed < 0`); `blendElapsed = 0`, `blendDuration = blend` (NaN ⇒ new clip's `defaultBlendIn`). `blend == 0` ⇒ hard cut (the old `SetLayer` pop, still available).
+- **Play(layer, clip, speed, loop, blend):** resolve `clip` → `clipIndex` (binary search, §4.3). Resolution failure ⇒ layer untouched, one `AnimEventOutput { eventKey = ReservedEventKeys.ClipResolveFailed }` emitted (reserved keys: 0 = invalid, `ClipFinished = 1`, `ClipResolveFailed = 2`, 3–15 reserved for future built-ins; user keys start at 16 — validation rule V09). Success ⇒ current clip (if any and `blend > 0`) is demoted to the `previous*` fields with its running time/speed and the loop mode it was playing under (`previousLoop`, §5.2) — the demotion must happen **before** `layer.loop` is overwritten with the incoming request; new clip starts at `time = 0` (or `duration` when `speed < 0`); `blendElapsed = 0`, `blendDuration = blend` (NaN ⇒ new clip's `defaultBlendIn`). `blend == 0` ⇒ hard cut (the old `SetLayer` pop, still available).
 - **Queue(...):** stores into `queued*`; `HasQueued` flag. One-deep by design (a deeper queue is game-side state; documented).
 - **Stop(layer, blend):** `blend == 0` ⇒ immediate deactivate; else current clip becomes `previous*` fading to nothing over `blend`, `clipIndex = -1`.
 - **PlaybackTimeSystem** advances `time += dt × speed` and `previousTime` likewise; advances `blendElapsed`; when `blendElapsed ≥ blendDuration` clears the blend. Loop handling per `LoopMode`: `Loop` = fmod wrap (wrap count preserved for event emission); `Once` = clamp at end, set `Finished | FinishedThisFrame`, deactivate after emitting; `PingPong` = time accumulates and sampling reflects it (`SamplePingPong(t) = duration − |duration − fmod(t, 2·duration)|`), never finishes. On finish with `HasQueued`: promote the queued clip with its blend (a finish-triggered crossfade from the final pose). Empty-duration guard: durations are ≥ 1 ms by validation (V01), so the audit's `float.MaxValue` completion hack is structurally impossible — a resolve failure emits `ClipResolveFailed` and the layer stays inactive, and `ClipFinished` is a real event, replacing the comment-mediated combat contract (audit §6.6).
@@ -666,7 +673,11 @@ Reserved keys: `ReservedEventKeys.ClipFinished = 1`, `ClipResolveFailed = 2`; us
 
 ### 5.7 Flipbook technique (`SpriteMaterialSystem`)
 
-Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (nearest-key, `-1` = keep current — audit convention absorbed) in `TransformSampleSystem` (same job — sprite keys are just another track kind). `SpriteMaterialSystem` copies pose → material-property components **directly**: `SpriteSliceProperty.Value = sliceIndex >= 0 ? sliceIndex : restSliceIndex` and `AtlasFrameProperty.Value = atlasRect`. The audit's two-hop `ImageIndex → ImageIndexOverride` staging with its rotted dirty flag is **replaced** (audit §8 verdict honored) by this single write. Design/skin systems in a host change the base look by writing `TargetRestPose.restSliceIndex` (same contract the host's DesignSystem relies on today, §13).
+Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (nearest-key, `-1` = keep current — audit convention absorbed) in `TransformSampleSystem` (same job — sprite keys are just another track kind). `SpriteMaterialSystem` copies pose → material-property components **directly**: `SpriteSliceProperty.Value = pose.sliceIndex` and `AtlasFrameProperty.Value = pose.atlasRect`. The audit's two-hop `ImageIndex → ImageIndexOverride` staging with its rotted dirty flag is **replaced** (audit §8 verdict honored) by this single write. Design/skin systems in a host change the base look by writing `TargetRestPose.restSliceIndex` (same contract the host's DesignSystem relies on today, §13).
+
+**The `-1` "no change" convention lives on the authored key, never on the pose.** Composition seeds every pose from the rest pose (`ClipSampler.RestToPose` writes `pose.sliceIndex = restPose.restSliceIndex`) before any track is applied, and a slice-mode sprite key only overwrites it when its own `sliceIndex >= 0`. A negative pose slice is therefore unreachable, and a `sliceIndex >= 0 ? sliceIndex : restSliceIndex` guard in `SpriteMaterialSystem` would be dead code. Every path — no sprite track at all, a `-1` key, one side of a blend, or a host that rewrote `restSliceIndex` — already resolves to the rest slice through the seed. `LerpPose` picks whole slice values (never interpolates them), so it cannot introduce a negative either.
+
+**`ClipSampler.IdentityAtlasRect`** = `new float4(1f, 1f, 0f, 0f)` — scale `(1, 1)`, offset `(0, 0)`, i.e. the full texture. `RestToPose` seeds `pose.atlasRect` with it, so it is the visible default for an atlas-mode actor until an atlas-mode sprite key writes a rect: an actor with no atlas track renders its full texture rather than an undefined sub-rect. There is no rest-pose equivalent of `restSliceIndex` for atlas rects; this constant is that default.
 
 ### 5.8 VAT technique (`VatMaterialSystem`) and bounds
 
@@ -1015,6 +1026,7 @@ Migration happens **after** Phase C, as host work. Old and new systems can coexi
 | `_UseAltShape` gap | host adds its own `[MaterialProperty("_UseAltShape")]` component per the documented pattern | Host work item (Q12). |
 
 ### 13.2 Cutover order
+
 
 1. Install package; run converters (clips, rig, constants classes) — old pipeline untouched.
 2. Author one pilot unit on `ActorAuthoring`; verify side-by-side vs old pipeline in the test scene, including the Q3/Q4 semantic-change review of converted clips (R10).

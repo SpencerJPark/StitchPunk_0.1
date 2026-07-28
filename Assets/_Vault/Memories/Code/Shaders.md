@@ -124,6 +124,36 @@ no longer drives baked parts (the component wins) — set the entity's
   place, preserving GUID/import settings. (This replaced the fixed-purpose
   `PainterlyMaskPacker.cs` menu item, deleted 2026-07-09.) See [[Editor]].
 
+## Painterly ramp is now gradient-LUT-driven, not an analytic 4-stop ramp (2026-07-27)
+
+`PainterlyColor`'s built-in ramp (`ColorA-D`/`PositionA-D`/`StopCount`/`RampSmoothness`, plus its
+post-ramp `HueShift`/`Saturation`/`Value`/`HueJitter`/`ValueJitter`) is **no longer the live colour
+path** on any of the three production painterly graphs — those 15 properties still exist on the node
+(its HLSL signature wasn't touched, to avoid a cross-graph slot-renumber) but are now hidden from the
+material Inspector (`m_GeneratePropertyBlock: false`) because their computed `color` output is either
+unused (`PainterlyPaletteShader`, `PainterlyZoneGradientShader` — always used only `maskValue`) or,
+on `PainterlyShader`, has been rewired away entirely. Do not re-expose them; add real inputs to the
+new gradient path below instead.
+
+- **`PainterlyShader`** (the base "big general mix" graph — rocks/clutter/single-continuous-blend
+  props) now samples the shared `_GradientLUT` instead of computing `Painterly Color`'s analytic
+  ramp: `Painterly Color`'s `maskValue` output (channel-select + contrast, unchanged) feeds a
+  hand-built **Vector 2** node's X; a new single-float property **`_GradientRow`** (0–1, same
+  row-band convention as `PainterlyPaletteShader`'s mesh-UV.y) feeds its Y; the Vector2 Out feeds a
+  new `Sample Texture 2D` on `_GradientLUT`, whose RGBA replaces `Painterly Color`'s old `color`
+  output at the lit-colour Multiply. **`_GradientRow` is the one artist-facing "which gradient" dial**
+  — the ramp itself is authored once as a `Gradient` entry in `PainterlyGradientLUTSO` (Blend or Fixed
+  mode, unlimited stops via Unity's native gradient-key editor), not per-material colour/position
+  fields. Hue-shift/jitter scrolling (discussed but not built) would be a future add-on — right now
+  the ramp position is pure `maskValue`, no per-instance variation.
+- **`Vector2Node`** had no live instance anywhere in the project to clone from, so it was hand-built
+  from explicit, individually-templated slots (X/Y from a plain `Vector1MaterialSlot`, Out from a
+  plain `Vector2MaterialSlot`) rather than relying on Unity to backfill a minimal stub — **this is the
+  one piece of this change without an in-repo precedent to verify against; check Console after import**
+  for anything referencing this node before trusting it further.
+- **`PainterlyPaletteShader` / `PainterlyZoneGradientShader`** only got the property-hiding half of
+  this (their `Painterly Color` ramp `color` output was already dead) — no wiring changed there.
+
 ## Painterly palette atlas — `PainterlyPaletteShader` (2026-07-04)
 
 A UV-driven palette variant of `PainterlyShader`: the mesh UV samples a **64×64 gradient atlas**
@@ -144,6 +174,44 @@ it feeds **only** Height To Normal (the painterly surface). A material needs BOT
   bakes `Textures/Painterly/T_PainterlyGradientLUT.png` (gradient index 0 = top band; equal row
   bands give UV tolerance) + a `_rows.txt` reference sheet (UV.y band → zone). Importer: **sRGB on,
   Clamp, Point, no mips, uncompressed** — Point + Clamp keep colour zones crisp (no row bleed).
+  Each `Gradient`'s own **Blend/Fixed mode** (Unity's built-in gradient editor) controls whether its
+  row is a smooth ramp (Blend) or a hard-edged swatch strip with zero interpolation (Fixed) — a "car
+  paint colours" row with 6 distinct picks is just a Fixed-mode gradient, no code involved.
+
+## Zone-based item recolor — `PainterlyZoneGradientShader` (2026-07-27)
+
+Multi-part item recolor (e.g. a car with independently-coloured body/trim/glass) built by combining
+the packed-channel zone idea from `2DPackedRecolorShader` with the gradient-LUT palette idea from
+`PainterlyPaletteShader`, so items pull colour from the same artist-authored, unlimited-stop gradient
+resource characters and painterly props already use — no raw colour pickers.
+
+- **Graph:** `Graphs/PainterlyZoneGradientShader.shadergraph` — duplicated from `PainterlyPaletteShader`
+  then extended via scripted graph surgery (`shadergraph_lib.py`), not hand-wired in the Editor.
+- **New texture property `_ZoneMask`** (separate from `_MainTex`, sampled at **plain, unjittered mesh
+  UV** — zone identity must stay exact per copy, unlike the stroke mask's per-instance jitter): a
+  channel-packed mask (Texture Channel Packer, same convention as character part masks) where R/G/B
+  identify up to 3 colourable zones. Author its channels with real grayscale/brush variation, not flat
+  0/1 fills — that variation is what reads as painterly shading once multiplied through.
+- **Three `_ZoneXPaletteUV` Vector2 properties** (`_ZoneAPaletteUV/_ZoneBPaletteUV/_ZoneCPaletteUV`):
+  each is a raw UV into the shared `_GradientLUT` (X = position along that row's gradient/swatch strip,
+  Y = which row/family) sampled via a built-in Sample Texture 2D (same "no reflected-node texture
+  clone" precedent as `PainterlyPaletteShader`) — NOT mesh-driven, these are per-material (or later,
+  per-instance) picks into the curated palette.
+- **`Packed Channel Recolor` node** (cross-graph-cloned from `2DPackedRecolorShader`, unmodified):
+  `packedSample` = `_ZoneMask` sample, `baseLayerColor/secondLayerColor/thirdLayerColor` = the three
+  LUT samples instead of literal `_BaseColor/_SecondaryColor/_TertiaryColor` properties. Its
+  `recoloredColor` output replaces `PainterlyPaletteShader`'s single LUT-sample-by-mesh-UV as the input
+  to the existing lit-colour Multiply — everything downstream (Cel Shaded Lighting, interactable
+  Branch, BaseColor block) is untouched. `recoloredAlpha` is left unconnected; Alpha still comes from
+  the stroke mask's alpha channel, same as `PainterlyPaletteShader`.
+- Stroke mask (`_MainTex`) → `Painterly Color` → `Height To Normal` path is **fully unchanged** — zone
+  colour and painterly surface detail stay decoupled, same as the palette shader.
+- No new `.hlsl` node files — this is pure graph wiring reusing `PackedChannelRecolor` and the
+  built-in `Sample Texture 2D` node exactly as they already work elsewhere.
+- **Not yet done:** no test material, and no per-instance (DOTS) variant of the `_ZoneXPaletteUV`
+  properties — those are plain material properties for now (fixed-per-item-type). Follow the
+  `BodyPartTint` pattern in `Components/Animation/AnimationComponents.cs` if per-instance variation
+  is needed later.
 
 ## Custom hand-authored mips (Texture Packer) — you set the count, no auto-fill (2026-07-07)
 

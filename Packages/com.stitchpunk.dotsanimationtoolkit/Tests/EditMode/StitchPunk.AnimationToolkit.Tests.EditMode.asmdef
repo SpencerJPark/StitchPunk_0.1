@@ -10,6 +10,7 @@
         "Unity.Entities",
         "Unity.Collections",
         "Unity.Mathematics",
+        "Unity.Mathematics.Extensions",
         "Unity.Burst"
     ],
     "includePlatforms": [
