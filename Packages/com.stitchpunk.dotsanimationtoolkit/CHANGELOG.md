@@ -5,6 +5,78 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - Unreleased
+
+Phase C build step C2: the M1 authoring slice — the authoring ScriptableObjects,
+stable identity generation, the validation rule set, and `ClipRegistryBuilder`,
+the deterministic ScriptableObject-graph-to-blob bake. Entity baking, systems,
+shaders, and editor tooling still do not ship; those land in build steps C3
+through C8.
+
+### Added
+
+- The architecture section 3.1 to 3.3 authoring assets: `RigAsset` (with
+  `RigTargetDefinition`, `LayerDefinition` and `MirrorPair`), `ClipAsset` (with
+  `TransformTrack`, `TransformKey`, `SpriteTrack`, `SpriteKey`, `EventMarker`
+  and `VatClipSource`), `ClipSetAsset`, and the generated `VatTextureSetAsset`
+  (with `VatClipRange`). Rigs, clips and sets are creatable from the
+  **Assets ▸ Create ▸ DOTS Animation Toolkit** menu.
+- `StableIdUtility`: the architecture section 3.4 identity generator. Ids are
+  folded GUIDs — random, never name-derived — so a rename, a list reorder, or an
+  asset move can never change identity, and 0 stays reserved as none/invalid.
+  Every identity-bearing asset self-assigns on creation and on deserialization.
+- `ClipValidation` plus `ValidationMessage`, `ValidationCode`,
+  `ValidationSeverity` and `ValidationStage`: the single authoritative
+  implementation of the architecture section 3.5 rule table V01 to V14, shared by
+  the inspectors, the clip editor and the bake. Rule V08 (stale VAT source hash)
+  is an editor-only rule: detecting it requires recomputing the hash from the
+  current sources, which needs the Editor-side VAT baker, so a bake cannot
+  evaluate it and does not claim to (architecture amendment A12).
+- `ClipRegistryBuilder.Build`: the architecture section 4.2/4.5/4.6 bake. It
+  applies the canonical ordering (clips by ascending clip id, targets by
+  ascending target id defining the dense index, tracks by dense target index with
+  authoring order breaking ties, keys and markers by normalized time), the
+  canonical value conversions (degrees to radians, resolved loop mode, blend
+  defaults clamped to the clip duration, duplicate clip entries deduplicated),
+  the conservative per-clip bounds, and the `xxHash3` content hash that becomes
+  the `BlobAssetStore` dedup key. A set carrying validation errors throws
+  `ClipValidationException` listing the offending rule codes instead of baking.
+- 66 EditMode tests: one fixture per validation rule that asserts the rule fires
+  and nothing else does, id generation and stability across rename, reorder,
+  duplication and a serialization round trip, canonical ordering and value
+  conversion, and determinism fixtures comparing both the content hash and a
+  field-by-field signature of the built blob across repeated and shuffled builds.
+
+### Changed
+
+- **Blob layout (schema version 2).** `clipIndexById` is removed: the canonical
+  ordering sorts clips by ascending id, so a clip's dense index is its position
+  in `sortedClipIds` and the indirection was the identity map in every blob the
+  package can emit. `ClipRegistryUtil.TryResolveClip` returns the binary-search
+  position directly (architecture amendment A11).
+- **`ClipBlob.localBounds` renamed to `offsetBounds`** to name the space it is
+  actually computed in. Transform keys are local offsets and rest poses live on
+  the prefab, which the authoring assembly cannot read, so the bake's union is
+  offset space — not actor space. The entity baker combines it with rest poses
+  into the new `ActorRestBounds` component (architecture amendment A13).
+
+### Fixed
+
+- **The content hash did not cover the whole blob.** `sortedTargetIds`,
+  `targetBoundsExtents`, all four `vatInfo` fields and `ClipBlob.debugName` were
+  absent from the hashed stream that keys the `BlobAssetStore`, so an edit
+  confined to them returned a stale blob — rebaking VAT textures to a new
+  `textureWidth` with unchanged frame ranges being the concrete case. The stream
+  now visits every field, with each array preceded by its element count, and new
+  fixtures assert the general property that a blob which differs must hash
+  differently (architecture amendment A10).
+- Documented `ClipRegistryBuilder`'s hash mechanism as the `xxHash3` streaming
+  state it has always used. The architecture's `UnsafeAppendBuffer` formulation
+  cannot be implemented in the Authoring assembly, which is not permitted unsafe
+  code; the two are byte-for-byte equivalent (architecture amendment A5).
+- Added `TryComputeContentHash`, so a baker can probe the `BlobAssetStore` before
+  deciding to build instead of allocating a blob it may immediately discard.
+
 ## [0.2.0] - Unreleased
 
 Phase C build step C1: the M3 data slice — identity types, the baked blob

@@ -29,27 +29,19 @@ namespace StitchPunk.AnimationToolkit
 
         /// <summary>
         /// All clip ids in ascending order — the binary-search key array of the section 4.3 lookup
-        /// contract. Its element order is independent of <see cref="clips"/>; the two are joined by
-        /// <see cref="clipIndexById"/>.
+        /// contract. Element <c>i</c> is the id of <see cref="clips"/>[<c>i</c>], because both
+        /// arrays are written in the same ascending-clip-id order (section 4.5.1).
         /// </summary>
         public BlobArray<ulong> sortedClipIds;
 
         /// <summary>
-        /// Parallel to <see cref="sortedClipIds"/>: for the id at sorted position <c>i</c>, the
-        /// dense index of that clip in <see cref="clips"/>. This array is the whole point of the
-        /// indirection — the search runs over the sorted ids, the result addresses the dense array.
-        /// </summary>
-        public BlobArray<int> clipIndexById;
-
-        /// <summary>
-        /// The baked clips in authored/dense order — a clip's dense index is simply its position in
-        /// this array, and that index is what every runtime field caches
-        /// (<see cref="PlaybackLayer.clipIndex"/>, <see cref="PlaybackLayer.previousClipIndex"/>).
-        /// Readers must not assume this array is ordered by <see cref="ClipBlob.clipId"/>:
-        /// <see cref="sortedClipIds"/> plus <see cref="clipIndexById"/> are what provide the
-        /// id → dense-index mapping (<c>ClipRegistryUtil.TryResolveClip</c>, section 4.3), and if
-        /// the dense order were the id order that indirection would be an identity map and the
-        /// binary search pointless.
+        /// The baked clips, sorted by ascending <see cref="ClipBlob.clipId"/> — the canonical order
+        /// of section 4.5.1. A clip's dense index is its position in this array, and because the
+        /// array is id-sorted that position is also its position in <see cref="sortedClipIds"/>, so
+        /// the binary search of <c>ClipRegistryUtil.TryResolveClip</c> (section 4.3) yields the
+        /// dense index directly and no id → index indirection array is stored. The dense index is
+        /// what every runtime field caches (<see cref="PlaybackLayer.clipIndex"/>,
+        /// <see cref="PlaybackLayer.previousClipIndex"/>).
         /// </summary>
         public BlobArray<ClipBlob> clips;
 
@@ -109,12 +101,30 @@ namespace StitchPunk.AnimationToolkit
         public float vatFps;
 
         /// <summary>
-        /// Conservative actor-space bounds for this clip (section 4.6), as an
-        /// <see cref="AABB"/> — <c>Center</c> plus half-extents in <c>Extents</c>. Consumed by
-        /// <c>RenderBoundsUpdateSystem</c>, which unions these into the actor's
-        /// <c>RenderBounds.Value</c> (section 5.8).
+        /// Conservative bounds for this clip in <em>offset space</em> (section 4.6), as an
+        /// <see cref="AABB"/> — <c>Center</c> plus half-extents in <c>Extents</c>.
         /// </summary>
-        public AABB localBounds;
+        /// <remarks>
+        /// <para>
+        /// This box is <strong>not</strong> actor space. It is built from
+        /// <see cref="TransformKeyBlob.position"/> values, which section 3.2 defines as local
+        /// offsets <em>from a target's rest pose</em>, and from each target's authored half-extents
+        /// centred on the origin. The rest poses themselves live on the actor prefab and are
+        /// captured into <c>TargetRestPose</c> at entity bake time; <c>ClipRegistryBuilder</c> sees
+        /// only a <c>ClipSetAsset</c> graph and can never read them, so every box it produces is
+        /// origin-centred by construction.
+        /// </para>
+        /// <para>
+        /// The actor-space box is therefore assembled at entity bake time, where the rest poses are
+        /// available: the actor baker combines each part's rest pose with this offset box to produce
+        /// the actor-level <c>ActorRestBounds</c> (section 5.2), and section 5.8's
+        /// <c>RenderBoundsUpdateSystem</c> unions <c>ActorRestBounds</c> with the offset boxes of
+        /// the clips currently referenced before writing <c>RenderBounds.Value</c>. Treating this
+        /// field as actor space on its own under-reports the silhouette of any rig whose parts sit
+        /// away from the actor origin.
+        /// </para>
+        /// </remarks>
+        public AABB offsetBounds;
     }
 
     /// <summary>

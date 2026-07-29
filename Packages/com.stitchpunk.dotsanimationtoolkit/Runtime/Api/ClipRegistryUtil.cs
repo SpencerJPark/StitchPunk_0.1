@@ -16,7 +16,9 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>
         /// Resolves a <see cref="ClipId"/> to its dense index into
         /// <see cref="ClipRegistryBlob.clips"/> by binary search over
-        /// <see cref="ClipRegistryBlob.sortedClipIds"/>.
+        /// <see cref="ClipRegistryBlob.sortedClipIds"/>. The search position <em>is</em> the dense
+        /// index, because both arrays are baked in the same ascending-clip-id order
+        /// (architecture sections 4.2, 4.5.1).
         /// </summary>
         /// <param name="registry">The baked registry.</param>
         /// <param name="clipId">The clip id to resolve.</param>
@@ -39,7 +41,7 @@ namespace StitchPunk.AnimationToolkit
                 ulong middleValue = registry.sortedClipIds[middleIndex];
                 if (middleValue == clipId.Value)
                 {
-                    clipIndex = registry.clipIndexById[middleIndex];
+                    clipIndex = middleIndex;
                     return true;
                 }
                 if (middleValue < clipId.Value)

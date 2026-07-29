@@ -7,11 +7,14 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of the binary-search id resolve contract (architecture sections 4.3,
-    /// 8 M3): hit on first/middle/last sorted entries through the id → dense-index indirection,
-    /// misses below/between/above the range, the reserved invalid id, and the empty registry.
-    /// The fixture registers clip ids {5, 2, 100, 9} in that dense order, so the sorted view is
-    /// {2, 5, 9, 100} with dense indices {1, 0, 3, 2}, and target ids {30, 10, 20}, so the dense
-    /// target order is {10, 20, 30}.
+    /// 8 M3): hit on first/middle/last entries, misses below/between/above the range, the reserved
+    /// invalid id, and the empty registry.
+    ///
+    /// The fixture hands clip ids over as {5, 2, 100, 9} to prove authoring order is discarded: the
+    /// bake sorts clips ascending by id (section 4.5.1), so the baked order is {2, 5, 9, 100} and a
+    /// clip's dense index is simply its position there — 2→0, 5→1, 9→2, 100→3. Amendment A11 deleted
+    /// the old clipIndexById indirection precisely because that made it the identity map. Target ids
+    /// {30, 10, 20} likewise bake to {10, 20, 30}.
     /// </summary>
     public sealed class ClipRegistryUtilTests
     {
@@ -49,12 +52,16 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void TryResolveClip_FirstSortedId_ResolvesThroughTheDenseIndexIndirection()
+        public void TryResolveClip_FirstSortedId_ResolvesToItsBakedPosition()
         {
             bool resolved = ClipRegistryUtil.TryResolveClip(
                 ref registryReference.Value, new ClipId(2), out int clipIndex);
             Assert.IsTrue(resolved);
-            Assert.AreEqual(1, clipIndex, "Id 2 was registered second, so its dense index is 1.");
+            Assert.AreEqual(
+                0,
+                clipIndex,
+                "Id 2 is the lowest id, so it bakes first and its dense index is 0 — regardless of "
+                + "having been authored second.");
         }
 
         [Test]
@@ -63,7 +70,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             bool resolved = ClipRegistryUtil.TryResolveClip(
                 ref registryReference.Value, new ClipId(100), out int clipIndex);
             Assert.IsTrue(resolved);
-            Assert.AreEqual(2, clipIndex);
+            Assert.AreEqual(3, clipIndex, "Id 100 is the highest id, so it bakes last.");
         }
 
         [Test]
@@ -72,12 +79,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             bool resolvedFive = ClipRegistryUtil.TryResolveClip(
                 ref registryReference.Value, new ClipId(5), out int fiveIndex);
             Assert.IsTrue(resolvedFive);
-            Assert.AreEqual(0, fiveIndex);
+            Assert.AreEqual(1, fiveIndex);
 
             bool resolvedNine = ClipRegistryUtil.TryResolveClip(
                 ref registryReference.Value, new ClipId(9), out int nineIndex);
             Assert.IsTrue(resolvedNine);
-            Assert.AreEqual(3, nineIndex);
+            Assert.AreEqual(2, nineIndex);
         }
 
         [Test]

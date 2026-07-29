@@ -21,10 +21,11 @@ The package is developed against a fixed, reviewed architecture; features are
 built module by module, and this manual only documents what actually exists in
 the installed version.
 
-## Current status: pre-release 0.2.0, build step C1
+## Current status: pre-release 0.3.0, build step C2
 
-This version contains the **data and sampling layer**: the types, blob schema,
-and pure math the animation systems will be built on. Nothing drives an entity
+This version contains the **data and sampling layer** plus the **authoring
+layer**: the types, blob schema, pure math, authoring assets, validation, and the
+bake that turns authored assets into that blob schema. Nothing drives an entity
 yet. What exists today:
 
 - The package manifest (identity, Unity 6000.5 minimum, pinned dependencies),
@@ -45,12 +46,36 @@ yet. What exists today:
   `ClipRegistryUtil` (binary-search id resolution). These are pure static
   functions with no ECS world dependency, so editor preview and runtime share
   one implementation.
-- Packaging conformance tests plus 96 EditMode tests covering the sampling math
-  and asserting the blob and component layouts against the architecture.
+- **Authoring assets** — `RigAsset` (targets, layers, mirror pairs), `ClipAsset`
+  (duration, loop and blend defaults, transform tracks, sprite tracks, event
+  markers, optional VAT source), `ClipSetAsset` (the registry: rig + clips +
+  optional VAT texture set), and the baker-generated `VatTextureSetAsset`. Rigs,
+  clips and sets are creatable from **Assets ▸ Create ▸ DOTS Animation Toolkit**.
+- **Stable identity** — `StableIdUtility` mints random folded-GUID ids, which
+  every identity-bearing asset self-assigns on creation and on deserialization.
+  Because ids are never derived from a name, a path, or a list position, they
+  survive renames, reordering and asset moves; duplicating an asset copies its
+  id, and the editor's import-time collision tooling (a later build step) is what
+  separates the copy.
+- **Validation** — `ClipValidation` implements rules V01 to V14 once, for the
+  inspectors, the clip editor and the bake alike, returning `ValidationMessage`
+  findings with a rule code, a severity, an asset context and an explanation.
+- **The bake** — `ClipRegistryBuilder.Build` turns a `ClipSetAsset` into its
+  `ClipRegistryBlob` plus the content hash that keys it in the `BlobAssetStore`.
+  The build is deterministic: authoring list order is discarded in favour of a
+  canonical ordering, degrees become radians and blend defaults are clamped once
+  at bake, and the hash is taken over float bit patterns, so the same assets
+  produce the same blob and the same hash on every machine and in every session.
+  A set carrying validation errors throws `ClipValidationException` naming the
+  offending rules rather than baking something broken.
+- Packaging conformance tests plus 164 EditMode tests covering the sampling math,
+  the validation rule table, identity stability, canonical ordering and bake
+  determinism, and asserting the blob and component layouts against the
+  architecture.
 
-What does **not** exist yet: all systems, authoring asset types, bakers,
-shaders, editor windows, and samples. Do not install this version expecting to
-animate anything — nothing here is wired into a running world.
+What does **not** exist yet: all systems, entity bakers and authoring
+MonoBehaviours, shaders, editor windows, and samples. Do not install this version
+expecting to animate anything — nothing here is wired into a running world.
 
 ## Installing
 
@@ -71,7 +96,8 @@ Note: per `LICENSE.md`, this package is not yet licensed for redistribution.
 ## Running the tests
 
 Open **Window ▸ General ▸ Test Runner**. The **EditMode** tab lists the
-packaging conformance tests and the C1 data/sampling suites under
+packaging conformance tests, the C1 data/sampling suites, and the C2 identity,
+validation, builder and determinism suites, all under
 `StitchPunk.AnimationToolkit.Tests.EditMode`; the **PlayMode** tab lists the
 PlayMode assembly smoke test. The packaging tests read the real files of the
 installed package from disk, and the contract tests assert the shipped blob and

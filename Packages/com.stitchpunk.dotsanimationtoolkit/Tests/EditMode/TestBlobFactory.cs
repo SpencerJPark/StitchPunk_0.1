@@ -104,9 +104,11 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
-        /// Builds a registry whose <c>clips</c> array preserves the given spec order (dense
-        /// indices = spec order) while <c>sortedClipIds</c>/<c>clipIndexById</c> hold the
-        /// canonical ascending-id view over it, exercising the id → dense-index indirection.
+        /// Builds a registry in the canonical layout <c>ClipRegistryBuilder</c> produces: the
+        /// <c>clips</c> array sorted by ascending <c>clipId</c> regardless of the order the specs
+        /// were handed in, with <c>sortedClipIds</c> holding those same ids in those same positions.
+        /// A clip's dense index is therefore its position in the ascending-id order, which is what
+        /// <c>ClipRegistryUtil.TryResolveClip</c>'s binary search returns.
         /// </summary>
         internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
             ClipSpec[] clipSpecs,
@@ -114,38 +116,27 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             ulong setKey = 1,
             byte layerCount = 4)
         {
+            ClipSpec[] canonicalClipSpecs = new ClipSpec[clipSpecs.Length];
+            Array.Copy(clipSpecs, canonicalClipSpecs, clipSpecs.Length);
+            Array.Sort(canonicalClipSpecs, CompareClipSpecsByClipId);
+
             BlobBuilder builder = new BlobBuilder(Allocator.Temp);
             try
             {
                 ref ClipRegistryBlob registryRoot = ref builder.ConstructRoot<ClipRegistryBlob>();
-                registryRoot.schemaVersion = 1;
+                registryRoot.schemaVersion = 2;
                 registryRoot.setKey = setKey;
                 registryRoot.vatSetKey = 0;
                 registryRoot.layerCount = layerCount;
 
-                BlobBuilderArray<ClipBlob> clipArray = builder.Allocate(ref registryRoot.clips, clipSpecs.Length);
-                for (int clipIndex = 0; clipIndex < clipSpecs.Length; clipIndex++)
-                {
-                    FillClip(ref builder, ref clipArray[clipIndex], clipSpecs[clipIndex]);
-                }
-
-                ulong[] sortedIds = new ulong[clipSpecs.Length];
-                int[] denseIndices = new int[clipSpecs.Length];
-                for (int clipIndex = 0; clipIndex < clipSpecs.Length; clipIndex++)
-                {
-                    sortedIds[clipIndex] = clipSpecs[clipIndex].clipId;
-                    denseIndices[clipIndex] = clipIndex;
-                }
-                Array.Sort(sortedIds, denseIndices);
-
+                BlobBuilderArray<ClipBlob> clipArray =
+                    builder.Allocate(ref registryRoot.clips, canonicalClipSpecs.Length);
                 BlobBuilderArray<ulong> sortedClipIdArray =
-                    builder.Allocate(ref registryRoot.sortedClipIds, clipSpecs.Length);
-                BlobBuilderArray<int> clipIndexByIdArray =
-                    builder.Allocate(ref registryRoot.clipIndexById, clipSpecs.Length);
-                for (int sortedIndex = 0; sortedIndex < clipSpecs.Length; sortedIndex++)
+                    builder.Allocate(ref registryRoot.sortedClipIds, canonicalClipSpecs.Length);
+                for (int denseClipIndex = 0; denseClipIndex < canonicalClipSpecs.Length; denseClipIndex++)
                 {
-                    sortedClipIdArray[sortedIndex] = sortedIds[sortedIndex];
-                    clipIndexByIdArray[sortedIndex] = denseIndices[sortedIndex];
+                    FillClip(ref builder, ref clipArray[denseClipIndex], canonicalClipSpecs[denseClipIndex]);
+                    sortedClipIdArray[denseClipIndex] = canonicalClipSpecs[denseClipIndex].clipId;
                 }
 
                 uint[] sortedTargets = new uint[targetIds.Length];
@@ -178,6 +169,17 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             }
         }
 
+        /// <summary>
+        /// Orders specs by ascending clip id — the canonical order <c>ClipRegistryBuilder</c> bakes
+        /// (architecture section 4.5.1), where a clip's dense index is its position. Sorting here
+        /// lets a fixture hand clips over in any order and still get the layout the runtime expects,
+        /// so a test can exercise out-of-order authoring without hand-computing dense indices.
+        /// </summary>
+        private static int CompareClipSpecsByClipId(ClipSpec firstSpec, ClipSpec secondSpec)
+        {
+            return firstSpec.clipId.CompareTo(secondSpec.clipId);
+        }
+
         private static void FillClip(ref BlobBuilder builder, ref ClipBlob clip, ClipSpec clipSpec)
         {
             clip.clipId = clipSpec.clipId;
@@ -189,7 +191,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             clip.vatFrameStart = clipSpec.vatFrameStart;
             clip.vatFrameCount = clipSpec.vatFrameCount;
             clip.vatFps = clipSpec.vatFps;
-            clip.localBounds = new AABB { Center = float3.zero, Extents = float3.zero };
+            clip.offsetBounds = new AABB { Center = float3.zero, Extents = float3.zero };
 
             BlobBuilderArray<TransformTrackBlob> trackArray =
                 builder.Allocate(ref clip.transformTracks, clipSpec.transformTracks.Length);

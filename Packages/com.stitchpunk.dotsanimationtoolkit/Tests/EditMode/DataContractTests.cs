@@ -170,7 +170,6 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("vatSetKey", typeof(ulong)),
                 Field("layerCount", typeof(byte)),
                 Field("sortedClipIds", typeof(BlobArray<ulong>)),
-                Field("clipIndexById", typeof(BlobArray<int>)),
                 Field("clips", typeof(BlobArray<ClipBlob>)),
                 Field("sortedTargetIds", typeof(BlobArray<uint>)),
                 Field("targetBoundsExtents", typeof(BlobArray<float3>)),
@@ -195,7 +194,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("vatFrameStart", typeof(int)),
                 Field("vatFrameCount", typeof(int)),
                 Field("vatFps", typeof(float)),
-                Field("localBounds", typeof(AABB))
+                Field("offsetBounds", typeof(AABB))
             });
         }
 
