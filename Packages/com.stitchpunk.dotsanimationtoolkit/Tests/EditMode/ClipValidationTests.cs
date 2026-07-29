@@ -445,8 +445,101 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         // -----------------------------------------------------------------------------------
+        // Boundary cases.
+        //
+        // Each fixture above breaks its rule in one direction only, so each would still pass if the
+        // rule's comparison were wrong in the other direction. These pin the boundaries.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void V04_AlsoFiresForANegativeKeyTime_NotOnlyForOneAboveTheRange()
+        {
+            // The paired fixture only exceeds 1. Without this, a rule written `time > 1f` instead
+            // of `time < 0f || time > 1f` would still pass.
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            TransformTrack negativeTimeTrack = AuthoringTestAssets.AddTransformTrack(
+                clip, SecondTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                negativeTimeTrack, -0.25f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f),
+                Interpolation.Linear);
+
+            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V04, ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V03_FiresForTwoKeysAtTheSameTime_BecauseTheOrderMustBeStrict()
+        {
+            // The paired fixture uses distinct out-of-order times, so a rule accepting equal times
+            // (non-strict ascending) would pass it. Equal times are the case that makes segment
+            // lookup ambiguous at runtime.
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            TransformTrack duplicateTimeTrack = AuthoringTestAssets.AddTransformTrack(
+                clip, SecondTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                duplicateTimeTrack, 0.5f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f),
+                Interpolation.Linear);
+            AuthoringTestAssets.AddTransformKey(
+                duplicateTimeTrack, 0.5f, new float3(1f, 0f, 0f), 0f, new float2(1f, 1f),
+                Interpolation.Linear);
+
+            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V03, ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V09_FiresForTheTopOfTheReservedRange_AndPassesTheFirstUserKey()
+        {
+            // The paired fixture uses only ClipFinished (1). The reserved band is 1 to 15, so a
+            // rule checking a couple of named constants rather than the range would pass it.
+            RigAsset rig;
+            ClipAsset topOfReservedClip;
+            ClipSetAsset topOfReservedSet = CreateValidSet(out rig, out topOfReservedClip);
+            EventMarker topOfReservedMarker = topOfReservedClip.events[0];
+            topOfReservedMarker.eventKey = (uint)ReservedEventKeys.FirstUserKey - 1u;
+            topOfReservedClip.events[0] = topOfReservedMarker;
+
+            AssertOnlyCode(
+                ClipValidation.ValidateSet(topOfReservedSet), ValidationCode.V09, ValidationSeverity.Error);
+
+            ClipAsset firstUserKeyClip;
+            ClipSetAsset firstUserKeySet = CreateValidSet(out rig, out firstUserKeyClip);
+            EventMarker firstUserKeyMarker = firstUserKeyClip.events[0];
+            firstUserKeyMarker.eventKey = (uint)ReservedEventKeys.FirstUserKey;
+            firstUserKeyClip.events[0] = firstUserKeyMarker;
+
+            AssertNoFindings(
+                ClipValidation.ValidateSet(firstUserKeySet),
+                "The first user key is the lowest key the package does not reserve.");
+        }
+
+        [Test]
+        public void V14_AcceptsMinusOne_BecauseItIsTheNoChangeSentinelNotAnError()
+        {
+            // The paired fixture uses -5. Without this, a rule written `sliceIndex < 0` would pass
+            // it while rejecting the -1 "leave the slice alone" sentinel the sampler depends on.
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            SpriteTrack sentinelTrack = AuthoringTestAssets.AddSpriteTrack(
+                clip, SecondTargetId, SpriteFrameMode.Slice);
+            AuthoringTestAssets.AddSpriteKey(sentinelTrack, 0f, -1, float4.zero);
+
+            AssertNoFindings(
+                ClipValidation.ValidateSet(clipSet),
+                "-1 means 'no change' on an authored sprite key and must validate cleanly.");
+        }
+
+        // -----------------------------------------------------------------------------------
         // Assertion helpers.
         // -----------------------------------------------------------------------------------
+
+        private static void AssertNoFindings(IReadOnlyList<ValidationMessage> messages, string because)
+        {
+            Assert.AreEqual(0, messages.Count, because + " Got: " + Describe(messages));
+        }
 
         private static void AssertOnlyCode(
             IReadOnlyList<ValidationMessage> messages,

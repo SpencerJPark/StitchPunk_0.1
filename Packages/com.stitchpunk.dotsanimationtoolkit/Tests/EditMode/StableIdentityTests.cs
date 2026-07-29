@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Mathematics;
 
@@ -178,30 +179,39 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         [Test]
         public void SerializationRoundTrip_PreservesA64BitClipId_IncludingItsHighBit()
         {
+            // 0xF0E1... has the high bit set, so it exceeds long.MaxValue. That is the case a
+            // serializer which quietly routes ulong through a signed 64-bit field mangles, and it
+            // is why this goes through Unity's serializer rather than Object.Instantiate — an
+            // in-memory native clone never visits the text representation where that happens.
             ClipAsset clip = assets.Create<ClipAsset>("Clip");
             clip.stableId = 0xF0E1D2C3B4A59687UL;
 
-            ClipAsset clonedClip = UnityEngine.Object.Instantiate(clip);
-            assets.Track(clonedClip);
+            string serializedClip = EditorJsonUtility.ToJson(clip);
+            ClipAsset revivedClip = assets.Create<ClipAsset>("RevivedClip");
+            EditorJsonUtility.FromJsonOverwrite(serializedClip, revivedClip);
 
             Assert.AreEqual(
                 0xF0E1D2C3B4A59687UL,
-                clonedClip.Id.Value,
-                "A serialize/deserialize round trip must preserve all 64 bits of a clip id.");
+                revivedClip.Id.Value,
+                "A serialize/deserialize round trip must preserve all 64 bits of a clip id, " +
+                "including ids above long.MaxValue.");
         }
 
         [Test]
         public void SerializationRoundTrip_PreservesRigAndTargetIds()
         {
+            // 0x8000000000000001 is long.MaxValue + 2, and 0xFFFFFFFF is uint.MaxValue: the two
+            // boundary values a signed round trip corrupts.
             RigAsset rig = assets.CreateRig("Rig", 0x8000000000000001UL, 1, new uint[] { 0xFFFFFFFFu, 1u });
 
-            RigAsset clonedRig = UnityEngine.Object.Instantiate(rig);
-            assets.Track(clonedRig);
+            string serializedRig = EditorJsonUtility.ToJson(rig);
+            RigAsset revivedRig = assets.Create<RigAsset>("RevivedRig");
+            EditorJsonUtility.FromJsonOverwrite(serializedRig, revivedRig);
 
-            Assert.AreEqual(0x8000000000000001UL, clonedRig.StableId, "The rig id must survive re-serialization.");
-            Assert.AreEqual(2, clonedRig.targets.Count, "The target rows must survive re-serialization.");
-            Assert.AreEqual(0xFFFFFFFFu, clonedRig.targets[0].Id.Value, "A 32-bit target id must survive intact.");
-            Assert.AreEqual(1u, clonedRig.targets[1].Id.Value, "A 32-bit target id must survive intact.");
+            Assert.AreEqual(0x8000000000000001UL, revivedRig.StableId, "The rig id must survive re-serialization.");
+            Assert.AreEqual(2, revivedRig.targets.Count, "The target rows must survive re-serialization.");
+            Assert.AreEqual(0xFFFFFFFFu, revivedRig.targets[0].Id.Value, "A 32-bit target id must survive intact.");
+            Assert.AreEqual(1u, revivedRig.targets[1].Id.Value, "A 32-bit target id must survive intact.");
         }
 
         [Test]
