@@ -83,6 +83,76 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void TryComputeContentHash_MatchesTheKeyBuildProduces_ForTheSameAsset()
+        {
+            // The whole point of the standalone entry point is that a baker can probe the
+            // BlobAssetStore before deciding to build. If it disagreed with Build by even one bit,
+            // every probe would miss and the store would fill with duplicates — silently, because
+            // nothing else compares the two.
+            ClipSetAsset frozenSet = BuildFrozenSet();
+
+            Unity.Entities.Hash128 probedHash;
+            bool probed = ClipRegistryBuilder.TryComputeContentHash(frozenSet, out probedHash);
+            registryScope.Build(frozenSet);
+
+            Assert.IsTrue(probed, "A bakeable set must yield a key.");
+            Assert.AreEqual(
+                registryScope.ContentHash,
+                probedHash,
+                "The probed key must be byte-identical to the one Build produces, or the canonical " +
+                "TryGet/build/TryAdd pattern silently stops deduplicating.");
+            Assert.AreEqual(
+                ExpectedContentHash,
+                ((ulong)probedHash.Value.y << 32) | probedHash.Value.x,
+                "And it must be the same golden value, reached without allocating a blob.");
+        }
+
+        [Test]
+        public void TryComputeContentHash_LeavesNothingForTheCallerToDispose()
+        {
+            // It builds a blob internally to hash it. That blob is Allocator.Temp and released
+            // before returning — the property that makes it safe to call on a store hit. Repeating
+            // it many times would surface a leak as an allocator error at the end of the run.
+            ClipSetAsset frozenSet = BuildFrozenSet();
+
+            Unity.Entities.Hash128 firstHash;
+            Assert.IsTrue(ClipRegistryBuilder.TryComputeContentHash(frozenSet, out firstHash));
+            for (int probeIndex = 0; probeIndex < 64; probeIndex++)
+            {
+                Unity.Entities.Hash128 repeatedHash;
+                Assert.IsTrue(ClipRegistryBuilder.TryComputeContentHash(frozenSet, out repeatedHash));
+                Assert.AreEqual(firstHash, repeatedHash, "Probing must be a pure function of the asset.");
+            }
+        }
+
+        [Test]
+        public void TryComputeContentHash_ReportsFailure_ForANullSetAndForAnInvalidOne()
+        {
+            // Both false branches. A set that cannot bake has no key, and saying so is what lets a
+            // baker skip it rather than throw mid-bake.
+            Unity.Entities.Hash128 nullSetHash;
+            Assert.IsFalse(
+                ClipRegistryBuilder.TryComputeContentHash(null, out nullSetHash),
+                "A null set has no key.");
+            Assert.AreEqual(default(Unity.Entities.Hash128), nullSetHash, "A failed probe reports no key.");
+
+            // A clip whose track points at a target the rig does not define is a V02 error.
+            ClipSetAsset invalidSet = BuildFrozenSet();
+            invalidSet.clips[0].transformTracks.Clear();
+            TransformTrack orphanedTrack = AuthoringTestAssets.AddTransformTrack(
+                invalidSet.clips[0], 0xDEADu, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                orphanedTrack, 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f),
+                Interpolation.Linear);
+
+            Unity.Entities.Hash128 invalidSetHash;
+            Assert.IsFalse(
+                ClipRegistryBuilder.TryComputeContentHash(invalidSet, out invalidSetHash),
+                "A set carrying validation errors is not bakeable, so it has no key.");
+            Assert.AreEqual(default(Unity.Entities.Hash128), invalidSetHash, "A failed probe reports no key.");
+        }
+
+        [Test]
         public void TheFrozenSet_StampsTheSchemaVersionTheGoldenValueWasRecordedUnder()
         {
             // A golden hash means nothing without the layout version it belongs to: the same bytes
@@ -131,7 +201,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddEvent(walkClip, 0.5f, 16u, -2, 1.5f);
 
             ClipAsset idleClip = assets.CreateClip("GoldenIdle", rig, IdleClipId, 0.5f);
+            // Restated rather than inherited from AuthoringTestAssets: these two are in the hashed
+            // stream, so leaving them at the shared helper's defaults would let an unrelated edit to
+            // that helper move the golden value and demand a schema bump for no real format change.
             idleClip.defaultLoop = LoopMode.Loop;
+            idleClip.defaultBlendIn = 0.1f;
+            idleClip.defaultBlendOut = 0.2f;
             SpriteTrack bodyAtlasTrack = AuthoringTestAssets.AddSpriteTrack(
                 idleClip, BodyTargetId, SpriteFrameMode.AtlasRect);
             AuthoringTestAssets.AddSpriteKey(

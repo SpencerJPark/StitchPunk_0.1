@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace StitchPunk.AnimationToolkit
 {
@@ -72,5 +73,33 @@ namespace StitchPunk.AnimationToolkit
     {
         /// <summary>LOD level 0–3: full, half rate, quarter rate + snapped blends, frozen pose.</summary>
         public byte level;
+    }
+
+    /// <summary>
+    /// The actor's rest-pose bounds in <strong>actor space</strong> — the box the rig occupies with
+    /// every target at its rest pose, before any clip displaces anything (architecture sections 5.2,
+    /// 4.6, 5.8; amendment A13).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This exists because <see cref="ClipBlob.offsetBounds"/> is <em>offset</em> space, not actor
+    /// space. Transform keys store offsets from a target's rest pose, and rest poses live on the
+    /// prefab, which the authoring assembly that runs the bake cannot read — so every box the bake
+    /// produces is centred on the origin. Treating that as actor space would give any rig whose
+    /// parts sit away from the origin a box smaller than its own silhouette, and it would cull
+    /// visibly: exactly the defect section 5.8 exists to close.
+    /// </para>
+    /// <para>
+    /// Written by the entity baker, which does see the prefab hierarchy.
+    /// <c>RenderBoundsUpdateSystem</c> (section 5.8) unions this with the
+    /// <see cref="ClipBlob.offsetBounds"/> of every clip still referenced to obtain the actor-space
+    /// bounds it writes into <c>RenderBounds</c>. No system may write
+    /// <see cref="ClipBlob.offsetBounds"/> into <c>RenderBounds</c> directly.
+    /// </para>
+    /// </remarks>
+    public struct ActorRestBounds : IComponentData
+    {
+        /// <summary>Rest-pose bounds in actor space: centre plus half-extents.</summary>
+        public AABB value;
     }
 }
