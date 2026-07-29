@@ -315,7 +315,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             PackageManifestContents manifest = JsonUtility.FromJson<PackageManifestContents>(manifestText);
             Assert.AreEqual(PackageId, manifest.name, "Package id must match architecture section 1.1.");
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
-            Assert.AreEqual("0.1.0", manifest.version, "Version is 0.1.0 during Phase C per architecture section 1.1.");
+            Assert.AreEqual("0.2.0", manifest.version, "Version tracks the Phase C build step (C1) per architecture section 1.1.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

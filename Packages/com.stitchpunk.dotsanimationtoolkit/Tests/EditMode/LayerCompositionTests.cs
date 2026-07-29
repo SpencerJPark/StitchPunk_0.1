@@ -252,6 +252,29 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             };
         }
 
+        private static PlaybackLayer BlendingLayerFromPrevious(
+            int currentClipIndex,
+            int previousClipIndex,
+            float previousTime,
+            LoopMode previousLoop,
+            float blendElapsed,
+            float blendDuration)
+        {
+            return new PlaybackLayer
+            {
+                clipIndex = currentClipIndex,
+                time = 0f,
+                speed = 1f,
+                loop = LoopMode.UseClipDefault,
+                previousClipIndex = previousClipIndex,
+                previousTime = previousTime,
+                previousLoop = previousLoop,
+                blendElapsed = blendElapsed,
+                blendDuration = blendDuration,
+                flags = PlaybackFlags.Active | PlaybackFlags.Blending
+            };
+        }
+
         private TargetPose Composite(PlaybackLayer[] layerSource)
         {
             NativeArray<PlaybackLayer> layers = new NativeArray<PlaybackLayer>(layerSource, Allocator.Temp);
@@ -415,6 +438,33 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             });
             Assert.AreEqual(2f, clampedPose.localPosition.x, Tolerance,
                 "An explicit Once request overrides the clip default and clamps t = 1.5 to the end.");
+        }
+
+        [Test]
+        public void CompositeLayers_OutgoingClip_KeepsTheLoopModeItWasPlayingUnder()
+        {
+            // The ramp clip runs x from 0 to 2 across a one-second duration and its authored
+            // default is PingPong. Here it is the *outgoing* clip of a crossfade, parked past its
+            // end at t = 1.5, with the blend weight at 0 so the composite is the outgoing pose
+            // alone. Having been played under an explicit Once override, it must hold at the end.
+            TargetPose heldPose = Composite(new PlaybackLayer[]
+            {
+                BlendingLayerFromPrevious(WalkClipIndex, RampClipIndex, 1.5f, LoopMode.Once, 0f, 1f)
+            });
+            Assert.AreEqual(2f, heldPose.localPosition.x, Tolerance,
+                "An outgoing clip played Once must clamp to its end while it fades. Resolving " +
+                "against the clip's PingPong default instead would reflect it to x = 1 — a pop in " +
+                "the very transition the crossfade exists to smooth.");
+
+            // Same clip, same time, but no override recorded: the clip default applies and the
+            // PingPong reflection is then the correct result.
+            TargetPose reflectedPose = Composite(new PlaybackLayer[]
+            {
+                BlendingLayerFromPrevious(
+                    WalkClipIndex, RampClipIndex, 1.5f, LoopMode.UseClipDefault, 0f, 1f)
+            });
+            Assert.AreEqual(1f, reflectedPose.localPosition.x, Tolerance,
+                "UseClipDefault must still fall back to the outgoing clip's own default.");
         }
 
         [Test]

@@ -56,12 +56,26 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         [Test]
         public void MaterialPropertyComponents_ValueFieldTypesMatchTheSection62Table()
         {
-            Assert.AreEqual(typeof(float), typeof(SpriteSliceProperty).GetField("Value").FieldType);
-            Assert.AreEqual(typeof(float4), typeof(AtlasFrameProperty).GetField("Value").FieldType);
-            Assert.AreEqual(typeof(float), typeof(VatFrameAProperty).GetField("Value").FieldType);
-            Assert.AreEqual(typeof(float), typeof(VatFrameBProperty).GetField("Value").FieldType);
-            Assert.AreEqual(typeof(float), typeof(VatBlendProperty).GetField("Value").FieldType);
-            Assert.AreEqual(typeof(float4), typeof(BillboardParamsProperty).GetField("Value").FieldType);
+            Assert.AreEqual(typeof(float), ResolveValueFieldType(typeof(SpriteSliceProperty)));
+            Assert.AreEqual(typeof(float4), ResolveValueFieldType(typeof(AtlasFrameProperty)));
+            Assert.AreEqual(typeof(float), ResolveValueFieldType(typeof(VatFrameAProperty)));
+            Assert.AreEqual(typeof(float), ResolveValueFieldType(typeof(VatFrameBProperty)));
+            Assert.AreEqual(typeof(float), ResolveValueFieldType(typeof(VatBlendProperty)));
+            Assert.AreEqual(typeof(float4), ResolveValueFieldType(typeof(BillboardParamsProperty)));
+        }
+
+        /// <summary>
+        /// Reads the <c>Value</c> field's type, asserting the field exists first. The [MaterialProperty]
+        /// contract binds that exact field name, so a rename must surface as a readable failure here
+        /// rather than as a NullReferenceException from a chained reflection call.
+        /// </summary>
+        private static Type ResolveValueFieldType(Type materialPropertyComponentType)
+        {
+            FieldInfo valueField = materialPropertyComponentType.GetField("Value");
+            Assert.IsNotNull(valueField,
+                materialPropertyComponentType.Name +
+                " must expose a public 'Value' field for [MaterialProperty] instancing (section 6.2).");
+            return valueField.FieldType;
         }
 
         private static int ResolveInternalBufferCapacity(Type bufferElementType)

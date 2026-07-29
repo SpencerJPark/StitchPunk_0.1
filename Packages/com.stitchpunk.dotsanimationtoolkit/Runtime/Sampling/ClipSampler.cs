@@ -394,8 +394,12 @@ namespace StitchPunk.AnimationToolkit
                     if (layer.previousClipIndex >= 0 && layer.previousClipIndex < registry.clips.Length)
                     {
                         ref ClipBlob previousClip = ref registry.clips[layer.previousClipIndex];
+                        // The outgoing clip keeps the loop mode it was actually playing under: a
+                        // command may have overridden it away from the clip's default, and wrapping
+                        // a clip that was told to hold would pop mid-crossfade.
+                        LoopMode previousLoopMode = ResolveLoopMode(layer.previousLoop, previousClip.defaultLoop);
                         float previousNormalizedTime = MapTimeNormalized(
-                            layer.previousTime, previousClip.duration, previousClip.defaultLoop);
+                            layer.previousTime, previousClip.duration, previousLoopMode);
                         ApplyClipToPose(ref previousClip, targetIndex, previousNormalizedTime, ref previousPose);
                     }
                     float blendWeight = math.saturate(layer.blendElapsed / layer.blendDuration);

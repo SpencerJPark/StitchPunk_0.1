@@ -21,26 +21,36 @@ The package is developed against a fixed, reviewed architecture; features are
 built module by module, and this manual only documents what actually exists in
 the installed version.
 
-## Current status: pre-release 0.1.0, build step C0
+## Current status: pre-release 0.2.0, build step C1
 
-This version contains the **package skeleton only**. What exists today:
+This version contains the **data and sampling layer**: the types, blob schema,
+and pure math the animation systems will be built on. Nothing drives an entity
+yet. What exists today:
 
-- The package manifest (identity, Unity 6000.5 minimum, pinned dependencies).
-- Five assembly definitions: `StitchPunk.AnimationToolkit.Runtime`,
-  `StitchPunk.AnimationToolkit.Authoring`, `StitchPunk.AnimationToolkit.Editor`
-  (Editor-only), and the EditMode / PlayMode test assemblies.
-- `InternalsVisibleTo` grants from the Authoring assembly to the Editor and
-  test assemblies.
-- Packaging conformance tests that assert the package's structure against its
-  architecture contract (assembly references, platform restrictions, no
-  UnityEditor usage outside the Editor and test folders, no host-project
-  references, no IMGUI in editor sources).
-- This documentation skeleton.
+- The package manifest (identity, Unity 6000.5 minimum, pinned dependencies),
+  five assembly definitions, and the `InternalsVisibleTo` grants from the
+  Authoring assembly to the Editor and test assemblies.
+- **Identity types** — `ClipId` (64-bit stable clip identity) and `TargetId`
+  (32-bit rig-target identity), both reserving 0 as "none/invalid".
+- **Blob schema** — the baked `ClipRegistryBlob` and its clip, transform-track,
+  sprite-track, key, event-marker and VAT-info payloads. Blobs carry metadata
+  and keys only; textures are resolved through components, never stored inside
+  a blob.
+- **Runtime components** — the actor-root, per-part, and singleton component
+  set, including the `[MaterialProperty]` components that carry animation state
+  into DOTS-instanced draws.
+- **Sampling and composition math** — `ClipSampler` (easing, loop/clamp/ping-pong
+  time mapping, track sampling, pose blending, layer composition, sample-rate
+  quantization), `EventWrapMath` (wrap-correct event crossings), and
+  `ClipRegistryUtil` (binary-search id resolution). These are pure static
+  functions with no ECS world dependency, so editor preview and runtime share
+  one implementation.
+- Packaging conformance tests plus 96 EditMode tests covering the sampling math
+  and asserting the blob and component layouts against the architecture.
 
-What does **not** exist yet: all runtime components and systems, authoring
-asset types, bakers, shaders, editor windows, and samples. Do not install this
-version expecting to animate anything — it is the foundation the feature
-modules are built on.
+What does **not** exist yet: all systems, authoring asset types, bakers,
+shaders, editor windows, and samples. Do not install this version expecting to
+animate anything — nothing here is wired into a running world.
 
 ## Installing
 
@@ -61,7 +71,9 @@ Note: per `LICENSE.md`, this package is not yet licensed for redistribution.
 ## Running the tests
 
 Open **Window ▸ General ▸ Test Runner**. The **EditMode** tab lists the
-packaging conformance tests under `StitchPunk.AnimationToolkit.Tests.EditMode`;
-the **PlayMode** tab lists the PlayMode assembly smoke test. All tests read the
-real files of the installed package from disk — they are the mechanical check
-that the package structure matches its architecture contract.
+packaging conformance tests and the C1 data/sampling suites under
+`StitchPunk.AnimationToolkit.Tests.EditMode`; the **PlayMode** tab lists the
+PlayMode assembly smoke test. The packaging tests read the real files of the
+installed package from disk, and the contract tests assert the shipped blob and
+component layouts by reflection — together they are the mechanical check that
+the package matches its architecture contract.

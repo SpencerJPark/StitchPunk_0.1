@@ -139,3 +139,29 @@ A Unity MCP bridge was found exposed in this session and the product owner appro
 4. Re-review of the changed surface, then the user's Editor compile + Test Runner run.
 
 `N2`–`N7` may be carried as a tracked backlog into C2 rather than blocking, at the product owner's discretion.
+
+---
+
+## Rework record (2026-07-28)
+
+Product owner approved amendments A1–A4 and the associated fixes. The rework agent applied all four doc amendments and most of the code changes before being terminated by a session limit mid-file, leaving `DataContractTests.cs` half-converted (two `AnimBounds` references and a call to a deleted `BlobStructTypes()` helper). The coordinator completed the remainder directly. Three real compile errors surfaced from the user's Editor during this window and were fixed — the first empirical compile feedback this module has received.
+
+| Item | Status |
+|---|---|
+| A1 §1.3 `Unity.Mathematics.Extensions` | **Done** — doc amended; added to Runtime, Authoring, Tests.EditMode, Tests.PlayMode asmdefs. The Editor asmdef deliberately does *not* take it, and `PackagingConformanceTests`' expected lists match all five. |
+| A2 §5.2 `previousLoop` | **Done** — doc amended. |
+| A3 §5.7 slice resolution + `IdentityAtlasRect` | **Done** — doc amended. |
+| A4 §1.2 `Api/` + §5.2 `VatDriven` | **Done** — doc amended. |
+| B1 restore `AABB`, delete `AnimBounds` | **Done** — `ClipBlob.localBounds` is `Unity.Mathematics.AABB`; `AnimBounds` deleted; `TestBlobFactory` and `DataContractTests` updated; zero stale references package-wide. `DataContractTests` now asserts `AABB`'s `Center`/`Extents` shape, since §4.5's hash and §4.6's bounds union depend on it. |
+| B2 `previousLoop` field + sampler wiring | **Done** — field added to `PlaybackLayer`; `CompositeLayers` now resolves the outgoing clip through `ResolveLoopMode(layer.previousLoop, previousClip.defaultLoop)` instead of the clip default; `DataContractTests` field list updated. |
+| B2 regression test | **Done** — `CompositeLayers_OutgoingClip_KeepsTheLoopModeItWasPlayingUnder` parks the ping-pong-default ramp clip past its end as the outgoing clip at blend weight 0. Under an explicit `Once` override it must hold at x = 2; the pre-fix code reflected it to x = 1. The paired assertion proves `UseClipDefault` still falls back to the clip's own default. |
+| C1 registry-ordering doc | **Done** — `clips` is now documented as authored/dense order, stating explicitly that readers must not assume id order and why the indirection would otherwise be pointless. |
+| N1 shipped documentation | **Done** — `Documentation~/index.md` rewritten for C1; `CHANGELOG.md` 0.2.0 entry added; version bumped to 0.2.0 in `package.json`, `README.md` and the conformance test's expected identity. |
+| N3 crossing-count coverage | **Done** — `CollectCrossings_AppendsToAnExistingList_AndReturnsOnlyTheNewlyAddedCount` pre-populates the list, so returning `Length` instead of the delta now fails. |
+| N4 `ClipRegistry.value` → `Value` | **Done** — field renamed, reflection contract string updated. |
+| N5 texture-scan teeth | **Done** — the scan now discovers blob-reachable types by reflection over the Runtime assembly and unwraps `BlobArray`/`BlobPtr`/`BlobAssetReference` before judging a field, so `BlobArray<UnityObjectRef<Texture2D>>` is caught. Two `CollectionAssert.Contains` guards prevent a vacuous pass if discovery ever returns nothing. |
+| N6 reflection null guard | **Done** — `ResolveValueFieldType` asserts the field exists before reading `FieldType`. |
+| N2 `AnimTechnique` unused | **Deferred to C2** by product-owner decision. |
+| N7 phase-spread description | **No action** — documentation-only observation about the builder's reasoning; the test itself is correct. |
+
+**Outstanding to close the gate:** re-review of the changed surface, then the user's Editor compile + Test Runner run. Note that the C1 test count is now 98 (96 + the two regression tests added in rework).

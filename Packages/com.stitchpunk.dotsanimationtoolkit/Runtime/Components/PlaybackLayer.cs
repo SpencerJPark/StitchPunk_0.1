@@ -40,6 +40,16 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Playback speed of the crossfade-source clip.</summary>
         public float previousSpeed;
 
+        /// <summary>
+        /// Loop mode the crossfade-source clip was playing under, captured when it moved into the
+        /// previous slot. Recorded separately because a command may have overridden
+        /// <see cref="loop"/> away from that clip's default, and applying the new clip's request
+        /// (or the outgoing clip's unused default) to the outgoing clip would wrap a clip that was
+        /// meant to hold — a visible pop in the very transition the crossfade exists to smooth.
+        /// <see cref="LoopMode.UseClipDefault"/> resolves to the crossfade-source clip's default.
+        /// </summary>
+        public LoopMode previousLoop;
+
         /// <summary>Seconds elapsed in the running crossfade.</summary>
         public float blendElapsed;
 

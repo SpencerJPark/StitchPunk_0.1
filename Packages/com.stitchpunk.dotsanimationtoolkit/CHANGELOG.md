@@ -5,6 +5,49 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - Unreleased
+
+Phase C build step C1: the M3 data slice — identity types, the baked blob
+schema, the runtime component inventory, and the pure sampling/composition
+math. No systems, authoring assets, bakers, shaders, or editor tooling ship in
+this step; those land in build steps C2 through C8.
+
+### Added
+
+- Identity types `ClipId` (64-bit stable clip identity) and `TargetId` (32-bit
+  rig-target identity) from architecture section 3.4, both reserving 0 as
+  "none/invalid" and ordered for binary search.
+- The architecture section 4.2 blob schema: `ClipRegistryBlob` with its
+  `ClipBlob`, `TransformTrackBlob`, `TransformKeyBlob`, `SpriteTrackBlob`,
+  `SpriteKeyBlob`, `EventMarkerBlob` and `VatTextureInfoBlob` payloads. Blobs
+  store metadata and keys only — never textures or other Unity objects.
+- The architecture section 5.2 runtime components: the actor-root set
+  (`ClipRegistry`, `PlaybackLayer`, `AnimationCommand`, `AnimEventOutput`,
+  `RigPartRef`, `SampleSettings`, `AnimLod`, `VatTextureBinding` and the
+  enableable tags), the per-part set (`RigPartBinding`, `TargetRestPose`,
+  `TargetPose`, `VatDriven`), and the world singletons.
+- The six `[MaterialProperty]` components carrying animation state into
+  DOTS-instanced draws, bound to the architecture section 6.2 shader property
+  names (`_ImageIndex`, `_AtlasFrame`, `_VatFrameA`, `_VatFrameB`, `_VatBlend`,
+  `_BillboardParams`).
+- `ClipSampler`: easing, loop-mode resolution, Once/Loop/PingPong time mapping
+  including negative (reverse) time, transform and sprite track sampling, pose
+  blending, bottom-up layer composition with Override masking and additive
+  stacking, and per-entity phased sample-rate quantization.
+- `EventWrapMath.CollectCrossings`: wrap-correct event collection across
+  forward, reverse, single-wrap, multi-wrap and ping-pong-reflection cases.
+- `ClipRegistryUtil`: binary-search clip-id and target-id resolution through the
+  registry's sorted-id / dense-index indirection.
+- 96 EditMode tests covering the sampling and event math and asserting the blob
+  and component layouts against the architecture by reflection.
+
+### Changed
+
+- Added `Unity.Mathematics.Extensions` to all four non-Editor assembly
+  definitions. `Unity.Mathematics.AABB` is defined there, and architecture
+  section 5.9's bounds system must write `RenderBounds.Value`, so without the
+  reference that system could not compile.
+
 ## [0.1.0] - Unreleased
 
 Phase C build step C0: the package skeleton. No runtime, authoring, editor, or

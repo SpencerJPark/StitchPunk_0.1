@@ -71,6 +71,25 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void CollectCrossings_AppendsToAnExistingList_AndReturnsOnlyTheNewlyAddedCount()
+        {
+            // Every other fixture starts from an empty list, which cannot tell "number appended"
+            // apart from "list length" — the consumer in section 5.5 drains one shared list per
+            // actor across all layers, so a return of Length would over-report on later layers.
+            crossedEventIndices.Add(int.MinValue);
+            crossedEventIndices.Add(int.MaxValue);
+
+            int appendedCount = Collect(0.8f, 1f, LoopMode.Once);
+
+            Assert.AreEqual(1, appendedCount,
+                "The return value must count only crossings appended by this call, not the whole list.");
+            CollectionAssert.AreEqual(
+                new int[] { int.MinValue, int.MaxValue, 2 },
+                CollectedIndices(),
+                "Pre-existing entries must be preserved and the new crossing appended after them.");
+        }
+
+        [Test]
         public void CollectCrossings_ForwardInsideClip_CollectsOnlyMarkersInTheWindow()
         {
             int appendedCount = Collect(0.3f, 0.6f, LoopMode.Loop);

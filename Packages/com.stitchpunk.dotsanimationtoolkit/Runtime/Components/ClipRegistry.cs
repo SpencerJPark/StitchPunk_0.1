@@ -12,6 +12,6 @@ namespace StitchPunk.AnimationToolkit
     public struct ClipRegistry : IComponentData
     {
         /// <summary>The baked registry blob. BlobAssetStore-owned; never manually disposed.</summary>
-        public BlobAssetReference<ClipRegistryBlob> value;
+        public BlobAssetReference<ClipRegistryBlob> Value;
     }
 }
