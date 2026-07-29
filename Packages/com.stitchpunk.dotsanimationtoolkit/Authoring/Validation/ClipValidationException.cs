@@ -21,8 +21,11 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// Creates the exception from a complete validation result.
         /// </summary>
         /// <param name="validationMessages">
-        /// Every finding produced for the asset under bake, errors and warnings alike. Must contain
-        /// at least one error.
+        /// Every finding produced for the asset under bake, errors and warnings alike. A caller is
+        /// expected to raise this only when the set carries at least one error — that is not
+        /// enforced here, because an exception constructor that throws would replace the diagnostic
+        /// the caller was trying to deliver with a less useful one. A null or empty list yields the
+        /// bare header with no findings listed.
         /// </param>
         public ClipValidationException(IReadOnlyList<ValidationMessage> validationMessages)
             : base(FormatMessage(validationMessages))

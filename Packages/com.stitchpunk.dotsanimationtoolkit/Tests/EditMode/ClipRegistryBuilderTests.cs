@@ -404,10 +404,112 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 registryScope.Registry.Value.clips[0].debugName.Length,
                 61,
                 "A name longer than the fixed string must be truncated, never overflow it.");
-            Assert.Greater(
+            // Length alone would pass if truncation kept a single character, so pin the content:
+            // the surviving text must be the name's leading run, not an arbitrary fragment.
+            Assert.AreEqual(
+                new string('N', registryScope.Registry.Value.clips[0].debugName.Length),
+                registryScope.Registry.Value.clips[0].debugName.ToString(),
+                "Truncation must keep the leading characters rather than drop or reorder them.");
+            Assert.GreaterOrEqual(
                 registryScope.Registry.Value.clips[0].debugName.Length,
-                0,
-                "Truncation must keep the leading characters rather than drop the name.");
+                60,
+                "Truncation must fill the fixed string, not discard most of the name.");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Branches and shapes the acceptance fixtures above never reach.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void Build_UsesTheVertexCount_ForAVertexFlavorVatSet()
+        {
+            // Every other VAT fixture is bone-flavored, so the vertex branch of BuildVatInfo was
+            // never executed — the flavor that feeds the vertex-position VAT path.
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            ClipAsset clip = CreateKeyedClip(rig, "Walk", 0x10UL, 7u);
+            clip.vatSource = new VatClipSource();
+            VatTextureSetAsset vatTextureSet = assets.CreateVatTextureSet("VatSet", 0xFEEDUL);
+            vatTextureSet.flavor = VatFlavor.VertexPosition;
+            vatTextureSet.vertexCount = 1024;
+            vatTextureSet.rowsPerFrame = 3;
+            vatTextureSet.clipRanges.Add(new VatClipRange
+            {
+                clipId = 0x10UL,
+                frameStart = 0,
+                frameCount = 4,
+                fps = 30f,
+                bounds = new UnityEngine.Bounds(UnityEngine.Vector3.zero, UnityEngine.Vector3.one)
+            });
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
+            clipSet.vatTextures = vatTextureSet;
+
+            registryScope.Build(clipSet);
+            ref ClipRegistryBlob registry = ref registryScope.Registry.Value;
+
+            Assert.AreEqual(
+                VatFlavor.VertexPosition, registry.vatInfo.flavor, "The vertex flavor must be mirrored.");
+            Assert.AreEqual(
+                1024,
+                registry.vatInfo.boneOrVertexCount,
+                "A vertex-flavor set contributes its vertex count, not its bone count.");
+            Assert.AreEqual(3, registry.vatInfo.rowsPerFrame, "Rows per frame must be mirrored.");
+        }
+
+        [Test]
+        public void Build_SortsSpriteTracksByDenseTargetIndex_KeepingAuthoringOrderOnTies()
+        {
+            // Transform track ordering is asserted above; the sprite path had no direct assertion.
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u, 3u });
+            ClipAsset clip = assets.CreateClip("Walk", rig, 0x10UL, 1f);
+            SpriteTrack highTargetTrack = AuthoringTestAssets.AddSpriteTrack(
+                clip, 7u, SpriteFrameMode.Slice);
+            AuthoringTestAssets.AddSpriteKey(highTargetTrack, 0f, 1, float4.zero);
+            SpriteTrack lowTargetTrack = AuthoringTestAssets.AddSpriteTrack(
+                clip, 3u, SpriteFrameMode.AtlasRect);
+            AuthoringTestAssets.AddSpriteKey(lowTargetTrack, 0f, -1, new float4(0f, 0f, 1f, 1f));
+            SpriteTrack secondHighTargetTrack = AuthoringTestAssets.AddSpriteTrack(
+                clip, 7u, SpriteFrameMode.AtlasRect);
+            AuthoringTestAssets.AddSpriteKey(secondHighTargetTrack, 0f, -1, new float4(0f, 0f, 0.5f, 0.5f));
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
+
+            registryScope.Build(clipSet);
+            ref ClipBlob clipBlob = ref registryScope.Registry.Value.clips[0];
+
+            // Dense target order is 3 then 7, so the second authored track sorts first.
+            Assert.AreEqual(3, clipBlob.spriteTracks.Length, "Every authored sprite track must be kept.");
+            Assert.AreEqual(0, clipBlob.spriteTracks[0].targetIndex, "Sprite tracks sort by dense target index.");
+            Assert.AreEqual(1, clipBlob.spriteTracks[1].targetIndex, "Sprite tracks sort by dense target index.");
+            Assert.AreEqual(1, clipBlob.spriteTracks[2].targetIndex, "Sprite tracks sort by dense target index.");
+            Assert.AreEqual(
+                SpriteFrameMode.Slice,
+                clipBlob.spriteTracks[1].mode,
+                "Two sprite tracks on one target keep their authoring list order.");
+            Assert.AreEqual(
+                SpriteFrameMode.AtlasRect,
+                clipBlob.spriteTracks[2].mode,
+                "Two sprite tracks on one target keep their authoring list order.");
+        }
+
+        [Test]
+        public void Build_ProducesAnEmptyRegistry_ForASetWithNoClips()
+        {
+            // The degenerate shape a new ClipSetAsset has before any clip is added. It must bake
+            // rather than throw, and must still resolve cleanly as "nothing here".
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL);
+
+            registryScope.Build(clipSet);
+            ref ClipRegistryBlob registry = ref registryScope.Registry.Value;
+
+            Assert.AreEqual(0, registry.clips.Length, "An empty set bakes an empty clip array.");
+            Assert.AreEqual(0, registry.sortedClipIds.Length, "An empty set bakes an empty id array.");
+            Assert.AreEqual(1, registry.sortedTargetIds.Length, "The rig's targets still bake.");
+
+            int resolvedIndex;
+            Assert.IsFalse(
+                ClipRegistryUtil.TryResolveClip(ref registry, new ClipId(0x10UL), out resolvedIndex),
+                "Resolving against an empty registry must fail rather than read out of bounds.");
+            Assert.AreEqual(-1, resolvedIndex, "A failed resolve reports -1.");
         }
 
         // -----------------------------------------------------------------------------------

@@ -42,7 +42,8 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>
         /// The user-configured left/right target pairs the Mirror Clip utility swaps. Empty when the
-        /// rig is not mirrorable.
+        /// rig is not mirrorable. Consumed by that editor utility (build step C7); it is authoring
+        /// data only and never reaches the baked blob, so no bake or runtime path reads it.
         /// </summary>
         public MirrorPair[] mirrorPairs = Array.Empty<MirrorPair>();
 
@@ -170,7 +171,11 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Cosmetic label only — layer identity is the list position, never this name.</summary>
         public string displayName = string.Empty;
 
-        /// <summary>Whether the baked actor starts with this layer active.</summary>
+        /// <summary>
+        /// Whether the baked actor starts with this layer active. Authored here and consumed by the
+        /// entity baker (build step C3), which seeds the actor's <c>PlaybackLayer</c> buffer — no
+        /// module reads it yet, so an unused-field search will not find a consumer until then.
+        /// </summary>
         public bool defaultActive;
     }
 

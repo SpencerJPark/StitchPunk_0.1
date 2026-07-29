@@ -110,22 +110,49 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void TwoSeparatelyAuthoredSetsWithTheSameContent_ShareOneDedupHash()
+        public void RebakingOneSetFromEquivalentAssets_LandsOnTheSameBlob()
         {
-            ClipSetAsset firstSet = CreateRichSet("Set", SetKey);
-            ClipSetAsset secondSet = CreateRichSet("Set", SetKey);
+            // What dedup actually buys: the bake is a pure function of content AND set identity, so
+            // the same set baked twice — two subscenes, two bake passes, many actors referencing one
+            // ClipSetAsset — resolves to a single stored blob.
+            //
+            // This deliberately does NOT claim that two independently authored sets dedup onto each
+            // other. They cannot: the folded set key is the dedup key's last word and setKey is in
+            // the hashed stream, so distinct identities always produce distinct keys. That is
+            // asserted directly below and by ChangingOnlyTheSetKey_ChangesTheContentHash. Both
+            // fixtures here therefore share one identity on purpose — modelling one set, not two.
+            ClipSetAsset firstAuthoring = CreateRichSet("Set", SetKey);
+            ClipSetAsset secondAuthoring = CreateRichSet("Set", SetKey);
 
-            firstBuild.Build(firstSet);
-            secondBuild.Build(secondSet);
+            firstBuild.Build(firstAuthoring);
+            secondBuild.Build(secondAuthoring);
 
             Assert.AreEqual(
                 firstBuild.ContentHash,
                 secondBuild.ContentHash,
-                "Two actors referencing equivalent sets must land on one shared blob.");
+                "One set baked twice must land on one shared blob.");
             Assert.AreEqual(
                 BlobSignature.Describe(ref firstBuild.Registry.Value),
                 BlobSignature.Describe(ref secondBuild.Registry.Value),
-                "Equivalent sets must bake to field-identical blobs.");
+                "One set baked twice must produce field-identical blobs.");
+        }
+
+        [Test]
+        public void TwoDistinctSetsWithIdenticalContent_NeverShareABlob()
+        {
+            // The counterpart, stated explicitly so nobody reads the fixture above as a promise of
+            // cross-set sharing. Identical content, different identity: dedup is scoped to a set,
+            // which is what stops one set's edits from silently rewriting another's baked data.
+            ClipSetAsset firstSet = CreateRichSet("FirstSet", SetKey);
+            ClipSetAsset secondSet = CreateRichSet("SecondSet", SetKey + 1UL);
+
+            firstBuild.Build(firstSet);
+            secondBuild.Build(secondSet);
+
+            Assert.AreNotEqual(
+                firstBuild.ContentHash,
+                secondBuild.ContentHash,
+                "Dedup is scoped to one set identity; distinct sets must never collapse together.");
         }
 
         [Test]
@@ -406,6 +433,15 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddSpriteKey(headSliceTrack, 0f, 3, float4.zero);
             AuthoringTestAssets.AddSpriteKey(headSliceTrack, 0.5f, -1, float4.zero);
             AuthoringTestAssets.AddSpriteKey(headSliceTrack, 1f, 7, float4.zero);
+            // A second sprite track so the shuffle fixture's spriteTracks.Reverse() actually
+            // reorders something. With one track per clip it was inert, and the canonical sprite
+            // ordering was never exercised by the shuffle at all.
+            SpriteTrack tailAtlasTrack = AuthoringTestAssets.AddSpriteTrack(
+                walkClip, TailTargetId, SpriteFrameMode.AtlasRect);
+            AuthoringTestAssets.AddSpriteKey(
+                tailAtlasTrack, 0f, -1, new float4(0.125f, 0.25f, 0.375f, 0.5f));
+            AuthoringTestAssets.AddSpriteKey(
+                tailAtlasTrack, 1f, -1, new float4(0.5f, 0.375f, 0.25f, 0.125f));
             AuthoringTestAssets.AddEvent(walkClip, 0.9f, 32u, 1, 0.5f);
             AuthoringTestAssets.AddEvent(walkClip, 0.1f, 16u, -3, 2.5f);
             AuthoringTestAssets.AddEvent(walkClip, 0.5f, 20u, 0, 0f);

@@ -445,6 +445,36 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         // -----------------------------------------------------------------------------------
+        // ValidateRig — the rig-only entry point.
+        //
+        // Public API with no in-package caller: the inspectors and the clip editor (build step C7)
+        // validate a rig on its own, without a set to hang it off. Untested until now, which is how
+        // published surface quietly rots.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void ValidateRig_ReportsNothing_ForAWellFormedRig()
+        {
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+
+            AssertNoFindings(ClipValidation.ValidateRig(rig), "A well-formed rig has no findings.");
+        }
+
+        [Test]
+        public void ValidateRig_ReportsV05_ForDuplicateTargetIds()
+        {
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, FirstTargetId });
+
+            AssertOnlyCode(ClipValidation.ValidateRig(rig), ValidationCode.V05, ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void ValidateRig_ReportsV13_ForANullRig_BecauseASetWithoutARigHasNoLayers()
+        {
+            AssertOnlyCode(ClipValidation.ValidateRig(null), ValidationCode.V13, ValidationSeverity.Error);
+        }
+
+        // -----------------------------------------------------------------------------------
         // Boundary cases.
         //
         // Each fixture above breaks its rule in one direction only, so each would still pass if the

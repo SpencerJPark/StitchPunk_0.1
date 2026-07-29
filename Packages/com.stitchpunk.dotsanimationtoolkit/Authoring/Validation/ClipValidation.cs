@@ -19,7 +19,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </summary>
         /// <param name="rig">The rig to validate. A null rig reports V13, since a set without a rig
         /// has no layers.</param>
-        /// <returns>The findings, in rule order; empty when the rig is fully valid.</returns>
+        /// <returns>
+        /// The findings in discovery order — layer checks (V13) first, then per-target id
+        /// uniqueness (V05) in target-list order. Deliberately not sorted by rule number: the
+        /// inspector and the clip editor list findings in the order the asset reads, so a reader
+        /// can walk the asset top to bottom. Empty when the rig is fully valid.
+        /// </returns>
         public static List<ValidationMessage> ValidateRig(RigAsset rig)
         {
             List<ValidationMessage> messages = new List<ValidationMessage>();
@@ -33,7 +38,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <see cref="ValidateSet"/>.
         /// </summary>
         /// <param name="clip">The clip to validate.</param>
-        /// <returns>The findings, in rule order; empty when the clip is fully valid.</returns>
+        /// <returns>
+        /// The findings in discovery order — the clip-level rules (V01, V10, V12) first, then each
+        /// transform and sprite track in authoring order (V02, V03, V04, V14), then each event
+        /// (V04, V09). Deliberately not sorted by rule number, so a reader can walk the asset top
+        /// to bottom. Empty when the clip is fully valid.
+        /// </returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="clip"/> is null.</exception>
         public static List<ValidationMessage> ValidateClip(ClipAsset clip)
         {

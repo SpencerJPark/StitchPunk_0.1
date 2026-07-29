@@ -24,7 +24,11 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Which encoding this set carries, which decides whether the bone or the position texture is used.</summary>
         public VatFlavor flavor = VatFlavor.BoneMatrix;
 
-        /// <summary>Per-bone object-space skinning matrices; used by <see cref="VatFlavor.BoneMatrix"/> sets.</summary>
+        /// <summary>
+        /// Per-bone object-space skinning matrices; used by <see cref="VatFlavor.BoneMatrix"/> sets.
+        /// Written by the VAT baker and bound to the material (build step C6). Deliberately never
+        /// enters a blob — the blob carries only <c>vatSetKey</c> plus addressing metadata.
+        /// </summary>
         public Texture2D boneTexture;
 
         /// <summary>Absolute object-space vertex positions; used by <see cref="VatFlavor.VertexPosition"/> sets.</summary>
@@ -33,7 +37,11 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Optional per-vertex normals accompanying <see cref="positionTexture"/>.</summary>
         public Texture2D normalTexture;
 
-        /// <summary>The static mesh the baker emitted, with bone indices and weights packed into UV1/UV2.</summary>
+        /// <summary>
+        /// The static mesh the baker emitted, with bone indices and weights packed into UV1/UV2.
+        /// Produced and consumed by the VAT pipeline (build step C6); nothing in the authoring or
+        /// bake path reads it.
+        /// </summary>
         public Mesh runtimeMesh;
 
         /// <summary>Bone count of a <see cref="VatFlavor.BoneMatrix"/> set; 0 otherwise.</summary>
@@ -57,7 +65,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </summary>
         public ulong sourceHash;
 
-        /// <summary>Layout version of the generated data, bumped when the baker's output shape changes.</summary>
+        /// <summary>
+        /// Layout version of the generated data, bumped when the baker's output shape changes. This
+        /// versions the <em>texture set asset</em>, and is distinct from
+        /// <c>ClipRegistryBuilder.SchemaVersion</c>, which versions the baked blob layout. Written
+        /// and checked by the VAT baker (build step C6).
+        /// </summary>
         public int schemaVersion;
 
         /// <summary>
