@@ -348,6 +348,98 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 "part is a content error to report, not a reason to fail the whole bake.");
         }
 
+        // -----------------------------------------------------------------------------------
+        // "a material↔texture-set mismatch fixture logs exactly one warning from RigTargetBaker"
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void AVatPartWhoseMaterialLacksTheTextureSlot_LogsExactlyOneWarning()
+        {
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050CUL);
+            Texture2D boneTexture = fixtureAssets.CreateTexture("BoneTex");
+            clipSet.vatTextures =
+                fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000601UL, boneTexture);
+
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+
+            // The fixture material is a plain unlit material: it has no _VatBoneTex slot, so it
+            // cannot display the bone texture the set baked. Catching that at bake is the whole
+            // point of the check — at runtime it degrades to a part animating against nothing
+            // visible, which is far harder to trace back to a material assignment.
+            GameObject vatPart = fixtureAssets.AddPart(
+                actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
+            vatPartAuthoring.useKindOverride = true;
+            vatPartAuthoring.kindOverride = TargetKind.VatMesh;
+            vatPartAuthoring.expectedMaterial = fixtureAssets.CreateVatMaterial("PlainMaterial", boneTexture);
+
+            // The duplicate torso claim is reported by the binding pass; it is not what this test
+            // is about, but it must be declared or LogAssert fails the test for an unexpected log.
+            LogAssert.Expect(LogType.Warning, new Regex("_VatBoneTex"));
+            LogAssert.Expect(LogType.Error, new Regex("already claims"));
+
+            bakingWorld.Bake(actorGameObject);
+
+            // Reaching here with no "unexpected log" failure is the assertion: exactly the declared
+            // messages were emitted, so the mismatch warns once rather than per-frame or not at all.
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<ClipRegistry>(
+                    bakingWorld.GetPrimaryEntity(actorGameObject)),
+                "A material mismatch is a warning, not a bake failure: the actor must still bake.");
+        }
+
+        [Test]
+        public void AVatPartWhoseClipSetHasNoTextureSet_LogsExactlyOneWarning()
+        {
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050DUL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+
+            GameObject vatPart = fixtureAssets.AddPart(
+                actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
+            vatPartAuthoring.useKindOverride = true;
+            vatPartAuthoring.kindOverride = TargetKind.VatMesh;
+            vatPartAuthoring.expectedMaterial = fixtureAssets.CreateVatMaterial("PlainMaterial", null);
+
+            LogAssert.Expect(LogType.Warning, new Regex("no VAT texture set"));
+
+            bakingWorld.Bake(actorGameObject);
+
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<ClipRegistry>(
+                    bakingWorld.GetPrimaryEntity(actorGameObject)),
+                "A VAT part on a set with no texture set warns, but must not fail the bake.");
+        }
+
+        [Test]
+        public void AVatPartWithNoMaterialToCheck_WarnsAboutNothing()
+        {
+            // `expectedMaterial` is how a part whose renderer is supplied at runtime opts into the
+            // check. Left empty there is nothing to compare, and warning anyway would train users
+            // to ignore the warning that matters.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050EUL);
+            Texture2D boneTexture = fixtureAssets.CreateTexture("BoneTex");
+            clipSet.vatTextures =
+                fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000602UL, boneTexture);
+
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject vatPart = fixtureAssets.AddPart(
+                actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
+            vatPartAuthoring.useKindOverride = true;
+            vatPartAuthoring.kindOverride = TargetKind.VatMesh;
+
+            bakingWorld.Bake(actorGameObject);
+
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<VatDriven>(
+                    bakingWorld.GetPrimaryEntity(vatPart)),
+                "The part must still bake as VAT-driven; it simply has no material to validate.");
+        }
+
         [Test]
         public void AStrayPartDoesNotEnlargeTheRestBounds()
         {
