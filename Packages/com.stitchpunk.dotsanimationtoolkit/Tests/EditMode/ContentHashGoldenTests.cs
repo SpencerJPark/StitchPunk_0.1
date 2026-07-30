@@ -108,11 +108,14 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void TryComputeContentHash_LeavesNothingForTheCallerToDispose()
+        public void TryComputeContentHash_IsPureAndRepeatable_AcrossManyProbes()
         {
-            // It builds a blob internally to hash it. That blob is Allocator.Temp and released
+            // It builds a blob internally to hash it, allocated with Allocator.Temp and released
             // before returning — the property that makes it safe to call on a store hit. Repeating
-            // it many times would surface a leak as an allocator error at the end of the run.
+            // it proves the probe is a pure function of the asset and exercises that alloc/release
+            // path many times over. It does NOT by itself prove the absence of a leak: a Persistent
+            // allocation left dangling would be reported by the leak detector at the end of the
+            // run, not by this assertion.
             ClipSetAsset frozenSet = BuildFrozenSet();
 
             Unity.Entities.Hash128 firstHash;
@@ -172,8 +175,11 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         /// A small set that still touches every part of the canonical stream: two clips out of id
         /// order, two targets out of id order, a transform track with a non-default easing and a
         /// negative scale, a sprite track in each frame mode, an event, and a VAT frame range.
-        /// Every id and value is a literal — nothing minted, nothing derived from a name — so the
-        /// hash is reproducible on any machine and in any session.
+        /// Every id and numeric value is a literal — nothing minted, nothing random — so the hash
+        /// is reproducible on any machine and in any session. Note that the clip <em>names</em> are
+        /// part of the hashed stream: <c>debugName</c> is <c>clip.name</c>, so renaming a clip here
+        /// moves the golden value. That is a fixture edit, not a format change — re-record the
+        /// constant, and do NOT bump <c>SchemaVersion</c> for it.
         /// </summary>
         private ClipSetAsset BuildFrozenSet()
         {
