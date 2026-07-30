@@ -55,6 +55,12 @@ namespace StitchPunk.AnimationToolkit
     /// frames where <c>floor((elapsedTime + phase01 / rateHz) × rateHz)</c> advances; playback time
     /// itself is never quantized — only sampling frequency.
     /// </summary>
+    /// <remarks>
+    /// Marked serializable because architecture section 8 M2 exposes this struct directly as
+    /// <c>ActorAuthoring.sampleOverride</c>, an inspector-facing field; Unity will not persist a
+    /// custom struct without the attribute. It changes nothing about the component at runtime.
+    /// </remarks>
+    [System.Serializable]
     public struct SampleSettings : IComponentData
     {
         /// <summary>Sample rate in Hz; 0 = sample every frame (falls back to <see cref="AnimationToolkitConfig.defaultSampleRateHz"/>).</summary>
