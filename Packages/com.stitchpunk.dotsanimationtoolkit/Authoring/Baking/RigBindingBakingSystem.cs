@@ -124,14 +124,14 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 {
                     return;
                 }
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part entity {partEntity.Index}:{partEntity.Version} (authoring path hash {bakeLink.authoringPathHash}) has no baked actor to bind to. Its actor's clip set is probably missing or invalid. The part is skipped.");
+                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' has no baked actor to bind to. Its actor's clip set is probably missing or invalid. The part is skipped.");
                 return;
             }
 
             ClipRegistry clipRegistry = clipRegistryLookup[bakeLink.actorRoot];
             if (!clipRegistry.Value.IsCreated)
             {
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part entity {partEntity.Index}:{partEntity.Version} (authoring path hash {bakeLink.authoringPathHash}) belongs to an actor whose clip registry failed to build. The part is skipped.");
+                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' belongs to an actor whose clip registry failed to build. The part is skipped.");
                 return;
             }
 
@@ -140,7 +140,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     new TargetId(bakeLink.targetId),
                     out int denseTargetIndex))
             {
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part entity {partEntity.Index}:{partEntity.Version} (authoring path hash {bakeLink.authoringPathHash}) references target id {bakeLink.targetId}, which the actor's rig does not declare. The part is skipped.");
+                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' references target id {bakeLink.targetId}, which the actor's rig does not declare. The part is skipped.");
                 return;
             }
 
@@ -151,7 +151,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 {
                     continue;
                 }
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part entity {partEntity.Index}:{partEntity.Version} (authoring path hash {bakeLink.authoringPathHash}) claims target id {bakeLink.targetId}, which another part of the same actor already claims. The duplicate is skipped.");
+                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' claims target id {bakeLink.targetId}, which another part of the same actor already claims. The duplicate is skipped.");
                 return;
             }
 

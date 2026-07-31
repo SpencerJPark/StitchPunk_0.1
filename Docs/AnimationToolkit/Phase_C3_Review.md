@@ -349,3 +349,23 @@ Both were in the log-capture harness the rework introduced, not in the package.
 The second is worth remembering beyond this phase: **a Bursted baking system's
 diagnostics are invisible to `logMessageReceived`.** Any future harness that
 records logs — C4's systems suite included — has to use the threaded callback.
+
+### Blocking-item closure audit (2026-07-31, after the green test run)
+
+Checked each of **B1**–**B6** against the shipped code rather than against the
+rework notes. Two were not actually closed; the notes said otherwise.
+
+| # | Status | Evidence |
+|---|---|---|
+| **B1** | Closed | `AVatPartBoundToTheWrongTexture_LogsTheSection44Mismatch` reaches branch (iv) via the new `VatMaterialProbe` shader; `AVatPartBoundToTheBakedTexture_WarnsAboutNothing` is the negative case. |
+| **B2** | **Was half-closed; now closed** | `PostTransformMatrix`, `AnimVisible` and the `FlipbookPlane` technique components were pinned, but the **`VatMesh` positive case was not** — `VatFrameAProperty`/`VatFrameBProperty`/`VatBlendProperty` appeared in the suite only as *absence* assertions on Quad and Flipbook parts. A baker that added none of them to a VAT part would have passed every test. Added `BakingAVatPart_CarriesAllThreeVatPropertiesAndNoSpriteOnes`, which also pins `VatDriven.layerIndex` against the authored value. |
+| **B3** | **Was not closed at all; now closed** | `RigPartBakeLink` still carried `uint authoringPathHash`, and all four Bursted messages still reported `entity {Index}:{Version} (authoring path hash {n})`. Replaced with `authoringPath`, a `FixedString128Bytes` built by `AuthoringPathHash.PathOf` and truncated from the left so the leaf survives. All four messages now name the part; the entity index — which is not stable between bakes — is gone. §4.1's A19 is corrected and **amendment A21** records the rule. Pinned by a `StringAssert.Contains("VatBody", …)` on the duplicate-claim error, which is the one Bursted branch a fixture can reach. |
+| **B4** | Closed | Amendments A17–A20 recorded; §8 M2 EXPOSES/OWNS, the `phase01` derivation rule, `SampleSettings`'s `[Serializable]` and §4.6's closing sentence all amended. |
+| **B5** | Closed | PlayMode asmdef carries `"includePlatforms": ["Editor"]`; §1.3 amended (A17); C0's conformance expectation updated. Its explanatory comment still described the PlayMode asmdef as unrestricted — corrected. |
+| **B6** | Closed | `package.json` description and `CHANGELOG.md` corrected; the editor-only disclosure was present. The **reflection dependency was not disclosed** — added to `Documentation~/index.md`, naming `BakingUtility.BakeGameObjects`, why the harness reaches it that way, and that nothing shipped to a consumer uses reflection. |
+
+**Lesson, and it is the same one the gate has recorded three times:** the rework
+notes claimed six closures and delivered four. Neither miss was subtle — B3 had
+not been started — and both would have passed a re-review conducted by reading
+the rework summary instead of the diff. Closure is a property of the code, not
+of the note that says the code was changed.

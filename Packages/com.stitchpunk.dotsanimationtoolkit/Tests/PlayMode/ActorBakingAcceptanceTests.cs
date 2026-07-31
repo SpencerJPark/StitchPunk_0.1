@@ -270,6 +270,46 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         [Test]
+        public void BakingAVatPart_CarriesAllThreeVatPropertiesAndNoSpriteOnes()
+        {
+            // VatDriven was asserted by the material-validation tests, but the three per-instance
+            // properties that actually carry VAT state into the draw were asserted nowhere. Section
+            // 6.2 binds them to _VatFrameA/_VatFrameB/_VatBlend; a part missing any one of them
+            // renders a frozen frame, and nothing in the suite would have said so.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051BUL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject vatPart = fixtureAssets.AddPart(
+                actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
+            vatPartAuthoring.useKindOverride = true;
+            vatPartAuthoring.kindOverride = TargetKind.VatMesh;
+            vatPartAuthoring.vatDrivingLayerIndex = 1;
+
+            bakingWorld.Bake(actorGameObject);
+            EntityManager entityManager = bakingWorld.EntityManager;
+            Entity partEntity = bakingWorld.GetPrimaryEntity(vatPart);
+
+            Assert.IsTrue(
+                entityManager.HasComponent<VatFrameAProperty>(partEntity), "VatFrameAProperty.");
+            Assert.IsTrue(
+                entityManager.HasComponent<VatFrameBProperty>(partEntity), "VatFrameBProperty.");
+            Assert.IsTrue(
+                entityManager.HasComponent<VatBlendProperty>(partEntity), "VatBlendProperty.");
+            Assert.AreEqual(
+                1,
+                entityManager.GetComponentData<VatDriven>(partEntity).layerIndex,
+                "VatDriven must carry the authored driving layer. Defaulting to 0 would silently " +
+                "drive every VAT part from the base layer regardless of what the user chose.");
+            Assert.IsFalse(
+                entityManager.HasComponent<SpriteSliceProperty>(partEntity),
+                "A VAT part must not also carry the sprite properties.");
+            Assert.IsFalse(
+                entityManager.HasComponent<AtlasFrameProperty>(partEntity),
+                "A VAT part must not also carry the sprite properties.");
+        }
+
+        [Test]
         public void BakingAQuadPart_ProducesPostTransformMatrix_SoScaleIsNotDead()
         {
             // Section 4.1 names PostTransformMatrix as the fix for the audit's dead-scale
@@ -875,6 +915,12 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 bakingWorld.ToolkitErrors.Count,
                 "The duplicate torso claim is the only error this fixture should produce: " +
                 string.Join(" | ", bakingWorld.ToolkitErrors));
+            StringAssert.Contains(
+                "VatBody",
+                bakingWorld.ToolkitErrors[0],
+                "A Bursted binding diagnostic must name the offending object by its authoring path " +
+                "(amendment A21). It cannot pass a clickable Object reference, so the path is the " +
+                "only thing standing between the user and hunting through the hierarchy by hand.");
 
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<ClipRegistry>(

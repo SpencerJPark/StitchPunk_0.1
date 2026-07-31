@@ -88,6 +88,14 @@ animate anything.
 Unity's baking pipeline has no player-side equivalent, so run it from the Test
 Runner's PlayMode tab in the Editor; "Run all tests (Player)" cannot execute it.
 
+That suite drives a bake through `BakingUtility.BakeGameObjects`, which Entities
+exposes only to its own test assemblies — the harness reaches it by reflection.
+This is disclosed rather than hidden because it is a real maintenance risk: an
+Entities update that renames or reshapes that method breaks the baking tests,
+not the package, and the failure will read as a missing method rather than as a
+behavioural regression. Nothing that ships to a consumer uses reflection; the
+dependency is confined to `Tests/PlayMode/BakingTestWorld.cs`.
+
 ## Installing
 
 The package is currently developed as an embedded package inside its host

@@ -101,7 +101,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 {
                     actorRoot = GetEntity(actorAuthoring, TransformUsageFlags.Dynamic),
                     targetId = authoring.targetStableId,
-                    authoringPathHash = AuthoringPathHash.Of(authoring.transform)
+                    authoringPath = AuthoringPathHash.PathOf(authoring.transform)
                 });
             }
 

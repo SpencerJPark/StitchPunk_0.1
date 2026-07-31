@@ -33,6 +33,15 @@ baker. Actors and their parts now bake to entities; no system drives them yet.
 
 ### Changed
 
+- `RigPartBakeLink` carries the authoring object's hierarchy path as a
+  `FixedString128Bytes` instead of a hash of it, and all four of
+  `RigBindingBakingSystem`'s diagnostics now name the part: `Rig part
+  'Rig/Torso/LeftArm' claims target id 100, which another part …` in place of
+  `Rig part entity 41:1 (authoring path hash 2463534242) …`. The job stays
+  Burst-pure — a `FixedString` is blittable — and the entity index, which is not
+  stable between bakes, is gone from the messages (architecture amendment A21).
+  `AuthoringPathHash.Of` remains for `SampleSettings.phase01`, which needs a
+  number rather than text.
 - A part whose actor bailed out of its own bake no longer restates that failure.
   A missing or invalid clip set produced one actionable error from `ActorBaker`
   and then one unactionable copy per part, burying it.

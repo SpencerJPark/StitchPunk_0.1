@@ -196,8 +196,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             }
         }
 
-        // (b) The Editor asmdef is Editor-platform-only (and per section 1.3 so is the EditMode
-        //     test asmdef, while Runtime, Authoring, and the PlayMode test asmdef stay unrestricted).
+        // (b) The Editor asmdef is Editor-platform-only, and per section 1.3 so are both test
+        //     asmdefs — the PlayMode one since amendment A17, because Unity's baking pipeline has no
+        //     player-side equivalent to test against. Runtime and Authoring stay unrestricted.
         [Test]
         public void Conformance_B_PlatformRestrictions_MatchSection13()
         {

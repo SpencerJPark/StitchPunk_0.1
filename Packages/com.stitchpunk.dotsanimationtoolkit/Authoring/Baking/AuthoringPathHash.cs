@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
+using Unity.Collections;
 using UnityEngine;
 
 namespace StitchPunk.AnimationToolkit.Authoring
@@ -59,6 +60,42 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 currentNode = currentNode.parent;
             }
             return pathHash;
+        }
+
+        /// <summary>
+        /// Renders the transform's hierarchy path as <c>Root/Child/Leaf</c> text, sized to fit a
+        /// <see cref="FixedString128Bytes"/> so a Bursted system can name the object it is
+        /// complaining about.
+        /// </summary>
+        /// <remarks>
+        /// Truncation drops the outermost ancestors, not the leaf: a message naming
+        /// <c>.../Torso/LeftArm</c> locates the part, and one naming <c>SceneRoot/Rig/...</c> does
+        /// not. This is text for a human to read, never an identifier — nothing may key off it.
+        /// </remarks>
+        /// <param name="authoringTransform">The transform to describe. Null yields an empty path.</param>
+        internal static FixedString128Bytes PathOf(Transform authoringTransform)
+        {
+            if (authoringTransform == null)
+            {
+                return default;
+            }
+
+            string fullPath = authoringTransform.name;
+            Transform currentNode = authoringTransform.parent;
+            while (currentNode != null)
+            {
+                fullPath = currentNode.name + "/" + fullPath;
+                currentNode = currentNode.parent;
+            }
+
+            // FixedString128Bytes holds 125 UTF-8 bytes. Trimming by character count is conservative
+            // for any non-ASCII name — the safe direction to be wrong in, since overflowing throws.
+            const int MaximumPathCharacters = 110;
+            if (fullPath.Length > MaximumPathCharacters)
+            {
+                fullPath = ".../" + fullPath.Substring(fullPath.Length - MaximumPathCharacters);
+            }
+            return new FixedString128Bytes(fullPath);
         }
     }
 }
