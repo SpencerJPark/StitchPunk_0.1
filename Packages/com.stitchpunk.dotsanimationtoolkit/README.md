@@ -6,7 +6,7 @@ transform tracks, flipbook sprite animation, and bone/vertex animation textures
 clip pipeline.
 
 - **Package id:** `com.stitchpunk.dotsanimationtoolkit`
-- **Version:** 0.3.0 (pre-release)
+- **Version:** 0.4.0 (pre-release)
 - **Unity:** 6000.5 minimum
 - **Root namespace:** `StitchPunk.AnimationToolkit`
 

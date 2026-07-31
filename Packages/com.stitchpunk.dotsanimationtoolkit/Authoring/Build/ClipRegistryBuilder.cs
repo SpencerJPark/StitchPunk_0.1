@@ -58,6 +58,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public const int SchemaVersion = 2;
 
         /// <summary>
+        /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
+        /// </summary>
+        /// <remarks>
+        /// The store-hit short-circuit in <c>ActorBaker.TryAcquireRegistry</c> has no observable
+        /// effect on baked data: whether the baker probes and skips the build, or builds and lets
+        /// <c>AddBlobAssetWithCustomHash</c> discard the duplicate, both actors end up referencing
+        /// the same blob. The only difference is the work done. So if the probe ever stopped
+        /// matching the key <see cref="Build"/> produces, every crowd would silently bake its
+        /// registry once per actor and no assertion about entity data could notice. This counter is
+        /// the seam that makes the difference assertable; it is internal, so nothing outside the
+        /// package — and nothing at runtime — can see or depend on it.
+        /// </remarks>
+        internal static int BuildInvocationCount { get; private set; }
+
+        /// <summary>Resets <see cref="BuildInvocationCount"/> so a test can measure one bake.</summary>
+        internal static void ResetBuildInvocationCount()
+        {
+            BuildInvocationCount = 0;
+        }
+
+        /// <summary>
         /// Builds the registry blob for a clip set, together with its <c>BlobAssetStore</c> dedup
         /// key.
         /// </summary>
@@ -97,6 +118,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
             ValidateForBakeOrThrow(clipSet);
 
+            BuildInvocationCount++;
             registry = BuildValidatedBlob(clipSet, Allocator.Persistent);
             contentHash = ComposeDedupKey(HashRegistry(registry), clipSet.stableId);
         }

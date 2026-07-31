@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using Unity.Entities;
@@ -109,6 +110,9 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         /// </summary>
         internal void Bake(params GameObject[] rootGameObjects)
         {
+            toolkitWarnings.Clear();
+            toolkitErrors.Clear();
+            Application.logMessageReceived += RecordToolkitLog;
             try
             {
                 BakeGameObjectsMethod.Invoke(
@@ -120,6 +124,56 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 // Surface what the bake actually threw, with its own stack, rather than the
                 // reflection wrapper.
                 ExceptionDispatchInfo.Capture(invocationException.InnerException).Throw();
+            }
+            finally
+            {
+                Application.logMessageReceived -= RecordToolkitLog;
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Log capture.
+        //
+        // A baking world runs every baking system in the project, including the host application's.
+        // Their diagnostics are not this package's to control, and asserting through LogAssert makes
+        // a foreign warning fail an unrelated toolkit test — which happened, and would happen again
+        // in any consumer project with its own bakers.
+        //
+        // So the suite records the bake's messages itself and asserts only over the ones this
+        // package emitted. That is both host-independent and a stronger claim than LogAssert could
+        // make: "exactly one warning" becomes a count, not the absence of a complaint.
+        // -----------------------------------------------------------------------------------
+
+        private const string ToolkitMessagePrefix = "[DOTS Animation Toolkit]";
+
+        private readonly List<string> toolkitWarnings = new List<string>();
+        private readonly List<string> toolkitErrors = new List<string>();
+
+        /// <summary>Warnings this package emitted during the most recent <see cref="Bake"/>.</summary>
+        internal IReadOnlyList<string> ToolkitWarnings
+        {
+            get { return toolkitWarnings; }
+        }
+
+        /// <summary>Errors this package emitted during the most recent <see cref="Bake"/>.</summary>
+        internal IReadOnlyList<string> ToolkitErrors
+        {
+            get { return toolkitErrors; }
+        }
+
+        private void RecordToolkitLog(string message, string stackTrace, LogType logType)
+        {
+            if (message == null || !message.Contains(ToolkitMessagePrefix))
+            {
+                return;
+            }
+            if (logType == LogType.Warning)
+            {
+                toolkitWarnings.Add(message);
+            }
+            else if (logType == LogType.Error || logType == LogType.Exception || logType == LogType.Assert)
+            {
+                toolkitErrors.Add(message);
             }
         }
 

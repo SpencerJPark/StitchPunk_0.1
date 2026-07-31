@@ -153,7 +153,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     "Unity.Burst",
                     "Unity.Transforms"
                 },
-                expectedIncludePlatforms = new string[0],
+                expectedIncludePlatforms = new string[] { "Editor" },
                 expectedAllowUnsafeCode = false
             }
         };
@@ -315,7 +315,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             PackageManifestContents manifest = JsonUtility.FromJson<PackageManifestContents>(manifestText);
             Assert.AreEqual(PackageId, manifest.name, "Package id must match architecture section 1.1.");
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
-            Assert.AreEqual("0.3.0", manifest.version, "Version tracks the Phase C build step (C2) per architecture section 1.1.");
+            Assert.AreEqual("0.4.0", manifest.version, "Version tracks the Phase C build step (C3) per architecture section 1.1.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

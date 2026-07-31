@@ -77,12 +77,33 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 actorRoot = Entity.Null,
                 targetIndex = -1
             });
-            AddComponent(partEntity, new RigPartBakeLink
+            if (targetDefinition == null)
             {
-                actorRoot = GetEntity(actorAuthoring, TransformUsageFlags.Dynamic),
-                targetId = authoring.targetStableId,
-                authoringPathHash = AuthoringPathHash.Of(authoring.transform)
-            });
+                // Report it here rather than leaving it to the binding pass. That pass is Bursted,
+                // so it can only name blittable values — an entity index and a path hash, neither of
+                // which a user can act on. This baker is managed: it can name the GameObject, the
+                // rig, and the id that does not exist in it, and pass the object itself as the log
+                // context so clicking the message selects the offending part.
+                //
+                // The part is then left without a RigPartBakeLink, so the binding pass never sees it
+                // and the same mistake is not reported twice in two different vocabularies.
+                Debug.LogError(
+                    MessagePrefix + "Rig target '" + authoring.name + "' on actor '" +
+                    actorAuthoring.name + "' references target id " +
+                    authoring.targetStableId.ToString() + ", which rig '" + effectiveRig.name +
+                    "' does not declare. The part will not animate. Fix the Target Stable Id on " +
+                    "this part, or add that target to the rig.",
+                    authoring);
+            }
+            else
+            {
+                AddComponent(partEntity, new RigPartBakeLink
+                {
+                    actorRoot = GetEntity(actorAuthoring, TransformUsageFlags.Dynamic),
+                    targetId = authoring.targetStableId,
+                    authoringPathHash = AuthoringPathHash.Of(authoring.transform)
+                });
+            }
 
             TargetRestPose restPose = CaptureRestPose(authoring);
             AddComponent(partEntity, restPose);
@@ -166,9 +187,30 @@ namespace StitchPunk.AnimationToolkit.Authoring
         // Rest pose and technique components.
         // -----------------------------------------------------------------------------------
 
-        private static TargetRestPose CaptureRestPose(RigTargetAuthoring authoring)
+        /// <remarks>
+        /// The transform is fetched through the Baker's own <c>GetComponent</c>, not read off
+        /// <c>authoring.transform</c>. Both return the same object, but only the former
+        /// records a bake dependency on it. Without that dependency, dragging a part in the scene
+        /// would move its rendered position (transform baking tracks its own components) while
+        /// <see cref="TargetRestPose"/> kept the position captured at the last full bake — so every
+        /// animated pose, which section 5.6 composes as an offset from the rest pose, would be
+        /// applied against a stale origin until something unrelated forced a rebake.
+        /// <c>ActorBaker.TryGetRestPoseInActorSpace</c> already takes the dependency this way.
+        /// </remarks>
+        private TargetRestPose CaptureRestPose(RigTargetAuthoring authoring)
         {
-            Transform partTransform = authoring.transform;
+            Transform partTransform = GetComponent<Transform>(authoring);
+            if (partTransform == null)
+            {
+                return new TargetRestPose
+                {
+                    localPosition = float3.zero,
+                    rotationZ = 0f,
+                    scale = new float2(1f, 1f),
+                    restSliceIndex = math.max(0, authoring.restSliceIndex)
+                };
+            }
+
             Vector3 localPosition = partTransform.localPosition;
             Quaternion localRotation = partTransform.localRotation;
             Vector3 localScale = partTransform.localScale;

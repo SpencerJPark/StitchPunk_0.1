@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-using System.Text.RegularExpressions;
 using NUnit.Framework;
 using StitchPunk.AnimationToolkit.Authoring;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -33,13 +33,50 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         {
             fixtureAssets = new ActorBakeFixture();
             bakingWorld = new BakingTestWorld("ActorBakingAcceptanceTests");
+
+            // A baking world runs every baking system in the project, the host application's
+            // included, and their diagnostics are not this package's to control. Assertions here
+            // go through BakingTestWorld's own capture, which sees only this package's messages.
+            LogAssert.ignoreFailingMessages = true;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogAssert.ignoreFailingMessages = false;
             bakingWorld.Dispose();
             fixtureAssets.DestroyAll();
+        }
+
+        /// <summary>
+        /// Asserts the bake emitted exactly <paramref name="expectedCount"/> toolkit warnings, one
+        /// of which contains <paramref name="expectedFragment"/>. The count is what makes "exactly
+        /// one" a real claim: a validator warning five times would otherwise pass.
+        /// </summary>
+        private void AssertToolkitWarnings(int expectedCount, string expectedFragment)
+        {
+            Assert.AreEqual(
+                expectedCount,
+                bakingWorld.ToolkitWarnings.Count,
+                "Expected exactly " + expectedCount + " toolkit warning(s), got: " +
+                string.Join(" | ", bakingWorld.ToolkitWarnings));
+            if (expectedFragment == null)
+            {
+                return;
+            }
+            bool matched = false;
+            for (int warningIndex = 0; warningIndex < bakingWorld.ToolkitWarnings.Count; warningIndex++)
+            {
+                if (bakingWorld.ToolkitWarnings[warningIndex].Contains(expectedFragment))
+                {
+                    matched = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(
+                matched,
+                "No toolkit warning mentioned '" + expectedFragment + "'. Got: " +
+                string.Join(" | ", bakingWorld.ToolkitWarnings));
         }
 
         // -----------------------------------------------------------------------------------
@@ -88,6 +125,173 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.IsFalse(
                 entityManager.IsComponentEnabled<AnimEventsPending>(actorEntity),
                 "AnimEventsPending must be baked DISABLED — no events have been emitted yet.");
+
+            // The assertions above catch a MISSING component but not an EXTRA one, which is half a
+            // check for something called "exactly". Unity adds its own transform and baking
+            // components that are none of this package's business, so the exact comparison is
+            // scoped to types this package owns.
+            AssertToolkitComponentsAre(
+                entityManager,
+                actorEntity,
+                new[]
+                {
+                    typeof(ClipRegistry), typeof(PlaybackLayer), typeof(AnimationCommand),
+                    typeof(AnimationCommandPending), typeof(AnimEventOutput), typeof(AnimEventsPending),
+                    typeof(RigPartRef), typeof(RigBindingUninitialized), typeof(AnimVisible),
+                    typeof(BoundsDirty), typeof(ActorRestBounds), typeof(SampleSettings),
+                    typeof(VatTextureBinding)
+                });
+        }
+
+        /// <summary>
+        /// Asserts the entity carries exactly the given toolkit-owned components — no more, no
+        /// fewer. Components from other assemblies (Unity's transforms, baking bookkeeping) are
+        /// ignored, since this package does not control them.
+        /// </summary>
+        private static void AssertToolkitComponentsAre(
+            EntityManager entityManager,
+            Entity entity,
+            System.Type[] expectedComponentTypes)
+        {
+            NativeArray<ComponentType> presentComponents =
+                entityManager.GetComponentTypes(entity, Allocator.Temp);
+            try
+            {
+                System.Collections.Generic.List<string> presentToolkitNames =
+                    new System.Collections.Generic.List<string>();
+                for (int componentIndex = 0; componentIndex < presentComponents.Length; componentIndex++)
+                {
+                    System.Type managedType = presentComponents[componentIndex].GetManagedType();
+                    if (managedType == null || managedType.Namespace == null)
+                    {
+                        continue;
+                    }
+                    if (managedType.Namespace.StartsWith("StitchPunk.AnimationToolkit"))
+                    {
+                        presentToolkitNames.Add(managedType.Name);
+                    }
+                }
+
+                System.Collections.Generic.List<string> expectedNames =
+                    new System.Collections.Generic.List<string>();
+                for (int expectedIndex = 0; expectedIndex < expectedComponentTypes.Length; expectedIndex++)
+                {
+                    expectedNames.Add(expectedComponentTypes[expectedIndex].Name);
+                }
+
+                presentToolkitNames.Sort();
+                expectedNames.Sort();
+                CollectionAssert.AreEqual(
+                    expectedNames,
+                    presentToolkitNames,
+                    "The baked entity must carry exactly the section 5.2 archetype. An unexpected " +
+                    "component is as much a contract break as a missing one: it changes the " +
+                    "archetype, and with it the chunk layout every query in the package matches.");
+            }
+            finally
+            {
+                presentComponents.Dispose();
+            }
+        }
+
+        [Test]
+        public void BakingAQuadPart_ProducesTheSection52PartArchetype()
+        {
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000511UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+
+            bakingWorld.Bake(actorGameObject);
+            EntityManager entityManager = bakingWorld.EntityManager;
+            Entity torsoEntity =
+                bakingWorld.GetPrimaryEntity(ActorBakeFixture.FindPart(actorGameObject, "Torso"));
+
+            Assert.IsTrue(entityManager.HasComponent<RigPartBinding>(torsoEntity), "RigPartBinding.");
+            Assert.IsTrue(entityManager.HasComponent<TargetRestPose>(torsoEntity), "TargetRestPose.");
+            Assert.IsTrue(entityManager.HasComponent<TargetPose>(torsoEntity), "TargetPose.");
+            Assert.IsTrue(
+                entityManager.HasComponent<AnimVisible>(torsoEntity),
+                "A part carries its own AnimVisible (section 5.2).");
+
+            // A Quad is transform-only: its pose reaches the screen through LocalTransform and
+            // PostTransformMatrix, so it needs no per-instance material property at all. Asserting
+            // the absences catches a baker adding every technique's properties to every part,
+            // which would put a material property on every quad in a crowd for nothing.
+            Assert.IsFalse(
+                entityManager.HasComponent<SpriteSliceProperty>(torsoEntity),
+                "A Quad is transform-only and must carry no sprite property.");
+            Assert.IsFalse(
+                entityManager.HasComponent<AtlasFrameProperty>(torsoEntity),
+                "A Quad is transform-only and must carry no atlas property.");
+            Assert.IsFalse(
+                entityManager.HasComponent<VatFrameAProperty>(torsoEntity),
+                "A Quad part must not carry VAT properties.");
+            Assert.IsFalse(
+                entityManager.HasComponent<VatDriven>(torsoEntity),
+                "A Quad part is not VAT-driven.");
+        }
+
+        [Test]
+        public void BakingAFlipbookPart_CarriesBothSpritePropertiesAndNoVatOnes()
+        {
+            // TargetKind.FlipbookPlane had no coverage at all, and it is the kind that actually
+            // owns the section 6.2 sprite properties. Which of the two a clip drives is a per-track
+            // SpriteFrameMode decision, so the part must carry both.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000514UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject flipbookPart = fixtureAssets.AddPart(
+                actorGameObject, "Billboard", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring flipbookAuthoring = flipbookPart.GetComponent<RigTargetAuthoring>();
+            flipbookAuthoring.useKindOverride = true;
+            flipbookAuthoring.kindOverride = TargetKind.FlipbookPlane;
+            flipbookAuthoring.restSliceIndex = 3;
+
+            bakingWorld.Bake(actorGameObject);
+            EntityManager entityManager = bakingWorld.EntityManager;
+            Entity partEntity = bakingWorld.GetPrimaryEntity(flipbookPart);
+
+            Assert.IsTrue(
+                entityManager.HasComponent<SpriteSliceProperty>(partEntity),
+                "FLIPBOOK part is missing SpriteSliceProperty — the kind override was not honoured.");
+            Assert.IsTrue(
+                entityManager.HasComponent<AtlasFrameProperty>(partEntity),
+                "FLIPBOOK part is missing AtlasFrameProperty — the kind override was not honoured.");
+            Assert.AreEqual(
+                3f,
+                entityManager.GetComponentData<SpriteSliceProperty>(partEntity).Value,
+                Tolerance,
+                "The slice property must start at the authored rest slice, not at zero, or the part " +
+                "shows frame 0 for one frame before the first sample lands.");
+            Assert.IsFalse(
+                entityManager.HasComponent<VatFrameAProperty>(partEntity),
+                "A flipbook part must not carry VAT properties.");
+            Assert.IsFalse(
+                entityManager.HasComponent<VatDriven>(partEntity),
+                "A flipbook part is not VAT-driven.");
+        }
+
+        [Test]
+        public void BakingAQuadPart_ProducesPostTransformMatrix_SoScaleIsNotDead()
+        {
+            // Section 4.1 names PostTransformMatrix as the fix for the audit's dead-scale
+            // regression, and C4's TransformApplySystem writes it every frame. The baker does not
+            // add it directly — it asks for TransformUsageFlags.NonUniformScale and relies on
+            // Entities to add it. If Entities ever elides that for a unit-scaled part, scale and
+            // flip silently stop working and nothing else in the suite would notice until a
+            // shader-level module failed for reasons that look unrelated.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000512UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+
+            bakingWorld.Bake(actorGameObject);
+            Entity torsoEntity =
+                bakingWorld.GetPrimaryEntity(ActorBakeFixture.FindPart(actorGameObject, "Torso"));
+
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<Unity.Transforms.PostTransformMatrix>(torsoEntity),
+                "A rig part must bake with PostTransformMatrix. Without it the animated scale has " +
+                "nowhere to be written and the dead-scale regression of audit section 2.1 returns.");
         }
 
         [Test]
@@ -111,6 +315,122 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 0,
                 entityManager.GetComponentData<AnimLod>(bakingWorld.GetPrimaryEntity(withLod)).level,
                 "LOD starts at level 0 — full quality — until a system demotes it.");
+        }
+
+        [Test]
+        public void SampleSettingsAndVatTextureBinding_CarryTheAuthoredValues_NotJustTheComponents()
+        {
+            // Both were presence-checked only: a baker that added them default-initialised passed
+            // the archetype test, and every actor would then have sampled at 0 Hz against no
+            // texture. The clamp is the interesting half — a negative rate is a typo, and section
+            // 5.6 reads rateHz as "0 means every frame", so an unclamped −10 would be neither.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000518UL);
+            Texture2D boneTexture = fixtureAssets.CreateTexture("BoneTex");
+            Texture2D normalTexture = fixtureAssets.CreateTexture("NormalTex");
+            VatTextureSetAsset vatTextures =
+                fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000602UL, boneTexture);
+            vatTextures.normalTexture = normalTexture;
+            clipSet.vatTextures = vatTextures;
+
+            GameObject clampedActor = fixtureAssets.CreateActorRoot("ClampedActor", clipSet, false);
+            clampedActor.GetComponent<ActorAuthoring>().sampleOverride =
+                new SampleSettings { rateHz = -10f };
+            GameObject ratedActor = fixtureAssets.CreateActorRoot("RatedActor", clipSet, false);
+            ratedActor.GetComponent<ActorAuthoring>().sampleOverride =
+                new SampleSettings { rateHz = 12f };
+
+            bakingWorld.Bake(clampedActor, ratedActor);
+            EntityManager entityManager = bakingWorld.EntityManager;
+
+            Assert.AreEqual(
+                0f,
+                entityManager.GetComponentData<SampleSettings>(
+                    bakingWorld.GetPrimaryEntity(clampedActor)).rateHz,
+                Tolerance,
+                "A negative authored rate must clamp to 0 — 'sample every frame' — not survive as a " +
+                "negative interval the sampler would divide by.");
+            Assert.AreEqual(
+                12f,
+                entityManager.GetComponentData<SampleSettings>(
+                    bakingWorld.GetPrimaryEntity(ratedActor)).rateHz,
+                Tolerance,
+                "A legitimate rate must reach the entity unchanged; clamping everything to 0 would " +
+                "pass the assertion above and quietly disable crowd sampling.");
+
+            VatTextureBinding binding = entityManager.GetComponentData<VatTextureBinding>(
+                bakingWorld.GetPrimaryEntity(ratedActor));
+            Assert.AreEqual(
+                vatTextures.SetKey,
+                binding.setKey,
+                "The binding's set key is what section 5.7 matches against the blob's vatSetKey; a " +
+                "default here silently unbinds every VAT part on the actor.");
+            Assert.AreEqual(
+                boneTexture,
+                binding.boneOrPositionTexture.Value,
+                "A bone-flavor set must bind its bone texture, not its position texture.");
+            Assert.AreEqual(normalTexture, binding.normalTexture.Value, "The normal texture too.");
+        }
+
+        [Test]
+        public void AnActorWithNoVatTextureSet_GetsADefaultBinding_RatherThanNone()
+        {
+            // The component is unconditional so the archetype does not fork on content, which means
+            // the no-VAT case must be representable as a value. Default is that value: set key 0
+            // matches no blob, and the null texture refs are what section 5.7 checks before binding.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000519UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+
+            bakingWorld.Bake(actorGameObject);
+            VatTextureBinding binding = bakingWorld.EntityManager.GetComponentData<VatTextureBinding>(
+                bakingWorld.GetPrimaryEntity(actorGameObject));
+
+            Assert.AreEqual(0UL, binding.setKey, "No texture set means no set key.");
+            Assert.IsNull(binding.boneOrPositionTexture.Value, "No texture set means no texture.");
+        }
+
+        [Test]
+        public void TwoActorsFromOneClipSet_GetDifferentSamplePhases_AndTheSameOneOnRebake()
+        {
+            // Spreading sampling load across frames is the entire purpose of phase01, and nothing
+            // asserted it. A baker returning a constant would have satisfied every other test.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000513UL);
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+
+            bakingWorld.Bake(firstActor, secondActor);
+            EntityManager entityManager = bakingWorld.EntityManager;
+            float firstPhase = entityManager
+                .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(firstActor)).phase01;
+            float secondPhase = entityManager
+                .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(secondActor)).phase01;
+
+            Assert.AreNotEqual(
+                firstPhase,
+                secondPhase,
+                "Two actors must sample on different frames, or the crowd cost this exists to " +
+                "spread all lands on one frame anyway.");
+            Assert.GreaterOrEqual(firstPhase, 0f, "Phase is normalized to [0, 1).");
+            Assert.Less(firstPhase, 1f, "Phase is normalized to [0, 1).");
+            Assert.GreaterOrEqual(secondPhase, 0f, "Phase is normalized to [0, 1).");
+            Assert.Less(secondPhase, 1f, "Phase is normalized to [0, 1).");
+
+            // And it must be reproducible: amendment A18 forbids deriving it from a session-local
+            // id precisely so a rebake of unchanged source yields the same bytes.
+            using (BakingTestWorld rebakeWorld = new BakingTestWorld("RebakeWorld"))
+            {
+                rebakeWorld.Bake(firstActor, secondActor);
+                Assert.AreEqual(
+                    firstPhase,
+                    rebakeWorld.EntityManager
+                        .GetComponentData<SampleSettings>(
+                            rebakeWorld.GetPrimaryEntity(firstActor)).phase01,
+                    Tolerance,
+                    "Re-baking unchanged source must reproduce the same phase. A session-local id " +
+                    "would give a different value here every run.");
+            }
         }
 
         [Test]
@@ -165,49 +485,74 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             Assert.AreEqual(3, partRefs.Length, "Every declared part must be bound to the root.");
 
-            // The fixture authors the parts out of id order on purpose, so a binding pass that
-            // returned authoring positions instead of resolving ids would fail here.
-            AssertPartBound(entityManager, partRefs, ActorBakeFixture.TorsoDenseIndex, actorEntity);
-            AssertPartBound(entityManager, partRefs, ActorBakeFixture.LeftArmDenseIndex, actorEntity);
-            AssertPartBound(entityManager, partRefs, ActorBakeFixture.HeadDenseIndex, actorEntity);
+            // Assert WHICH GameObject each dense index resolved to. Merely checking that some part
+            // carries each of {0,1,2} is satisfied by any permutation — including binding by
+            // authoring position, which is precisely the bug this fixture's out-of-order ids exist
+            // to catch. The fixture authors Torso, Head, LeftArm while the dense order is Torso(100),
+            // LeftArm(200), Head(300), so authoring order and dense order disagree for two of three.
+            AssertPartBound(
+                entityManager, partRefs, actorEntity, actorGameObject,
+                "Torso", ActorBakeFixture.TorsoDenseIndex);
+            AssertPartBound(
+                entityManager, partRefs, actorEntity, actorGameObject,
+                "LeftArm", ActorBakeFixture.LeftArmDenseIndex);
+            AssertPartBound(
+                entityManager, partRefs, actorEntity, actorGameObject,
+                "Head", ActorBakeFixture.HeadDenseIndex);
         }
 
-        private static void AssertPartBound(
+        private void AssertPartBound(
             EntityManager entityManager,
             DynamicBuffer<RigPartRef> partRefs,
-            int expectedDenseIndex,
-            Entity expectedActorRoot)
+            Entity expectedActorRoot,
+            GameObject actorGameObject,
+            string partName,
+            int expectedDenseIndex)
         {
+            GameObject partGameObject = ActorBakeFixture.FindPart(actorGameObject, partName);
+            Entity partEntity = bakingWorld.GetPrimaryEntity(partGameObject);
+            Assert.AreNotEqual(Entity.Null, partEntity, partName + " must bake to a real entity.");
+
+            Assert.IsTrue(
+                entityManager.HasComponent<RigPartBinding>(partEntity),
+                partName + " must carry RigPartBinding.");
+            RigPartBinding binding = entityManager.GetComponentData<RigPartBinding>(partEntity);
+            Assert.AreEqual(
+                expectedDenseIndex,
+                binding.targetIndex,
+                partName + " must resolve to the dense index of its own target id, not to its " +
+                "position in the authoring hierarchy.");
+            Assert.AreEqual(
+                expectedActorRoot,
+                binding.actorRoot,
+                partName + " must point back at its actor root, or section 5.3 cannot rebind it.");
+            Assert.IsTrue(
+                entityManager.HasComponent<TargetRestPose>(partEntity),
+                partName + " must carry the rest pose captured from its authoring transform.");
+            Assert.IsTrue(
+                entityManager.HasComponent<TargetPose>(partEntity),
+                partName + " must carry the pose the sampler writes.");
+
+            // And the root's buffer entry for that index must name this same entity — the two ends
+            // of the binding have to agree, not merely each be individually plausible.
+            bool foundInBuffer = false;
             for (int partRefIndex = 0; partRefIndex < partRefs.Length; partRefIndex++)
             {
                 if (partRefs[partRefIndex].targetIndex != expectedDenseIndex)
                 {
                     continue;
                 }
-                Entity partEntity = partRefs[partRefIndex].part;
-                Assert.AreNotEqual(Entity.Null, partEntity, "A bound part must reference a real entity.");
-                Assert.IsTrue(
-                    entityManager.HasComponent<RigPartBinding>(partEntity),
-                    "A bound part must carry RigPartBinding.");
-
-                RigPartBinding binding = entityManager.GetComponentData<RigPartBinding>(partEntity);
                 Assert.AreEqual(
-                    expectedDenseIndex,
-                    binding.targetIndex,
-                    "The part's own binding must agree with the root's buffer entry.");
-                Assert.AreEqual(
-                    expectedActorRoot,
-                    binding.actorRoot,
-                    "A part must point back at its actor root, or section 5.3 cannot rebind it.");
-                Assert.IsTrue(
-                    entityManager.HasComponent<TargetRestPose>(partEntity),
-                    "A part must carry the rest pose captured from its authoring transform.");
-                Assert.IsTrue(
-                    entityManager.HasComponent<TargetPose>(partEntity),
-                    "A part must carry the pose the sampler writes.");
-                return;
+                    partEntity,
+                    partRefs[partRefIndex].part,
+                    "The root's buffer entry for dense index " + expectedDenseIndex +
+                    " must reference " + partName + ", the part that actually owns that target id.");
+                foundInBuffer = true;
+                break;
             }
-            Assert.Fail("No part was bound to dense target index " + expectedDenseIndex + ".");
+            Assert.IsTrue(
+                foundInBuffer,
+                "The root's RigPartRef buffer has no entry for dense index " + expectedDenseIndex + ".");
         }
 
         // -----------------------------------------------------------------------------------
@@ -237,6 +582,30 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 "Two actors on one clip set must resolve to the SAME blob, not two equal copies — " +
                 "that is the whole point of keying AddBlobAssetWithCustomHash on the content hash, " +
                 "and duplicating it would multiply crowd memory by the actor count.");
+        }
+
+        [Test]
+        public void TwoActorsSharingAClipSet_BuildTheRegistryOnce_NotOncePerActor()
+        {
+            // Blob equality above cannot tell the two paths apart: build-twice-and-dedup ends at the
+            // same reference as probe-and-skip. The difference is the work, and it scales with the
+            // crowd — a probe that quietly stopped matching Build's key would cost every actor a
+            // full canonicalisation-and-hash pass with no wrong value anywhere to catch it.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000517UL);
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+            GameObject thirdActor = fixtureAssets.CreateStandardActor("ThirdActor", clipSet, false);
+
+            ClipRegistryBuilder.ResetBuildInvocationCount();
+            bakingWorld.Bake(firstActor, secondActor, thirdActor);
+
+            Assert.AreEqual(
+                1,
+                ClipRegistryBuilder.BuildInvocationCount,
+                "Three actors on one clip set must build one registry. Building three and throwing " +
+                "two away is invisible in the baked data and is exactly what TryComputeContentHash " +
+                "exists to prevent.");
         }
 
         [Test]
@@ -275,32 +644,32 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             AABB restBounds = bakingWorld.EntityManager
                 .GetComponentData<ActorRestBounds>(bakingWorld.GetPrimaryEntity(actorGameObject)).value;
 
-            // The head sits 12 units up with half-extents 0.4, so actor-space bounds must reach
-            // 12.4. Offset-space bounds would place it at the origin and top out near 1.8 — a box
-            // smaller than the actor's own silhouette, which is the cull-popping bug section 5.8
-            // exists to close and the reason offsetBounds must never be used as actor space.
-            Assert.GreaterOrEqual(
+            // Every bound is asserted exactly, on both sides. One-sided assertions would let an
+            // arbitrarily over-inflated box pass, and a box that is too large is a real defect: it
+            // is exactly what culling correctness depends on being tight.
+            //
+            // Derived by hand from the fixture. Boxes in actor space, half-extents in brackets:
+            //   Torso   at (0.4, 1, 0)   [0.5, 0.75, 0.1] -> x [-0.10, 0.90]  y [ 0.25,  1.75]
+            //   LeftArm at (-0.2, 1.3, 0)[0.25, 0.5, 0.1] -> x [-0.45, 0.05]  y [ 0.80,  1.80]
+            //   Head    at (0, 12, 0)    [0.4, 0.4, 0.1]  -> x [-0.40, 0.40]  y [11.60, 12.40]
+            //   union                                       x [-0.45, 0.90]  y [ 0.25, 12.40]
+            //
+            // The left arm's actor-space centre is torso + arm = (0.4 - 0.6, 1 + 0.3). A baker that
+            // read localPosition without walking the chain would place it at (-0.6, 0.3), giving
+            // x min -0.85 and y min -0.20 — both caught here. Offset-space bounds would collapse
+            // every part onto the origin and top out near 0.75, nowhere near 12.4.
+            Assert.AreEqual(-0.45f, restBounds.Min.x, Tolerance, "Rest bounds min x.");
+            Assert.AreEqual(0.90f, restBounds.Max.x, Tolerance, "Rest bounds max x.");
+            Assert.AreEqual(0.25f, restBounds.Min.y, Tolerance, "Rest bounds min y.");
+            Assert.AreEqual(
+                12.40f,
                 restBounds.Max.y,
-                12.4f - Tolerance,
-                "Rest bounds must reach the head at y = 12. Falling short means the baker treated " +
-                "offset space as actor space and never walked the transform chain.");
-
-            // The left arm hangs off the torso, not the root, so its actor-space x is
-            // torso.x + arm.x = -0.6, minus its 0.25 half-extent.
-            Assert.LessOrEqual(
-                restBounds.Min.x,
-                -0.85f + Tolerance,
-                "Rest bounds must include a part parented below another part, which is only correct " +
-                "if the baker accumulated the whole transform chain rather than one local position.");
-
-            Assert.LessOrEqual(
-                restBounds.Min.y,
-                0.25f + Tolerance,
-                "The torso's lower edge sets the floor of the box.");
-            Assert.GreaterOrEqual(
-                restBounds.Max.x,
-                0.5f - Tolerance,
-                "The torso's right edge sets the right of the box.");
+                Tolerance,
+                "Rest bounds must reach the head at y = 12 plus its 0.4 half-extent. Falling short " +
+                "means the baker treated offset space as actor space; overshooting means it " +
+                "inflated the box, which costs culling accuracy just as surely.");
+            Assert.AreEqual(-0.10f, restBounds.Min.z, Tolerance, "Rest bounds min z.");
+            Assert.AreEqual(0.10f, restBounds.Max.z, Tolerance, "Rest bounds max z.");
         }
 
         [Test]
@@ -321,6 +690,67 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.AreEqual(0f, restBounds.Extents.z, Tolerance, "An actor with no parts has no extent.");
         }
 
+        [Test]
+        public void APartRotatedNegatively_CapturesASignedRestRotation_NotAWrappedOne()
+        {
+            // Every other fixture part is unrotated, so atan2 returns 0 whether the baker reads the
+            // quaternion or localEulerAngles — the whole suite passed on a reader that cannot tell
+            // −30° from +330°. Only a negatively rotated part separates them, and the difference is
+            // not cosmetic: section 5.6 composes animated rotation as an offset from this value, so
+            // a wrapped rest rotation spins the part a full turn the wrong way on the first sample.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000515UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject rotatedPart = fixtureAssets.AddPart(
+                actorGameObject, "Torso", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            rotatedPart.transform.localRotation = Quaternion.Euler(0f, 0f, -30f);
+
+            bakingWorld.Bake(actorGameObject);
+            Entity partEntity = bakingWorld.GetPrimaryEntity(rotatedPart);
+            EntityManager entityManager = bakingWorld.EntityManager;
+
+            Assert.AreEqual(
+                -math.PI / 6f,
+                entityManager.GetComponentData<TargetRestPose>(partEntity).rotationZ,
+                Tolerance,
+                "A −30° part must capture −π/6 radians. Reading localEulerAngles instead would " +
+                "give +330° (≈ +5.76 rad) — the same pose, but the wrong number to blend from.");
+            Assert.AreEqual(
+                -math.PI / 6f,
+                entityManager.GetComponentData<TargetPose>(partEntity).rotationZ,
+                Tolerance,
+                "The seeded output pose starts at the rest pose, so it carries the same sign.");
+        }
+
+        [Test]
+        public void ADisabledPart_IsStillCoveredByTheRestBounds_BecauseItIsStillBound()
+        {
+            // The binding pass includes disabled entities, so a part on an inactive GameObject bakes,
+            // binds and animates. If the bounds pass excluded it, the actor's culling box would be
+            // right until the part was enabled at runtime and then wrong — the kind of bug that
+            // reproduces only in the shipped game.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051AUL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            fixtureAssets.AddPart(
+                actorGameObject, "Torso", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            GameObject disabledHead = fixtureAssets.AddPart(
+                actorGameObject, "Head", ActorBakeFixture.HeadTargetId, ActorBakeFixture.HeadLocalPosition);
+            disabledHead.SetActive(false);
+
+            bakingWorld.Bake(actorGameObject);
+            AABB restBounds = bakingWorld.EntityManager
+                .GetComponentData<ActorRestBounds>(bakingWorld.GetPrimaryEntity(actorGameObject)).value;
+
+            // Head sits at y = 12 with a 0.4 half-extent; the torso alone would top out at 0.75.
+            Assert.AreEqual(
+                12.40f,
+                restBounds.Max.y,
+                Tolerance,
+                "The disabled head must still be inside the box. Topping out at 0.75 means the " +
+                "bounds pass skipped inactive children while the binding pass did not.");
+        }
+
         // -----------------------------------------------------------------------------------
         // "unknown-target part logs error and is skipped without failing the bake"
         // -----------------------------------------------------------------------------------
@@ -334,9 +764,16 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             fixtureAssets.AddPart(
                 actorGameObject, "Stray", ActorBakeFixture.UnknownTargetId, new Vector3(3f, 0f, 0f));
 
-            LogAssert.Expect(LogType.Error, new Regex(ActorBakeFixture.UnknownTargetId.ToString()));
-
             bakingWorld.Bake(actorGameObject);
+
+            Assert.AreEqual(
+                1,
+                bakingWorld.ToolkitErrors.Count,
+                "A stray part must be reported exactly once, by the managed baker that can name it.");
+            StringAssert.Contains("Stray", bakingWorld.ToolkitErrors[0]);
+            StringAssert.Contains(
+                ActorBakeFixture.UnknownTargetId.ToString(), bakingWorld.ToolkitErrors[0]);
+
             Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
             DynamicBuffer<RigPartRef> partRefs =
                 bakingWorld.EntityManager.GetBuffer<RigPartRef>(actorEntity);
@@ -346,6 +783,55 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 partRefs.Length,
                 "The stray part must be skipped, leaving the three valid parts bound. A misconfigured " +
                 "part is a content error to report, not a reason to fail the whole bake.");
+        }
+
+        [Test]
+        public void AnActorOnAClipSetWithValidationErrors_LogsEveryRuleCode_AndBakesNoRegistry()
+        {
+            // ClipRegistryBuilder.Build throws on a set with errors, and ActorBaker turns that
+            // exception into the one message a user ever sees about it. Nothing exercised that
+            // path, so the enumeration could have listed no codes — or crashed on the exception —
+            // and every other test would still have passed. Two rules are broken, not one: a
+            // formatter that reports only the first failure is the likely bug, and a single-error
+            // fixture cannot catch it.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000516UL);
+            ClipAsset walkClip = ActorBakeFixture.FindClip(clipSet, ActorBakeFixture.WalkClipStableId);
+            walkClip.duration = 0f;
+            walkClip.transformTracks[0].targetId = ActorBakeFixture.UnknownTargetId;
+
+            // Three parts, deliberately. Each one's binding pass will find an actor entity with no
+            // registry on it, and each must stay quiet about that: the actor has already reported
+            // the single actionable message, and restating it per part buries it.
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+
+            bakingWorld.Bake(actorGameObject);
+
+            Assert.AreEqual(
+                1,
+                bakingWorld.ToolkitErrors.Count,
+                "The whole set fails once, as one message — not once plus once per part. Got: " +
+                string.Join(" | ", bakingWorld.ToolkitErrors));
+            StringAssert.Contains("Set", bakingWorld.ToolkitErrors[0]);
+            StringAssert.Contains(
+                ValidationCode.V01.ToString(),
+                bakingWorld.ToolkitErrors[0],
+                "The message must name the duration rule.");
+            StringAssert.Contains(
+                ValidationCode.V02.ToString(),
+                bakingWorld.ToolkitErrors[0],
+                "The message must name the unknown-target rule too. Listing only the first failure " +
+                "sends the user round the loop once per broken clip.");
+
+            using (EntityQuery registryQuery =
+                bakingWorld.EntityManager.CreateEntityQuery(typeof(ClipRegistry)))
+            {
+                Assert.AreEqual(
+                    0,
+                    registryQuery.CalculateEntityCount(),
+                    "A set that cannot be validated must produce no registry at all. A half-built " +
+                    "actor — layers seeded against a blob that was never made — is worse than none.");
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -376,17 +862,90 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             // The duplicate torso claim is reported by the binding pass; it is not what this test
             // is about, but it must be declared or LogAssert fails the test for an unexpected log.
-            LogAssert.Expect(LogType.Warning, new Regex("_VatBoneTex"));
-            LogAssert.Expect(LogType.Error, new Regex("already claims"));
-
             bakingWorld.Bake(actorGameObject);
 
-            // Reaching here with no "unexpected log" failure is the assertion: exactly the declared
-            // messages were emitted, so the mismatch warns once rather than per-frame or not at all.
+            AssertToolkitWarnings(1, "_VatBoneTex");
+            Assert.AreEqual(
+                1,
+                bakingWorld.ToolkitErrors.Count,
+                "The duplicate torso claim is the only error this fixture should produce: " +
+                string.Join(" | ", bakingWorld.ToolkitErrors));
+
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<ClipRegistry>(
                     bakingWorld.GetPrimaryEntity(actorGameObject)),
                 "A material mismatch is a warning, not a bake failure: the actor must still bake.");
+        }
+
+        [Test]
+        public void AVatPartBoundToTheWrongTexture_LogsTheSection44Mismatch()
+        {
+            // THE section 4.4 case: a material that genuinely declares _VatBoneTex, but points it at
+            // a different texture than the set baked. Every other fixture short-circuits earlier on
+            // "declares no such slot", which is a different branch — so without this the specified
+            // mismatch had no coverage at all.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050FUL);
+            Texture2D bakedTexture = fixtureAssets.CreateTexture("BakedBoneTex");
+            Texture2D staleTexture = fixtureAssets.CreateTexture("StaleBoneTex");
+            clipSet.vatTextures =
+                fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000603UL, bakedTexture);
+
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject vatPart = fixtureAssets.AddPart(
+                actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
+            vatPartAuthoring.useKindOverride = true;
+            vatPartAuthoring.kindOverride = TargetKind.VatMesh;
+            vatPartAuthoring.expectedMaterial =
+                fixtureAssets.CreateVatCapableMaterial("StaleMaterial", staleTexture);
+
+            bakingWorld.Bake(actorGameObject);
+
+            // Two warnings: the stale texture binding, plus the unrelated notice that layer 0 is
+            // default-active with no seeded clip. Pinning the count stops the mismatch warning
+            // being emitted twice, or not at all.
+            AssertToolkitWarnings(2, "StaleBoneTex");
+            Assert.IsEmpty(bakingWorld.ToolkitErrors, "A stale binding warns; it is not an error.");
+
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<ClipRegistry>(
+                    bakingWorld.GetPrimaryEntity(actorGameObject)),
+                "A stale texture binding warns; it must not fail the bake.");
+        }
+
+        [Test]
+        public void AVatPartBoundToTheBakedTexture_WarnsAboutNothing()
+        {
+            // The false-positive guard, and the reason the mismatch test above means anything: with
+            // no fixture able to build a CORRECTLY configured VAT material, a validator that warned
+            // on every part would have passed the whole suite.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000510UL);
+            Texture2D bakedTexture = fixtureAssets.CreateTexture("BakedBoneTex");
+            clipSet.vatTextures =
+                fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000604UL, bakedTexture);
+
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject vatPart = fixtureAssets.AddPart(
+                actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
+            RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
+            vatPartAuthoring.useKindOverride = true;
+            vatPartAuthoring.kindOverride = TargetKind.VatMesh;
+            vatPartAuthoring.expectedMaterial =
+                fixtureAssets.CreateVatCapableMaterial("CorrectMaterial", bakedTexture);
+
+            bakingWorld.Bake(actorGameObject);
+
+            // Only the unrelated default-active-layer notice — no material warning. That absence
+            // is the false-positive guard; without it a validator warning on every part passes.
+            AssertToolkitWarnings(1, "seeds no starting clip");
+            Assert.IsEmpty(bakingWorld.ToolkitErrors, "A correct VAT part produces no errors.");
+
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<VatDriven>(
+                    bakingWorld.GetPrimaryEntity(vatPart)),
+                "A correctly configured VAT part must bake VAT-driven and silently.");
         }
 
         [Test]
@@ -403,9 +962,9 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             vatPartAuthoring.kindOverride = TargetKind.VatMesh;
             vatPartAuthoring.expectedMaterial = fixtureAssets.CreateVatMaterial("PlainMaterial", null);
 
-            LogAssert.Expect(LogType.Warning, new Regex("no VAT texture set"));
-
             bakingWorld.Bake(actorGameObject);
+
+            AssertToolkitWarnings(2, "no VAT texture set");
 
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<ClipRegistry>(
@@ -414,7 +973,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         [Test]
-        public void AVatPartWithNoMaterialToCheck_WarnsAboutNothing()
+        public void AVatPartWithNoMaterialToCheck_EmitsNoMaterialWarning()
         {
             // `expectedMaterial` is how a part whose renderer is supplied at runtime opts into the
             // check. Left empty there is nothing to compare, and warning anyway would train users
@@ -434,6 +993,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             bakingWorld.Bake(actorGameObject);
 
+            // The real assertion: no material warning. Without it this test asserted nothing about
+            // logging at all, and warning on a null material would have passed.
+            AssertToolkitWarnings(1, "seeds no starting clip");
+
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<VatDriven>(
                     bakingWorld.GetPrimaryEntity(vatPart)),
@@ -450,8 +1013,6 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
             fixtureAssets.AddPart(
                 actorGameObject, "Stray", ActorBakeFixture.UnknownTargetId, new Vector3(50f, 0f, 0f));
-
-            LogAssert.Expect(LogType.Error, new Regex(ActorBakeFixture.UnknownTargetId.ToString()));
 
             bakingWorld.Bake(actorGameObject);
             AABB restBounds = bakingWorld.EntityManager

@@ -21,7 +21,7 @@ The package is developed against a fixed, reviewed architecture; features are
 built module by module, and this manual only documents what actually exists in
 the installed version.
 
-## Current status: pre-release 0.3.0, build step C2
+## Current status: pre-release 0.4.0, build step C3
 
 This version contains the **data and sampling layer** plus the **authoring
 layer**: the types, blob schema, pure math, authoring assets, validation, and the
@@ -73,9 +73,20 @@ yet. What exists today:
   determinism, and asserting the blob and component layouts against the
   architecture.
 
-What does **not** exist yet: all systems, entity bakers and authoring
-MonoBehaviours, shaders, editor windows, and samples. Do not install this version
-expecting to animate anything — nothing here is wired into a running world.
+- **Entity baking** — `ActorAuthoring` and `RigTargetAuthoring` bake an actor and
+  its parts into the runtime archetypes: the shared registry blob (deduplicated
+  through the `BlobAssetStore`, so many actors on one clip set share one blob),
+  the seeded playback layers, the command and event channels, each part's rest
+  pose and binding, and the actor-space rest bounds.
+
+What does **not** exist yet: every system. Actors bake to entities, but nothing
+drives them — no playback, events, bounds updates or LOD — and there are no
+shaders, editor windows, or samples. Do not install this version expecting to
+animate anything.
+
+**Running the baking tests:** the PlayMode suite is Editor-only by design.
+Unity's baking pipeline has no player-side equivalent, so run it from the Test
+Runner's PlayMode tab in the Editor; "Run all tests (Player)" cannot execute it.
 
 ## Installing
 

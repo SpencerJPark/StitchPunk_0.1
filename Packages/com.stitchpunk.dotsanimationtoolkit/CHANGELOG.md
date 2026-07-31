@@ -5,6 +5,64 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - Unreleased
+
+Phase C build step C3: entity baking — the M2 slice, excluding the VAT texture
+baker. Actors and their parts now bake to entities; no system drives them yet.
+
+### Added
+
+- `ActorAuthoring` + `ActorBaker`: builds the registry blob from the referenced
+  clip set and registers it with `AddBlobAssetWithCustomHash`, produces the whole
+  architecture section 5.2 root archetype with its contractual enableable states,
+  and seeds authored starting layers with clip ids already resolved to dense
+  indices. Uses the probe/store-hit/build/register pattern, so a store hit costs
+  no persistent allocation and leaves nothing to dispose.
+- `RigTargetAuthoring` + `RigTargetBaker`: the part archetype, rest pose captured
+  from the authoring transform, and technique material-property components per
+  `TargetKind`, including the material-versus-texture-set validation of section
+  4.4.
+- `RigBindingBakingSystem`: resolves each part's target id to its dense index and
+  records the binding on both ends. The resolve job is scheduled single-threaded
+  because it writes into other entities' buffers, which would race in parallel.
+- `ActorRestBounds` is now produced, in actor space, by walking each part's full
+  transform chain.
+- PlayMode baking tests. The suite is **Editor-only**: Unity's baking pipeline
+  has no player-side equivalent, so the assembly declares the Editor platform
+  (architecture amendment A17).
+
+### Changed
+
+- A disabled rig part now contributes to `ActorRestBounds`. It was already bound
+  and animated — the binding pass includes disabled entities — but the bounds
+  pass enumerated active children only, so re-enabling a part at runtime pushed
+  it outside the actor's culling box.
+- A part whose actor bailed out of its own bake no longer restates that failure.
+  A missing or invalid clip set produced one actionable error from `ActorBaker`
+  and then one unactionable copy per part, burying it.
+- `ActorBaker`'s sample phase takes bits 8–31 of the path hash rather than the
+  low 24. FNV-1a's last step is a multiply, so its low bits carry the least
+  avalanche and sibling names differing in one character landed on adjacent
+  phases — the opposite of what the phase is for.
+
+- No baked value derives from `Object.GetInstanceID` or `Object.GetEntityId` any
+  longer. Both are session-local, so baking either made the same prefab produce
+  different bytes every session. Per-object numbers now come from
+  `AuthoringPathHash`, keeping bakes reproducible (amendment A18).
+- `SampleSettings` carries `[System.Serializable]` so it can be an inspector
+  field on `ActorAuthoring` (amendment A20).
+
+### Fixed
+
+- **`TargetRestPose` could go stale under incremental baking.** `RigTargetBaker`
+  read `authoring.transform` directly, which does not register a bake dependency,
+  so moving a part in the Editor moved its rendered position — transform baking
+  tracks its own components — while the rest pose kept the value captured at the
+  last full bake. Every animated pose is composed as an offset from that value,
+  so the part animated around a stale origin until something unrelated forced a
+  rebake. The transform now comes from `GetComponent<Transform>`, matching what
+  `ActorBaker` already did.
+
 ## [0.3.0] - Unreleased
 
 Phase C build step C2: the M1 authoring slice — the authoring ScriptableObjects,

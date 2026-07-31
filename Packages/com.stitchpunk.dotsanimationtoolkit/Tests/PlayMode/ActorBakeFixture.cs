@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
+using NUnit.Framework;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEngine;
@@ -26,6 +27,12 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
     /// rather than off the root, so the actor-space rest bounds can only be right if the baker walks
     /// the transform chain and never if it mistakes offset space for actor space.
     /// </para>
+    /// <para>
+    /// <see cref="TorsoLocalPosition"/> is deliberately off-axis in x. With the torso at x = 0 the
+    /// left arm's actor-space x would equal its own local x, so a baker that never walked the chain
+    /// would produce identical x bounds and the nested-part case would prove nothing. Offsetting the
+    /// torso is what makes the chain observable on both axes.
+    /// </para>
     /// </remarks>
     internal sealed class ActorBakeFixture
     {
@@ -37,6 +44,9 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
         /// <summary>Dense target index 2 — the part placed far from the actor origin.</summary>
         internal const uint HeadTargetId = 300u;
+
+        /// <summary>The test-only shader that declares the VAT texture slots.</summary>
+        internal const string VatProbeShaderName = "Hidden/StitchPunk/AnimationToolkit/Tests/VatMaterialProbe";
 
         /// <summary>A target id the fixture rig deliberately does not declare.</summary>
         internal const uint UnknownTargetId = 999u;
@@ -75,7 +85,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         internal static readonly float3 HeadBoundsExtents = new float3(0.4f, 0.4f, 0.1f);
 
         /// <summary>Torso rest position, relative to the actor root.</summary>
-        internal static readonly Vector3 TorsoLocalPosition = new Vector3(0f, 1f, 0f);
+        internal static readonly Vector3 TorsoLocalPosition = new Vector3(0.4f, 1f, 0f);
 
         /// <summary>Left-arm rest position, relative to the <em>torso</em>, not the root.</summary>
         internal static readonly Vector3 LeftArmLocalPosition = new Vector3(-0.6f, 0.3f, 0f);
@@ -224,6 +234,26 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             return actorGameObject;
         }
 
+        /// <summary>
+        /// Finds a part GameObject by name under an actor. Tests need the specific object a dense
+        /// index is expected to resolve to: asserting only that <em>some</em> part carries each
+        /// index passes for any permutation, including the authoring-order bug this fixture exists
+        /// to catch.
+        /// </summary>
+        internal static GameObject FindPart(GameObject actorGameObject, string partName)
+        {
+            Transform[] descendants = actorGameObject.GetComponentsInChildren<Transform>(true);
+            for (int descendantIndex = 0; descendantIndex < descendants.Length; descendantIndex++)
+            {
+                if (descendants[descendantIndex].name == partName)
+                {
+                    return descendants[descendantIndex].gameObject;
+                }
+            }
+            Assert.Fail("The fixture has no part named '" + partName + "'.");
+            return null;
+        }
+
         /// <summary>Adds a rig part under <paramref name="parent"/> at the given local position.</summary>
         internal GameObject AddPart(
             GameObject parent,
@@ -259,12 +289,17 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             });
         }
 
-        /// <summary>Creates a material bound to <paramref name="boneTexture"/> through <c>_VatBoneTex</c>.</summary>
+        /// <summary>
+        /// Creates a plain unlit material. It deliberately does <strong>not</strong> declare a
+        /// <c>_VatBoneTex</c> slot — that absence is what the material-mismatch acceptance test
+        /// detects. <paramref name="boneTexture"/> is bound to the shader's own <c>_MainTex</c>
+        /// purely so the texture is referenced by something and not collected.
+        /// </summary>
         internal Material CreateVatMaterial(string name, Texture2D boneTexture)
         {
-            // Any shader declaring a texture property named _VatBoneTex would do; the URP unlit
-            // shader's own texture slot is renamed by the material's property block below, so the
-            // fixture instead relies on the property existing on a shader everyone has.
+            // A plain unlit material: it declares no _VatBoneTex slot at all. That absence is the
+            // "wrong material assigned" case. boneTexture is bound to the shader's own _MainTex
+            // purely so the texture is referenced by something.
             Shader shader = Shader.Find("Unlit/Texture");
             Material material = new Material(shader);
             material.name = name;
@@ -272,6 +307,31 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             if (boneTexture != null)
             {
                 material.SetTexture("_MainTex", boneTexture);
+            }
+            return material;
+        }
+
+        /// <summary>
+        /// Creates a material that genuinely declares the VAT texture slots, bound to
+        /// <paramref name="boneTexture"/>. Passing the texture the set baked gives a correctly
+        /// configured part; passing a different one gives the architecture section 4.4 mismatch —
+        /// the branch the acceptance list actually specifies, and the only one that can distinguish
+        /// a validator from one that warns unconditionally.
+        /// </summary>
+        internal Material CreateVatCapableMaterial(string name, Texture2D boneTexture)
+        {
+            Shader shader = Shader.Find(VatProbeShaderName);
+            Assert.IsNotNull(
+                shader,
+                "The test shader '" + VatProbeShaderName + "' did not import. Without it no fixture " +
+                "can build a correctly configured VAT material, and the section 4.4 mismatch branch " +
+                "cannot be reached at all.");
+            Material material = new Material(shader);
+            material.name = name;
+            createdObjects.Add(material);
+            if (boneTexture != null)
+            {
+                material.SetTexture("_VatBoneTex", boneTexture);
             }
             return material;
         }

@@ -1,9 +1,9 @@
 {
   "name": "com.stitchpunk.dotsanimationtoolkit",
   "displayName": "DOTS Animation Toolkit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "unity": "6000.5",
-  "description": "DOTS-native animation toolkit for Unity Entities: 2.5D cutout transform tracks, flipbook sprite animation, and bone/vertex animation textures (VAT), with blob-baked clip registries, Burst-compiled sampling, and an editor clip pipeline. Pre-release: version 0.3.0 contains the data and sampling layer plus the authoring assets, validation, and the deterministic clip-registry builder (build steps C1 and C2), and drives no entities yet; feature modules land in subsequent 0.x versions.",
+  "description": "DOTS-native animation toolkit for Unity Entities: 2.5D cutout transform tracks, flipbook sprite animation, and bone/vertex animation textures (VAT), with blob-baked clip registries, Burst-compiled sampling, and an editor clip pipeline. Pre-release: version 0.4.0 contains the data and sampling layer, the authoring assets with validation and the deterministic clip-registry builder, and entity baking (build steps C1 to C3). Actors now bake to entities, but no system drives them yet — playback, events, bounds and LOD land in subsequent 0.x versions.",
   "keywords": [
     "dots",
     "entities",

@@ -352,7 +352,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
             MinMaxAABB restBounds = MinMaxAABB.Empty;
             bool anyPartBounded = false;
 
-            RigTargetAuthoring[] parts = GetComponentsInChildren<RigTargetAuthoring>();
+            // Inactive children are included deliberately. RigBindingBakingSystem's queries carry
+            // IncludeDisabledEntities, so a part on a disabled GameObject is still bound and still
+            // animates; leaving it out of the box here would give that part no coverage in the
+            // culling volume and pop the actor as soon as the part is re-enabled at runtime. The two
+            // passes have to agree about which parts exist.
+            RigTargetAuthoring[] parts = GetComponentsInChildren<RigTargetAuthoring>(true);
             for (int partIndex = 0; partIndex < parts.Length; partIndex++)
             {
                 RigTargetAuthoring part = parts[partIndex];
@@ -482,8 +487,11 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </remarks>
         private static float ComputeSamplePhase(ActorAuthoring authoring)
         {
+            // Shifted before masking: FNV-1a's final step is a multiply, so its low bits carry the
+            // least avalanche and two siblings whose names differ only in the last character can
+            // land on adjacent phases. Taking bits 8–31 instead costs nothing and spreads them.
             uint pathHash = AuthoringPathHash.Of(authoring.transform);
-            return (pathHash & 0x00FFFFFFu) * (1f / 16777216f);
+            return ((pathHash >> 8) & 0x00FFFFFFu) * (1f / 16777216f);
         }
 
         private static VatTextureBinding BuildVatTextureBinding(VatTextureSetAsset vatTextures)

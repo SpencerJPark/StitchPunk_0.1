@@ -28,10 +28,18 @@ namespace StitchPunk.AnimationToolkit.Authoring
     /// temporary one — the parts that were not re-baked must still be visible here.
     /// </para>
     /// <para>
-    /// The resolve pass is single-threaded on purpose. It writes into a buffer that belongs to
-    /// another entity, several parts share one actor, and the resulting
-    /// <see cref="RigPartRef"/> order must be the same on every machine for a given input; a
-    /// parallel schedule would give up all three. The work is one binary search per part.
+    /// The resolve pass is single-threaded on purpose: it appends into a buffer that belongs to
+    /// another entity and several parts share one actor, so a parallel schedule would race on the
+    /// buffer and on the duplicate-claim check that reads it. The work is one binary search per
+    /// part, so the thread is cheap to give up.
+    /// </para>
+    /// <para>
+    /// Single-threading also makes the resulting <see cref="RigPartRef"/> order repeatable in
+    /// practice — chunk iteration order follows entity creation order, which follows baking order —
+    /// but that is an emergent property of Entities, not a guarantee this package can make, and
+    /// nothing here relies on it: architecture section 5.3's <c>RigBindingSystem</c> rebuilds the
+    /// buffer from the <c>LinkedEntityGroup</c> at spawn, so the baked order never reaches a frame.
+    /// Treat the order as unspecified.
     /// </para>
     /// </remarks>
     [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
@@ -106,6 +114,16 @@ namespace StitchPunk.AnimationToolkit.Authoring
             if (!clipRegistryLookup.HasComponent(bakeLink.actorRoot) ||
                 !rigPartRefLookup.HasBuffer(bakeLink.actorRoot))
             {
+                // Stay silent when the actor entity exists but carries no registry. That is the
+                // shape of an actor whose own bake bailed out — a missing clip set, a set that
+                // failed validation — and ActorBaker has already logged the one message naming the
+                // asset and the rule. Repeating it here once per part buries that message under N
+                // copies of a restatement, none of which a user can act on. A genuinely absent
+                // actor root still reports, because nothing else has spoken for it.
+                if (bakeLink.actorRoot != Entity.Null)
+                {
+                    return;
+                }
                 Debug.LogError($"[DOTS Animation Toolkit] Rig part entity {partEntity.Index}:{partEntity.Version} (authoring path hash {bakeLink.authoringPathHash}) has no baked actor to bind to. Its actor's clip set is probably missing or invalid. The part is skipped.");
                 return;
             }
