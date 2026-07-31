@@ -33,10 +33,6 @@ baker. Actors and their parts now bake to entities; no system drives them yet.
 
 ### Changed
 
-- A disabled rig part now contributes to `ActorRestBounds`. It was already bound
-  and animated — the binding pass includes disabled entities — but the bounds
-  pass enumerated active children only, so re-enabling a part at runtime pushed
-  it outside the actor's culling box.
 - A part whose actor bailed out of its own bake no longer restates that failure.
   A missing or invalid clip set produced one actionable error from `ActorBaker`
   and then one unactionable copy per part, burying it.

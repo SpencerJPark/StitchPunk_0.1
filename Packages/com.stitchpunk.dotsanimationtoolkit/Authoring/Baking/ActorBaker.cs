@@ -352,12 +352,14 @@ namespace StitchPunk.AnimationToolkit.Authoring
             MinMaxAABB restBounds = MinMaxAABB.Empty;
             bool anyPartBounded = false;
 
-            // Inactive children are included deliberately. RigBindingBakingSystem's queries carry
+            // Inactive children are included, and that is deliberate even though nothing here says
+            // so: Baker.GetComponentsInChildren defaults to include-inactive, unlike the GameObject
+            // method of the same name, and takes no bool to say otherwise. The default is the
+            // behaviour this pass wants — RigBindingBakingSystem's queries carry
             // IncludeDisabledEntities, so a part on a disabled GameObject is still bound and still
-            // animates; leaving it out of the box here would give that part no coverage in the
-            // culling volume and pop the actor as soon as the part is re-enabled at runtime. The two
-            // passes have to agree about which parts exist.
-            RigTargetAuthoring[] parts = GetComponentsInChildren<RigTargetAuthoring>(true);
+            // animates, and leaving it out of the box would pop the actor the moment that part is
+            // re-enabled at runtime. The two passes have to agree about which parts exist.
+            RigTargetAuthoring[] parts = GetComponentsInChildren<RigTargetAuthoring>();
             for (int partIndex = 0; partIndex < parts.Length; partIndex++)
             {
                 RigTargetAuthoring part = parts[partIndex];

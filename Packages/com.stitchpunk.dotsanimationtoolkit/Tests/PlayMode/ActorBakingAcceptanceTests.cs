@@ -729,6 +729,11 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             // binds and animates. If the bounds pass excluded it, the actor's culling box would be
             // right until the part was enabled at runtime and then wrong — the kind of bug that
             // reproduces only in the shipped game.
+            //
+            // The two passes agree today only because Baker.GetComponentsInChildren defaults to
+            // include-inactive, the opposite of the GameObject method it is named after. That is an
+            // easy thing to "fix" into a real defect, which is why this is pinned rather than left
+            // to the reader of ActorBaker's comment.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051AUL);
             GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
