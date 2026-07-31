@@ -325,3 +325,27 @@ single-error fixture cannot catch it.
 
 **Not closed, carried to C4:** **A5**, **A8**, and the carried C2 advisories
 (**D10**, **D11**, **A10a**, **A12a**).
+
+### Test-harness defects found by the first Test Runner pass
+
+Both were in the log-capture harness the rework introduced, not in the package.
+
+1. **`LogAssert.ignoreFailingMessages` was set in `[SetUp]`, where it does nothing.**
+   `BeforeAfterTestCommandBase` wraps each setup method in its own `LogScope` and
+   disposes it before the test body runs, so the flag was gone by the time
+   anything baked and every intentional error re-failed its test as an
+   "unhandled log message". Now set inside `BakingTestWorld.Bake`, which runs in
+   the test body's scope and is the only place foreign logs appear.
+
+2. **The capture subscribed to `Application.logMessageReceived`, which is
+   main-thread only.** `RigBindingBakingSystem`'s resolve pass is a Bursted job
+   and reports from a worker thread, so every one of its diagnostics recorded as
+   zero — `ToolkitErrors` was empty in exactly the test that asserts the
+   duplicate-target-claim error. UTF's own `LogScope` subscribes to
+   `logMessageReceivedThreaded` for this reason, which is why the `LogAssert`
+   version of the same assertion had passed before the rework replaced it. Now
+   subscribed the same way, with a lock around the lists.
+
+The second is worth remembering beyond this phase: **a Bursted baking system's
+diagnostics are invisible to `logMessageReceived`.** Any future harness that
+records logs — C4's systems suite included — has to use the threaded callback.

@@ -6,7 +6,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 {
@@ -34,16 +33,15 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             fixtureAssets = new ActorBakeFixture();
             bakingWorld = new BakingTestWorld("ActorBakingAcceptanceTests");
 
-            // A baking world runs every baking system in the project, the host application's
-            // included, and their diagnostics are not this package's to control. Assertions here
-            // go through BakingTestWorld's own capture, which sees only this package's messages.
-            LogAssert.ignoreFailingMessages = true;
+            // Log suppression is not set up here. UTF wraps each setup method in its own LogScope
+            // and disposes it before the test body runs, so LogAssert.ignoreFailingMessages set in
+            // [SetUp] never reaches the bake. BakingTestWorld.Bake sets it around the bake instead,
+            // which is where the host application's own baking systems do their logging.
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogAssert.ignoreFailingMessages = false;
             bakingWorld.Dispose();
             fixtureAssets.DestroyAll();
         }
@@ -865,8 +863,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             vatPartAuthoring.kindOverride = TargetKind.VatMesh;
             vatPartAuthoring.expectedMaterial = fixtureAssets.CreateVatMaterial("PlainMaterial", boneTexture);
 
-            // The duplicate torso claim is reported by the binding pass; it is not what this test
-            // is about, but it must be declared or LogAssert fails the test for an unexpected log.
+            // This part claims the torso id the standard actor's own torso already claims, so the
+            // binding pass reports a duplicate. That is incidental to the material check, but it is
+            // asserted below rather than ignored: it comes from the Bursted pass, and pinning it is
+            // what proves worker-thread diagnostics are being captured at all.
             bakingWorld.Bake(actorGameObject);
 
             AssertToolkitWarnings(1, "_VatBoneTex");

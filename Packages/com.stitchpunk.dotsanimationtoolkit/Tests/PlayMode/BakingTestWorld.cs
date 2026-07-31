@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.ExceptionServices;
 using Unity.Entities;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 {
@@ -110,9 +111,20 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         /// </summary>
         internal void Bake(params GameObject[] rootGameObjects)
         {
-            toolkitWarnings.Clear();
-            toolkitErrors.Clear();
-            Application.logMessageReceived += RecordToolkitLog;
+            lock (toolkitLogLock)
+            {
+                toolkitWarnings.Clear();
+                toolkitErrors.Clear();
+            }
+
+            // Suppressed here rather than in the fixture's [SetUp]. BeforeAfterTestCommandBase wraps
+            // each setup method in its own LogScope and disposes it before the test body runs, so a
+            // flag set in [SetUp] is gone by the time anything bakes; the test body's scope starts
+            // at the default again. Setting it around the bake also scopes the suppression to the
+            // only place foreign logs can appear.
+            bool previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
+            Application.logMessageReceivedThreaded += RecordToolkitLog;
             try
             {
                 BakeGameObjectsMethod.Invoke(
@@ -127,7 +139,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             }
             finally
             {
-                Application.logMessageReceived -= RecordToolkitLog;
+                Application.logMessageReceivedThreaded -= RecordToolkitLog;
+                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
             }
         }
 
@@ -142,23 +155,43 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         // So the suite records the bake's messages itself and asserts only over the ones this
         // package emitted. That is both host-independent and a stronger claim than LogAssert could
         // make: "exactly one warning" becomes a count, not the absence of a complaint.
+        //
+        // The subscription is to logMessageReceivedThreaded, not logMessageReceived. The binding
+        // pass is a Bursted job and reports from a worker thread, and the main-thread-only callback
+        // never sees those messages — every RigBindingBakingSystem diagnostic would silently record
+        // as zero, so a test asserting one error would fail while the error sat in the console.
+        // (UTF's own LogScope subscribes the same way, for the same reason.) That makes this a
+        // multi-threaded callback, hence the lock.
         // -----------------------------------------------------------------------------------
 
         private const string ToolkitMessagePrefix = "[DOTS Animation Toolkit]";
 
+        private readonly object toolkitLogLock = new object();
         private readonly List<string> toolkitWarnings = new List<string>();
         private readonly List<string> toolkitErrors = new List<string>();
 
         /// <summary>Warnings this package emitted during the most recent <see cref="Bake"/>.</summary>
         internal IReadOnlyList<string> ToolkitWarnings
         {
-            get { return toolkitWarnings; }
+            get
+            {
+                lock (toolkitLogLock)
+                {
+                    return toolkitWarnings.ToArray();
+                }
+            }
         }
 
         /// <summary>Errors this package emitted during the most recent <see cref="Bake"/>.</summary>
         internal IReadOnlyList<string> ToolkitErrors
         {
-            get { return toolkitErrors; }
+            get
+            {
+                lock (toolkitLogLock)
+                {
+                    return toolkitErrors.ToArray();
+                }
+            }
         }
 
         private void RecordToolkitLog(string message, string stackTrace, LogType logType)
@@ -167,13 +200,16 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             {
                 return;
             }
-            if (logType == LogType.Warning)
+            lock (toolkitLogLock)
             {
-                toolkitWarnings.Add(message);
-            }
-            else if (logType == LogType.Error || logType == LogType.Exception || logType == LogType.Assert)
-            {
-                toolkitErrors.Add(message);
+                if (logType == LogType.Warning)
+                {
+                    toolkitWarnings.Add(message);
+                }
+                else if (logType == LogType.Error || logType == LogType.Exception || logType == LogType.Assert)
+                {
+                    toolkitErrors.Add(message);
+                }
             }
         }
 
