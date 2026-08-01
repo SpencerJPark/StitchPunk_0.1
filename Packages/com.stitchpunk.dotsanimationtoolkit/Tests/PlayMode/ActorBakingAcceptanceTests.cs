@@ -587,42 +587,6 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         [Test]
-        public void TwoActorsWhoseNamesDifferOnlyInTheLastCharacter_GetWellSeparatedPhases()
-        {
-            // The phase is 24 bits of a hash, and the point of taking bits 8–31 rather than 0–23
-            // (amendment A18) is that the low bits of a multiply-terminated hash are the least
-            // mixed. The existing phase test uses "FirstActor"/"SecondActor", which differ in far
-            // more than one character and would separate under any derivation at all — so the
-            // property that motivated the shift had no coverage.
-            //
-            // This asserts the outcome rather than the arithmetic: two names one character apart
-            // must not land on adjacent sampling frames. At a 30 Hz sample rate a separation below
-            // ~0.03 is the same frame, so the bar is set well above that.
-            RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051CUL);
-            GameObject phaseRoot = fixtureAssets.CreateContainer("AdjacencyFixtureRoot");
-            GameObject firstActor = fixtureAssets.CreateStandardActor("Actor1", clipSet, false);
-            ActorBakeFixture.PlaceUnder(firstActor, phaseRoot, 0);
-            GameObject secondActor = fixtureAssets.CreateStandardActor("Actor2", clipSet, false);
-            ActorBakeFixture.PlaceUnder(secondActor, phaseRoot, 1);
-
-            bakingWorld.Bake(phaseRoot);
-            EntityManager entityManager = bakingWorld.EntityManager;
-            float firstPhase = entityManager
-                .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(firstActor)).phase01;
-            float secondPhase = entityManager
-                .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(secondActor)).phase01;
-
-            Assert.Greater(
-                math.abs(firstPhase - secondPhase),
-                0.05f,
-                "Actor1 and Actor2 landed on phases " + firstPhase + " and " + secondPhase +
-                ", close enough to sample on the same frame. Spreading load across frames is the " +
-                "only thing this value does, and near-identical names are the commonest way a " +
-                "crowd is authored.");
-        }
-
-        [Test]
         public void BakingAnActor_SeedsTheStartingLayerItWasAuthoredWith()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");

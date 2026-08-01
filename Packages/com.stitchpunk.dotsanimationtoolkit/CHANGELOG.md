@@ -157,7 +157,7 @@ through C8.
   the conservative per-clip bounds, and the `xxHash3` content hash that becomes
   the `BlobAssetStore` dedup key. A set carrying validation errors throws
   `ClipValidationException` listing the offending rule codes instead of baking.
-- 70 new EditMode tests — 176 in the suite: one fixture per validation rule that asserts the rule fires
+- 86 new EditMode tests — 192 in the suite: one fixture per validation rule that asserts the rule fires
   and nothing else does, id generation and stability across rename, reorder,
   duplication and a serialization round trip, canonical ordering and value
   conversion, and determinism fixtures comparing both the content hash and a

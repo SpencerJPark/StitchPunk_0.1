@@ -527,6 +527,18 @@ namespace StitchPunk.AnimationToolkit.Authoring
             // remaining 24 bits are exactly the width the phase needs — and buys better spread.
             // No mask is applied: `pathHash >> 8` is already at most 0x00FFFFFF, so one would be a
             // no-op implying a constraint this line is not enforcing.
+            //
+            // NO TEST COVERS THE SHIFT, and none can — do not write one. AuthoringPathHash.Of walks
+            // LEAF FIRST, so whichever character distinguishes two actors is hashed first and then
+            // passes through every remaining node: its own sibling index, the separator, and all of
+            // its ancestors. By the final multiply it is thoroughly mixed under either derivation.
+            // A fixture was written for this and deleted at the third C3 gate after it was shown to
+            // pass identically with the shift and with the pre-A18 mask, at every one of 200
+            // container positions — it discriminated nothing while claiming to pin A18. The low-bit
+            // weakness would only surface if the differing input were the LAST thing mixed, i.e. on
+            // the outermost ancestor, which this walk order puts furthest from the leaf that varies.
+            // The shift is therefore a defensible micro-improvement with no observable behaviour,
+            // and that is the honest description of it.
             uint pathHash = AuthoringPathHash.Of(this, authoring.transform);
             return (pathHash >> 8) * (1f / 16777216f);
         }

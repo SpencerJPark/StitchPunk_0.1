@@ -71,7 +71,7 @@ those entities yet. What exists today:
   offending rules rather than baking something broken.
 - 205 EditMode tests — packaging conformance, the sampling math, the validation
   rule table, identity stability, canonical ordering, bake determinism and
-  diagnostic path rendering — plus 28 PlayMode tests, 27 of which bake real
+  diagnostic path rendering — plus 27 PlayMode tests, 26 of which bake real
   GameObject hierarchies and assert the resulting entity data. Together they
   assert the blob and component layouts against the architecture.
 
