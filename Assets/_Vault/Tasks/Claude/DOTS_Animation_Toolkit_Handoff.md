@@ -1,7 +1,7 @@
 # DOTS Animation Toolkit — session handoff
 
 **Written:** 2026-07-31 (second session of the day; supersedes the earlier handoff)
-**State:** Build step **C3 is OPEN**. Every blocking item from the re-review is now addressed in code, but **nothing has been compiled or run** — see "What you must do first".
+**State:** Build step **C3 is OPEN**. Every blocking item from the re-review is addressed; the package **compiles clean** and the **PlayMode suite runs green**. The EditMode suite compiles but has not been run — see "What you must do first".
 **Read before doing anything:** `Docs/AnimationToolkit/Phase_C3_ReReview.md` (the three reviewer reports, verbatim) and `Docs/AnimationToolkit/Phase_B_Architecture.md` (the normative spec — 111 KB, **never read whole**; grep headings, then Read with offset/limit).
 
 ---
@@ -20,16 +20,27 @@ A commercially sellable Unity DOTS animation UPM package, `com.stitchpunk.dotsan
 
 ---
 
-## What you must do first
+## Verification status (2026-07-31, `Logs/Editor.log` written 19:40)
 
-**No compile has happened.** The last Editor compile in `Logs/Editor.log` is 13:55; this session's changes landed at ~18:45. The only errors in that log are stale (the `GetComponentsInChildren<T>(bool)` overload, fixed in `2bb8f32`).
+**Compile: clean.** Zero `error CS` / `error BC`. Both test assemblies were IL-post-processed, which only happens on a successful compile — so `AuthoringPathTests.cs`, the `IBaker` parameter on `AuthoringPathHash`, and the `#if UNITY_EDITOR` guard on `BuildInvocationCount` all build.
 
-So before anything else: ask the owner to focus Unity, then check `Logs/Editor.log` (**not** `%LOCALAPPDATA%/Unity/Editor/Editor.log` — this project redirects to a project-relative log) for fresh `error CS` / `BC` lines, and ask them to run both Test Runner tabs.
+**PlayMode suite: green, and verified to have run end to end.** Zero NUnit assertion output (`But was:`, `AssertionException`) and zero unexpected exceptions anywhere in the log. The bake diagnostics tally *exactly* against the fixtures, which is what proves the whole suite ran rather than part of it:
 
-Highest-risk things if the compile fails, roughly in order:
-1. `AuthoringPathHash.Of/PathOf` now take an `IBaker` first parameter. `IBaker` is the (oddly named) **public abstract class** at `Unity.Entities.Hybrid/Baking/Baker.cs:27` that `Baker<T>` derives from; `GetName`, `GetParents`, `GetComponent`, `GetEntity`, `AddComponent` all live on it, so passing `this` from either baker is legal. Verified by reading the source, not by compiling.
-2. `AssertToolkitComponentsAre` is now applied to the **part** archetype, expecting exactly `RigPartBinding, RigPartBakeLink, TargetRestPose, TargetPose, AnimVisible`. If a part carries some other toolkit component in the baking world, this is the assertion that will say so — read the failure message, it names the difference.
-3. `ClipRegistryBuilder.BuildInvocationCount` moved behind `#if UNITY_EDITOR`. Its only consumer is the PlayMode suite, which is Editor-only by A17, so this should be fine — but it is the kind of thing that breaks a player build if A17 is ever reverted.
+| Message | Count | Expected from |
+|---|---|---|
+| `Rig target 'Stray' … id 999 … does not declare` | 2 | the unknown-target test + the stray-bounds test |
+| `Rig part 'Actor/VatBody' claims target id 100 …` | 1 | the duplicate-claim fixture |
+| `Clip set 'Set' cannot be baked …` | 1 | the validation-errors test |
+| `marks layer 0 as active by default … seeds no starting clip` | 12 | the 10 `CreateActorRoot("Actor")` fixtures + `ClampedActor` + `RatedActor` |
+| three VAT material warnings | 3 | the three material fixtures |
+
+Four errors total, matching the four `ExpectToolkitErrors(1)` declarations exactly. Three things are confirmed *at runtime* by that table, not just by reading:
+
+1. **A22's tag works.** `"has no usable clip registry, and no earlier message explained why"` never printed. Without `ActorBakeFailed` being written, the validation-errors fixture's three parts would each have produced it.
+2. **Burst `FixedString` interpolation works**, and the diagnostic names a real path — `Rig part 'Actor/VatBody'`, emitted from the Bursted job via the Burst runtime log callback.
+3. **The new dependency-taking path walk produces correct text**, since that path came out of `IBaker.GetName`/`GetParents` rather than off `Transform`.
+
+**Still to run: the EditMode tab.** It compiles, but nothing in the log shows it executing, so the 204 tests — including the 12 new `AuthoringPathTests` — are unverified. That is the one gap left before the gate.
 
 ---
 
@@ -101,7 +112,7 @@ Run from **Window ▸ General ▸ Test Runner**; there is no headless runner.
 
 ## Suggested next moves
 
-1. **Compile + both Test Runner tabs.** Nothing below is worth starting until that is green.
+1. **Run the EditMode tab.** Compile and PlayMode are already verified green (see above); EditMode is the remaining gap.
 2. Show the owner **A22** and get an explicit yes or no. It is the only thing in this rework that was their call and not mine.
 3. Fix **a6** (the probe shader) with the Editor open.
 4. Re-run the three-way review on the full C3 diff (`git diff 026a902..HEAD`), then hand back for the gate.
