@@ -1,13 +1,16 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
+using System.Text;
 using Unity.Collections;
 using UnityEngine;
 
 namespace StitchPunk.AnimationToolkit.Authoring
 {
     /// <summary>
-    /// Hashes an authoring object's hierarchy path into a stable 32-bit value, used at bake time
-    /// wherever a per-object number is needed that must survive from one bake to the next.
+    /// Derives bake-stable values from an authoring object's hierarchy path: a 32-bit hash
+    /// (<see cref="Of"/>) wherever a per-object <em>number</em> is needed that must survive from one
+    /// bake to the next, and the path as readable text (<see cref="PathOf"/>) wherever a Bursted
+    /// system must name an object it cannot hold a managed reference to.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -35,6 +38,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
     {
         private const uint FnvOffsetBasis = 2166136261u;
         private const uint FnvPrime = 16777619u;
+
+        /// <summary>UTF-8 payload capacity of a <see cref="FixedString128Bytes"/>.</summary>
+        private const int MaximumPathBytes = 125;
+
+        /// <summary>Prefix marking a path whose outermost ancestors were dropped.</summary>
+        private const string TruncationMarker = ".../";
 
         /// <summary>
         /// Hashes the transform's full path from the scene root, including each node's sibling
@@ -68,9 +77,24 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// complaining about.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Truncation drops the outermost ancestors, not the leaf: a message naming
         /// <c>.../Torso/LeftArm</c> locates the part, and one naming <c>SceneRoot/Rig/...</c> does
         /// not. This is text for a human to read, never an identifier — nothing may key off it.
+        /// </para>
+        /// <para>
+        /// The budget is counted in <strong>UTF-8 bytes, not characters</strong>. A
+        /// <c>FixedString128Bytes</c> holds 125 payload bytes, and one character can occupy up to
+        /// four of them, so a character count is a permissive bound on a byte capacity — the
+        /// opposite of conservative. Getting this wrong is not a truncated message: the
+        /// <c>FixedString128Bytes(string)</c> constructor calls <c>CheckCopyError</c>, which throws
+        /// under <c>ENABLE_UNITY_COLLECTIONS_CHECKS</c> — always on in the Editor, which is the only
+        /// place baking runs. The exception escapes <c>RigTargetBaker.Bake</c>, Unity logs it and
+        /// carries on, and the part silently loses its rest pose, output pose and technique
+        /// components. So the copy also goes through <see cref="FixedStringMethods.CopyFromTruncated"/>,
+        /// which truncates instead of throwing: a name this method cannot render must degrade to a
+        /// shortened diagnostic, never to a broken bake.
+        /// </para>
         /// </remarks>
         /// <param name="authoringTransform">The transform to describe. Null yields an empty path.</param>
         internal static FixedString128Bytes PathOf(Transform authoringTransform)
@@ -80,22 +104,56 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 return default;
             }
 
-            string fullPath = authoringTransform.name;
+            StringBuilder pathBuilder = new StringBuilder(authoringTransform.name);
             Transform currentNode = authoringTransform.parent;
             while (currentNode != null)
             {
-                fullPath = currentNode.name + "/" + fullPath;
+                pathBuilder.Insert(0, '/').Insert(0, currentNode.name);
                 currentNode = currentNode.parent;
             }
 
-            // FixedString128Bytes holds 125 UTF-8 bytes. Trimming by character count is conservative
-            // for any non-ASCII name — the safe direction to be wrong in, since overflowing throws.
-            const int MaximumPathCharacters = 110;
-            if (fullPath.Length > MaximumPathCharacters)
+            string fullPath = pathBuilder.ToString();
+            FixedString128Bytes renderedPath = default;
+            if (Encoding.UTF8.GetByteCount(fullPath) > MaximumPathBytes)
             {
-                fullPath = ".../" + fullPath.Substring(fullPath.Length - MaximumPathCharacters);
+                fullPath = TruncationMarker + TakeTrailingBytes(
+                    fullPath,
+                    MaximumPathBytes - Encoding.UTF8.GetByteCount(TruncationMarker));
             }
-            return new FixedString128Bytes(fullPath);
+
+            // Truncating copy, never the throwing constructor. If the arithmetic above is ever wrong
+            // the message gets shorter; the bake does not break.
+            renderedPath.CopyFromTruncated(fullPath);
+            return renderedPath;
+        }
+
+        /// <summary>
+        /// Returns the longest suffix of <paramref name="text"/> that encodes to no more than
+        /// <paramref name="byteBudget"/> UTF-8 bytes, never splitting a surrogate pair.
+        /// </summary>
+        private static string TakeTrailingBytes(string text, int byteBudget)
+        {
+            int startIndex = text.Length;
+            int usedBytes = 0;
+            while (startIndex > 0)
+            {
+                int candidateIndex = startIndex - 1;
+                // A low surrogate is the second half of an astral character; stepping onto it alone
+                // would both mis-measure the encoding and emit a lone half.
+                if (candidateIndex > 0 && char.IsLowSurrogate(text[candidateIndex]))
+                {
+                    candidateIndex--;
+                }
+                int characterBytes = Encoding.UTF8.GetByteCount(
+                    text.ToCharArray(candidateIndex, startIndex - candidateIndex));
+                if (usedBytes + characterBytes > byteBudget)
+                {
+                    break;
+                }
+                usedBytes += characterBytes;
+                startIndex = candidateIndex;
+            }
+            return text.Substring(startIndex);
         }
     }
 }
