@@ -69,7 +69,7 @@ those entities yet. What exists today:
   produce the same blob and the same hash on every machine and in every session.
   A set carrying validation errors throws `ClipValidationException` naming the
   offending rules rather than baking something broken.
-- 204 EditMode tests — packaging conformance, the sampling math, the validation
+- 205 EditMode tests — packaging conformance, the sampling math, the validation
   rule table, identity stability, canonical ordering, bake determinism and
   diagnostic path rendering — plus 28 PlayMode tests, 27 of which bake real
   GameObject hierarchies and assert the resulting entity data. Together they
@@ -116,11 +116,21 @@ Note: per `LICENSE.md`, this package is not yet licensed for redistribution.
 
 ## Running the tests
 
-Open **Window ▸ General ▸ Test Runner**. The **EditMode** tab lists the
-packaging conformance tests, the C1 data/sampling suites, and the C2 identity,
-validation, builder and determinism suites, all under
-`StitchPunk.AnimationToolkit.Tests.EditMode`; the **PlayMode** tab lists the
-PlayMode assembly smoke test. The packaging tests read the real files of the
-installed package from disk, and the contract tests assert the shipped blob and
-component layouts by reflection — together they are the mechanical check that
-the package matches its architecture contract.
+Open **Window ▸ General ▸ Test Runner**. The **EditMode** tab lists the packaging
+conformance tests, the C1 data/sampling suites, the C2 identity, validation,
+builder and determinism suites, and the C3 diagnostic-path suite, all under
+`StitchPunk.AnimationToolkit.Tests.EditMode`. The **PlayMode** tab lists the
+assembly smoke test plus the C3 baking acceptance suite, which bakes real
+GameObject hierarchies and asserts the entity data that comes out.
+
+The packaging tests read the real files of the installed package from disk, and
+the contract tests assert the shipped blob and component layouts by reflection —
+together they are the mechanical check that the package matches its architecture
+contract.
+
+Expect the Console to carry toolkit errors and warnings after a PlayMode run.
+Several acceptance tests deliberately provoke a diagnostic — an unknown target
+id, a duplicate target claim, a clip set that fails validation — and assert on
+its content. Each such test declares how many errors it expects, and every other
+test is held to zero, so an *unexpected* one fails the suite rather than hiding
+in the noise.

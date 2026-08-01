@@ -114,6 +114,12 @@ baker. Actors and their parts now bake to entities; no system drives them yet.
   host's own baking systems log into the same window — and now replaces the
   guarantee that removed: every acceptance test is held to zero unexpected
   toolkit errors unless it declares otherwise.
+- `Tests/PlayMode/VatMaterialProbe.shader` retargeted from the built-in pipeline
+  to URP. It is never rendered, but section 6 makes this package URP-only, and
+  the file ships in the tarball unless `Tests/` is excluded — so a consumer
+  project imports and variant-compiles a built-in-pipeline shader out of a
+  URP-only package. A new packaging conformance test now fails on `CGPROGRAM`,
+  `CGINCLUDE` or `UnityCG.cginc` anywhere in the package.
 
 ## [0.3.0] - Unreleased
 

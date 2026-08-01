@@ -348,6 +348,35 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             }
         }
 
+        [Test]
+        public void Supplementary_NoShaderUsesTheBuiltInPipeline()
+        {
+            // Section 6 makes this package URP-only, and M4's C5 acceptance is that every shader in
+            // it compiles for the URP target with warnings as errors. A built-in-pipeline shader
+            // would fail that sweep — and would do so late, in a module that has nothing to do with
+            // whoever added the file.
+            //
+            // This covers Tests/ as well as the shipped folders on purpose. Unless Tests/ is
+            // excluded from the published tarball, a consumer project imports and variant-compiles
+            // whatever sits there, so a stray CGPROGRAM is their problem as much as ours. The first
+            // shader in this package was a test-only probe that had exactly that defect.
+            Regex builtInPipelinePattern = new Regex("\\bCGPROGRAM\\b|\\bCGINCLUDE\\b|UnityCG\\.cginc");
+            List<string> violations = new List<string>();
+            List<string> scannedFiles = EnumeratePackageFiles(
+                new string[] { "*.shader", "*.hlsl", "*.cginc" });
+            foreach (string scannedFile in scannedFiles)
+            {
+                if (builtInPipelinePattern.IsMatch(File.ReadAllText(scannedFile)))
+                {
+                    violations.Add(ToPackageRelativePath(scannedFile));
+                }
+            }
+            Assert.IsEmpty(
+                violations,
+                "Shaders must target URP (HLSLPROGRAM plus the URP ShaderLibrary), not the built-in " +
+                "pipeline: " + string.Join(", ", violations));
+        }
+
         // ---------------------------------------------------------------------------------
         // Helpers.
         // ---------------------------------------------------------------------------------

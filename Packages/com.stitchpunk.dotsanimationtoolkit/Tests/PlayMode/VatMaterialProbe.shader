@@ -11,6 +11,13 @@
 //
 // It renders nothing meaningful on purpose. Nothing bakes or draws with it; only Material.
 // HasProperty and Material.GetTexture are ever asked about it.
+//
+// URP, not the built-in pipeline, even though it is never rendered. Section 6 makes this package
+// URP-only and M4's C5 acceptance is that every shader in it compiles for the URP target with
+// warnings as errors — a sweep that would pick this file up wherever it sits. It also ships in the
+// published tarball unless Tests/ is excluded, so a consumer project imports and variant-compiles
+// it; a built-in-pipeline shader inside a URP-only package is a support ticket waiting to happen.
+// The two texture properties are the only thing the tests read, and they are pipeline-agnostic.
 
 Shader "Hidden/StitchPunk/AnimationToolkit/Tests/VatMaterialProbe"
 {
@@ -22,37 +29,37 @@ Shader "Hidden/StitchPunk/AnimationToolkit/Tests/VatMaterialProbe"
 
     SubShader
     {
-        Tags { "RenderType" = "Opaque" }
+        Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
 
         Pass
         {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "UnityCG.cginc"
+            HLSLPROGRAM
+            #pragma vertex Vertex
+            #pragma fragment Fragment
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct appdata
+            struct Attributes
             {
-                float4 vertex : POSITION;
+                float4 positionOS : POSITION;
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 vertex : SV_POSITION;
+                float4 positionCS : SV_POSITION;
             };
 
-            v2f vert (appdata v)
+            Varyings Vertex(Attributes input)
             {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                return o;
+                Varyings output;
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                return output;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            half4 Fragment(Varyings input) : SV_Target
             {
-                return fixed4(0, 0, 0, 1);
+                return half4(0, 0, 0, 1);
             }
-            ENDCG
+            ENDHLSL
         }
     }
 }
