@@ -79,11 +79,10 @@ namespace StitchPunk.AnimationToolkit.Authoring
             });
             if (targetDefinition == null)
             {
-                // Report it here rather than leaving it to the binding pass. That pass is Bursted,
-                // so it can only name blittable values — an entity index and a path hash, neither of
-                // which a user can act on. This baker is managed: it can name the GameObject, the
-                // rig, and the id that does not exist in it, and pass the object itself as the log
-                // context so clicking the message selects the offending part.
+                // Amendment A22 moved this error here from the binding pass. That pass is Bursted,
+                // so it can only name blittable values; this baker is managed, so it can name the
+                // GameObject, the rig, and the id that does not exist in it, and pass the object
+                // itself as the log context so clicking the message selects the offending part.
                 //
                 // The part is then left without a RigPartBakeLink, so the binding pass never sees it
                 // and the same mistake is not reported twice in two different vocabularies.
@@ -101,7 +100,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 {
                     actorRoot = GetEntity(actorAuthoring, TransformUsageFlags.Dynamic),
                     targetId = authoring.targetStableId,
-                    authoringPath = AuthoringPathHash.PathOf(authoring.transform)
+                    authoringPath = AuthoringPathHash.PathOf(this, authoring.transform)
                 });
             }
 
@@ -167,10 +166,13 @@ namespace StitchPunk.AnimationToolkit.Authoring
         }
 
         /// <remarks>
-        /// A target id the rig does not declare is <em>not</em> reported here: architecture
-        /// section 4.1 gives that error to <see cref="RigBindingBakingSystem"/>, which is the one
-        /// place that can see whether the id resolves against the actor's baked registry. Reporting
-        /// it in both places would double every message.
+        /// A null <paramref name="targetDefinition"/> means the rig does not declare the part's
+        /// target id. <see cref="Bake"/> has already reported that (architecture section 4.1,
+        /// amendment A22) and withheld the part's <see cref="RigPartBakeLink"/>, so nothing is
+        /// reported a second time here — the part simply falls back to <see cref="TargetKind.Quad"/>
+        /// so its entity is well formed rather than half built. An explicit
+        /// <c>useKindOverride</c> still wins, because a part whose id is wrong may still have been
+        /// authored with the right technique.
         /// </remarks>
         private static TargetKind ResolveTargetKind(
             RigTargetAuthoring authoring,
@@ -196,21 +198,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// animated pose, which section 5.6 composes as an offset from the rest pose, would be
         /// applied against a stale origin until something unrelated forced a rebake.
         /// <c>ActorBaker.TryGetRestPoseInActorSpace</c> already takes the dependency this way.
+        /// <para>
+        /// The cost is over-invalidation, and it is accepted knowingly: <c>GetComponent</c> on a
+        /// <c>Transform</c> also registers a dependency on the <em>whole</em> parent hierarchy,
+        /// because <c>transform.position</c> and friends are computed from every ancestor. This
+        /// method reads only <c>localPosition</c> / <c>localRotation</c> / <c>localScale</c>, none
+        /// of which an ancestor can change, so dragging the actor root re-runs this baker for every
+        /// part beneath it without any baked byte differing. Correctness beats bake speed here, and
+        /// the narrower alternative — <c>DependsOn(authoring.transform)</c> — does not register a
+        /// transform-value dependency at all.
+        /// </para>
+        /// <para>
+        /// The result is returned unconditionally: every GameObject has a Transform, and
+        /// <c>GetComponentInternal</c> resolves it through <c>TryGetComponent</c> on that
+        /// GameObject, so the lookup cannot fail. A null guard here would be unreachable code whose
+        /// only possible behaviour — fabricating an identity rest pose in silence — is worse than
+        /// the null-reference it would be hiding.
+        /// </para>
         /// </remarks>
         private TargetRestPose CaptureRestPose(RigTargetAuthoring authoring)
         {
             Transform partTransform = GetComponent<Transform>(authoring);
-            if (partTransform == null)
-            {
-                return new TargetRestPose
-                {
-                    localPosition = float3.zero,
-                    rotationZ = 0f,
-                    scale = new float2(1f, 1f),
-                    restSliceIndex = math.max(0, authoring.restSliceIndex)
-                };
-            }
-
             Vector3 localPosition = partTransform.localPosition;
             Quaternion localRotation = partTransform.localRotation;
             Vector3 localScale = partTransform.localScale;

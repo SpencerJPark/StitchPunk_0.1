@@ -203,6 +203,32 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         // GameObject hierarchies.
         // -----------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Creates an empty GameObject to parent fixture hierarchies under, so a test can control
+        /// sibling indices without depending on what else happens to sit at the scene root.
+        /// </summary>
+        internal GameObject CreateContainer(string name)
+        {
+            GameObject containerGameObject = new GameObject(name);
+            createdObjects.Add(containerGameObject);
+            return containerGameObject;
+        }
+
+        /// <summary>
+        /// Moves <paramref name="child"/> under <paramref name="container"/> at an exact sibling
+        /// index, keeping local transform values.
+        /// </summary>
+        /// <remarks>
+        /// The hierarchy path — every ancestor name and sibling index — is what the bake-stable
+        /// path hash of amendment A18 is computed over. A test that wants two hierarchies to hash
+        /// alike must therefore pin the sibling index rather than trust creation order.
+        /// </remarks>
+        internal static void PlaceUnder(GameObject child, GameObject container, int siblingIndex)
+        {
+            child.transform.SetParent(container.transform, false);
+            child.transform.SetSiblingIndex(siblingIndex);
+        }
+
         /// <summary>Creates a bare actor root with no parts under it.</summary>
         internal GameObject CreateActorRoot(string name, ClipSetAsset clipSet, bool addDistanceLod)
         {

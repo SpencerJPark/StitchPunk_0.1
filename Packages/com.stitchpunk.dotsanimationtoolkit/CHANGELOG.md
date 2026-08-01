@@ -67,6 +67,53 @@ baker. Actors and their parts now bake to entities; no system drives them yet.
   so the part animated around a stale origin until something unrelated forced a
   rebake. The transform now comes from `GetComponent<Transform>`, matching what
   `ActorBaker` already did.
+- **Baking threw on non-ASCII GameObject names.** The diagnostic path builder
+  budgeted 110 *characters* against a `FixedString128Bytes` capacity of 125 UTF-8
+  *bytes*, then used the throwing `FixedString128Bytes(string)` constructor. A
+  hierarchy of roughly 42 CJK characters stayed under the character guard while
+  exceeding the byte capacity, so `CheckCopyError` threw out of
+  `RigTargetBaker.Bake` and the part lost its rest pose, output pose and
+  technique components — a hard bake failure caused purely by naming objects in a
+  non-Latin script. The budget is now counted in UTF-8 bytes, truncation steps
+  whole characters so a surrogate pair is never split, and the copy goes through
+  `CopyFromTruncated`, which cannot throw. Covered by `AuthoringPathTests`.
+- **An actor that lost its registry could fail silently.** `RigBindingBakingSystem`
+  said nothing whenever a part's actor carried no `ClipRegistry`, which was
+  correct only because each of `ActorBaker`'s bail-outs happened to log first —
+  a coupling nothing asserted or enforced. `ActorBaker` now writes an
+  `ActorBakeFailed` baking tag when it stops, and the binding pass suppresses
+  only on that tag; an unexplained missing registry is reported instead of
+  passing in silence (amendment A22).
+- **Ancestor edits did not retrigger the bake.** Both hierarchy-path walks read
+  ancestor names straight off `Transform`, registering no dependency, so renaming
+  or reparenting an ancestor left `SampleSettings.phase01` and a part's recorded
+  authoring path at their previous values — an incremental bake and a clean bake
+  of the same scene produced different bytes. Names now come from
+  `IBaker.GetName` and the chain from `IBaker.GetParents`. Sibling reordering
+  remains untracked, since Entities exposes no dependency for it; it affects only
+  the sampling phase (amendment A18).
+
+### Changed (C3 re-review)
+
+- The unknown-target-id error is now normatively `RigTargetBaker`'s, which can
+  name the object, the rig and the id and attach a click-to-select context, and
+  which withholds `RigPartBakeLink` so the Bursted pass never sees the part. The
+  binding pass keeps the two failures only it can see. Recorded as **amendment
+  A22**; the previous split had moved silently, leaving the architecture, three
+  doc comments and the code each stating something different. Two guards that
+  had become unreachable by construction were deleted.
+- `AnimLod` is documented as opt-in and its absence as the conformant baseline
+  archetype (**amendment A23**); `ActorRestBounds` and `ClipBlob.offsetBounds`
+  are documented as combined at runtime rather than at bake (**amendment A24**),
+  resolving a contradiction between architecture sections 4.6 and 5.8.
+- `ClipRegistryBuilder.BuildInvocationCount`, a test seam, is now behind
+  `#if UNITY_EDITOR` and incremented atomically. The Authoring assembly compiles
+  into player builds, so the counter previously shipped and the public `Build`
+  mutated it there.
+- The baking test harness suppresses `LogAssert` for the duration of a bake — the
+  host's own baking systems log into the same window — and now replaces the
+  guarantee that removed: every acceptance test is held to zero unexpected
+  toolkit errors unless it declares otherwise.
 
 ## [0.3.0] - Unreleased
 
@@ -104,7 +151,7 @@ through C8.
   the conservative per-clip bounds, and the `xxHash3` content hash that becomes
   the `BlobAssetStore` dedup key. A set carrying validation errors throws
   `ClipValidationException` listing the offending rule codes instead of baking.
-- 66 EditMode tests: one fixture per validation rule that asserts the rule fires
+- 70 new EditMode tests — 176 in the suite: one fixture per validation rule that asserts the rule fires
   and nothing else does, id generation and stability across rename, reorder,
   duplication and a serialization round trip, canonical ordering and value
   conversion, and determinism fixtures comparing both the content hash and a
@@ -173,8 +220,9 @@ this step; those land in build steps C2 through C8.
   forward, reverse, single-wrap, multi-wrap and ping-pong-reflection cases.
 - `ClipRegistryUtil`: binary-search clip-id and target-id resolution through the
   registry's sorted-id / dense-index indirection.
-- 96 EditMode tests covering the sampling and event math and asserting the blob
-  and component layouts against the architecture by reflection.
+- 98 new EditMode tests — 106 in the suite — covering the sampling and event math
+  and asserting the blob and component layouts against the architecture by
+  reflection.
 
 ### Changed
 

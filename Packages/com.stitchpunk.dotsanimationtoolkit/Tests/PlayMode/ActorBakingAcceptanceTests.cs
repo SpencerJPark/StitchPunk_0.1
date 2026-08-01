@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Collections;
@@ -33,6 +34,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             fixtureAssets = new ActorBakeFixture();
             bakingWorld = new BakingTestWorld("ActorBakingAcceptanceTests");
 
+            // Reset here as well as in the one test that reads it. That test resets immediately
+            // before its own bake, so no order dependence exists today — but nothing enforces it,
+            // and the next test to read the counter without resetting would silently inherit
+            // whatever the previous test left behind. Correctness should not depend on every future
+            // author remembering.
+            ClipRegistryBuilder.ResetBuildInvocationCount();
+
             // Log suppression is not set up here. UTF wraps each setup method in its own LogScope
             // and disposes it before the test body runs, so LogAssert.ignoreFailingMessages set in
             // [SetUp] never reaches the bake. BakingTestWorld.Bake sets it around the bake instead,
@@ -42,6 +50,19 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         [TearDown]
         public void TearDown()
         {
+            // The net BakingTestWorld.Bake takes away. Suppressing LogAssert for the duration of a
+            // bake is necessary — the host's own baking systems log into the same window — but it
+            // also means an unexpected toolkit error can no longer fail a test on its own, and most
+            // tests here assert on entity data rather than on logs. This puts the guarantee back for
+            // all of them at once: any test that legitimately provokes an error declares it with
+            // ExpectToolkitErrors, and every other test is held to zero.
+            //
+            // Skipped when the body already failed, so the real assertion message is what the
+            // runner reports rather than a follow-on complaint about the errors that failure caused.
+            if (TestContext.CurrentContext.Result.Outcome.Status != NUnit.Framework.Interfaces.TestStatus.Failed)
+            {
+                bakingWorld.AssertNoUnexpectedToolkitErrors();
+            }
             bakingWorld.Dispose();
             fixtureAssets.DestroyAll();
         }
@@ -51,21 +72,28 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         /// of which contains <paramref name="expectedFragment"/>. The count is what makes "exactly
         /// one" a real claim: a validator warning five times would otherwise pass.
         /// </summary>
+        /// <remarks>
+        /// One snapshot, held in a local. Each read of <c>ToolkitWarnings</c> allocates a fresh copy
+        /// under the lock, so reading it three times would assert a count against one array and
+        /// search a different one — harmless while nothing races, but it defeats the point of the
+        /// lock and hides that from the reader.
+        /// </remarks>
         private void AssertToolkitWarnings(int expectedCount, string expectedFragment)
         {
+            IReadOnlyList<string> recordedWarnings = bakingWorld.ToolkitWarnings;
             Assert.AreEqual(
                 expectedCount,
-                bakingWorld.ToolkitWarnings.Count,
+                recordedWarnings.Count,
                 "Expected exactly " + expectedCount + " toolkit warning(s), got: " +
-                string.Join(" | ", bakingWorld.ToolkitWarnings));
+                string.Join(" | ", recordedWarnings));
             if (expectedFragment == null)
             {
                 return;
             }
             bool matched = false;
-            for (int warningIndex = 0; warningIndex < bakingWorld.ToolkitWarnings.Count; warningIndex++)
+            for (int warningIndex = 0; warningIndex < recordedWarnings.Count; warningIndex++)
             {
-                if (bakingWorld.ToolkitWarnings[warningIndex].Contains(expectedFragment))
+                if (recordedWarnings[warningIndex].Contains(expectedFragment))
                 {
                     matched = true;
                     break;
@@ -74,7 +102,36 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.IsTrue(
                 matched,
                 "No toolkit warning mentioned '" + expectedFragment + "'. Got: " +
-                string.Join(" | ", bakingWorld.ToolkitWarnings));
+                string.Join(" | ", recordedWarnings));
+        }
+
+        /// <summary>
+        /// Asserts that exactly <paramref name="expectedCount"/> toolkit warnings mention
+        /// <paramref name="expectedFragment"/>, ignoring any others.
+        /// </summary>
+        /// <remarks>
+        /// The §8 M2 bullet this serves reads "logs exactly one warning <em>from
+        /// <c>RigTargetBaker</c></em>", and a total count cannot make that claim: a fixture whose
+        /// expected total is two — one material warning plus one unrelated notice — is equally
+        /// satisfied by two material warnings and no notice. Counting the matches instead pins the
+        /// emitter, since the fragment asserted is text only one branch produces.
+        /// </remarks>
+        private void AssertToolkitWarningsMatching(int expectedCount, string expectedFragment)
+        {
+            IReadOnlyList<string> recordedWarnings = bakingWorld.ToolkitWarnings;
+            int matchCount = 0;
+            for (int warningIndex = 0; warningIndex < recordedWarnings.Count; warningIndex++)
+            {
+                if (recordedWarnings[warningIndex].Contains(expectedFragment))
+                {
+                    matchCount++;
+                }
+            }
+            Assert.AreEqual(
+                expectedCount,
+                matchCount,
+                "Expected exactly " + expectedCount + " toolkit warning(s) mentioning '" +
+                expectedFragment + "'. Got: " + string.Join(" | ", recordedWarnings));
         }
 
         // -----------------------------------------------------------------------------------
@@ -210,6 +267,11 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.IsTrue(
                 entityManager.HasComponent<AnimVisible>(torsoEntity),
                 "A part carries its own AnimVisible (section 5.2).");
+            Assert.IsTrue(
+                entityManager.IsComponentEnabled<AnimVisible>(torsoEntity),
+                "And it must be baked ENABLED. Section 5.2 makes the root's baked-enabled state " +
+                "contractual and calls the part's propagated; a part baked disabled freezes on " +
+                "frame 1 with every other assertion in this suite still green.");
 
             // A Quad is transform-only: its pose reaches the screen through LocalTransform and
             // PostTransformMatrix, so it needs no per-instance material property at all. Asserting
@@ -227,6 +289,20 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.IsFalse(
                 entityManager.HasComponent<VatDriven>(torsoEntity),
                 "A Quad part is not VAT-driven.");
+
+            // The same exact comparison the root gets. An extra toolkit component on a part changes
+            // its chunk layout exactly as much as one on the root, and the four absence checks above
+            // only cover the four types someone thought to name. RigPartBakeLink is in the list
+            // because this is the baking world, where baking types are still present — they are
+            // stripped on the way to a built entity scene.
+            AssertToolkitComponentsAre(
+                entityManager,
+                torsoEntity,
+                new[]
+                {
+                    typeof(RigPartBinding), typeof(RigPartBakeLink), typeof(TargetRestPose),
+                    typeof(TargetPose), typeof(AnimVisible)
+                });
         }
 
         [Test]
@@ -335,6 +411,11 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         [Test]
         public void BakingAnActor_AddsAnimLodOnlyWhenTheAuthoringAsksForIt()
         {
+            // Amendment A23. Section 5.2's root inventory lists AnimLod alongside the unconditional
+            // components, and the exact-archetype assertion above pins its ABSENCE as conformant —
+            // a conflict that was noted at the C3 gate and then hardened into a test assertion
+            // rather than resolved. A23 resolves it in the spec's favour of the code: distance LOD
+            // is opt-in per section 5.10, so the baseline archetype does not carry the component.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000502UL);
             GameObject withoutLod = fixtureAssets.CreateStandardActor("NoLod", clipSet, false);
@@ -435,10 +516,18 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             // asserted it. A baker returning a constant would have satisfied every other test.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000513UL);
-            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
-            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
 
-            bakingWorld.Bake(firstActor, secondActor);
+            // Both actors live under a container whose own position in the scene never changes, so
+            // the rebuilt hierarchy below can reproduce every ancestor name and sibling index the
+            // path hash is computed over. Baking them at the scene root instead would make the hash
+            // depend on whatever else the test scene happens to contain.
+            GameObject phaseRoot = fixtureAssets.CreateContainer("PhaseFixtureRoot");
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
+            ActorBakeFixture.PlaceUnder(firstActor, phaseRoot, 0);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+            ActorBakeFixture.PlaceUnder(secondActor, phaseRoot, 1);
+
+            bakingWorld.Bake(phaseRoot);
             EntityManager entityManager = bakingWorld.EntityManager;
             float firstPhase = entityManager
                 .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(firstActor)).phase01;
@@ -457,18 +546,80 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             // And it must be reproducible: amendment A18 forbids deriving it from a session-local
             // id precisely so a rebake of unchanged source yields the same bytes.
+            //
+            // Re-baking the SAME GameObject instances cannot prove that, and used to be what this
+            // test did. Object.GetInstanceID is stable for an object's lifetime, so a phase derived
+            // from an instance id reproduces exactly across two bakes of the same objects — the
+            // assertion passed while pinning nothing but "not randomised per bake". So the
+            // hierarchy is destroyed and rebuilt from FRESH instances carrying the same names and
+            // the same sibling indices under the same container: identical source by every measure
+            // the bake is allowed to use, and different instance ids. An instance-id derivation now
+            // fails here; a path hash passes.
+            Object.DestroyImmediate(firstActor);
+            Object.DestroyImmediate(secondActor);
+
+            GameObject rebuiltFirstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
+            ActorBakeFixture.PlaceUnder(rebuiltFirstActor, phaseRoot, 0);
+            GameObject rebuiltSecondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+            ActorBakeFixture.PlaceUnder(rebuiltSecondActor, phaseRoot, 1);
+
             using (BakingTestWorld rebakeWorld = new BakingTestWorld("RebakeWorld"))
             {
-                rebakeWorld.Bake(firstActor, secondActor);
+                rebakeWorld.Bake(phaseRoot);
                 Assert.AreEqual(
                     firstPhase,
                     rebakeWorld.EntityManager
                         .GetComponentData<SampleSettings>(
-                            rebakeWorld.GetPrimaryEntity(firstActor)).phase01,
+                            rebakeWorld.GetPrimaryEntity(rebuiltFirstActor)).phase01,
                     Tolerance,
-                    "Re-baking unchanged source must reproduce the same phase. A session-local id " +
-                    "would give a different value here every run.");
+                    "Re-baking identical source must reproduce the same phase. A session-local id " +
+                    "gives a different value for the rebuilt instance and fails here.");
+                Assert.AreEqual(
+                    secondPhase,
+                    rebakeWorld.EntityManager
+                        .GetComponentData<SampleSettings>(
+                            rebakeWorld.GetPrimaryEntity(rebuiltSecondActor)).phase01,
+                    Tolerance,
+                    "The second actor too — one matching phase could be coincidence at 24 bits of " +
+                    "range, two cannot.");
+                rebakeWorld.AssertNoUnexpectedToolkitErrors();
             }
+        }
+
+        [Test]
+        public void TwoActorsWhoseNamesDifferOnlyInTheLastCharacter_GetWellSeparatedPhases()
+        {
+            // The phase is 24 bits of a hash, and the point of taking bits 8–31 rather than 0–23
+            // (amendment A18) is that the low bits of a multiply-terminated hash are the least
+            // mixed. The existing phase test uses "FirstActor"/"SecondActor", which differ in far
+            // more than one character and would separate under any derivation at all — so the
+            // property that motivated the shift had no coverage.
+            //
+            // This asserts the outcome rather than the arithmetic: two names one character apart
+            // must not land on adjacent sampling frames. At a 30 Hz sample rate a separation below
+            // ~0.03 is the same frame, so the bar is set well above that.
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051CUL);
+            GameObject phaseRoot = fixtureAssets.CreateContainer("AdjacencyFixtureRoot");
+            GameObject firstActor = fixtureAssets.CreateStandardActor("Actor1", clipSet, false);
+            ActorBakeFixture.PlaceUnder(firstActor, phaseRoot, 0);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("Actor2", clipSet, false);
+            ActorBakeFixture.PlaceUnder(secondActor, phaseRoot, 1);
+
+            bakingWorld.Bake(phaseRoot);
+            EntityManager entityManager = bakingWorld.EntityManager;
+            float firstPhase = entityManager
+                .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(firstActor)).phase01;
+            float secondPhase = entityManager
+                .GetComponentData<SampleSettings>(bakingWorld.GetPrimaryEntity(secondActor)).phase01;
+
+            Assert.Greater(
+                math.abs(firstPhase - secondPhase),
+                0.05f,
+                "Actor1 and Actor2 landed on phases " + firstPhase + " and " + secondPhase +
+                ", close enough to sample on the same frame. Spreading load across frames is the " +
+                "only thing this value does, and near-identical names are the commonest way a " +
+                "crowd is authored.");
         }
 
         [Test]
@@ -626,9 +777,12 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         public void TwoActorsSharingAClipSet_BuildTheRegistryOnce_NotOncePerActor()
         {
             // Blob equality above cannot tell the two paths apart: build-twice-and-dedup ends at the
-            // same reference as probe-and-skip. The difference is the work, and it scales with the
-            // crowd — a probe that quietly stopped matching Build's key would cost every actor a
-            // full canonicalisation-and-hash pass with no wrong value anywhere to catch it.
+            // same reference as probe-and-skip. The difference is the work — a probe that quietly
+            // stopped matching Build's key would cost every actor a persistent blob allocation and a
+            // store insert, with no wrong value anywhere to catch it. (Not the canonicalisation
+            // pass: TryComputeContentHash already runs that for every actor, into Allocator.Temp.
+            // What the store hit saves is the persistent allocation, which is the part that scales
+            // with crowd size in memory.)
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000517UL);
             GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
@@ -782,8 +936,9 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             disabledHead.SetActive(false);
 
             bakingWorld.Bake(actorGameObject);
-            AABB restBounds = bakingWorld.EntityManager
-                .GetComponentData<ActorRestBounds>(bakingWorld.GetPrimaryEntity(actorGameObject)).value;
+            EntityManager entityManager = bakingWorld.EntityManager;
+            Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
+            AABB restBounds = entityManager.GetComponentData<ActorRestBounds>(actorEntity).value;
 
             // Head sits at y = 12 with a 0.4 half-extent; the torso alone would top out at 0.75.
             Assert.AreEqual(
@@ -792,6 +947,35 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 Tolerance,
                 "The disabled head must still be inside the box. Topping out at 0.75 means the " +
                 "bounds pass skipped inactive children while the binding pass did not.");
+
+            // The "because it is still bound" half, which the bounds assertion above does not make.
+            // That half lives in EntityQueryOptions.IncludeDisabledEntities on the binding jobs;
+            // delete that flag and the bounds assertion still passes while the part never animates.
+            Entity disabledHeadEntity = bakingWorld.GetPrimaryEntity(disabledHead);
+            Assert.AreEqual(
+                ActorBakeFixture.HeadDenseIndex,
+                entityManager.GetComponentData<RigPartBinding>(disabledHeadEntity).targetIndex,
+                "A part on an inactive GameObject must still resolve to its dense target index.");
+            Assert.AreEqual(
+                actorEntity,
+                entityManager.GetComponentData<RigPartBinding>(disabledHeadEntity).actorRoot,
+                "And must still point back at its actor root, or section 5.3 cannot rebind it.");
+
+            DynamicBuffer<RigPartRef> partRefs = entityManager.GetBuffer<RigPartRef>(actorEntity);
+            bool disabledHeadIsInBuffer = false;
+            for (int partRefIndex = 0; partRefIndex < partRefs.Length; partRefIndex++)
+            {
+                if (partRefs[partRefIndex].part == disabledHeadEntity)
+                {
+                    disabledHeadIsInBuffer = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(
+                disabledHeadIsInBuffer,
+                "The root's RigPartRef buffer must carry the disabled part. Both ends of the " +
+                "binding have to agree, or the part is bound from its own side and invisible from " +
+                "the actor's — which is how it stops animating the moment it is enabled at runtime.");
         }
 
         // -----------------------------------------------------------------------------------
@@ -806,16 +990,23 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
             fixtureAssets.AddPart(
                 actorGameObject, "Stray", ActorBakeFixture.UnknownTargetId, new Vector3(3f, 0f, 0f));
+            bakingWorld.ExpectToolkitErrors(1);
 
             bakingWorld.Bake(actorGameObject);
 
+            IReadOnlyList<string> recordedErrors = bakingWorld.ToolkitErrors;
             Assert.AreEqual(
                 1,
-                bakingWorld.ToolkitErrors.Count,
-                "A stray part must be reported exactly once, by the managed baker that can name it.");
-            StringAssert.Contains("Stray", bakingWorld.ToolkitErrors[0]);
+                recordedErrors.Count,
+                "A stray part must be reported exactly once, by the managed baker that can name it " +
+                "(amendment A22). Got: " + string.Join(" | ", recordedErrors));
+            StringAssert.Contains("Stray", recordedErrors[0]);
+            StringAssert.Contains(ActorBakeFixture.UnknownTargetId.ToString(), recordedErrors[0]);
             StringAssert.Contains(
-                ActorBakeFixture.UnknownTargetId.ToString(), bakingWorld.ToolkitErrors[0]);
+                "does not declare",
+                recordedErrors[0],
+                "It must be the managed baker's unknown-target wording, not the binding pass's " +
+                "registry-disagreement guard, which means something else entirely (A22).");
 
             Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
             DynamicBuffer<RigPartRef> partRefs =
@@ -847,24 +1038,40 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             // registry on it, and each must stay quiet about that: the actor has already reported
             // the single actionable message, and restating it per part buries it.
             GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            bakingWorld.ExpectToolkitErrors(1);
 
             bakingWorld.Bake(actorGameObject);
 
+            IReadOnlyList<string> recordedErrors = bakingWorld.ToolkitErrors;
             Assert.AreEqual(
                 1,
-                bakingWorld.ToolkitErrors.Count,
-                "The whole set fails once, as one message — not once plus once per part. Got: " +
-                string.Join(" | ", bakingWorld.ToolkitErrors));
-            StringAssert.Contains("Set", bakingWorld.ToolkitErrors[0]);
+                recordedErrors.Count,
+                "The whole set fails once, as one message — not once plus once per part. The three " +
+                "parts each find an actor entity with no registry, and each stays quiet because " +
+                "ActorBaker tagged that actor ActorBakeFailed (amendment A22). Got: " +
+                string.Join(" | ", recordedErrors));
+            StringAssert.Contains(
+                "'Set'",
+                recordedErrors[0],
+                "Quoted, so the assertion pins the asset the message names rather than matching the " +
+                "bare word 'Set' anywhere in any sentence.");
             StringAssert.Contains(
                 ValidationCode.V01.ToString(),
-                bakingWorld.ToolkitErrors[0],
+                recordedErrors[0],
                 "The message must name the duration rule.");
             StringAssert.Contains(
                 ValidationCode.V02.ToString(),
-                bakingWorld.ToolkitErrors[0],
+                recordedErrors[0],
                 "The message must name the unknown-target rule too. Listing only the first failure " +
                 "sends the user round the loop once per broken clip.");
+
+            Assert.IsTrue(
+                bakingWorld.EntityManager.HasComponent<ActorBakeFailed>(
+                    bakingWorld.GetPrimaryEntity(actorGameObject)),
+                "A bail-out must tag the actor. The binding pass's silence about the three unbound " +
+                "parts is conditional on that tag (A22): without it the pass reports an unexplained " +
+                "missing registry, which is the correct behaviour when nothing has spoken — so an " +
+                "untagged bail-out is a real defect, not a cosmetic one.");
 
             using (EntityQuery registryQuery =
                 bakingWorld.EntityManager.CreateEntityQuery(typeof(ClipRegistry)))
@@ -907,20 +1114,46 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             // binding pass reports a duplicate. That is incidental to the material check, but it is
             // asserted below rather than ignored: it comes from the Bursted pass, and pinning it is
             // what proves worker-thread diagnostics are being captured at all.
+            bakingWorld.ExpectToolkitErrors(1);
             bakingWorld.Bake(actorGameObject);
 
-            AssertToolkitWarnings(1, "_VatBoneTex");
+            // "declares no ... slot", not the bare property name. `_VatBoneTex` appears in BOTH
+            // material warnings — the no-slot branch and the mismatch branch — so asserting it
+            // pins neither. If HasProperty were inverted, execution would fall through to the
+            // compare branch, GetTexture would return null != boneTexture, and a warning still
+            // containing `_VatBoneTex` would be emitted with this test green.
+            AssertToolkitWarnings(1, "declares no '_VatBoneTex' slot");
+
+            IReadOnlyList<string> recordedErrors = bakingWorld.ToolkitErrors;
             Assert.AreEqual(
                 1,
-                bakingWorld.ToolkitErrors.Count,
+                recordedErrors.Count,
                 "The duplicate torso claim is the only error this fixture should produce: " +
-                string.Join(" | ", bakingWorld.ToolkitErrors));
+                string.Join(" | ", recordedErrors));
             StringAssert.Contains(
-                "VatBody",
-                bakingWorld.ToolkitErrors[0],
+                "already claims",
+                recordedErrors[0],
+                "It must be the duplicate-claim branch. The other Bursted branches report toolkit " +
+                "defects rather than content mistakes, and a fixture reaching one of those would " +
+                "mean something quite different had gone wrong.");
+            // Either claimant, not specifically VatBody. The duplicate-claim branch reports whichever
+            // of the two parts it visits SECOND, and RigBindingBakingSystem's own remarks declare
+            // chunk iteration order unspecified — so pinning "VatBody" asserts on the one thing the
+            // package has just finished saying it does not guarantee, and would fail naming "Torso"
+            // if Entities ever reordered, reading as an A21 regression when nothing had regressed.
+            // What A21 actually promises is that the message names the offending object by path, and
+            // that holds under either ordering.
+            Assert.IsTrue(
+                recordedErrors[0].Contains("VatBody") || recordedErrors[0].Contains("Torso"),
                 "A Bursted binding diagnostic must name the offending object by its authoring path " +
                 "(amendment A21). It cannot pass a clickable Object reference, so the path is the " +
-                "only thing standing between the user and hunting through the hierarchy by hand.");
+                "only thing standing between the user and hunting through the hierarchy by hand. " +
+                "The message named neither claimant: " + recordedErrors[0]);
+            StringAssert.Contains(
+                "Actor/",
+                recordedErrors[0],
+                "A path, not a bare leaf name. Two parts called 'Torso' under different actors are " +
+                "exactly the case where a leaf name sends the user to the wrong object.");
 
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<ClipRegistry>(
@@ -953,10 +1186,14 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             bakingWorld.Bake(actorGameObject);
 
-            // Two warnings: the stale texture binding, plus the unrelated notice that layer 0 is
-            // default-active with no seeded clip. Pinning the count stops the mismatch warning
-            // being emitted twice, or not at all.
-            AssertToolkitWarnings(2, "StaleBoneTex");
+            // The §8 M2 bullet reads "exactly one warning FROM RigTargetBaker", and a total count
+            // cannot say that. Two warnings are expected here — the stale binding plus the
+            // unrelated notice that layer 0 is default-active with no seeded clip — so
+            // AreEqual(2, total) is equally satisfied by the mismatch firing twice and the notice
+            // not at all. Counting the warnings that match text only the mismatch branch produces
+            // is what pins the emitter.
+            AssertToolkitWarningsMatching(1, "binds '_VatBoneTex' to 'StaleBoneTex'");
+            AssertToolkitWarnings(2, null);
             Assert.IsEmpty(bakingWorld.ToolkitErrors, "A stale binding warns; it is not an error.");
 
             Assert.IsTrue(
@@ -1000,8 +1237,11 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         [Test]
-        public void AVatPartWhoseClipSetHasNoTextureSet_LogsExactlyOneWarning()
+        public void AVatPartWhoseClipSetHasNoTextureSet_WarnsThatThereIsNothingToValidateAgainst()
         {
+            // Named for what it asserts. It was "LogsExactlyOneWarning" while asserting two — the
+            // second being the unrelated default-active-layer notice — which invites the next
+            // reader to "fix" the assertion down to match the name and silently loosen it.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050DUL);
             GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
@@ -1015,7 +1255,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             bakingWorld.Bake(actorGameObject);
 
-            AssertToolkitWarnings(2, "no VAT texture set");
+            AssertToolkitWarningsMatching(1, "has no VAT texture set");
+            AssertToolkitWarnings(2, null);
 
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<ClipRegistry>(
@@ -1055,7 +1296,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         [Test]
-        public void AStrayPartDoesNotEnlargeTheRestBounds()
+        public void AStrayPartDoesNotEnlargeTheRestBounds_AndTheValidPartsStillFillIt()
         {
             // A part that could not be resolved contributes no extents — otherwise a typo in one
             // target id would silently inflate every actor's culling box.
@@ -1064,15 +1305,27 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
             fixtureAssets.AddPart(
                 actorGameObject, "Stray", ActorBakeFixture.UnknownTargetId, new Vector3(50f, 0f, 0f));
+            bakingWorld.ExpectToolkitErrors(1);
 
             bakingWorld.Bake(actorGameObject);
             AABB restBounds = bakingWorld.EntityManager
                 .GetComponentData<ActorRestBounds>(bakingWorld.GetPrimaryEntity(actorGameObject)).value;
 
-            Assert.Less(
-                restBounds.Max.x,
-                50f,
-                "An unresolvable part must not contribute to the rest bounds.");
+            // The exact box, not `Max.x < 50`. A one-sided bound is satisfied by a bounds pass that
+            // produces NOTHING: hit an unresolvable part, bail out, return the anyPartBounded==false
+            // zero box, and 0 < 50 passes — while the actor gets a zero-extent culling box and
+            // vanishes at any distance. That is the same defect this test claims to prevent, facing
+            // the other way. Asserting the box the no-stray fixture already pins closes both halves
+            // at once: the stray contributed nothing, and the three real parts still did.
+            Assert.AreEqual(-0.45f, restBounds.Min.x, Tolerance, "Rest bounds min x.");
+            Assert.AreEqual(0.90f, restBounds.Max.x, Tolerance, "Rest bounds max x — the stray sits at x = 50.");
+            Assert.AreEqual(0.25f, restBounds.Min.y, Tolerance, "Rest bounds min y.");
+            Assert.AreEqual(
+                12.40f,
+                restBounds.Max.y,
+                Tolerance,
+                "The three valid parts must still fill the box. A zero box would pass any assertion " +
+                "that only bounded the stray out.");
         }
     }
 }

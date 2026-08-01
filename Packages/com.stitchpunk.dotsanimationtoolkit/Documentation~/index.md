@@ -23,10 +23,11 @@ the installed version.
 
 ## Current status: pre-release 0.4.0, build step C3
 
-This version contains the **data and sampling layer** plus the **authoring
-layer**: the types, blob schema, pure math, authoring assets, validation, and the
-bake that turns authored assets into that blob schema. Nothing drives an entity
-yet. What exists today:
+This version contains the **data and sampling layer**, the **authoring layer**,
+and **entity baking**: the types, blob schema, pure math, authoring assets,
+validation, the bake that turns authored assets into that blob schema, and the
+bakers that turn an authored prefab into actor and part entities. Nothing drives
+those entities yet. What exists today:
 
 - The package manifest (identity, Unity 6000.5 minimum, pinned dependencies),
   five assembly definitions, and the `InternalsVisibleTo` grants from the
@@ -68,10 +69,11 @@ yet. What exists today:
   produce the same blob and the same hash on every machine and in every session.
   A set carrying validation errors throws `ClipValidationException` naming the
   offending rules rather than baking something broken.
-- Packaging conformance tests plus 164 EditMode tests covering the sampling math,
-  the validation rule table, identity stability, canonical ordering and bake
-  determinism, and asserting the blob and component layouts against the
-  architecture.
+- 204 EditMode tests — packaging conformance, the sampling math, the validation
+  rule table, identity stability, canonical ordering, bake determinism and
+  diagnostic path rendering — plus 28 PlayMode tests, 27 of which bake real
+  GameObject hierarchies and assert the resulting entity data. Together they
+  assert the blob and component layouts against the architecture.
 
 - **Entity baking** — `ActorAuthoring` and `RigTargetAuthoring` bake an actor and
   its parts into the runtime archetypes: the shared registry blob (deduplicated

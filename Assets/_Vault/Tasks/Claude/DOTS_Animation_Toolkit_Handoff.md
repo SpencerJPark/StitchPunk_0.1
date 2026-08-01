@@ -1,9 +1,8 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-07-31
-**State:** Build step **C3 is OPEN**. Its re-review came back FAIL from all three reviewers.
-**Last commit:** `2bb8f32`
-**Read before doing anything:** `Docs/AnimationToolkit/Phase_C3_ReReview.md` (the three full reviewer reports, verbatim) and `Docs/AnimationToolkit/Phase_B_Architecture.md` (the normative spec — 111 KB, **never read whole**; grep headings, then Read with offset/limit).
+**Written:** 2026-07-31 (second session of the day; supersedes the earlier handoff)
+**State:** Build step **C3 is OPEN**. Every blocking item from the re-review is now addressed in code, but **nothing has been compiled or run** — see "What you must do first".
+**Read before doing anything:** `Docs/AnimationToolkit/Phase_C3_ReReview.md` (the three reviewer reports, verbatim) and `Docs/AnimationToolkit/Phase_B_Architecture.md` (the normative spec — 111 KB, **never read whole**; grep headings, then Read with offset/limit).
 
 ---
 
@@ -17,74 +16,56 @@ A commercially sellable Unity DOTS animation UPM package, `com.stitchpunk.dotsan
 - **Commit to `main` after each module passes its gate.**
 - **Pause after each module** so the owner can run the Editor compile and Test Runner.
 
-**Phases done:** A (audit), B (architecture), C0 (skeleton), C1 (M3 data slice), C2 (M1 authoring slice). **C3 (M2 entity baking) is in rework and not closed.**
+**Phases done:** A (audit), B (architecture), C0 (skeleton), C1 (M3 data slice), C2 (M1 authoring slice). **C3 (M2 entity baking) is in its second rework and not closed.**
 
 ---
 
-## Where C3 stands
+## What you must do first
 
-The original C3 gate rejected with six blocking items **B1–B6** and ten advisories **A1–A10**. A rework pass claimed all six closed. It had not closed B2 or B3; a self-audit caught those two, and the independent re-review then found B4 and B6 also still open.
+**No compile has happened.** The last Editor compile in `Logs/Editor.log` is 13:55; this session's changes landed at ~18:45. The only errors in that log are stale (the `GetComponentsInChildren<T>(bool)` overload, fixed in `2bb8f32`).
 
-**The lesson, and it has now recurred at every gate:** closure is a property of the code, not of the note saying the code changed. Verify each item against the shipped diff. Do not trust the CHANGELOG, the review doc's own tables, or a previous session's summary — including this one.
+So before anything else: ask the owner to focus Unity, then check `Logs/Editor.log` (**not** `%LOCALAPPDATA%/Unity/Editor/Editor.log` — this project redirects to a project-relative log) for fresh `error CS` / `BC` lines, and ask them to run both Test Runner tabs.
 
-### Genuinely closed (verified independently by Reviewer A)
-- **B1** — the §4.4 material↔texture comparison branch is now reachable via the new `Tests/PlayMode/VatMaterialProbe.shader`, plus the zero-warning negative case. Reviewer B tried to break it and could not.
-- **B2** — part archetype now pinned: `PostTransformMatrix`, `AnimVisible`, flipbook and VAT technique components; root archetype exact in both directions.
-- **B5** — code side: PlayMode asmdef is `"includePlatforms": ["Editor"]`, §1.3 amended (A17), C0 conformance updated.
-- All six §8 M2 acceptance bullets map to real assertions (re-derived independently). C3 correctly omits M2's VAT-texture bullets — §9 puts `VatTextureBaker` in C6.
-
-### Fixed in `2bb8f32`, still needs a compile + test pass
-- **`AuthoringPathHash.PathOf` threw at bake on non-ASCII hierarchy paths.** All three reviewers found it independently. It budgeted 110 *characters* against a `FixedString128Bytes` capacity of 125 *UTF-8 bytes*; the constructor's `CheckCopyError` throws under `ENABLE_UNITY_COLLECTIONS_CHECKS` (always on in the Editor, the only place baking runs). Now budgeted in bytes, truncated from the left so the leaf survives, surrogate-safe, and copied via `CopyFromTruncated` so it can never throw. **No test covers it yet — write one** (see below).
+Highest-risk things if the compile fails, roughly in order:
+1. `AuthoringPathHash.Of/PathOf` now take an `IBaker` first parameter. `IBaker` is the (oddly named) **public abstract class** at `Unity.Entities.Hybrid/Baking/Baker.cs:27` that `Baker<T>` derives from; `GetName`, `GetParents`, `GetComponent`, `GetEntity`, `AddComponent` all live on it, so passing `this` from either baker is legal. Verified by reading the source, not by compiling.
+2. `AssertToolkitComponentsAre` is now applied to the **part** archetype, expecting exactly `RigPartBinding, RigPartBakeLink, TargetRestPose, TargetPose, AnimVisible`. If a part carries some other toolkit component in the baking world, this is the assertion that will say so — read the failure message, it names the difference.
+3. `ClipRegistryBuilder.BuildInvocationCount` moved behind `#if UNITY_EDITOR`. Its only consumer is the PlayMode suite, which is Editor-only by A17, so this should be fine — but it is the kind of thing that breaks a player build if A17 is ever reverted.
 
 ---
 
-## Blocking work remaining — do these before C3 can close
+## What this session changed
 
-Ordered by my judgement of severity. Reviewer letters map to the reports in `Phase_C3_ReReview.md`.
+All six blocking items from the C3 re-review, plus the advisory backlog. Verify each against the shipped diff rather than against this list — that instruction has been earned three gates running.
 
-### 1. Three doc comments assert the opposite of the code they document (A-3, C-3)
-- `RigTargetBaker.cs` ~169-174 says *"A target id the rig does not declare is **not** reported here: §4.1 gives that error to `RigBindingBakingSystem`"* — twenty lines below the code that does report it.
-- Also `ActorBaker.cs` ~370-371 and `RigBindingBakingSystem.cs` ~97-99.
+### The one decision made without the owner
 
-### 2. A §4.1 error was relocated between systems with no amendment (A-3, C-4)
-`RigTargetBaker` now reports the unknown-target error itself and withholds `RigPartBakeLink`, which makes the `RigBindingBakingSystem` branch that §4.1 normatively owns **unreachable**. Reviewer C traced that **three of the four Bursted error paths are now dead**, and that the A9 change silenced the only realistic one (actor entity present, `ClipRegistry` absent).
+**Item 2 — who owns the unknown-target-id error.** The previous handoff put this to the owner with two options and recommended (a): bless the managed-baker location. The owner was away, having asked for work to continue. **(a) is recorded as amendment A22** in `Phase_B_Architecture.md` §4.1, with an explicit paragraph saying it was recorded without the owner and naming exactly what to revert if they prefer (b).
 
-**This is the one genuine design decision left, and it is the product owner's call.** Two coherent options:
-- **(a)** Bless the managed-baker location — it can name the object and pass a clickable log context — record an amendment, and delete the dead Bursted branches.
-- **(b)** Revert to spec and report from the Bursted pass.
+A22 also fixes the real defect Reviewer C found underneath the paperwork (C-4). `RigBindingBakingSystem` used to stay silent whenever a part's actor carried no `ClipRegistry` — correct only because each of `ActorBaker`'s bail-outs happened to log first, a coupling nothing enforced. `ActorBaker` now writes a new `[BakingType] ActorBakeFailed` tag when it stops, and the binding pass suppresses **only** on that tag. An unexplained missing registry is now reported. The two guards that were unreachable by construction are deleted; the target-id guard survives, reworded as what it actually now is — a check that the rig asset and the registry built from it agree.
 
-My recommendation is **(a)**, but it must be *recorded as an amendment*, not resolved silently. Silent resolution of spec/reality conflicts is the failure mode that has sunk C1, C2 and C3.
+### Blocking items
 
-### 3. B4 was never done — 3 of its 5 items untouched (A-1)
-The architecture diff edits exactly four places. §8 M2 and §4.6 were never edited. Still outstanding:
-- §8 M2 **EXPOSES** lists 4 `RigTargetAuthoring` fields; 7 ship.
-- §8 M2 **OWNS** omits `RigPartBakeLink` and `StartingLayerState`.
-- §4.6 (~line 484) still says `ActorRestBounds` carries the `offsetBounds` union — a contradiction C4 will read.
-- A18 never states the `>> 8` phase derivation (B4 item 4, half-closed).
+| Item | What was done |
+|---|---|
+| **1** (C-3) | The three doc comments that asserted the opposite of their code — `RigTargetBaker.ResolveTargetKind`, `ActorBaker.ComputeActorRestBounds`, `ResolveRigPartBindingsJob` — all rewritten to describe the A22 split. |
+| **2** (Finding 5 / C-4) | A22 as above. |
+| **3** (B4) | §8 M2 OWNS gains `StartingLayerState`, `RigPartBakeLink`, `ActorBakeFailed`, `AuthoringPathHash`; EXPOSES lists all seven `RigTargetAuthoring` fields; §4.6's `offsetBounds` contradiction resolved by **A24**; **A18** now states the `(pathHash >> 8) × 2⁻²⁴` derivation. Also §1.3's PlayMode platform cell corrected in place (Finding 10) and **A23** added for `AnimLod` (advisory a1). |
+| **4** (B6) | Counts recovered from git history rather than guessed: **8 → 106 → 176 → 204** cumulative EditMode. `index.md` said 164, now 204 + 28 PlayMode. The CHANGELOG's "96" and "66" were wrong under *both* readings; now "98 new — 106 in the suite" and "70 new — 176 in the suite". |
+| **5** (B-1) | `BakingTestWorld.ExpectToolkitErrors(n)` + `AssertNoUnexpectedToolkitErrors()`, called from `[TearDown]` and defaulting to zero. The four tests that legitimately provoke an error declare it. Skipped when the body already failed, so the real failure is what the runner reports. |
+| **6** (B-2, B-4) | The stray-bounds test asserts the exact box (a zero box used to pass). The rebake test destroys the hierarchy and rebuilds it from **fresh instances** with identical names and pinned sibling indices under a stable container — an instance-id derivation now fails it. |
+| **7** (B-3) | `AuthoringPathText` split out of `AuthoringPathHash` (no `IBaker`, so the EditMode asmdef needs no `Unity.Entities.Hybrid` — §1.3 forbids it), with 12 tests: CJK, surrogate pairs, exact-capacity and one-over boundaries, leaf preservation, empty names, null. |
 
-### 4. B6 — shipped test counts still wrong (A-2)
-`Documentation~/index.md:71` says "164 EditMode tests"; actual is **192**. `CHANGELOG.md:107` says "66". This is C2's advisory D9 open for a **third** gate.
+### Advisories cleared
 
-### 5. `LogAssert.ignoreFailingMessages = true` spans the whole bake (B-1, C advisory)
-In `BakingTestWorld.Bake`. It strips UTF's automatic unexpected-error failure, and only ~5 of 26 acceptance tests assert on `ToolkitErrors` themselves — so ~21 would stay green with the bake spewing toolkit errors on every part. A real fix for a real problem that overshot. Suggested remedy: a `TearDown` assertion that `ToolkitErrors.Count` equals an expected value, defaulting to 0 with per-test opt-in.
+C-5/A-13 (dead null branch deleted), C-6 (dead mask dropped, rationale corrected — the old one described a scenario this hash does not have), C-7 (`#if UNITY_EDITOR` + `Interlocked`), C-8 (class doc), **C-9** (both path walks now take name and parent-chain bake dependencies through `IBaker.GetName`/`GetParents`), a2, a3, a5 (the doc oversold what the store hit saves), a7, a8, A-1, A-2, A-3, A-4, A-6, A-8, A-9, A-10, A-11, A-15, Finding 6 (the order-dependent pin now accepts either claimant), Finding 9 (`AssertToolkitWarningsMatching` counts by emitter-specific text).
 
-### 6. Two tests cannot fail the way they claim (B-2, B-4)
-- `AStrayPartDoesNotEnlargeTheRestBounds` asserts only `Max.x < 50f`; a zero box passes. Assert the exact box the no-stray test already pins.
-- `TwoActorsFromOneClipSet_..._AndTheSameOneOnRebake` re-bakes the **same GameObject instances**, and instance IDs are stable for an object's lifetime — so an instance-id-derived phase passes it. Amendment **A18 is effectively unpinned**. Rebuild fresh instances with identical names and sibling indices.
+**Sibling reordering is the one acknowledged gap in C-9:** Entities exposes no sibling-index bake dependency. Recorded in A18 and in the class remarks. It affects only `phase01`.
 
-### 7. `PathOf` has no test at all
-It runs on every bound part. Cover: a deep non-ASCII path (must not throw, must truncate), leaf preservation, the null case, and surrogate pairs.
+### Deliberately left open
 
----
+**a6 / A-14 — `Tests/PlayMode/VatMaterialProbe.shader` is built-in-pipeline `CGPROGRAM`/`UnityCG.cginc` inside a URP-only package**, and ships in the tarball. M4's C5 acceptance ("all shaders compile for the URP target with zero warnings-as-errors") will sweep it up. The fix is to rewrite it against URP's ShaderLibrary.
 
-## Advisories
-
-~30 across the three reports, in `Phase_C3_ReReview.md`. Ones worth pulling forward:
-- **C-7** `ClipRegistryBuilder.BuildInvocationCount` — its doc claims nothing at runtime can see it, which is **false**: the Authoring asmdef has empty `includePlatforms`, so it ships in players and public `Build` mutates it there. Guard with `#if UNITY_EDITOR`.
-- **C-9** Both path walks read ancestor names and sibling indices with **no bake dependency**, so an ancestor rename makes incremental and clean bakes diverge — contradicting `ComputeSamplePhase`'s "pure function of the source" claim.
-- **C-5** `GetComponent<Transform>` also triggers `DependOnParentTransformHierarchy`, so every ancestor edit rebakes every part, while `CaptureRestPose` reads only local TRS. Over-invalidation, not incorrectness.
-- **A-(d)** §5.2 lists `AnimLod` unconditionally while a new test pins its absence as conformant — a conflict now codified in a test rather than amended.
-- **B-10** a test named `..._LogsExactlyOneWarning` asserts two.
+I did not do it. Shaders compile only in the Editor, and I had no compile signal; this file is the *sole* evidence that B1 is closed (it is what makes the §4.4 mismatch branch reachable at all), so trading a verified-working artifact for an unverified one to close an advisory about a future gate is a bad trade to make unsupervised. **Do it with the Editor open, and confirm `AVatPartBoundToTheWrongTexture_LogsTheSection44Mismatch` and `AVatPartBoundToTheBakedTexture_WarnsAboutNothing` still pass.** `ActorBakeFixture.CreateVatCapableMaterial` asserts `Shader.Find` is non-null, so a botched rewrite fails loudly rather than silently.
 
 ---
 
@@ -94,22 +75,23 @@ It runs on every bound part. Cover: a deep non-ASCII path (must not throw, must 
 - Never `.Run()` a job — `.Schedule()` / `.ScheduleParallel()` assigned to `state.Dependency`.
 - `[ReadOnly]` from `Unity.Collections`, never `Unity.Entities`.
 - Prefer `ISystem` + `[BurstCompile]`; no managed allocations in Burst jobs.
-- Burst log strings: only `G/g/D/d/X/x` specifiers (BC1343); no `+` concatenation (BC1016).
+- Burst log strings: only `G/g/D/d/X/x` specifiers (BC1343); no `+` concatenation (BC1016). `FixedStringNBytes` interpolation **is** supported (Burst 1.8.21+; pinned 1.8.29) despite the stale doc page.
 
-## Environment gotchas that cost this session real time
+## Environment gotchas that have cost real time
 
-- **There is no Unity MCP and no Editor bridge.** Never attempt `mcp__unity-mcp__*`. The compile gate is: the owner focuses Unity and reports, or grep `C:/Users/spenc/AppData/Local/Unity/Editor/Editor.log` for `error CS` / `BC`. Anything visual, ask.
-- **Unity package sources are on disk at `Library/PackageCache/<pkg>@<hash>/`. Grep them to confirm an API before calling it.** This session shipped a call to a `Baker.GetComponentsInChildren<T>(bool)` overload that does not exist, and the whole `PathOf` bug came from recalling `FixedString` semantics instead of reading them. Both were one grep away.
+- **There is no Unity MCP and no Editor bridge.** Never attempt `mcp__unity-mcp__*`. The compile gate is: the owner focuses Unity and reports, or grep `Logs/Editor.log` for `error CS` / `BC`. Anything visual, ask.
+- **The Editor log is project-relative.** `%LOCALAPPDATA%/Unity/Editor/Editor.log` is a stub that says so in its last line; the real log is `Logs/Editor.log`.
+- **Unity package sources are on disk at `Library/PackageCache/<pkg>@<hash>/`. Grep them to confirm an API before calling it.** Two of this project's worst bugs — a non-existent `Baker.GetComponentsInChildren<T>(bool)` overload and the whole `FixedString` byte-vs-character overflow — came from recalling semantics instead of reading them. Both were one grep away.
 - **A Bursted baking system's diagnostics are invisible to `Application.logMessageReceived`** — it is main-thread only. Use `logMessageReceivedThreaded`, as UTF's own `LogScope` does. Any future log-capturing harness (C4's included) must do this.
 - **`LogAssert.ignoreFailingMessages` set in `[SetUp]` does nothing.** UTF wraps each setup method in its own `LogScope` and disposes it before the test body runs.
 - **Reviewers must be split and must write findings incrementally.** Two monolithic reviewers were killed by a 600 s no-progress watchdog and lost everything. Three narrow parallel agents, each appending to its own scratchpad file as it goes, works.
-- **Scratchpad files do not survive a session.** Copy anything durable into the repo, as `Phase_C3_ReReview.md` now is.
+- **Scratchpad files do not survive a session.** Copy anything durable into the repo, as `Phase_C3_ReReview.md` is.
 
 ## Test suites
 
 Run from **Window ▸ General ▸ Test Runner**; there is no headless runner.
-- EditMode: 192 tests.
-- PlayMode: 26 tests, **Editor-only by design** (amendment A17) — Unity's baking pipeline has no player-side equivalent, so "Run all tests (Player)" cannot execute it.
+- EditMode: **204** tests.
+- PlayMode: **28** tests (27 baking acceptance + 1 assembly smoke), **Editor-only by design** (amendment A17) — Unity's baking pipeline has no player-side equivalent, so "Run all tests (Player)" cannot execute it.
 
 ## Unrelated host-game bug, still open
 
@@ -117,11 +99,10 @@ Run from **Window ▸ General ▸ Test Runner**; there is no headless runner.
 
 ---
 
-## Suggested first moves for the next session
+## Suggested next moves
 
-1. Ask the owner to decide **item 2** (where the unknown-target error lives) — it is the only blocking item needing a product decision, and everything in `RigTargetBaker`/`RigBindingBakingSystem` depends on the answer.
-2. While waiting, do items 3, 4, 6 and 7 — all unambiguous.
-3. Then item 1 (doc comments), which item 2's answer partly rewrites anyway.
-4. Then item 5.
-5. Re-run the three-way review on the full C3 diff, then hand back for compile + Test Runner.
-6. Only then C4 (systems slice), C5–C8.
+1. **Compile + both Test Runner tabs.** Nothing below is worth starting until that is green.
+2. Show the owner **A22** and get an explicit yes or no. It is the only thing in this rework that was their call and not mine.
+3. Fix **a6** (the probe shader) with the Editor open.
+4. Re-run the three-way review on the full C3 diff (`git diff 026a902..HEAD`), then hand back for the gate.
+5. Only then C4 (systems slice), C5–C8.

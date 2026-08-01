@@ -67,16 +67,47 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// the same blob. The only difference is the work done. So if the probe ever stopped
         /// matching the key <see cref="Build"/> produces, every crowd would silently bake its
         /// registry once per actor and no assertion about entity data could notice. This counter is
-        /// the seam that makes the difference assertable; it is internal, so nothing outside the
-        /// package — and nothing at runtime — can see or depend on it.
+        /// the seam that makes the difference assertable.
+        /// </para>
+        /// <para>
+        /// Be precise about what the short-circuit saves, because the number is smaller than it
+        /// looks: <see cref="TryComputeContentHash"/> runs the same canonicalisation and hash
+        /// <see cref="Build"/> does, only into <see cref="Allocator.Temp"/>. Every actor therefore
+        /// pays the canonicalisation pass whether or not it hits in the store. What a hit avoids is
+        /// the <em>persistent</em> allocation and the store insert per duplicate actor — real, and
+        /// the part that scales with crowd size in memory rather than in time.
         /// </remarks>
-        internal static int BuildInvocationCount { get; private set; }
+        /// <remarks>
+        /// <para>
+        /// <strong>Editor-only, and deliberately so.</strong> The Authoring assembly declares empty
+        /// <c>includePlatforms</c>, which is the standard Entities authoring layout — bakers and SO
+        /// classes compile for players. An unguarded counter would therefore exist in a shipped
+        /// player and the public <see cref="Build"/> would mutate it there on every call, for a
+        /// seam that only baking and editor preview can ever read. <c>internal</c> stops a consumer
+        /// depending on it; it does not stop it shipping. <c>UNITY_EDITOR</c> does, and baking and
+        /// preview are both editor-only, so nothing that can read it is lost.
+        /// </para>
+        /// <para>
+        /// <c>Interlocked</c> rather than <c>++</c>: Entities invokes bakers from a single
+        /// main-thread loop today, so the read-modify-write is not currently raced, but that is an
+        /// implementation detail of a dependency rather than a contract, and <see cref="Build"/> is
+        /// public — an editor tool may call it from anywhere. The atomic costs nothing here.
+        /// </para>
+        /// </remarks>
+#if UNITY_EDITOR
+        internal static int BuildInvocationCount
+        {
+            get { return System.Threading.Volatile.Read(ref buildInvocationCount); }
+        }
+
+        private static int buildInvocationCount;
 
         /// <summary>Resets <see cref="BuildInvocationCount"/> so a test can measure one bake.</summary>
         internal static void ResetBuildInvocationCount()
         {
-            BuildInvocationCount = 0;
+            System.Threading.Volatile.Write(ref buildInvocationCount, 0);
         }
+#endif
 
         /// <summary>
         /// Builds the registry blob for a clip set, together with its <c>BlobAssetStore</c> dedup
@@ -118,7 +149,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
             ValidateForBakeOrThrow(clipSet);
 
-            BuildInvocationCount++;
+#if UNITY_EDITOR
+            System.Threading.Interlocked.Increment(ref buildInvocationCount);
+#endif
             registry = BuildValidatedBlob(clipSet, Allocator.Persistent);
             contentHash = ComposeDedupKey(HashRegistry(registry), clipSet.stableId);
         }

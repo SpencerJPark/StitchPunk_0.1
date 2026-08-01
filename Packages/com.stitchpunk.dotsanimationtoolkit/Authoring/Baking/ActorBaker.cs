@@ -44,6 +44,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     MessagePrefix + "Actor '" + authoring.name +
                     "' has no clip set assigned, so it cannot be baked. Assign a Clip Set Asset.",
                     authoring);
+                MarkBakeFailed();
                 return;
             }
 
@@ -59,11 +60,13 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     MessagePrefix + "Actor '" + authoring.name + "' references clip set '" +
                     clipSet.name + "', which has no rig assigned. Assign a Rig Asset to the set.",
                     authoring);
+                MarkBakeFailed();
                 return;
             }
 
             if (!TryAcquireRegistry(authoring, clipSet, out BlobAssetReference<ClipRegistryBlob> registry))
             {
+                MarkBakeFailed();
                 return;
             }
 
@@ -101,6 +104,30 @@ namespace StitchPunk.AnimationToolkit.Authoring
             {
                 AddComponent(actorEntity, new AnimLod { level = 0 });
             }
+        }
+
+        /// <summary>
+        /// Records on the actor entity that this bake reported a failure and stopped, so
+        /// <see cref="RigBindingBakingSystem"/> knows the parts under it are unbound for a reason
+        /// that has already been printed (architecture section 4.1, amendment A22).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Every early return above must call this. The binding pass suppresses its per-part
+        /// complaint only when the tag is present, so an actor that loses its registry without one
+        /// is reported rather than passed over in silence — which is the whole point of making the
+        /// signal explicit instead of inferring it from "no registry".
+        /// </para>
+        /// <para>
+        /// <c>TransformUsageFlags.None</c> deliberately: this baker needs the entity to exist so it
+        /// can write the tag, and has no opinion left about how the actor should be transformed. A
+        /// failed actor with parts still gets <c>Dynamic</c> from <see cref="RigTargetBaker"/>,
+        /// which is the only remaining claim worth honouring.
+        /// </para>
+        /// </remarks>
+        private void MarkBakeFailed()
+        {
+            AddComponent<ActorBakeFailed>(GetEntity(TransformUsageFlags.None));
         }
 
         // -----------------------------------------------------------------------------------
@@ -367,8 +394,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 {
                     continue;
                 }
-                // Unknown targets are reported once, by RigBindingBakingSystem; this pass stays
-                // silent about them and simply leaves them out of the rest frame.
+                // Unknown targets are reported once, by RigTargetBaker, which can name the part and
+                // the rig that does not declare its id (amendment A22); this pass stays silent
+                // about them and simply leaves them out of the rest frame.
                 if (!ClipRegistryUtil.ResolveTargetIndex(
                         ref registry.Value,
                         new TargetId(part.targetStableId),
@@ -483,17 +511,24 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// session-local, so the same prefab would bake to a different phase every session and
         /// subscene bakes would stop being reproducible — the property section 4.5 spends real
         /// effort guaranteeing for the blob. A path hash keeps two sibling actors on different
-        /// phases while making the bake a pure function of the source. Renaming or reparenting an
-        /// actor changes its phase, which is harmless: the phase only spreads sampling load and
-        /// carries no visual meaning.
+        /// phases while making the bake a function of the source rather than of the session.
+        /// Renaming or reparenting an actor changes its phase, which is harmless: the phase only
+        /// spreads sampling load and carries no visual meaning. Both of those edits retrigger the
+        /// bake, because <see cref="AuthoringPathHash"/> reads names and the ancestor chain through
+        /// the baker's dependency-taking API; reordering siblings does not, which is the one case
+        /// where an incremental bake and a clean bake can disagree, and it changes only which frame
+        /// the actor samples on.
         /// </remarks>
-        private static float ComputeSamplePhase(ActorAuthoring authoring)
+        private float ComputeSamplePhase(ActorAuthoring authoring)
         {
-            // Shifted before masking: FNV-1a's final step is a multiply, so its low bits carry the
-            // least avalanche and two siblings whose names differ only in the last character can
-            // land on adjacent phases. Taking bits 8–31 instead costs nothing and spreads them.
-            uint pathHash = AuthoringPathHash.Of(authoring.transform);
-            return ((pathHash >> 8) & 0x00FFFFFFu) * (1f / 16777216f);
+            // Bits 8–31, not 0–23. FNV-1a's final operation is a multiply, and a multiply
+            // propagates carries only upward, so the low bits of the result are the least mixed
+            // whichever input contributed them. Discarding the bottom byte costs nothing — the
+            // remaining 24 bits are exactly the width the phase needs — and buys better spread.
+            // No mask is applied: `pathHash >> 8` is already at most 0x00FFFFFF, so one would be a
+            // no-op implying a constraint this line is not enforcing.
+            uint pathHash = AuthoringPathHash.Of(this, authoring.transform);
+            return (pathHash >> 8) * (1f / 16777216f);
         }
 
         private static VatTextureBinding BuildVatTextureBinding(VatTextureSetAsset vatTextures)

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
+using NUnit.Framework;
 using Unity.Entities;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -122,6 +123,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             // flag set in [SetUp] is gone by the time anything bakes; the test body's scope starts
             // at the default again. Setting it around the bake also scopes the suppression to the
             // only place foreign logs can appear.
+            //
+            // This throws away a real safety net, and the net is put back by
+            // AssertNoUnexpectedToolkitErrors rather than left missing. For the duration of the
+            // bake, LogAssert stops failing a test on ANY Debug.LogError from ANY source — this
+            // package's included. Most acceptance tests here assert on entity data and say nothing
+            // about logs, so without a replacement a regression that made the bake spew a toolkit
+            // error per part would leave every one of them green. See ExpectToolkitErrors.
             bool previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
             LogAssert.ignoreFailingMessages = true;
             Application.logMessageReceivedThreaded += RecordToolkitLog;
@@ -153,8 +161,15 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         // in any consumer project with its own bakers.
         //
         // So the suite records the bake's messages itself and asserts only over the ones this
-        // package emitted. That is both host-independent and a stronger claim than LogAssert could
-        // make: "exactly one warning" becomes a count, not the absence of a complaint.
+        // package emitted. That is a stronger claim than LogAssert could make: "exactly one warning"
+        // becomes a count, not the absence of a complaint.
+        //
+        // Independence from the host is the intent, not a guarantee. The filter is the literal
+        // toolkit message prefix over the GLOBAL, cross-thread log callback, so anything carrying
+        // that prefix during the bake window is counted whatever emitted it — the toolkit's own
+        // runtime systems in the default PlayMode world, or a consumer's renamed fork of this
+        // package. Nothing in this repo does that today (no toolkit actor lives in the PlayMode test
+        // scene), which is why it is recorded as a known limitation rather than defended against.
         //
         // The subscription is to logMessageReceivedThreaded, not logMessageReceived. The binding
         // pass is a Bursted job and reports from a worker thread, and the main-thread-only callback
@@ -169,8 +184,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         private readonly object toolkitLogLock = new object();
         private readonly List<string> toolkitWarnings = new List<string>();
         private readonly List<string> toolkitErrors = new List<string>();
+        private int expectedToolkitErrorCount;
 
-        /// <summary>Warnings this package emitted during the most recent <see cref="Bake"/>.</summary>
+        /// <summary>
+        /// Warnings this package emitted during the most recent <see cref="Bake"/>. Each read takes
+        /// a fresh snapshot under the lock; a caller comparing a count against a lookup should hold
+        /// one snapshot in a local rather than reading the property twice.
+        /// </summary>
         internal IReadOnlyList<string> ToolkitWarnings
         {
             get
@@ -182,7 +202,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             }
         }
 
-        /// <summary>Errors this package emitted during the most recent <see cref="Bake"/>.</summary>
+        /// <summary>
+        /// Errors this package emitted during the most recent <see cref="Bake"/>. Snapshot semantics
+        /// as for <see cref="ToolkitWarnings"/>.
+        /// </summary>
         internal IReadOnlyList<string> ToolkitErrors
         {
             get
@@ -192,6 +215,45 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     return toolkitErrors.ToArray();
                 }
             }
+        }
+
+        /// <summary>
+        /// Declares how many toolkit errors the bake about to run is <em>supposed</em> to produce,
+        /// so <see cref="AssertNoUnexpectedToolkitErrors"/> can fail on anything else.
+        /// </summary>
+        /// <remarks>
+        /// The default is zero, which is the point: a test that says nothing gets the strict
+        /// reading. <see cref="Bake"/> disables <c>LogAssert</c>'s automatic failure on unexpected
+        /// errors for the whole bake — it has to, because the host's own baking systems log into the
+        /// same window — and that removes the only signal most tests here have that the package
+        /// misbehaved. This restores it in one place instead of asking every future test author to
+        /// remember to assert on <see cref="ToolkitErrors"/>.
+        /// </remarks>
+        internal void ExpectToolkitErrors(int expectedCount)
+        {
+            expectedToolkitErrorCount = expectedCount;
+        }
+
+        /// <summary>
+        /// Fails if the bake emitted a number of toolkit errors other than the number
+        /// <see cref="ExpectToolkitErrors"/> declared. Call from <c>[TearDown]</c>.
+        /// </summary>
+        internal void AssertNoUnexpectedToolkitErrors()
+        {
+            string[] recordedErrors;
+            lock (toolkitLogLock)
+            {
+                recordedErrors = toolkitErrors.ToArray();
+            }
+            if (recordedErrors.Length == expectedToolkitErrorCount)
+            {
+                return;
+            }
+            throw new AssertionException(
+                "The bake emitted " + recordedErrors.Length + " toolkit error(s); the test declared " +
+                expectedToolkitErrorCount + ". A test that legitimately provokes an error must say " +
+                "so with bakingWorld.ExpectToolkitErrors(n). Errors: " +
+                string.Join(" | ", recordedErrors));
         }
 
         private void RecordToolkitLog(string message, string stackTrace, LogType logType)

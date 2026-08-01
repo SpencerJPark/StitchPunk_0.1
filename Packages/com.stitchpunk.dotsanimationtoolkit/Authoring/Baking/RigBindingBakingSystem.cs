@@ -48,6 +48,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
     public partial struct RigBindingBakingSystem : ISystem
     {
         private ComponentLookup<ClipRegistry> clipRegistryLookup;
+        private ComponentLookup<ActorBakeFailed> actorBakeFailedLookup;
         private BufferLookup<RigPartRef> rigPartRefLookup;
 
         /// <inheritdoc />
@@ -55,6 +56,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public void OnCreate(ref SystemState state)
         {
             clipRegistryLookup = state.GetComponentLookup<ClipRegistry>(true);
+            actorBakeFailedLookup = state.GetComponentLookup<ActorBakeFailed>(true);
             rigPartRefLookup = state.GetBufferLookup<RigPartRef>();
         }
 
@@ -63,6 +65,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public void OnUpdate(ref SystemState state)
         {
             clipRegistryLookup.Update(ref state);
+            actorBakeFailedLookup.Update(ref state);
             rigPartRefLookup.Update(ref state);
 
             ClearRigPartRefsJob clearJob = new ClearRigPartRefsJob();
@@ -71,6 +74,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
             ResolveRigPartBindingsJob resolveJob = new ResolveRigPartBindingsJob
             {
                 clipRegistryLookup = clipRegistryLookup,
+                actorBakeFailedLookup = actorBakeFailedLookup,
                 rigPartRefLookup = rigPartRefLookup
             };
             state.Dependency = resolveJob.Schedule(state.Dependency);
@@ -94,15 +98,33 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
     /// <summary>
     /// Resolves one part's target id against its actor's registry and records the binding on both
-    /// ends. A part that cannot be bound is reported once and left inert — its
+    /// ends. A part that cannot be bound is left inert — its
     /// <see cref="RigPartBinding.targetIndex"/> stays −1 and it never enters the actor's
     /// <see cref="RigPartRef"/> buffer — so one bad part never fails the bake of the actor around it.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is reported here <em>unless</em> something else has already spoken for it. Two failures
+    /// are diagnosed earlier and better by managed code, which can name assets and attach a
+    /// click-to-select context object: a part whose id the rig does not declare is reported by
+    /// <see cref="RigTargetBaker"/>, which then withholds the part's <see cref="RigPartBakeLink"/>
+    /// so it never reaches this job at all; and an actor whose own bake reported a failure and
+    /// stopped is tagged <see cref="ActorBakeFailed"/> by <see cref="ActorBaker"/>, which this job
+    /// checks before complaining that the registry is missing. Both are architecture section 4.1 as
+    /// amended by A22.
+    /// </para>
+    /// <para>
+    /// What is left here is what only this pass can see: two parts of one actor claiming the same
+    /// target, and an actor missing its registry with <em>nothing</em> having explained why.
+    /// </para>
+    /// </remarks>
     [BurstCompile]
     [WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)]
     internal partial struct ResolveRigPartBindingsJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<ClipRegistry> clipRegistryLookup;
+
+        [ReadOnly] public ComponentLookup<ActorBakeFailed> actorBakeFailedLookup;
 
         public BufferLookup<RigPartRef> rigPartRefLookup;
 
@@ -112,35 +134,42 @@ namespace StitchPunk.AnimationToolkit.Authoring
             partBinding.targetIndex = -1;
 
             if (!clipRegistryLookup.HasComponent(bakeLink.actorRoot) ||
-                !rigPartRefLookup.HasBuffer(bakeLink.actorRoot))
+                !rigPartRefLookup.HasBuffer(bakeLink.actorRoot) ||
+                !clipRegistryLookup[bakeLink.actorRoot].Value.IsCreated)
             {
-                // Stay silent when the actor entity exists but carries no registry. That is the
-                // shape of an actor whose own bake bailed out — a missing clip set, a set that
-                // failed validation — and ActorBaker has already logged the one message naming the
-                // asset and the rule. Repeating it here once per part buries that message under N
-                // copies of a restatement, none of which a user can act on. A genuinely absent
-                // actor root still reports, because nothing else has spoken for it.
-                if (bakeLink.actorRoot != Entity.Null)
+                // An actor that reported its own failure and stopped is tagged, and this pass says
+                // nothing more about it: ActorBaker has already logged the one message naming the
+                // asset and the rule, and restating it once per part buries that message under N
+                // copies of a restatement none of which a user can act on.
+                //
+                // Without the tag the registry is missing for a reason nobody has given, and that
+                // must not pass in silence — every part under this actor is about to stop animating
+                // and this is the only place left that can say so. The tag is what makes the
+                // difference a claim rather than an inference: before it, silence here was correct
+                // only because each of ActorBaker's bail-outs happened to log first, which nothing
+                // enforced.
+                if (actorBakeFailedLookup.HasComponent(bakeLink.actorRoot))
                 {
                     return;
                 }
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' has no baked actor to bind to. Its actor's clip set is probably missing or invalid. The part is skipped.");
+                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' belongs to an actor that has no usable clip registry, and no earlier message explained why. The part is skipped and will not animate. Check whether another baking system in this project removes components from actor entities; if none does, this is a toolkit defect worth reporting.");
                 return;
             }
 
             ClipRegistry clipRegistry = clipRegistryLookup[bakeLink.actorRoot];
-            if (!clipRegistry.Value.IsCreated)
-            {
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' belongs to an actor whose clip registry failed to build. The part is skipped.");
-                return;
-            }
-
             if (!ClipRegistryUtil.ResolveTargetIndex(
                     ref clipRegistry.Value.Value,
                     new TargetId(bakeLink.targetId),
                     out int denseTargetIndex))
             {
-                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' references target id {bakeLink.targetId}, which the actor's rig does not declare. The part is skipped.");
+                // Not the ordinary "you typed the wrong id" case — RigTargetBaker catches that
+                // against the RigAsset and the part never gets here. Reaching this line means the
+                // rig declares the id but the actor's baked registry does not carry it, i.e. the
+                // builder's canonical target list and the rig asset disagree. The two are supposed
+                // to be the same set by construction, so this is the guard on that construction
+                // holding, and it is the only check standing between a builder-side regression and
+                // parts that silently stop animating.
+                Debug.LogError($"[DOTS Animation Toolkit] Rig part '{bakeLink.authoringPath}' references target id {bakeLink.targetId}, which its rig declares but the actor's baked clip registry does not carry. The part is skipped. The rig asset and the registry built from it are meant to hold the same target set, so this is a toolkit defect worth reporting rather than a content mistake.");
                 return;
             }
 
