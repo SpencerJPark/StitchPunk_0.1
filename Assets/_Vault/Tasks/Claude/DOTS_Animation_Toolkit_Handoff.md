@@ -1,7 +1,7 @@
 # DOTS Animation Toolkit — session handoff
 
 **Written:** 2026-07-31 (second session of the day; supersedes the earlier handoff)
-**State:** Build step **C3 is OPEN**. Every blocking item from the re-review is addressed; the package **compiles clean** and the **PlayMode suite runs green**. The EditMode suite compiles but has not been run — see "What you must do first".
+**State:** Build step **C3 is OPEN**, but the rework is complete and verified: every blocking item from the re-review is addressed, the package **compiles clean**, and **all 232 tests pass** (204 EditMode + 28 PlayMode), confirmed by the owner 2026-07-31. What remains is the gate itself — a three-way re-review — plus one owner decision (A22) and one deferred advisory (a6).
 **Read before doing anything:** `Docs/AnimationToolkit/Phase_C3_ReReview.md` (the three reviewer reports, verbatim) and `Docs/AnimationToolkit/Phase_B_Architecture.md` (the normative spec — 111 KB, **never read whole**; grep headings, then Read with offset/limit).
 
 ---
@@ -17,6 +17,7 @@ A commercially sellable Unity DOTS animation UPM package, `com.stitchpunk.dotsan
 - **Pause after each module** so the owner can run the Editor compile and Test Runner.
 
 **Phases done:** A (audit), B (architecture), C0 (skeleton), C1 (M3 data slice), C2 (M1 authoring slice). **C3 (M2 entity baking) is in its second rework and not closed.**
+
 
 ---
 
@@ -40,7 +41,9 @@ Four errors total, matching the four `ExpectToolkitErrors(1)` declarations exact
 2. **Burst `FixedString` interpolation works**, and the diagnostic names a real path — `Rig part 'Actor/VatBody'`, emitted from the Bursted job via the Burst runtime log callback.
 3. **The new dependency-taking path walk produces correct text**, since that path came out of `IBaker.GetName`/`GetParents` rather than off `Transform`.
 
-**Still to run: the EditMode tab.** It compiles, but nothing in the log shows it executing, so the 204 tests — including the 12 new `AuthoringPathTests` — are unverified. That is the one gap left before the gate.
+**EditMode suite: green.** Owner-confirmed 2026-07-31 — all 204 pass, including the 12 new `AuthoringPathTests` that cover the CJK/surrogate overflow which used to throw out of `RigTargetBaker.Bake`.
+
+So the whole suite — 232 tests — is passing on a clean compile. No verification gap remains; the rework is done and the gate is what is left.
 
 ---
 
@@ -112,8 +115,7 @@ Run from **Window ▸ General ▸ Test Runner**; there is no headless runner.
 
 ## Suggested next moves
 
-1. **Run the EditMode tab.** Compile and PlayMode are already verified green (see above); EditMode is the remaining gap.
-2. Show the owner **A22** and get an explicit yes or no. It is the only thing in this rework that was their call and not mine.
-3. Fix **a6** (the probe shader) with the Editor open.
-4. Re-run the three-way review on the full C3 diff (`git diff 026a902..HEAD`), then hand back for the gate.
-5. Only then C4 (systems slice), C5–C8.
+1. **Get an explicit yes or no on A22** — the only thing in this rework that was the owner's call and not the builder's. Everything in `RigTargetBaker`/`RigBindingBakingSystem` depends on the answer, and a silent resolution here is the failure mode that sank C1, C2 and C3.
+2. Fix **a6** (the probe shader) with the Editor open, re-running the two VAT material tests after.
+3. Re-run the three-way review on the full C3 diff (`git diff 026a902..HEAD`), then hand back for the gate.
+4. Only then C4 (systems slice), C5–C8.
