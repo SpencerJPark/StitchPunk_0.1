@@ -45,7 +45,7 @@ Each phase ends compile-clean with its tests green, verified through the Unity M
 
 - **C4.1 — skeleton. ✅ DONE 2026-08-01.** Groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests in `SystemGroupStructureTests`. Verified: **205 EditMode + 41 PlayMode = 246, all passing.** One API trap found and avoided by reading Entities source first: `EntityManager` has **no** `SetName` — it lives on the nested `Debug` struct — so the bootstrap uses `CreateSingleton<T>(T, FixedString64Bytes)`, which builds the archetype in one step and applies the name behind Entities' own `DOTS_DISABLE_DEBUG_NAMES` guard.
 - **C4.2 — binding. ✅ DONE 2026-08-01.** `RigBindingSystem` + 7 tests. **Discrimination verified by mutation**: commenting out `partRefs.Clear()` and the `phase01` re-derivation failed exactly the two tests written for them (6 parts instead of 3; both phases stuck at the baked 0.25) and no others. 205 EditMode + 48 PlayMode = 253.
-- **C4.3 — playback core.** `AnimationCommandUtil`, `PlaybackQuery`, `CommandApplySystem`, `PlaybackTimeSystem`. The densest phase; the `previousLoop` ordering trap lives here.
+- **C4.3 — playback core. 🔨 IN PROGRESS.** `AnimationCommandUtil` written but **not compile-verified** (Editor disconnected); `PlaybackQuery` / `CommandApplySystem` / `PlaybackTimeSystem` not started; no tests yet. Amendment **A26** recorded in §5.4 — `PlaybackQuery.NormalizedTime` takes the registry, because `PlaybackLayer` stores seconds and carries no duration. The densest phase; the `previousLoop` ordering trap lives here.
 - **C4.4 — events.** `EventEmissionSystem`.
 - **C4.5 — transform technique.** Sample + apply. First end-to-end visible motion.
 - **C4.6 — flipbook.** `SpriteMaterialSystem`.

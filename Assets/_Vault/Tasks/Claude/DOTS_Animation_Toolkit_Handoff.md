@@ -1,15 +1,37 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-01 (rewritten at C3 close; updated after C4.2)
-**Last commit:** `582e152`
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 is in progress — phases C4.1 and C4.2 of 9 are done.**
+**Written:** 2026-08-02 (rewritten for a fresh session, mid-C4.3)
+**Last commit:** `7d84051`
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 and C4.2 done and verified; C4.3 partially written and NOT compiled.**
 
-**Verified via the Unity MCP:** compile clean, **205 EditMode + 48 PlayMode = 253, all passing, each in its real mode.**
+## ⚠ Do these two things first, in this order
 
-**C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first.** It holds the 14 pieces, the nine phases, the traps carried in from C3, and the test-integrity standard.
-- ✅ **C4.1 skeleton** — the four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
-- ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, mutation-verified. Five files already promise this system exists; it rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after ECB instantiation, re-derives `phase01` per instance, then disables `RigBindingUninitialized`. Until it lands, baked instances are correct but instantiated copies are not.
-- ⬜ C4.3 playback core · C4.4 events · C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+**1. The last commit is not compile-verified.** The Unity Editor disconnected from the MCP mid-phase (`mcpforunity://instances` returned `instance_count: 0`), so `Runtime/Api/AnimationCommandUtil.cs` — the only new code in `7d84051` — has never been through a compiler. **Open Unity, confirm the MCP answers (`read_console`), then compile before writing anything new.** Two specific unknowns in that file: whether `[BurstCompile]` on a static class with no `[BurstCompile]` entry-point methods is accepted or warns, and whether `float.NaN` holds up as a default parameter value there.
+
+**2. Re-establish the baseline.** Last verified numbers, at `582e152`: **205 EditMode + 48 PlayMode = 253, all passing, each in its real mode.** If the counts differ after you compile, something in `7d84051` broke it — fix that before proceeding. **Check the discovered count, not just pass/fail.**
+
+## C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first
+
+It holds the 14 pieces, the nine phases, the traps carried in from C3, and the test-integrity standard.
+
+- ✅ **C4.1 skeleton** — four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
+- ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, **mutation-verified**. Rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after instantiation, re-derives `phase01` per instance, disables `RigBindingUninitialized`.
+- 🔨 **C4.3 playback core — IN PROGRESS, roughly a quarter done.**
+  - ✅ written / ❌ never compiled: `Runtime/Api/AnimationCommandUtil.cs` (Play, Queue, Stop, SetSpeed, SetTime).
+  - ⬜ **`PlaybackQuery` is not written — and amendment A26 in §5.4 already describes it**, so the spec currently documents an API that does not exist. Closing that gap is the next task. Per A26: `NormalizedTime(in DynamicBuffer<PlaybackLayer> layers, ref ClipRegistryBlob registry, byte layerIndex)`, returning 0 for an inactive layer, `clipIndex == -1`, or a non-positive duration.
+  - ⬜ `CommandApplySystem` — not started.
+  - ⬜ `PlaybackTimeSystem` — not started.
+  - **No C4.3 tests exist yet.**
+- ⬜ C4.4 events · C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+
+**C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.3–4.8 autonomously; stop at 4.9.
+
+## The two traps waiting in C4.3
+
+Both are in the plan, and both are the kind that a careless test passes:
+
+- **`PlaybackLayer.previousLoop` is still written by nothing.** `CommandApplySystem` must copy the outgoing layer's `loop` into it **before** `layer.loop` is overwritten by the incoming request. Wrong order and a Loop-default clip that was played `Once` wraps to t=0 mid-crossfade instead of holding — a pop in exactly the transition the blend exists to smooth. **Mutation-check this one specifically:** it has been unwritten for three build steps, so nothing currently fails if it stays that way.
+- **`BoundsDirty` is enabled by `CommandApplySystem`** on any applied Play/Stop that changes a layer's `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, Once-completion and blend completion. **Never** a change-version filter on `PlaybackLayer` — `PlaybackTimeSystem` writes `time` into that buffer every frame, so such a filter degenerates to always-true.
 
 ---
 
