@@ -296,6 +296,51 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
+        /// <strong>Layer mixing, the fade-in (amendment A32).</strong> An upper layer blending in
+        /// with an empty previous slot must lerp <em>from the pose the layers below composited</em>,
+        /// not from the rest pose and not from nothing. Catches: treating an empty previous slot as
+        /// "no blend" and snapping the upper layer straight to full strength — which is what makes
+        /// an attack layer pop in over a walk instead of easing in.
+        /// </summary>
+        /// <remarks>
+        /// Walk (Override, key x = 1) sits underneath. Slide (Override, key x = 4) fades in at
+        /// weight 0.5, so the answer is halfway between the two: 1 → 4 gives 2.5. Reading 4 means
+        /// the blend was ignored; reading 0 or 2 means it lerped from rest rather than from Walk.
+        /// </remarks>
+        [Test]
+        public void CompositeLayers_UpperLayerFadingInWithNoPreviousClip_LerpsFromTheLayersBelow()
+        {
+            TargetPose pose = Composite(new PlaybackLayer[]
+            {
+                ActiveLayer(WalkClipIndex),
+                BlendingLayer(SlideClipIndex, -1, 0.5f, 1f)
+            });
+
+            Assert.AreEqual(
+                2.5f,
+                pose.localPosition.x,
+                Tolerance,
+                "A layer fading in must mix with the layers below it, not replace them outright.");
+        }
+
+        /// <summary>
+        /// The same fade at weight 0: the upper layer must contribute nothing yet, leaving the pose
+        /// exactly as the layers below composited it. Catches an off-by-one in the blend weight
+        /// that would make a fade-in start already partly applied.
+        /// </summary>
+        [Test]
+        public void CompositeLayers_UpperLayerAtTheStartOfItsFadeIn_LeavesTheLayersBelowUntouched()
+        {
+            TargetPose pose = Composite(new PlaybackLayer[]
+            {
+                ActiveLayer(WalkClipIndex),
+                BlendingLayer(SlideClipIndex, -1, 0f, 1f)
+            });
+
+            Assert.AreEqual(1f, pose.localPosition.x, Tolerance, "Weight 0 means the walk is untouched.");
+        }
+
+        /// <summary>
         /// A rest pose that is offset, rotated and non-uniformly scaled — the fixture every test in
         /// this class should have used from the start.
         /// </summary>

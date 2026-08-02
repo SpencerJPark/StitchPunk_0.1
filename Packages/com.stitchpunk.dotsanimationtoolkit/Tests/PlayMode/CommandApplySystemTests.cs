@@ -199,6 +199,63 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// <strong>Layer mixing, the fade-in half (amendment A32).</strong> Catches: hard-cutting
+        /// when a Play with a blend lands on a layer that was not running. Layer mixing depends on
+        /// bringing an upper layer in over the ones below — an attack layer over a walk — and
+        /// popping it in defeats the blend the caller explicitly asked for. The empty previous slot
+        /// is what makes the crossfade read as "from whatever the layers below composited".
+        /// </summary>
+        [Test]
+        public void PlayOntoAnIdleLayer_FadesInFromTheLayersBelow()
+        {
+            PlaybackTestActor.EnqueueCommand(
+                testWorld,
+                actor,
+                PlaybackTestActor.PlayCommand(1, AttackClipId, blendDuration: 0.5f));
+            RunCommandApply();
+
+            PlaybackLayer layer = PlaybackTestActor.GetLayer(testWorld, actor, 1);
+            Assert.IsTrue((layer.flags & PlaybackFlags.Blending) != 0, "The requested blend must run.");
+            Assert.AreEqual(0.5f, layer.blendDuration, 1e-5f);
+            Assert.AreEqual(
+                -1,
+                layer.previousClipIndex,
+                "An empty previous slot is how the sampler is told to lerp from the pose below.");
+        }
+
+        /// <summary>
+        /// Catches: dropping a still-fading clip when a Play arrives during a Stop fade-out. The
+        /// layer already holds a perfectly good crossfade source; replacing it with "fade in from
+        /// below" would make a stop-then-restart visibly skip the clip it was fading out of.
+        /// </summary>
+        [Test]
+        public void PlayDuringAStopFade_CrossfadesOutOfTheClipStillFading()
+        {
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, time: 0.5f, speed: 1f, loop: LoopMode.Loop);
+            PlaybackTestActor.EnqueueCommand(testWorld, actor, PlaybackTestActor.StopCommand(0, 0.5f));
+            RunCommandApply();
+            Assert.AreEqual(
+                WalkClipIndex,
+                PlaybackTestActor.GetLayer(testWorld, actor, 0).previousClipIndex,
+                "Guard: the stopped clip must be sitting in the previous slot.");
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld,
+                actor,
+                PlaybackTestActor.PlayCommand(0, AttackClipId, blendDuration: 0.25f));
+            RunCommandApply();
+
+            PlaybackLayer layer = PlaybackTestActor.GetLayer(testWorld, actor, 0);
+            Assert.AreEqual(AttackClipIndex, layer.clipIndex);
+            Assert.AreEqual(
+                WalkClipIndex,
+                layer.previousClipIndex,
+                "The clip that was fading out is the crossfade source, not a discarded pose.");
+            Assert.AreEqual(0.25f, layer.blendDuration, 1e-5f, "The new request owns the blend duration.");
+            Assert.AreEqual(0f, layer.blendElapsed, 1e-5f, "And the blend restarts.");
+        }
+
+        /// <summary>
         /// Catches: always starting at 0. A reverse Play that starts at 0 is instantly at the end of
         /// a Once clip, so it reports finished on its first advance and never shows a frame.
         /// </summary>

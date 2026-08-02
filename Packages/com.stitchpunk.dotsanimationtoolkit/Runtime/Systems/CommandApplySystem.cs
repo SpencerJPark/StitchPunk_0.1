@@ -205,21 +205,36 @@ namespace StitchPunk.AnimationToolkit
                 : math.max(command.blendDuration, 0f);
 
             int outgoingClipIndex = layer.clipIndex;
-            bool hasOutgoingClip = (layer.flags & PlaybackFlags.Active) != 0 && outgoingClipIndex >= 0;
+            bool isLayerActive = (layer.flags & PlaybackFlags.Active) != 0;
+            bool hasOutgoingClip = isLayerActive && outgoingClipIndex >= 0;
 
-            if (hasOutgoingClip && blendDuration > 0f)
+            if (blendDuration > 0f)
             {
-                layer.previousClip = layer.clip;
-                layer.previousClipIndex = outgoingClipIndex;
-                layer.previousTime = layer.time;
-                layer.previousSpeed = layer.speed;
+                if (hasOutgoingClip)
+                {
+                    layer.previousClip = layer.clip;
+                    layer.previousClipIndex = outgoingClipIndex;
+                    layer.previousTime = layer.time;
+                    layer.previousSpeed = layer.speed;
 
-                // Section 5.2's whole reason for previousLoop: the mode the outgoing clip was
-                // ACTUALLY playing under, captured before the line below destroys it. Moving this
-                // assignment after `layer.loop = command.loop` compiles, runs, and makes every
-                // crossfade out of a Once-played clip wrap to zero instead of holding.
-                layer.previousLoop = layer.loop;
+                    // Section 5.2's whole reason for previousLoop: the mode the outgoing clip was
+                    // ACTUALLY playing under, captured before the line below destroys it. Moving
+                    // this assignment after `layer.loop = command.loop` compiles, runs, and makes
+                    // every crossfade out of a Once-played clip wrap to zero instead of holding.
+                    layer.previousLoop = layer.loop;
+                }
+                else if (!isLayerActive || layer.previousClipIndex < 0)
+                {
+                    // Nothing to fade from on this layer, so fade in from the pose the layers below
+                    // composited (amendment A32). ClipSampler.CompositeLayers already reads an empty
+                    // previous slot as "lerp from the incoming pose", which is exactly a layer
+                    // easing in over the ones beneath it.
+                    ClearPreviousSlot(ref layer);
+                }
 
+                // A layer stopped with a fade keeps its outgoing clip in the previous slot, so a
+                // Play arriving mid-fade crossfades out of it rather than dropping it — the branch
+                // above deliberately leaves that case alone.
                 layer.blendElapsed = 0f;
                 layer.blendDuration = blendDuration;
                 layer.flags |= PlaybackFlags.Blending;
@@ -353,14 +368,23 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Empties the crossfade-source slot and cancels any running blend.</summary>
         private static void ClearBlendSource(ref PlaybackLayer layer)
         {
+            ClearPreviousSlot(ref layer);
+            layer.blendElapsed = 0f;
+            layer.blendDuration = 0f;
+            layer.flags &= ~PlaybackFlags.Blending;
+        }
+
+        /// <summary>
+        /// Empties the crossfade-source slot without touching the blend itself — an empty slot with
+        /// a running blend is the "fade in from the layers below" state (amendment A32).
+        /// </summary>
+        private static void ClearPreviousSlot(ref PlaybackLayer layer)
+        {
             layer.previousClip = default;
             layer.previousClipIndex = -1;
             layer.previousTime = 0f;
             layer.previousSpeed = 0f;
             layer.previousLoop = LoopMode.UseClipDefault;
-            layer.blendElapsed = 0f;
-            layer.blendDuration = 0f;
-            layer.flags &= ~PlaybackFlags.Blending;
         }
 
         /// <summary>Empties the one-deep queue slot.</summary>

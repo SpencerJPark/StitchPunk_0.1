@@ -3,7 +3,7 @@
 **Written:** 2026-08-02 (C4.3, C4.4 and C4.5 closed and gated)
 **State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.5 all done and verified. C4.6 (flipbook) is next.**
 
-**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **208 EditMode + 125 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3–C4.5 verified by five mutation runs (tables in the C4 plan). Nothing is owed.
+**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **210 EditMode + 127 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3–C4.5 verified by six mutation runs (tables in the C4 plan). Nothing is owed.
 
 ## ⚠ Two process notes, both learned the hard way this session
 
@@ -37,6 +37,14 @@ C4.5 found the spec and the shipped sampler disagreeing about what a transform k
 **Why it survived three gates, and the rule that follows.** Every `LayerCompositionTests` fixture used a rest pose at the origin with unit scale, where `rest + key` and `key` are the same number. The entire Override semantics were untested while looking thoroughly tested. Reverting the sampler now fails **ten** tests; before C4.5 it failed none.
 
 **The rule:** when a fixture picks a "simple" value for something the code branches on — zero, one, identity, empty — check whether that choice is what makes the assertion pass. That is the third distinct shape of invisible defect C4 has produced, after A28 and A30's "only the next system can see it".
+
+## Amendment A32 — a layer fades in as well as out
+
+Pressing on Override in the context of **layer mixing** found the mirror of Stop's fade-out missing. A `Play` with a blend onto an **idle** layer hard-cut, silently ignoring the blend duration the caller asked for — and since bringing an upper layer in over the ones below *is* the activate-with-a-crossfade case, layer mixing was the one thing that could not be done smoothly.
+
+No new state was needed: `ClipSampler.CompositeLayers` already reads `previousClipIndex = −1` on a blending layer as "lerp from the incoming pose", and the incoming pose there *is* what the layers below composited. `CommandApplySystem` now starts the blend in that state. A `Play` arriving mid-Stop-fade keeps the still-fading clip as its crossfade source instead of dropping it.
+
+**Layer weight is still absent, deliberately.** Layers are binary; a layer's strength over time is its own crossfade. Per-part masking gives the common case for free — an upper layer's clip simply carries no track for the targets it should not touch, so lower layers survive there untouched. A *sustained* partial weight (a permanent 30% additive breathing layer) is not expressible and would need a `weight` field on `PlaybackLayer` plus a weight argument through `CompositeLayers`. **If a design turns up that needs it, that is the change — it is not a bug.**
 
 **C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.6–4.8 autonomously; stop at 4.9.
 
