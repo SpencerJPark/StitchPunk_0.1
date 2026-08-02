@@ -4,6 +4,7 @@ using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 {
@@ -35,6 +36,48 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             /// <summary>Markers, which the bake guarantees are sorted ascending by normalized time.</summary>
             internal EventSpec[] events = Array.Empty<EventSpec>();
+
+            /// <summary>Transform tracks, which the bake sorts by dense target index.</summary>
+            internal TransformTrackSpec[] transformTracks = Array.Empty<TransformTrackSpec>();
+        }
+
+        /// <summary>Authoring-side description of one transform track.</summary>
+        internal sealed class TransformTrackSpec
+        {
+            internal int targetIndex;
+            internal TrackBlendOp blendOp = TrackBlendOp.Override;
+            internal AnimatedChannels channels = AnimatedChannels.PositionXY;
+            internal TransformKeySpec[] keys = Array.Empty<TransformKeySpec>();
+        }
+
+        /// <summary>Authoring-side description of one transform key.</summary>
+        internal struct TransformKeySpec
+        {
+            internal float normalizedTime;
+            internal float3 position;
+            internal float rotationZ;
+            internal float2 scale;
+            internal Interpolation interpolation;
+        }
+
+        /// <summary>Builds a single transform key; scale defaults to 1 so it is a no-op when unmasked.</summary>
+        internal static TransformKeySpec Key(
+            float normalizedTime,
+            float positionX = 0f,
+            float positionY = 0f,
+            float positionZ = 0f,
+            float rotationZ = 0f,
+            float scaleX = 1f,
+            float scaleY = 1f)
+        {
+            return new TransformKeySpec
+            {
+                normalizedTime = normalizedTime,
+                position = new float3(positionX, positionY, positionZ),
+                rotationZ = rotationZ,
+                scale = new float2(scaleX, scaleY),
+                interpolation = Interpolation.Linear
+            };
         }
 
         /// <summary>Authoring-side description of one event marker.</summary>
@@ -65,7 +108,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         /// <see cref="ClipRegistryUtil.TryResolveClip"/> returns.
         /// </summary>
         /// <remarks>The returned reference is caller-owned; the fixture must dispose it.</remarks>
-        internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(ClipSpec[] clipSpecs, byte layerCount = 4)
+        internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
+            ClipSpec[] clipSpecs,
+            byte layerCount = 4,
+            int targetCount = 0)
         {
             ClipSpec[] canonicalSpecs = new ClipSpec[clipSpecs.Length];
             Array.Copy(clipSpecs, canonicalSpecs, clipSpecs.Length);
@@ -97,7 +143,31 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     clip.vatFrameCount = 0;
                     clip.vatFps = 0f;
                     clip.offsetBounds = new AABB { Center = float3.zero, Extents = float3.zero };
-                    builder.Allocate(ref clip.transformTracks, 0);
+                    BlobBuilderArray<TransformTrackBlob> trackArray =
+                        builder.Allocate(ref clip.transformTracks, clipSpec.transformTracks.Length);
+                    for (int trackIndex = 0; trackIndex < clipSpec.transformTracks.Length; trackIndex++)
+                    {
+                        TransformTrackSpec trackSpec = clipSpec.transformTracks[trackIndex];
+                        trackArray[trackIndex].targetIndex = trackSpec.targetIndex;
+                        trackArray[trackIndex].blendOp = trackSpec.blendOp;
+                        trackArray[trackIndex].channels = trackSpec.channels;
+
+                        BlobBuilderArray<TransformKeyBlob> keyArray =
+                            builder.Allocate(ref trackArray[trackIndex].keys, trackSpec.keys.Length);
+                        for (int keyIndex = 0; keyIndex < trackSpec.keys.Length; keyIndex++)
+                        {
+                            TransformKeySpec keySpec = trackSpec.keys[keyIndex];
+                            keyArray[keyIndex] = new TransformKeyBlob
+                            {
+                                normalizedTime = keySpec.normalizedTime,
+                                position = keySpec.position,
+                                rotationZ = keySpec.rotationZ,
+                                scale = keySpec.scale,
+                                interpolation = keySpec.interpolation
+                            };
+                        }
+                    }
+
                     builder.Allocate(ref clip.spriteTracks, 0);
 
                     BlobBuilderArray<EventMarkerBlob> eventArray =
@@ -117,8 +187,17 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     sortedClipIdArray[denseClipIndex] = clipSpec.clipId;
                 }
 
-                builder.Allocate(ref registryRoot.sortedTargetIds, 0);
-                builder.Allocate(ref registryRoot.targetBoundsExtents, 0);
+                // Target ids are 1-based so that dense index i belongs to id i + 1, which keeps the
+                // ids distinguishable from the indices in a failure message.
+                BlobBuilderArray<uint> sortedTargetIdArray =
+                    builder.Allocate(ref registryRoot.sortedTargetIds, targetCount);
+                BlobBuilderArray<float3> targetBoundsExtentsArray =
+                    builder.Allocate(ref registryRoot.targetBoundsExtents, targetCount);
+                for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
+                {
+                    sortedTargetIdArray[targetIndex] = (uint)(targetIndex + 1);
+                    targetBoundsExtentsArray[targetIndex] = new float3(0.5f, 0.5f, 0.5f);
+                }
                 registryRoot.vatInfo = new VatTextureInfoBlob
                 {
                     flavor = VatFlavor.BoneMatrix,
@@ -173,7 +252,84 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             entityManager.AddComponent<BoundsDirty>(actorEntity);
             entityManager.SetComponentEnabled<BoundsDirty>(actorEntity, false);
 
+            // The presentation half of the toolkit needs these three. They are added to every test
+            // actor so one builder serves both halves; the C4.3/C4.4 systems ignore them.
+            entityManager.AddBuffer<RigPartRef>(actorEntity);
+            entityManager.AddComponentData(actorEntity, new SampleSettings { rateHz = 0f, phase01 = 0f });
+            entityManager.AddComponent<AnimVisible>(actorEntity);
+            entityManager.SetComponentEnabled<AnimVisible>(actorEntity, true);
+
             return actorEntity;
+        }
+
+        /// <summary>
+        /// Creates a part entity bound to <paramref name="actorEntity"/> at
+        /// <paramref name="targetIndex"/>, carrying everything the presentation systems read and
+        /// write, and appends it to the actor's <see cref="RigPartRef"/> buffer.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The rest pose defaults to a <em>non-identity</em> one — offset from the origin, rotated,
+        /// and non-uniformly scaled. A fixture built on an identity rest pose cannot tell "the
+        /// system composited correctly" from "the system wrote the clip value and lost the rest
+        /// pose", because at the origin with unit scale the two produce the same numbers. That is
+        /// the shape of a test which passes under both the correct and the broken implementation.
+        /// </para>
+        /// <para>
+        /// <c>PostTransformMatrix</c> is seeded from the rest scale, which is what
+        /// <c>TransformUsageFlags.NonUniformScale</c> makes real transform baking do.
+        /// </para>
+        /// </remarks>
+        internal static Entity AddPart(
+            World world,
+            Entity actorEntity,
+            int targetIndex,
+            float3 restPosition = default,
+            float restRotationZ = 0f,
+            float2 restScale = default,
+            int restSliceIndex = 0)
+        {
+            EntityManager entityManager = world.EntityManager;
+
+            float2 resolvedRestScale = math.all(restScale == float2.zero) ? new float2(1f, 1f) : restScale;
+            TargetRestPose restPose = new TargetRestPose
+            {
+                localPosition = restPosition,
+                rotationZ = restRotationZ,
+                scale = resolvedRestScale,
+                restSliceIndex = restSliceIndex
+            };
+
+            Entity partEntity = entityManager.CreateEntity();
+            entityManager.AddComponentData(partEntity, new RigPartBinding
+            {
+                actorRoot = actorEntity,
+                targetIndex = targetIndex
+            });
+            entityManager.AddComponentData(partEntity, restPose);
+            entityManager.AddComponentData(partEntity, new TargetPose
+            {
+                localPosition = restPose.localPosition,
+                rotationZ = restPose.rotationZ,
+                scale = restPose.scale,
+                sliceIndex = restPose.restSliceIndex,
+                atlasRect = ClipSampler.IdentityAtlasRect
+            });
+            entityManager.AddComponentData(partEntity, LocalTransform.FromPosition(restPose.localPosition));
+            entityManager.AddComponentData(partEntity, new PostTransformMatrix
+            {
+                Value = float4x4.Scale(resolvedRestScale.x, resolvedRestScale.y, 1f)
+            });
+            entityManager.AddComponent<AnimVisible>(partEntity);
+            entityManager.SetComponentEnabled<AnimVisible>(partEntity, true);
+
+            entityManager.GetBuffer<RigPartRef>(actorEntity).Add(new RigPartRef
+            {
+                part = partEntity,
+                targetIndex = targetIndex
+            });
+
+            return partEntity;
         }
 
         /// <summary>The state the baker seeds an unplayed layer with.</summary>

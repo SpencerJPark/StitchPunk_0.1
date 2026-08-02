@@ -67,7 +67,31 @@ Each phase ends compile-clean with its tests green, verified through the Unity M
   - This is the second time in C4 that a defect was invisible from inside the system that contained it and only appeared when the *next* system had to consume its output — A28 was the first. Both were found by writing the consumer, not by re-reading the producer.
   - **Gate-process note.** The first PlayMode run of this gate wedged the Editor mid-play-mode-transition and had to be recovered with `manage_editor action=stop`; it also left an `Assets/InitTestScene<guid>.unity` behind, since deleted. Cause: `run_tests` was called immediately after `refresh_unity`, while the domain reload was still in flight, despite `refresh_unity` returning `success`. **Its return value is not a readiness signal.** Always poll `mcpforunity://editor/state` for `is_compiling: false` **and** a `last_domain_reload_after_unix_ms` newer than the compile before starting a job. The `stale_status` blocking reason on that resource is only snapshot freshness and can be ignored when every substantive field reads idle.
   - `EventEmissionSystem` **appends and enables only**, per A28. The two fixtures that pin it (`AResolveFailureRaisedEarlierInTheFrame_SurvivesEmission`, `EventsFromTheFrameBefore_AreGoneByTheNextEmission`) run `CommandApplySystem` and `PlaybackTimeSystem` in order alongside it, because neither contract is observable from one system alone.
-- **C4.5 — transform technique.** Sample + apply. First end-to-end visible motion.
+- **C4.5 — transform technique. ✅ DONE 2026-08-02.** `TransformSampleSystem` + `TransformApplySystem` + 11 fixtures in `TransformTechniqueTests`. **205 EditMode + 125 PlayMode, all passing.** Console clean.
+  - **Mutation-verified**, one run, four predicted failures and no others: deleting the `PostTransformMatrix` write fails `Apply_PutsNonUniformScaleInThePostTransformMatrix` (reporting `1.5` — the *rest* scale still sitting in the matrix, which is exactly the host's dead-scale symptom: the authored 2× silently does nothing); deleting `LocalTransform.Scale = 1f` fails `Apply_PinsLocalTransformScaleToOne` (`3.0` survives to double-apply); hardcoding target index 0 fails `EachPart_ReadsItsOwnTargetsTracks` (the hand reports the shoulder's `3.0`); deleting the `ShouldSample` guard fails `AQuantizedActor_SkipsFramesBetweenItsSampleTicks`.
+  - `PlaybackTestActor` gained transform-track specs and an `AddPart` builder whose rest poses are **deliberately non-identity** — offset, rotated, non-uniformly scaled. See the open question below for why that matters more than it looks.
+  - `TransformSampleSystem` carries no `UpdateAfter(AnimLodDistanceSystem)` edge yet: that type does not exist until C4.8. **C4.8 must add it** (§5.1's diagram orders sampling after LOD).
+
+### ⚠ OPEN QUESTION — `Override` track semantics (blocks nothing in C4.5, decides C4.6+ and all authoring)
+
+Building C4.5 surfaced a **contradiction between the normative spec and the shipped, gated sampler.** It does not affect the two systems built here — both call `ClipSampler.CompositeLayers` and are correct under either reading — but it decides what an animator's keys *mean*, so it needs the owner.
+
+**The spec says transform keys are offsets from the rest pose.** §3.2 types `position` as "x/y local offset"; §4.6 line 519 says an unkeyed target "in offset space sits at its rest pose, i.e. offset zero"; amendment A13 exists *entirely* because "transform keys hold local offsets from a target's rest pose, and rest poses live on the prefab", which is why `offsetBounds` is offset space and `ActorRestBounds` had to be invented.
+
+**The shipped sampler treats them as absolute local values.** `ClipSampler.ApplyClipToPose` does `pose.localPosition.x = sampledPosition.x` for an `Override` track — the rest position is seeded and then discarded. `ClipSamplerTests.SamplePose_OverrideTrack_ReplacesOnlyItsMaskedChannels` locks this in deliberately: rest `rotationZ` is 0.5, the key is 1.5, and the assertion is 1.5 — not 2.0.
+
+Both are load-bearing and they cannot both be right. Consequences:
+
+| | Override = absolute (shipped) | Override = rest + key (spec) |
+|---|---|---|
+| Authoring | every clip must key each part's full local position | clips are deltas; re-posing the rig's rest updates every clip coherently |
+| Re-proportioning a rig | silently ignored the moment a clip plays | works, which is the point of a cutout rig |
+| `offsetBounds` / A13 | premise is wrong — keyed boxes are already actor-space | correct as written |
+| Cost to change | one sampler branch, one EditMode assertion, and any clip authored so far | none |
+
+**Why no C1/C2 gate caught it:** every fixture in `LayerCompositionTests` uses a rest pose at the origin with unit scale, where the two readings produce identical numbers — the exact "passes under both the correct and the broken implementation" shape this module keeps re-teaching. Only `ClipSamplerTests` used a non-identity rest, and it encoded the shipped behaviour rather than the spec's.
+
+Deliberately **not** resolved unilaterally: it changes the authoring model rather than an implementation detail, and §12 R10 already flags semantic changes of this kind as host-migration cost. C4.6 (flipbook) is unaffected and can proceed either way.
 - **C4.6 — flipbook.** `SpriteMaterialSystem`.
 - **C4.7 — VAT + bounds.** `VatMaterialSystem`, `RenderBoundsUpdateSystem`.
 - **C4.8 — LOD.** `AnimLodDistanceSystem`.

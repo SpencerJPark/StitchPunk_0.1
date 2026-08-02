@@ -25,7 +25,19 @@ It holds the 14 pieces, the nine phases, the traps carried in from C3, and the t
   - `Runtime/Components/PlaybackLayer.cs` — **new field `advanceStartTime`** (A27), plus the matching row in `DataContractTests`.
   - Tests: `Tests/PlayMode/PlaybackTestActor.cs` (blob + actor fixture builder, PlayMode-local because the PlayMode asmdef cannot see `TestBlobFactory`), `CommandApplySystemTests.cs`, `PlaybackTimeSystemTests.cs`, `PlaybackQueryTests.cs`, and two structural tests appended to `SystemGroupStructureTests.cs`. Every fixture's doc comment names the mutation it catches, per the C4 standard.
 - ✅ **C4.4 events** — `Runtime/Systems/EventEmissionSystem.cs` (marker crossings from `[advanceStartTime, time]` + `ClipFinished`, appends and enables only per A28) and `Tests/PlayMode/EventEmissionSystemTests.cs` (12 fixtures). Writing it exposed a defect in C4.3's queue promotion → **amendment A30**, which changed `PlaybackTimeSystem` and its promotion fixtures. Gated with C4.3.
-- ⬜ C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+- ✅ **C4.5 transform technique** — `TransformSampleSystem` + `TransformApplySystem`, 11 fixtures, **mutation-verified** (four predicted failures, no others). The host's dead-scale regression is now pinned by a test: delete the `PostTransformMatrix` write and the authored 2× scale silently reverts to the rest 1.5×, which is precisely how it failed in the host game.
+- ⬜ C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+
+**C4.8 owes an ordering edge:** `TransformSampleSystem` has no `[UpdateAfter(typeof(AnimLodDistanceSystem))]` because that type does not exist yet. §5.1's diagram orders sampling after LOD — add it when C4.8 lands.
+
+## ⚠ OPEN QUESTION for the owner — what does a transform key mean?
+
+C4.5 surfaced a contradiction between the **normative spec** and the **shipped, gated sampler**. Full write-up with the consequence table is in the C4 plan; the short version:
+
+- Spec (§3.2, §4.6 line 519, and the whole rationale of amendment A13) says transform keys are **offsets from the rest pose**.
+- `ClipSampler.ApplyClipToPose` treats an `Override` key as an **absolute local value** — it seeds from rest and then discards it — and `ClipSamplerTests.SamplePose_OverrideTrack_ReplacesOnlyItsMaskedChannels` locks that in on purpose (rest rotation 0.5, key 1.5, asserts 1.5 not 2.0).
+
+Every `LayerCompositionTests` fixture uses an origin rest pose with unit scale, where both readings give identical numbers — which is why three gates missed it. **Do not "fix" this without the owner:** it decides whether re-posing a rig's rest updates its clips, i.e. the whole authoring model for cutout rigs. C4.6 is unaffected.
 
 **C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.5–4.8 autonomously; stop at 4.9.
 
