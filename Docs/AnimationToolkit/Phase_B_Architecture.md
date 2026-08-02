@@ -714,7 +714,7 @@ Per layer, the state machine has three states — **Stopped** (`!Active`), **Pla
 - **Play(layer, clip, speed, loop, blend):** resolve `clip` → `clipIndex` (binary search, §4.3). Resolution failure ⇒ layer untouched, one `AnimEventOutput { eventKey = ReservedEventKeys.ClipResolveFailed }` emitted (reserved keys: 0 = invalid, `ClipFinished = 1`, `ClipResolveFailed = 2`, 3–15 reserved for future built-ins; user keys start at 16 — validation rule V09). Success ⇒ current clip (if any and `blend > 0`) is demoted to the `previous*` fields with its running time/speed and the loop mode it was playing under (`previousLoop`, §5.2) — the demotion must happen **before** `layer.loop` is overwritten with the incoming request; new clip starts at `time = 0` (or `duration` when `speed < 0`); `blendElapsed = 0`, `blendDuration = blend` (NaN ⇒ new clip's `defaultBlendIn`). `blend == 0` ⇒ hard cut (the old `SetLayer` pop, still available).
 - **Queue(...):** stores into `queued*`; `HasQueued` flag. One-deep by design (a deeper queue is game-side state; documented).
 - **Stop(layer, blend):** `blend == 0` ⇒ immediate deactivate; else current clip becomes `previous*` fading to nothing over `blend`, `clipIndex = -1`.
-- **PlaybackTimeSystem** advances `time += dt × speed` and `previousTime` likewise; advances `blendElapsed`; when `blendElapsed ≥ blendDuration` clears the blend. Loop handling per `LoopMode`: `Loop` = fmod wrap (wrap count preserved for event emission); `Once` = clamp at end, set `Finished | FinishedThisFrame`, deactivate after emitting; `PingPong` = time accumulates and sampling reflects it (`SamplePingPong(t) = duration − |duration − fmod(t, 2·duration)|`), never finishes. On finish with `HasQueued`: promote the queued clip with its blend (a finish-triggered crossfade from the final pose). Empty-duration guard: durations are ≥ 1 ms by validation (V01), so the audit's `float.MaxValue` completion hack is structurally impossible — a resolve failure emits `ClipResolveFailed` and the layer stays inactive, and `ClipFinished` is a real event, replacing the comment-mediated combat contract (audit §6.6).
+- **PlaybackTimeSystem** advances `time += dt × speed` and `previousTime` likewise; advances `blendElapsed`; when `blendElapsed ≥ blendDuration` clears the blend. Loop handling per `LoopMode`: `Loop` = fmod wrap (wrap count preserved for event emission); `Once` = clamp at end, set `Finished | FinishedThisFrame`, deactivate after emitting; `PingPong` = time accumulates and sampling reflects it (`SamplePingPong(t) = duration − |duration − fmod(t, 2·duration)|`), never finishes. On finish with `HasQueued`: the layer stays active holding its final pose, and the queued clip is promoted with its blend at the top of the **next** advance (amendment A30) — a finish-triggered crossfade from the final pose. Empty-duration guard: durations are ≥ 1 ms by validation (V01), so the audit's `float.MaxValue` completion hack is structurally impossible — a resolve failure emits `ClipResolveFailed` and the layer stays inactive, and `ClipFinished` is a real event, replacing the comment-mediated combat contract (audit §6.6).
 - Timers are **never** gated on `AnimVisible` (audit-absorbed contract): off-screen actors keep exact time, and events keep firing.
 
 **API surface** (games never touch buffers by hand):
@@ -777,6 +777,19 @@ The alternatives were worse. Emitting the failure as a per-layer flag consumed b
 - **Stop clears the queue slot**, in both the immediate and the fading branch. A stopped layer that keeps a queued clip is armed to restart on its own the next time anything finishes.
 
 **To revert:** each is independent; the layer-index one is the only one with a defensible alternative (a new reserved key).
+
+**Amendment A30 (C4.4, 2026-08-02 — recorded under the owner's standing delegation of architecture calls; ratify or revert).** Queue promotion is deferred by one advance.
+
+§5.4 as written promotes the queued clip in the same advance that finishes the current one. `EventEmissionSystem` runs *after* that advance, in the same group, and reads the layer to decide what to emit — so an immediate promotion hands it a layer whose `clip`, `clipIndex`, `time` and `advanceStartTime` all belong to the follow-up. Two things break at once, both silently:
+
+- `ClipFinished` names the promoted clip, telling a game its *next* animation ended before it played a frame. This is the event combat code is built on (§6.6 in the audit), so the wrong id is worse than no event.
+- Every marker in the finishing clip's last segment is collected against the promoted clip's timeline instead — i.e. dropped. That segment is one frame long, but it is the frame containing anything authored at or near normalized time 1, which is where hit frames sit.
+
+`PlaybackTimeSystem` therefore raises `Finished | FinishedThisFrame`, leaves the layer active on its final pose, and promotes at the top of the next advance (guarded by `Finished && HasQueued`, so the completion cannot re-fire while it waits). The cost is one extra frame of the final pose, on hard-cut queues only — a blended promotion enters at weight 0, so nothing is visible either way, and a `Once` clip holds that pose regardless.
+
+The alternative was a `finishedClip` field on `PlaybackLayer`. It fixes the wrong-id half and not the dropped-marker half: recovering those needs the finished clip's dense index and its window as well, which is three more fields on the buffer element §12 R7 already names as the size risk.
+
+**To revert:** promote inside `AdvanceCurrentClip` again, and pay for it with either the three extra fields or a documented loss of both properties.
 
 ### 5.6 Transform technique (`TransformSampleSystem` → `TransformApplySystem`)
 

@@ -310,41 +310,70 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         // -------------------------------------------------------------------------------------
 
         /// <summary>
-        /// Catches: dropping the promotion. The queue would store a clip that never plays, and the
-        /// layer would simply stop at the end of the first one.
+        /// <strong>The deferral.</strong> Catches: promoting the queued clip in the same advance
+        /// that finished the previous one. <c>EventEmissionSystem</c> runs later in the same group,
+        /// so an immediate promotion hands it a layer that no longer names the clip that ended: the
+        /// <c>ClipFinished</c> event would name the follow-up, and every marker in the finishing
+        /// clip's last segment — where hit frames and footsteps sit — would be collected against the
+        /// wrong clip's timeline, i.e. dropped. On the finishing frame the layer must still be the
+        /// clip that finished.
         /// </summary>
         [Test]
-        public void AFinishedClipWithAQueuedFollowUp_PromotesIt()
+        public void TheFinishingFrame_StillNamesTheClipThatFinished()
         {
             SeedFinishingLayerWithQueue(queuedBlend: 0f, queuedLoop: LoopMode.Loop);
 
             Advance(0.5f);
 
             PlaybackLayer layer = GetLayer(0);
+            Assert.AreEqual(AttackClipIndex, layer.clipIndex, "The promotion must not have happened yet.");
+            Assert.AreEqual(AttackClipId, layer.clip.Value);
+            Assert.AreEqual(AttackDuration, layer.time, 1e-5f, "It holds its final pose.");
+            Assert.AreEqual(0.9f, layer.advanceStartTime, 1e-5f, "The finishing clip keeps its own event window.");
+            Assert.IsTrue((layer.flags & PlaybackFlags.FinishedThisFrame) != 0);
+            Assert.IsTrue((layer.flags & PlaybackFlags.HasQueued) != 0, "Still queued, not yet promoted.");
+            Assert.IsTrue((layer.flags & PlaybackFlags.Active) != 0, "A queued layer does not deactivate on finish.");
+        }
+
+        /// <summary>
+        /// Catches: dropping the promotion. The queue would store a clip that never plays, and the
+        /// layer would hold the first clip's final pose forever.
+        /// </summary>
+        [Test]
+        public void AFinishedClipWithAQueuedFollowUp_PromotesItOnTheNextAdvance()
+        {
+            SeedFinishingLayerWithQueue(queuedBlend: 0f, queuedLoop: LoopMode.Loop);
+
+            Advance(0.5f);
+            Advance(0.25f);
+
+            PlaybackLayer layer = GetLayer(0);
             Assert.AreEqual(WalkClipIndex, layer.clipIndex, "The queued clip is now the current clip.");
             Assert.AreEqual(WalkClipId, layer.clip.Value);
-            Assert.AreEqual(0f, layer.time, 1e-5f, "The promoted clip starts at its beginning.");
+            Assert.AreEqual(0.25f, layer.time, 1e-5f, "It starts at zero and takes this frame's advance.");
             Assert.IsTrue((layer.flags & PlaybackFlags.Active) != 0);
             Assert.IsTrue((layer.flags & PlaybackFlags.HasQueued) == 0, "The one-deep slot is now empty.");
             Assert.IsTrue((layer.flags & PlaybackFlags.Finished) == 0, "The layer is playing again, not finished.");
         }
 
         /// <summary>
-        /// Catches: clearing <c>FinishedThisFrame</c> during promotion. <c>EventEmissionSystem</c>
-        /// runs after this one and turns that pulse into <c>ClipFinished</c>; suppressing it means a
-        /// queued follow-up silently swallows the completion event of the clip it follows — the one
-        /// completion a game is most likely to have planned around.
+        /// Catches: re-raising the completion on every frame the layer sits finished-and-queued.
+        /// The pulse drives <c>ClipFinished</c>; repeated, a game that queues a follow-up hears the
+        /// previous clip end twice — and a combat consumer that swings on it swings twice.
         /// </summary>
         [Test]
-        public void APromotion_StillReportsTheClipThatFinished()
+        public void AFinishedQueuedLayer_ReportsItsCompletionOnlyOnce()
         {
             SeedFinishingLayerWithQueue(queuedBlend: 0f, queuedLoop: LoopMode.Loop);
 
             Advance(0.5f);
-
             Assert.IsTrue(
                 (GetLayer(0).flags & PlaybackFlags.FinishedThisFrame) != 0,
-                "The finished clip's completion must survive the promotion that follows it.");
+                "Guard: the completion must fire once for the absence of a second one to mean anything.");
+
+            Advance(0.25f);
+
+            Assert.IsTrue((GetLayer(0).flags & PlaybackFlags.FinishedThisFrame) == 0);
         }
 
         /// <summary>
@@ -360,6 +389,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             SeedFinishingLayerWithQueue(queuedBlend: 0.5f, queuedLoop: LoopMode.Loop);
 
             Advance(0.5f);
+            Advance(0.1f);
 
             PlaybackLayer layer = GetLayer(0);
             Assert.AreEqual(
@@ -381,9 +411,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         public void APromotion_DirtiesTheBounds()
         {
             SeedFinishingLayerWithQueue(queuedBlend: 0f, queuedLoop: LoopMode.Loop);
+            Advance(0.5f);
             testWorld.EntityManager.SetComponentEnabled<BoundsDirty>(actor, false);
 
-            Advance(0.5f);
+            Advance(0.25f);
 
             Assert.IsTrue(testWorld.EntityManager.IsComponentEnabled<BoundsDirty>(actor));
         }
@@ -429,7 +460,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         /// <summary>
         /// Catches: leaving <c>advanceStartTime</c> at the finished clip's time through a promotion.
         /// The promoted clip would be credited with a window running from the previous clip's end
-        /// time to zero — a backwards sweep across markers it never played.
+        /// time — a sweep across markers it never played, on the frame it starts.
         /// </summary>
         [Test]
         public void APromotion_RestartsTheEventWindowWithThePromotedClip()
@@ -437,10 +468,11 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             SeedFinishingLayerWithQueue(queuedBlend: 0f, queuedLoop: LoopMode.Loop);
 
             Advance(0.5f);
+            Advance(0.25f);
 
             PlaybackLayer layer = GetLayer(0);
-            Assert.AreEqual(0f, layer.advanceStartTime, 1e-5f);
-            Assert.AreEqual(0f, layer.time, 1e-5f);
+            Assert.AreEqual(0f, layer.advanceStartTime, 1e-5f, "The window opens where the promoted clip opens.");
+            Assert.AreEqual(0.25f, layer.time, 1e-5f);
         }
 
         // -------------------------------------------------------------------------------------

@@ -95,6 +95,15 @@ namespace StitchPunk.AnimationToolkit
                     continue;
                 }
 
+                // A clip that finished last frame with something queued behind it is promoted here,
+                // at the start of the advance — deliberately one frame after the completion, so that
+                // EventEmissionSystem got a whole frame to see the finished clip still in place.
+                if ((layer.flags & PlaybackFlags.Finished) != 0
+                    && (layer.flags & PlaybackFlags.HasQueued) != 0)
+                {
+                    PromoteQueuedClip(ref layer, ref registry, boundsDirtyEnabled);
+                }
+
                 if ((layer.flags & PlaybackFlags.Blending) != 0)
                 {
                     AdvanceBlend(ref layer, deltaTime, boundsDirtyEnabled);
@@ -188,9 +197,11 @@ namespace StitchPunk.AnimationToolkit
             layer.time = playingForward ? clip.duration : 0f;
             layer.flags |= PlaybackFlags.Finished | PlaybackFlags.FinishedThisFrame;
 
+            // A queued follow-up is promoted at the top of the NEXT advance, not here — see the
+            // remarks on PromoteQueuedClip. The layer stays active and holds its final pose until
+            // then, which is what a Once clip does anyway.
             if ((layer.flags & PlaybackFlags.HasQueued) != 0)
             {
-                PromoteQueuedClip(ref layer, ref registry, boundsDirtyEnabled);
                 return;
             }
 
@@ -204,12 +215,22 @@ namespace StitchPunk.AnimationToolkit
         /// </summary>
         /// <remarks>
         /// <para>
-        /// <see cref="PlaybackFlags.Finished"/> is cleared but
-        /// <see cref="PlaybackFlags.FinishedThisFrame"/> is not: the clip that just ended really did
-        /// end this frame, and <c>EventEmissionSystem</c> has not run yet. Suppressing the pulse
-        /// here would mean a queued follow-up silently swallows the <c>ClipFinished</c> event of the
-        /// clip it follows — the completion a game most wants to hear about, since it is the one it
-        /// planned around.
+        /// <strong>This runs one frame after the completion, not at it.</strong> The obvious design
+        /// — promote the instant the clip ends — replaces <see cref="PlaybackLayer.clip"/>,
+        /// <c>clipIndex</c>, <c>time</c> and <c>advanceStartTime</c> before
+        /// <c>EventEmissionSystem</c> has run, and that system runs later in the same group. It
+        /// would therefore find the follow-up where the finished clip used to be, and would emit
+        /// <c>ClipFinished</c> naming the wrong clip while silently dropping every marker in the
+        /// finishing clip's last segment — which is precisely where a hit frame or a footstep sits.
+        /// Deferring by one advance costs a single extra frame of the final pose, on hard-cut queues
+        /// only (a blended promotion enters at weight 0, so nothing is visible either way), and a
+        /// <see cref="LoopMode.Once"/> clip holds that pose regardless.
+        /// </para>
+        /// <para>
+        /// The alternative considered and rejected was a <c>finishedClip</c> field on
+        /// <see cref="PlaybackLayer"/>. It fixes the wrong-clip half and not the dropped-markers
+        /// half — recovering those needs the finished clip's index and window too — and section 12's
+        /// R7 already flags this buffer element's size as the thing to watch.
         /// </para>
         /// <para>
         /// A queued id that no longer resolves cannot happen through the API — <c>CommandApply</c>

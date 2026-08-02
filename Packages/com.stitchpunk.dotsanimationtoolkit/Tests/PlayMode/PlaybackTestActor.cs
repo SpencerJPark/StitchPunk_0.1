@@ -32,6 +32,30 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             internal LoopMode defaultLoop = LoopMode.Once;
             internal float defaultBlendIn;
             internal float defaultBlendOut;
+
+            /// <summary>Markers, which the bake guarantees are sorted ascending by normalized time.</summary>
+            internal EventSpec[] events = Array.Empty<EventSpec>();
+        }
+
+        /// <summary>Authoring-side description of one event marker.</summary>
+        internal struct EventSpec
+        {
+            internal float normalizedTime;
+            internal uint eventKey;
+            internal int intParam;
+            internal float floatParam;
+        }
+
+        /// <summary>Builds a marker at <paramref name="normalizedTime"/> carrying a user event key.</summary>
+        internal static EventSpec Marker(float normalizedTime, uint eventKey, int intParam = 0, float floatParam = 0f)
+        {
+            return new EventSpec
+            {
+                normalizedTime = normalizedTime,
+                eventKey = eventKey,
+                intParam = intParam,
+                floatParam = floatParam
+            };
         }
 
         /// <summary>
@@ -75,7 +99,21 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     clip.offsetBounds = new AABB { Center = float3.zero, Extents = float3.zero };
                     builder.Allocate(ref clip.transformTracks, 0);
                     builder.Allocate(ref clip.spriteTracks, 0);
-                    builder.Allocate(ref clip.events, 0);
+
+                    BlobBuilderArray<EventMarkerBlob> eventArray =
+                        builder.Allocate(ref clip.events, clipSpec.events.Length);
+                    for (int eventIndex = 0; eventIndex < clipSpec.events.Length; eventIndex++)
+                    {
+                        EventSpec eventSpec = clipSpec.events[eventIndex];
+                        eventArray[eventIndex] = new EventMarkerBlob
+                        {
+                            normalizedTime = eventSpec.normalizedTime,
+                            eventKey = eventSpec.eventKey,
+                            intParam = eventSpec.intParam,
+                            floatParam = eventSpec.floatParam
+                        };
+                    }
+
                     sortedClipIdArray[denseClipIndex] = clipSpec.clipId;
                 }
 

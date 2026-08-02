@@ -1,13 +1,13 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-02 (C4.3 closed)
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1, C4.2 and C4.3 done; C4.4 is next.**
+**Written:** 2026-08-02 (C4.3 closed, C4.4 written)
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1, C4.2, C4.3 done; C4.4 written but not compiled; C4.5 is next.**
 
 ## ⚠ Do these two things first, in this order
 
 **1. The Unity MCP was down for the whole of C4.3 and may still be.** Check `mcpforunity://instances` before planning anything. Through that phase the server answered but no Editor was registered (`instance_count: 0`, `read_console` → `no_unity_session`, `refresh_unity` → 60 s timeout) *with the Editor open, healthy and importing normally* — so it is the bridge inside the Editor, not the Editor. If it is still down, the owner has to reconnect it (Window ▸ MCP For Unity). C4.3's gate was run **by the owner in the Editor** instead: compiled clean, all tests passed.
 
-**2. C4.3's test count was never read, and its mutation run never happened.** Both are owed. Last count on record is `582e152`: **205 EditMode + 48 PlayMode = 253**. C4.3 adds 53 PlayMode fixtures and changes one EditMode assertion, so expect roughly **205 EditMode + 95 PlayMode** — confirm that, because `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived three static reviewers. Then mutate the two properties C4.3's fixtures claim to pin (see the plan's C4.3 entry): the `previousLoop` capture order, and the `BoundsDirty` conditionals. A green suite is not the same as a discriminating one — C4.2 proved its tests by breaking the code on purpose, and C4.3 has not.
+**2. No test count has been read since `582e152`, and C4.3's mutation run never happened.** Both are owed. Last count on record: **205 EditMode + 48 PlayMode = 253**. C4.3 adds 53 PlayMode fixtures and C4.4 another 13, so expect roughly **205 EditMode + 114 PlayMode** — confirm the number, because `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived three static reviewers. Then mutate the two properties C4.3's fixtures claim to pin (see the plan's C4.3 entry): the `previousLoop` capture order, and the `BoundsDirty` conditionals. A green suite is not the same as a discriminating one — C4.2 proved its tests by breaking the code on purpose; C4.3 and C4.4 have not.
 
 ## C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first
 
@@ -22,7 +22,8 @@ It holds the 14 pieces, the nine phases, the traps carried in from C3, and the t
   - `Runtime/Systems/PlaybackTimeSystem.cs` — blend advance, time advance, loop handling, Once completion, queue promotion. `UpdateAfter(CommandApplySystem)`.
   - `Runtime/Components/PlaybackLayer.cs` — **new field `advanceStartTime`** (A27), plus the matching row in `DataContractTests`.
   - Tests: `Tests/PlayMode/PlaybackTestActor.cs` (blob + actor fixture builder, PlayMode-local because the PlayMode asmdef cannot see `TestBlobFactory`), `CommandApplySystemTests.cs`, `PlaybackTimeSystemTests.cs`, `PlaybackQueryTests.cs`, and two structural tests appended to `SystemGroupStructureTests.cs`. Every fixture's doc comment names the mutation it catches, per the C4 standard.
-- ⬜ C4.4 events · C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+- 🔨 **C4.4 events — WRITTEN, NOT COMPILED.** `Runtime/Systems/EventEmissionSystem.cs` (marker crossings from `[advanceStartTime, time]` + `ClipFinished`, appends and enables only per A28) and `Tests/PlayMode/EventEmissionSystemTests.cs` (12 fixtures). Writing it exposed a defect in C4.3's queue promotion → **amendment A30**, which changed `PlaybackTimeSystem` and its promotion fixtures. Needs the same owner-run gate C4.3 got.
+- ⬜ C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
 
 **C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.3–4.8 autonomously; stop at 4.9.
 
@@ -34,6 +35,9 @@ Four amendments went into §5 of the architecture, all under the owner's standin
 - **A27 — the crossing window is `[layer.advanceStartTime, layer.time]`,** read off the layer, on the **current clip only**. Do not recompute the opening edge as `time − dt × speed`: that is wrong on exactly the frames where a Once clip clamps or a queue promotes. The crossfade source deliberately emits no markers (§12 R11).
 - A26 (pre-existing) — `PlaybackQuery.NormalizedTime` takes the registry.
 - A29 — out-of-range layer index dropped without an event; Queue resolves its clip; Stop clears the queue.
+- **A30 (C4.4) — queue promotion is deferred by one advance.** Found only by building the consumer: promoting in the same advance that finished the clip made `ClipFinished` name the follow-up and silently dropped the finishing clip's last-segment markers, which is where hit frames live. `PlaybackTimeSystem` now raises the completion, holds the final pose, and promotes at the top of the next advance.
+
+**The pattern to carry into C4.5–C4.8:** both A28 and A30 are defects that were invisible from inside the system containing them and only surfaced when the *next* system had to consume the output. Neither would have been caught by re-reading the producer, however carefully. When starting a phase, write down what the phase after it will need from you — that is where these live.
 
 ## The two traps — how C4.3 handled them
 
