@@ -9,7 +9,9 @@ Count: 7 (Reviewer A) + 1 (Reviewer B) + 1 (promoted during consolidation) + 1 (
 
 ---
 
-## Resolution — all 10 closed, 2026-08-01
+## Resolution — all 10 closed, 2026-08-01. **C3 IS CLOSED.**
+
+A25 ratified by the product owner 2026-08-01; no items remain open. Next module: **C4, the systems slice.**
 
 Fixed and verified the same day, in the same session as the gate. **Suite green in its real modes: 205 EditMode + 29 PlayMode = 234**, via `mcp__UnityMCP__run_tests` (PlayMode count is 27 + the two new mode assertions).
 
@@ -26,7 +28,7 @@ Fixed and verified the same day, in the same session as the gate. **Suite green 
 | 9 | `RigBindingSystem` present tense | All 7 references across 5 files marked forward-looking (C4). The two load-bearing ones now say what is true *today* as well as after C4. |
 | 10 | PlayMode suite gone | **Amendment A25** — see below. asmdef back to `[]`, conformance expectation updated, smoke test now asserts the mode. |
 
-### ⚠ Amendment A25 needs owner ratification
+### Amendment A25 — owner-ratified 2026-08-01
 
 Item 10's root cause was not carelessness. **Amendment A17 (owner-approved, 2026-07-30) is self-defeating.** It set `includePlatforms: ["Editor"]` deliberately, reasoning that a player build cannot run baking tests so declaring other platforms would be a lie — and it explicitly *rejected* "move the suite to EditMode" as too much normative surgery. But an editor-only assembly **is** an EditMode assembly to the Test Framework, so A17's implementation performed exactly the move A17 rejected, silently, without the surgery, leaving §8 M2 and §11.2 describing a PlayMode suite that no longer existed.
 

@@ -19,7 +19,7 @@
 
 ## Do this first
 
-> **UPDATE 2026-08-01: all 10 items are fixed and verified.** Suite green in its real modes — **205 EditMode + 29 PlayMode = 234**. See the Resolution table in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. **One thing needs the owner: ratify or reject amendment A25** (below). C3 is otherwise ready to close.
+> **UPDATE 2026-08-01: C3 IS CLOSED.** All 10 items fixed and verified; A25 owner-ratified. Suite green in its real modes — **205 EditMode + 29 PlayMode = 234**. See the Resolution table in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. Next module: **C4, the systems slice**.
 
 **~~Fix Gate 4's 10 blocking items, then C3 closes.~~** *(Done — kept for context.)* The full list with file:line citations is in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. In short:
 
