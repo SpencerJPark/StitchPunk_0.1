@@ -1,10 +1,10 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-01 (rewritten at C3 close; updated after C4.1)
-**Last commit:** `f23ce48`
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 is in progress — phase C4.1 of 9 is done.**
+**Written:** 2026-08-01 (rewritten at C3 close; updated after C4.2)
+**Last commit:** `582e152`
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 is in progress — phases C4.1 and C4.2 of 9 are done.**
 
-**Verified via the Unity MCP:** compile clean, **205 EditMode + 41 PlayMode = 246, all passing, each in its real mode.**
+**Verified via the Unity MCP:** compile clean, **205 EditMode + 48 PlayMode = 253, all passing, each in its real mode.**
 
 **C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first.** It holds the 14 pieces, the nine phases, the traps carried in from C3, and the test-integrity standard.
 - ✅ **C4.1 skeleton** — the four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
@@ -31,13 +31,13 @@
 
 ## C4 — the systems slice
 
-The runtime that makes baked actors actually animate: transform + flipbook end-to-end, events, bounds, LOD. `Packages/com.stitchpunk.dotsanimationtoolkit/Runtime/Systems/` **is currently an empty directory** — C4 fills it.
+The runtime that makes baked actors actually animate: transform + flipbook end-to-end, events, bounds, LOD. `Runtime/Systems/` now holds the four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem` and `RigBindingSystem`; the remaining eleven pieces are listed in the C4 plan.
 
 **Start by grepping §5 of the architecture** for the system list and their contracts, then §8 M3 for module ownership and §11.2 for the test obligations.
 
 ### Load-bearing facts C4 inherits
 
-- **`RigBindingSystem` is C4's, and five files already promise it exists.** Doc comments in `ActorAuthoring`, `ActorBaker`, `RigBindingBakingSystem`, `ActorStateComponents` and `PartComponents` reference it, now correctly marked forward-looking. It rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from the `LinkedEntityGroup` after ECB instantiation (instantiate does not remap entity references inside dynamic buffers), then disables the spawn-remap tag. **Until it lands, baked instances are correct but instantiated copies are not.**
+- **`RigBindingSystem` is C4's, and five files already promise it exists.** Doc comments in `ActorAuthoring`, `ActorBaker`, `RigBindingBakingSystem`, `ActorStateComponents` and `PartComponents` reference it, now correctly marked forward-looking. It rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from the `LinkedEntityGroup` after ECB instantiation (instantiate does not remap entity references inside dynamic buffers), then disables the spawn-remap tag. **Landed in C4.2.**
 - **`PlaybackLayer.previousLoop` is read-only until C4's `CommandApplySystem` writes it.** If C4 forgets, every outgoing clip reverts to its authored loop mode mid-crossfade.
 - **`RigPartRef` buffer order is unspecified.** C4 rebuilds it anyway; do not develop a dependency on bake order.
 - **Never write `offsetBounds` into `RenderBounds` directly** — it is offset space. `ActorRestBounds` is in actor space and C3 produces it.
