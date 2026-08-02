@@ -3,7 +3,9 @@
 **Run:** 2026-08-01 · **Scope:** `git diff 026a902..HEAD` over `Packages/com.stitchpunk.dotsanimationtoolkit` and `Docs/AnimationToolkit` (27 files, ~3,703 insertions)
 **Shape:** three narrow agents in parallel, one lens each, each appending to its own file as it went. All three completed — the first gate of the four attempted to do so.
 
-## Verdict: **FAIL** — 9 blocking items, 1 requiring a code change
+## Verdict: **FAIL** — 10 blocking items, 1 requiring a code change
+
+Count: 7 (Reviewer A) + 1 (Reviewer B) + 1 (promoted during consolidation) + 1 (found by execution) = **10**. The numbered list below is the authority; this line is derived from it.
 
 > **Item 10 was found by running the suite after the three lenses reported, and it is the most serious finding of the gate.** All three reviewers read the PlayMode asmdef and none caught it. Static review could not have: it is only visible when you ask the Test Runner what it discovers.
 

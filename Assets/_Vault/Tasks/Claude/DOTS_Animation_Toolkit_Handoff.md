@@ -2,12 +2,12 @@
 
 **Written:** 2026-08-01 (updated after Gate 4)
 **Last commit:** `bce381e`
-**State:** **Gate 4 ran to completion — all three lenses reported, and the suite was then run through the Unity MCP.** Verdict **FAIL: 9 blocking items.** Eight are documentation/test-input fixes. The ninth was found by *running* the tests and is the serious one: **the PlayMode suite does not exist** — all 27 "PlayMode" tests execute in EditMode, and a project-wide PlayMode run discovers zero tests. All three lenses read that asmdef and none caught it; static review could not. The four "do this first" items that had zero coverage across the entire third attempt are now all answered with `Library/PackageCache` citations.
+**State:** **Gate 4 ran to completion — all three lenses reported, and the suite was then run through the Unity MCP.** Verdict **FAIL: 10 blocking items.** Nine are documentation/test-input fixes. The tenth was found by *running* the tests and is the serious one: **the PlayMode suite does not exist** — all 27 "PlayMode" tests execute in EditMode, and a project-wide PlayMode run discovers zero tests. All three lenses read that asmdef and none caught it; static review could not. The four "do this first" items that had zero coverage across the entire third attempt are now all answered with `Library/PackageCache` citations.
 
 **Verified by execution (2026-08-01, via `mcp__UnityMCP__run_tests`):** 205 EditMode pass, 27 "PlayMode" pass *while running in EditMode*, 0 discovered in PlayMode. Total 232, all green — but the mode split every doc claims is wrong.
 
 **Read before doing anything:**
-- `Docs/AnimationToolkit/Phase_C3_Gate4.md` — **start here.** The consolidated Gate 4 verdict: the 8 blocking items, the four priority answers, the verified-clean list (do not re-litigate), and the A-4 ruling.
+- `Docs/AnimationToolkit/Phase_C3_Gate4.md` — **start here.** The consolidated Gate 4 verdict: the 10 blocking items, the four priority answers, the verified-clean list (do not re-litigate), and the A-4 ruling.
 - `Phase_C3_Gate4_ReviewerA_Spec.md` / `..._ReviewerB_Tests.md` / `..._ReviewerC_Code.md` — the three lenses verbatim.
 - `Docs/AnimationToolkit/Phase_C3_ReReview.md` — the second gate's FAIL. Superseded by Gate 4 but retained for history.
 - `Docs/AnimationToolkit/Phase_C3_Gate3_Incomplete.md` — the aborted third attempt.
@@ -19,14 +19,14 @@
 
 ## Do this first
 
-**Fix Gate 4's 8 blocking items, then C3 closes.** The full list with file:line citations is in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. In short:
+**Fix Gate 4's 10 blocking items, then C3 closes.** The full list with file:line citations is in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. In short:
 
 1. **Seven documentation fixes (Reviewer A).** The recurring one: "four diagnostics" in `Phase_B_Architecture.md:358` and `CHANGELOG.md:37` when there are three — contradicted by A22 twenty lines away in both files. **Third occurrence of the CHANGELOG-count defect across three gates.** Plus a stale ownership comment on the public `RigTargetAuthoring`, the A18↔A-4 contradiction, a false "nothing shipped uses reflection" claim, and F18's bad premise for making `RigPartBakeLink`/`ActorBakeFailed` public (same assembly, internal callers — they can be internal).
 2. **One test fix (Reviewer B).** `RenderPath_OnAPathOfSurrogatePairs_NeverEmitsALoneSurrogate` (`AuthoringPathTests.cs:151-184`) is non-discriminating — **a fresh instance of the exact A-4 failure mode, in this same module.** Delete the step-back at `AuthoringPathText.cs:106-109` and it still passes. Fix: an input whose retained region starts at an *odd* offset inside a pair.
 3. **`RigBindingSystem` doesn't exist yet** (`Runtime/Systems/` is empty) but seven doc comments reference it in the present tense, and it is the sole stated justification for two conclusions. Mark them forward-looking — it is C4's system.
 4. **Restore the PlayMode suite — do this before C4.** `aacde42` set `"includePlatforms": ["Editor"]` on `StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef:16`; an editor-only assembly is classified as EditMode, so the whole 27-test suite silently moved modes. Revert to `[]` and confirm PlayMode discovers 27. Then fix `PlayModeAssemblySmokeTest.cs:16-20`, which was supposed to guard exactly this and instead asserts only the assembly's *name* — equally true in EditMode, a third instance of the non-discriminating-test failure mode. Replace it with something that observes the mode (`Application.isPlaying` inside a `[UnityTest]`). **This gates C4:** the systems slice needs a real player-loop tick, and written against this asmdef its tests would run in EditMode too.
 
-**Do not re-run the gate lenses on what they cleared.** `Phase_C3_Gate4.md` has a "verified clean — do not re-litigate" section: the test counts (205 + 27 = 232, correct for the first time), amendments A18/A22/A23/A24, §1.3's Hybrid prohibition, the error harness including the threaded-log race, the rebake test, and hard-rule conformance.
+**Do not re-run the gate lenses on what they cleared.** `Phase_C3_Gate4.md` has a "verified clean — do not re-litigate" section: the test *counts* (232 total, numerically right for the first time — though the mode split is not, see item 4), amendments A18/A22/A23/A24, §1.3's Hybrid prohibition, the error harness including the threaded-log race, the rebake test, and hard-rule conformance.
 
 **The four priority items are answered** — see Gate 4 §"do this first". Headline: `ActorBakeFailed` **cannot** go stale (proven against `BakerState.Revert` / `BakedEntityData.cs:538-558`, including the asset-only-dependency path), and `AuthoringPathHash.Of` is byte-for-byte input-identical (the derivation change at the call site is A18, deliberate, and the package is unreleased so nothing shifts under a consumer).
 
@@ -40,9 +40,11 @@ The three-narrow-agents-in-parallel shape **worked** — all three lenses comple
 
 ## Verification status
 
-**Compile: clean.** **All tests pass** — owner ran both tabs 2026-07-31. Counts as of `bce381e`: **205 EditMode, 27 PlayMode** (26 baking acceptance + 1 smoke).
+**Compile: clean.** **All 232 tests pass** — re-run 2026-08-01 via `mcp__UnityMCP__run_tests`, superseding the owner's 2026-07-31 manual run.
 
-The PlayMode Console legitimately carries 4 toolkit errors and ~15 warnings after a run — several acceptance tests deliberately provoke a diagnostic and assert on it. Each such test declares its expected error count; every other test is held to zero. Do not "fix" those messages.
+⚠ **The 205/27 split below is how the suite is *labelled*, not how it runs.** Actual discovery at `bce381e`: **232 EditMode, 0 PlayMode.** The 27 acceptance tests (26 baking + 1 smoke) live in the PlayMode assembly and pass, but execute in EditMode — blocking item 4 above. The owner's 2026-07-31 "both tabs green" reading is consistent with this: a PlayMode tab that discovers zero tests reports Passed.
+
+The Console legitimately carries 4 toolkit errors and ~15 warnings after a run — several acceptance tests deliberately provoke a diagnostic and assert on it. Each such test declares its expected error count; every other test is held to zero. Do not "fix" those messages.
 
 Three things were confirmed at runtime rather than by inspection, via the diagnostic tally matching the fixtures exactly:
 - **A22's tag works** — `"no earlier message explained why"` never printed; without the tag the validation-errors fixture's three parts would each have produced it.
@@ -103,7 +105,7 @@ The aborted gate found two defects. Both were mine, both were introduced *by the
 - Build modules **C0–C8** in dependency order. Each is gated by an adversarial reviewer producing PASS/FAIL. **Reviewers are launched only when the owner asks.**
 - **Commit to `main` after each module passes its gate.** Nothing has been pushed.
 - **Pause after each module** so the owner can run the Editor compile and Test Runner.
-- **Phases done:** A, B, C0, C1, C2. **C3 is built, verified green, and gated — Gate 4 returned FAIL on 8 blocking items (see above); C3 closes once they are fixed.**
+- **Phases done:** A, B, C0, C1, C2. **C3 is built, verified green, and gated — Gate 4 returned FAIL on 10 blocking items (see above); C3 closes once they are fixed.**
 - After C3 closes: **C4, the systems slice** (transform + flipbook end-to-end, events, bounds, LOD).
 
 ## Unrelated host-game bug, still open
