@@ -102,13 +102,15 @@ namespace StitchPunk.AnimationToolkit
 
                 if (finishedThisFrame)
                 {
-                    // finishedClip, not layer.clip: a queue promotion has already replaced the
-                    // latter with the follow-up (amendment A30).
+                    // layer.clip is still the clip that finished, and that is a property of
+                    // amendment A30 rather than of this line: a queued follow-up is not promoted
+                    // until the next advance, precisely so that this event and the crossings above
+                    // it can be attributed to the clip they belong to.
                     animEvents.Add(new AnimEventOutput
                     {
                         eventKey = (uint)ReservedEventKeys.ClipFinished,
                         layerIndex = (byte)layerIndex,
-                        clip = layer.finishedClip,
+                        clip = layer.clip,
                         intParam = 0,
                         floatParam = 0f
                     });

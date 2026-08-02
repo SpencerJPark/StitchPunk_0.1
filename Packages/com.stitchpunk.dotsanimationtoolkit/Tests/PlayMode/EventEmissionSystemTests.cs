@@ -139,11 +139,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         [Test]
         public void AMarkerInTheLastSegmentOfAFinishingClip_StillFires()
         {
-            SeedActiveLayer(0, AttackClipIndex, AttackClipId, advanceStartTime: 0f, time: 0f, loop: LoopMode.Once);
-            PlaybackLayer seeded = GetLayer(0);
-            seeded.time = 0.9f;
-            seeded.advanceStartTime = 0.9f;
-            PlaybackTestActor.SetLayer(testWorld, actor, 0, seeded);
+            SeedActiveLayer(0, AttackClipIndex, AttackClipId, advanceStartTime: 0.9f, time: 0.9f, loop: LoopMode.Once);
 
             // A full frame: the advance clamps at the end and raises the completion, then emission
             // reads the window the advance recorded.
