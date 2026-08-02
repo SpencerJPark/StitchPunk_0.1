@@ -8,7 +8,7 @@
 
 **C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first.** It holds the 14 pieces, the nine phases, the traps carried in from C3, and the test-integrity standard.
 - ✅ **C4.1 skeleton** — the four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
-- ⬜ **C4.2 binding** — `RigBindingSystem` (§5.3). **Next.** Five files already promise this system exists; it rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after ECB instantiation, re-derives `phase01` per instance, then disables `RigBindingUninitialized`. Until it lands, baked instances are correct but instantiated copies are not.
+- ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, mutation-verified. Five files already promise this system exists; it rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after ECB instantiation, re-derives `phase01` per instance, then disables `RigBindingUninitialized`. Until it lands, baked instances are correct but instantiated copies are not.
 - ⬜ C4.3 playback core · C4.4 events · C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
 
 ---
