@@ -731,10 +731,20 @@ public static class AnimationCommandUtil        // Burst-compatible; callable fr
 public static class PlaybackQuery               // read-side helpers over the PlaybackLayer buffer
 {
     public static bool IsPlaying(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex, ClipId clip);
-    public static float NormalizedTime(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex);
+    public static float NormalizedTime(in DynamicBuffer<PlaybackLayer> layers, ref ClipRegistryBlob registry, byte layerIndex);   // A26
     public static bool FinishedThisFrame(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex);
 }
 ```
+
+**Amendment A26 (C4.3, 2026-08-01 — recorded under the owner's standing delegation of architecture calls; ratify or revert).** `PlaybackQuery.NormalizedTime` takes the clip registry.
+
+The signature as first written cannot be implemented. `PlaybackLayer.time` is **seconds on the un-wrapped timeline**; normalising it requires the clip's `duration`, which lives in `ClipBlob` inside the registry blob and is reachable from nothing the layer buffer holds. The three candidate ways to honour the original signature are all worse than changing it: caching a duration on the layer duplicates blob data and gives it a second place to go stale; returning raw seconds makes the name a lie; and returning 0 for "unknown" hands callers a plausible-looking wrong number, which is the failure mode this package has spent four gates removing.
+
+Callers already hold the registry — it is a component on the same actor root (`ClipRegistry.Value`), so the parameter costs a caller nothing they were not already carrying.
+
+Behaviour pinned: an inactive layer, an unresolved `clipIndex` (−1), or a zero/negative duration returns 0. Validation rule V01 guarantees durations of at least 1 ms, so the zero-duration branch is unreachable through the authoring pipeline and exists only to keep a hand-built or corrupted registry from dividing by zero.
+
+**To revert:** restore the two-parameter signature and pick one of the three alternatives above, accepting its cost explicitly.
 
 ### 5.5 Events (`EventEmissionSystem`)
 
