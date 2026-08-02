@@ -1,29 +1,37 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-01
+**Written:** 2026-08-01 (updated after Gate 4)
 **Last commit:** `bce381e`
-**State:** C3's rework is complete and verified green. **The C3 gate has NOT been run** — the review was launched and died on a usage limit after producing two findings out of three reviewers. Both findings were real, were verified, and are fixed. The rest of C3 is unreviewed.
+**State:** **Gate 4 ran to completion — all three lenses reported.** Verdict **FAIL: 8 blocking items, none requiring rework of shipped behaviour.** The code is sound; the documentation around it is not. The four "do this first" items that had zero coverage across the entire third attempt are now all answered, with citations into `Library/PackageCache`.
 
 **Read before doing anything:**
-- `Docs/AnimationToolkit/Phase_C3_ReReview.md` — the second gate's FAIL, three reviewers verbatim. Still the definitive list of what C3 was rejected for.
-- `Docs/AnimationToolkit/Phase_C3_Gate3_Incomplete.md` — the aborted third attempt. Two findings, then nothing.
+- `Docs/AnimationToolkit/Phase_C3_Gate4.md` — **start here.** The consolidated Gate 4 verdict: the 8 blocking items, the four priority answers, the verified-clean list (do not re-litigate), and the A-4 ruling.
+- `Phase_C3_Gate4_ReviewerA_Spec.md` / `..._ReviewerB_Tests.md` / `..._ReviewerC_Code.md` — the three lenses verbatim.
+- `Docs/AnimationToolkit/Phase_C3_ReReview.md` — the second gate's FAIL. Superseded by Gate 4 but retained for history.
+- `Docs/AnimationToolkit/Phase_C3_Gate3_Incomplete.md` — the aborted third attempt.
 - `Docs/AnimationToolkit/Phase_B_Architecture.md` — the normative spec. **111 KB — never read whole.** Grep headings, then Read with offset/limit.
 
 ---
 
+
+
 ## Do this first
 
-**Re-run the three-way gate review.** It is the only thing standing between C3 and closed. Everything else below is context for it.
+**Fix Gate 4's 8 blocking items, then C3 closes.** The full list with file:line citations is in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. In short:
 
-Launch **three narrow agents in parallel**, one per lens — spec conformance, test integrity, code correctness — each appending findings to its own scratchpad file *as it goes*. This shape is not optional: two monolithic reviewers were killed by a watchdog and lost everything, and the third attempt lost Reviewer C entirely to a usage limit. Incremental writes are what survive. **Copy the results into `Docs/AnimationToolkit/` before the session ends; scratchpads do not survive.**
+1. **Seven documentation fixes (Reviewer A).** The recurring one: "four diagnostics" in `Phase_B_Architecture.md:358` and `CHANGELOG.md:37` when there are three — contradicted by A22 twenty lines away in both files. **Third occurrence of the CHANGELOG-count defect across three gates.** Plus a stale ownership comment on the public `RigTargetAuthoring`, the A18↔A-4 contradiction, a false "nothing shipped uses reflection" claim, and F18's bad premise for making `RigPartBakeLink`/`ActorBakeFailed` public (same assembly, internal callers — they can be internal).
+2. **One test fix (Reviewer B).** `RenderPath_OnAPathOfSurrogatePairs_NeverEmitsALoneSurrogate` (`AuthoringPathTests.cs:151-184`) is non-discriminating — **a fresh instance of the exact A-4 failure mode, in this same module.** Delete the step-back at `AuthoringPathText.cs:106-109` and it still passes. Fix: an input whose retained region starts at an *odd* offset inside a pair.
+3. **`RigBindingSystem` doesn't exist yet** (`Runtime/Systems/` is empty) but seven doc comments reference it in the present tense, and it is the sole stated justification for two conclusions. Mark them forward-looking — it is C4's system.
 
-Scope: `git diff 026a902..HEAD` over `Packages/com.stitchpunk.dotsanimationtoolkit` and `Docs/AnimationToolkit`.
+**Do not re-run the gate lenses on what they cleared.** `Phase_C3_Gate4.md` has a "verified clean — do not re-litigate" section: the test counts (205 + 27 = 232, correct for the first time), amendments A18/A22/A23/A24, §1.3's Hybrid prohibition, the error harness including the threaded-log race, the rebake test, and hard-rule conformance.
 
-**Reviewer C's lens has had zero coverage across the entire third attempt.** Point it hardest at:
-1. **Can `ActorBakeFailed` go stale?** `ActorBaker.MarkBakeFailed` writes a `[BakingType]` tag on its three bail-out paths. If that tag survives an incremental re-bake that then *succeeds*, `RigBindingBakingSystem` would suppress a genuine diagnostic forever. I believe Entities reverts a baker's components when it re-runs, but **I did not verify it against `BakedEntityData`/`BakeDependencies` sources.** This is the single most likely place a real defect is hiding.
-2. **Did the `IBaker` refactor change the hash value?** It must not — baked data would shift silently. The walk order should be identical (leaf, then `GetParents` in order), but confirm.
-3. `AuthoringPathText.TakeTrailingBytes` — surrogate handling, the `candidateIndex > 0` condition, the `.../` marker arithmetic.
-4. `ComponentLookup<ActorBakeFailed>.HasComponent` on a zero-sized tag inside a `[BurstCompile]` `IJobEntity` — confirm Burst-legal against Entities source.
+**The four priority items are answered** — see Gate 4 §"do this first". Headline: `ActorBakeFailed` **cannot** go stale (proven against `BakerState.Revert` / `BakedEntityData.cs:538-558`, including the asset-only-dependency path), and `AuthoringPathHash.Of` is byte-for-byte input-identical (the derivation change at the call site is A18, deliberate, and the package is unreleased so nothing shifts under a consumer).
+
+**A-4 is ruled and closed:** keep the shift; do not write the test; cut the 14-line comment at `ActorBaker.cs:524-541` to two and move the reasoning into the spec.
+
+### If a future gate is needed
+
+The three-narrow-agents-in-parallel shape **worked** — all three lenses completed for the first time in four attempts, where two monolithic reviewers were killed by a watchdog and a third died on a usage limit. Keep it: one agent per lens, each appending to its own scratchpad file *as it goes*, and copy results into `Docs/AnimationToolkit/` before the session ends — scratchpads do not survive. Snapshot partials mid-flight; it costs nothing.
 
 ---
 
@@ -81,8 +89,8 @@ The aborted gate found two defects. Both were mine, both were introduced *by the
 
 ## Environment gotchas
 
-- **No Unity MCP, no Editor bridge.** Never attempt `mcp__unity-mcp__*`. The compile gate is: the owner focuses Unity, then grep `Logs/Editor.log` for `error CS` / `BC`. Anything visual, ask.
-- **The Editor log is project-relative:** `Logs/Editor.log`. The `%LOCALAPPDATA%` one is a stub whose last line says so — grepping it always returns clean, which reads as success and is not. Check its mtime against your edits before believing it.
+- **Unity MCP is connected** (verified 2026-08-01): `mcp__UnityMCP__*` over HTTP at `127.0.0.1:8080`. The compile gate is `mcp__UnityMCP__read_console`; `refresh_unity` triggers the recompile, `run_tests`/`get_test_job` drive the Test Runner. The old `mcp__unity-mcp__*` stdio relay is dead and removed — do not fall back to it. Anything genuinely visual, still ask.
+- **Fallback when the Editor is closed or the MCP is unreachable:** grep `Logs/Editor.log` — project-relative. The `%LOCALAPPDATA%` one is a stub whose last line says so — grepping it always returns clean, which reads as success and is not. Check its mtime against your edits before believing it.
 - **Grep `Library/PackageCache/<pkg>@<hash>/` before calling any Unity API.** The two worst bugs in this package — a non-existent `Baker.GetComponentsInChildren<T>(bool)` overload and the `FixedString` byte-vs-character overflow — both came from recalling semantics instead of reading them. Both were one grep away.
 - **A Bursted baking system's diagnostics are invisible to `Application.logMessageReceived`** (main-thread only). Use `logMessageReceivedThreaded`.
 - **`LogAssert.ignoreFailingMessages` set in `[SetUp]` does nothing** — UTF disposes that `LogScope` before the test body runs.
@@ -92,7 +100,7 @@ The aborted gate found two defects. Both were mine, both were introduced *by the
 - Build modules **C0–C8** in dependency order. Each is gated by an adversarial reviewer producing PASS/FAIL. **Reviewers are launched only when the owner asks.**
 - **Commit to `main` after each module passes its gate.** Nothing has been pushed.
 - **Pause after each module** so the owner can run the Editor compile and Test Runner.
-- **Phases done:** A, B, C0, C1, C2. **C3 is built, verified green, and awaiting its gate.**
+- **Phases done:** A, B, C0, C1, C2. **C3 is built, verified green, and gated — Gate 4 returned FAIL on 8 blocking items (see above); C3 closes once they are fixed.**
 - After C3 closes: **C4, the systems slice** (transform + flipbook end-to-end, events, bounds, LOD).
 
 ## Unrelated host-game bug, still open
