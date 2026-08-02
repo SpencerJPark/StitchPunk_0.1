@@ -206,8 +206,15 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             Assert.AreEqual(0f, pose.atlasRect.w, Tolerance);
         }
 
+        /// <summary>
+        /// Pins both halves of amendment A31 at once on a <em>non-identity</em> rest pose: the
+        /// masked channel is <c>rest + key</c> (0.5 + 1.5), and unmasked channels are left at rest
+        /// untouched. A fixture resting at the origin with unit scale could not tell the first half
+        /// from "the key replaces rest outright", which is how the two readings coexisted for three
+        /// gates.
+        /// </summary>
         [Test]
-        public void SamplePose_OverrideTrack_ReplacesOnlyItsMaskedChannels()
+        public void SamplePose_OverrideTrack_OffsetsItsMaskedChannelsFromRest()
         {
             clipReference = TestBlobFactory.BuildClip(new TestBlobFactory.ClipSpec
             {
@@ -228,7 +235,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             ClipSampler.SamplePose(
                 ref clipReference.Value, 0, 0.5f, RestPose(), out TargetPose pose);
 
-            Assert.AreEqual(1.5f, pose.rotationZ, Tolerance, "The masked rotation channel applies.");
+            Assert.AreEqual(
+                2f,
+                pose.rotationZ,
+                Tolerance,
+                "An Override key is an offset from rest: 0.5 rest + 1.5 key. Reading 1.5 here means " +
+                "the key replaced the rest pose instead of offsetting from it (amendment A31).");
             Assert.AreEqual(10f, pose.localPosition.x, Tolerance, "Unmasked position stays at rest.");
             Assert.AreEqual(20f, pose.localPosition.y, Tolerance, "Unmasked position stays at rest.");
             Assert.AreEqual(3f, pose.localPosition.z, Tolerance, "Unmasked layer z stays at rest.");

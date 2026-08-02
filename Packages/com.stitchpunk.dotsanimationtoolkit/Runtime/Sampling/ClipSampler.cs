@@ -237,20 +237,46 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>
         /// Applies every track of one clip bound to a target onto an existing pose, in canonical
         /// order — transform tracks before sprite tracks, all tracks applied, no first-match break
-        /// (architecture sections 4.5, 5.6). <see cref="TrackBlendOp.Override"/> tracks replace
-        /// exactly the channels in their mask; <see cref="TrackBlendOp.Additive"/> tracks add
-        /// position/rotation and multiply scale on the masked channels, onto the incoming
-        /// composited pose.
+        /// (architecture sections 4.5, 5.6).
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Keys are offsets from the rest pose, never absolute local values</strong>
+        /// (architecture sections 3.2, 4.6; amendment A31). The two track ops differ in what they
+        /// anchor to, not in whether the key is a delta:
+        /// </para>
+        /// <list type="bullet">
+        /// <item><description>
+        /// <see cref="TrackBlendOp.Override"/> anchors to the <em>rest pose</em>, so the masked
+        /// channels become <c>rest + key</c> (scale: <c>rest × key</c>) and whatever lower layers
+        /// composited into those channels is replaced.
+        /// </description></item>
+        /// <item><description>
+        /// <see cref="TrackBlendOp.Additive"/> anchors to the <em>incoming composited pose</em>, so
+        /// the masked channels become <c>composited + key</c> (scale: <c>composited × key</c>).
+        /// </description></item>
+        /// </list>
+        /// <para>
+        /// Channels outside the mask are untouched by either op, so they keep whatever the layers
+        /// below left there — which for the bottom layer is the rest pose the composition seeded.
+        /// </para>
+        /// <para>
+        /// This is why <paramref name="restPose"/> is a parameter rather than something the caller
+        /// could bake into the incoming pose: an Override track must reach past every lower layer's
+        /// contribution to the rest value, which the incoming pose no longer carries.
+        /// </para>
+        /// </remarks>
         /// <param name="clip">The clip whose tracks to apply.</param>
         /// <param name="targetIndex">The part's dense target index.</param>
         /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
+        /// <param name="restPose">The part's rest pose — the frame Override keys are offsets from.</param>
         /// <param name="pose">The pose the tracks apply onto.</param>
         [BurstCompile]
         public static void ApplyClipToPose(
             ref ClipBlob clip,
             int targetIndex,
             float normalizedTime,
+            in TargetRestPose restPose,
             ref TargetPose pose)
         {
             for (int trackIndex = 0; trackIndex < clip.transformTracks.Length; trackIndex++)
@@ -268,23 +294,34 @@ namespace StitchPunk.AnimationToolkit
                     out float sampledRotationZ,
                     out float2 sampledScale);
 
+                // The only difference between the two ops is the frame the key is added to: the
+                // rest pose for Override, the composited-so-far pose for Additive. Both treat the
+                // key as a delta (amendment A31).
                 bool isAdditive = track.blendOp == TrackBlendOp.Additive;
                 if ((track.channels & AnimatedChannels.PositionXY) != 0)
                 {
-                    pose.localPosition.x = isAdditive ? pose.localPosition.x + sampledPosition.x : sampledPosition.x;
-                    pose.localPosition.y = isAdditive ? pose.localPosition.y + sampledPosition.y : sampledPosition.y;
+                    float2 positionAnchorXY = isAdditive
+                        ? pose.localPosition.xy
+                        : restPose.localPosition.xy;
+                    pose.localPosition.x = positionAnchorXY.x + sampledPosition.x;
+                    pose.localPosition.y = positionAnchorXY.y + sampledPosition.y;
                 }
                 if ((track.channels & AnimatedChannels.LayerZ) != 0)
                 {
-                    pose.localPosition.z = isAdditive ? pose.localPosition.z + sampledPosition.z : sampledPosition.z;
+                    float layerZAnchor = isAdditive ? pose.localPosition.z : restPose.localPosition.z;
+                    pose.localPosition.z = layerZAnchor + sampledPosition.z;
                 }
                 if ((track.channels & AnimatedChannels.RotationZ) != 0)
                 {
-                    pose.rotationZ = isAdditive ? pose.rotationZ + sampledRotationZ : sampledRotationZ;
+                    float rotationAnchor = isAdditive ? pose.rotationZ : restPose.rotationZ;
+                    pose.rotationZ = rotationAnchor + sampledRotationZ;
                 }
                 if ((track.channels & AnimatedChannels.Scale) != 0)
                 {
-                    pose.scale = isAdditive ? pose.scale * sampledScale : sampledScale;
+                    // Scale composes multiplicatively, so its identity is 1 and its "delta" is a
+                    // factor — an unkeyed scale curve authored at 1 leaves the rest scale alone.
+                    float2 scaleAnchor = isAdditive ? pose.scale : restPose.scale;
+                    pose.scale = scaleAnchor * sampledScale;
                 }
             }
 
@@ -318,7 +355,7 @@ namespace StitchPunk.AnimationToolkit
             out TargetPose pose)
         {
             RestToPose(in rest, out pose);
-            ApplyClipToPose(ref clip, targetIndex, normalizedTime, ref pose);
+            ApplyClipToPose(ref clip, targetIndex, normalizedTime, in rest, ref pose);
         }
 
         /// <summary>
@@ -351,9 +388,11 @@ namespace StitchPunk.AnimationToolkit
         /// pose independently and the two results lerp by
         /// <c>blendElapsed / blendDuration</c> before compositing continues. A fading-out layer
         /// with no current clip (<see cref="PlaybackLayer.clipIndex"/> = −1) lerps toward the
-        /// incoming pose. The current clip's time maps through its resolved loop mode; the
-        /// previous clip maps through its own authored default (the layer stores no previous loop
-        /// mode).
+        /// incoming pose. Each clip's time maps through the loop mode it is actually playing
+        /// under — the current clip through <see cref="PlaybackLayer.loop"/>, the crossfade source
+        /// through <see cref="PlaybackLayer.previousLoop"/>, which is captured when the clip is
+        /// demoted precisely so the outgoing side does not fade out under the incoming request's
+        /// mode.
         /// </summary>
         /// <param name="registry">The actor's baked clip registry.</param>
         /// <param name="layers">The actor's playback layers (buffer index = layer index); pass a <c>DynamicBuffer</c> via <c>AsNativeArray()</c>.</param>
@@ -384,7 +423,7 @@ namespace StitchPunk.AnimationToolkit
                     ref ClipBlob currentClip = ref registry.clips[layer.clipIndex];
                     LoopMode currentLoopMode = ResolveLoopMode(layer.loop, currentClip.defaultLoop);
                     float currentNormalizedTime = MapTimeNormalized(layer.time, currentClip.duration, currentLoopMode);
-                    ApplyClipToPose(ref currentClip, targetIndex, currentNormalizedTime, ref currentPose);
+                    ApplyClipToPose(ref currentClip, targetIndex, currentNormalizedTime, in restPose, ref currentPose);
                 }
 
                 bool isBlending = (layer.flags & PlaybackFlags.Blending) != 0 && layer.blendDuration > 0f;
@@ -400,7 +439,8 @@ namespace StitchPunk.AnimationToolkit
                         LoopMode previousLoopMode = ResolveLoopMode(layer.previousLoop, previousClip.defaultLoop);
                         float previousNormalizedTime = MapTimeNormalized(
                             layer.previousTime, previousClip.duration, previousLoopMode);
-                        ApplyClipToPose(ref previousClip, targetIndex, previousNormalizedTime, ref previousPose);
+                        ApplyClipToPose(
+                            ref previousClip, targetIndex, previousNormalizedTime, in restPose, ref previousPose);
                     }
                     float blendWeight = math.saturate(layer.blendElapsed / layer.blendDuration);
                     LerpPose(in previousPose, in currentPose, blendWeight, out pose);

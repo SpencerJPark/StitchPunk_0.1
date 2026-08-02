@@ -72,9 +72,17 @@ Each phase ends compile-clean with its tests green, verified through the Unity M
   - `PlaybackTestActor` gained transform-track specs and an `AddPart` builder whose rest poses are **deliberately non-identity** — offset, rotated, non-uniformly scaled. See the open question below for why that matters more than it looks.
   - `TransformSampleSystem` carries no `UpdateAfter(AnimLodDistanceSystem)` edge yet: that type does not exist until C4.8. **C4.8 must add it** (§5.1's diagram orders sampling after LOD).
 
-### ⚠ OPEN QUESTION — `Override` track semantics (blocks nothing in C4.5, decides C4.6+ and all authoring)
+### ✅ RESOLVED — `Override` track semantics → amendment A31 (owner-approved 2026-08-02)
 
-Building C4.5 surfaced a **contradiction between the normative spec and the shipped, gated sampler.** It does not affect the two systems built here — both call `ClipSampler.CompositeLayers` and are correct under either reading — but it decides what an animator's keys *mean*, so it needs the owner.
+**Outcome: keys are offsets from the rest pose, and the sampler was changed to match the spec.** `ApplyClipToPose` now takes the rest pose; an `Override` track writes `rest + key` (scale `rest × key`), `Additive` still anchors to the composited pose below. The deciding consequence: under the absolute reading, re-posing a rig's rest — moving a shoulder, re-proportioning a limb — is silently ignored the moment any clip plays, which defeats the point of a cutout rig. It also leaves A13 and `offsetBounds` correct as written instead of requiring both to be rewritten.
+
+**Verified by mutation, and this is the important part.** Reverting all four `Override` anchors to the old absolute behaviour now fails **ten** tests — 4 EditMode (`SamplePose_OverrideTrack_OffsetsItsMaskedChannelsFromRest`, `CompositeLayers_UpperOverride_AnchorsToRestNotToTheLayerBelow`, `CompositeLayers_AdditiveUpperLayer_StillAnchorsToTheCompositedResult`, `CompositeLayers_OverrideScale_MultipliesTheRestScale`) and 6 PlayMode. Before this phase the same change failed **nothing**. `Apply_PreservesNegativeScaleSoPartsCanFlip` correctly stayed green, its track having no scale channel.
+
+The historical record of the conflict is kept below, because the *reason it survived three gates* is the reusable lesson.
+
+---
+
+Building C4.5 surfaced a **contradiction between the normative spec and the shipped, gated sampler.** It did not affect the two systems built here — both call `ClipSampler.CompositeLayers` and are correct under either reading — but it decided what an animator's keys *mean*, so it went to the owner.
 
 **The spec says transform keys are offsets from the rest pose.** §3.2 types `position` as "x/y local offset"; §4.6 line 519 says an unkeyed target "in offset space sits at its rest pose, i.e. offset zero"; amendment A13 exists *entirely* because "transform keys hold local offsets from a target's rest pose, and rest poses live on the prefab", which is why `offsetBounds` is offset space and `ActorRestBounds` had to be invented.
 
@@ -91,7 +99,9 @@ Both are load-bearing and they cannot both be right. Consequences:
 
 **Why no C1/C2 gate caught it:** every fixture in `LayerCompositionTests` uses a rest pose at the origin with unit scale, where the two readings produce identical numbers — the exact "passes under both the correct and the broken implementation" shape this module keeps re-teaching. Only `ClipSamplerTests` used a non-identity rest, and it encoded the shipped behaviour rather than the spec's.
 
-Deliberately **not** resolved unilaterally: it changes the authoring model rather than an implementation detail, and §12 R10 already flags semantic changes of this kind as host-migration cost. C4.6 (flipbook) is unaffected and can proceed either way.
+Deliberately **not** resolved unilaterally: it changed the authoring model rather than an implementation detail, and §12 R10 already flags semantic changes of this kind as host-migration cost.
+
+**The reusable lesson.** Two of C4's three defects (A28, A30) were invisible from inside the system that contained them and only appeared when the *next* system consumed their output. This one is the third kind: invisible because **every fixture used the identity case**. An origin rest pose with unit scale makes `rest + key` and `key` the same number, so the entire Override semantics were untested while looking thoroughly tested. When a fixture picks a "simple" value for something the code branches on — zero, one, identity, empty — check whether that choice is what makes the assertion pass.
 - **C4.6 — flipbook.** `SpriteMaterialSystem`.
 - **C4.7 — VAT + bounds.** `VatMaterialSystem`, `RenderBoundsUpdateSystem`.
 - **C4.8 — LOD.** `AnimLodDistanceSystem`.

@@ -277,17 +277,114 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
         private TargetPose Composite(PlaybackLayer[] layerSource)
         {
+            return Composite(layerSource, RestPose());
+        }
+
+        private TargetPose Composite(PlaybackLayer[] layerSource, TargetRestPose restPose)
+        {
             NativeArray<PlaybackLayer> layers = new NativeArray<PlaybackLayer>(layerSource, Allocator.Temp);
             try
             {
                 ClipSampler.CompositeLayers(
-                    ref registryReference.Value, in layers, 0, RestPose(), out TargetPose pose);
+                    ref registryReference.Value, in layers, 0, restPose, out TargetPose pose);
                 return pose;
             }
             finally
             {
                 layers.Dispose();
             }
+        }
+
+        /// <summary>
+        /// A rest pose that is offset, rotated and non-uniformly scaled — the fixture every test in
+        /// this class should have used from the start.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="RestPose"/> is the identity, and on the identity <c>rest + key</c> and
+        /// <c>key</c> are the same number. Every assertion in this file written against it is
+        /// therefore blind to amendment A31's distinction, which is exactly how the sampler and the
+        /// spec disagreed for three gates without a single test noticing.
+        /// </remarks>
+        private static TargetRestPose OffsetRestPose()
+        {
+            return new TargetRestPose
+            {
+                localPosition = new float3(10f, 20f, 5f),
+                rotationZ = 0.25f,
+                scale = new float2(3f, 4f),
+                restSliceIndex = 0
+            };
+        }
+
+        /// <summary>
+        /// <strong>Amendment A31, the multi-layer half.</strong> Catches: anchoring an Override
+        /// track to the incoming composited pose instead of to the rest pose. Both ops treat the key
+        /// as a delta; what separates them is the frame they add it to. Walk (Override, key 1,2)
+        /// sits under Slide (Override, key 4,0), so the upper layer must land on rest + its own key
+        /// — not on the lower layer's result plus its key, and not on its key alone.
+        /// </summary>
+        /// <remarks>
+        /// The y assertion is the sharp one: Slide keys y = 0, so anchoring to rest gives 20 while
+        /// anchoring to the composited pose below would give 22 — the two answers differ by exactly
+        /// the contribution the Override is supposed to discard.
+        /// </remarks>
+        [Test]
+        public void CompositeLayers_UpperOverride_AnchorsToRestNotToTheLayerBelow()
+        {
+            TargetPose pose = Composite(
+                new PlaybackLayer[] { ActiveLayer(WalkClipIndex), ActiveLayer(SlideClipIndex) },
+                OffsetRestPose());
+
+            Assert.AreEqual(
+                10f + 4f,
+                pose.localPosition.x,
+                Tolerance,
+                "An Override key offsets from rest (10 + 4), never from the composited layer below.");
+            Assert.AreEqual(
+                20f,
+                pose.localPosition.y,
+                Tolerance,
+                "Slide keys y = 0, so the result is rest y. Reading 22 means the Override anchored " +
+                "to Walk's composited y instead of discarding it.");
+        }
+
+        /// <summary>
+        /// <strong>Amendment A31, the Additive half.</strong> Catches: giving Additive the rest
+        /// anchor too, which would collapse the two ops into one. Bob adds onto Walk's composited
+        /// result, so the y is rest + walk + bob, not rest + bob.
+        /// </summary>
+        [Test]
+        public void CompositeLayers_AdditiveUpperLayer_StillAnchorsToTheCompositedResult()
+        {
+            TargetPose pose = Composite(
+                new PlaybackLayer[] { ActiveLayer(WalkClipIndex), ActiveLayer(BobClipIndex) },
+                OffsetRestPose());
+
+            Assert.AreEqual(
+                20f + 2f + 0.5f,
+                pose.localPosition.y,
+                Tolerance,
+                "Additive adds onto the composited pose (rest 20 + walk 2 + bob 0.5), not onto rest.");
+        }
+
+        /// <summary>
+        /// Catches: making Override scale replace the rest scale rather than multiply it. Scale
+        /// composes multiplicatively — its identity is 1, so a curve authored flat at 1 must leave a
+        /// part's authored rest proportions alone rather than resetting them to 1.
+        /// </summary>
+        [Test]
+        public void CompositeLayers_OverrideScale_MultipliesTheRestScale()
+        {
+            TargetPose pose = Composite(
+                new PlaybackLayer[] { ActiveLayer(ScaleBaseClipIndex) },
+                OffsetRestPose());
+
+            TargetPose identityRestPose = Composite(new PlaybackLayer[] { ActiveLayer(ScaleBaseClipIndex) });
+            Assert.AreEqual(
+                3f * identityRestPose.scale.x,
+                pose.scale.x,
+                Tolerance,
+                "Override scale multiplies the rest scale (3 x the value it produces from unit rest).");
         }
 
         [Test]

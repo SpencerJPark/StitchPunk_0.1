@@ -122,12 +122,15 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             RunSample();
 
+            // Keys are offsets from rest (amendment A31): position 0.5 + 3, rotation 0.25 + 1.25,
+            // scale 1.5 x 2. The rest pose is non-identity precisely so these are distinguishable
+            // from the raw key values.
             TargetPose pose = testWorld.EntityManager.GetComponentData<TargetPose>(shoulder);
-            Assert.AreEqual(3f, pose.localPosition.x, Tolerance);
-            Assert.AreEqual(4f, pose.localPosition.y, Tolerance);
-            Assert.AreEqual(1.25f, pose.rotationZ, Tolerance);
-            Assert.AreEqual(2f, pose.scale.x, Tolerance);
-            Assert.AreEqual(0.5f, pose.scale.y, Tolerance);
+            Assert.AreEqual(3.5f, pose.localPosition.x, Tolerance);
+            Assert.AreEqual(5.25f, pose.localPosition.y, Tolerance);
+            Assert.AreEqual(1.5f, pose.rotationZ, Tolerance);
+            Assert.AreEqual(3f, pose.scale.x, Tolerance);
+            Assert.AreEqual(0.4f, pose.scale.y, Tolerance);
         }
 
         /// <summary>
@@ -147,9 +150,9 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             TargetPose shoulderPose = testWorld.EntityManager.GetComponentData<TargetPose>(shoulder);
             TargetPose handPose = testWorld.EntityManager.GetComponentData<TargetPose>(hand);
-            Assert.AreEqual(3f, shoulderPose.localPosition.x, Tolerance);
-            Assert.AreEqual(-7f, handPose.localPosition.x, Tolerance, "The hand must read the hand's track.");
-            Assert.AreEqual(-8f, handPose.localPosition.y, Tolerance);
+            Assert.AreEqual(3.5f, shoulderPose.localPosition.x, Tolerance);
+            Assert.AreEqual(-9f, handPose.localPosition.x, Tolerance, "The hand must read the hand's track.");
+            Assert.AreEqual(-7.25f, handPose.localPosition.y, Tolerance);
         }
 
         /// <summary>
@@ -208,7 +211,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             // 1/10 s apart: the first advance crosses a sample tick, the second does not.
             AdvanceAndSample(0.1f);
             TargetPose sampled = testWorld.EntityManager.GetComponentData<TargetPose>(shoulder);
-            Assert.AreEqual(3f, sampled.localPosition.x, Tolerance, "Guard: the first tick must sample.");
+            Assert.AreEqual(3.5f, sampled.localPosition.x, Tolerance, "Guard: the first tick must sample.");
 
             // Scribble over the pose; if the actor samples again it will be overwritten back.
             testWorld.EntityManager.SetComponentData(shoulder, new TargetPose { localPosition = new float3(99f, 99f, 0f) });
@@ -237,7 +240,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             AdvanceAndSample(0.001f);
 
             Assert.AreEqual(
-                3f,
+                3.5f,
                 testWorld.EntityManager.GetComponentData<TargetPose>(shoulder).localPosition.x,
                 Tolerance,
                 "Rate 0 means sample every frame.");
@@ -259,13 +262,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             RunSampleAndApply();
 
             LocalTransform localTransform = testWorld.EntityManager.GetComponentData<LocalTransform>(shoulder);
-            Assert.AreEqual(3f, localTransform.Position.x, Tolerance);
-            Assert.AreEqual(4f, localTransform.Position.y, Tolerance);
+            Assert.AreEqual(3.5f, localTransform.Position.x, Tolerance);
+            Assert.AreEqual(5.25f, localTransform.Position.y, Tolerance);
 
             float appliedRotationZ = math.atan2(
                 2f * localTransform.Rotation.value.w * localTransform.Rotation.value.z,
                 1f - 2f * localTransform.Rotation.value.z * localTransform.Rotation.value.z);
-            Assert.AreEqual(1.25f, appliedRotationZ, Tolerance, "Rotation must be applied about Z.");
+            Assert.AreEqual(1.5f, appliedRotationZ, Tolerance, "Rotation must be applied about Z.");
         }
 
         /// <summary>
@@ -286,8 +289,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             PostTransformMatrix postTransformMatrix =
                 testWorld.EntityManager.GetComponentData<PostTransformMatrix>(shoulder);
-            Assert.AreEqual(2f, postTransformMatrix.Value.c0.x, Tolerance, "Scale x belongs in the matrix.");
-            Assert.AreEqual(0.5f, postTransformMatrix.Value.c1.y, Tolerance, "Scale y belongs in the matrix.");
+            Assert.AreEqual(3f, postTransformMatrix.Value.c0.x, Tolerance, "Scale x belongs in the matrix.");
+            Assert.AreEqual(0.4f, postTransformMatrix.Value.c1.y, Tolerance, "Scale y belongs in the matrix.");
             Assert.AreEqual(1f, postTransformMatrix.Value.c2.z, Tolerance, "Z is never scaled in 2.5D.");
         }
 

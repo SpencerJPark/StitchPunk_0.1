@@ -1,9 +1,9 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-02 (C4.3 and C4.4 closed and gated)
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1, C4.2, C4.3, C4.4 all done and verified. C4.5 is next.**
+**Written:** 2026-08-02 (C4.3, C4.4 and C4.5 closed and gated)
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.5 all done and verified. C4.6 (flipbook) is next.**
 
-**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **205 EditMode + 114 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3/C4.4 verified by three mutation runs (table in the C4 plan). Nothing is owed.
+**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **208 EditMode + 125 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3–C4.5 verified by five mutation runs (tables in the C4 plan). Nothing is owed.
 
 ## ⚠ Two process notes, both learned the hard way this session
 
@@ -30,16 +30,15 @@ It holds the 14 pieces, the nine phases, the traps carried in from C3, and the t
 
 **C4.8 owes an ordering edge:** `TransformSampleSystem` has no `[UpdateAfter(typeof(AnimLodDistanceSystem))]` because that type does not exist yet. §5.1's diagram orders sampling after LOD — add it when C4.8 lands.
 
-## ⚠ OPEN QUESTION for the owner — what does a transform key mean?
+## Amendment A31 — transform keys are offsets from rest (owner-approved 2026-08-02)
 
-C4.5 surfaced a contradiction between the **normative spec** and the **shipped, gated sampler**. Full write-up with the consequence table is in the C4 plan; the short version:
+C4.5 found the spec and the shipped sampler disagreeing about what a transform key *is*. The spec said offsets from rest (§3.2, §4.6, and the entire rationale of A13); `ClipSampler` implemented absolute local values, with a `ClipSamplerTests` assertion locking that in deliberately. **Resolved in favour of the spec:** `ApplyClipToPose` now takes the rest pose, `Override` writes `rest + key` (scale `rest × key`), `Additive` is unchanged and still anchors to the composited pose below. Under the old reading, re-posing a rig's rest was silently ignored the moment a clip played — fatal for a cutout rig.
 
-- Spec (§3.2, §4.6 line 519, and the whole rationale of amendment A13) says transform keys are **offsets from the rest pose**.
-- `ClipSampler.ApplyClipToPose` treats an `Override` key as an **absolute local value** — it seeds from rest and then discards it — and `ClipSamplerTests.SamplePose_OverrideTrack_ReplacesOnlyItsMaskedChannels` locks that in on purpose (rest rotation 0.5, key 1.5, asserts 1.5 not 2.0).
+**Why it survived three gates, and the rule that follows.** Every `LayerCompositionTests` fixture used a rest pose at the origin with unit scale, where `rest + key` and `key` are the same number. The entire Override semantics were untested while looking thoroughly tested. Reverting the sampler now fails **ten** tests; before C4.5 it failed none.
 
-Every `LayerCompositionTests` fixture uses an origin rest pose with unit scale, where both readings give identical numbers — which is why three gates missed it. **Do not "fix" this without the owner:** it decides whether re-posing a rig's rest updates its clips, i.e. the whole authoring model for cutout rigs. C4.6 is unaffected.
+**The rule:** when a fixture picks a "simple" value for something the code branches on — zero, one, identity, empty — check whether that choice is what makes the assertion pass. That is the third distinct shape of invisible defect C4 has produced, after A28 and A30's "only the next system can see it".
 
-**C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.5–4.8 autonomously; stop at 4.9.
+**C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.6–4.8 autonomously; stop at 4.9.
 
 ## What C4.3 decided that C4.4 inherits
 
