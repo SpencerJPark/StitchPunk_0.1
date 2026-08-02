@@ -37,9 +37,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
     /// Single-threading also makes the resulting <see cref="RigPartRef"/> order repeatable in
     /// practice — chunk iteration order follows entity creation order, which follows baking order —
     /// but that is an emergent property of Entities, not a guarantee this package can make, and
-    /// nothing here relies on it: architecture section 5.3's <c>RigBindingSystem</c> rebuilds the
-    /// buffer from the <c>LinkedEntityGroup</c> at spawn, so the baked order never reaches a frame.
-    /// Treat the order as unspecified.
+    /// nothing here relies on it. Architecture section 5.3 specifies <c>RigBindingSystem</c> —
+    /// which build step C4 will add; it does not exist yet — to rebuild the buffer from the
+    /// <c>LinkedEntityGroup</c> at spawn, after which the baked order never reaches a frame.
+    /// Until then no shipped system reads this buffer at all. Treat the order as unspecified
+    /// either way: it is unspecified today because nothing consumes it, and unspecified after C4
+    /// because C4 overwrites it.
     /// </para>
     /// </remarks>
     [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]

@@ -95,8 +95,11 @@ exposes only to its own test assemblies — the harness reaches it by reflection
 This is disclosed rather than hidden because it is a real maintenance risk: an
 Entities update that renames or reshapes that method breaks the baking tests,
 not the package, and the failure will read as a missing method rather than as a
-behavioural regression. Nothing that ships to a consumer uses reflection; the
-dependency is confined to `Tests/PlayMode/BakingTestWorld.cs`.
+behavioural regression. The dependency is confined to
+`Tests/PlayMode/BakingTestWorld.cs`. No *runtime or authoring* code path uses
+reflection — but note that `Tests/` is inside the package and therefore ships,
+so this file and the contract tests described below do reach you; they simply
+never execute unless you run the suite.
 
 ## Installing
 

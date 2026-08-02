@@ -7,8 +7,9 @@ namespace StitchPunk.AnimationToolkit
 {
     /// <summary>
     /// Actor-root buffer mapping each bound part entity to its dense target index
-    /// (architecture section 5.2). Rebuilt by <c>RigBindingSystem</c> after ECB instantiation
-    /// (section 5.3) because instantiate does not remap entity references inside dynamic buffers.
+    /// (architecture section 5.2). To be rebuilt after ECB instantiation by <c>RigBindingSystem</c>
+    /// (section 5.3), which build step C4 will add — instantiate does not remap entity references
+    /// inside dynamic buffers, so until C4 lands this buffer is correct only for baked instances.
     /// </summary>
     [InternalBufferCapacity(16)]
     public struct RigPartRef : IBufferElementData
@@ -22,9 +23,9 @@ namespace StitchPunk.AnimationToolkit
 
     /// <summary>
     /// Enableable spawn-remap tag on the actor root (architecture sections 5.2, 5.3). Baked
-    /// ENABLED so ECB-instantiated copies start enabled; <c>RigBindingSystem</c> rebuilds
-    /// <see cref="RigPartRef"/> and <see cref="RigPartBinding.actorRoot"/> from the
-    /// LinkedEntityGroup, then disables the tag.
+    /// ENABLED so ECB-instantiated copies start enabled. <c>RigBindingSystem</c> — build step C4 —
+    /// is specified to rebuild <see cref="RigPartRef"/> and <see cref="RigPartBinding.actorRoot"/>
+    /// from the LinkedEntityGroup and then disable the tag. No shipped system consumes it yet.
     /// </summary>
     public struct RigBindingUninitialized : IComponentData, IEnableableComponent
     {

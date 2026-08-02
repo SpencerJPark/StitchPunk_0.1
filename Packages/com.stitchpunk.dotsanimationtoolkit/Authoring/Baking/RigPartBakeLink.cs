@@ -24,9 +24,15 @@ namespace StitchPunk.AnimationToolkit.Authoring
     /// that were <em>not</em> re-baked. A temporary type would be stripped after each pass and those
     /// parts would silently drop out of the buffer. Baking types never reach the built entity scene.
     /// </para>
+    /// <para>
+    /// <strong>Internal.</strong> Writer (<c>RigTargetBaker</c>) and reader
+    /// (<c>RigBindingBakingSystem</c>'s internal job) are both in this assembly, and the tests reach
+    /// it through the contracted <c>InternalsVisibleTo</c>. Nothing about Entities requires a baking
+    /// type to be public, and this one carries no contract a consumer could use.
+    /// </para>
     /// </remarks>
     [BakingType]
-    public struct RigPartBakeLink : IComponentData
+    internal struct RigPartBakeLink : IComponentData
     {
         /// <summary>The actor-root entity this part belongs to, resolved from the authoring hierarchy.</summary>
         public Entity actorRoot;

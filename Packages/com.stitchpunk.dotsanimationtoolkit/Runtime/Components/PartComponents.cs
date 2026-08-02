@@ -8,8 +8,8 @@ namespace StitchPunk.AnimationToolkit
     /// <summary>
     /// Part-entity binding back to its actor (architecture section 5.2). The dense
     /// <see cref="targetIndex"/> is plain data and survives instantiation;
-    /// <see cref="actorRoot"/> is rewritten by <c>RigBindingSystem</c> after ECB instantiation
-    /// (section 5.3).
+    /// <see cref="actorRoot"/> is to be rewritten after ECB instantiation by
+    /// <c>RigBindingSystem</c> (section 5.3), which build step C4 will add.
     /// </summary>
     public struct RigPartBinding : IComponentData
     {

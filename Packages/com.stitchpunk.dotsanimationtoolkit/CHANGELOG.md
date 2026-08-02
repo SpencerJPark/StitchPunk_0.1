@@ -27,15 +27,35 @@ baker. Actors and their parts now bake to entities; no system drives them yet.
   because it writes into other entities' buffers, which would race in parallel.
 - `ActorRestBounds` is now produced, in actor space, by walking each part's full
   transform chain.
-- PlayMode baking tests. The suite is **Editor-only**: Unity's baking pipeline
-  has no player-side equivalent, so the assembly declares the Editor platform
-  (architecture amendment A17).
+- PlayMode baking tests. Run them from the Test Runner's PlayMode tab in the
+  Editor; Unity's baking pipeline has no player-side equivalent, so a player test
+  build cannot execute them (architecture amendment A25, superseding A17).
+- `PlayModeAssemblySmokeTest` asserts that the suite is genuinely running in
+  PlayMode — `Application.isPlaying`, plus a yielded frame advancing
+  `Time.frameCount`. Both are false in EditMode, so a future platform
+  restriction fails loudly instead of moving the whole suite's mode in silence.
+
+### Fixed
+
+- **The PlayMode test suite ran in EditMode and nothing noticed.** Amendment A17
+  had set `includePlatforms: ["Editor"]` on the PlayMode test assembly, intending
+  to declare honestly that a player build cannot run baking tests. But an
+  editor-only assembly is classified by Unity's Test Framework as an *EditMode*
+  assembly, so the restriction did not narrow the suite's platforms — it moved
+  all 27 tests out of PlayMode entirely. A project-wide PlayMode run discovered
+  zero tests and reported `Passed`, which is indistinguishable from success.
+  Amendment A25 supersedes A17: `includePlatforms` is `[]`, the suite runs in
+  PlayMode again, and the smoke test now asserts the mode rather than the
+  assembly's name.
 
 ### Changed
 
+- `RigPartBakeLink` and `ActorBakeFailed` are `internal`, not `public`. Both are
+  bake-time-only types with no consumer contract, reachable from the tests
+  through the package's contracted `InternalsVisibleTo`.
 - `RigPartBakeLink` carries the authoring object's hierarchy path as a
-  `FixedString128Bytes` instead of a hash of it, and all four of
-  `RigBindingBakingSystem`'s diagnostics now name the part: `Rig part
+  `FixedString128Bytes` instead of a hash of it, and every one of
+  `RigBindingBakingSystem`'s diagnostics now names the part: `Rig part
   'Rig/Torso/LeftArm' claims target id 100, which another part …` in place of
   `Rig part entity 41:1 (authoring path hash 2463534242) …`. The job stays
   Burst-pure — a `FixedString` is blittable — and the entity index, which is not
@@ -47,8 +67,12 @@ baker. Actors and their parts now bake to entities; no system drives them yet.
   and then one unactionable copy per part, burying it.
 - `ActorBaker`'s sample phase takes bits 8–31 of the path hash rather than the
   low 24. FNV-1a's last step is a multiply, so its low bits carry the least
-  avalanche and sibling names differing in one character landed on adjacent
-  phases — the opposite of what the phase is for.
+  avalanche. No observable behaviour changes: the path walk hashes the leaf
+  first, so a distinguishing character is mixed by every remaining node before
+  the final multiply, and both derivations were measured to spread sibling names
+  identically at 200 container positions. A defensible micro-improvement, not a
+  bug fix — an earlier draft of this entry claimed it corrected sibling names
+  "landing on adjacent phases", which was never demonstrated and is not true.
 
 - No baked value derives from `Object.GetInstanceID` or `Object.GetEntityId` any
   longer. Both are session-local, so baking either made the same prefab produce

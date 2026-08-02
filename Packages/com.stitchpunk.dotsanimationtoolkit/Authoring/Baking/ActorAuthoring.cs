@@ -44,8 +44,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// Per-actor sampling override. <strong>Only <see cref="SampleSettings.rateHz"/> is read at
         /// bake</strong> — 0 means "fall back to <see cref="AnimationToolkitConfig.defaultSampleRateHz"/>".
         /// <see cref="SampleSettings.phase01"/> is <em>not</em> authored: architecture section 5.6
-        /// makes it a per-instance value derived at bake and re-derived by <c>RigBindingSystem</c> at
-        /// spawn, which is what spreads a crowd's sampling across frames.
+        /// makes it a per-instance value derived at bake and, once build step C4 adds
+        /// <c>RigBindingSystem</c>, re-derived at spawn — which is what spreads a crowd's sampling
+        /// across frames.
         /// </summary>
         [Tooltip("Sampling override. Only rateHz is used; phase01 is derived per instance at bake (section 5.6).")]
         public SampleSettings sampleOverride;

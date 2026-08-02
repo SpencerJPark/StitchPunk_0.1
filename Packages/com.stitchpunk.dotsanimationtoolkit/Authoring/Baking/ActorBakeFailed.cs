@@ -30,9 +30,17 @@ namespace StitchPunk.AnimationToolkit.Authoring
     /// every actor on every pass, so the tag must outlive the pass that wrote it. Baking types never
     /// reach the built entity scene.
     /// </para>
+    /// <para>
+    /// <strong>Internal.</strong> It was briefly public on the grounds that Entities requires baking
+    /// types to be reachable from the system that queries them. That is not a constraint here: the
+    /// only writer (<c>ActorBaker</c>) and the only reader (<c>RigBindingBakingSystem</c>'s job, which
+    /// is itself internal) live in this assembly, and the tests reach it through the contracted
+    /// <c>InternalsVisibleTo</c>. A type carrying no consumer contract and never reaching a built
+    /// entity scene should not widen a sold package's public surface.
+    /// </para>
     /// </remarks>
     [BakingType]
-    public struct ActorBakeFailed : IComponentData
+    internal struct ActorBakeFailed : IComponentData
     {
     }
 }

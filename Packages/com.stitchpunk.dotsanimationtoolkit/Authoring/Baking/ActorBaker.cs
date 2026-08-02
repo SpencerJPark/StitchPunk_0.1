@@ -82,9 +82,10 @@ namespace StitchPunk.AnimationToolkit.Authoring
             SetComponentEnabled<AnimEventsPending>(actorEntity, false);
             AddBuffer<RigPartRef>(actorEntity);
 
-            // Baked enabled: an ECB-instantiated copy starts enabled and RigBindingSystem rebinds it
-            // (section 5.3); a first-frame bounds write is guaranteed (section 5.8); and everything
-            // animates until some provider says otherwise (section 5.9).
+            // Baked enabled: an ECB-instantiated copy starts enabled so that RigBindingSystem will
+            // rebind it once C4 adds that system (section 5.3); a first-frame bounds write is
+            // guaranteed (section 5.8); and everything animates until some provider says otherwise
+            // (section 5.9).
             AddComponent<RigBindingUninitialized>(actorEntity);
             AddComponent<AnimVisible>(actorEntity);
             AddComponent<BoundsDirty>(actorEntity);
@@ -503,8 +504,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>
         /// Derives the actor's crowd-sampling phase (architecture section 5.6) so two actors baked
-        /// from the same prefab do not sample on the same frames. <c>RigBindingSystem</c> re-derives
-        /// it per instance at spawn.
+        /// from the same prefab do not sample on the same frames. The baked value is the runtime
+        /// value today; <c>RigBindingSystem</c>, which build step C4 will add, is specified to
+        /// re-derive it per instance at spawn.
         /// </summary>
         /// <remarks>
         /// Derived from the authoring hierarchy path, not from an instance id. An instance id is
@@ -521,24 +523,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </remarks>
         private float ComputeSamplePhase(ActorAuthoring authoring)
         {
-            // Bits 8–31, not 0–23. FNV-1a's final operation is a multiply, and a multiply
-            // propagates carries only upward, so the low bits of the result are the least mixed
-            // whichever input contributed them. Discarding the bottom byte costs nothing — the
-            // remaining 24 bits are exactly the width the phase needs — and buys better spread.
-            // No mask is applied: `pathHash >> 8` is already at most 0x00FFFFFF, so one would be a
-            // no-op implying a constraint this line is not enforcing.
-            //
-            // NO TEST COVERS THE SHIFT, and none can — do not write one. AuthoringPathHash.Of walks
-            // LEAF FIRST, so whichever character distinguishes two actors is hashed first and then
-            // passes through every remaining node: its own sibling index, the separator, and all of
-            // its ancestors. By the final multiply it is thoroughly mixed under either derivation.
-            // A fixture was written for this and deleted at the third C3 gate after it was shown to
-            // pass identically with the shift and with the pre-A18 mask, at every one of 200
-            // container positions — it discriminated nothing while claiming to pin A18. The low-bit
-            // weakness would only surface if the differing input were the LAST thing mixed, i.e. on
-            // the outermost ancestor, which this walk order puts furthest from the leaf that varies.
-            // The shift is therefore a defensible micro-improvement with no observable behaviour,
-            // and that is the honest description of it.
+            // Bits 8–31, not 0–23: FNV-1a ends on a multiply, which propagates carries only upward,
+            // so the low byte is the least mixed. Untestable by construction and unobservable in
+            // this walk order — amendment A18 and open item A-4 in the architecture carry the why.
             uint pathHash = AuthoringPathHash.Of(this, authoring.transform);
             return (pathHash >> 8) * (1f / 16777216f);
         }

@@ -14,8 +14,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
     /// <remarks>
     /// The part is bound by <see cref="targetStableId"/>, never by name and never by sibling order,
     /// so renaming or reparenting a part inside the actor never re-binds it (architecture
-    /// section 3.4). A part whose id is not a target of the actor's rig is reported by
-    /// <c>RigBindingBakingSystem</c> and skipped; the rest of the actor still bakes.
+    /// section 3.4). A part whose id is not a target of the actor's rig is reported by this
+    /// component's baker (amendment A22 — only managed code can name the object and the rig and
+    /// give a clickable context) and skipped; the rest of the actor still bakes.
     /// </remarks>
     [AddComponentMenu("DOTS Animation Toolkit/Rig Target")]
     [DisallowMultipleComponent]

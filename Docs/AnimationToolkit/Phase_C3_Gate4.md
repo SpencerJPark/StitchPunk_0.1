@@ -7,6 +7,33 @@
 
 Count: 7 (Reviewer A) + 1 (Reviewer B) + 1 (promoted during consolidation) + 1 (found by execution) = **10**. The numbered list below is the authority; this line is derived from it.
 
+---
+
+## Resolution — all 10 closed, 2026-08-01
+
+Fixed and verified the same day, in the same session as the gate. **Suite green in its real modes: 205 EditMode + 29 PlayMode = 234**, via `mcp__UnityMCP__run_tests` (PlayMode count is 27 + the two new mode assertions).
+
+| # | Item | Resolution |
+|---|---|---|
+| 1 | A21 "four diagnostics" | Rewritten; states the count once, notes A22 reduced it to three, and says why the count is incidental. |
+| 2 | CHANGELOG "all four" | → "every one of". |
+| 3 | `RigTargetAuthoring` ownership comment | Now credits this component's own baker, citing A22's reason. |
+| 4 | A18 ↔ A-4 contradiction | "Load-bearing part" removed from §5.6; **A-4 recorded in the spec** as ruled and closed — untestable by construction, shift retained, do-not-rewrite noted. The 14-line code comment cut to three. |
+| 5 | CHANGELOG "adjacent phases" | Replaced with the measured truth: no observable behaviour change, identical spread at 200 positions, and an explicit note that the earlier claim was never demonstrated. |
+| 6 | index.md reflection claim | Corrected — `Tests/` ships, so the qualifier is now "no *runtime or authoring* path". |
+| 7 | F18 public baking types | `RigPartBakeLink` and `ActorBakeFailed` are now `internal`; §8 M2 EXPOSES corrected, and the false "Entities requires it" premise replaced with why it does not hold here. |
+| 8 | Non-discriminating surrogate test | New input (`"x"` + 5 astral leaf, 30-astral parent). **Verified by simulating both variants**: the old input cannot catch the bug at any parity, the new one fails without the step-back. The test comment carries the derivation and states that only the lone-surrogate loop discriminates — the byte-budget assertion passes either way. |
+| 9 | `RigBindingSystem` present tense | All 7 references across 5 files marked forward-looking (C4). The two load-bearing ones now say what is true *today* as well as after C4. |
+| 10 | PlayMode suite gone | **Amendment A25** — see below. asmdef back to `[]`, conformance expectation updated, smoke test now asserts the mode. |
+
+### ⚠ Amendment A25 needs owner ratification
+
+Item 10's root cause was not carelessness. **Amendment A17 (owner-approved, 2026-07-30) is self-defeating.** It set `includePlatforms: ["Editor"]` deliberately, reasoning that a player build cannot run baking tests so declaring other platforms would be a lie — and it explicitly *rejected* "move the suite to EditMode" as too much normative surgery. But an editor-only assembly **is** an EditMode assembly to the Test Framework, so A17's implementation performed exactly the move A17 rejected, silently, without the surgery, leaving §8 M2 and §11.2 describing a PlayMode suite that no longer existed.
+
+A25 supersedes A17's platform cell and is **recorded without the owner present**, following the A22 precedent: it states the trade, and names exactly what to revert. The trade is that `[]` overstates player-side capability only under a player test build nothing requires, whereas `["Editor"]` destroyed the suite's mode under the run everybody actually performs.
+
+---
+
 > **Item 10 was found by running the suite after the three lenses reported, and it is the most serious finding of the gate.** All three reviewers read the PlayMode asmdef and none caught it. Static review could not have: it is only visible when you ask the Test Runner what it discovers.
 
 | Lens | Verdict | Blocking | Advisory |

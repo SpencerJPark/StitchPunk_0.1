@@ -19,7 +19,9 @@
 
 ## Do this first
 
-**Fix Gate 4's 10 blocking items, then C3 closes.** The full list with file:line citations is in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. In short:
+> **UPDATE 2026-08-01: all 10 items are fixed and verified.** Suite green in its real modes — **205 EditMode + 29 PlayMode = 234**. See the Resolution table in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. **One thing needs the owner: ratify or reject amendment A25** (below). C3 is otherwise ready to close.
+
+**~~Fix Gate 4's 10 blocking items, then C3 closes.~~** *(Done — kept for context.)* The full list with file:line citations is in `Docs/AnimationToolkit/Phase_C3_Gate4.md`. In short:
 
 1. **Seven documentation fixes (Reviewer A).** The recurring one: "four diagnostics" in `Phase_B_Architecture.md:358` and `CHANGELOG.md:37` when there are three — contradicted by A22 twenty lines away in both files. **Third occurrence of the CHANGELOG-count defect across three gates.** Plus a stale ownership comment on the public `RigTargetAuthoring`, the A18↔A-4 contradiction, a false "nothing shipped uses reflection" claim, and F18's bad premise for making `RigPartBakeLink`/`ActorBakeFailed` public (same assembly, internal callers — they can be internal).
 2. **One test fix (Reviewer B).** `RenderPath_OnAPathOfSurrogatePairs_NeverEmitsALoneSurrogate` (`AuthoringPathTests.cs:151-184`) is non-discriminating — **a fresh instance of the exact A-4 failure mode, in this same module.** Delete the step-back at `AuthoringPathText.cs:106-109` and it still passes. Fix: an input whose retained region starts at an *odd* offset inside a pair.
@@ -31,6 +33,12 @@
 **The four priority items are answered** — see Gate 4 §"do this first". Headline: `ActorBakeFailed` **cannot** go stale (proven against `BakerState.Revert` / `BakedEntityData.cs:538-558`, including the asset-only-dependency path), and `AuthoringPathHash.Of` is byte-for-byte input-identical (the derivation change at the call site is A18, deliberate, and the package is unreleased so nothing shifts under a consumer).
 
 **A-4 is ruled and closed:** keep the shift; do not write the test; cut the 14-line comment at `ActorBaker.cs:524-541` to two and move the reasoning into the spec.
+
+### ⚠ The one open decision: amendment A25
+
+**A17 was self-defeating and needs the owner to confirm its replacement.** A17 (owner-approved, 2026-07-30) set `includePlatforms: ["Editor"]` on the PlayMode test assembly so it would not falsely claim player-side capability, and explicitly rejected "move the suite to EditMode" as too much normative surgery. An editor-only assembly *is* an EditMode assembly to the Test Framework — so A17 performed the move it rejected, silently, and the PlayMode suite ceased to exist for a whole build step.
+
+**A25** (recorded without the owner, A22 precedent) sets it back to `[]`. The trade: `[]` overstates player capability only under a player test build that no §8 bullet requires; `["Editor"]` destroys the suite's mode under the run actually performed. A25 in `Phase_B_Architecture.md` §1.3 names exactly what to revert if you disagree — but note that reverting means owning that the acceptance tests are EditMode tests, which requires rewriting §8 M2 and §11.2 and adding `Unity.Entities.Hybrid` + `Unity.Transforms` to §1.3's EditMode list. That is the surgery A17 declined.
 
 ### If a future gate is needed
 

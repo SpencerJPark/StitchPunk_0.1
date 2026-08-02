@@ -154,10 +154,29 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             // Trimming by UTF-16 code unit can land between the halves of an astral character,
             // leaving a lone surrogate at the start of the retained text — which encodes to a
             // replacement character and makes the first thing the user reads mojibake.
+            //
+            // THE INPUT IS LOAD-BEARING. This fixture originally used two 20-astral nodes and
+            // discriminated nothing: delete the low-surrogate step-back in TakeTrailingBytes and it
+            // still passed. With pure-astral nodes the naive walk measures each lone surrogate at
+            // three bytes, so it consumes floor((121 - 6k - 1) / 3) = 40 - 2k code units of the
+            // parent — always EVEN, so it always lands on a pair boundary and never splits one. The
+            // parity is structural, not luck; no pure-astral input can catch this bug.
+            //
+            // One ASCII character in the leaf breaks that parity. With leaf "x" + 5 astral, the
+            // naive walk spends 30 bytes on the leaf's surrogates, 1 on the 'x' and 1 on the '/',
+            // leaving 89 of the 121-byte budget — floor(89 / 3) = 29 code units, ODD, so it stops
+            // mid-pair and the retained text opens with a lone low surrogate. The shipped
+            // implementation instead steps back onto the high surrogate and keeps 24 whole
+            // characters, 122 bytes.
+            //
+            // Only the lone-surrogate loop discriminates. The byte-budget assertion does not: the
+            // broken walk over-counts lone surrogates at three bytes each and so retains LESS than
+            // the budget allows (85 bytes), staying comfortably inside the limit while emitting
+            // mojibake. Verified by simulating both variants before this fixture was written.
             List<string> emojiPath = new List<string>
             {
-                Repeat(AstralCharacter, 20),
-                Repeat(AstralCharacter, 20)
+                "x" + Repeat(AstralCharacter, 5),
+                Repeat(AstralCharacter, 30)
             };
 
             FixedString128Bytes renderedPath = default;
