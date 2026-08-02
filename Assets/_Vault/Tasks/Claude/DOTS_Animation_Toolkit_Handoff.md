@@ -1,9 +1,9 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-02 (C4.3, C4.4 and C4.5 closed and gated)
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.5 all done and verified. C4.6 (flipbook) is next.**
+**Written:** 2026-08-02 (C4.3 through C4.6 closed and gated)
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.6 all done and verified. C4.7 (VAT + bounds) is next.**
 
-**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **210 EditMode + 127 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3–C4.5 verified by six mutation runs (tables in the C4 plan). Nothing is owed.
+**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **210 EditMode + 133 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3–C4.6 verified by eight mutation runs (tables in the C4 plan). Nothing is owed.
 
 ## ⚠ Two process notes, both learned the hard way this session
 
@@ -26,7 +26,12 @@ It holds the 14 pieces, the nine phases, the traps carried in from C3, and the t
   - Tests: `Tests/PlayMode/PlaybackTestActor.cs` (blob + actor fixture builder, PlayMode-local because the PlayMode asmdef cannot see `TestBlobFactory`), `CommandApplySystemTests.cs`, `PlaybackTimeSystemTests.cs`, `PlaybackQueryTests.cs`, and two structural tests appended to `SystemGroupStructureTests.cs`. Every fixture's doc comment names the mutation it catches, per the C4 standard.
 - ✅ **C4.4 events** — `Runtime/Systems/EventEmissionSystem.cs` (marker crossings from `[advanceStartTime, time]` + `ClipFinished`, appends and enables only per A28) and `Tests/PlayMode/EventEmissionSystemTests.cs` (12 fixtures). Writing it exposed a defect in C4.3's queue promotion → **amendment A30**, which changed `PlaybackTimeSystem` and its promotion fixtures. Gated with C4.3.
 - ✅ **C4.5 transform technique** — `TransformSampleSystem` + `TransformApplySystem`, 11 fixtures, **mutation-verified** (four predicted failures, no others). The host's dead-scale regression is now pinned by a test: delete the `PostTransformMatrix` write and the authored 2× scale silently reverts to the rest 1.5×, which is precisely how it failed in the host game.
-- ⬜ C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+- ✅ **C4.6 flipbook** — `SpriteMaterialSystem`, 6 fixtures, **mutation-verified**. No `-1` guard: §5.7's "dead code by construction" claim was checked against all four routes to a negative pose slice and holds, so a fixture pins the reason instead of a dead branch.
+- ⬜ C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+
+**Two test-integrity lessons from C4.6, both reusable:**
+1. **A fixture that seeds state the way production seeds it cannot prove production wrote anything.** Three sprite fixtures seeded the shader properties from the rest pose — exactly as the baker does — and would have passed against a system that published nothing. They now scribble sentinels (`-999`, `-9`) first.
+2. **Batched mutations can mask each other.** Removing the property writes *and* the `AnimVisible` gate together left `AnInvisiblePart_IsNotPublished` passing, because with no write the test's own sentinel survived. Isolating the gate made it fail. When a predicted failure does not appear, suspect the batch before suspecting the test.
 
 **C4.8 owes an ordering edge:** `TransformSampleSystem` has no `[UpdateAfter(typeof(AnimLodDistanceSystem))]` because that type does not exist yet. §5.1's diagram orders sampling after LOD — add it when C4.8 lands.
 

@@ -39,6 +39,47 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             /// <summary>Transform tracks, which the bake sorts by dense target index.</summary>
             internal TransformTrackSpec[] transformTracks = Array.Empty<TransformTrackSpec>();
+
+            /// <summary>Sprite tracks, which the bake sorts by dense target index.</summary>
+            internal SpriteTrackSpec[] spriteTracks = Array.Empty<SpriteTrackSpec>();
+        }
+
+        /// <summary>Authoring-side description of one sprite track.</summary>
+        internal sealed class SpriteTrackSpec
+        {
+            internal int targetIndex;
+            internal SpriteFrameMode mode = SpriteFrameMode.Slice;
+            internal SpriteKeySpec[] keys = Array.Empty<SpriteKeySpec>();
+        }
+
+        /// <summary>Authoring-side description of one sprite key.</summary>
+        internal struct SpriteKeySpec
+        {
+            internal float normalizedTime;
+            internal int sliceIndex;
+            internal float4 atlasRect;
+        }
+
+        /// <summary>Builds a slice-mode sprite key; a negative index means "no change".</summary>
+        internal static SpriteKeySpec SliceKey(float normalizedTime, int sliceIndex)
+        {
+            return new SpriteKeySpec
+            {
+                normalizedTime = normalizedTime,
+                sliceIndex = sliceIndex,
+                atlasRect = ClipSampler.IdentityAtlasRect
+            };
+        }
+
+        /// <summary>Builds an atlas-mode sprite key: scale.xy, offset.zw.</summary>
+        internal static SpriteKeySpec AtlasKey(float normalizedTime, float4 atlasRect)
+        {
+            return new SpriteKeySpec
+            {
+                normalizedTime = normalizedTime,
+                sliceIndex = -1,
+                atlasRect = atlasRect
+            };
         }
 
         /// <summary>Authoring-side description of one transform track.</summary>
@@ -168,7 +209,27 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                         }
                     }
 
-                    builder.Allocate(ref clip.spriteTracks, 0);
+                    BlobBuilderArray<SpriteTrackBlob> spriteTrackArray =
+                        builder.Allocate(ref clip.spriteTracks, clipSpec.spriteTracks.Length);
+                    for (int spriteTrackIndex = 0; spriteTrackIndex < clipSpec.spriteTracks.Length; spriteTrackIndex++)
+                    {
+                        SpriteTrackSpec spriteTrackSpec = clipSpec.spriteTracks[spriteTrackIndex];
+                        spriteTrackArray[spriteTrackIndex].targetIndex = spriteTrackSpec.targetIndex;
+                        spriteTrackArray[spriteTrackIndex].mode = spriteTrackSpec.mode;
+
+                        BlobBuilderArray<SpriteKeyBlob> spriteKeyArray = builder.Allocate(
+                            ref spriteTrackArray[spriteTrackIndex].keys, spriteTrackSpec.keys.Length);
+                        for (int spriteKeyIndex = 0; spriteKeyIndex < spriteTrackSpec.keys.Length; spriteKeyIndex++)
+                        {
+                            SpriteKeySpec spriteKeySpec = spriteTrackSpec.keys[spriteKeyIndex];
+                            spriteKeyArray[spriteKeyIndex] = new SpriteKeyBlob
+                            {
+                                normalizedTime = spriteKeySpec.normalizedTime,
+                                sliceIndex = spriteKeySpec.sliceIndex,
+                                atlasRect = spriteKeySpec.atlasRect
+                            };
+                        }
+                    }
 
                     BlobBuilderArray<EventMarkerBlob> eventArray =
                         builder.Allocate(ref clip.events, clipSpec.events.Length);
@@ -287,7 +348,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             float3 restPosition = default,
             float restRotationZ = 0f,
             float2 restScale = default,
-            int restSliceIndex = 0)
+            int restSliceIndex = 0,
+            bool asFlipbookPlane = false)
         {
             EntityManager entityManager = world.EntityManager;
 
@@ -322,6 +384,18 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             });
             entityManager.AddComponent<AnimVisible>(partEntity);
             entityManager.SetComponentEnabled<AnimVisible>(partEntity, true);
+
+            if (asFlipbookPlane)
+            {
+                // RigTargetBaker adds these as a pair, seeded the same way, because which of the two
+                // a clip drives is a per-track decision rather than a property of the part.
+                entityManager.AddComponentData(
+                    partEntity,
+                    new SpriteSliceProperty { Value = restPose.restSliceIndex });
+                entityManager.AddComponentData(
+                    partEntity,
+                    new AtlasFrameProperty { Value = ClipSampler.IdentityAtlasRect });
+            }
 
             entityManager.GetBuffer<RigPartRef>(actorEntity).Add(new RigPartRef
             {
