@@ -3,7 +3,9 @@
 **Run:** 2026-08-01 · **Scope:** `git diff 026a902..HEAD` over `Packages/com.stitchpunk.dotsanimationtoolkit` and `Docs/AnimationToolkit` (27 files, ~3,703 insertions)
 **Shape:** three narrow agents in parallel, one lens each, each appending to its own file as it went. All three completed — the first gate of the four attempted to do so.
 
-## Verdict: **FAIL** — 8 blocking items, 0 requiring rework of shipped behaviour
+## Verdict: **FAIL** — 9 blocking items, 1 requiring a code change
+
+> **Item 10 was found by running the suite after the three lenses reported, and it is the most serious finding of the gate.** All three reviewers read the PlayMode asmdef and none caught it. Static review could not have: it is only visible when you ask the Test Runner what it discovers.
 
 | Lens | Verdict | Blocking | Advisory |
 |---|---|---|---|
@@ -65,13 +67,37 @@ The recurring defect is one claim, stated in three places, contradicted by amend
 
    Both conclusions happen to hold anyway — nothing in `Runtime/` writes `SampleSettings`, and the package is unreleased — but they hold for *different reasons than stated*. This is C4's system; the comments should be marked forward-looking, not present-tense.
 
+### Found by execution, after the lenses reported (1)
+
+10. **The PlayMode suite does not exist. All 27 "PlayMode" tests run in EditMode, and a project-wide PlayMode run discovers zero tests.**
+
+    `aacde42` ("close the gate defects and the advisory backlog") changed `StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef:16` from `"includePlatforms": []` to `"includePlatforms": ["Editor"]`. That makes it an editor-only assembly, and the Test Framework classifies editor-only test assemblies as **EditMode**. Observed via `mcp__UnityMCP__run_tests`:
+
+    | Run | Discovered | Result |
+    |---|---|---|
+    | EditMode, assembly `…Tests.EditMode` | 205 | 205 passed, 1.0 s |
+    | PlayMode, assembly `…Tests.PlayMode` | **0** | "Passed" — vacuously |
+    | PlayMode, **no filter** (whole project) | **0** | "Passed" — vacuously |
+    | EditMode, assembly `…Tests.**PlayMode**` | **27** | 27 passed, 0.4 s |
+
+    The 27 tests pass, and baking is editor-side so they still exercise real behaviour. What is gone is the mode itself. Consequences:
+
+    - **Every doc claiming "27 PlayMode" is false** — §1.3's platform table, the CHANGELOG, `index.md`, and the handoff. This is the same defect class as items 1–7, but load-bearing on the package's advertised test matrix rather than on prose.
+    - **The guard that existed for exactly this failed vacuously.** `PlayModeAssemblySmokeTest.PlayModeTestAssembly_HasContractedName` (`PlayModeAssemblySmokeTest.cs:16-20`) asserts only `Assembly.GetName().Name == "StitchPunk.AnimationToolkit.Tests.PlayMode"` — a string comparison that is equally true in EditMode. A test named for the assembly's mode does not check its mode. **This is a third instance of Reviewer B's F1 failure mode**, in a file whose entire purpose is to prevent it.
+    - **C4 is the systems slice.** Playback systems need a real player-loop tick. Written against this asmdef, those tests would silently run in EditMode too, and pass or fail for the wrong reasons.
+
+    Likely cause: the same one-line fix the handoff prescribes for the *host* game's `StitchPunk.Editor.asmdef` (`"includePlatforms": []` → `["Editor"]`, correct there, because editor code must not ship in player builds) applied reflexively to a PlayMode **test** assembly, where `[]` was correct — PlayMode tests must be able to run in a player.
+
+    **Fix:** revert `:16` to `"includePlatforms": []`, then re-run and confirm PlayMode discovers 27. Replace the smoke test's assertion with one that observes the mode — e.g. assert `Application.isPlaying` inside a `[UnityTest]`, which is false in EditMode and true in PlayMode. Do not replace it with another name check.
+
 ---
 
 ## Verified clean — do not re-litigate
 
 Recorded so the next gate does not spend budget here.
 
-- **Test counts are correct for the first time in four gates.** 192 at `ec44226`, **205 EditMode + 27 PlayMode = 232** at HEAD. Counted by attribute via `git show` by Reviewer A and independently recounted by Reviewer B; zero `[TestCase]`/`[Values]` in the package, so no multiplication applies. Matches `index.md:72` exactly.
+- **Test counts are numerically correct for the first time in four gates** — 192 at `ec44226`, **232 at HEAD**. Counted by attribute via `git show` by Reviewer A, independently recounted by Reviewer B, and confirmed by execution: 205 + 27 = 232, all passing. Zero `[TestCase]`/`[Values]` in the package, so no multiplication applies.
+  **But the split is mislabelled: it is 232 EditMode + 0 PlayMode, not 205 + 27** — see blocking item 10. The *numbers* were the thing three gates got wrong and they are now right; the *mode* is the thing nobody had checked.
 - **Amendments A18, A22, A23, A24 all match the tree** — A22's five-way ownership split lands where the table says; A23's thirteen-component baseline counted in `ActorBaker.Bake`; A24's rest-bounds formula correct.
 - **§1.3's `Unity.Entities.Hybrid` prohibition holds** — EditMode asmdef clean; `AuthoringPathText` imports only Collections, reached via `InternalsVisibleTo`.
 - **The error harness is sound** — correct callback (`logMessageReceivedThreaded`, load-bearing for the Bursted `ResolveRigPartBindingsJob` diagnostics), per-instance counter that cannot leak, and **no late-delivery race**: `BakingStripSystem.OnUpdate` calls `EntityManager.RemoveComponent(query, …)`, forcing complete-all-jobs inside `BakeGameObjects` before the unsubscribe.
