@@ -625,6 +625,8 @@ public struct PlaybackLayer : IBufferElementData              // one element per
 {
     public ClipId clip;             public int clipIndex;     // -1 = none/unresolved
     public float time;              public float speed;       // seconds; speed may be negative (reverse)
+    public float advanceStartTime;  // time at the start of this frame's advance — the event window's
+                                    // opening edge, written by PlaybackTimeSystem (§5.5, A27)
     public LoopMode loop;
     public ClipId previousClip;     public int previousClipIndex;   // blend source
     public float previousTime;      public float previousSpeed;
@@ -746,9 +748,35 @@ Behaviour pinned: an inactive layer, an unresolved `clipIndex` (−1), or a zero
 
 **To revert:** restore the two-parameter signature and pick one of the three alternatives above, accepting its cost explicitly.
 
+**Amendment A27 (C4.3, 2026-08-02 — recorded under the owner's standing delegation of architecture calls; ratify or revert).** `PlaybackLayer` gains a `float advanceStartTime`, and event markers are collected from the current clip only.
+
+§5.5 collects marker crossings "between pre- and post-advance time", and `EventWrapMath.CollectCrossings` takes both edges — but `EventEmissionSystem` runs *after* `PlaybackTimeSystem`, on a layer whose only record of the opening edge is the field the advance just overwrote. As specified the window is not reconstructible. Recomputing it as `time − dt × speed` fails in exactly the frames that matter: a `Once` clip clamps its time at the end and a queue promotion resets it, so the subtraction describes a window the layer never travelled and drops the markers inside it — including the final markers of a finishing clip, which is where hit frames live. The field costs four bytes on a buffer element that already carries seventeen, and it is written by `PlaybackTimeSystem` alone: once immediately before the advance, and again on promotion so the promoted clip's window starts where the promoted clip starts. Commands need no special handling, because `CommandApplySystem` runs first and the snapshot taken afterwards is of the post-command value.
+
+The second half is a scope decision, not a mechanism: **the crossfade source does not emit markers.** Doing so would need a second snapshot for `previousTime` and would make every crossfade produce two overlapping streams of gameplay events. An outgoing clip is one the game has already replaced; its remaining footsteps and hit frames belong to a decision that has been superseded. Recorded here and in §12 as a documented limitation rather than left to be discovered.
+
+**To revert:** delete the field, restore the `previousTime` symmetry if the second half is what is being rejected, and give §5.5 some other way to learn where the frame began — the only alternative that survives inspection is merging emission into `PlaybackTimeSystem`, which §5.1 splits deliberately.
+
 ### 5.5 Events (`EventEmissionSystem`)
 
-Reserved keys: `ReservedEventKeys.ClipFinished = 1`, `ClipResolveFailed = 2`; user keys ≥ 16 (V09). Each frame the system **clears** each actor's `AnimEventOutput` buffer, disables `AnimEventsPending`, then emits: marker crossings between pre- and post-advance time (the audit's wrap-correct crossing math absorbed verbatim as a pure function `EventWrapMath.CollectCrossings` — including multi-wrap on large dt, and reverse-direction crossing when `speed < 0`), plus `ClipFinished` from `FinishedThisFrame`. Emission enables `AnimEventsPending` — consumers query the enableable, so event-less actors cost nothing. **Latency contract (documented):** events are valid from this group's execution until its next execution; host systems running earlier in the frame see the previous frame's events (1-frame latency); hosts that need same-frame events order themselves after `AnimationToolkitSystemGroup`.
+Reserved keys: `ReservedEventKeys.ClipFinished = 1`, `ClipResolveFailed = 2`; user keys ≥ 16 (V09). Each frame `CommandApplySystem` **clears** each actor's `AnimEventOutput` buffer and disables `AnimEventsPending` (amendment A28), and `EventEmissionSystem` then emits: marker crossings between `PlaybackLayer.advanceStartTime` and `PlaybackLayer.time` (the audit's wrap-correct crossing math absorbed verbatim as a pure function `EventWrapMath.CollectCrossings` — including multi-wrap on large dt, and reverse-direction crossing when `speed < 0`), plus `ClipFinished` from `FinishedThisFrame`. Emission enables `AnimEventsPending` — consumers query the enableable, so event-less actors cost nothing. **Latency contract (documented):** events are valid from `EventEmissionSystem`'s execution until the next frame's `CommandApplySystem`; host systems running earlier in the frame see the previous frame's events (1-frame latency); hosts that need same-frame events order themselves after `AnimationToolkitSystemGroup`.
+
+**Amendment A28 (C4.3, 2026-08-02 — recorded under the owner's standing delegation of architecture calls; ratify or revert).** The per-frame clear of `AnimEventOutput` moves from `EventEmissionSystem` to `CommandApplySystem`.
+
+As originally specified the two sections contradict each other. §5.4 requires `CommandApplySystem` to emit `ClipResolveFailed` when a Play or Queue names a clip the actor's registry does not contain; §5.5 required `EventEmissionSystem` — which runs *after* it, in the same group, in the same frame — to clear the buffer before emitting. Every resolve-failure event was therefore destroyed in the frame it was raised, and the request would fail exactly as silently as it does with no event mechanism at all: an animation that simply never plays. The defect is invisible to a reader of either system alone, and to any test that runs only one of them.
+
+Moving the clear to the first system in the group makes the rule simple — *everything written during the logic group survives to the end of it* — and costs nothing: the clear iterates the enabled `AnimEventsPending` set, which is exactly the actors that have something to drop, so actors that emitted nothing are not visited at all. `EventEmissionSystem` (C4.4) therefore **appends and enables only**; it must not clear and must not disable.
+
+The alternatives were worse. Emitting the failure as a per-layer flag consumed by `EventEmissionSystem` loses the `ClipId` that failed — the layer was deliberately left untouched, so its `clip` field still names the clip that is playing fine. A dedicated clearing system at the top of the group adds a fifteenth piece to a fourteen-piece module to express what `OrderFirst` already expresses.
+
+**To revert:** move the clear back into `EventEmissionSystem` and choose a different transport for `ClipResolveFailed`, accepting the loss of the failing id.
+
+**Amendment A29 (C4.3, 2026-08-02 — clarifications, same delegation).** Three command-application behaviours §5.4 leaves unstated:
+
+- **A command naming a layer index the actor does not have is dropped**, leaving every layer untouched, and emits nothing. Minting a reserved event key for it (3–15 are held for future built-ins) was rejected for C4.3: those values are public contract that consumers switch on, so adding one is a versioned decision that belongs with the §5.5 emission pass and with the owner, not as a side effect of the apply system. Reusing `ClipResolveFailed` was rejected as a lie — nothing failed to resolve. The behaviour is pinned by a fixture rather than left implicit.
+- **Queue resolves its clip when it is queued**, emitting `ClipResolveFailed` and leaving the slot empty on failure. §5.4 describes Queue as storing into `queued*` without mentioning resolution, but a NaN `blendDuration` has to resolve against the incoming clip's `defaultBlendIn` regardless — and a failure surfaced seconds later, as a promotion that does nothing, has no observable connection to the call that caused it.
+- **Stop clears the queue slot**, in both the immediate and the fading branch. A stopped layer that keeps a queued clip is armed to restart on its own the next time anything finishes.
+
+**To revert:** each is independent; the layer-index one is the only one with a defensible alternative (a new reserved key).
 
 ### 5.6 Transform technique (`TransformSampleSystem` → `TransformApplySystem`)
 
@@ -1086,6 +1114,7 @@ Claude/CI cannot see pixels; the following are verified by the human per step (�
 | R8 | **Editor preview ≠ BRG path** — preview renders via GameObjects, so BRG-specific defects (instancing macro bugs) don't show in preview. | Late defect discovery | The play-mode smoke scenes (C4/C6 DoD) are the BRG gate; preview is explicitly an authoring aid, stated in §7.3. |
 | R9 | **One-frame event latency** for consumers ordered before the package group (§5.5). | Gameplay timing nuance | Documented contract; hosts needing same-frame events order after the group (Stitch Punk's combat consumer does exactly this, §13). |
 | R10 | **Additive/scale semantic changes vs host content** (Q3/Q4 fixes change on-screen results of existing clips). | Host migration cost | Contained to the migration pass (§13): clip-by-clip visual review with the old tool still runnable side-by-side until cutover. |
+| R11 | **The crossfade source emits no event markers** (amendment A27). A clip crossfaded out stops firing its markers the moment it is replaced, so a footstep or hit frame in the last fraction of an outgoing clip never fires. | Gameplay timing on long crossfades | Deliberate: the alternative makes every crossfade emit two overlapping streams of gameplay events for a clip the game has already superseded. Blend durations are authored short (R1 recommends ≤ 0.25 s), so the unfired window is small and bounded. A host that needs the outgoing clip's tail events plays a hard cut, or moves the marker earlier. |
 
 ---
 

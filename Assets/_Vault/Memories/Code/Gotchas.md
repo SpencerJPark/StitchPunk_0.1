@@ -9,6 +9,27 @@ Things that are not derivable from reading the code at a glance. Read this befor
 
 ---
 
+## Shaders
+
+### An open Shader Graph window silently overwrites scripted .shadergraph edits
+Scripted graph surgery (the `shader-edit` skill's `shadergraph_lib.py`) writes the `.shadergraph`
+file directly. If that graph is **open in the Shader Graph editor**, the editor's in-memory copy
+wins the next time anything flushes it — your edits vanish or, worse, partially survive.
+
+Observed on `PainterlyShader` (2026-07-28): an edge into `Luminance Ramp UV` was re-sourced,
+`SurfaceDescription.Alpha` lost its input entirely, `_IsInteractable` flipped exposed→hidden, and a
+stray PropertyNode disappeared — none of which the surgery script did (replaying it on the same
+backup produced the correct result).
+
+**Close the Shader Graph window before scripted surgery; reopen after.**
+
+### A disconnected master-stack block still reports VALIDATION: ALL CLEAN
+`validate_shadergraph.py` checks referential integrity, not that the shader is *wired sensibly*. A
+`SurfaceDescription.Alpha` block with **zero inputs** validates clean and silently renders everything
+opaque. After any graph edit, explicitly check each `BlockNode`'s incoming edges — see [[Shaders]].
+
+---
+
 ## Spawning
 
 ### Entity refs inside dynamic buffers are not remapped by ECB.Instantiate
@@ -94,6 +115,40 @@ Keep these lookups in execution systems only. Scoring systems should query brain
 ## IEnableableComponent vs AddComponent/RemoveComponent
 
 For components that toggle frequently (e.g. `AttackRequest`, `PathRequest`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (e.g. adding `BrainLink` to a body that never had it). Full list of enableable components is in [[Components]].
+
+### An `EnabledRefRW<T>` parameter silently makes the job **skip entities where T is disabled**
+
+An `EnabledRefRW<T>` / `EnabledRefRO<T>` parameter on an `IJobEntity.Execute` (or in
+`SystemAPI.Query<>`) does **not** merely give you write access to the enabled bit — it also enrols
+`T` in the generated query as an **All** component, which for an enableable type means
+*enabled-only*. So a job that takes `EnabledRefRW<Dead>` to **set** `Dead` runs only on entities that
+are already dead, and does nothing at all.
+
+There is no compile error and no warning. The job just quietly matches a subset — often almost
+nothing — and every symptom points somewhere else.
+
+Fix: name the component in `[WithPresent(typeof(T))]` (or `.WithPresent<T>()`), which is the only
+option meaning "present, enabled or not". `[WithDisabled]` and `[WithAll]` are both filters.
+
+```csharp
+[BurstCompile]
+[WithAll(typeof(AnimationCommandPending))]            // deliberately enabled-only: the work gate
+[WithPresent(typeof(BoundsDirty))]                    // required — we WRITE this bit, both ways
+internal partial struct ApplyAnimationCommandsJob : IJobEntity
+{
+    private void Execute(
+        EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
+        EnabledRefRW<BoundsDirty> boundsDirtyEnabled) { /* ... */ }
+}
+```
+
+Rule of thumb: **if the job only ever turns the bit off, `[WithAll]` is right (and is the default).
+If it ever turns the bit on, you need `[WithPresent]`.** Source: the Entities source generator treats
+every iterable enableable type as an `All` component unless a `WithAny`/`WithNone`/`WithDisabled`/
+`WithPresent` names it (`SystemGenerator.SystemAPI.Query/IfeDescription.cs`).
+
+Found 2026-08-02 in the DOTS Animation Toolkit's `CommandApplySystem` / `PlaybackTimeSystem`, both of
+which write `BoundsDirty` in both directions.
 
 ---
 

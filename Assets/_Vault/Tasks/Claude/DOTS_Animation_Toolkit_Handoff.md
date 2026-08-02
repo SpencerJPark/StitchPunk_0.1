@@ -1,14 +1,13 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-02 (rewritten for a fresh session, mid-C4.3)
-**Last commit:** `7d84051`
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 and C4.2 done and verified; C4.3 partially written and NOT compiled.**
+**Written:** 2026-08-02 (C4.3 closed)
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1, C4.2 and C4.3 done; C4.4 is next.**
 
 ## ⚠ Do these two things first, in this order
 
-**1. The last commit is not compile-verified.** The Unity Editor disconnected from the MCP mid-phase (`mcpforunity://instances` returned `instance_count: 0`), so `Runtime/Api/AnimationCommandUtil.cs` — the only new code in `7d84051` — has never been through a compiler. **Open Unity, confirm the MCP answers (`read_console`), then compile before writing anything new.** Two specific unknowns in that file: whether `[BurstCompile]` on a static class with no `[BurstCompile]` entry-point methods is accepted or warns, and whether `float.NaN` holds up as a default parameter value there.
+**1. The Unity MCP was down for the whole of C4.3 and may still be.** Check `mcpforunity://instances` before planning anything. Through that phase the server answered but no Editor was registered (`instance_count: 0`, `read_console` → `no_unity_session`, `refresh_unity` → 60 s timeout) *with the Editor open, healthy and importing normally* — so it is the bridge inside the Editor, not the Editor. If it is still down, the owner has to reconnect it (Window ▸ MCP For Unity). C4.3's gate was run **by the owner in the Editor** instead: compiled clean, all tests passed.
 
-**2. Re-establish the baseline.** Last verified numbers, at `582e152`: **205 EditMode + 48 PlayMode = 253, all passing, each in its real mode.** If the counts differ after you compile, something in `7d84051` broke it — fix that before proceeding. **Check the discovered count, not just pass/fail.**
+**2. C4.3's test count was never read, and its mutation run never happened.** Both are owed. Last count on record is `582e152`: **205 EditMode + 48 PlayMode = 253**. C4.3 adds 53 PlayMode fixtures and changes one EditMode assertion, so expect roughly **205 EditMode + 95 PlayMode** — confirm that, because `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived three static reviewers. Then mutate the two properties C4.3's fixtures claim to pin (see the plan's C4.3 entry): the `previousLoop` capture order, and the `BoundsDirty` conditionals. A green suite is not the same as a discriminating one — C4.2 proved its tests by breaking the code on purpose, and C4.3 has not.
 
 ## C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first
 
@@ -16,22 +15,34 @@ It holds the 14 pieces, the nine phases, the traps carried in from C3, and the t
 
 - ✅ **C4.1 skeleton** — four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
 - ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, **mutation-verified**. Rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after instantiation, re-derives `phase01` per instance, disables `RigBindingUninitialized`.
-- 🔨 **C4.3 playback core — IN PROGRESS, roughly a quarter done.**
-  - ✅ written / ❌ never compiled: `Runtime/Api/AnimationCommandUtil.cs` (Play, Queue, Stop, SetSpeed, SetTime).
-  - ⬜ **`PlaybackQuery` is not written — and amendment A26 in §5.4 already describes it**, so the spec currently documents an API that does not exist. Closing that gap is the next task. Per A26: `NormalizedTime(in DynamicBuffer<PlaybackLayer> layers, ref ClipRegistryBlob registry, byte layerIndex)`, returning 0 for an inactive layer, `clipIndex == -1`, or a non-positive duration.
-  - ⬜ `CommandApplySystem` — not started.
-  - ⬜ `PlaybackTimeSystem` — not started.
-  - **No C4.3 tests exist yet.**
+- ✅ **C4.3 playback core** — compiled clean, all tests green (owner-verified in the Editor; see the two things owed, above). All four pieces plus their fixtures:
+  - `Runtime/Api/AnimationCommandUtil.cs` (Play, Queue, Stop, SetSpeed, SetTime) — unchanged from `7d84051`.
+  - `Runtime/Api/PlaybackQuery.cs` — `IsPlaying`, `NormalizedTime` (A26's three-parameter form), `FinishedThisFrame`. The spec no longer documents an API that does not exist.
+  - `Runtime/Systems/CommandApplySystem.cs` — two jobs: the stale-event clear (A28) then the command apply. `OrderFirst` in the logic group.
+  - `Runtime/Systems/PlaybackTimeSystem.cs` — blend advance, time advance, loop handling, Once completion, queue promotion. `UpdateAfter(CommandApplySystem)`.
+  - `Runtime/Components/PlaybackLayer.cs` — **new field `advanceStartTime`** (A27), plus the matching row in `DataContractTests`.
+  - Tests: `Tests/PlayMode/PlaybackTestActor.cs` (blob + actor fixture builder, PlayMode-local because the PlayMode asmdef cannot see `TestBlobFactory`), `CommandApplySystemTests.cs`, `PlaybackTimeSystemTests.cs`, `PlaybackQueryTests.cs`, and two structural tests appended to `SystemGroupStructureTests.cs`. Every fixture's doc comment names the mutation it catches, per the C4 standard.
 - ⬜ C4.4 events · C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
 
 **C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.3–4.8 autonomously; stop at 4.9.
 
-## The two traps waiting in C4.3
+## What C4.3 decided that C4.4 inherits
 
-Both are in the plan, and both are the kind that a careless test passes:
+Four amendments went into §5 of the architecture, all under the owner's standing delegation, all with a "to revert" note. **Two of them change what C4.4 must build:**
 
-- **`PlaybackLayer.previousLoop` is still written by nothing.** `CommandApplySystem` must copy the outgoing layer's `loop` into it **before** `layer.loop` is overwritten by the incoming request. Wrong order and a Loop-default clip that was played `Once` wraps to t=0 mid-crossfade instead of holding — a pop in exactly the transition the blend exists to smooth. **Mutation-check this one specifically:** it has been unwritten for three build steps, so nothing currently fails if it stays that way.
-- **`BoundsDirty` is enabled by `CommandApplySystem`** on any applied Play/Stop that changes a layer's `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, Once-completion and blend completion. **Never** a change-version filter on `PlaybackLayer` — `PlaybackTimeSystem` writes `time` into that buffer every frame, so such a filter degenerates to always-true.
+- **A28 — `EventEmissionSystem` appends and enables only.** It must **not** clear `AnimEventOutput` and must **not** disable `AnimEventsPending`; `CommandApplySystem` now owns the clear, at the top of the group. As originally specified, §5.4 had `CommandApplySystem` emit `ClipResolveFailed` and §5.5 had a *later* system wipe the buffer — every resolve-failure event was destroyed in the frame it was raised.
+- **A27 — the crossing window is `[layer.advanceStartTime, layer.time]`,** read off the layer, on the **current clip only**. Do not recompute the opening edge as `time − dt × speed`: that is wrong on exactly the frames where a Once clip clamps or a queue promotes. The crossfade source deliberately emits no markers (§12 R11).
+- A26 (pre-existing) — `PlaybackQuery.NormalizedTime` takes the registry.
+- A29 — out-of-range layer index dropped without an event; Queue resolves its clip; Stop clears the queue.
+
+## The two traps — how C4.3 handled them
+
+- **`PlaybackLayer.previousLoop` is now written, on both paths.** `CommandApplySystem.ApplyPlay` and `PlaybackTimeSystem.PromoteQueuedClip` each copy the outgoing `loop` into it *before* `layer.loop` is overwritten. Two fixtures pin it — `PlayOverACrossfade_CapturesTheModeTheOutgoingClipWasActuallyPlayingUnder` and `APromotionWithABlend_CapturesTheOutgoingLoopMode` — and both are built so that *each* failure mode produces a specific wrong answer: `Loop` if the capture moved below the overwrite, `UseClipDefault` if it was deleted. Neither is `Once`. **The mutation run is still owed** — the fixtures are green, but green is not the same as discriminating.
+- **`BoundsDirty`** is enabled by `CommandApplySystem` on a Play/Stop that changes `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, Once-completion and blend completion. No change-version filter anywhere. Fixtures pin both directions, including `PlayingTheSameClipAgain_DoesNotDirtyTheBounds` and `AnOrdinaryAdvance_DoesNotDirtyTheBounds` — the two that fail if someone "simplifies" it to dirty unconditionally.
+
+## The API trap C4.3 found (read before writing any more `IJobEntity`)
+
+An `EnabledRefRW<T>` parameter **enrols `T` in the query as an `All` component** — enabled-only. Both C4.3 systems write `BoundsDirty`, which is disabled on almost every actor almost every frame; left as the default, both jobs would have matched almost nothing, silently, with no error. Fixed with `[WithPresent(typeof(BoundsDirty), ...)]`. Rule: *if the job ever turns a bit **on**, that component needs `[WithPresent]`.* Recorded in `_Vault/Memories/Code/Gotchas.md`. C4.4–C4.8 will hit this again — `AnimEventsPending`, `AnimVisible`.
 
 ---
 
@@ -44,10 +55,12 @@ Both are in the plan, and both are the kind that a careless test passes:
 
 ## The environment is not what older notes say
 
-- **Unity MCP is connected** (`mcp__UnityMCP__*`, HTTP `127.0.0.1:8080`). Compile gate: `refresh_unity` → poll `editor/state` for `is_compiling: false` and `external_changes_dirty: false` → `read_console`. Tests: `run_tests` + `get_test_job`. Anything genuinely visual still needs the owner to look.
+- **Unity MCP is currently DOWN, and has been for two sessions** — the server answers, the Editor is open and importing, but `mcpforunity://instances` reports `instance_count: 0` and every tool returns `no_unity_session`. `refresh_unity` times out after 60 s waiting for editor readiness. The Editor-side bridge is what is missing; only the owner can restore it. **Check this first, before planning any phase**, because the whole gate depends on it.
+- When it is up: compile gate is `refresh_unity` → poll `editor/state` for `is_compiling: false` and `external_changes_dirty: false` → `read_console`. Tests: `run_tests` + `get_test_job`. Anything genuinely visual still needs the owner to look.
+- **The live Editor log for this launch is `%LOCALAPPDATA%\Unity\Editor\Editor.log`, not `Logs/Editor.log`.** Older notes say the opposite. Which one is live depends on how the Editor was launched (Hub-launched sessions write to the AppData one); the project-relative copy was last written 2026-08-01. Check `LastWriteTime` on both before trusting either.
 - **Always check the discovered test count, not just pass/fail.** `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived a whole build step and three static reviewers.
-- Fallback when the Editor is closed: grep `Logs/Editor.log` (project-relative — the `%LOCALAPPDATA%` copy is a stub that always greps clean).
-- **Grep `Library/PackageCache/<pkg>@<hash>/` before calling any Unity API.** The two worst bugs this package shipped both came from recalling semantics instead of reading them.
+- Fallback when the Editor is closed or the bridge is down: grep whichever `Editor.log` is actually being written (see above), and **check its mtime against your edits** — a log that predates the change means the compile never happened, so say so rather than reporting "clean".
+- **Grep `Library/PackageCache/<pkg>@<hash>/` before calling any Unity API.** The two worst bugs this package shipped both came from recalling semantics instead of reading them — and C4.3's `EnabledRefRW` trap was found this way and no other.
 
 ---
 
@@ -79,7 +92,7 @@ The runtime that makes baked actors actually animate: transform + flipbook end-t
 ### Process
 
 - Modules **C0–C8** in dependency order, each gated by an adversarial reviewer producing PASS/FAIL. **Gates are launched only when the owner asks.**
-- **Commit to `main` after each module passes its gate.** Nothing has been pushed.
+- **Commit and push to `main` whenever it makes sense — do not wait to be asked** (owner, 2026-08-02, superseding the old "commit only after a module passes its gate"). A phase that compiles clean with its tests green is a checkpoint; so is a coherent slice of one. What has not changed: stage the package, `Docs/AnimationToolkit`, and this handoff **explicitly** — the working tree carries unrelated host-game shader work that must never ride along.
 - The owner delegates architecture and process calls (stated 2026-08-01) — decide, record the decision with its reasoning and an explicit "what to revert" note, and keep moving. A spec/reality conflict still gets a **written amendment**, never a silent doc edit: that discipline is what three failed gates bought.
 
 ### If a gate is needed

@@ -22,6 +22,32 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Current playback time in seconds on the clip's un-wrapped timeline.</summary>
         public float time;
 
+        /// <summary>
+        /// <see cref="time"/> as it stood at the start of this frame's advance — the opening edge of
+        /// the window <c>EventEmissionSystem</c> collects marker crossings over (architecture
+        /// section 5.5, amendment A27).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Written by <c>PlaybackTimeSystem</c> and by nothing else: it snapshots <see cref="time"/>
+        /// immediately before advancing it, and re-snapshots it when a queue promotion restarts the
+        /// timeline mid-advance. It exists because event emission is specified to run <em>after</em>
+        /// the advance, on a layer whose only record of where it started is the one it just
+        /// overwrote. Recomputing the opening edge as <c>time − dt × speed</c> is wrong in exactly
+        /// the frames that matter most: a <see cref="LoopMode.Once"/> clip clamps its time at the
+        /// end and a queue promotion resets it, so the subtraction describes a window the layer
+        /// never travelled and silently drops the markers inside it — including the last markers of
+        /// a finishing clip, which is where hit frames live.
+        /// </para>
+        /// <para>
+        /// Commands need no special handling here. <c>CommandApplySystem</c> runs first and moves
+        /// <see cref="time"/> (a Play restarts it, a SetTime scrubs it); the snapshot taken
+        /// afterwards is of the post-command value, so a jump is never mistaken for playback
+        /// travelling across every marker in between.
+        /// </para>
+        /// </remarks>
+        public float advanceStartTime;
+
         /// <summary>Playback speed multiplier; may be negative (reverse playback).</summary>
         public float speed;
 

@@ -325,6 +325,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("clip", typeof(ClipId)),
                 Field("clipIndex", typeof(int)),
                 Field("time", typeof(float)),
+                Field("advanceStartTime", typeof(float)),
                 Field("speed", typeof(float)),
                 Field("loop", typeof(LoopMode)),
                 Field("previousClip", typeof(ClipId)),

@@ -138,6 +138,47 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Catches: moving <c>CommandApplySystem</c> out of the logic group, or dropping its
+        /// <c>OrderFirst</c>. Both halves matter. In the presentation group its work would happen
+        /// after the frame already sampled, so every command would land a frame late; without
+        /// <c>OrderFirst</c> the stale-event clear amendment A28 put here can be preceded by a
+        /// system that emits, and that system's events are wiped in the frame they were raised.
+        /// </summary>
+        [Test]
+        public void CommandApply_IsOrderFirstInTheLogicGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(CommandApplySystem));
+
+            Assert.AreEqual(typeof(AnimationToolkitLogicSystemGroup), updateInGroup.GroupType);
+            Assert.IsTrue(
+                updateInGroup.OrderFirst,
+                "CommandApplySystem opens the logic group: it clears last frame's events before " +
+                "anything can emit into them.");
+        }
+
+        /// <summary>
+        /// Catches: dropping the <c>UpdateAfter</c> edge between the two playback systems. Reversed,
+        /// the frame advances time and <em>then</em> applies the commands, so a Play would show its
+        /// first frame one frame late and — worse — a clip that finished would be advanced past its
+        /// end before the Play that was meant to replace it ever ran.
+        /// </summary>
+        [Test]
+        public void PlaybackTime_RunsAfterCommandApply_InTheLogicGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(PlaybackTimeSystem));
+            Assert.AreEqual(typeof(AnimationToolkitLogicSystemGroup), updateInGroup.GroupType);
+            Assert.IsFalse(updateInGroup.OrderFirst, "Only CommandApplySystem opens the logic group.");
+
+            object[] afterAttributes =
+                typeof(PlaybackTimeSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on PlaybackTimeSystem.");
+            Assert.AreEqual(
+                typeof(CommandApplySystem),
+                ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+        }
+
+        /// <summary>
         /// Catches: deleting the auto-creation branch in <c>ConfigBootstrapSystem</c>. Without it the
         /// package needs manual setup, which the zero-setup promise of section 5.2 forbids.
         /// </summary>
