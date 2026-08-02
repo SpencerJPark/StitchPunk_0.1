@@ -1,13 +1,15 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-02 (C4.3 closed, C4.4 written)
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1, C4.2, C4.3 done; C4.4 written but not compiled; C4.5 is next.**
+**Written:** 2026-08-02 (C4.3 and C4.4 closed and gated)
+**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1, C4.2, C4.3, C4.4 all done and verified. C4.5 is next.**
 
-## ⚠ Do these two things first, in this order
+**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **205 EditMode + 114 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3/C4.4 verified by three mutation runs (table in the C4 plan). Nothing is owed.
 
-**1. The Unity MCP was down for the whole of C4.3 and may still be.** Check `mcpforunity://instances` before planning anything. Through that phase the server answered but no Editor was registered (`instance_count: 0`, `read_console` → `no_unity_session`, `refresh_unity` → 60 s timeout) *with the Editor open, healthy and importing normally* — so it is the bridge inside the Editor, not the Editor. If it is still down, the owner has to reconnect it (Window ▸ MCP For Unity). C4.3's gate was run **by the owner in the Editor** instead: compiled clean, all tests passed.
+## ⚠ Two process notes, both learned the hard way this session
 
-**2. No test count has been read since `582e152`, and C4.3's mutation run never happened.** Both are owed. Last count on record: **205 EditMode + 48 PlayMode = 253**. C4.3 adds 53 PlayMode fixtures and C4.4 another 13, so expect roughly **205 EditMode + 114 PlayMode** — confirm the number, because `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived three static reviewers. Then mutate the two properties C4.3's fixtures claim to pin (see the plan's C4.3 entry): the `previousLoop` capture order, and the `BoundsDirty` conditionals. A green suite is not the same as a discriminating one — C4.2 proved its tests by breaking the code on purpose; C4.3 and C4.4 have not.
+**1. `refresh_unity` returning `success` is not a readiness signal.** Calling `run_tests` straight after it wedged the Editor mid-play-mode-transition (job died with `total: null`, `completed: 0`), needed `manage_editor action=stop` to recover, and left an `Assets/InitTestScene<guid>.unity` behind. Poll `mcpforunity://editor/state` first: `is_compiling: false`, `is_domain_reload_pending: false`, and a `last_domain_reload_after_unix_ms` **newer than the compile you just triggered**. The `stale_status` blocking reason on that resource is snapshot freshness only — it can sit true indefinitely while every substantive field reads idle, so do not wait on `ready_for_tools`.
+
+**2. The MCP bridge can be down while Unity is perfectly healthy.** For two sessions the server answered but no Editor was registered (`instance_count: 0`, `read_console` → `no_unity_session`, `refresh_unity` → 60 s timeout) with the Editor open and importing normally. Only the owner can restore it (Window ▸ MCP For Unity). Check `mcpforunity://instances` before planning a phase — building blind is possible (C4.3 and C4.4 both were) but every unverified assumption compounds.
 
 ## C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first
 
@@ -15,17 +17,17 @@ It holds the 14 pieces, the nine phases, the traps carried in from C3, and the t
 
 - ✅ **C4.1 skeleton** — four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
 - ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, **mutation-verified**. Rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after instantiation, re-derives `phase01` per instance, disables `RigBindingUninitialized`.
-- ✅ **C4.3 playback core** — compiled clean, all tests green (owner-verified in the Editor; see the two things owed, above). All four pieces plus their fixtures:
+- ✅ **C4.3 playback core** — compiled clean, all tests green, **mutation-verified** (three runs; see the C4 plan's table). All four pieces plus their fixtures:
   - `Runtime/Api/AnimationCommandUtil.cs` (Play, Queue, Stop, SetSpeed, SetTime) — unchanged from `7d84051`.
   - `Runtime/Api/PlaybackQuery.cs` — `IsPlaying`, `NormalizedTime` (A26's three-parameter form), `FinishedThisFrame`. The spec no longer documents an API that does not exist.
   - `Runtime/Systems/CommandApplySystem.cs` — two jobs: the stale-event clear (A28) then the command apply. `OrderFirst` in the logic group.
   - `Runtime/Systems/PlaybackTimeSystem.cs` — blend advance, time advance, loop handling, Once completion, queue promotion. `UpdateAfter(CommandApplySystem)`.
   - `Runtime/Components/PlaybackLayer.cs` — **new field `advanceStartTime`** (A27), plus the matching row in `DataContractTests`.
   - Tests: `Tests/PlayMode/PlaybackTestActor.cs` (blob + actor fixture builder, PlayMode-local because the PlayMode asmdef cannot see `TestBlobFactory`), `CommandApplySystemTests.cs`, `PlaybackTimeSystemTests.cs`, `PlaybackQueryTests.cs`, and two structural tests appended to `SystemGroupStructureTests.cs`. Every fixture's doc comment names the mutation it catches, per the C4 standard.
-- 🔨 **C4.4 events — WRITTEN, NOT COMPILED.** `Runtime/Systems/EventEmissionSystem.cs` (marker crossings from `[advanceStartTime, time]` + `ClipFinished`, appends and enables only per A28) and `Tests/PlayMode/EventEmissionSystemTests.cs` (12 fixtures). Writing it exposed a defect in C4.3's queue promotion → **amendment A30**, which changed `PlaybackTimeSystem` and its promotion fixtures. Needs the same owner-run gate C4.3 got.
+- ✅ **C4.4 events** — `Runtime/Systems/EventEmissionSystem.cs` (marker crossings from `[advanceStartTime, time]` + `ClipFinished`, appends and enables only per A28) and `Tests/PlayMode/EventEmissionSystemTests.cs` (12 fixtures). Writing it exposed a defect in C4.3's queue promotion → **amendment A30**, which changed `PlaybackTimeSystem` and its promotion fixtures. Gated with C4.3.
 - ⬜ C4.5 transform · C4.6 flipbook · C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
 
-**C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.3–4.8 autonomously; stop at 4.9.
+**C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.5–4.8 autonomously; stop at 4.9.
 
 ## What C4.3 decided that C4.4 inherits
 
@@ -41,8 +43,11 @@ Four amendments went into §5 of the architecture, all under the owner's standin
 
 ## The two traps — how C4.3 handled them
 
-- **`PlaybackLayer.previousLoop` is now written, on both paths.** `CommandApplySystem.ApplyPlay` and `PlaybackTimeSystem.PromoteQueuedClip` each copy the outgoing `loop` into it *before* `layer.loop` is overwritten. Two fixtures pin it — `PlayOverACrossfade_CapturesTheModeTheOutgoingClipWasActuallyPlayingUnder` and `APromotionWithABlend_CapturesTheOutgoingLoopMode` — and both are built so that *each* failure mode produces a specific wrong answer: `Loop` if the capture moved below the overwrite, `UseClipDefault` if it was deleted. Neither is `Once`. **The mutation run is still owed** — the fixtures are green, but green is not the same as discriminating.
-- **`BoundsDirty`** is enabled by `CommandApplySystem` on a Play/Stop that changes `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, Once-completion and blend completion. No change-version filter anywhere. Fixtures pin both directions, including `PlayingTheSameClipAgain_DoesNotDirtyTheBounds` and `AnOrdinaryAdvance_DoesNotDirtyTheBounds` — the two that fail if someone "simplifies" it to dirty unconditionally.
+Both are closed, and both are **mutation-verified** rather than merely green — the mutation table is in the C4 plan.
+
+- **`PlaybackLayer.previousLoop` is now written, on both paths.** `CommandApplySystem.ApplyPlay` and `PlaybackTimeSystem.PromoteQueuedClip` each copy the outgoing `loop` into it *before* `layer.loop` is overwritten. Capturing it *after* the overwrite fails `PlayOverACrossfade_CapturesTheModeTheOutgoingClipWasActuallyPlayingUnder` with `Expected: Once, But was: Loop` — the wrong value that a late capture produces, not the `UseClipDefault` a deleted line would leave. The fixture separates the two failure modes, and that was proven, not asserted.
+- **`BoundsDirty`** is enabled by `CommandApplySystem` on a Play/Stop that changes `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, Once-completion and blend completion. No change-version filter anywhere. Making either write unconditional fails exactly one fixture per system — `PlayingTheSameClipAgain_DoesNotDirtyTheBounds` and `AnOrdinaryAdvance_DoesNotDirtyTheBounds`.
+- **Still untested by construction:** the `BoundsDirty` *disable*. It lives in `RenderBoundsUpdateSystem`, which C4.7 builds. The C4 test-integrity standard names it as the second thing to pin by mutation — do that in C4.7, not before.
 
 ## The API trap C4.3 found (read before writing any more `IJobEntity`)
 
