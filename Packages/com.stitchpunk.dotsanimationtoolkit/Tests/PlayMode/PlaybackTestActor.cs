@@ -4,6 +4,7 @@ using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using Unity.Transforms;
 
 namespace StitchPunk.AnimationToolkit.Tests.PlayMode
@@ -42,6 +43,21 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             /// <summary>Sprite tracks, which the bake sorts by dense target index.</summary>
             internal SpriteTrackSpec[] spriteTracks = Array.Empty<SpriteTrackSpec>();
+
+            /// <summary>First global VAT frame of this clip's range; -1 = the clip has no VAT range.</summary>
+            internal int vatFrameStart = -1;
+
+            /// <summary>VAT frames baked for this clip, including the duplicated loop-safe frame.</summary>
+            internal int vatFrameCount;
+
+            /// <summary>Rate the VAT frames were baked at.</summary>
+            internal float vatFps;
+
+            /// <summary>
+            /// Conservative bounds in <em>offset</em> space — deltas from each target's rest pose,
+            /// origin-centred by construction (architecture section 4.6, amendment A13).
+            /// </summary>
+            internal AABB offsetBounds = new AABB { Center = float3.zero, Extents = float3.zero };
         }
 
         /// <summary>Authoring-side description of one sprite track.</summary>
@@ -180,10 +196,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     clip.defaultLoop = clipSpec.defaultLoop;
                     clip.defaultBlendIn = clipSpec.defaultBlendIn;
                     clip.defaultBlendOut = clipSpec.defaultBlendOut;
-                    clip.vatFrameStart = -1;
-                    clip.vatFrameCount = 0;
-                    clip.vatFps = 0f;
-                    clip.offsetBounds = new AABB { Center = float3.zero, Extents = float3.zero };
+                    clip.vatFrameStart = clipSpec.vatFrameStart;
+                    clip.vatFrameCount = clipSpec.vatFrameCount;
+                    clip.vatFps = clipSpec.vatFps;
+                    clip.offsetBounds = clipSpec.offsetBounds;
                     BlobBuilderArray<TransformTrackBlob> trackArray =
                         builder.Allocate(ref clip.transformTracks, clipSpec.transformTracks.Length);
                     for (int trackIndex = 0; trackIndex < clipSpec.transformTracks.Length; trackIndex++)
@@ -320,6 +336,15 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             entityManager.AddComponent<AnimVisible>(actorEntity);
             entityManager.SetComponentEnabled<AnimVisible>(actorEntity, true);
 
+            // Actor-space rest bounds, deliberately off-origin: a rig centred on the origin cannot
+            // tell a correct actor-space union from one that mistook offset space for actor space,
+            // which is the defect amendment A13 exists to prevent.
+            entityManager.AddComponentData(actorEntity, new ActorRestBounds
+            {
+                value = new AABB { Center = new float3(2f, 3f, 0f), Extents = new float3(1f, 1.5f, 0.5f) }
+            });
+            entityManager.AddComponentData(actorEntity, new RenderBounds { Value = default });
+
             return actorEntity;
         }
 
@@ -349,7 +374,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             float restRotationZ = 0f,
             float2 restScale = default,
             int restSliceIndex = 0,
-            bool asFlipbookPlane = false)
+            bool asFlipbookPlane = false,
+            int vatDrivingLayerIndex = -1)
         {
             EntityManager entityManager = world.EntityManager;
 
@@ -396,6 +422,18 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     partEntity,
                     new AtlasFrameProperty { Value = ClipSampler.IdentityAtlasRect });
             }
+
+            if (vatDrivingLayerIndex >= 0)
+            {
+                entityManager.AddComponentData(
+                    partEntity,
+                    new VatDriven { layerIndex = (byte)vatDrivingLayerIndex });
+                entityManager.AddComponentData(partEntity, new VatFrameAProperty { Value = 0f });
+                entityManager.AddComponentData(partEntity, new VatFrameBProperty { Value = 0f });
+                entityManager.AddComponentData(partEntity, new VatBlendProperty { Value = 0f });
+            }
+
+            entityManager.AddComponentData(partEntity, new RenderBounds { Value = default });
 
             entityManager.GetBuffer<RigPartRef>(actorEntity).Add(new RigPartRef
             {

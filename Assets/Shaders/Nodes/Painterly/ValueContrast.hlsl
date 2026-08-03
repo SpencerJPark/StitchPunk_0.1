@@ -30,7 +30,7 @@
 ///     <sg:Default>0</sg:Default>
 ///</paramhints>
 UNITY_EXPORT_REFLECTION
-float ValueContrast(float value, float contrast, float pivot, float brightness)
+void ValueContrast(float value, float contrast, float pivot, float brightness, out float contrastedValue)
 {
-    return PainterlyApplyValueContrast(value, contrast, pivot, brightness);
+    contrastedValue = PainterlyApplyValueContrast(value, contrast, pivot, brightness);
 }

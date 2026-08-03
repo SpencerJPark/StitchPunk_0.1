@@ -32,8 +32,11 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
 - **`Nodes/Lighting/`** — `CelShadedCommon.hlsl` (core: banded diffuse, toon
   specular, rim; main light + up to 8 per-object additional lights reading
   `_AdditionalLightsCount` directly — deliberately NOT the keyword-gated call,
-  don't "simplify" it back), `CelShadedLighting` (used by all four production
-  graphs), `CelShadedLightingDebug` (keyword-gated light path + separate
+  don't "simplify" it back; also holds the frozen `kUniform*` edge constants and
+  `CelShadedUniformCore`), **`CelShadedUniform`** (4 artist dials + shadow lift —
+  **prefer this for new graphs**, see the 2026-07-28 section), `CelShadedLighting`
+  (9 per-material dials, still used by the other 7 production graphs — pending
+  rollout), `CelShadedLightingDebug` (keyword-gated light path + separate
   Light Count Color output for comparison debugging).
 - **`Nodes/Screen/`** — `ScreenSpaceCommon.hlsl` (depth → view position/normal
   reconstruction), `ReconstructViewPosition`, `ScreenSpaceNormal`,
@@ -106,7 +109,10 @@ no longer drives baked parts (the component wins) — set the entity's
   `ShaderRework_SetupGuide.md`). `PainterlyCommon.hlsl` + nodes `SelectChannel`,
   `ValueContrast`, `ColorRamp4` (VARIABLE-stop ramp: Stop Count 1–4, every stop
   has its own position slider, positions self-clamp ascending; smoothness 0 =
-  hard toon bands), `HueSatValue`, `ObjectRandom` (position-hash per-instance
+  hard toon bands), `RampUVFromValue` (grayscale float → **inverted** ramp U,
+  V fixed 0.5 — the live colour path on `PainterlyShader`, see the 2026-07-28
+  section), `HueSatValue` / `SelectChannel` / `ValueContrast` (all void+out since
+  2026-07-28), `ObjectRandom` (position-hash per-instance
   variation; feed from Object node — drives hue/value jitter AND the mask UV
   shift via the `_UVJitter` slider, so moving a prop re-rolls its strokes),
   `PainterlyColor` (combined node, same
@@ -123,6 +129,133 @@ no longer drives baked parts (the component wins) — set the entity's
   and save a recipe beside it for one-click repacks. The bake overwrites in
   place, preserving GUID/import settings. (This replaced the fixed-purpose
   `PainterlyMaskPacker.cs` menu item, deleted 2026-07-09.) See [[Editor]].
+
+## Cel shading collapsed to 4 artist dials — `CelShadedUniform` (2026-07-28)
+
+`PainterlyShader` **only** so far. The other seven graphs still use `CelShadedLighting` — see the
+rollout note at the end of this section.
+
+The old node exposed **nine** per-material lighting dials, seven of which are band-shape values that
+must NOT vary between objects if a scene is to read as one style. `Nodes/Lighting/CelShadedUniform.hlsl`
+(`StitchPunk.CelShadedUniform`, guid `ad6e4220eb1d45b4834a8b3a36f18b87`) exposes four instead:
+
+| Input | Property | Notes |
+|---|---|---|
+| Shininess | `_Smoothness` (reused) | tightens **and** strengthens the specular |
+| Rim Strength | `_RimStrength` (new) | **decoupled** from shininess — matte objects can still rim |
+| Shadow Lift | `_ShadowLift` (new) | how far shadows come up off pure black |
+| Shadow Tint | `_ShadowTint` (new) | colour shadows settle toward |
+
+- **The seven `kUniform*` edge constants are frozen at the top of `CelShadedCommon.hlsl`.** Tuning the
+  look is a one-line edit there that moves every material at once. Do not re-expose them.
+- **`CelShadedLighting` was NOT touched.** It is placed in 8 graphs and a signature change there
+  renumbers slots in all of them — the single easiest way to break every shader in the project. The
+  new node is a parallel addition; rollout is per-graph node-swap, not a signature edit.
+- **Shadow Lift is genuinely new math.** `CelShadedLightingCore` bottoms out at literally zero
+  (`color = lightColor * (diffuse + max(specular, rim))`), so a fully shadowed fragment multiplied
+  albedo by 0 and went **pure black** — there was no way to say "dark but still coloured".
+  `CelShadedUniformCore` ends with `color = shadowTint * lift + accumulated * (1 - lift)`.
+  **lift 0 reproduces the old math exactly**; lift 1 is fully flat.
+- **Why this was overdue:** `Painterly.mat` had `_EdgeSpecularOffset: -35.79`, `_EdgeSpecular: -2.63`,
+  `_RimThreshold: 2` — far outside their declared 0–1 sliders. That makes the specular smoothstep
+  `smoothstep(-36.6, -38.4, spec)` with edge0 > edge1, which saturates to **1 everywhere**: the
+  "specular" was a flat `+0.7` constant being used as a fake ambient. Un-exposing/removing those
+  properties snaps the look to the frozen defaults, so **the material will change visibly** — the
+  previous state was accidental, not authored.
+- `Painterly Color` (21 slots, only `maskValue` live) was replaced by **`Select Channel` →
+  `Value Contrast`**, which is exactly what `maskValue` computed. 22 dead properties removed
+  (`_ColorA-D`, `_PositionA-D`, `_StopCount`, `_RampSmoothness`, `_Saturation`, `_Value`,
+  `_HueJitter`, `_ValueJitter`, `_RimThreshold`, the 7 `_Edge*`). Exposed properties: **20 → 15**.
+- **`SelectChannel` and `ValueContrast` converted to `void`+`out`** (like `HueSatValue` before them),
+  since no returning reflected node had ever been placed in a graph and the slot ids were unverified.
+  Both were in zero graphs. The Painterly node library is now uniformly `void`+`out`.
+
+### Rollout to the other 7 graphs — not done
+
+`2DShader`, `2DArrayShader`, `2DPackedArrayShader`, `2DViewSwitchingPackedArrayShader`, `3DShader`,
+`PainterlyPaletteShader`, `PainterlyZoneGradientShader`. Per graph: swap the `Cel Shaded Lighting`
+ProviderNode for `Cel Shaded Uniform` (8 slots vs 13), re-point `_Smoothness`/Position/Normal/View,
+add `_RimStrength`/`_ShadowLift`/`_ShadowTint`, delete `_RimThreshold` + the 7 `_Edge*` properties.
+Deliberately deferred until the frozen constants are confirmed on `PainterlyShader` in-Editor —
+tuning them after 8 graphs are converted is 8 graphs to redo.
+
+### ⚠ Editing a graph while its Shader Graph window is open will clobber one side
+
+During this change the on-disk graph twice diverged from what the surgery script wrote: an edge into
+`Luminance Ramp UV` was re-sourced, `SurfaceDescription.Alpha` lost its input entirely (everything
+renders opaque), `_IsInteractable` flipped exposed→hidden, and a stray `_Offset` PropertyNode
+vanished. Replaying the identical script on the identical backup produced the **correct** result, so
+the script was not at fault — an open editor was writing its in-memory copy over the file.
+**Close the Shader Graph window before scripted surgery, and reopen it after.** Verify block inputs
+(`BaseColor`, `Alpha`) after any edit — a disconnected Alpha block still validates ALL CLEAN.
+
+## PainterlyShader colour = inverted-luminance gradient map through a baked ramp (2026-07-28)
+
+**This supersedes the `_GradientLUT` / `_GradientRow` half of the 2026-07-27 section below for
+`PainterlyShader` only.** The base graph no longer picks a colour by UV row — it does a true
+gradient map: the stroke texture's luminance chooses a position along a single-ramp texture.
+
+Albedo chain now reads:
+
+```
+_MainTex Sample .RGBA -> Select Channel (_Channel) -> Value Contrast (_Contrast) -+-> Height To Normal
+                                                                                  |
+                                            Ramp UV From Value <------------------+
+                                                     |
+                                            _RampTex Sample .UV
+                                                     |
+                        Hue Sat Value (_HueShift) -> lit Multiply.A -> Lerp -> Branch -> BaseColor
+```
+
+- **`Nodes/Painterly/RampUVFromValue.hlsl`** (`StitchPunk.RampUVFromValue`, guid
+  `9fec3781418c4307ad718bc9f03c7716`) — takes the grayscale float and **inverts** it:
+  value 1.0 (light) → U 0.0 (ramp start), 0.0 (dark) → U 1.0 (ramp end). **Author ramps
+  left-to-right as highlight → shadow.** V hardwired to 0.5 (one ramp per texture, every row
+  identical — no row to pick).
+- **`Value Contrast`'s output is the single grayscale source of truth**, feeding BOTH the ramp
+  lookup and `Height To Normal`. That is what makes `_Channel` and `_Contrast` shape colour and
+  bump identically.
+- ⚠ **Never drive a ramp lookup from a luminance of the raw `_MainTex` sample.** `_MainTex` is the
+  packed stroke mask: R/G/B/A are four INDEPENDENT noise layers, not the channels of one colour.
+  `dot(rgb, Rec.709)` averages all of them together, so the ramp ignores `_Channel` entirely and the
+  slider appears to affect only the normal/bump path. This shipped briefly (a `LuminanceRampUV` node,
+  deleted 2026-07-28) and is exactly the bug it caused. Extract one channel first, always.
+- **`HueSatValue` signature changed** from `float3 HueSatValue(...)` to `void HueSatValue(...,
+  out float3 outputColor)`, and its first param `color` → `inputColor`. It was placed in **zero**
+  graphs at the time, so no slot renumbering fallout. Reason: no returning reflected node had ever
+  been placed in this project, so return-value slot ids were unverified — void+out is the proven
+  pattern. Slots: 1 inputColor, 2 hueShift, 3 saturation, 4 value, 5 outputColor.
+- Only `hueShift` is wired (to the **re-exposed `_HueShift` property**, reusing the old painterly
+  hue dial rather than adding a duplicate). `saturation`/`value` sit at their 1.0 slot defaults —
+  wire them to properties if per-material sat/value is ever wanted.
+- **`_RampTex` was broken**: serialized `m_GeneratePropertyBlock: false` +
+  `hlslDeclarationOverride: 2` (**Global**), so it was not a material property at all and
+  `material.SetTexture("_RampTex", …)` silently did nothing (`Painterly.mat` had it null). Now a
+  normal per-material texture slot. **If a ramp ever "doesn't apply", check this flag first.**
+- **Swept:** the dead `Vector 2` node + `_GradientRow` property (leftovers from the 64×64 LUT
+  path — the Vector2's output was already connected to nothing). The graph's
+  `m_CustomEditorGUI` hook was cleared.
+- `Painterly Color` was replaced by `Select Channel` → `Value Contrast` in the same-day cel-shading
+  pass (see the section above); `_Channel` and `_Contrast` drive **both** colour and bump.
+- **Retired:** `Editor/RampShaderGUI.cs` (deleted). It baked a runtime `new Texture2D` that was
+  never an asset, so the reference could not survive serialization or exist in a build — a second,
+  independent reason the old setup could not have worked. `Shaders/ColorRampShader.shader` (a
+  scratch UV-ramp test used by `Materials/Painterly 1.mat`) lost its `CustomEditor` line with it.
+
+### Ramp authoring — `ColorRampSO` + `ColorRampGenerator` (2026-07-28)
+
+- `Data/SOs/ColorRampSO.cs` — one asset per ramp: `Gradient gradient`, `width` (8–1024, default
+  256), `sRGB`. Create via **Assets ▸ Create ▸ Colors ▸ Color Ramp**.
+- `Editor/ColorRampGenerator.cs` — **Bake Ramp Texture** button on the SO's inspector (with a live
+  gradient preview + the current on-disk texture), and **Stitch Punk ▸ Bake All Color Ramps**.
+  Output: `Assets/Textures/ColorRamps/T_Ramp_<asset name>.png`, 8px tall (readable Project-view
+  thumbnail; V is irrelevant), **sRGB / Clamp / Bilinear / no mips / uncompressed**.
+  **Clamp is load-bearing** — a pure-white or pure-black pixel lands exactly on U 0 / U 1 and must
+  hold the end colour, not wrap to the opposite end of the ramp.
+- Bakes **overwrite the same path**, so the PNG's GUID and import settings survive and materials
+  never lose their ramp. **Renaming the SO mints a new texture** and orphans the old one.
+- Unlimited stops and Blend/Fixed mode come free from Unity's gradient editor — **Fixed mode is how
+  you get hard cel bands**, no shader work involved.
 
 ## Painterly ramp is now gradient-LUT-driven, not an analytic 4-stop ramp (2026-07-27)
 

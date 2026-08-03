@@ -1,9 +1,12 @@
 ﻿Shader "Custom/ColorRampShader"
 {
+    // Scratch/test shader: shows a baked ramp straight across the mesh's UV.x, no lighting.
+    // Assign a ramp baked by Stitch Punk > Bake All Color Ramps (Assets/Textures/ColorRamps/).
+    // The production path is PainterlyShader, which drives this same lookup from _MainTex
+    // luminance instead of raw UV.
     Properties
     {
-        // The CustomEditor script will hide this and auto-fill it with your gradient
-        [HideInInspector] _RampTex ("Baked Ramp Texture", 2D) = "white" {}
+        _RampTex ("Baked Ramp Texture", 2D) = "white" {}
     }
     SubShader
     {
@@ -38,6 +41,4 @@
             ENDHLSL
         }
     }
-    // Link the custom Inspector interface here
-    CustomEditor "RampShaderGUI"
 }

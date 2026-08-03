@@ -13,6 +13,7 @@ Each numbered item is a candidate for a full plan via `dots-task-creator`. Sizes
 
 ---
 
+
 ## What's healthy (verified this pass — preserve)
 
 - **Zero rule violations found**: no `var`, no `.Run()`, no TODO/FIXME markers, no managed allocs spotted in job paths. Rare for a codebase this size.

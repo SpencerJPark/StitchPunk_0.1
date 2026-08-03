@@ -19,7 +19,7 @@
 ///     <sg:Default>0</sg:Default>
 ///</paramhints>
 UNITY_EXPORT_REFLECTION
-float SelectChannel(float4 maskSample, float channel)
+void SelectChannel(float4 maskSample, float channel, out float value)
 {
-    return PainterlySelectMaskChannel(maskSample, channel);
+    value = PainterlySelectMaskChannel(maskSample, channel);
 }

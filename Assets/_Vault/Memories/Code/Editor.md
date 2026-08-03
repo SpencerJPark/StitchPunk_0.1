@@ -29,6 +29,7 @@ single-character names, explicit types everywhere.
 | `TextureArrayBuilder.cs` + `TextureArrayConfig.cs` | Builds `Texture2DArray` assets from a folder of slices (body-part texture arrays). |
 | `PainterlyMaskGenerator.cs` | Procedurally generates the painterly stroke mask. |
 | `PainterlyGradientLUTGenerator.cs` | Bakes the 64×64 gradient-map palette atlas (see [[Shaders]]). |
+| `ColorRampGenerator.cs` | `ColorRampSO` inspector (live gradient preview + **Bake Ramp Texture**) and **Stitch Punk ▸ Bake All Color Ramps** → `Assets/Textures/ColorRamps/T_Ramp_<name>.png`. These 1D ramps are what `PainterlyShader` remaps `_MainTex` luminance through (inverted: light → ramp start). Bakes overwrite in place so texture GUIDs survive; **renaming the SO mints a new texture**. See [[Shaders]]. Replaced `RampShaderGUI.cs`, deleted 2026-07-28 — it baked a non-asset `Texture2D` that could never serialize. |
 | `ItemSOEditor.cs`, `BehaviorSOEditor.cs` | Custom inspectors for the SO data assets. |
 | `SearchableEnumDrawer.cs` | `PropertyDrawer` giving long enums a searchable popup. |
 | `ShowWhenDrawer.cs` | `PropertyDrawer` for `[ShowWhen("siblingBool", shownWhen)]` (`Data/Attributes/ShowWhenAttribute.cs`) — hides the field entirely unless a SIBLING bool matches; works in nested classes/list elements. Used by `PaletteSlot` (min/max only when `useFullRange` off) and `ColorVariation` (`alternative` only when `hasAlternative` on). |

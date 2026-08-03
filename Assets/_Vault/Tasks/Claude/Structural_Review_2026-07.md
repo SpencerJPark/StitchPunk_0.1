@@ -5,6 +5,10 @@ created: 2026-07-02
 status: active
 ---
 
+
+
+
+
 # Structural Review — System Groups as Plug-and-Play Features (July 2026)
 
 Scope: **existing code and structure only** — how close the codebase is to the stated goal of *"system groups as isolated features that upstream orchestrating groups call into, ultimately plug-and-play."* This is the companion to [[Code_Audit_2026-07]] (which is a feature/roadmap backlog); nothing here adds gameplay. Written as a senior-consultant pass: what's genuinely good, where the structure lies to you, and the shortest path to real pluggability.

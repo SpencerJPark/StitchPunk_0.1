@@ -18,6 +18,7 @@ Material:
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap:
+    GradientData: '{}'
     RenderType: Opaque
   disabledShaderPasses:
   - MOTIONVECTORS
@@ -59,7 +60,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: a45432932370dd74fa426457ddf4811d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 9ef09901d74e1d84bac01ee00a7cdbf5, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -75,7 +76,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RampTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 5c7395e5f7826bc4d8bb20e5ccc2d835, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SpecGlossMap:
@@ -103,48 +104,50 @@ Material:
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
     - _CastShadows: 0
-    - _Channel: 0.57
+    - _Channel: 0.27
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
-    - _Contrast: 0.14
+    - _Contrast: 0.09
     - _Cull: 2
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _DstBlendAlpha: 0
-    - _EdgeDiffuse: 0.93
+    - _EdgeDiffuse: 0.88
     - _EdgeDistanceAttenuation: 1.07
     - _EdgeRimAttenuation: 0.3
     - _EdgeRimOffset: 0.5
     - _EdgeShadowAttenuation: 1.23
     - _EdgeSpecular: -2.63
-    - _EdgeSpecularOffset: -35.79
+    - _EdgeSpecularOffset: -22.37
     - _EnvironmentReflections: 1
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _GradientRow: 0
     - _HueJitter: 0.077
-    - _HueShift: -0.107
+    - _HueShift: -0.102
     - _InteractableHighlight: 0.06
     - _IsInteractable: 0
     - _Metallic: 0
-    - _NormalStrength: 0.42
+    - _NormalStrength: 0.91
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _PositionA: 0.012
     - _PositionB: 0.318
     - _PositionC: 0.665
     - _PositionD: 0.829
-    - _PositionScale: 3.07
+    - _PositionScale: 5.63
     - _QueueControl: 0
     - _QueueOffset: 0
     - _RampSmoothness: 0.237
     - _ReceiveShadows: 1
-    - _RimThreshold: 2
+    - _RimStrength: 0.933
+    - _RimThreshold: 5.56
     - _Saturation: 1
-    - _Smoothness: 0.7
+    - _ShadowLift: 0.275
+    - _Smoothness: 1.86
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -152,8 +155,8 @@ Material:
     - _StopCount: 3.77
     - _Strength: 0
     - _Surface: 0
-    - _UVJitter: 0.793
-    - _UniformTiling: -0.1
+    - _UVJitter: 0.566
+    - _UniformTiling: 9.18
     - _Value: 1
     - _ValueJitter: 0.268
     - _WorkflowMode: 1
@@ -172,6 +175,7 @@ Material:
     - _Detail_Tilling: {r: 0, g: 0, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _ShadowTint: {r: 0, g: 0.41354287, b: 1, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _Tilling: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
