@@ -149,10 +149,12 @@ defect, and folding a rewrite of C4.2 into the acceptance step would blur what C
 repo", with **user-confirmed on-screen clip playback** as the evidence. That is the one item in this
 module Claude cannot verify: there is no screenshot path and no headless build.
 
-**Built. Owner confirmed 2026-08-06 ("it all appears to be working"), then the confirmation was
-partially retracted by the author — see below — and re-confirmation of the arm motion is outstanding.**
+**Built, and ✅ OWNER-CONFIRMED 2026-08-06.** The §9 C4 evidence column is fully discharged and **C4 is
+closed**. The owner's first confirmation was checked against the *data* rather than the pixels, which is
+why it held despite the visibility defect below; it was then re-confirmed on screen at the corrected
+angle, and image-index behaviour was confirmed separately.
 
-### ⚠️ The first confirmation covered less than it appeared to
+### ⚠️ The first confirmation was sound, but for a reason that nearly hid a defect
 
 **`TransformKey.rotationZ` is authored in DEGREES.** `ClipRegistryBuilder` converts to radians once at
 bake (§4.5 point 2, `ClipRegistryBuilder.cs:622`). The first cut of the builder used `0.9` for the arm
@@ -160,12 +162,13 @@ swing on the assumption it was radians — **a 0.9-degree rotation.** Present in
 correctly, correct under every one of the 169 PlayMode fixtures, and **invisible on screen.**
 
 So of the three things the owner was asked to check, only the torso bob (a position channel, unit-agnostic,
-±0.25 units) was actually observable. **The arm counter-swing — the assertion that carries the whole point
+±0.25 units) was visually observable. **The arm counter-swing — the assertion that carries the whole point
 of the scene, because it is what distinguishes "each part reads its own target's track" from "every part
-reads target 0" — could not have been seen.** The owner's "it all appears to be working" was given in good
-faith against a scene that was not showing the thing it claimed to show.
+reads target 0" — could not have been seen at 0.9°.** The owner had in fact verified it by reading the
+clip data, which is why the confirmation was not wrong; but the *screen* was not showing it, and the
+screen is what this deliverable exists to exercise.
 
-Corrected to ±35°, rebuilt, and re-confirmation requested. **This entry is left in rather than quietly
+Corrected to ±35°, rebuilt, and re-confirmed on screen. **This entry is left in rather than quietly
 edited**, because the failure is instructive and belongs in the same list as the fixture-integrity shapes:
 
 > **A unit mistake in fixture data is invisible to every test that shares the mistake.** The value flowed
