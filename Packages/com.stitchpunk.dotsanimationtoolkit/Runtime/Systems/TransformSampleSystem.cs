@@ -34,8 +34,16 @@ namespace StitchPunk.AnimationToolkit
     /// a crowd across frames instead of spiking on one. Playback <em>time</em> is never quantized —
     /// only how often it is read.
     /// </para>
+    /// <para>
+    /// <strong>LOD arrives here as three separate effects, not one</strong> (§5.10, via
+    /// <see cref="AnimationLodPolicy"/>): it scales the effective sample rate, it snaps crossfade
+    /// weights from level 2, and it freezes the pose from level 3 until the actor's clips change.
+    /// All three are presentation-only — nothing below touches a timer or an event, so a
+    /// distant actor stays frame-accurate to the simulation and merely looks cheaper.
+    /// </para>
     /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
+    [UpdateAfter(typeof(AnimLodDistanceSystem))]
     [BurstCompile]
     public partial struct TransformSampleSystem : ISystem
     {
@@ -74,6 +82,7 @@ namespace StitchPunk.AnimationToolkit
                 previousElapsedTime = previousElapsedTime,
                 currentElapsedTime = currentElapsedTime,
                 defaultSampleRateHz = defaultSampleRateHz,
+                animLodLookup = SystemAPI.GetComponentLookup<AnimLod>(true),
                 restPoseLookup = SystemAPI.GetComponentLookup<TargetRestPose>(true),
                 targetPoseLookup = SystemAPI.GetComponentLookup<TargetPose>()
             };
@@ -104,20 +113,37 @@ namespace StitchPunk.AnimationToolkit
         public float currentElapsedTime;
         public float defaultSampleRateHz;
 
+        /// <summary>
+        /// A lookup rather than an <c>in</c> parameter because <see cref="AnimLod"/> is opt-in and
+        /// its absence is conformant (amendment A23). Taking it as a parameter would quietly
+        /// restrict this job to the actors that enabled distance LOD — which is most of them
+        /// excluded, sampling nothing, with no error anywhere.
+        /// </summary>
+        [ReadOnly] public ComponentLookup<AnimLod> animLodLookup;
+
         [ReadOnly] public ComponentLookup<TargetRestPose> restPoseLookup;
 
         /// <summary>Written on part entities, never on the actor being iterated — see the type-level remarks.</summary>
         [NativeDisableParallelForRestriction] public ComponentLookup<TargetPose> targetPoseLookup;
 
         private void Execute(
+            Entity actorEntity,
             in DynamicBuffer<RigPartRef> partRefs,
             in DynamicBuffer<PlaybackLayer> layers,
             in ClipRegistry clipRegistry,
-            in SampleSettings sampleSettings)
+            in SampleSettings sampleSettings,
+            ref AnimSampleState sampleState)
         {
-            float sampleRateHz = sampleSettings.rateHz > 0f ? sampleSettings.rateHz : defaultSampleRateHz;
+            byte lodLevel = 0;
+            if (animLodLookup.HasComponent(actorEntity))
+            {
+                lodLevel = animLodLookup[actorEntity].level;
+            }
+
+            float requestedRateHz = sampleSettings.rateHz > 0f ? sampleSettings.rateHz : defaultSampleRateHz;
+            float effectiveRateHz = AnimationLodPolicy.EffectiveSampleRateHz(lodLevel, requestedRateHz);
             if (!ClipSampler.ShouldSample(
-                    previousElapsedTime, currentElapsedTime, sampleRateHz, sampleSettings.phase01))
+                    previousElapsedTime, currentElapsedTime, effectiveRateHz, sampleSettings.phase01))
             {
                 return;
             }
@@ -130,6 +156,20 @@ namespace StitchPunk.AnimationToolkit
 
             DynamicBuffer<PlaybackLayer> layerBuffer = layers;
             NativeArray<PlaybackLayer> layerArray = layerBuffer.AsNativeArray();
+
+            // LOD 3 holds the last pose until the clips change; every lower level ignores the
+            // signature entirely, which is what lets an actor walking toward the camera resume on
+            // the ordinary rate rule rather than waiting for a clip change that may never come.
+            // The signature is nonetheless recorded at every level so that raising the level does
+            // not begin with a spurious extra sample.
+            int clipSignature = ComputeClipSignature(in layerArray);
+            if (AnimationLodPolicy.FreezesPose(lodLevel) && clipSignature == sampleState.sampledClipSignature)
+            {
+                return;
+            }
+            sampleState.sampledClipSignature = clipSignature;
+
+            bool snapBlendWeights = AnimationLodPolicy.SnapsBlendWeights(lodLevel);
 
             for (int partRefIndex = 0; partRefIndex < partRefs.Length; partRefIndex++)
             {
@@ -154,9 +194,41 @@ namespace StitchPunk.AnimationToolkit
                     in layerArray,
                     partRef.targetIndex,
                     in restPose,
+                    snapBlendWeights,
                     out TargetPose sampledPose);
                 targetPoseLookup[partRef.part] = sampledPose;
             }
+        }
+
+        /// <summary>
+        /// Folds which clips an actor's layers are showing into one comparable int.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Order-sensitive and cheap, deliberately. It is only ever compared against the previous
+        /// frame's value, never decoded, and the cost of a collision is one skipped re-sample on an
+        /// actor already frozen at LOD 3 — so a real hash would buy accuracy nobody could perceive
+        /// at a price paid every frame by every actor.
+        /// </para>
+        /// <para>
+        /// The crossfade source is folded in as well as the current clip: a blend that has just
+        /// begun shows both, and treating a layer as unchanged while its outgoing clip swapped
+        /// would hold the wrong pose. An inactive layer contributes a constant, so deactivating one
+        /// counts as a change.
+        /// </para>
+        /// </remarks>
+        private static int ComputeClipSignature(in NativeArray<PlaybackLayer> layers)
+        {
+            int signature = 17;
+            for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            {
+                PlaybackLayer layer = layers[layerIndex];
+                bool isActive = (layer.flags & PlaybackFlags.Active) != 0;
+                signature = signature * 31 + (isActive ? layer.clipIndex : -1);
+                bool isBlending = isActive && (layer.flags & PlaybackFlags.Blending) != 0;
+                signature = signature * 31 + (isBlending ? layer.previousClipIndex : -1);
+            }
+            return signature;
         }
     }
 }

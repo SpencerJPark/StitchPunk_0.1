@@ -398,6 +398,13 @@ namespace StitchPunk.AnimationToolkit
         /// <param name="layers">The actor's playback layers (buffer index = layer index); pass a <c>DynamicBuffer</c> via <c>AsNativeArray()</c>.</param>
         /// <param name="targetIndex">The part's dense target index.</param>
         /// <param name="restPose">The part's rest pose.</param>
+        /// <param name="snapBlendWeights">
+        /// True to render every crossfade as a hard cut — LOD 2's behaviour (architecture section
+        /// 5.10). The weight snaps; nothing here touches <see cref="PlaybackLayer.blendElapsed"/>,
+        /// so a layer that changes LOD mid-blend rejoins the true weight rather than restarting.
+        /// There is deliberately no overload defaulting this to false: one production caller exists
+        /// and a silent default is how half the callers would stop honouring LOD.
+        /// </param>
         /// <param name="pose">The composited output pose.</param>
         [BurstCompile]
         public static void CompositeLayers(
@@ -405,6 +412,7 @@ namespace StitchPunk.AnimationToolkit
             in NativeArray<PlaybackLayer> layers,
             int targetIndex,
             in TargetRestPose restPose,
+            bool snapBlendWeights,
             out TargetPose pose)
         {
             RestToPose(in restPose, out pose);
@@ -443,6 +451,10 @@ namespace StitchPunk.AnimationToolkit
                             ref previousClip, targetIndex, previousNormalizedTime, in restPose, ref previousPose);
                     }
                     float blendWeight = math.saturate(layer.blendElapsed / layer.blendDuration);
+                    if (snapBlendWeights)
+                    {
+                        blendWeight = AnimationLodPolicy.SnapBlendWeight(blendWeight);
+                    }
                     LerpPose(in previousPose, in currentPose, blendWeight, out pose);
                 }
                 else

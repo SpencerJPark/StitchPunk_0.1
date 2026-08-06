@@ -384,6 +384,14 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("level", typeof(byte))
             });
 
+            // Amendment A34: the presentation half's memory of which clips it last sampled, which
+            // is the only thing in the archetype that can answer LOD 3's "unless the clip changes".
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(AnimSampleState)));
+            AssertFieldsMatch(typeof(AnimSampleState), new FieldContract[]
+            {
+                Field("sampledClipSignature", typeof(int))
+            });
+
             // Amendment A13: the actor-space rest bounds the entity baker supplies, which section
             // 5.8 unions with each clip's offset-space offsetBounds. Typed AABB so the bounds system
             // can hand it to RenderBounds.Value without a conversion.

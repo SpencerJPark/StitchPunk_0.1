@@ -345,6 +345,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             });
             entityManager.AddComponentData(actorEntity, new RenderBounds { Value = default });
 
+            // LocalToWorld is what TransformUsageFlags.Dynamic gives a real baked actor root, and
+            // AnimLodDistanceSystem measures against it. AnimSampleState carries the LOD-3 freeze
+            // signature (A34). AnimLod is deliberately absent — it is opt-in (A23), so the default
+            // fixture must exercise the "no AnimLod" path that most actors take.
+            entityManager.AddComponentData(actorEntity, new LocalToWorld { Value = float4x4.identity });
+            entityManager.AddComponentData(actorEntity, new AnimSampleState { sampledClipSignature = 0 });
+
             return actorEntity;
         }
 

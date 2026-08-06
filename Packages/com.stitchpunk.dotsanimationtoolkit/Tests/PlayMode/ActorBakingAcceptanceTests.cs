@@ -194,7 +194,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     typeof(AnimationCommandPending), typeof(AnimEventOutput), typeof(AnimEventsPending),
                     typeof(RigPartRef), typeof(RigBindingUninitialized), typeof(AnimVisible),
                     typeof(BoundsDirty), typeof(ActorRestBounds), typeof(SampleSettings),
-                    typeof(VatTextureBinding)
+                    typeof(VatTextureBinding), typeof(AnimSampleState)
                 });
         }
 

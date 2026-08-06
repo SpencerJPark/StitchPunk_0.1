@@ -38,27 +38,56 @@ namespace StitchPunk.AnimationToolkit
     /// Loop seams need no special case: loop-safe clips carry a duplicated final frame (§4.7), so
     /// <c>floor(frame) + 1</c> never leaves the clip's row range.
     /// </para>
+    /// <para>
+    /// <strong>LOD scales how often frames are published, and never freezes them</strong> (§5.10).
+    /// A VAT mesh holds whatever row it was last given, so a frozen frame is a frozen *mesh* — and
+    /// since GPU cost does not depend on CPU LOD, there is nothing to gain by it. Level 3 therefore
+    /// keeps publishing at quarter rate while the transform path stops entirely, which is the one
+    /// place the two techniques deliberately diverge.
+    /// </para>
     /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(TransformSampleSystem))]
     [BurstCompile]
     public partial struct VatMaterialSystem : ISystem
     {
+        /// <summary>
+        /// World elapsed time at the previous update — the other edge of the quantization interval,
+        /// held per system for the same reason <c>TransformSampleSystem</c> holds it.
+        /// </summary>
+        private float previousElapsedTime;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<VatDriven>();
+            previousElapsedTime = 0f;
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            float currentElapsedTime = (float)SystemAPI.Time.ElapsedTime;
+
+            float defaultSampleRateHz = 0f;
+            if (SystemAPI.TryGetSingleton(out AnimationToolkitConfig toolkitConfig))
+            {
+                defaultSampleRateHz = toolkitConfig.defaultSampleRateHz;
+            }
+
             WriteVatPropertiesJob writeJob = new WriteVatPropertiesJob
             {
+                previousElapsedTime = previousElapsedTime,
+                currentElapsedTime = currentElapsedTime,
+                defaultSampleRateHz = defaultSampleRateHz,
                 playbackLayerLookup = SystemAPI.GetBufferLookup<PlaybackLayer>(true),
-                clipRegistryLookup = SystemAPI.GetComponentLookup<ClipRegistry>(true)
+                clipRegistryLookup = SystemAPI.GetComponentLookup<ClipRegistry>(true),
+                sampleSettingsLookup = SystemAPI.GetComponentLookup<SampleSettings>(true),
+                animLodLookup = SystemAPI.GetComponentLookup<AnimLod>(true)
             };
             state.Dependency = writeJob.ScheduleParallel(state.Dependency);
+
+            previousElapsedTime = currentElapsedTime;
         }
     }
 
@@ -75,8 +104,16 @@ namespace StitchPunk.AnimationToolkit
     [WithAll(typeof(AnimVisible))]
     internal partial struct WriteVatPropertiesJob : IJobEntity
     {
+        public float previousElapsedTime;
+        public float currentElapsedTime;
+        public float defaultSampleRateHz;
+
         [ReadOnly] public BufferLookup<PlaybackLayer> playbackLayerLookup;
         [ReadOnly] public ComponentLookup<ClipRegistry> clipRegistryLookup;
+        [ReadOnly] public ComponentLookup<SampleSettings> sampleSettingsLookup;
+
+        /// <summary>Opt-in per amendment A23 — see the identical note in <c>SampleActorPosesJob</c>.</summary>
+        [ReadOnly] public ComponentLookup<AnimLod> animLodLookup;
 
         private void Execute(
             in VatDriven vatDriven,
@@ -89,6 +126,21 @@ namespace StitchPunk.AnimationToolkit
             if (!playbackLayerLookup.HasBuffer(actorEntity) || !clipRegistryLookup.HasComponent(actorEntity))
             {
                 return;
+            }
+
+            // Rate and phase are the actor's, not the part's: every VAT part on one actor publishes
+            // on the same frames, so a rig does not tear across its own pieces.
+            if (sampleSettingsLookup.HasComponent(actorEntity))
+            {
+                SampleSettings sampleSettings = sampleSettingsLookup[actorEntity];
+                byte lodLevel = animLodLookup.HasComponent(actorEntity) ? animLodLookup[actorEntity].level : (byte)0;
+                float requestedRateHz = sampleSettings.rateHz > 0f ? sampleSettings.rateHz : defaultSampleRateHz;
+                float effectiveRateHz = AnimationLodPolicy.EffectiveSampleRateHz(lodLevel, requestedRateHz);
+                if (!ClipSampler.ShouldSample(
+                        previousElapsedTime, currentElapsedTime, effectiveRateHz, sampleSettings.phase01))
+                {
+                    return;
+                }
             }
 
             DynamicBuffer<PlaybackLayer> layers = playbackLayerLookup[actorEntity];

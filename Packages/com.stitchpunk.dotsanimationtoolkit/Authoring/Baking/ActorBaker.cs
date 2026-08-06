@@ -101,6 +101,10 @@ namespace StitchPunk.AnimationToolkit.Authoring
             });
             AddComponent(actorEntity, BuildVatTextureBinding(vatTextures));
 
+            // Unconditional, unlike AnimLod below: nothing queries on it, so a conditional add
+            // would split the root archetype in two to save four bytes (amendment A34).
+            AddComponent(actorEntity, new AnimSampleState { sampledClipSignature = 0 });
+
             if (authoring.addDistanceLod)
             {
                 AddComponent(actorEntity, new AnimLod { level = 0 });

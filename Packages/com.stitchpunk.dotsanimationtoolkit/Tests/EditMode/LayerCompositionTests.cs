@@ -282,11 +282,17 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
         private TargetPose Composite(PlaybackLayer[] layerSource, TargetRestPose restPose)
         {
+            return Composite(layerSource, restPose, snapBlendWeights: false);
+        }
+
+        private TargetPose Composite(
+            PlaybackLayer[] layerSource, TargetRestPose restPose, bool snapBlendWeights)
+        {
             NativeArray<PlaybackLayer> layers = new NativeArray<PlaybackLayer>(layerSource, Allocator.Temp);
             try
             {
                 ClipSampler.CompositeLayers(
-                    ref registryReference.Value, in layers, 0, restPose, out TargetPose pose);
+                    ref registryReference.Value, in layers, 0, restPose, snapBlendWeights, out TargetPose pose);
                 return pose;
             }
             finally
@@ -510,6 +516,56 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             });
             Assert.AreEqual(2.5f, pose.localPosition.x, Tolerance, "lerp(walk 1, slide 4, 0.5).");
             Assert.AreEqual(1f, pose.localPosition.y, Tolerance, "lerp(walk 2, slide 0, 0.5).");
+        }
+
+        /// <summary>
+        /// LOD 2's snapped crossfade (architecture section 5.10, amendment A34). Catches: ignoring
+        /// the snap flag, which leaves level 2 costing exactly what level 1 does in the sampler;
+        /// and snapping the wrong way, which would show the outgoing clip past the halfway point.
+        /// A quarter of the way through, the snapped result must be the *outgoing* pose; three
+        /// quarters through, the incoming one.
+        /// </summary>
+        [Test]
+        public void CompositeLayers_WithSnappedWeights_HardCutsInsteadOfLerping()
+        {
+            TargetPose earlyPose = Composite(
+                new PlaybackLayer[] { BlendingLayer(SlideClipIndex, WalkClipIndex, 0.25f, 1f) },
+                RestPose(),
+                snapBlendWeights: true);
+            Assert.AreEqual(
+                1f, earlyPose.localPosition.x, Tolerance,
+                "A quarter through, the snap shows walk alone — the unsnapped lerp would be 1.75.");
+
+            TargetPose latePose = Composite(
+                new PlaybackLayer[] { BlendingLayer(SlideClipIndex, WalkClipIndex, 0.75f, 1f) },
+                RestPose(),
+                snapBlendWeights: true);
+            Assert.AreEqual(
+                4f, latePose.localPosition.x, Tolerance,
+                "Three quarters through, the snap shows slide alone — the unsnapped lerp would be 3.25.");
+        }
+
+        /// <summary>
+        /// The other half of §5.10's level-2 contract: the snap is a rendering decision only.
+        /// Catches: implementing it by writing <c>blendElapsed</c> or <c>blendDuration</c>, which
+        /// would make the blend genuinely finish early — so an actor that changed LOD mid-blend
+        /// could never rejoin the true weight, the exact property §11.2 tests.
+        /// </summary>
+        [Test]
+        public void SnappingAWeight_LeavesTheUnsnappedResultAvailable()
+        {
+            PlaybackLayer[] midBlend = new PlaybackLayer[]
+            {
+                BlendingLayer(SlideClipIndex, WalkClipIndex, 0.5f, 1f)
+            };
+
+            TargetPose snapped = Composite(midBlend, RestPose(), snapBlendWeights: true);
+            TargetPose unsnapped = Composite(midBlend, RestPose(), snapBlendWeights: false);
+
+            Assert.AreEqual(4f, snapped.localPosition.x, Tolerance);
+            Assert.AreEqual(
+                2.5f, unsnapped.localPosition.x, Tolerance,
+                "The same layer state must still lerp when sampled without the snap.");
         }
 
         [Test]

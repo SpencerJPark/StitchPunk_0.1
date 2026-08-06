@@ -179,6 +179,42 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Catches: dropping <c>OrderFirst</c> from <c>AnimLodDistanceSystem</c>, or moving it out
+        /// of the presentation group. The level it writes is an input to every system that follows
+        /// it in that group, so a late placement makes each frame's sampling obey the *previous*
+        /// frame's distance — which is invisible for a stationary camera and lags by one frame for
+        /// a moving one.
+        /// </summary>
+        [Test]
+        public void AnimLodDistance_IsOrderFirstInThePresentationGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(AnimLodDistanceSystem));
+
+            Assert.AreEqual(typeof(AnimationToolkitPresentationSystemGroup), updateInGroup.GroupType);
+            Assert.IsTrue(
+                updateInGroup.OrderFirst,
+                "LOD opens the presentation group: everything after it reads the level it writes.");
+        }
+
+        /// <summary>
+        /// Catches: dropping the edge §5.1's diagram requires between LOD and sampling. Sorting is
+        /// free to run them either way round without it, and the failure is a one-frame lag in
+        /// quality changes that no test other than this one would notice.
+        /// </summary>
+        [Test]
+        public void TransformSample_RunsAfterAnimLodDistance()
+        {
+            object[] afterAttributes =
+                typeof(TransformSampleSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+
+            Assert.AreEqual(
+                1, afterAttributes.Length, "Expected exactly one UpdateAfter on TransformSampleSystem.");
+            Assert.AreEqual(
+                typeof(AnimLodDistanceSystem),
+                ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+        }
+
+        /// <summary>
         /// Catches: placing <c>VatMaterialSystem</c> in the logic group. Publishing shader properties
         /// is presentation work by definition — in the ungated half it would upload per-instance data
         /// for every off-screen actor in the world, and the only symptom is a frame-time number no

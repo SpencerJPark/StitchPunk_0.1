@@ -83,6 +83,38 @@ namespace StitchPunk.AnimationToolkit
     }
 
     /// <summary>
+    /// What the presentation half remembers between frames about the pose it last produced
+    /// (architecture sections 5.2, 5.10; amendment A34). Written by <c>TransformSampleSystem</c>
+    /// and read by nothing else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This exists for exactly one line of §5.10: LOD 3 holds the pose "unless the layer's clip
+    /// changes", and nothing else in the archetype records which clips the last sample was taken
+    /// from. <see cref="BoundsDirty"/> is enabled on a superset of those moments and was the obvious
+    /// substitute, but it is cleared by <c>RenderBoundsUpdateSystem</c> — so reading it during
+    /// sampling works only while the two systems keep their current order, and a future reorder
+    /// would freeze far-away actors on the wrong pose in total silence. That is the shape of defect
+    /// amendments A28 and A30 already cost this package twice.
+    /// </para>
+    /// <para>
+    /// <strong>Unconditional, unlike <see cref="AnimLod"/>.</strong> A23 makes LOD opt-in because it
+    /// enrols an actor in a query for a feature most consumers never enable; this is four bytes that
+    /// no system queries on, so making it conditional would buy nothing and split the root archetype
+    /// in two.
+    /// </para>
+    /// </remarks>
+    public struct AnimSampleState : IComponentData
+    {
+        /// <summary>
+        /// Order-sensitive fold of the clips the last sample was taken from. Compared, never
+        /// decoded — a collision costs one skipped re-sample on a frozen actor, which is why a
+        /// cheap fold is preferred to a real hash here.
+        /// </summary>
+        public int sampledClipSignature;
+    }
+
+    /// <summary>
     /// The actor's rest-pose bounds in <strong>actor space</strong> — the box the rig occupies with
     /// every target at its rest pose, before any clip displaces anything (architecture sections 5.2,
     /// 4.6, 5.8; amendment A13).
