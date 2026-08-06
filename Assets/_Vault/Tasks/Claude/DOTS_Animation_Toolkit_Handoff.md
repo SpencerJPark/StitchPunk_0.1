@@ -1,9 +1,20 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-05 (C4.7 and C4.8 closed and gated)
-**State:** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.8 all done and verified. C4.9 is next, and it is the STOP point.**
+**Written:** 2026-08-06 (C4.9 closed; **C4 is complete**)
+**State:** Phases done: A, B, C0, C1, C2, C3, **C4**. **C5 (M4 shader slice 1) is next.**
 
-**Baseline, verified through the MCP 2026-08-05 at commit `c25c996` (pushed):** Console clean of `error CS` / `BC`; **221 EditMode + 162 PlayMode, all passing, each in its real mode.** Project-wide EditMode is higher — the extra ~61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination for C4.3–C4.8 verified by nineteen mutation runs (tables in the C4 plan). **Nothing is owed.**
+**Baseline, verified through the MCP 2026-08-06 at commit `058f421` (pushed):** Console clean of `error CS` / `BC`; **222 EditMode + 169 PlayMode, all passing, each in its real mode.** Project-wide EditMode is higher — the extra ~61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination verified by twenty-three mutation runs across C4.3–C4.9 (tables in the C4 plan). **Nothing is owed for C4.**
+
+**C4's DoD is fully discharged**, including the one line Claude cannot verify: the owner confirmed on-screen clip playback of `Assets/Scenes/AnimationToolkitSmoke.unity` on 2026-08-06.
+
+## Read this before starting C5
+
+Two amendments landed in C4.9 and both are about *how this package is tested*, not about C4:
+
+- **A35** — `Instantiate` remaps entity references inside dynamic buffers for `LinkedEntityGroup` members, so §5.3's rationale for `RigBindingSystem` was false. The rebuild was kept (load-bearing for pooling and non-baked routes; `phase01` must be re-derived there regardless) and the *rationale* corrected.
+- **A36 — the serious one.** V07's `clip.vatSource == null` test could not distinguish "no VAT" from "has been saved once", because a plain `[Serializable]` class field cannot serialize null. Every real clip asset read as VAT-sourced → V07 Error → `ClipRegistryBuilder` throws → **no registry baked at all** → every actor holds its rest pose. Shipping-blocking, and invisible to all 221 fixtures.
+
+**Their shared lesson, which C5 should act on: a suite that constructs every input in memory has no coverage of the serializer, and the serializer is part of the authoring contract.** Both defects appeared the instant something built *real, saved* assets rather than fixtures. §11.1 is owed a small disk-round-trip tier (M1/M6 scope). **This matters more than usual for C5**, whose subject — ShaderGraph assets, materials, generated shader code — exists *only* as serialized files. An in-memory fixture cannot see a `.shadergraph` at all.
 
 ---
 
@@ -56,7 +67,7 @@ Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3
 - ✅ **C4.6 flipbook** — `SpriteMaterialSystem`, 6 fixtures.
 - ✅ **C4.7 VAT + bounds — closed 2026-08-05.** `VatMaterialSystem` (8 fixtures), `RenderBoundsUpdateSystem` (6 fixtures), 2 group-placement rows. **Mutation-verified: 13 mutations over six runs, each producing exactly the predicted failure and no others.**
 - ✅ **C4.8 LOD — closed 2026-08-05.** `AnimationLodPolicy` (9 EditMode fixtures), `AnimLodDistanceSystem`, and the three level effects wired into `TransformSampleSystem` and `VatMaterialSystem` (11 fixtures in `AnimationLodTests`, 2 in `LayerCompositionTests`, 2 group-placement rows). **Mutation-verified: 13 mutations over five runs.**
-- ⬜ **C4.9 acceptance + smoke scene** — next, and **STOP HERE.** Its DoD needs the owner to confirm on-screen clip playback, which Claude cannot verify. The owner has asked to go through C4.9 together.
+- ✅ **C4.9 acceptance + smoke scene — closed 2026-08-06. C4 IS COMPLETE.** 7 new fixtures in `RuntimeAcceptanceTests` closing the 4 uncovered §8 M3 clauses and 2 §11.3 runtime rows; the smoke scene at `Assets/Scenes/AnimationToolkitSmoke.unity` + its subscene, built by a re-runnable menu item (**Tools ▸ DOTS Animation Toolkit ▸ Build Smoke Scene**). **Owner-confirmed on screen 2026-08-06.** Produced A35 and A36. Mutation-verified: 6 mutations over four runs, M1 and M2 each failing exactly one fixture. See `Docs/AnimationToolkit/Phase_C4_9_Acceptance.md` for the clause-by-clause map.
 
 ### What C4.7 settled
 
@@ -81,16 +92,23 @@ Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3
 
 ---
 
-## C4.9 brief — acceptance + smoke scene
+## C5 brief — M4 shader slice 1
 
-**This is the phase to do *with* the owner.** Its DoD is "user-confirmed on-screen clip playback", which Claude has no way to verify — there is no screenshot path and no headless build. Everything below can be prepared, but the phase does not close without them looking.
+**DoD (§9 row C5):** M4 compile + instancing-block + pass-grep tests green for the sprite graph; billboard modes human-verified. **Evidence:** generated-code excerpts; screenshots (billboard modes, flipbook anim, batch count).
 
-**Two deliverables (§9 row C4, §8 M3):**
+**Read first:** §6 in full (it is short and entirely normative — §6.1 inventory, **§6.2 the property table, which is the CPU↔GPU contract M3 already implements**, §6.3 displacement in all passes, §6.6 batching rules), then §8 M4, then §9's C5 row. §6.2 is jointly owned with M3, so a property name changed on the shader side silently breaks a component that already ships.
 
-1. **The §11.2 PlayMode acceptance suite.** §8 M3's acceptance list is a long prose paragraph in the architecture doc — grep it and treat it as a checklist. Much of it is already covered by the per-phase fixtures built in C4.3–C4.8; **the honest job is to diff the list against what exists rather than to rewrite it.** Items that look genuinely uncovered today: ECB-instantiated actor re-binds and animates end-to-end (RigBinding covers the rebind, but not "and then animates"); `AnimVisible` disabled → `TargetPose` frozen while `time` keeps advancing, re-enable → next-frame refresh; sample-rate phase spreading two actors onto different sample frames; and the LOD-2 mid-blend swap completing on schedule (the pieces exist — `blendElapsed` is untouched by the snap, pinned by `SnappingAWeight_LeavesTheUnsnappedResultAvailable` — but no fixture yet drives a level change *across* a blend).
-2. **A host-shaped smoke scene** — a subscene with one cutout actor, in this repo, that animates in Play mode. This is what the owner confirms.
+**What C4 leaves ready for it.** The material-property components of §6.2 are built, tested and mutation-verified: `SpriteSliceProperty` / `AtlasFrameProperty` (`SpriteMaterialSystem`, C4.6) and `VatFrameAProperty` / `VatFrameBProperty` / `VatBlendProperty` (`VatMaterialSystem`, C4.7). **The CPU half of the contract is done and the shaders must match it, not the reverse.**
 
-**Read first:** §8 M3's acceptance paragraph, §11.2, and §9's C4 row. Then the C4 plan's per-phase entries, which record what each earlier step already pinned.
+**Three things to carry in:**
+
+- **`_VatFrameB` defaults to `_VatFrameA`, not 0** (C4.7). A shader that lerps *before* testing `_VatBlend` is therefore still correct. Do not "optimise" that default away.
+- **Flipbook frames never blend** — nearest wins at the blend midpoint, snapped and documented (§10 answer 2).
+- **The billboard facing rule is normative and testable by grep:** `_WorldSpaceCameraPos` only, `UNITY_MATRIX_V` forbidden (§6.3). The observable consequence the owner checks is that a billboarded quad's **shadow re-orients with camera orbit, not with the light**.
+
+**And the C4.9 lesson, which lands hardest here:** every artefact C5 produces — `.shadergraph`, `.mat`, generated shader code — exists **only** as a serialized file. In-memory fixtures cannot see one. A36 is exactly what that blindness costs. Prefer tests that load the real asset from disk (`AssetDatabase.LoadAssetAtPath`) and grep real generated output, which is what §8 M4's acceptance already asks for.
+
+**Tooling note:** the host repo has a `shader-edit` skill for Unity 6.5 reflection-API HLSL nodes and programmatic `.shadergraph` surgery. It is host-game tooling, but the graph-editing mechanics transfer.
 
 ## Standing rules for this package
 

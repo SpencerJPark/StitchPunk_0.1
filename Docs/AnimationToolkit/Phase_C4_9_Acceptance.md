@@ -149,7 +149,13 @@ defect, and folding a rewrite of C4.2 into the acceptance step would blur what C
 repo", with **user-confirmed on-screen clip playback** as the evidence. That is the one item in this
 module Claude cannot verify: there is no screenshot path and no headless build.
 
-**Built, and awaiting the owner's eyes.**
+**Built, and ✅ OWNER-CONFIRMED 2026-08-06** — "it all appears to be working". That discharges the last
+line of the §9 C4 evidence column ("user-confirmed on-screen clip playback") and closes C4.
+
+*Evidence form:* direct owner confirmation in session, not a filed screenshot. §11.4 asks for screenshots
+into `PhaseC_Evidence/`; none was captured here, and this note records that honestly rather than implying
+an artefact exists. C5/C6 have far more to look at (billboard modes under orbit, BRG batch counts, VAT
+side-by-side) and are where the screenshot discipline actually earns its keep.
 
 | Artefact | Path |
 |---|---|
