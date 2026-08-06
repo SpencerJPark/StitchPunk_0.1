@@ -145,12 +145,18 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
             }
             clip.transformTracks.Add(torsoTrack);
 
+            // DEGREES, not radians. ClipRegistryBuilder converts once at bake (§4.5 point 2), so the
+            // authored value is degrees all the way through. An earlier cut of this file used 0.9
+            // here on the assumption it was radians, which is a 0.9-degree swing — present in the
+            // data, correct under every test, and invisible on screen. Exactly the kind of value
+            // that makes a smoke scene *look* confirmed without having shown anything.
+            const float SwingDegrees = 35f;
             float[] swingTimes = { 0f, 0.5f, 1f };
             float[] armSigns = { -1f, 1f };
             for (int armIndex = 0; armIndex < armSigns.Length; armIndex++)
             {
                 float sign = armSigns[armIndex];
-                float[] swingAngles = { 0.9f * sign, -0.9f * sign, 0.9f * sign };
+                float[] swingAngles = { SwingDegrees * sign, -SwingDegrees * sign, SwingDegrees * sign };
                 TransformTrack armTrack = NewTrack(
                     rig.targets[armIndex + 1].Id.Value, AnimatedChannels.RotationZ);
                 for (int keyIndex = 0; keyIndex < swingTimes.Length; keyIndex++)

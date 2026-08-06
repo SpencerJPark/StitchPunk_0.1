@@ -149,13 +149,35 @@ defect, and folding a rewrite of C4.2 into the acceptance step would blur what C
 repo", with **user-confirmed on-screen clip playback** as the evidence. That is the one item in this
 module Claude cannot verify: there is no screenshot path and no headless build.
 
-**Built, and ✅ OWNER-CONFIRMED 2026-08-06** — "it all appears to be working". That discharges the last
-line of the §9 C4 evidence column ("user-confirmed on-screen clip playback") and closes C4.
+**Built. Owner confirmed 2026-08-06 ("it all appears to be working"), then the confirmation was
+partially retracted by the author — see below — and re-confirmation of the arm motion is outstanding.**
+
+### ⚠️ The first confirmation covered less than it appeared to
+
+**`TransformKey.rotationZ` is authored in DEGREES.** `ClipRegistryBuilder` converts to radians once at
+bake (§4.5 point 2, `ClipRegistryBuilder.cs:622`). The first cut of the builder used `0.9` for the arm
+swing on the assumption it was radians — **a 0.9-degree rotation.** Present in the data, sampled
+correctly, correct under every one of the 169 PlayMode fixtures, and **invisible on screen.**
+
+So of the three things the owner was asked to check, only the torso bob (a position channel, unit-agnostic,
+±0.25 units) was actually observable. **The arm counter-swing — the assertion that carries the whole point
+of the scene, because it is what distinguishes "each part reads its own target's track" from "every part
+reads target 0" — could not have been seen.** The owner's "it all appears to be working" was given in good
+faith against a scene that was not showing the thing it claimed to show.
+
+Corrected to ±35°, rebuilt, and re-confirmation requested. **This entry is left in rather than quietly
+edited**, because the failure is instructive and belongs in the same list as the fixture-integrity shapes:
+
+> **A unit mistake in fixture data is invisible to every test that shares the mistake.** The value flowed
+> through `ClipRegistryBuilder`'s `math.radians` conversion and out the other side as a real, correct,
+> tiny rotation. Nothing was broken, so nothing failed. Only a human looking at pixels could catch it —
+> and the whole reason this deliverable exists is that a human looks at pixels, which makes *giving them
+> something visible enough to judge* part of the deliverable, not a presentation detail.
 
 *Evidence form:* direct owner confirmation in session, not a filed screenshot. §11.4 asks for screenshots
-into `PhaseC_Evidence/`; none was captured here, and this note records that honestly rather than implying
-an artefact exists. C5/C6 have far more to look at (billboard modes under orbit, BRG batch counts, VAT
-side-by-side) and are where the screenshot discipline actually earns its keep.
+into `PhaseC_Evidence/`; none was captured. **A screenshot would have caught this** — which is an argument
+for honouring §11.4 literally in C5/C6, where there is far more to look at (billboard modes under orbit,
+BRG batch counts, VAT side-by-side).
 
 | Artefact | Path |
 |---|---|

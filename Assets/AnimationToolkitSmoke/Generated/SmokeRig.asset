@@ -12,24 +12,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d07533917b94c248a7502dc9057fab9, type: 3}
   m_Name: SmokeRig
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.RigAsset
-  stableId: 4230083066115680320
+  stableId: 13838949807712102866
   targets:
   - displayName: Torso
-    stableId: 3678590294
+    stableId: 2852909967
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
   - displayName: LeftArm
-    stableId: 3487387616
+    stableId: 1294673595
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
   - displayName: RightArm
-    stableId: 2516601160
+    stableId: 1585265643
     kind: 0
     boundsExtents:
       x: 0.5

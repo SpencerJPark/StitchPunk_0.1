@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9603f1d7abc7455ebe2db65efb1c4e9d, type: 3}
   m_Name: SmokeClipSet
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipSetAsset
-  stableId: 1526500289204940566
+  stableId: 11938937380736608697
   rig: {fileID: 11400000, guid: f54b77e6e08345845accb5bd41d714ef, type: 2}
   clips:
   - {fileID: 11400000, guid: 63b122bb205169e438f9dbd026707582, type: 2}
