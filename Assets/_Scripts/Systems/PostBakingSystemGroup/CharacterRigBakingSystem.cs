@@ -17,6 +17,26 @@ using Unity.Mathematics;
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct CharacterRigBakingSystem : ISystem
 {
+    // Built once in OnCreate rather than per-bake in OnUpdate. Building a query is a lookup against
+    // every archetype in the world, so doing it inside OnUpdate is what Unity warns about; a stored
+    // query is matched incrementally as archetypes appear. Both need IncludePrefab, which is why they
+    // are explicit queries rather than SystemAPI.Query.
+    private EntityQuery ragdollRootQuery;
+    private EntityQuery bodyPartQuery;
+
+    public void OnCreate(ref SystemState state)
+    {
+        ragdollRootQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Ragdoll2DConfig>()
+            .WithOptions(EntityQueryOptions.IncludePrefab)
+            .Build(ref state);
+
+        bodyPartQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<BodyPartInfo>()
+            .WithOptions(EntityQueryOptions.IncludePrefab)
+            .Build(ref state);
+    }
+
     public void OnUpdate(ref SystemState state)
     {
         EntityManager entityManager = state.EntityManager;
@@ -45,11 +65,7 @@ public partial struct CharacterRigBakingSystem : ISystem
         NativeList<(Entity entity, float settleSpeed, float segmentLength, float weight)> jointParts =
             new NativeList<(Entity, float, float, float)>(Allocator.Temp);
 
-        EntityQuery rootQuery = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<Ragdoll2DConfig>()
-            .WithOptions(EntityQueryOptions.IncludePrefab)
-            .Build(ref state);
-        NativeArray<Entity> rootEntities = rootQuery.ToEntityArray(Allocator.Temp);
+        NativeArray<Entity> rootEntities = ragdollRootQuery.ToEntityArray(Allocator.Temp);
         for (int rootIndex = 0; rootIndex < rootEntities.Length; rootIndex++)
         {
             Ragdoll2DConfig config = entityManager.GetComponentData<Ragdoll2DConfig>(rootEntities[rootIndex]);
@@ -59,11 +75,7 @@ public partial struct CharacterRigBakingSystem : ISystem
         }
         rootEntities.Dispose();
 
-        EntityQuery jointQuery = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<BodyPartInfo>()
-            .WithOptions(EntityQueryOptions.IncludePrefab)
-            .Build(ref state);
-        NativeArray<Entity> partEntities = jointQuery.ToEntityArray(Allocator.Temp);
+        NativeArray<Entity> partEntities = bodyPartQuery.ToEntityArray(Allocator.Temp);
         for (int partIndex = 0; partIndex < partEntities.Length; partIndex++)
         {
             Entity partEntity = partEntities[partIndex];
