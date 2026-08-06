@@ -873,11 +873,17 @@ Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (nearest-key, `-1`
 
 | Term | Meaning | Written by |
 |---|---|---|
-| `TargetRestPose.restSliceIndex` | which **variant** this character has | host design system (unchanged) |
-| `SpriteViewOffset.value` (new, per part) | which **view** the part is facing | host facing system |
+| `TargetRestPose.restSliceIndex` | which **variant** this character has (pointy / round / small ear) | host design system (unchanged) |
+| `SpriteViewOffset.value` (new, per part) | which **view** the part is facing (front / back) | host facing system |
 | the sprite key, in relative mode | which **frame** the animation is on | the clip |
 
-**Why the view offset is a component and not a clip layer.** The obvious alternative — a `Direction`-layer clip that keys `+1` on the ears — collides with the host's own layer model: `Direction` is priority 1 and `Eyes`/`Mouth` are 4 and 5, so a blink clip composites later and **silently drops the facing offset on exactly the parts with the most view variants**. Making facing an orthogonal component removes the collision by construction, keeps facing *selection* game-side per §10 answer 7, and means the sprite channel needs no direction clips at all (the transform channel still does, and keeps them).
+**First, what facing is *not*: an offset applied to one clip.** An earlier draft of this amendment proposed carrying both a slice offset and a `LayerZ` offset on the component, on the theory that "direction is state, not animation". **The product owner rejected that and was right.** A rig seen from the front does not move like the same rig seen from the side *plus a nudge* — the arms arc in one and shuffle up and down in the other, and the legs likewise. **The motion is different data, and no z-shuffle or index offset turns an arc into a shuffle.** Direction therefore selects *which keyframes play*, which is exactly the "directional **clip-set** convention (N clips + a pick-nearest-facing helper)" §10 answer 7 already specifies: `Walk_N` / `Walk_E` / `Walk_S` / … on the **Base** layer, with the game choosing the `ClipId`.
+
+Two consequences follow. **The host's `Direction` layer disappears** — it exists to composite an offset over a direction-agnostic Base clip, and that model is what has just been rejected; §13.1's "`AnimationLayerType` (7 layers) → `LayerDefinition` list, direct" becomes six layers. And **`LayerZ` needs no component term at all**: draw-order shuffling is authored directly in each per-direction clip, where it is already rest-relative (A31) and composes correctly. The component narrows to the slice term alone.
+
+**Why the *view* term is nonetheless a component and not clip data.** Because facing multiplies into every clip that touches a sprite. If `Walk_N` keys the ear's back view, then a blink must also know which way the character faces — so `BlinkNormal` becomes `BlinkNormal_N`, `BlinkNormal_S`, `BlinkNormal_E`, … and the same for talking and every expression. **Applied after composition, one facing term is inherited by every clip on every layer for free, so only *locomotion* needs direction variants** and blinks, talking and expressions stay single clips. It also cannot be clobbered by layer priority, which the clip-data alternative cannot promise: `Direction` is priority 1 while `Eyes`/`Mouth` are 4 and 5, so an upper-layer blink would silently drop the facing view on exactly the parts carrying the most view variants.
+
+*Owner decision (2026-08-06): all 8 directions are authored explicitly per locomotion state, rather than authoring five and deriving NW/W/SW through `RigAsset.mirrorPairs` + the Mirror Clip utility. Mirroring remains available for content that wants it; locomotion does not use it.*
 
 **Wrapping, and why `framesPerVariant` is per target.** `RigTargetDefinition` gains `framesPerVariant` (default 1). When it is > 1 the offset wraps *inside the character's own block*, so an over-large offset can never display another variant's art — the failure it prevents is a character growing someone else's ears, which no test can see and a player immediately can:
 
