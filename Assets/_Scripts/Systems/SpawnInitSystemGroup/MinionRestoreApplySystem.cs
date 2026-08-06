@@ -17,8 +17,16 @@ using Unity.Entities;
 [UpdateAfter(typeof(BodyPartInitSystem))]
 public partial struct MinionRestoreApplySystem : ISystem
 {
+    // Built once here rather than per-update: building a query is a lookup against every archetype
+    // in the world, which is what Unity's "create queries in OnCreate" warning is about.
+    private EntityQuery restorePendingQuery;
+
     public void OnCreate(ref SystemState state)
     {
+        restorePendingQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<RestorePending>()
+            .Build(ref state);
+
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<RestorePending>();
     }
@@ -27,8 +35,7 @@ public partial struct MinionRestoreApplySystem : ISystem
     {
         EntityManager entityManager = state.EntityManager;
 
-        EntityQuery query = new EntityQueryBuilder(Allocator.Temp).WithAll<RestorePending>().Build(ref state);
-        NativeArray<Entity> restored = query.ToEntityArray(Allocator.Temp);
+        NativeArray<Entity> restored = restorePendingQuery.ToEntityArray(Allocator.Temp);
 
         foreach (Entity entity in restored)
         {

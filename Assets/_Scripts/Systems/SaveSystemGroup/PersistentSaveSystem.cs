@@ -17,8 +17,18 @@ using UnityEngine;
 [UpdateAfter(typeof(AutoSaveTimerSystem))]
 public partial struct PersistentSaveSystem : ISystem
 {
+    // Built once here rather than inside WriteMinionRecords: building a query is a lookup against
+    // every archetype in the world, which is what Unity's "create queries in OnCreate" warning is
+    // about. WithDisabled<Dead> is part of the query, so the alive-only filter still lives with it.
+    private EntityQuery aliveMinionQuery;
+
     public void OnCreate(ref SystemState state)
     {
+        aliveMinionQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Minion, UnitData, LocalTransform>()
+            .WithDisabled<Dead>()
+            .Build(ref state);
+
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<GameDataTag>();
         state.RequireForUpdate<Player>();
@@ -44,7 +54,7 @@ public partial struct PersistentSaveSystem : ISystem
             SaveSerialization.WriteEntity(entityManager, gameDataEntity, SaveRoles.GameData),
         };
 
-        WriteMinionRecords(ref state, entityManager, entities);
+        WriteMinionRecords(entityManager, entities);
 
         PlayTimeTracker playTimeTracker = state.EntityManager.GetComponentData<PlayTimeTracker>(gameDataEntity);
 
@@ -69,14 +79,9 @@ public partial struct PersistentSaveSystem : ISystem
 
     // Writes one record per alive owned minion (Minion enabled, Dead disabled). Dead minions are
     // skipped — they simply despawn on reload.
-    private void WriteMinionRecords(ref SystemState state, EntityManager entityManager, List<EntityRecord> entities)
+    private void WriteMinionRecords(EntityManager entityManager, List<EntityRecord> entities)
     {
-        EntityQuery minionQuery = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<Minion, UnitData, LocalTransform>()
-            .WithDisabled<Dead>()
-            .Build(ref state);
-
-        NativeArray<Entity> minions = minionQuery.ToEntityArray(Allocator.Temp);
+        NativeArray<Entity> minions = aliveMinionQuery.ToEntityArray(Allocator.Temp);
 
         foreach (Entity minion in minions)
         {

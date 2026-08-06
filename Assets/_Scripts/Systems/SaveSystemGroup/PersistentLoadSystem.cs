@@ -19,8 +19,21 @@ using UnityEngine;
 [UpdateAfter(typeof(PersistentSaveSystem))]
 public partial struct PersistentLoadSystem : ISystem
 {
+    // Built once here rather than inside RestoreMinions: building a query is a lookup against every
+    // archetype in the world, which is what Unity's "create queries in OnCreate" warning is about.
+    private EntityQuery unitDataLibraryQuery;
+    private EntityQuery existingMinionQuery;
+
     public void OnCreate(ref SystemState state)
     {
+        unitDataLibraryQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<UnitDataLibrary>()
+            .Build(ref state);
+
+        existingMinionQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Minion>()
+            .Build(ref state);
+
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<GameDataTag>();
         state.RequireForUpdate<Player>();
@@ -75,7 +88,7 @@ public partial struct PersistentLoadSystem : ISystem
             }
         }
 
-        RestoreMinions(ref state, entityManager, minionRecords);
+        RestoreMinions(entityManager, minionRecords);
 
         Debug.Log($"[PersistentLoadSystem] Loaded slot {loadRequest.slot} from {path}");
     }
@@ -83,23 +96,21 @@ public partial struct PersistentLoadSystem : ISystem
     // Despawns current owned minions, then instantiates the saved roster from the pool prefabs.
     // Component patching (Health, Minion-enabled, transform) is deferred to MinionRestoreApplySystem,
     // which runs after spawn-init so the restored enabled bits aren't clobbered by SpawnStateInitSystem.
-    private void RestoreMinions(ref SystemState state, EntityManager entityManager, List<EntityRecord> minionRecords)
+    private void RestoreMinions(EntityManager entityManager, List<EntityRecord> minionRecords)
     {
-        EntityQuery libraryQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<UnitDataLibrary>().Build(ref state);
-        if (libraryQuery.IsEmptyIgnoreFilter)
+        if (unitDataLibraryQuery.IsEmptyIgnoreFilter)
         {
             if (minionRecords.Count > 0)
                 Debug.LogWarning("[PersistentLoadSystem] No UnitDataLibrary singleton — cannot restore minions.");
             return;
         }
 
-        Entity libraryEntity = libraryQuery.GetSingletonEntity();
+        Entity libraryEntity = unitDataLibraryQuery.GetSingletonEntity();
         DynamicBuffer<UnitPrefabEntry> prefabs = entityManager.GetBuffer<UnitPrefabEntry>(libraryEntity);
         EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
 
         // Remove the scene's current owned minions so the saved roster fully replaces them.
-        EntityQuery existingMinions = new EntityQueryBuilder(Allocator.Temp).WithAll<Minion>().Build(ref state);
-        NativeArray<Entity> existing = existingMinions.ToEntityArray(Allocator.Temp);
+        NativeArray<Entity> existing = existingMinionQuery.ToEntityArray(Allocator.Temp);
         foreach (Entity current in existing)
             ecb.DestroyEntity(current); // LinkedEntityGroup → body-part children go too
         existing.Dispose();
