@@ -12,13 +12,22 @@ namespace StitchPunk.AnimationToolkit
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <strong>Why this exists.</strong> `EntityManager.Instantiate` and ECB-instantiate remap entity
-    /// references held in <em>components</em>, but not those held inside <em>dynamic buffers</em>. An
-    /// actor's <see cref="RigPartRef"/> buffer is exactly that: a list of entity references. A copy of
-    /// a baked prefab therefore starts life with a part list still pointing at the prefab's parts, so
-    /// every instance of a crowd would animate the prefab and nothing on screen would move. The source
-    /// audit found this the hard way in the host game (its `BodyPartInitSystem`); this is that fix,
-    /// generalised and made part of the package's contract.
+    /// <strong>Why this exists — corrected by amendment A35.</strong> The original rationale was that
+    /// instantiate remaps entity references held in <em>components</em> but not those held inside
+    /// <em>dynamic buffers</em>, leaving a copied actor's <see cref="RigPartRef"/> list pointing at the
+    /// prefab's parts. <strong>That is not true of Entities 6.5:</strong>
+    /// <c>InstantiateEntitiesGroup</c> passes the archetype's buffer patches to
+    /// <c>EntityRemapUtility.PatchEntitiesForPrefab</c>, so a reference to a member of the
+    /// instantiated <c>LinkedEntityGroup</c> is remapped inside a buffer exactly as it is inside a
+    /// component. A baked actor arrives here already bound to its own parts.
+    /// </para>
+    /// <para>
+    /// The rebuild is kept anyway, and deliberately: it is what binds an actor that reached this
+    /// system by any other route — a pooling pass that re-parents parts and re-enables the tag, or an
+    /// actor assembled without going through <c>RigBindingBakingSystem</c> — and it costs one walk of
+    /// <c>LinkedEntityGroup</c> once per spawn. The two things that are load-bearing on every path are
+    /// the per-instance <c>phase01</c> re-derivation below and the tag disable, neither of which
+    /// instantiate can do. See A35 for the evidence and the revert note.
     /// </para>
     /// <para>
     /// <strong>How the parts are found.</strong> From <c>LinkedEntityGroup</c>, which instantiate

@@ -709,6 +709,28 @@ public struct AnimationToolkitCameraData : IComponentData      // written by hos
 
 ECB-instantiate does not remap entity references inside dynamic buffers — the audit's proven fix (audit §3.3 `BodyPartInitSystem`) is absorbed: prefabs bake with `RigBindingUninitialized` **enabled**; instantiated copies therefore start enabled. `RigBindingSystem` queries enabled roots, rebuilds `RigPartRef` from `LinkedEntityGroup` (matching children by their `RigPartBinding.targetIndex`, which survives instantiation because it is plain data), rewrites `RigPartBinding.actorRoot`, then disables the tag. `[BurstCompile]`, `IJobEntity`, `ScheduleParallel` with `[NativeDisableParallelForRestriction]` lookups (each worker touches only its own actor's children).
 
+**Amendment A35 (C4.9, 2026-08-05): the first sentence above is false for Entities 6.5, and the part rebuild is therefore redundant on the production path. Not removed — see the decision below.**
+
+`Instantiate` **does** remap entity references held in dynamic buffers, not only those held in components, whenever the referenced entity is a member of the instantiated `LinkedEntityGroup`. `EntityComponentStoreCreateDestroyEntities.InstantiateEntitiesGroup` calls `EntityRemapUtility.PatchEntitiesForPrefab` with `dstArchetype->BufferEntityPatches` alongside the scalar patches, and that function walks every element of every buffer carrying an `Entity` field. `RigPartRef.part` points at a part that is a group member, so it is patched.
+
+Verified by execution, not by reading: an acceptance fixture written to *assert the mis-binding as a guard* failed with the instance already correctly bound —
+
+```
+Guard: a fresh instance must start mis-bound to the prefab's part…
+  Expected: Entity(207:211)   (the prefab's part)
+  But was:  Entity(209:101)   (the instance's own part)
+```
+
+— read before any system had run.
+
+**Why this was not caught by `RigBindingSystemTests`, which has seven fixtures pointed straight at it.** Its fixture actors are hand-built and their `RigPartRef` buffer starts **empty**; only `RigBindingBakingSystem` populates that buffer, and these fixtures deliberately bypass the bakers. So the system they exercise is doing *first-time binding of an unbound actor*, not *re-binding a mis-bound copy* — a different operation that happens to run the same code. Deleting the rebuild fails four of them, but every failure reads `Expected: 2, But was: 0`: the buffer was never filled, not wrongly filled. A real baked actor arrives at `Instantiate` with the buffer already populated (`RigBindingBakingSystem`, and `ActorBakingAcceptanceTests.BakingAnActor_ResolvesEveryPartToItsDenseTargetIndex` pins it), and on that path Entities does the remap before this system sees the entity.
+
+This is a **new shape of non-discriminating test** for the standard in §11: *the fixture exercises the system under a precondition production never presents.* Both prior shapes were about the values a fixture chose; this one is about the state it started from. The four earlier shapes would all have been caught by reading the fixture carefully. This one could not be — the fixture is correct about everything it asserts, and only the claim that those assertions cover the production path is wrong.
+
+**Decision: the rebuild stays, and §5.3's rationale is corrected rather than its code.** Reasons, in order of weight: (1) the rebuild is genuinely load-bearing for actors that reach the system by any route other than `Instantiate`-of-a-baked-prefab — a host pooling pass that re-parents parts and re-enables the tag is the case the API invites, and `ReBindingAnActorTwice_DoesNotDuplicateItsParts` exists because that route was anticipated; (2) it costs one pass over `LinkedEntityGroup` once per spawn, never again, which is not a cost worth trading correctness-under-an-unproven-assumption for; (3) `phase01` re-derivation and the tag disable must happen here regardless, so removing the rebuild saves the loop, not the system. **What to revert if this is reconsidered:** delete the `partRefs.Clear()` + `LinkedEntityGroup` walk in `RebindActorPartsJob.Execute`, keep `DerivePhaseFromEntity` and the tag disable, and expect four `RigBindingSystemTests` fixtures to fail on empty buffers — those fixtures must then seed `RigPartRef` the way the baker does before they mean anything.
+
+**Owed, and deliberately not done in C4.9:** `RigBindingSystemTests` should gain one fixture that starts from a *populated* buffer, so the suite covers the path production actually takes. It is a test-integrity gap rather than a defect, and folding a rewrite of C4.2's suite into the acceptance step would blur what C4.9 verified.
+
 ### 5.4 Playback state machine (`CommandApplySystem` + `PlaybackTimeSystem`)
 
 Per layer, the state machine has three states — **Stopped** (`!Active`), **Playing**, **Blending** (Playing + previous clip fading out) — plus a queued slot:
