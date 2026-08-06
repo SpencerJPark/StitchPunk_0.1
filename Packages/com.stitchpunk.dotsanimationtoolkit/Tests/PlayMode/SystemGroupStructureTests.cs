@@ -179,6 +179,34 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Catches: placing <c>VatMaterialSystem</c> in the logic group. Publishing shader properties
+        /// is presentation work by definition — in the ungated half it would upload per-instance data
+        /// for every off-screen actor in the world, and the only symptom is a frame-time number no
+        /// test and no screenshot would question.
+        /// </summary>
+        [Test]
+        public void VatMaterial_IsInThePresentationGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(VatMaterialSystem));
+
+            Assert.AreEqual(typeof(AnimationToolkitPresentationSystemGroup), updateInGroup.GroupType);
+        }
+
+        /// <summary>
+        /// Catches: placing <c>RenderBoundsUpdateSystem</c> in the logic group. It is the sole reset
+        /// path for <c>BoundsDirty</c>, so from the ungated half it would clear the tag for actors the
+        /// presentation half never sampled — and the bug that surfaces is a stale culling box on an
+        /// actor that has since changed clip.
+        /// </summary>
+        [Test]
+        public void RenderBoundsUpdate_IsInThePresentationGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(RenderBoundsUpdateSystem));
+
+            Assert.AreEqual(typeof(AnimationToolkitPresentationSystemGroup), updateInGroup.GroupType);
+        }
+
+        /// <summary>
         /// Catches: deleting the auto-creation branch in <c>ConfigBootstrapSystem</c>. Without it the
         /// package needs manual setup, which the zero-setup promise of section 5.2 forbids.
         /// </summary>

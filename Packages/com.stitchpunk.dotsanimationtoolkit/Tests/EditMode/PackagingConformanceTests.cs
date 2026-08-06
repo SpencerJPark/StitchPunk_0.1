@@ -147,6 +147,10 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     "UnityEngine.TestRunner",
                     "Unity.Entities",
                     "Unity.Entities.Hybrid",
+                    // Amendment A33: RenderBounds is Unity.Rendering, which lives in
+                    // Unity.Entities.Graphics. §5.8's bounds system writes it, so the suite that
+                    // asserts on the written box must reference the defining assembly. See §1.3.
+                    "Unity.Entities.Graphics",
                     "Unity.Collections",
                     "Unity.Mathematics",
                     "Unity.Mathematics.Extensions",
