@@ -865,6 +865,36 @@ Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (nearest-key, `-1`
 
 **The `-1` "no change" convention lives on the authored key, never on the pose.** Composition seeds every pose from the rest pose (`ClipSampler.RestToPose` writes `pose.sliceIndex = restPose.restSliceIndex`) before any track is applied, and a slice-mode sprite key only overwrites it when its own `sliceIndex >= 0`. A negative pose slice is therefore unreachable, and a `sliceIndex >= 0 ? sliceIndex : restSliceIndex` guard in `SpriteMaterialSystem` would be dead code. Every path — no sprite track at all, a `-1` key, one side of a blend, or a host that rewrote `restSliceIndex` — already resolves to the rest slice through the seed. `LerpPose` picks whole slice values (never interpolates them), so it cannot introduce a negative either.
 
+**Amendment A37 (migration, 2026-08-06 — product-owner approved): the slice channel becomes a sum, not a replacement.** §5.7 above describes *absolute* slice keys, which is what both this package and the host game shipped. That model cannot express the case a variant-based 2D cutout rig actually needs, and the host has the same limitation today (`AnimationSamplingSystem` does `if (sampled.imageIndex >= 0) imageIndex = sampled.imageIndex`) — so this is a **missing capability, not a migration regression**.
+
+**The case.** A design-driven target's texture array is laid out in *variant blocks*: for ears, `[typeA_front, typeA_back, typeB_front, typeB_back, …]`. The host's design system rolls a variant per character and writes its slice into `TargetRestPose.restSliceIndex` (`DesignApplyUtil.ApplyDesign`). Facing then needs the *other view of that same variant* — `restSliceIndex + 1` — and an absolute key cannot say that without destroying the character's rolled appearance.
+
+**The decision: `finalSlice` is the sum of three terms, each owned by whoever knows it.**
+
+| Term | Meaning | Written by |
+|---|---|---|
+| `TargetRestPose.restSliceIndex` | which **variant** this character has | host design system (unchanged) |
+| `SpriteViewOffset.value` (new, per part) | which **view** the part is facing | host facing system |
+| the sprite key, in relative mode | which **frame** the animation is on | the clip |
+
+**Why the view offset is a component and not a clip layer.** The obvious alternative — a `Direction`-layer clip that keys `+1` on the ears — collides with the host's own layer model: `Direction` is priority 1 and `Eyes`/`Mouth` are 4 and 5, so a blink clip composites later and **silently drops the facing offset on exactly the parts with the most view variants**. Making facing an orthogonal component removes the collision by construction, keeps facing *selection* game-side per §10 answer 7, and means the sprite channel needs no direction clips at all (the transform channel still does, and keeps them).
+
+**Wrapping, and why `framesPerVariant` is per target.** `RigTargetDefinition` gains `framesPerVariant` (default 1). When it is > 1 the offset wraps *inside the character's own block*, so an over-large offset can never display another variant's art — the failure it prevents is a character growing someone else's ears, which no test can see and a player immediately can:
+
+```
+blockBase = (restSliceIndex / framesPerVariant) * framesPerVariant
+viewIndex = (restSliceIndex % framesPerVariant) + viewOffset + relativeKey
+finalSlice = blockBase + positiveMod(viewIndex, framesPerVariant)
+```
+
+When `framesPerVariant <= 1` there are no blocks: `finalSlice = restSliceIndex + viewOffset + relativeKey`, clamped at 0. Per-target rather than global because the strides genuinely differ (ears front/back = 2; hair = 4). Rejected: a single global stride in `AnimationToolkitConfig` (wrong for any rig with mixed layouts), and host-side block maths in the design system (it would have to know about facing, fusing two concerns and making a slice unanimatable while facing is active).
+
+**Absolute mode is retained and stays the default.** `SpriteTrack` gains `SpriteSliceSpace { Absolute, RelativeToRest }`. In `Absolute` nothing changes — the `-1` sentinel and existing content behave exactly as §5.7 describes. `RelativeToRest` keys are offsets, where `0` is the natural no-op and negatives are legal.
+
+**Consequence for the paragraph above, which must be revisited rather than left standing.** §5.7 argues `SpriteMaterialSystem` needs no `-1` guard because all four routes to a negative pose slice are closed by construction, and C4.6 shipped a fixture pinning that *reasoning*. Relative offsets open a **fifth route** (`rest 0 + key −1`), so the guard stops being dead code and a clamp becomes load-bearing. The C4.6 fixture and its stated rationale move with it.
+
+**To revert:** drop `SpriteViewOffset`, `RigTargetDefinition.framesPerVariant` and `SpriteSliceSpace`; sprite keys return to absolute-only and the §5.7 no-guard argument is restored intact. Nothing else depends on the sum.
+
 **`ClipSampler.IdentityAtlasRect`** = `new float4(1f, 1f, 0f, 0f)` — scale `(1, 1)`, offset `(0, 0)`, i.e. the full texture. `RestToPose` seeds `pose.atlasRect` with it, so it is the visible default for an atlas-mode actor until an atlas-mode sprite key writes a rect: an actor with no atlas track renders its full texture rather than an undefined sub-rect. There is no rest-pose equivalent of `restSliceIndex` for atlas rects; this constant is that default.
 
 ### 5.8 VAT technique (`VatMaterialSystem`) and bounds
