@@ -43,7 +43,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         /// Do not "fix" a failure here by pasting in a new number on its own — read the failure
         /// message first and decide which of the two cases you are in.
         /// </summary>
-        private const ulong ExpectedContentHash = 0x7262FF88711EB9F9UL;
+        private const ulong ExpectedContentHash = 0xC282EBFA11F6EF9FUL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -165,9 +165,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                2,
+                3,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 2. A bump must be paired " +
+                "The golden value above was recorded under schema version 3. A bump must be paired " +
                 "with a re-recorded constant, never landed on its own.");
         }
 

@@ -84,6 +84,7 @@ namespace StitchPunk.AnimationToolkit
                 defaultSampleRateHz = defaultSampleRateHz,
                 animLodLookup = SystemAPI.GetComponentLookup<AnimLod>(true),
                 restPoseLookup = SystemAPI.GetComponentLookup<TargetRestPose>(true),
+                viewOffsetLookup = SystemAPI.GetComponentLookup<SpriteViewOffset>(true),
                 targetPoseLookup = SystemAPI.GetComponentLookup<TargetPose>()
             };
             state.Dependency = sampleJob.ScheduleParallel(state.Dependency);
@@ -122,6 +123,14 @@ namespace StitchPunk.AnimationToolkit
         [ReadOnly] public ComponentLookup<AnimLod> animLodLookup;
 
         [ReadOnly] public ComponentLookup<TargetRestPose> restPoseLookup;
+
+        /// <summary>
+        /// A lookup rather than an <c>in</c> parameter for the same reason as
+        /// <see cref="animLodLookup"/>: <see cref="SpriteViewOffset"/> is opt-in (amendment A37, on
+        /// the A23 precedent), so taking it as a parameter would restrict this job to parts that
+        /// face somewhere — excluding every ordinary part, silently.
+        /// </summary>
+        [ReadOnly] public ComponentLookup<SpriteViewOffset> viewOffsetLookup;
 
         /// <summary>Written on part entities, never on the actor being iterated — see the type-level remarks.</summary>
         [NativeDisableParallelForRestriction] public ComponentLookup<TargetPose> targetPoseLookup;
@@ -196,6 +205,22 @@ namespace StitchPunk.AnimationToolkit
                     in restPose,
                     snapBlendWeights,
                     out TargetPose sampledPose);
+
+                // The facing term (amendment A37), applied after composition so that no clip on any
+                // layer can outrank it. Skipped entirely for a part that never opted in, which keeps
+                // the ordinary case exactly as it was.
+                if (viewOffsetLookup.HasComponent(partRef.part))
+                {
+                    int framesPerVariant = partRef.targetIndex < registry.targetFramesPerVariant.Length
+                        ? registry.targetFramesPerVariant[partRef.targetIndex]
+                        : 1;
+                    sampledPose.sliceIndex = ClipSampler.ResolveViewSlice(
+                        sampledPose.sliceIndex,
+                        restPose.restSliceIndex,
+                        viewOffsetLookup[partRef.part].value,
+                        framesPerVariant);
+                }
+
                 targetPoseLookup[partRef.part] = sampledPose;
             }
         }

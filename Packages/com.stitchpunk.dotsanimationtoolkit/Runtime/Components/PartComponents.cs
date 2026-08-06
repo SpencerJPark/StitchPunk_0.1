@@ -21,6 +21,38 @@ namespace StitchPunk.AnimationToolkit
     }
 
     /// <summary>
+    /// Which <em>view</em> of its variant a part is currently showing — the facing term of the
+    /// slice sum (architecture section 5.7, amendment A37). Written by the host, never by this
+    /// package.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The final slice is <c>restSliceIndex</c> (which variant this character rolled) +
+    /// <see cref="value"/> (which way the part faces) + the clip's own key (which frame the
+    /// animation is on). Three terms, three owners, none able to clobber another's.
+    /// </para>
+    /// <para>
+    /// <strong>Why this is a component and not clip data.</strong> Facing would otherwise multiply
+    /// into every clip that touches a sprite — a blink would need one variant per direction, and so
+    /// would talking and every expression. Applied after composition, one facing term is inherited
+    /// by every clip on every layer for free, so only locomotion needs direction variants. It also
+    /// cannot be outranked by layer priority, which clip data cannot promise.
+    /// </para>
+    /// <para>
+    /// Optional, like <c>AnimLod</c> (amendment A23): a part without it faces one way and reads as
+    /// offset 0. Consumers must reach it through a <c>ComponentLookup</c> with a
+    /// <c>HasComponent</c> check, never as a job parameter — taking it as a parameter would enrol
+    /// the job in an <c>All</c> query for an opt-in component and silently exclude every part that
+    /// never asked for facing.
+    /// </para>
+    /// </remarks>
+    public struct SpriteViewOffset : IComponentData
+    {
+        /// <summary>Frames to step from the rest slice, wrapped inside the target's variant block.</summary>
+        public int value;
+    }
+
+    /// <summary>
     /// The part's authored rest pose, captured from the authoring transform at bake
     /// (architecture section 5.2). Composition starts from this pose every sample; host
     /// design/skin systems change the base look by writing <see cref="restSliceIndex"/>

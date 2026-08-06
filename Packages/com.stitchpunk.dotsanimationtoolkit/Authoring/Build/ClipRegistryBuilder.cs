@@ -55,7 +55,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <see cref="ClipRegistryBlob.targetBoundsExtents"/>, every
         /// <see cref="VatTextureInfoBlob"/> field and <see cref="ClipBlob.debugName"/>.
         /// </remarks>
-        public const int SchemaVersion = 2;
+        public const int SchemaVersion = 3;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -365,10 +365,17 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     builder.Allocate(ref registryRoot.sortedTargetIds, canonicalTargets.Count);
                 BlobBuilderArray<float3> targetBoundsExtentsArray =
                     builder.Allocate(ref registryRoot.targetBoundsExtents, canonicalTargets.Count);
+                BlobBuilderArray<int> targetFramesPerVariantArray =
+                    builder.Allocate(ref registryRoot.targetFramesPerVariant, canonicalTargets.Count);
                 for (int denseIndex = 0; denseIndex < canonicalTargets.Count; denseIndex++)
                 {
                     sortedTargetIdArray[denseIndex] = canonicalTargets[denseIndex].stableId;
                     targetBoundsExtentsArray[denseIndex] = targetBoundsExtents[denseIndex];
+
+                    // Clamped rather than trusted: 0 or a negative would make the wrap divide by
+                    // zero or produce a negative block base, and [Min(1)] only guards the inspector.
+                    targetFramesPerVariantArray[denseIndex] =
+                        math.max(1, canonicalTargets[denseIndex].framesPerVariant);
                 }
 
                 BlobBuilderArray<ClipBlob> clipArray =
@@ -640,6 +647,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 SpriteTrackEntry entry = spriteTrackEntries[trackIndex];
                 trackArray[trackIndex].targetIndex = entry.denseTargetIndex;
                 trackArray[trackIndex].mode = entry.track.mode;
+                trackArray[trackIndex].sliceSpace = entry.track.sliceSpace;
 
                 int keyCount = entry.track.keys == null ? 0 : entry.track.keys.Count;
                 BlobBuilderArray<SpriteKeyBlob> keyArray =

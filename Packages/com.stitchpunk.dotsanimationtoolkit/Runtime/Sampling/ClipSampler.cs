@@ -177,6 +177,55 @@ namespace StitchPunk.AnimationToolkit
         /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
         /// <param name="sliceIndex">Current slice value; overwritten when the nearest key selects a frame ≥ 0.</param>
         /// <param name="atlasRect">Current atlas rect; overwritten in atlas mode.</param>
+        /// <summary>
+        /// Applies the facing term to an already-composed slice and keeps the result inside the
+        /// character's own variant block (architecture section 5.7, amendment A37).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The block is derived from <paramref name="restSliceIndex"/> rather than from the composed
+        /// slice, because the rest slice is the one value that reliably names the character's
+        /// variant — the composed slice may already have been moved by a relative key, and flooring
+        /// *that* would let a large animation offset silently redefine which block the part belongs
+        /// to.
+        /// </para>
+        /// <para>
+        /// With <paramref name="framesPerVariant"/> at or below 1 there are no blocks, so the offset
+        /// is a plain addition clamped at 0 — the lower clamp is what stops a negative relative key
+        /// producing a negative slice, which is the fifth route to a negative index that A37 opened
+        /// and section 5.7's original "no guard needed" argument did not anticipate.
+        /// </para>
+        /// </remarks>
+        /// <param name="composedSlice">The slice after clip composition.</param>
+        /// <param name="restSliceIndex">The part's rest slice — which variant this character has.</param>
+        /// <param name="viewOffset">Frames to step for the direction the part faces.</param>
+        /// <param name="framesPerVariant">Frames one variant owns; 1 or less means no blocks.</param>
+        /// <returns>The final, non-negative slice index.</returns>
+        [BurstCompile]
+        public static int ResolveViewSlice(
+            int composedSlice,
+            int restSliceIndex,
+            int viewOffset,
+            int framesPerVariant)
+        {
+            if (framesPerVariant <= 1)
+            {
+                return math.max(0, composedSlice + viewOffset);
+            }
+
+            int blockBase = (restSliceIndex / framesPerVariant) * framesPerVariant;
+            int frameInBlock = composedSlice - blockBase + viewOffset;
+
+            // Positive modulo: C#'s % keeps the sign of the dividend, so a part facing "one back"
+            // from the first frame of its block would land outside it.
+            int wrapped = frameInBlock % framesPerVariant;
+            if (wrapped < 0)
+            {
+                wrapped += framesPerVariant;
+            }
+            return math.max(0, blockBase + wrapped);
+        }
+
         [BurstCompile]
         public static void SampleSpriteTrack(
             ref SpriteTrackBlob track,
@@ -203,7 +252,15 @@ namespace StitchPunk.AnimationToolkit
 
             if (track.mode == SpriteFrameMode.Slice)
             {
-                if (keys[chosenIndex].sliceIndex >= 0)
+                if (track.sliceSpace == SpriteSliceSpace.RelativeToRest)
+                {
+                    // Amendment A37: the key is an offset from whatever the seed carries, which is
+                    // the rest slice the host's design system chose for this character. There is no
+                    // -1 sentinel here — 0 is the no-op, and a negative offset is a legitimate step
+                    // backwards through the variant's frames.
+                    sliceIndex += keys[chosenIndex].sliceIndex;
+                }
+                else if (keys[chosenIndex].sliceIndex >= 0)
                 {
                     sliceIndex = keys[chosenIndex].sliceIndex;
                 }

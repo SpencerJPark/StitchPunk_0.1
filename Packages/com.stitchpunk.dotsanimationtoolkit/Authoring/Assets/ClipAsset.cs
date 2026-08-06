@@ -188,6 +188,13 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Whether the keys address Texture2DArray slices or atlas rects.</summary>
         public SpriteFrameMode mode = SpriteFrameMode.Slice;
 
+        /// <summary>
+        /// Whether slice keys are absolute frames or offsets from the part's rest slice
+        /// (amendment A37). Ignored in <see cref="SpriteFrameMode.Atlas"/> mode, which has no rest
+        /// value to be relative to.
+        /// </summary>
+        public SpriteSliceSpace sliceSpace = SpriteSliceSpace.Absolute;
+
         /// <summary>Keys in strictly ascending <c>normalizedTime</c> order (validation rule V03).</summary>
         public List<SpriteKey> keys = new List<SpriteKey>();
     }

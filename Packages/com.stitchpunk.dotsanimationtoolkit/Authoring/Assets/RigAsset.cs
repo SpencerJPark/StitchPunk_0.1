@@ -152,6 +152,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public float3 boundsExtents = new float3(0.5f, 0.5f, 0.5f);
 
         /// <summary>
+        /// How many consecutive frames one <em>variant</em> of this target owns in its texture
+        /// array (architecture section 5.7, amendment A37). 1 means the target has no variant
+        /// blocks.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A design-driven target is laid out in blocks — for ears,
+        /// <c>[pointy_front, pointy_back, round_front, round_back, …]</c> gives 2. A host's design
+        /// system rolls the variant and writes its slice into <c>TargetRestPose.restSliceIndex</c>;
+        /// a view offset then has to land on another frame of <em>that</em> block.
+        /// </para>
+        /// <para>
+        /// Above 1, offsets wrap inside the block, so an over-large offset can never display a
+        /// different variant's art. The failure that prevents — a character wearing someone else's
+        /// ears — is invisible to every automated test and immediately obvious to a player, which is
+        /// why the wrap is in the package rather than left to callers.
+        /// </para>
+        /// </remarks>
+        [Min(1)] public int framesPerVariant = 1;
+
+        /// <summary>
         /// This target's stable 32-bit identity (architecture section 3.4). Unique within the
         /// owning rig (validation rule V05).
         /// </summary>

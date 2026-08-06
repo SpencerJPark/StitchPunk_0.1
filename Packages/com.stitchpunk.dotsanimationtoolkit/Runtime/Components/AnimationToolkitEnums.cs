@@ -69,6 +69,32 @@ namespace StitchPunk.AnimationToolkit
     /// <summary>
     /// How a track combines with the pose composited so far (architecture sections 3.2, 5.6).
     /// </summary>
+    /// <summary>
+    /// Whether a sprite track's slice keys are absolute frame indices or offsets from the part's
+    /// rest slice (architecture section 5.7, amendment A37).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Absolute"/> is the default and the original behaviour: a key names the frame
+    /// outright, and the <c>-1</c> "no change" sentinel applies.
+    /// </para>
+    /// <para>
+    /// <see cref="RelativeToRest"/> exists because a design-driven target's rest slice is chosen
+    /// per character — the ear shape a citizen rolled — so a clip that names an absolute frame
+    /// destroys that choice. A relative key says "one view along from whatever this character has",
+    /// which is the only form that survives a randomised variant. In this mode <c>0</c> is the
+    /// natural no-op and negative offsets are legal, so the <c>-1</c> sentinel does **not** apply.
+    /// </para>
+    /// </remarks>
+    public enum SpriteSliceSpace : byte
+    {
+        /// <summary>Keys name the frame outright; <c>-1</c> means "leave the current frame alone".</summary>
+        Absolute = 0,
+
+        /// <summary>Keys are offsets added to the part's rest slice; <c>0</c> is a no-op.</summary>
+        RelativeToRest = 1
+    }
+
     public enum TrackBlendOp : byte
     {
         /// <summary>Replace exactly the channels in the track's <see cref="AnimatedChannels"/> mask.</summary>

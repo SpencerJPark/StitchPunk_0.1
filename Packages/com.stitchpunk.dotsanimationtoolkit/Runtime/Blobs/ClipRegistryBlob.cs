@@ -54,6 +54,12 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Per dense target index: the authored conservative local half-extents from <c>RigTargetDefinition</c>.</summary>
         public BlobArray<float3> targetBoundsExtents;
 
+        /// <summary>
+        /// Per dense target index: how many consecutive frames one variant owns in that target's
+        /// texture array (amendment A37). 1 = no variant blocks.
+        /// </summary>
+        public BlobArray<int> targetFramesPerVariant;
+
         /// <summary>VAT texel-addressing parameters mirrored from the texture set (section 4.4).</summary>
         public VatTextureInfoBlob vatInfo;
     }
@@ -179,6 +185,11 @@ namespace StitchPunk.AnimationToolkit
 
         /// <summary>Whether keys address Texture2DArray slices or atlas rects.</summary>
         public SpriteFrameMode mode;
+
+        /// <summary>
+        /// Whether slice keys are absolute frames or offsets from the rest slice (amendment A37).
+        /// </summary>
+        public SpriteSliceSpace sliceSpace;
 
         /// <summary>Keys sorted by time.</summary>
         public BlobArray<SpriteKeyBlob> keys;

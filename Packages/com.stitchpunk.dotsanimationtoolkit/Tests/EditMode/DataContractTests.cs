@@ -173,6 +173,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("clips", typeof(BlobArray<ClipBlob>)),
                 Field("sortedTargetIds", typeof(BlobArray<uint>)),
                 Field("targetBoundsExtents", typeof(BlobArray<float3>)),
+                Field("targetFramesPerVariant", typeof(BlobArray<int>)),
                 Field("vatInfo", typeof(VatTextureInfoBlob))
             });
         }
@@ -222,6 +223,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             {
                 Field("targetIndex", typeof(int)),
                 Field("mode", typeof(SpriteFrameMode)),
+                Field("sliceSpace", typeof(SpriteSliceSpace)),
                 Field("keys", typeof(BlobArray<SpriteKeyBlob>))
             });
 
