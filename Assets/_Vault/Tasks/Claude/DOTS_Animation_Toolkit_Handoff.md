@@ -1,148 +1,157 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-02 (C4.3 through C4.6 closed and gated)
-**State:** **C3 is CLOSED.** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.6 all done and verified. C4.7 (VAT + bounds) is next.**
+**Written:** 2026-08-05 (C4.7 closed and gated)
+**State:** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.7 all done and verified. C4.8 (LOD) is next.**
 
-**Baseline, verified through the MCP 2026-08-02:** Console clean of `error CS` / `BC`; **210 EditMode + 133 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so filter by assembly when comparing to this number. Discrimination for C4.3–C4.6 verified by eight mutation runs (tables in the C4 plan). Nothing is owed.
+**Baseline, verified through the MCP 2026-08-05 at commit `078ce31` (pushed):** Console clean of `error CS` / `BC`; **210 EditMode + 149 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination for C4.3–C4.7 verified by fourteen mutation runs (tables in the C4 plan). **Nothing is owed except the C4.8 ordering edge below.**
 
-## ⚠ Two process notes, both learned the hard way this session
+---
 
-**1. `refresh_unity` returning `success` is not a readiness signal.** Calling `run_tests` straight after it wedged the Editor mid-play-mode-transition (job died with `total: null`, `completed: 0`), needed `manage_editor action=stop` to recover, and left an `Assets/InitTestScene<guid>.unity` behind. Poll `mcpforunity://editor/state` first: `is_compiling: false`, `is_domain_reload_pending: false`, and a `last_domain_reload_after_unix_ms` **newer than the compile you just triggered**. The `stale_status` blocking reason on that resource is snapshot freshness only — it can sit true indefinitely while every substantive field reads idle, so do not wait on `ready_for_tools`.
+## Start here
 
-**2. The MCP bridge can be down while Unity is perfectly healthy.** For two sessions the server answered but no Editor was registered (`instance_count: 0`, `read_console` → `no_unity_session`, `refresh_unity` → 60 s timeout) with the Editor open and importing normally. Only the owner can restore it (Window ▸ MCP For Unity). Check `mcpforunity://instances` before planning a phase — building blind is possible (C4.3 and C4.4 both were) but every unverified assumption compounds.
+1. `Docs/AnimationToolkit/Phase_C4_Plan.md` — the 14 pieces, the nine phases, the traps carried in from C3, the test-integrity standard, and a per-phase record of what each build step actually found. **Read this before the architecture doc.**
+2. `Docs/AnimationToolkit/Phase_B_Architecture.md` — the normative spec. **111 KB — never read whole.** Grep headings, then Read with offset/limit. §5 is C4's territory; §5.10 is C4.8's.
+3. `Docs/AnimationToolkit/Phase_C3_Gate4.md` — the last gate: verdict, the 10 blocking items, the Resolution table, and the "verified clean — do not re-litigate" list. Read that list before re-auditing anything in C3.
 
-## C4 progress — read `Docs/AnimationToolkit/Phase_C4_Plan.md` first
+Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3_Incomplete.md`) are history, superseded by Gate 4.
 
-It holds the 14 pieces, the nine phases, the traps carried in from C3, and the test-integrity standard.
+---
+
+## Environment — what is true as of 2026-08-05
+
+**The Unity MCP is UP and was used for the whole of C4.7.** One instance: `Stitch_Punk@852da23e19ef0320`.
+
+**The MCP tools may not be in your tool list at session start.** This session began with no `mcp__UnityMCP__*` tools visible and `ToolSearch("select:mcp__UnityMCP__refresh_unity,…")` returning *no matching deferred tools*. They appeared as deferred tools only after the server was probed directly over HTTP. If that happens again:
+
+- The server speaks MCP over streamable HTTP at `http://127.0.0.1:8080/mcp`. `POST` an `initialize` JSON-RPC call, keep the `Mcp-Session-Id` response header, `POST` `notifications/initialized`, then `POST` the real call. Responses come back SSE-framed (`event: message\ndata: {…}`).
+- A working PowerShell driver was written this session; recreate it in the scratchpad if needed — it is three `Invoke-WebRequest` calls.
+- Once the tools *do* appear in a `<system-reminder>`, load them properly with `ToolSearch("select:mcp__UnityMCP__refresh_unity,mcp__UnityMCP__read_console,mcp__UnityMCP__run_tests,mcp__UnityMCP__get_test_job,ReadMcpResourceTool")` and use them instead of raw HTTP.
+
+**The compile gate, in order:**
+
+1. `refresh_unity(mode="force", scope="all", compile="request", wait_for_ready=false)`.
+2. Poll `mcpforunity://editor/state` (via `ReadMcpResourceTool`) until `is_compiling: false`, `is_domain_reload_pending: false`, and `last_domain_reload_after_unix_ms` is **newer than the edit you just made**.
+3. `read_console(types=["error"])`.
+4. `run_tests` + `get_test_job(wait_timeout=120)`.
+
+**Gate gotchas, all hit this session:**
+
+- **`refresh_unity` returning `success` is not a readiness signal.** Calling `run_tests` straight after it wedged the Editor mid-play-mode-transition in an earlier session (job died with `total: null`), needed `manage_editor action=stop` to recover, and left an `Assets/InitTestScene<guid>.unity` behind.
+- **`blocking_reasons: ["stale_status"]` is snapshot freshness only.** It sat true for two of the six mutation runs while every substantive field read idle and the tests ran fine. Do not wait on `ready_for_tools` when `stale_status` is the only reason.
+- **`refresh_unity` sometimes reports `"Refresh recovered after Unity disconnect/retry"` or times out at 60 s** and the compile still happens. Judge by `editor/state`, not by the tool's message.
+- **If you script the poll in PowerShell, the resource text is JSON-escaped inside the outer JSON** — it reads `\"is_compiling\":false`, so a naive `-match '"is_compiling":false'` never matches and the loop runs to its full timeout. `.Replace('\"','"')` first. This silently cost two 400-second waits.
+- **Always check the discovered test count, not just pass/fail.** `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived a whole build step and three static reviewers.
+- **`Logs/Editor.log` (project-relative) was the live log this session**, not the `%LOCALAPPDATA%` copy. Which one is live depends on how the Editor was launched — check `LastWriteTime` on both before trusting either. Only relevant as a fallback when the bridge is down.
+- **Grep `Library/PackageCache/<pkg>@<hash>/` before calling any Unity API.** The two worst bugs this package shipped both came from recalling semantics instead of reading them.
+
+---
+
+## C4 progress
 
 - ✅ **C4.1 skeleton** — four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem`, 12 tests.
-- ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, **mutation-verified**. Rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from `LinkedEntityGroup` after instantiation, re-derives `phase01` per instance, disables `RigBindingUninitialized`.
-- ✅ **C4.3 playback core** — compiled clean, all tests green, **mutation-verified** (three runs; see the C4 plan's table). All four pieces plus their fixtures:
-  - `Runtime/Api/AnimationCommandUtil.cs` (Play, Queue, Stop, SetSpeed, SetTime) — unchanged from `7d84051`.
-  - `Runtime/Api/PlaybackQuery.cs` — `IsPlaying`, `NormalizedTime` (A26's three-parameter form), `FinishedThisFrame`. The spec no longer documents an API that does not exist.
-  - `Runtime/Systems/CommandApplySystem.cs` — two jobs: the stale-event clear (A28) then the command apply. `OrderFirst` in the logic group.
-  - `Runtime/Systems/PlaybackTimeSystem.cs` — blend advance, time advance, loop handling, Once completion, queue promotion. `UpdateAfter(CommandApplySystem)`.
-  - `Runtime/Components/PlaybackLayer.cs` — **new field `advanceStartTime`** (A27), plus the matching row in `DataContractTests`.
-  - Tests: `Tests/PlayMode/PlaybackTestActor.cs` (blob + actor fixture builder, PlayMode-local because the PlayMode asmdef cannot see `TestBlobFactory`), `CommandApplySystemTests.cs`, `PlaybackTimeSystemTests.cs`, `PlaybackQueryTests.cs`, and two structural tests appended to `SystemGroupStructureTests.cs`. Every fixture's doc comment names the mutation it catches, per the C4 standard.
-- ✅ **C4.4 events** — `Runtime/Systems/EventEmissionSystem.cs` (marker crossings from `[advanceStartTime, time]` + `ClipFinished`, appends and enables only per A28) and `Tests/PlayMode/EventEmissionSystemTests.cs` (12 fixtures). Writing it exposed a defect in C4.3's queue promotion → **amendment A30**, which changed `PlaybackTimeSystem` and its promotion fixtures. Gated with C4.3.
-- ✅ **C4.5 transform technique** — `TransformSampleSystem` + `TransformApplySystem`, 11 fixtures, **mutation-verified** (four predicted failures, no others). The host's dead-scale regression is now pinned by a test: delete the `PostTransformMatrix` write and the authored 2× scale silently reverts to the rest 1.5×, which is precisely how it failed in the host game.
-- ✅ **C4.6 flipbook** — `SpriteMaterialSystem`, 6 fixtures, **mutation-verified**. No `-1` guard: §5.7's "dead code by construction" claim was checked against all four routes to a negative pose slice and holds, so a fixture pins the reason instead of a dead branch.
-- ⬜ C4.7 VAT+bounds · C4.8 LOD · C4.9 acceptance + smoke scene.
+- ✅ **C4.2 binding** — `RigBindingSystem` (§5.3), 7 tests, mutation-verified.
+- ✅ **C4.3 playback core** — `AnimationCommandUtil`, `PlaybackQuery`, `CommandApplySystem`, `PlaybackTimeSystem`, `PlaybackLayer.advanceStartTime` (A27). Mutation-verified.
+- ✅ **C4.4 events** — `EventEmissionSystem`. Building it exposed a defect in C4.3's queue promotion → **A30**.
+- ✅ **C4.5 transform technique** — `TransformSampleSystem` + `TransformApplySystem`, 11 fixtures. Produced **A31** (owner-approved) and **A32**.
+- ✅ **C4.6 flipbook** — `SpriteMaterialSystem`, 6 fixtures.
+- ✅ **C4.7 VAT + bounds — closed 2026-08-05.** `VatMaterialSystem` (8 fixtures), `RenderBoundsUpdateSystem` (6 fixtures), 2 group-placement rows. **Mutation-verified: 13 mutations over six runs, each producing exactly the predicted failure and no others.**
+- ⬜ **C4.8 LOD** — next. See the brief below.
+- ⬜ **C4.9 acceptance + smoke scene** — **STOP HERE.** Its DoD needs the owner to confirm on-screen clip playback, which Claude cannot verify. The owner has asked to go through C4.9 together.
 
-**Two test-integrity lessons from C4.6, both reusable:**
-1. **A fixture that seeds state the way production seeds it cannot prove production wrote anything.** Three sprite fixtures seeded the shader properties from the rest pose — exactly as the baker does — and would have passed against a system that published nothing. They now scribble sentinels (`-999`, `-9`) first.
-2. **Batched mutations can mask each other.** Removing the property writes *and* the `AnimVisible` gate together left `AnInvisiblePart_IsNotPublished` passing, because with no write the test's own sentinel survived. Isolating the gate made it fail. When a predicted failure does not appear, suspect the batch before suspecting the test.
+### What C4.7 settled
 
-**C4.8 owes an ordering edge:** `TransformSampleSystem` has no `[UpdateAfter(typeof(AnimLodDistanceSystem))]` because that type does not exist yet. §5.1's diagram orders sampling after LOD — add it when C4.8 lands.
-
-## Amendment A31 — transform keys are offsets from rest (owner-approved 2026-08-02)
-
-C4.5 found the spec and the shipped sampler disagreeing about what a transform key *is*. The spec said offsets from rest (§3.2, §4.6, and the entire rationale of A13); `ClipSampler` implemented absolute local values, with a `ClipSamplerTests` assertion locking that in deliberately. **Resolved in favour of the spec:** `ApplyClipToPose` now takes the rest pose, `Override` writes `rest + key` (scale `rest × key`), `Additive` is unchanged and still anchors to the composited pose below. Under the old reading, re-posing a rig's rest was silently ignored the moment a clip played — fatal for a cutout rig.
-
-**Why it survived three gates, and the rule that follows.** Every `LayerCompositionTests` fixture used a rest pose at the origin with unit scale, where `rest + key` and `key` are the same number. The entire Override semantics were untested while looking thoroughly tested. Reverting the sampler now fails **ten** tests; before C4.5 it failed none.
-
-**The rule:** when a fixture picks a "simple" value for something the code branches on — zero, one, identity, empty — check whether that choice is what makes the assertion pass. That is the third distinct shape of invisible defect C4 has produced, after A28 and A30's "only the next system can see it".
-
-## Amendment A32 — a layer fades in as well as out
-
-Pressing on Override in the context of **layer mixing** found the mirror of Stop's fade-out missing. A `Play` with a blend onto an **idle** layer hard-cut, silently ignoring the blend duration the caller asked for — and since bringing an upper layer in over the ones below *is* the activate-with-a-crossfade case, layer mixing was the one thing that could not be done smoothly.
-
-No new state was needed: `ClipSampler.CompositeLayers` already reads `previousClipIndex = −1` on a blending layer as "lerp from the incoming pose", and the incoming pose there *is* what the layers below composited. `CommandApplySystem` now starts the blend in that state. A `Play` arriving mid-Stop-fade keeps the still-fading clip as its crossfade source instead of dropping it.
-
-**Layer weight is still absent, deliberately.** Layers are binary; a layer's strength over time is its own crossfade. Per-part masking gives the common case for free — an upper layer's clip simply carries no track for the targets it should not touch, so lower layers survive there untouched. A *sustained* partial weight (a permanent 30% additive breathing layer) is not expressible and would need a `weight` field on `PlaybackLayer` plus a weight argument through `CompositeLayers`. **If a design turns up that needs it, that is the change — it is not a bug.**
-
-**C4.5 is the first phase that produces visible motion.** The owner has asked to go through **C4.9 together** — that phase's DoD needs them to confirm on-screen clip playback, which Claude cannot verify. Build 4.6–4.8 autonomously; stop at 4.9.
-
-## What C4.3 decided that C4.4 inherits
-
-Four amendments went into §5 of the architecture, all under the owner's standing delegation, all with a "to revert" note. **Two of them change what C4.4 must build:**
-
-- **A28 — `EventEmissionSystem` appends and enables only.** It must **not** clear `AnimEventOutput` and must **not** disable `AnimEventsPending`; `CommandApplySystem` now owns the clear, at the top of the group. As originally specified, §5.4 had `CommandApplySystem` emit `ClipResolveFailed` and §5.5 had a *later* system wipe the buffer — every resolve-failure event was destroyed in the frame it was raised.
-- **A27 — the crossing window is `[layer.advanceStartTime, layer.time]`,** read off the layer, on the **current clip only**. Do not recompute the opening edge as `time − dt × speed`: that is wrong on exactly the frames where a Once clip clamps or a queue promotes. The crossfade source deliberately emits no markers (§12 R11).
-- A26 (pre-existing) — `PlaybackQuery.NormalizedTime` takes the registry.
-- A29 — out-of-range layer index dropped without an event; Queue resolves its clip; Stop clears the queue.
-- **A30 (C4.4) — queue promotion is deferred by one advance.** Found only by building the consumer: promoting in the same advance that finished the clip made `ClipFinished` name the follow-up and silently dropped the finishing clip's last-segment markers, which is where hit frames live. `PlaybackTimeSystem` now raises the completion, holds the final pose, and promotes at the top of the next advance.
-
-**The pattern to carry into C4.5–C4.8:** both A28 and A30 are defects that were invisible from inside the system containing them and only surfaced when the *next* system had to consume the output. Neither would have been caught by re-reading the producer, however carefully. When starting a phase, write down what the phase after it will need from you — that is where these live.
-
-## The two traps — how C4.3 handled them
-
-Both are closed, and both are **mutation-verified** rather than merely green — the mutation table is in the C4 plan.
-
-- **`PlaybackLayer.previousLoop` is now written, on both paths.** `CommandApplySystem.ApplyPlay` and `PlaybackTimeSystem.PromoteQueuedClip` each copy the outgoing `loop` into it *before* `layer.loop` is overwritten. Capturing it *after* the overwrite fails `PlayOverACrossfade_CapturesTheModeTheOutgoingClipWasActuallyPlayingUnder` with `Expected: Once, But was: Loop` — the wrong value that a late capture produces, not the `UseClipDefault` a deleted line would leave. The fixture separates the two failure modes, and that was proven, not asserted.
-- **`BoundsDirty`** is enabled by `CommandApplySystem` on a Play/Stop that changes `clipIndex`, and by `PlaybackTimeSystem` on queue promotion, Once-completion and blend completion. No change-version filter anywhere. Making either write unconditional fails exactly one fixture per system — `PlayingTheSameClipAgain_DoesNotDirtyTheBounds` and `AnOrdinaryAdvance_DoesNotDirtyTheBounds`.
-- **Still untested by construction:** the `BoundsDirty` *disable*. It lives in `RenderBoundsUpdateSystem`, which C4.7 builds. The C4 test-integrity standard names it as the second thing to pin by mutation — do that in C4.7, not before.
-
-## The API trap C4.3 found (read before writing any more `IJobEntity`)
-
-An `EnabledRefRW<T>` parameter **enrols `T` in the query as an `All` component** — enabled-only. Both C4.3 systems write `BoundsDirty`, which is disabled on almost every actor almost every frame; left as the default, both jobs would have matched almost nothing, silently, with no error. Fixed with `[WithPresent(typeof(BoundsDirty), ...)]`. Rule: *if the job ever turns a bit **on**, that component needs `[WithPresent]`.* Recorded in `_Vault/Memories/Code/Gotchas.md`. C4.4–C4.8 will hit this again — `AnimEventsPending`, `AnimVisible`.
+- **Amendment A33 — the PlayMode asmdef references `Unity.Entities.Graphics`.** `Unity.Rendering.RenderBounds` is defined there, not in `Unity.Entities`, and C4.7 was the first fixture in the package to read a `RenderBounds` back. Caught twice: once by the compiler, then again by `PackagingConformanceTests` when the asmdef was updated and §1.3 was not. **That second catch is the conformance test working as designed — if you touch any asmdef, update §1.3 and `PackagingConformanceTests.AsmdefExpectations` in the same commit.**
+- **The `BoundsDirty` *disable* is finally pinned by mutation** — outstanding since C4.3, where the tag's *raising* was covered but its reset was not. Deleting `boundsDirtyEnabled.ValueRW = false` fails `TheDirtyTag_IsClearedByTheWrite`; swapping `[WithAll(BoundsDirty)]` for `[WithPresent(BoundsDirty)]` fails `AFrameThatOnlyAdvancesTime_LeavesBoundsUntouched`. Both defects produce *correct bounds at permanent cost*, so nothing but a test was ever going to find them.
+- **A second non-discriminating fixture, caught before the gate rather than after.** `ABlendingLayer_KeepsBothClipsInTheUnion` originally made the *incoming* clip the large one — whose box swallows the outgoing clip's on every axis, so the expected union was the same number whether or not the crossfade source was folded in. Reversed so the outgoing clip is the large one.
+- `VatMaterialSystem` iterates **parts**, not actor roots, reaching the layer buffer through `RigPartBinding.actorRoot` — `VatDriven` *is* the VAT archetype, and a torso and a cape on one actor may follow different layers.
+- `_VatFrameB` defaults to `_VatFrameA` rather than 0: with `_VatBlend = 0` a correct shader ignores B, but a 0 there points at the first row of the whole texture, so any shader that lerps before testing the weight would snap the mesh to an unrelated clip's pose.
 
 ---
 
-## Read before doing anything
+## C4.8 brief — LOD
 
-- `Docs/AnimationToolkit/Phase_B_Architecture.md` — the normative spec. **111 KB — never read whole.** Grep headings, then Read with offset/limit. §5 is C4's territory.
-- `Docs/AnimationToolkit/Phase_C3_Gate4.md` — the last gate: verdict, the 10 blocking items, the Resolution table, the "verified clean — do not re-litigate" list, and the A-4 ruling. Read the verified-clean list before re-auditing anything in C3.
-- `Phase_C3_Gate4_Reviewer{A_Spec,B_Tests,C_Code}.md` — the three lenses verbatim, with `Library/PackageCache` citations for the Entities behaviour C3 depends on.
-- Earlier gates (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3_Incomplete.md`) are history, superseded by Gate 4.
+The plan line reads "**C4.8 — LOD.** `AnimLodDistanceSystem`", but §8 M3's acceptance list (which C4.9 tests) includes *"LOD 2 mid-blend swap → blend completes on schedule (§5.10)"*. **The level *effects* therefore have to exist by the end of C4.8, or C4.9 has nothing to test.** Shipping only the writer would give the package a config flag that computes a number nothing reads.
 
-## The environment is not what older notes say
+**§5.10 as written:**
 
-- **Unity MCP is currently DOWN, and has been for two sessions** — the server answers, the Editor is open and importing, but `mcpforunity://instances` reports `instance_count: 0` and every tool returns `no_unity_session`. `refresh_unity` times out after 60 s waiting for editor readiness. The Editor-side bridge is what is missing; only the owner can restore it. **Check this first, before planning any phase**, because the whole gate depends on it.
-- When it is up: compile gate is `refresh_unity` → poll `editor/state` for `is_compiling: false` and `external_changes_dirty: false` → `read_console`. Tests: `run_tests` + `get_test_job`. Anything genuinely visual still needs the owner to look.
-- **The live Editor log for this launch is `%LOCALAPPDATA%\Unity\Editor\Editor.log`, not `Logs/Editor.log`.** Older notes say the opposite. Which one is live depends on how the Editor was launched (Hub-launched sessions write to the AppData one); the project-relative copy was last written 2026-08-01. Check `LastWriteTime` on both before trusting either.
-- **Always check the discovered test count, not just pass/fail.** `resultState: "Passed"` with `total: 0` is what a vanished suite looks like, and it is how the C3 PlayMode defect survived a whole build step and three static reviewers.
-- Fallback when the Editor is closed or the bridge is down: grep whichever `Editor.log` is actually being written (see above), and **check its mtime against your edits** — a log that predates the change means the compile never happened, so say so rather than reporting "clean".
-- **Grep `Library/PackageCache/<pkg>@<hash>/` before calling any Unity API.** The two worst bugs this package shipped both came from recalling semantics instead of reading them — and C4.3's `EnabledRefRW` trap was found this way and no other.
+| Level | Effect |
+|---|---|
+| 0 | Full quality. |
+| 1 | Effective sample rate halved (`rateHz / 2`, or a 30 Hz cap when rate = 0/uncapped). |
+| 2 | Quarter rate; transform blending visually snapped (weights clamp to 0/1; blend **timers** still advance normally — so a LOD swap mid-blend rejoins the correct weight). |
+| 3 | Pose frozen unless the layer's clip changes; VAT properties still update at quarter rate. |
+
+### Four things to resolve before writing code
+
+**1. `AnimLod` is opt-in and its absence is conformant (amendment A23).** `ActorBaker` adds it only when `ActorAuthoring.addDistanceLod` is set. So the sampling job cannot take it as an ordinary `in` parameter — that would silently exclude every actor without it, which is most of them. Reach it through a `[ReadOnly] ComponentLookup<AnimLod>` with `HasComponent` (absent = level 0), and **write a fixture where the actor has no `AnimLod` at all**, because "LOD code accidentally requires the optional component" is exactly the shape of defect this module keeps producing.
+
+**2. What world position does the actor root carry?** `AnimLodDistanceSystem` needs one to compare against `AnimationToolkitCameraData.position`. Check `ActorBaker`'s `TransformUsageFlags` and the 13-component baseline in `DataContractTests` before assuming `LocalToWorld` is there. If it is not, that is an archetype question, not an implementation detail.
+
+**3. Level 3's "frozen unless the layer's clip changes" has no existing signal — this is the real open question.** Options considered:
+   - *Reuse `BoundsDirty`.* It is already on the archetype and is enabled on exactly Play / queue-promotion / Once-completion / blend-completion — a **superset** of "the clip changed", so it is safe (you re-sample more often than needed, never less). But it is cleared by `RenderBoundsUpdateSystem`, which sits `[UpdateAfter(TransformSampleSystem)]`, so reading it during sampling works *today* and couples two systems through a tag that means something else. A future reorder breaks level 3 silently.
+   - *Store a per-actor last-sampled clip signature.* Honest and self-contained, but it is a new field on a §5.2 root component → an archetype change → **an amendment plus a `DataContractTests` row.**
+   - **Recommendation: the stored signature, with an amendment.** The coupling option is the kind of shortcut this package has already paid for twice (A28, A30 were both "system A's output means something different by the time system B reads it").
+
+**4. Level 2's blend snapping lives inside `ClipSampler.CompositeLayers`**, which §5.11 makes the single sampler shared with the editor preview path. Snapping the weight anywhere else is not possible without mutating the layer buffer, so this is a **signature change on `CompositeLayers`** (an added `bool snapBlendWeights`) that touches every caller and the EditMode fixtures. Budget for it; do not try to avoid it by special-casing in the system.
+
+### Recorded debt C4.8 must discharge
+
+**`TransformSampleSystem` carries no `[UpdateAfter(typeof(AnimLodDistanceSystem))]`** because that type did not exist. §5.1's diagram orders sampling after LOD. Add the attribute when the system lands, and add a row to `SystemGroupStructureTests` pinning it — an unpinned ordering edge is how a LOD level written *this* frame gets consumed *next* frame, which looks like nothing at all.
+
+`AnimLodDistanceSystem` should be `OrderFirst` in the presentation group, or explicitly before `TransformSampleSystem`; it must be a no-op when `AnimationToolkitConfig.distanceLodEnabled` is false (the default) and when `AnimationToolkitCameraData` is absent. `ConfigBootstrapSystem`'s defaults are already pinned by three fixtures — ascending non-zero `lodDistancesSq`, LOD disabled, 0 Hz sampling — so do not change them without reading `SystemGroupStructureTests`.
 
 ---
 
-## C4 — the systems slice
+## Standing rules for this package
 
-The runtime that makes baked actors actually animate: transform + flipbook end-to-end, events, bounds, LOD. `Runtime/Systems/` now holds the four system groups, `ToolkitWorldControl`, `ConfigBootstrapSystem` and `RigBindingSystem`; the remaining eleven pieces are listed in the C4 plan.
-
-**Start by grepping §5 of the architecture** for the system list and their contracts, then §8 M3 for module ownership and §11.2 for the test obligations.
-
-### Load-bearing facts C4 inherits
-
-- **`RigBindingSystem` is C4's, and five files already promise it exists.** Doc comments in `ActorAuthoring`, `ActorBaker`, `RigBindingBakingSystem`, `ActorStateComponents` and `PartComponents` reference it, now correctly marked forward-looking. It rebuilds `RigPartRef` and `RigPartBinding.actorRoot` from the `LinkedEntityGroup` after ECB instantiation (instantiate does not remap entity references inside dynamic buffers), then disables the spawn-remap tag. **Landed in C4.2.**
-- **`PlaybackLayer.previousLoop` is read-only until C4's `CommandApplySystem` writes it.** If C4 forgets, every outgoing clip reverts to its authored loop mode mid-crossfade.
-- **`RigPartRef` buffer order is unspecified.** C4 rebuilds it anyway; do not develop a dependency on bake order.
-- **Never write `offsetBounds` into `RenderBounds` directly** — it is offset space. `ActorRestBounds` is in actor space and C3 produces it.
-- **The sample phase (`SampleSettings.phase01`)** is baked per actor and specified to be re-derived per instance at spawn. See A18 + the closed A-4.
-- Dense clip index = position in both `clips` and `sortedClipIds`. `SchemaVersion` is 2 with golden hash `0x7262FF88711EB9F9` pinned to it; a format change bumps both together.
-
-### Hard rules (from `CLAUDE.md` and owner memory — these override defaults)
+### Hard code rules (from `CLAUDE.md` and owner memory — these override defaults)
 
 - Never `var`; never single-letter names; explicit types everywhere; names read like documentation.
 - Never `.Run()` a job — `.Schedule()` / `.ScheduleParallel()` assigned to `state.Dependency`.
 - `[ReadOnly]` from `Unity.Collections`, never `Unity.Entities`.
 - Prefer `ISystem` + `[BurstCompile]`; no managed allocations in Burst jobs.
 - Burst log strings: only `G/g/D/d/X/x` specifiers (BC1343); no `+` concatenation (BC1016). `FixedStringNBytes` interpolation **is** supported (Burst 1.8.29).
-- A Bursted baking system's diagnostics are invisible to `Application.logMessageReceived` (main-thread only) — use `logMessageReceivedThreaded`.
-- `LogAssert.ignoreFailingMessages` set in `[SetUp]` does nothing; UTF disposes that LogScope before the test body runs.
+- **An `EnabledRefRW<T>` parameter enrols `T` in the query as an `All` (enabled-filtered) component.** If the job ever turns the bit **on**, that component needs `[WithPresent(typeof(T))]`. Recorded in `_Vault/Memories/Code/Gotchas.md`. `BoundsDirty`, `AnimEventsPending` and `AnimVisible` have all hit this.
+- Reading a `ref`-returning property through an `in` parameter compiles into a defensive copy. The idiom used throughout the package is two locals first:
+  ```csharp
+  BlobAssetReference<ClipRegistryBlob> registryReference = clipRegistry.Value;
+  ref ClipRegistryBlob registry = ref registryReference.Value;
+  ```
+
+### Test-integrity standard — the whole reason this package is trustworthy
+
+**Every fixture's doc comment names the mutation it catches, and every mutation is actually compiled and run.** Four distinct shapes of "a test that passes under both the correct and the broken implementation" have now been found here:
+
+1. **The fixture seeds state the way production seeds it.** Three C4.6 sprite fixtures seeded the shader properties from the rest pose — exactly as the baker does — and would have passed against a system that published nothing. Scribble sentinels first (`-999`, `-777`).
+2. **The fixture picks the identity value for the thing the code branches on.** Every `LayerCompositionTests` fixture used an origin rest pose with unit scale, where `rest + key` and `key` are the same number — the entire `Override` semantics were untested while looking thoroughly tested (A31).
+3. **The expected value is the same under both branches.** C4.7's blend-union fixture made the incoming clip the large one, so the outgoing clip's contribution could not change the answer.
+4. **Batched mutations mask each other.** Removing C4.6's property writes *and* the `AnimVisible` gate together left the invisibility fixture passing, because with no write its own sentinel survived. **When a predicted failure does not appear, suspect the batch before suspecting the test.**
 
 ### Process
 
 - Modules **C0–C8** in dependency order, each gated by an adversarial reviewer producing PASS/FAIL. **Gates are launched only when the owner asks.**
-- **Commit and push to `main` whenever it makes sense — do not wait to be asked** (owner, 2026-08-02, superseding the old "commit only after a module passes its gate"). A phase that compiles clean with its tests green is a checkpoint; so is a coherent slice of one. What has not changed: stage the package, `Docs/AnimationToolkit`, and this handoff **explicitly** — the working tree carries unrelated host-game shader work that must never ride along.
+- **Commit and push to `main` whenever it makes sense — do not wait to be asked** (owner, 2026-08-02). What has not changed: **stage paths explicitly, never `git add -A`.** The working tree carries substantial unrelated host-game shader work (Painterly graphs, colour ramps, `Assets/Shaders/`) that must never ride along. Stage `Packages/com.stitchpunk.dotsanimationtoolkit`, `Docs/AnimationToolkit`, and this file by name.
 - The owner delegates architecture and process calls (stated 2026-08-01) — decide, record the decision with its reasoning and an explicit "what to revert" note, and keep moving. A spec/reality conflict still gets a **written amendment**, never a silent doc edit: that discipline is what three failed gates bought.
-
-### If a gate is needed
-
-Three narrow agents in parallel, one lens each (spec conformance / test integrity / code correctness), each appending to its own scratchpad file **as it goes**, results copied into `Docs/AnimationToolkit/` before the session ends. This shape completed all three lenses at Gate 4; two monolithic reviewers were killed by a watchdog and a third died on a usage limit. **Then run the suite** — Gate 4's most serious finding was invisible to all three readers and took ninety seconds of execution to surface.
+- If a gate is needed: three narrow agents in parallel, one lens each (spec conformance / test integrity / code correctness), each appending to its own scratchpad file **as it goes**, results copied into `Docs/AnimationToolkit/` before the session ends. Two monolithic reviewers were killed by a watchdog and a third died on a usage limit. **Then run the suite** — Gate 4's most serious finding was invisible to all three readers and took ninety seconds of execution to surface.
 
 ---
 
 ## Lessons this package keeps re-teaching
 
 1. **Closure is a property of the code, not of the note saying the code changed.** Verify against the shipped tree — never the CHANGELOG, a review doc's own closure table, or a previous session's summary.
-2. **Reading the diff is not enough either.** Run the thing.
-3. **A test that passes under both the correct and the broken implementation is worse than no test.** Three separate instances have now been found in this module: the deleted phase fixture, the surrogate-pair test, and the PlayMode smoke test that asserted only an assembly name. For any new test, state the mutation it catches.
+2. **Reading the diff is not enough either. Run the thing.**
+3. **A defect is usually invisible from inside the system that contains it.** A28, A30 and A31 were all found by writing the *consumer*, not by re-reading the producer. When starting a phase, write down what the phase after it will need from you.
 4. **An amendment can be self-defeating.** A17 was well-reasoned, owner-approved, and its implementation produced the exact outcome it rejected. Check what an amendment *does*, not only what it argues.
+5. **A change that costs nothing to make is not the same as a change that costs nothing.** A31 was one sampler branch and one assertion; it changed what every clip an animator authors *means*.
+
+---
+
+## Known limitations, recorded deliberately (not bugs)
+
+- **No per-layer weight.** Layers are binary; a layer's strength over time is its own crossfade, and per-part masking covers the common case for free (an upper layer's clip simply carries no track for targets it should not touch). A *sustained* partial weight — a permanent 30% additive breathing layer — is not expressible and would need a `weight` field on `PlaybackLayer` plus a weight argument through `CompositeLayers`. **If a design turns up that needs it, that is the change, not a bug.** (A32)
+- **Queue promotion costs one extra frame of the final pose** on hard-cut queues only, which is the price of A30's deferral.
+- **Per-part bounds tightening is an explicit non-goal** (§5.8). Parts receive the actor's union.
 
 ## Unrelated host-game bug, still open
 
 `Assets/_Scripts/Editor/StitchPunk.Editor.asmdef` has `"includePlatforms": []`, so editor code compiles into player builds and any player test run fails with ~58 compile errors. One-line fix: `["Editor"]`. Offered twice; the owner has not taken it. Not a package issue — and note the irony that the *correct* fix there is what broke the toolkit's PlayMode suite when applied to a test assembly (A17/A25).
-
-Also: the working tree carries substantial **unrelated host-game shader work** (Painterly graphs, colour ramps, `Assets/Shaders/`). Do not commit it with package changes — stage `Packages/com.stitchpunk.dotsanimationtoolkit`, `Docs/AnimationToolkit`, and this file explicitly.
