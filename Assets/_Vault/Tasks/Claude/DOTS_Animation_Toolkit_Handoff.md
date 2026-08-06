@@ -1,16 +1,16 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-05 (C4.7 closed and gated)
-**State:** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.7 all done and verified. C4.8 (LOD) is next.**
+**Written:** 2026-08-05 (C4.7 and C4.8 closed and gated)
+**State:** Phases done: A, B, C0, C1, C2, C3. **C4 in progress — C4.1 through C4.8 all done and verified. C4.9 is next, and it is the STOP point.**
 
-**Baseline, verified through the MCP 2026-08-05 at commit `078ce31` (pushed):** Console clean of `error CS` / `BC`; **210 EditMode + 149 PlayMode, all passing, each in its real mode.** Project-wide EditMode is 266 — the extra 61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination for C4.3–C4.7 verified by fourteen mutation runs (tables in the C4 plan). **Nothing is owed except the C4.8 ordering edge below.**
+**Baseline, verified through the MCP 2026-08-05 at commit `c25c996` (pushed):** Console clean of `error CS` / `BC`; **221 EditMode + 162 PlayMode, all passing, each in its real mode.** Project-wide EditMode is higher — the extra ~61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination for C4.3–C4.8 verified by nineteen mutation runs (tables in the C4 plan). **Nothing is owed.**
 
 ---
 
 ## Start here
 
 1. `Docs/AnimationToolkit/Phase_C4_Plan.md` — the 14 pieces, the nine phases, the traps carried in from C3, the test-integrity standard, and a per-phase record of what each build step actually found. **Read this before the architecture doc.**
-2. `Docs/AnimationToolkit/Phase_B_Architecture.md` — the normative spec. **111 KB — never read whole.** Grep headings, then Read with offset/limit. §5 is C4's territory; §5.10 is C4.8's.
+2. `Docs/AnimationToolkit/Phase_B_Architecture.md` — the normative spec. **111 KB — never read whole.** Grep headings, then Read with offset/limit. §5 is C4's territory; §11.2 and §8 M3 are C4.9's.
 3. `Docs/AnimationToolkit/Phase_C3_Gate4.md` — the last gate: verdict, the 10 blocking items, the Resolution table, and the "verified clean — do not re-litigate" list. Read that list before re-auditing anything in C3.
 
 Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3_Incomplete.md`) are history, superseded by Gate 4.
@@ -19,7 +19,7 @@ Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3
 
 ## Environment — what is true as of 2026-08-05
 
-**The Unity MCP is UP and was used for the whole of C4.7.** One instance: `Stitch_Punk@852da23e19ef0320`.
+**The Unity MCP is UP and was used for the whole of C4.7 and C4.8.** One instance: `Stitch_Punk@852da23e19ef0320`.
 
 **The MCP tools may not be in your tool list at session start.** This session began with no `mcp__UnityMCP__*` tools visible and `ToolSearch("select:mcp__UnityMCP__refresh_unity,…")` returning *no matching deferred tools*. They appeared as deferred tools only after the server was probed directly over HTTP. If that happens again:
 
@@ -55,8 +55,8 @@ Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3
 - ✅ **C4.5 transform technique** — `TransformSampleSystem` + `TransformApplySystem`, 11 fixtures. Produced **A31** (owner-approved) and **A32**.
 - ✅ **C4.6 flipbook** — `SpriteMaterialSystem`, 6 fixtures.
 - ✅ **C4.7 VAT + bounds — closed 2026-08-05.** `VatMaterialSystem` (8 fixtures), `RenderBoundsUpdateSystem` (6 fixtures), 2 group-placement rows. **Mutation-verified: 13 mutations over six runs, each producing exactly the predicted failure and no others.**
-- ⬜ **C4.8 LOD** — next. See the brief below.
-- ⬜ **C4.9 acceptance + smoke scene** — **STOP HERE.** Its DoD needs the owner to confirm on-screen clip playback, which Claude cannot verify. The owner has asked to go through C4.9 together.
+- ✅ **C4.8 LOD — closed 2026-08-05.** `AnimationLodPolicy` (9 EditMode fixtures), `AnimLodDistanceSystem`, and the three level effects wired into `TransformSampleSystem` and `VatMaterialSystem` (11 fixtures in `AnimationLodTests`, 2 in `LayerCompositionTests`, 2 group-placement rows). **Mutation-verified: 13 mutations over five runs.**
+- ⬜ **C4.9 acceptance + smoke scene** — next, and **STOP HERE.** Its DoD needs the owner to confirm on-screen clip playback, which Claude cannot verify. The owner has asked to go through C4.9 together.
 
 ### What C4.7 settled
 
@@ -68,39 +68,29 @@ Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3
 
 ---
 
-## C4.8 brief — LOD
+## What C4.8 settled
 
-The plan line reads "**C4.8 — LOD.** `AnimLodDistanceSystem`", but §8 M3's acceptance list (which C4.9 tests) includes *"LOD 2 mid-blend swap → blend completes on schedule (§5.10)"*. **The level *effects* therefore have to exist by the end of C4.8, or C4.9 has nothing to test.** Shipping only the writer would give the package a config flag that computes a number nothing reads.
-
-**§5.10 as written:**
-
-| Level | Effect |
-|---|---|
-| 0 | Full quality. |
-| 1 | Effective sample rate halved (`rateHz / 2`, or a 30 Hz cap when rate = 0/uncapped). |
-| 2 | Quarter rate; transform blending visually snapped (weights clamp to 0/1; blend **timers** still advance normally — so a LOD swap mid-blend rejoins the correct weight). |
-| 3 | Pose frozen unless the layer's clip changes; VAT properties still update at quarter rate. |
-
-### Four things to resolve before writing code
-
-**1. `AnimLod` is opt-in and its absence is conformant (amendment A23).** `ActorBaker` adds it only when `ActorAuthoring.addDistanceLod` is set. So the sampling job cannot take it as an ordinary `in` parameter — that would silently exclude every actor without it, which is most of them. Reach it through a `[ReadOnly] ComponentLookup<AnimLod>` with `HasComponent` (absent = level 0), and **write a fixture where the actor has no `AnimLod` at all**, because "LOD code accidentally requires the optional component" is exactly the shape of defect this module keeps producing.
-
-**2. What world position does the actor root carry?** `AnimLodDistanceSystem` needs one to compare against `AnimationToolkitCameraData.position`. Check `ActorBaker`'s `TransformUsageFlags` and the 13-component baseline in `DataContractTests` before assuming `LocalToWorld` is there. If it is not, that is an archetype question, not an implementation detail.
-
-**3. Level 3's "frozen unless the layer's clip changes" has no existing signal — this is the real open question.** Options considered:
-   - *Reuse `BoundsDirty`.* It is already on the archetype and is enabled on exactly Play / queue-promotion / Once-completion / blend-completion — a **superset** of "the clip changed", so it is safe (you re-sample more often than needed, never less). But it is cleared by `RenderBoundsUpdateSystem`, which sits `[UpdateAfter(TransformSampleSystem)]`, so reading it during sampling works *today* and couples two systems through a tag that means something else. A future reorder breaks level 3 silently.
-   - *Store a per-actor last-sampled clip signature.* Honest and self-contained, but it is a new field on a §5.2 root component → an archetype change → **an amendment plus a `DataContractTests` row.**
-   - **Recommendation: the stored signature, with an amendment.** The coupling option is the kind of shortcut this package has already paid for twice (A28, A30 were both "system A's output means something different by the time system B reads it").
-
-**4. Level 2's blend snapping lives inside `ClipSampler.CompositeLayers`**, which §5.11 makes the single sampler shared with the editor preview path. Snapping the weight anywhere else is not possible without mutating the layer buffer, so this is a **signature change on `CompositeLayers`** (an added `bool snapBlendWeights`) that touches every caller and the EditMode fixtures. Budget for it; do not try to avoid it by special-casing in the system.
-
-### Recorded debt C4.8 must discharge
-
-**`TransformSampleSystem` carries no `[UpdateAfter(typeof(AnimLodDistanceSystem))]`** because that type did not exist. §5.1's diagram orders sampling after LOD. Add the attribute when the system lands, and add a row to `SystemGroupStructureTests` pinning it — an unpinned ordering edge is how a LOD level written *this* frame gets consumed *next* frame, which looks like nothing at all.
-
-`AnimLodDistanceSystem` should be `OrderFirst` in the presentation group, or explicitly before `TransformSampleSystem`; it must be a no-op when `AnimationToolkitConfig.distanceLodEnabled` is false (the default) and when `AnimationToolkitCameraData` is absent. `ConfigBootstrapSystem`'s defaults are already pinned by three fixtures — ascending non-zero `lodDistancesSq`, LOD disabled, 0 Hz sampling — so do not change them without reading `SystemGroupStructureTests`.
+- **Amendment A34** — three decisions, each with a plausible cheaper alternative that was rejected in writing:
+  1. §5.10's table is **pure functions** in `AnimationLodPolicy`, not logic inside the systems that obey it. Three consumers read it; a level meaning something marginally different in one of them is a divergence nobody could ever see, because both readings look plausible in motion.
+  2. **An uncapped actor gets an outright cap from the level** (30 Hz at 1, 15 Hz at 2 and 3), and **level 3 reports the quarter rate rather than 0**. Halving a `rateHz` of 0 is still 0, so a LOD system that only scales explicit rates is a no-op on essentially all content while appearing to work; and `ClipSampler.ShouldSample` reads 0 as "every frame", so expressing the freeze as a rate would make the most expensive level the only unquantized one.
+  3. **`AnimSampleState` is a new root component** carrying an int fold of the clips the last sample came from — the only thing in the archetype that can answer level 3's "unless the clip changes". **The §5.2 root archetype is now fourteen components**, and `ActorBakingAcceptanceTests`' exact-archetype assertion moved with it.
+- **`BoundsDirty` was the tempting substitute for `AnimSampleState`, and was rejected on the A28/A30 pattern.** It is enabled on a superset of the right moments, but `RenderBoundsUpdateSystem` clears it — so reading it during sampling works only while those two systems keep their current order, and a reorder would freeze distant actors on the wrong pose in silence.
+- **`ClipSampler.CompositeLayers` gained a `bool snapBlendWeights` parameter with no defaulting overload.** One production caller exists; a silent default is how half the callers would stop honouring LOD.
+- **Burst rejects a `float4` passed by value into a `[BurstCompile]` static method** (BC1064 + BC1067) — the attribute makes it a direct-call entry point and vectors must cross by reference. `LevelForDistanceSq` takes `in float4`. First time the package has hit this, because every other direct-call entry point takes scalars or `ref`/`in` structs.
+- **A fixture whose stated rationale was wrong, found by trying to mutate it.** `DroppingBackFromLevelThree_ResumesSamplingImmediately` was documented as catching "not recording the signature at lower levels" — but that is not what makes the actor resume; `FreezesPose(0)` being false is. Both the test comment and the runtime comment it echoed were corrected and the fixture re-aimed. **Writing the mutation exposed it; re-reading the test would not have.**
 
 ---
+
+## C4.9 brief — acceptance + smoke scene
+
+**This is the phase to do *with* the owner.** Its DoD is "user-confirmed on-screen clip playback", which Claude has no way to verify — there is no screenshot path and no headless build. Everything below can be prepared, but the phase does not close without them looking.
+
+**Two deliverables (§9 row C4, §8 M3):**
+
+1. **The §11.2 PlayMode acceptance suite.** §8 M3's acceptance list is a long prose paragraph in the architecture doc — grep it and treat it as a checklist. Much of it is already covered by the per-phase fixtures built in C4.3–C4.8; **the honest job is to diff the list against what exists rather than to rewrite it.** Items that look genuinely uncovered today: ECB-instantiated actor re-binds and animates end-to-end (RigBinding covers the rebind, but not "and then animates"); `AnimVisible` disabled → `TargetPose` frozen while `time` keeps advancing, re-enable → next-frame refresh; sample-rate phase spreading two actors onto different sample frames; and the LOD-2 mid-blend swap completing on schedule (the pieces exist — `blendElapsed` is untouched by the snap, pinned by `SnappingAWeight_LeavesTheUnsnappedResultAvailable` — but no fixture yet drives a level change *across* a blend).
+2. **A host-shaped smoke scene** — a subscene with one cutout actor, in this repo, that animates in Play mode. This is what the owner confirms.
+
+**Read first:** §8 M3's acceptance paragraph, §11.2, and §9's C4 row. Then the C4 plan's per-phase entries, which record what each earlier step already pinned.
 
 ## Standing rules for this package
 
@@ -126,6 +116,7 @@ The plan line reads "**C4.8 — LOD.** `AnimLodDistanceSystem`", but §8 M3's ac
 2. **The fixture picks the identity value for the thing the code branches on.** Every `LayerCompositionTests` fixture used an origin rest pose with unit scale, where `rest + key` and `key` are the same number — the entire `Override` semantics were untested while looking thoroughly tested (A31).
 3. **The expected value is the same under both branches.** C4.7's blend-union fixture made the incoming clip the large one, so the outgoing clip's contribution could not change the answer.
 4. **Batched mutations mask each other.** Removing C4.6's property writes *and* the `AnimVisible` gate together left the invisibility fixture passing, because with no write its own sentinel survived. **When a predicted failure does not appear, suspect the batch before suspecting the test.**
+5. **A fixture's stated rationale can be wrong while the fixture is fine.** C4.8's `DroppingBackFromLevelThree` claimed to catch something that in fact holds trivially; only writing the mutation revealed it, and the fix was to re-aim the comment, not to delete the test. **Write the mutation for every fixture, including the ones you are sure about.**
 
 ### Process
 
