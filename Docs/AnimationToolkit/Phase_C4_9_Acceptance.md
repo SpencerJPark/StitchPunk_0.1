@@ -147,5 +147,76 @@ defect, and folding a rewrite of C4.2 into the acceptance step would blur what C
 
 §9's C4 row wants "a host-shaped smoke scene (subscene with one cutout actor) [that] animates in this
 repo", with **user-confirmed on-screen clip playback** as the evidence. That is the one item in this
-module Claude cannot verify: there is no screenshot path and no headless build. Status and contents are
-tracked in the section below as it is built.
+module Claude cannot verify: there is no screenshot path and no headless build.
+
+**Built, and awaiting the owner's eyes.**
+
+| Artefact | Path |
+|---|---|
+| Scene to open | `Assets/Scenes/AnimationToolkitSmoke.unity` |
+| Subscene | `Assets/Scenes/SubScenes/AnimationToolkitSmokeSubScene.unity` |
+| Builder (re-runnable) | `Assets/AnimationToolkitSmoke/Editor/SmokeSceneBuilder.cs`, menu **Tools ▸ DOTS Animation Toolkit ▸ Build Smoke Scene** |
+| Generated assets | `Assets/AnimationToolkitSmoke/Generated/` — rig, clip, clip set, three materials |
+
+The actor is a three-quad cutout: a `Torso` that bobs on Y, and `LeftArm` / `RightArm` that counter-swing
+on Z, from one 2-second looping clip on layer 0. **The arms are given opposite phase deliberately** — one
+moving part proves only that something moved, whereas two moving in opposition prove each part read *its
+own* target's track, which is the exact failure the source audit found in the host game (`BodyPartInitSystem`)
+and the one a glance at the screen can actually catch.
+
+No toolkit shader is involved: build step C5 owns those, and the transform technique under test drives
+`LocalTransform` and `PostTransformMatrix` rather than any material property, so plain URP materials keep
+this a test of C4 rather than of C5.
+
+The builder is a committed, idempotent menu item rather than a one-shot script, because the artefact is
+verified by eye — and when an actor looks wrong the useful question is "what exactly was it built from".
+It lives under `Assets/` in its own Editor-only assembly so it can never reach the package or a player
+build; the package's own shipped samples are a `Samples~` concern belonging to C8.
+
+### What building it found — amendment A36
+
+The first run **aborted on its own validation guard**, which is the guard doing its job:
+
+```
+[SmokeSceneBuilder] Error V07: Clip 'SmokeWave' has a VAT source but set 'SmokeClipSet'
+                    references no VAT texture set.
+```
+
+The clip has no VAT source. `ClipAsset.vatSource` is a plain `[Serializable]` class field rather than a
+`[SerializeReference]` one, and **Unity cannot serialize null for one** — it writes a default block and
+materialises a non-null instance on load. The saved asset proves it:
+
+```yaml
+vatSource:
+  sourceClip: {fileID: 0}
+  sampleFps: 30
+  loopSafe: 0
+```
+
+V07 asked `clip.vatSource == null`, so **every clip asset that has ever been saved and re-read reads as
+VAT-sourced**. V07 is an Error, so `ClipRegistryBuilder` throws, **no registry is baked at all**, and every
+actor in the game holds its rest pose forever. That is a shipping-blocking defect for the first real user
+of this package, and the entire 221-fixture suite was blind to it because every fixture builds clips with
+`CreateInstance` and never writes one to disk — where the field genuinely *is* null. The two existing V07
+fixtures went further and asserted the broken reading directly.
+
+Fixed semantically (a VAT source counts only when it names a `sourceClip`), both fixtures re-aimed at a
+source that names an `AnimationClip`, and a new fixture pins the case that was broken. Full detail and the
+rejected `[SerializeReference]` alternative are in A36 at §3.5.
+
+**A35 and A36 are the same shape, two days apart:** a rule or system exercised only under a precondition
+production never presents — an unbound part buffer in one, an in-memory asset in the other. Both surfaced
+the moment something built *real* assets instead of fixtures. The generalisation, recorded as owed in A36:
+**a suite that constructs every input in memory has no coverage of the serializer, and the serializer is
+part of the authoring contract.** §11.1 should grow a small disk-round-trip tier — M1/M6 scope, not C4's.
+
+### What the owner needs to confirm
+
+Open `Assets/Scenes/AnimationToolkitSmoke.unity`, press Play, and check:
+
+1. The three quads are **visible** (red torso, blue left arm, green right arm).
+2. The torso **bobs up and down**, smoothly and continuously looping.
+3. The two arms **rotate in opposite directions** — not in lockstep, and not both following the torso.
+4. Nothing in the Console.
+
+Item 3 is the one that matters most; 2 without 3 would mean every part is reading target 0.

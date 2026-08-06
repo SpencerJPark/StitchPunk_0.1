@@ -1,0 +1,25 @@
+{
+    "name": "StitchPunk.AnimationToolkitSmoke.Editor",
+    "rootNamespace": "StitchPunk.AnimationToolkitSmoke.Editor",
+    "references": [
+        "StitchPunk.AnimationToolkit.Runtime",
+        "StitchPunk.AnimationToolkit.Authoring",
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Scenes",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Transforms"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

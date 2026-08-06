@@ -6,6 +6,7 @@ using System.Text;
 using NUnit.Framework;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace StitchPunk.AnimationToolkit.Tests.EditMode
 {
@@ -67,6 +68,23 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             rig = CreateValidRig();
             clip = CreateValidClip(rig, "Walk", WalkClipId);
             return assets.CreateSet("Set", rig, SetKey, clip);
+        }
+
+        /// <summary>
+        /// A VAT source that genuinely opts a clip into VAT, i.e. one that names a clip for the
+        /// texture baker to sample.
+        /// </summary>
+        /// <remarks>
+        /// The <c>sourceClip</c> is what makes it real (amendment A36). A bare
+        /// <c>new VatClipSource()</c> is the shape Unity's serializer produces for a clip that never
+        /// opted in at all, so using one here would assert V07 against the case that must *not*
+        /// raise it.
+        /// </remarks>
+        private static VatClipSource NewVatSource()
+        {
+            VatClipSource vatSource = new VatClipSource();
+            vatSource.sourceClip = new AnimationClip();
+            return vatSource;
         }
 
         [Test]
@@ -184,9 +202,47 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             RigAsset rig;
             ClipAsset clip;
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
-            clip.vatSource = new VatClipSource();
+            clip.vatSource = NewVatSource();
 
             AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V07, ValidationSeverity.Error);
+        }
+
+        /// <summary>
+        /// <strong>Amendment A36.</strong> A clip that never opted into VAT must not trip V07 just
+        /// because it has been saved to disk once.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Catches: testing <c>clip.vatSource</c> for null to decide whether a clip is VAT-sourced.
+        /// <c>vatSource</c> is a plain <c>[Serializable]</c> class field, and Unity cannot serialize
+        /// null for one — it writes a default block and materialises a non-null instance on load. So
+        /// every clip asset in a real project reads as VAT-sourced, V07 fires on any set without a
+        /// texture set, <c>ClipRegistryBuilder</c> throws, no registry is baked, and every actor in
+        /// the game stands still.
+        /// </para>
+        /// <para>
+        /// The whole suite missed this because every other fixture builds clips with
+        /// <c>ScriptableObject.CreateInstance</c> and never writes one to disk, where the field
+        /// genuinely is null. This fixture reproduces the deserialized shape directly by assigning
+        /// the empty source the serializer would have produced — the cheap half of what the host
+        /// repo's smoke scene found by building real, saved assets.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void V07_DoesNotFireForAnEmptyVatSource_WhichIsWhatDeserializationProduces()
+        {
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+
+            // Exactly what Unity hands back for a clip authored without VAT: present, but naming
+            // nothing for the texture baker to sample.
+            clip.vatSource = new VatClipSource();
+
+            Assert.IsEmpty(
+                ClipValidation.ValidateSet(clipSet),
+                "A clip that names no source clip has no VAT intent, so a set with no texture set "
+                + "is complete as authored.");
         }
 
         [Test]
@@ -195,7 +251,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             RigAsset rig;
             ClipAsset clip;
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
-            clip.vatSource = new VatClipSource();
+            clip.vatSource = NewVatSource();
             VatTextureSetAsset vatTextureSet = assets.CreateVatTextureSet("VatSet", VatSetKey);
             vatTextureSet.clipRanges.Add(new VatClipRange
             {

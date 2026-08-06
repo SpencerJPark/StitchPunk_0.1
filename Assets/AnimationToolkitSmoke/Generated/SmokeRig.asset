@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d07533917b94c248a7502dc9057fab9, type: 3}
+  m_Name: SmokeRig
+  m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.RigAsset
+  stableId: 4230083066115680320
+  targets:
+  - displayName: Torso
+    stableId: 3678590294
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+  - displayName: LeftArm
+    stableId: 3487387616
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+  - displayName: RightArm
+    stableId: 2516601160
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+  layers:
+  - displayName: Base
+    defaultActive: 1
+  mirrorPairs: []

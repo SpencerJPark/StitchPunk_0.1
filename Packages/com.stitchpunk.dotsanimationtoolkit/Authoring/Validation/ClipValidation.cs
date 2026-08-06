@@ -428,7 +428,16 @@ namespace StitchPunk.AnimationToolkit.Authoring
             ClipAsset clip,
             List<ValidationMessage> messages)
         {
-            if (clip.vatSource == null)
+            // Amendment A36: a VAT source counts as present only when it actually names a source
+            // clip. `vatSource` is a plain [Serializable] class field rather than a
+            // [SerializeReference] one, so Unity cannot represent null for it on disk — every clip
+            // asset that has ever been saved and re-read carries a default-constructed
+            // VatClipSource with a null sourceClip. Testing the field for null therefore reported
+            // "has a VAT source" for every non-VAT clip in the project, failing V07 on any set
+            // without a texture set, which throws out of ClipRegistryBuilder and bakes no registry
+            // at all. An empty source names nothing for VatTextureBaker to sample, so it carries no
+            // VAT intent and must not be treated as one.
+            if (clip.vatSource == null || clip.vatSource.sourceClip == null)
             {
                 return;
             }
