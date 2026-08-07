@@ -620,6 +620,54 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 "An unseeded layer must stay empty rather than inherit its neighbour.");
         }
 
+        /// <summary>
+        /// <strong>Amendment A40.</strong> A seeded layer starts active even when the rig does not
+        /// mark that layer <c>defaultActive</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Catches: gating the <c>Active</c> flag on <c>LayerDefinition.defaultActive</c>. An actor
+        /// could then name a starting clip for a layer and have it silently never play — the layer
+        /// holds a correctly resolved <c>clipIndex</c>, <c>CompositeLayers</c> skips it for want of
+        /// the flag, and every part returns its rest pose. Nothing errors and nothing warns.
+        /// </para>
+        /// <para>
+        /// The test above asserts "a seeded layer starts active" and passed anyway, because it seeds
+        /// layer 0 — which this fixture rig <em>does</em> mark default-active, so both readings agree
+        /// there. This one seeds layer 1, which it does not. That is the same shape as A31's
+        /// identity rest pose and A36's in-memory asset: a fixture that cannot distinguish the two
+        /// behaviours because it only ever exercises the case where they coincide.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void BakingAnActor_ActivatesASeededLayer_EvenWhenTheRigDoesNotDefaultItActive()
+        {
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000507UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+
+            Assert.IsFalse(
+                rig.layers[1].defaultActive,
+                "Guard: layer 1 must NOT be default-active, or this fixture proves nothing.");
+
+            ActorBakeFixture.SeedStartingLayer(
+                actorGameObject,
+                1,
+                ActorBakeFixture.FindClip(clipSet, ActorBakeFixture.WalkClipStableId),
+                1f,
+                LoopMode.UseClipDefault);
+
+            bakingWorld.Bake(actorGameObject);
+            Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
+            DynamicBuffer<PlaybackLayer> layers =
+                bakingWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
+
+            Assert.AreNotEqual(
+                0,
+                (int)(layers[1].flags & PlaybackFlags.Active),
+                "Seeding a clip is the authoring statement that the layer should play.");
+        }
+
         // -----------------------------------------------------------------------------------
         // "part entities carry RigPartBinding with correct dense indices for a 3-target fixture rig"
         // -----------------------------------------------------------------------------------

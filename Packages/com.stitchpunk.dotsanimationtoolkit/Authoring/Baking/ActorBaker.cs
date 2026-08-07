@@ -320,10 +320,13 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 playbackLayer.time = 0f;
                 playbackLayer.speed = startingLayer.speed;
                 playbackLayer.loop = startingLayer.loop;
-                if (IsLayerActiveByDefault(rig, startingLayer.layerIndex))
-                {
-                    playbackLayer.flags |= PlaybackFlags.Active;
-                }
+                // Amendment A40: an explicitly seeded clip activates its layer, whatever the rig's
+                // `defaultActive` says. Gating this on the rig meant an actor could name a clip for
+                // a layer and have it silently never play — and there is no sensible authoring
+                // intent behind "start this layer with this clip, but stopped". `defaultActive`
+                // keeps its meaning for layers with no seeded clip, which is the case the warning
+                // below already flags.
+                playbackLayer.flags |= PlaybackFlags.Active;
                 playbackLayers[startingLayer.layerIndex] = playbackLayer;
             }
 
