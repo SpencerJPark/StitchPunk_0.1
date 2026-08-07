@@ -109,6 +109,16 @@ namespace StitchPunk.AnimationToolkit.Authoring
             {
                 AddComponent(actorEntity, new AnimLod { level = 0 });
             }
+
+            // Amendment A41. Off adds nothing, so an actor that never billboards pays nothing.
+            if (authoring.billboardMode != BillboardMode.Off)
+            {
+                AddComponent(actorEntity, new ActorBillboard
+                {
+                    mode = authoring.billboardMode,
+                    frozenYaw = math.radians(authoring.frozenYawDegrees)
+                });
+            }
         }
 
         /// <summary>

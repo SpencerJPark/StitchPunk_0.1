@@ -1,0 +1,407 @@
+// Copyright (c) 2026 Stitch Punk. All rights reserved.
+
+using System.Collections.Generic;
+using StitchPunk.AnimationToolkit.Authoring;
+using UnityEngine;
+
+namespace StitchPunk.AnimationToolkit.Editor
+{
+    /// <summary>
+    /// One clip to bake into a VAT texture.
+    /// </summary>
+    public struct VatBakeClip
+    {
+        /// <summary>The stable id of the <c>ClipAsset</c> this animation corresponds to.</summary>
+        public ulong clipId;
+
+        /// <summary>The animation to sample.</summary>
+        public AnimationClip animationClip;
+
+        /// <summary>
+        /// Append a duplicate of frame 0 after the last frame, so the shader's two-row lerp never
+        /// reads across the clip boundary at the loop seam.
+        /// </summary>
+        public bool loopSafe;
+    }
+
+    /// <summary>
+    /// Everything <see cref="VatTextureBaker"/> needs. A plain struct so the baker is callable
+    /// headlessly — from a window, a test, or a build script — rather than only from UI.
+    /// </summary>
+    public struct VatBakeInput
+    {
+        /// <summary>The skinned renderer to sample. Its root drives the animation.</summary>
+        public SkinnedMeshRenderer skinnedMeshRenderer;
+
+        /// <summary>Bone matrices or vertex positions.</summary>
+        public VatFlavor flavor;
+
+        /// <summary>Frames sampled per second of clip time.</summary>
+        public float samplesPerSecond;
+
+        /// <summary>Clips to bake, laid end to end into one texture.</summary>
+        public List<VatBakeClip> clips;
+
+        /// <summary>
+        /// Bake to RGBAFloat instead of RGBAHalf. Doubles the memory and removes the precision
+        /// cliff §12 R2 describes for rigs much larger than a couple of metres.
+        /// </summary>
+        public bool useFullPrecision;
+    }
+
+    /// <summary>
+    /// What the bake produced, or why it produced nothing.
+    /// </summary>
+    /// <remarks>
+    /// Failures are reported through <see cref="failed"/> and <see cref="message"/> rather than
+    /// thrown (§8 M2: "never throws past the API"). A baker that throws cannot be driven from a
+    /// batch script over a content library, which is exactly when a zero-bone mesh turns up.
+    /// </remarks>
+    public struct VatBakeResult
+    {
+        public bool failed;
+        public string message;
+
+        public Texture2D boneOrPositionTexture;
+        public Texture2D normalTexture;
+
+        public int textureWidth;
+        public int rowsPerFrame;
+        public int boneCount;
+        public int vertexCount;
+        public List<VatClipRange> clipRanges;
+
+        /// <summary>Hash of every input that affects the output; changes when any of them does.</summary>
+        public ulong sourceHash;
+    }
+
+    /// <summary>
+    /// Bakes skinned animation into textures the GPU can play back without a skeleton
+    /// (architecture section 4.7).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Bone flavour writes object-space skinning matrices</strong> — the same
+    /// <c>boneToWorld × bindpose</c> product a CPU skinner would use, expressed relative to the
+    /// renderer's root so the result is independent of where the rig sat in the scene when it was
+    /// baked. Keeping magnitudes small is also what makes half precision viable (§12 R2).
+    /// </para>
+    /// <para>
+    /// <strong>The layout is the contract with <c>ToolkitVat.hlsl</c>.</strong> Frame <c>f</c>
+    /// occupies <c>rowsPerFrame</c> consecutive rows from <c>f * rowsPerFrame</c>; element
+    /// <c>e</c> sits at column <c>e % width</c> on row offset <c>e / width</c>. Changing either
+    /// side without the other produces a mesh that renders as noise, so the two are documented
+    /// against each other rather than independently.
+    /// </para>
+    /// </remarks>
+    public static class VatTextureBaker
+    {
+        /// <summary>Bone flavour writes a 3x4 matrix, one row per texture row.</summary>
+        private const int BoneRowsPerFrame = 3;
+
+        /// <summary>Vertex flavour writes one position per element.</summary>
+        private const int VertexRowsPerFrame = 1;
+
+        /// <summary>
+        /// Texture width. Powers of two keep addressing exact in the shader's fmod/floor and stay
+        /// friendly to every platform's texture rules.
+        /// </summary>
+        private const int MaxTextureWidth = 1024;
+
+        public static bool Bake(VatBakeInput input, out VatBakeResult result)
+        {
+            result = new VatBakeResult();
+            result.clipRanges = new List<VatClipRange>();
+
+            if (!Validate(input, ref result))
+            {
+                return false;
+            }
+
+            SkinnedMeshRenderer renderer = input.skinnedMeshRenderer;
+            Mesh sharedMesh = renderer.sharedMesh;
+            Transform rootTransform = renderer.transform.root;
+
+            bool isBoneFlavor = input.flavor == VatFlavor.BoneMatrix;
+            int elementCount = isBoneFlavor ? renderer.bones.Length : sharedMesh.vertexCount;
+
+            result.rowsPerFrame = isBoneFlavor ? BoneRowsPerFrame : VertexRowsPerFrame;
+            result.textureWidth = Mathf.Min(MaxTextureWidth, Mathf.NextPowerOfTwo(Mathf.Max(1, elementCount)));
+            result.boneCount = isBoneFlavor ? elementCount : 0;
+            result.vertexCount = isBoneFlavor ? 0 : elementCount;
+
+            // Rows a single element block spans when the element count exceeds the width.
+            int wrapRows = Mathf.CeilToInt((float)elementCount / result.textureWidth);
+            int rowsPerFrameTotal = result.rowsPerFrame * wrapRows;
+
+            List<Matrix4x4[]> framesOfMatrices = new List<Matrix4x4[]>();
+            List<Vector3[]> framesOfPositions = new List<Vector3[]>();
+            List<Vector3[]> framesOfNormals = new List<Vector3[]>();
+
+            int globalFrame = 0;
+            for (int clipIndex = 0; clipIndex < input.clips.Count; clipIndex++)
+            {
+                VatBakeClip bakeClip = input.clips[clipIndex];
+                int frameCount = SampleClip(
+                    bakeClip, input, rootTransform, renderer, sharedMesh, isBoneFlavor,
+                    framesOfMatrices, framesOfPositions, framesOfNormals);
+
+                result.clipRanges.Add(new VatClipRange
+                {
+                    clipId = bakeClip.clipId,
+                    frameStart = globalFrame,
+                    frameCount = frameCount,
+                    fps = input.samplesPerSecond
+                });
+                globalFrame += frameCount;
+            }
+
+            int totalFrames = globalFrame;
+            int textureHeight = Mathf.Max(1, totalFrames * rowsPerFrameTotal);
+
+            TextureFormat format = input.useFullPrecision ? TextureFormat.RGBAFloat : TextureFormat.RGBAHalf;
+
+            result.boneOrPositionTexture = isBoneFlavor
+                ? WriteBoneTexture(framesOfMatrices, result.textureWidth, textureHeight, elementCount, format)
+                : WriteVectorTexture(framesOfPositions, result.textureWidth, textureHeight, elementCount, format);
+
+            if (!isBoneFlavor)
+            {
+                result.normalTexture = WriteVectorTexture(
+                    framesOfNormals, result.textureWidth, textureHeight, elementCount, format);
+            }
+
+            result.sourceHash = ComputeSourceHash(input, elementCount, totalFrames);
+            result.message = "Baked " + totalFrames.ToString() + " frames of "
+                + elementCount.ToString() + (isBoneFlavor ? " bones" : " vertices")
+                + " into " + result.textureWidth.ToString() + "x" + textureHeight.ToString() + ".";
+            return true;
+        }
+
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Rejects inputs that cannot produce a texture, with a message naming what to fix.
+        /// </summary>
+        /// <remarks>
+        /// The zero-bone case is called out by §11.3 because it is the one a content pipeline hits
+        /// by accident: a mesh exported without skinning looks identical in the project window and
+        /// fails only here.
+        /// </remarks>
+        private static bool Validate(VatBakeInput input, ref VatBakeResult result)
+        {
+            if (input.skinnedMeshRenderer == null)
+            {
+                return Fail(ref result, "No SkinnedMeshRenderer supplied.");
+            }
+            if (input.skinnedMeshRenderer.sharedMesh == null)
+            {
+                return Fail(ref result, "The SkinnedMeshRenderer has no mesh.");
+            }
+            if (input.clips == null || input.clips.Count == 0)
+            {
+                return Fail(ref result, "No clips supplied to bake.");
+            }
+            if (input.samplesPerSecond <= 0f)
+            {
+                return Fail(ref result, "samplesPerSecond must be positive.");
+            }
+
+            if (input.flavor == VatFlavor.BoneMatrix && input.skinnedMeshRenderer.bones.Length == 0)
+            {
+                // Soft failure, not an exception: vertex flavour can still bake this mesh, and a
+                // batch job over a library should skip the model rather than abort the run.
+                return Fail(
+                    ref result,
+                    "Bone-flavour bake needs bones and this mesh has none. Use VertexPosition "
+                    + "flavour for unskinned or blendshape-driven meshes.");
+            }
+            return true;
+        }
+
+        private static bool Fail(ref VatBakeResult result, string message)
+        {
+            result.failed = true;
+            result.message = message;
+            return false;
+        }
+
+        /// <summary>
+        /// Samples one clip at the bake rate, appending a frame's worth of data per sample.
+        /// </summary>
+        private static int SampleClip(
+            VatBakeClip bakeClip,
+            VatBakeInput input,
+            Transform rootTransform,
+            SkinnedMeshRenderer renderer,
+            Mesh sharedMesh,
+            bool isBoneFlavor,
+            List<Matrix4x4[]> framesOfMatrices,
+            List<Vector3[]> framesOfPositions,
+            List<Vector3[]> framesOfNormals)
+        {
+            AnimationClip animationClip = bakeClip.animationClip;
+            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * input.samplesPerSecond));
+
+            Matrix4x4 worldToRoot = rootTransform.worldToLocalMatrix;
+            Matrix4x4[] bindposes = sharedMesh.bindposes;
+            Transform[] bones = renderer.bones;
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+            {
+                float time = sampleCount == 1
+                    ? 0f
+                    : animationClip.length * sampleIndex / sampleCount;
+
+                animationClip.SampleAnimation(rootTransform.gameObject, time);
+
+                if (isBoneFlavor)
+                {
+                    Matrix4x4[] frameMatrices = new Matrix4x4[bones.Length];
+                    for (int boneIndex = 0; boneIndex < bones.Length; boneIndex++)
+                    {
+                        // Root-relative so the bake does not depend on where the rig sat in the
+                        // scene, and so magnitudes stay small enough for half precision.
+                        frameMatrices[boneIndex] =
+                            worldToRoot * bones[boneIndex].localToWorldMatrix * bindposes[boneIndex];
+                    }
+                    framesOfMatrices.Add(frameMatrices);
+                }
+                else
+                {
+                    Mesh bakedMesh = new Mesh();
+                    renderer.BakeMesh(bakedMesh, true);
+                    framesOfPositions.Add(bakedMesh.vertices);
+                    framesOfNormals.Add(bakedMesh.normals);
+                    Object.DestroyImmediate(bakedMesh);
+                }
+            }
+
+            // The duplicated frame is what lets the shader lerp floor→floor+1 at the last frame
+            // without reading the next clip's first row (§4.7).
+            if (bakeClip.loopSafe)
+            {
+                if (isBoneFlavor)
+                {
+                    framesOfMatrices.Add(framesOfMatrices[framesOfMatrices.Count - sampleCount]);
+                }
+                else
+                {
+                    framesOfPositions.Add(framesOfPositions[framesOfPositions.Count - sampleCount]);
+                    framesOfNormals.Add(framesOfNormals[framesOfNormals.Count - sampleCount]);
+                }
+                sampleCount++;
+            }
+            return sampleCount;
+        }
+
+        private static Texture2D WriteBoneTexture(
+            List<Matrix4x4[]> frames, int width, int height, int elementCount, TextureFormat format)
+        {
+            Texture2D texture = CreateTexture(width, height, format);
+            Color[] pixels = new Color[width * height];
+
+            for (int frameIndex = 0; frameIndex < frames.Count; frameIndex++)
+            {
+                Matrix4x4[] frameMatrices = frames[frameIndex];
+                for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
+                {
+                    Matrix4x4 boneMatrix = frameMatrices[elementIndex];
+                    int column = elementIndex % width;
+                    int wrapRow = elementIndex / width;
+
+                    for (int matrixRow = 0; matrixRow < BoneRowsPerFrame; matrixRow++)
+                    {
+                        int row = frameIndex * BoneRowsPerFrame + matrixRow + wrapRow;
+                        if (row >= height)
+                        {
+                            continue;
+                        }
+                        pixels[row * width + column] = new Color(
+                            boneMatrix[matrixRow, 0],
+                            boneMatrix[matrixRow, 1],
+                            boneMatrix[matrixRow, 2],
+                            boneMatrix[matrixRow, 3]);
+                    }
+                }
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply(false, false);
+            return texture;
+        }
+
+        private static Texture2D WriteVectorTexture(
+            List<Vector3[]> frames, int width, int height, int elementCount, TextureFormat format)
+        {
+            Texture2D texture = CreateTexture(width, height, format);
+            Color[] pixels = new Color[width * height];
+
+            for (int frameIndex = 0; frameIndex < frames.Count; frameIndex++)
+            {
+                Vector3[] frameVectors = frames[frameIndex];
+                for (int elementIndex = 0; elementIndex < elementCount && elementIndex < frameVectors.Length; elementIndex++)
+                {
+                    int column = elementIndex % width;
+                    int row = frameIndex * VertexRowsPerFrame + elementIndex / width;
+                    if (row >= height)
+                    {
+                        continue;
+                    }
+                    Vector3 value = frameVectors[elementIndex];
+                    pixels[row * width + column] = new Color(value.x, value.y, value.z, 1f);
+                }
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply(false, false);
+            return texture;
+        }
+
+        /// <summary>
+        /// Point filtering and clamped wrapping are not stylistic. A bilinear sampler would blend
+        /// neighbouring bones or vertices — an average of two unrelated joints — and repeat wrapping
+        /// would make an off-by-one row read the far side of the texture instead of clamping.
+        /// </summary>
+        private static Texture2D CreateTexture(int width, int height, TextureFormat format)
+        {
+            Texture2D texture = new Texture2D(width, height, format, false, true);
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.anisoLevel = 0;
+            return texture;
+        }
+
+        /// <summary>
+        /// Folds every input that affects the output into one value, so a stale texture set is
+        /// detectable (validation rule V08) without re-baking to compare.
+        /// </summary>
+        private static ulong ComputeSourceHash(VatBakeInput input, int elementCount, int totalFrames)
+        {
+            ulong hash = 1469598103934665603UL;
+            hash = FoldHash(hash, (ulong)input.flavor);
+            hash = FoldHash(hash, (ulong)Mathf.RoundToInt(input.samplesPerSecond * 1000f));
+            hash = FoldHash(hash, (ulong)elementCount);
+            hash = FoldHash(hash, (ulong)totalFrames);
+            hash = FoldHash(hash, input.useFullPrecision ? 1UL : 0UL);
+
+            for (int clipIndex = 0; clipIndex < input.clips.Count; clipIndex++)
+            {
+                VatBakeClip bakeClip = input.clips[clipIndex];
+                hash = FoldHash(hash, bakeClip.clipId);
+                hash = FoldHash(hash, bakeClip.loopSafe ? 1UL : 0UL);
+                if (bakeClip.animationClip != null)
+                {
+                    hash = FoldHash(hash, (ulong)Mathf.RoundToInt(bakeClip.animationClip.length * 1000f));
+                    hash = FoldHash(hash, (ulong)bakeClip.animationClip.name.GetHashCode());
+                }
+            }
+            return hash;
+        }
+
+        private static ulong FoldHash(ulong hash, ulong value)
+        {
+            return (hash ^ value) * 1099511628211UL;
+        }
+    }
+}

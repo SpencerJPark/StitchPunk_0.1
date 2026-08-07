@@ -60,6 +60,21 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </summary>
         [Tooltip("Give this actor an AnimLod component so distance LOD (and host LOD writes) apply to it.")]
         public bool addDistanceLod;
+
+        /// <summary>
+        /// Billboard this actor by rotating its root, so the whole rig turns as one unit
+        /// (amendment A41). <c>Off</c> adds no component and costs nothing.
+        /// </summary>
+        /// <remarks>
+        /// This is the transform path, which is the right one for a layered cutout character. Do
+        /// not also enable a per-vertex billboard in the material — two rotations are no rotation.
+        /// </remarks>
+        [Tooltip("Rotate the whole actor to face the camera. Do NOT also billboard in the material.")]
+        public BillboardMode billboardMode = BillboardMode.Off;
+
+        /// <summary>Yaw held by FrozenYaw mode, in degrees. Authoring is degrees; the bake converts.</summary>
+        [Tooltip("Yaw held by Frozen Yaw mode, in degrees.")]
+        public float frozenYawDegrees;
     }
 
     /// <summary>
