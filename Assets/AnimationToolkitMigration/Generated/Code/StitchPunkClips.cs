@@ -6,25 +6,25 @@ namespace StitchPunk.AnimationToolkitMigration
     /// <summary>Stable clip ids for the converted host animation set.</summary>
     public static class StitchPunkClips
     {
-        public const ulong Claw = 9207151940381076811UL;
-        public const ulong CrazyBlinkAngry = 726219878942481602UL;
-        public const ulong CrazyBlinkNormal = 6808635909599507880UL;
-        public const ulong CrazyBlinkSad = 11469007046654666422UL;
-        public const ulong FleshAutomatonBlinkAngry = 6854795839997520876UL;
-        public const ulong FleshAutomatonBlinkNormal = 13363136098958954994UL;
-        public const ulong FleshAutomatonBlinkSad = 13305397422735136229UL;
-        public const ulong HumanBlinkAngry = 1565705778661904867UL;
-        public const ulong HumanBlinkNormal = 17687156619858761390UL;
-        public const ulong HumanBlinkSad = 5236608128453496165UL;
-        public const ulong Idle = 6796441144157010628UL;
-        public const ulong MaleDeath = 3238375338248948612UL;
-        public const ulong MaleRevival = 6882652436074729439UL;
-        public const ulong None = 6926028515225832197UL;
-        public const ulong Nuteral = 16157984587406991164UL;
-        public const ulong Punch = 14498809931600389573UL;
-        public const ulong Walk = 2665997127552488807UL;
-        public const ulong ZombieBlinkAngry = 8057405065888023799UL;
-        public const ulong ZombieBlinkNormal = 18343765079499503315UL;
-        public const ulong ZombieBlinkSad = 2525616851198301976UL;
+        public const ulong Claw = 211172890602501708UL;
+        public const ulong CrazyBlinkAngry = 11268751188896549950UL;
+        public const ulong CrazyBlinkNormal = 10483750299709493653UL;
+        public const ulong CrazyBlinkSad = 9736701816356073909UL;
+        public const ulong FleshAutomatonBlinkAngry = 13044100595295802024UL;
+        public const ulong FleshAutomatonBlinkNormal = 5995180855969144760UL;
+        public const ulong FleshAutomatonBlinkSad = 5470276935470573883UL;
+        public const ulong HumanBlinkAngry = 17530819476256973148UL;
+        public const ulong HumanBlinkNormal = 7819807740523045632UL;
+        public const ulong HumanBlinkSad = 5518965412245726012UL;
+        public const ulong Idle = 10120411651515208567UL;
+        public const ulong MaleDeath = 6717513777947014143UL;
+        public const ulong MaleRevival = 6614668648437405207UL;
+        public const ulong None = 1773922249955502151UL;
+        public const ulong Nuteral = 10997790849676984729UL;
+        public const ulong Punch = 1977256066718807599UL;
+        public const ulong Walk = 15467710840091792158UL;
+        public const ulong ZombieBlinkAngry = 11588525480381641144UL;
+        public const ulong ZombieBlinkNormal = 7812137165173133256UL;
+        public const ulong ZombieBlinkSad = 13955506890729377156UL;
     }
 }

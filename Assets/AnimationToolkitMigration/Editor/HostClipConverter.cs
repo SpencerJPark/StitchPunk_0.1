@@ -132,7 +132,16 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
                 AnimationTarget hostTarget = (AnimationTarget)targetValues.GetValue(valueIndex);
                 RigTargetDefinition targetDefinition = new RigTargetDefinition();
                 targetDefinition.displayName = hostTarget.ToString();
-                targetDefinition.kind = TargetKind.Quad;
+
+                // FlipbookPlane, not Quad. Every host part renders from a Texture2DArray addressed
+                // by _ImageIndex — that is what the whole ImageIndex/ImageIndexOverride path exists
+                // for — so every target is a flipbook.
+                //
+                // Getting this wrong is silent and total: TargetKind.Quad is transform-only, so
+                // RigTargetBaker gives the part no SpriteSliceProperty, SpriteMaterialSystem never
+                // matches it, and a sampled slice change lands in TargetPose.sliceIndex and stops
+                // there. The rig animates its transforms perfectly and never changes a single frame.
+                targetDefinition.kind = TargetKind.FlipbookPlane;
                 targetDefinition.boundsExtents = new float3(0.5f, 0.5f, 0.1f);
                 targetDefinition.framesPerVariant = 1;
 
