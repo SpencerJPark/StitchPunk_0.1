@@ -1,9 +1,31 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-06 (C4.9 closed; **C4 is complete**)
-**State:** Phases done: A, B, C0, C1, C2, C3, **C4**. **C5 (M4 shader slice 1) is next.**
+**Written:** 2026-08-07 (C4 complete; **host migration §13.2 steps 1–2 complete and owner-verified**)
+**State:** Phases done: A, B, C0, C1, C2, C3, **C4**. Host migration steps 1–2 done. **Next is either C5 (M4 shader slice 1) or §13.2 step 3 — see "Which way next".**
 
-**Baseline, verified through the MCP 2026-08-06 at commit `058f421` (pushed):** Console clean of `error CS` / `BC`; **222 EditMode + 169 PlayMode, all passing, each in its real mode.** Project-wide EditMode is higher — the extra ~61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination verified by twenty-three mutation runs across C4.3–C4.9 (tables in the C4 plan). **Nothing is owed for C4.**
+**Baseline, verified through the MCP 2026-08-07:** Console clean of `error CS` / `BC`; **232 EditMode + 178 PlayMode, all passing, each in its real mode.**
+
+## What the migration proved, and the one finding that changes priorities
+
+The host's 20 clips are converted, and a pilot face built entirely from converted data is **owner-verified on screen for all three techniques: flipbook slice changes, crossfading, and mirroring.**
+
+**The package drives the host's existing shaders with no shader work at all.** `SpriteSliceProperty` is `[MaterialProperty("_ImageIndex")]` — the exact name the host's array shaders already read. §10 answer 11 ("hosts keep their own graphs and consume the property names") holds in practice, not just on paper.
+
+**Therefore C5 is not on the critical path for Stitch Punk.** C5 builds the *sellable package's own* reference shaders; the game already renders through its own. Migrating the game fully (§13.2 steps 3–4) can happen before C5, after it, or in parallel. That is a real sequencing choice and it was not obvious before the pilot.
+
+## Amendments A35–A40, all from this stretch
+
+| # | What |
+|---|---|
+| A35 | §5.3's rationale for `RigBindingSystem` was false — `Instantiate` *does* remap buffer entity refs |
+| A36 | **Shipping-blocker.** V07 failed every non-VAT project: a `[Serializable]` class field cannot be null, so every saved clip read as VAT-sourced → no registry baked → every actor frozen |
+| A37 | The slice sum: `restSliceIndex` (variant) + `PartFacing.viewOffset` (view) + clip key (frame), wrapped inside the variant block |
+| A37a | Mirror ≠ alt view. `mirrorX` reflects position, rotation **and** scale; `viewOffset` changes the frame |
+| A38 | The five direction sets, all owner-supplied. Every set is closed under mirroring |
+| A39 | Screen-aligned billboarding is supported — **the host's look must not change** |
+| A40 | A seeded starting layer activates regardless of the rig's `defaultActive` |
+
+**Three of these were found by the owner looking at the screen, not by tests.** A36, A40 and the `TargetKind.Quad` converter bug were all invisible to a green suite. That is the strongest argument in this project's history for the §11.4 human-verification step being load-bearing rather than ceremonial. Project-wide EditMode is higher — the extra ~61 belong to the host game's own `StitchPunk.Tests`, so pass `assembly_names` to `run_tests` when comparing against these numbers. Discrimination verified by twenty-three mutation runs across C4.3–C4.9 (tables in the C4 plan). **Nothing is owed for C4.**
 
 **C4's DoD is fully discharged**, including the one line Claude cannot verify: the owner confirmed on-screen clip playback of `Assets/Scenes/AnimationToolkitSmoke.unity` on 2026-08-06.
 
@@ -91,6 +113,23 @@ Earlier gate docs (`Phase_C3_Review.md`, `Phase_C3_ReReview.md`, `Phase_C3_Gate3
 - **A fixture whose stated rationale was wrong, found by trying to mutate it.** `DroppingBackFromLevelThree_ResumesSamplingImmediately` was documented as catching "not recording the signature at lower levels" — but that is not what makes the actor resume; `FreezesPose(0)` being false is. Both the test comment and the runtime comment it echoed were corrected and the fixture re-aimed. **Writing the mutation exposed it; re-reading the test would not have.**
 
 ---
+
+## Which way next
+
+Four candidates, none blocking the others:
+
+1. **§13.2 step 3 — the call-site rewrites.** Rewrites `BehaviorExecutionSystem`, `PlayerAttackSystem`, `UnitAnimationAssignmentSystem`; adds the `CameraVisible → AnimVisible` bridge; reorders the combat event consumer. **This is what turns four finished modules into a game that actually runs on the package.** Invasive — it touches live systems — which is why the owner stopped before it.
+2. **C5 — M4 shaders.** The package's own reference graphs. Sellable-package work, *not* needed for the game (see above).
+3. **Mirror Clip utility.** Pulled forward from C7; useful the moment direction clips get authored.
+4. **The facing helper.** Fully specified by A38 — five tables, mirror derivation, and sign-of-horizontal-movement quantization. Contained.
+
+### Owed, recorded rather than silently dropped
+
+- **§11.1 needs a disk-round-trip test tier (A36).** A suite that builds every input in memory has no coverage of the serializer, and the serializer is part of the authoring contract. This is how a shipping-blocker survived 221 fixtures.
+- **`RigBindingSystemTests` needs a fixture starting from a *populated* `RigPartRef` buffer (A35).** Its seven fixtures all start empty, so they test first-time binding, not re-binding.
+- **C5 owes, from A39:** a screen-aligned value in `_BillboardParams`, `BillboardTransform` taking the camera forward, and a verification row "screen-aligned reproduces the host's pre-migration framing".
+- **C5 owes, from the camera correction:** billboard-under-orbit verification needs a scratch scene — the game camera tilts and rotates but does not orbit freely.
+- **Delete `Assets/AnimationToolkitMigration/Runtime/PilotDriver*.cs`** when step 3 lands. It is review scaffolding; the real host drives playback from behaviour systems.
 
 ## C5 brief — M4 shader slice 1
 
