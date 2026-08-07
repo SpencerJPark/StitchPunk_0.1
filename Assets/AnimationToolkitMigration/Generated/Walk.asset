@@ -1,0 +1,120 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
+  m_Name: Walk
+  m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipAsset
+  stableId: 14409382968574267822
+  rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
+  duration: 1.6
+  defaultLoop: 2
+  defaultBlendIn: 0.15
+  defaultBlendOut: 0.15
+  transformTracks:
+  - targetId: 400602109
+    blendOp: 1
+    channels: 15
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 0.25
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1.1
+      interpolation: 0
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 0.75
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1.1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  spriteTracks:
+  - targetId: 400602109
+    mode: 0
+    sliceSpace: 0
+    keys:
+    - normalizedTime: 0
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.25
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.5
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.75
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 1
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+  events: []
+  vatSource:
+    sourceClip: {fileID: 0}
+    sampleFps: 30
+    loopSafe: 0

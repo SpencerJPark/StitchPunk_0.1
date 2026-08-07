@@ -1,0 +1,22 @@
+{
+    "name": "StitchPunk.AnimationToolkitMigration.Editor",
+    "rootNamespace": "StitchPunk.AnimationToolkitMigration.Editor",
+    "references": [
+        "StitchPunk.AnimationToolkit.Runtime",
+        "StitchPunk.AnimationToolkit.Authoring",
+        "StitchPunk.Data",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

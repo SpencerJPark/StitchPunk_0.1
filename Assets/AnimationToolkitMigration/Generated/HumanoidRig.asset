@@ -1,0 +1,318 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d07533917b94c248a7502dc9057fab9, type: 3}
+  m_Name: HumanoidRig
+  m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.RigAsset
+  stableId: 4369499240657296650
+  targets:
+  - displayName: Body
+    stableId: 400602109
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: UpperLeftArm
+    stableId: 4153862570
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: UpperRightArm
+    stableId: 2530421739
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LowerLeftArm
+    stableId: 2344754812
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LowerRightArm
+    stableId: 1018405600
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LeftHand
+    stableId: 2702131702
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: RightHand
+    stableId: 384220287
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: ItemRightHand
+    stableId: 2611503681
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: ItemLeftHand
+    stableId: 1256211118
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Pelvis
+    stableId: 2581685259
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: UpperLeftLeg
+    stableId: 3037877823
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: UpperRightLeg
+    stableId: 563566838
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LowerLeftLeg
+    stableId: 2409439907
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LowerRightLeg
+    stableId: 1267402650
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LeftFoot
+    stableId: 3231405052
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: RightFoot
+    stableId: 2866059935
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Head
+    stableId: 2574248253
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LeftEyebrow
+    stableId: 2526486498
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: RightEyebrow
+    stableId: 2301338725
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: LeftEye
+    stableId: 3687901518
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: RightEye
+    stableId: 255129226
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Mouth
+    stableId: 2237786520
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Hair
+    stableId: 951303399
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Mustache
+    stableId: 1794585007
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Nose
+    stableId: 1479365083
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Ear
+    stableId: 2098182596
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Hat
+    stableId: 733859387
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Torso
+    stableId: 3925862890
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: JacketLeftSide
+    stableId: 1136054241
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: JacketRightSide
+    stableId: 3680920906
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: JacketInside
+    stableId: 696896415
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Belt
+    stableId: 2101831774
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: PantFront
+    stableId: 637819743
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: Neck
+    stableId: 501449775
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: FaceDetails
+    stableId: 1215505472
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  - displayName: FaceWare
+    stableId: 2701744672
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.1
+    framesPerVariant: 1
+  layers:
+  - displayName: Base
+    defaultActive: 1
+  - displayName: Action
+    defaultActive: 0
+  - displayName: Face
+    defaultActive: 0
+  - displayName: Eyes
+    defaultActive: 0
+  - displayName: Mouth
+    defaultActive: 0
+  - displayName: Override
+    defaultActive: 0
+  mirrorPairs: []

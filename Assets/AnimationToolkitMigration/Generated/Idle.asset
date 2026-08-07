@@ -1,0 +1,401 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
+  m_Name: Idle
+  m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipAsset
+  stableId: 6338816718791823063
+  rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
+  duration: 6
+  defaultLoop: 2
+  defaultBlendIn: 0.15
+  defaultBlendOut: 0.15
+  transformTracks:
+  - targetId: 2581685259
+    blendOp: 0
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 4
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 4.11
+      scale:
+        x: 1
+        y: 1
+      interpolation: 4
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 4
+  - targetId: 4153862570
+    blendOp: 1
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0.23
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 2344754812
+    blendOp: 1
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 1.61
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 0.50065786
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: -2.39
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 1.61
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 2530421739
+    blendOp: 1
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 1018405600
+    blendOp: 1
+    channels: 4
+    keys:
+    - normalizedTime: 0.00068072486
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 18.79
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 10.88
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 18.79
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 2574248253
+    blendOp: 1
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 0.39748424
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: -3.47
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 3037877823
+    blendOp: 1
+    channels: 15
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 563566838
+    blendOp: 1
+    channels: 15
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 2409439907
+    blendOp: 1
+    channels: 5
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 1267402650
+    blendOp: 1
+    channels: 5
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 3231405052
+    blendOp: 1
+    channels: 5
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  - targetId: 2866059935
+    blendOp: 1
+    channels: 5
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+      interpolation: 0
+  spriteTracks:
+  - targetId: 3037877823
+    mode: 0
+    sliceSpace: 0
+    keys:
+    - normalizedTime: 0
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 1
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+  - targetId: 563566838
+    mode: 0
+    sliceSpace: 0
+    keys:
+    - normalizedTime: 0
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 1
+      sliceIndex: -1
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+  events: []
+  vatSource:
+    sourceClip: {fileID: 0}
+    sampleFps: 30
+    loopSafe: 0
