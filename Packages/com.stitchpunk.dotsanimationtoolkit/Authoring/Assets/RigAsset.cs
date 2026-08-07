@@ -173,6 +173,26 @@ namespace StitchPunk.AnimationToolkit.Authoring
         [Min(1)] public int framesPerVariant = 1;
 
         /// <summary>
+        /// Whether this target's presentation changes with the direction the actor faces
+        /// (amendment A37). Targets that opt in are baked a <c>PartFacing</c> component.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Explicit rather than derived from <see cref="framesPerVariant"/>, which was the
+        /// first attempt and was wrong.</strong> Facing changes a part in two independent ways: an
+        /// <em>alt view</em> is a different slice and needs a variant block, while a <em>mirror</em>
+        /// is the same art reflected and needs no block at all. Deriving the opt-in from
+        /// <c>framesPerVariant &gt; 1</c> therefore excluded every mirror-only target — a nose that
+        /// simply flips — which is precisely the case the owner tested first and found inert.
+        /// </para>
+        /// <para>
+        /// Default false, so a rig that never opted in bakes exactly the archetype it did before
+        /// A37 and pays nothing.
+        /// </para>
+        /// </remarks>
+        public bool facesDirection;
+
+        /// <summary>
         /// This target's stable 32-bit identity (architecture section 3.4). Unique within the
         /// owning rig (validation rule V05).
         /// </summary>

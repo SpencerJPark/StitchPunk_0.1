@@ -125,8 +125,20 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
 
             Dictionary<string, uint> targetIdByName = BuildTargetLookup(rig);
             Scene subScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            GameObject actorRoot = BuildActor(rig, clipSet, pilotClip, targetIdByName, out int builtParts);
-            SceneManager.MoveGameObjectToScene(actorRoot, subScene);
+
+            // Two identical faces side by side, the right-hand one baked mirrored. Same art, same
+            // clip, same everything else — so the ONLY difference on screen is the mirror, which is
+            // what makes it judgeable. A single mirrored face proves nothing: you cannot tell a
+            // reflected nose from a nose that was always drawn that way without the original beside
+            // it.
+            GameObject plainActor = BuildActor(
+                rig, clipSet, pilotClip, targetIdByName, "PilotActor",
+                new Vector3(-1.35f, 0f, 0f), false, out int builtParts);
+            GameObject mirroredActor = BuildActor(
+                rig, clipSet, pilotClip, targetIdByName, "PilotActorMirrored",
+                new Vector3(1.35f, 0f, 0f), true, out int _);
+            SceneManager.MoveGameObjectToScene(plainActor, subScene);
+            SceneManager.MoveGameObjectToScene(mirroredActor, subScene);
             EditorSceneManager.SaveScene(subScene, SubScenePath);
 
             Scene mainScene = EditorSceneManager.NewScene(
@@ -140,7 +152,7 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             Camera mainCamera = Camera.main;
             if (mainCamera != null)
             {
-                mainCamera.transform.position = new Vector3(0f, 0f, -3f);
+                mainCamera.transform.position = new Vector3(0f, 0f, -5f);
                 mainCamera.transform.rotation = Quaternion.identity;
             }
 
@@ -151,7 +163,8 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             Debug.Log(
                 "[PilotRigBuilder] Built " + ScenePath + " with " + builtParts + " parts playing the "
                 + "converted '" + PilotClipName + "' clip on the Eyes layer. Open the scene and press "
-                + "Play: the eyes should blink through real texture-array slices (53 -> 11 -> 9).");
+                + "Play: both faces blink through real texture-array slices (53 -> 11 -> 9), and the "
+                + "RIGHT-HAND face is mirrored — its nose, ear and hair should point the other way.");
         }
 
         private static Dictionary<string, uint> BuildTargetLookup(RigAsset rig)
@@ -173,9 +186,13 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             ClipSetAsset clipSet,
             ClipAsset pilotClip,
             Dictionary<string, uint> targetIdByName,
+            string actorName,
+            Vector3 actorPosition,
+            bool startMirrored,
             out int builtParts)
         {
-            GameObject actorRoot = new GameObject("PilotActor");
+            GameObject actorRoot = new GameObject(actorName);
+            actorRoot.transform.position = actorPosition;
 
             ActorAuthoring actorAuthoring = actorRoot.AddComponent<ActorAuthoring>();
             actorAuthoring.clipSet = clipSet;
@@ -236,6 +253,7 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
                 targetAuthoring.targetStableId = targetStableId;
                 targetAuthoring.restSliceIndex = pilotPart.restSliceIndex;
                 targetAuthoring.vatDrivingLayerIndex = -1;
+                targetAuthoring.startMirrored = startMirrored;
                 builtParts++;
             }
 

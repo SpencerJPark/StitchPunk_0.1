@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9603f1d7abc7455ebe2db65efb1c4e9d, type: 3}
   m_Name: HostClipSet
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipSetAsset
-  stableId: 18100620427478649998
+  stableId: 1398707262972800583
   rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
   clips:
   - {fileID: 11400000, guid: b0c0a42eb3823224b8797b8b6d716376, type: 2}

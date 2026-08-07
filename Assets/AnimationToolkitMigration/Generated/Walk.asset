@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
   m_Name: Walk
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipAsset
-  stableId: 14409382968574267822
+  stableId: 2665997127552488807
   rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
   duration: 1.6
   defaultLoop: 2
   defaultBlendIn: 0.15
   defaultBlendOut: 0.15
   transformTracks:
-  - targetId: 400602109
+  - targetId: 375067800
     blendOp: 1
     channels: 15
     keys:
@@ -74,7 +74,7 @@ MonoBehaviour:
         y: 1
       interpolation: 0
   spriteTracks:
-  - targetId: 400602109
+  - targetId: 375067800
     mode: 0
     sliceSpace: 0
     keys:

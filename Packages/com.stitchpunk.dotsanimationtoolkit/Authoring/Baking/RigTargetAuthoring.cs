@@ -64,6 +64,14 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public int restSliceIndex;
 
         /// <summary>
+        /// The initial value of <c>PartFacing.mirrorX</c> — whether this part starts horizontally
+        /// reflected (amendment A37). Only meaningful when the rig target sets
+        /// <c>facesDirection</c>; the host's facing system owns the value from then on.
+        /// </summary>
+        [Tooltip("Start this part horizontally mirrored. Requires the rig target to set Faces Direction.")]
+        public bool startMirrored;
+
+        /// <summary>
         /// For <see cref="TargetKind.VatMesh"/> parts: which playback layer's clip drives the VAT
         /// frame properties, baked into <see cref="VatDriven.layerIndex"/> (architecture
         /// section 5.8). Ignored by every other kind.

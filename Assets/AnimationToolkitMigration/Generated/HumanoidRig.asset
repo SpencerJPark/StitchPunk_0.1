@@ -12,296 +12,332 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d07533917b94c248a7502dc9057fab9, type: 3}
   m_Name: HumanoidRig
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.RigAsset
-  stableId: 4369499240657296650
+  stableId: 2520301024772143349
   targets:
   - displayName: Body
-    stableId: 400602109
+    stableId: 375067800
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: UpperLeftArm
-    stableId: 4153862570
+    stableId: 3193413772
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: UpperRightArm
-    stableId: 2530421739
+    stableId: 3915191
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LowerLeftArm
-    stableId: 2344754812
+    stableId: 3670366375
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LowerRightArm
-    stableId: 1018405600
+    stableId: 1837961826
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LeftHand
-    stableId: 2702131702
+    stableId: 204970430
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: RightHand
-    stableId: 384220287
+    stableId: 3631856662
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: ItemRightHand
-    stableId: 2611503681
+    stableId: 1743402528
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: ItemLeftHand
-    stableId: 1256211118
+    stableId: 485792971
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Pelvis
-    stableId: 2581685259
+    stableId: 2331684555
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: UpperLeftLeg
-    stableId: 3037877823
+    stableId: 1874125055
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: UpperRightLeg
-    stableId: 563566838
+    stableId: 379839920
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LowerLeftLeg
-    stableId: 2409439907
+    stableId: 445632066
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LowerRightLeg
-    stableId: 1267402650
+    stableId: 141984352
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LeftFoot
-    stableId: 3231405052
+    stableId: 426334070
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: RightFoot
-    stableId: 2866059935
+    stableId: 1688051534
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Head
-    stableId: 2574248253
+    stableId: 1730029352
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LeftEyebrow
-    stableId: 2526486498
+    stableId: 1771440624
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: RightEyebrow
-    stableId: 2301338725
+    stableId: 2343558142
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: LeftEye
-    stableId: 3687901518
+    stableId: 1487708296
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: RightEye
-    stableId: 255129226
+    stableId: 2439348785
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Mouth
-    stableId: 2237786520
+    stableId: 2587059737
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Hair
-    stableId: 951303399
+    stableId: 4030033593
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Mustache
-    stableId: 1794585007
+    stableId: 3886315241
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Nose
-    stableId: 1479365083
+    stableId: 593980355
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Ear
-    stableId: 2098182596
+    stableId: 3354906635
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Hat
-    stableId: 733859387
+    stableId: 361640817
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Torso
-    stableId: 3925862890
+    stableId: 1620325483
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: JacketLeftSide
-    stableId: 1136054241
+    stableId: 2718381663
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: JacketRightSide
-    stableId: 3680920906
+    stableId: 2739639421
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: JacketInside
-    stableId: 696896415
+    stableId: 1014542080
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Belt
-    stableId: 2101831774
+    stableId: 1277066475
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: PantFront
-    stableId: 637819743
+    stableId: 4240111081
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: Neck
-    stableId: 501449775
+    stableId: 291064005
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: FaceDetails
-    stableId: 1215505472
+    stableId: 439629304
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   - displayName: FaceWare
-    stableId: 2701744672
+    stableId: 1016562339
     kind: 0
     boundsExtents:
       x: 0.5
       y: 0.5
       z: 0.1
     framesPerVariant: 1
+    facesDirection: 1
   layers:
   - displayName: Base
     defaultActive: 1

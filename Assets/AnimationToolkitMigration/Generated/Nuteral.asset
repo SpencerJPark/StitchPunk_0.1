@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
   m_Name: Nuteral
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipAsset
-  stableId: 8261587269333055824
+  stableId: 16157984587406991164
   rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
   duration: 1
   defaultLoop: 2

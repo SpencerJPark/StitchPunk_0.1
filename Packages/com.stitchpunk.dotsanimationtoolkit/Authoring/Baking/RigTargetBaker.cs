@@ -118,15 +118,20 @@ namespace StitchPunk.AnimationToolkit.Authoring
             // Propagated from the actor: a part animates unless some provider says otherwise (5.9).
             AddComponent<AnimVisible>(partEntity);
 
-            // Amendment A37. The opt-in is `framesPerVariant > 1` rather than a second authoring
-            // flag, deliberately: a target that owns more than one frame per variant is exactly a
-            // target that has views to face, so the two would always have to agree — and a pair of
-            // flags that must agree is the shape of bug this package keeps finding. One source of
-            // truth means a target can never be "faceable but not offset", or the reverse.
+            // Amendment A37. The opt-in is the target's explicit `facesDirection`, NOT
+            // `framesPerVariant > 1` as the first cut had it. That derivation looked tidier — one
+            // source of truth instead of two flags — but it was wrong: framesPerVariant describes
+            // alt-view blocks, and a mirror-only target (a nose that simply flips) has no blocks at
+            // all. Deriving the opt-in from it silently excluded exactly those parts, so mirroring
+            // was inert on the first rig that tried it.
             // To revert: drop this block and the component is simply never baked.
-            if (targetDefinition != null && targetDefinition.framesPerVariant > 1)
+            if (targetDefinition != null && targetDefinition.facesDirection)
             {
-                AddComponent(partEntity, new PartFacing { viewOffset = 0, mirrorX = false });
+                AddComponent(partEntity, new PartFacing
+                {
+                    viewOffset = 0,
+                    mirrorX = authoring.startMirrored
+                });
             }
 
             AddTechniqueComponents(authoring, partEntity, targetKind, restPose);

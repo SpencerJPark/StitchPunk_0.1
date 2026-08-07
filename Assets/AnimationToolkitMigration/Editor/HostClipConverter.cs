@@ -135,6 +135,12 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
                 targetDefinition.kind = TargetKind.Quad;
                 targetDefinition.boundsExtents = new float3(0.5f, 0.5f, 0.1f);
                 targetDefinition.framesPerVariant = 1;
+
+                // Every host target is 2D cutout art on a rig that turns, so all of them face.
+                // framesPerVariant stays at 1 (owner decision) which keeps ALT VIEWS inert until the
+                // real texture strides are known — but mirroring needs no block, so opting in here
+                // is what makes a flip expressible at all.
+                targetDefinition.facesDirection = true;
                 rig.targets.Add(targetDefinition);
             }
 

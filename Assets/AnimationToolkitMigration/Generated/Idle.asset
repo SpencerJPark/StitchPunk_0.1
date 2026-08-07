@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
   m_Name: Idle
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.ClipAsset
-  stableId: 6338816718791823063
+  stableId: 6796441144157010628
   rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
   duration: 6
   defaultLoop: 2
   defaultBlendIn: 0.15
   defaultBlendOut: 0.15
   transformTracks:
-  - targetId: 2581685259
+  - targetId: 2331684555
     blendOp: 0
     channels: 4
     keys:
@@ -53,7 +53,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 4
-  - targetId: 4153862570
+  - targetId: 3193413772
     blendOp: 1
     channels: 4
     keys:
@@ -87,7 +87,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 2344754812
+  - targetId: 3670366375
     blendOp: 1
     channels: 4
     keys:
@@ -121,7 +121,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 2530421739
+  - targetId: 3915191
     blendOp: 1
     channels: 4
     keys:
@@ -145,7 +145,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 1018405600
+  - targetId: 1837961826
     blendOp: 1
     channels: 4
     keys:
@@ -179,7 +179,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 2574248253
+  - targetId: 1730029352
     blendOp: 1
     channels: 4
     keys:
@@ -213,7 +213,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 3037877823
+  - targetId: 1874125055
     blendOp: 1
     channels: 15
     keys:
@@ -237,7 +237,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 563566838
+  - targetId: 379839920
     blendOp: 1
     channels: 15
     keys:
@@ -261,7 +261,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 2409439907
+  - targetId: 445632066
     blendOp: 1
     channels: 5
     keys:
@@ -285,7 +285,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 1267402650
+  - targetId: 141984352
     blendOp: 1
     channels: 5
     keys:
@@ -309,7 +309,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 3231405052
+  - targetId: 426334070
     blendOp: 1
     channels: 5
     keys:
@@ -333,7 +333,7 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
-  - targetId: 2866059935
+  - targetId: 1688051534
     blendOp: 1
     channels: 5
     keys:
@@ -358,7 +358,7 @@ MonoBehaviour:
         y: 1
       interpolation: 0
   spriteTracks:
-  - targetId: 3037877823
+  - targetId: 1874125055
     mode: 0
     sliceSpace: 0
     keys:
@@ -376,7 +376,7 @@ MonoBehaviour:
         y: 1
         z: 0
         w: 0
-  - targetId: 563566838
+  - targetId: 379839920
     mode: 0
     sliceSpace: 0
     keys:
