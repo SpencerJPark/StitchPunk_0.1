@@ -118,6 +118,17 @@ namespace StitchPunk.AnimationToolkit.Authoring
             // Propagated from the actor: a part animates unless some provider says otherwise (5.9).
             AddComponent<AnimVisible>(partEntity);
 
+            // Amendment A37. The opt-in is `framesPerVariant > 1` rather than a second authoring
+            // flag, deliberately: a target that owns more than one frame per variant is exactly a
+            // target that has views to face, so the two would always have to agree — and a pair of
+            // flags that must agree is the shape of bug this package keeps finding. One source of
+            // truth means a target can never be "faceable but not offset", or the reverse.
+            // To revert: drop this block and the component is simply never baked.
+            if (targetDefinition != null && targetDefinition.framesPerVariant > 1)
+            {
+                AddComponent(partEntity, new SpriteViewOffset { value = 0 });
+            }
+
             AddTechniqueComponents(authoring, partEntity, targetKind, restPose);
 
             if (targetKind == TargetKind.VatMesh)

@@ -65,6 +65,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         {
             internal int targetIndex;
             internal SpriteFrameMode mode = SpriteFrameMode.Slice;
+
+            /// <summary>Absolute frames or offsets from the rest slice (amendment A37).</summary>
+            internal SpriteSliceSpace sliceSpace = SpriteSliceSpace.Absolute;
+
             internal SpriteKeySpec[] keys = Array.Empty<SpriteKeySpec>();
         }
 
@@ -168,7 +172,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
             ClipSpec[] clipSpecs,
             byte layerCount = 4,
-            int targetCount = 0)
+            int targetCount = 0,
+            int framesPerVariant = 1)
         {
             ClipSpec[] canonicalSpecs = new ClipSpec[clipSpecs.Length];
             Array.Copy(clipSpecs, canonicalSpecs, clipSpecs.Length);
@@ -232,6 +237,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                         SpriteTrackSpec spriteTrackSpec = clipSpec.spriteTracks[spriteTrackIndex];
                         spriteTrackArray[spriteTrackIndex].targetIndex = spriteTrackSpec.targetIndex;
                         spriteTrackArray[spriteTrackIndex].mode = spriteTrackSpec.mode;
+                        spriteTrackArray[spriteTrackIndex].sliceSpace = spriteTrackSpec.sliceSpace;
 
                         BlobBuilderArray<SpriteKeyBlob> spriteKeyArray = builder.Allocate(
                             ref spriteTrackArray[spriteTrackIndex].keys, spriteTrackSpec.keys.Length);
@@ -270,10 +276,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     builder.Allocate(ref registryRoot.sortedTargetIds, targetCount);
                 BlobBuilderArray<float3> targetBoundsExtentsArray =
                     builder.Allocate(ref registryRoot.targetBoundsExtents, targetCount);
+                BlobBuilderArray<int> targetFramesPerVariantArray =
+                    builder.Allocate(ref registryRoot.targetFramesPerVariant, targetCount);
                 for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
                 {
                     sortedTargetIdArray[targetIndex] = (uint)(targetIndex + 1);
                     targetBoundsExtentsArray[targetIndex] = new float3(0.5f, 0.5f, 0.5f);
+                    targetFramesPerVariantArray[targetIndex] = framesPerVariant;
                 }
                 registryRoot.vatInfo = new VatTextureInfoBlob
                 {
