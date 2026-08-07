@@ -24,16 +24,10 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
     /// prefab the game depends on.
     /// </para>
     /// <para>
-    /// It plays the converted <c>Idle</c> clip, chosen because it is the richest converted clip that
-    /// still loops: 12 transform tracks across a full humanoid set, plus 2 sprite tracks. If the
-    /// conversion mangled a channel mask, a blend op, or the degrees/radians boundary, a looping
-    /// twelve-part idle is where it shows.
-    /// </para>
-    /// <para>
-    /// <strong>The <c>Body</c> part is deliberately included even though <c>Idle</c> never animates
-    /// it.</strong> A rig where every part moves cannot distinguish "the clip drove this part" from
-    /// "everything is moving"; one deliberately still part makes selective animation visible at a
-    /// glance.
+    /// It plays the converted <c>HumanBlinkNormal</c> clip on the Eyes layer, against the host's
+    /// real unit materials and texture arrays. That combination is what makes the flipbook path
+    /// observable: the clip drives genuine slice changes on the eye (53 → 11 → 9) and the art is
+    /// asymmetric, so a mirror or a wrong frame reads as wrong rather than merely plausible.
     /// </para>
     /// </remarks>
     public static class PilotRigBuilder
@@ -41,54 +35,75 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
         private const string GeneratedFolder = "Assets/AnimationToolkitMigration/Generated";
         private const string ScenePath = "Assets/Scenes/AnimationToolkitPilot.unity";
         private const string SubScenePath = "Assets/Scenes/SubScenes/AnimationToolkitPilotSubScene.unity";
-        private const string PilotClipName = "Idle";
+        private const string PilotClipName = "HumanBlinkNormal";
 
         /// <summary>
-        /// One part of the pilot figure: which rig target it is, where it sits, how big it is, and
-        /// what colour so that each limb is individually trackable by eye.
+        /// The layer the blink plays on. After amendment A37 removed <c>Direction</c>, the rig's
+        /// layers are Base(0), Action(1), Face(2), Eyes(3), Mouth(4), Override(5).
+        /// </summary>
+        private const int EyesLayerIndex = 3;
+
+        private const string HostMaterialFolder = "Assets/Materials/Units/";
+
+        /// <summary>
+        /// One part of the pilot face: which rig target it is, where it sits, which host material
+        /// supplies its texture array, and the slice it rests on.
         /// </summary>
         private struct PilotPart
         {
             public string targetName;
             public Vector3 localPosition;
             public Vector3 localScale;
-            public Color color;
+            public string materialName;
+            public int restSliceIndex;
 
-            public PilotPart(string targetName, float x, float y, float width, float height, Color color)
+            public PilotPart(
+                string targetName, float x, float y, float z,
+                float width, float height, string materialName, int restSliceIndex)
             {
                 this.targetName = targetName;
-                localPosition = new Vector3(x, y, 0f);
+                localPosition = new Vector3(x, y, z);
                 localScale = new Vector3(width, height, 1f);
-                this.color = color;
+                this.materialName = materialName;
+                this.restSliceIndex = restSliceIndex;
             }
         }
 
-        private static readonly Color TorsoColor = new Color(0.80f, 0.36f, 0.28f);
-        private static readonly Color HeadColor = new Color(0.90f, 0.72f, 0.55f);
-        private static readonly Color LeftLimbColor = new Color(0.27f, 0.53f, 0.83f);
-        private static readonly Color RightLimbColor = new Color(0.36f, 0.72f, 0.42f);
-
         /// <summary>
-        /// The figure, in rig-target names. Left limbs are blue and right limbs green, so a
-        /// conversion that swapped a left/right target pair is visible rather than merely plausible.
+        /// A face rather than a stick figure, built from the host's <em>real</em> unit materials and
+        /// texture arrays.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The first pilot was a body in solid colours and it could not fail informatively.</strong>
+        /// A flat-coloured quad looks identical whether its slice changed, whether it was mirrored,
+        /// or whether nothing happened at all — so "the arms move" was the only signal it could give,
+        /// and the entire flipbook path (which is where amendment A37 lives) went unexercised.
+        /// </para>
+        /// <para>
+        /// A face fixes all three at once. <c>HumanBlinkNormal</c> drives genuine slice changes on
+        /// the eye — 53 → 11 → 9, an open/mid/closed blink — so the flipbook path is visible rather
+        /// than assumed. And ears, noses and hair are <em>asymmetric</em> art, which is what makes a
+        /// mirror judgeable: a solid rectangle mirrored is the same rectangle.
+        /// </para>
+        /// <para>
+        /// z is authored per part so the features sit in front of the head rather than z-fighting
+        /// with it. That column is also the draw-order channel a per-direction clip would animate.
+        /// </para>
+        /// </remarks>
         private static readonly PilotPart[] PilotParts =
         {
-            new PilotPart("Body", 0f, 0.90f, 0.50f, 1.00f, TorsoColor),
-            new PilotPart("Head", 0f, 1.65f, 0.45f, 0.45f, HeadColor),
-            new PilotPart("Pelvis", 0f, 0.35f, 0.45f, 0.30f, TorsoColor),
+            new PilotPart("Head", 0f, 0f, 0.30f, 2.0f, 2.0f, "Head", 0),
+            new PilotPart("Hair", 0f, 0.62f, 0.20f, 2.1f, 1.2f, "MaleHair", 0),
+            new PilotPart("Ear", -0.92f, 0.05f, 0.25f, 0.5f, 0.6f, "Ear", 0),
 
-            new PilotPart("UpperLeftArm", -0.38f, 1.15f, 0.16f, 0.50f, LeftLimbColor),
-            new PilotPart("LowerLeftArm", -0.38f, 0.72f, 0.14f, 0.45f, LeftLimbColor),
-            new PilotPart("UpperRightArm", 0.38f, 1.15f, 0.16f, 0.50f, RightLimbColor),
-            new PilotPart("LowerRightArm", 0.38f, 0.72f, 0.14f, 0.45f, RightLimbColor),
+            new PilotPart("LeftEyebrow", -0.36f, 0.44f, 0.10f, 0.55f, 0.28f, "Eyebrows", 0),
+            new PilotPart("RightEyebrow", 0.36f, 0.44f, 0.10f, 0.55f, 0.28f, "Eyebrows", 0),
+            new PilotPart("LeftEye", -0.36f, 0.14f, 0.10f, 0.50f, 0.50f, "MaleEyes", 0),
+            new PilotPart("RightEye", 0.36f, 0.14f, 0.10f, 0.50f, 0.50f, "MaleEyes", 0),
 
-            new PilotPart("UpperLeftLeg", -0.16f, 0.05f, 0.18f, 0.50f, LeftLimbColor),
-            new PilotPart("LowerLeftLeg", -0.16f, -0.45f, 0.16f, 0.45f, LeftLimbColor),
-            new PilotPart("LeftFoot", -0.16f, -0.74f, 0.24f, 0.12f, LeftLimbColor),
-            new PilotPart("UpperRightLeg", 0.16f, 0.05f, 0.18f, 0.50f, RightLimbColor),
-            new PilotPart("LowerRightLeg", 0.16f, -0.45f, 0.16f, 0.45f, RightLimbColor),
-            new PilotPart("RightFoot", 0.16f, -0.74f, 0.24f, 0.12f, RightLimbColor)
+            new PilotPart("Nose", 0f, -0.14f, 0.05f, 0.38f, 0.55f, "Nose", 0),
+            new PilotPart("Mouth", 0f, -0.58f, 0.10f, 0.70f, 0.35f, "Mouth", 0)
         };
 
         [MenuItem("Tools/DOTS Animation Toolkit/Migration/Build Pilot Rig")]
@@ -125,7 +140,7 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             Camera mainCamera = Camera.main;
             if (mainCamera != null)
             {
-                mainCamera.transform.position = new Vector3(0f, 0.6f, -4f);
+                mainCamera.transform.position = new Vector3(0f, 0f, -3f);
                 mainCamera.transform.rotation = Quaternion.identity;
             }
 
@@ -135,8 +150,8 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
 
             Debug.Log(
                 "[PilotRigBuilder] Built " + ScenePath + " with " + builtParts + " parts playing the "
-                + "converted '" + PilotClipName + "' clip. Open the scene and press Play. The Body "
-                + "quad is deliberately unanimated by this clip — everything else should move.");
+                + "converted '" + PilotClipName + "' clip on the Eyes layer. Open the scene and press "
+                + "Play: the eyes should blink through real texture-array slices (53 -> 11 -> 9).");
         }
 
         private static Dictionary<string, uint> BuildTargetLookup(RigAsset rig)
@@ -168,10 +183,14 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             // Layer 0 is Base. The host's Direction layer was dropped by amendment A37, so the
             // remaining order is Base, Action, Face, Eyes, Mouth, Override — Base keeps index 0.
             StartingLayerState startingLayer = new StartingLayerState();
-            startingLayer.layerIndex = 0;
+            startingLayer.layerIndex = EyesLayerIndex;
             startingLayer.clip = pilotClip;
             startingLayer.speed = 1f;
-            startingLayer.loop = LoopMode.UseClipDefault;
+
+            // Forced to Loop: the host authored blinks as one-shots, and a Once clip finishes in
+            // under a second and then holds — which on screen is indistinguishable from a flipbook
+            // path that never worked. Looping makes the slice changes repeat so they can be watched.
+            startingLayer.loop = LoopMode.Loop;
             actorAuthoring.startingLayers.Add(startingLayer);
 
             builtParts = 0;
@@ -192,13 +211,30 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
                 part.transform.SetParent(actorRoot.transform, false);
                 part.transform.localPosition = pilotPart.localPosition;
                 part.transform.localScale = pilotPart.localScale;
-                part.GetComponent<MeshRenderer>().sharedMaterial =
-                    CreatePartMaterial(pilotPart.targetName, pilotPart.color);
+
+                // The host's own material, not a generated one. The toolkit's SpriteSliceProperty is
+                // [MaterialProperty("_ImageIndex")] — the exact name the host's array shaders already
+                // read — so the package drives existing host art with no shader work at all. That is
+                // §10 answer 11's "hosts keep their own graphs and consume the property names",
+                // holding in practice rather than only on paper, and it is why a real flipbook test
+                // is possible before C5 ships any shaders.
+                Material hostMaterial = AssetDatabase.LoadAssetAtPath<Material>(
+                    HostMaterialFolder + pilotPart.materialName + ".mat");
+                if (hostMaterial == null)
+                {
+                    Debug.LogWarning(
+                        "[PilotRigBuilder] Host material '" + pilotPart.materialName +
+                        "' not found; '" + pilotPart.targetName + "' will render untextured.");
+                }
+                else
+                {
+                    part.GetComponent<MeshRenderer>().sharedMaterial = hostMaterial;
+                }
 
                 RigTargetAuthoring targetAuthoring = part.AddComponent<RigTargetAuthoring>();
                 targetAuthoring.rig = rig;
                 targetAuthoring.targetStableId = targetStableId;
-                targetAuthoring.restSliceIndex = 0;
+                targetAuthoring.restSliceIndex = pilotPart.restSliceIndex;
                 targetAuthoring.vatDrivingLayerIndex = -1;
                 builtParts++;
             }
@@ -206,28 +242,5 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             return actorRoot;
         }
 
-        private static Material CreatePartMaterial(string partName, Color color)
-        {
-            Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (unlitShader == null)
-            {
-                unlitShader = Shader.Find("Universal Render Pipeline/Lit");
-            }
-
-            Material material = new Material(unlitShader);
-            material.color = color;
-
-            string path = GeneratedFolder + "/PilotMaterials/Pilot" + partName + ".mat";
-            if (!AssetDatabase.IsValidFolder(GeneratedFolder + "/PilotMaterials"))
-            {
-                AssetDatabase.CreateFolder(GeneratedFolder, "PilotMaterials");
-            }
-            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null)
-            {
-                AssetDatabase.DeleteAsset(path);
-            }
-            AssetDatabase.CreateAsset(material, path);
-            return material;
-        }
     }
 }
