@@ -915,7 +915,23 @@ Eight directions extend the same way: author `N, NE, E, SE, S` and mirror three.
 
 **They must never both apply to one facing** — baked mirrored keys plus a runtime `mirrorX` is a double reflection, which is no reflection at all. A facing uses one or the other: the runtime mirror, or its own authored clip with `mirrorX` false.
 
-**Open, and not guessed:** the member sets for `Four`, `Two` and `One`. `One` is presumably `South` alone and `Two` presumably `South`/`North`, but `Four` could reasonably be `S/E/N/W` or `S/SE/N/NW`, and those produce visibly different results. The pick-nearest helper needs all five tables before it can ship.
+**The other sets (owner, 2026-08-07) — and both of my guesses were wrong, which is why they are recorded rather than inferred:**
+
+- **`Two` = `East`, `West`.** Not South/North as I assumed. A two-direction character is a pure side-on profile.
+- **`Four` = `SouthEast`, `NorthEast`, `NorthWest`, `SouthWest`.** Diagonals only — **no head-on animations at all**, just front and back at an angle. Not `S/E/N/W`.
+
+**Every set is closed under mirroring, without exception.** That is the invariant the whole scheme rests on, and it holds for all four known counts:
+
+| Count | Members | Authored | Derived by `mirrorX` |
+|---|---|---|---|
+| `Two` | E, W | **1** — E | W |
+| `Four` | SE, NE, NW, SW | **2** — SE, NE | SW, NW |
+| `Six` | S, SE, NE, N, NW, SW | **4** — S, SE, NE, N | SW, NW |
+| `Eight` | N, NE, E, SE, S, SW, W, NW | **5** — N, NE, E, SE, S | SW, W, NW |
+
+Authored count = (self-symmetric members: only S and N are their own mirrors) + (number of mirror pairs). So a four-direction character costs **two** locomotion clips per state, and a two-direction character costs **one**. That is a far larger saving than "mirroring halves the work" suggested, and it is the strongest argument yet for `mirrorX` being runtime state rather than baked clips.
+
+**Still open, and deliberately not guessed a third time:** the `One` member, and the quantization rule. The second matters more than it looks — a `Four` character has no head-on pose, so a character walking straight toward the camera is equidistant from `SE` and `SW`, which under this scheme is the *same clip* with `mirrorX` on or off. Quantizing by nearest angle leaves that undefined; quantizing by the **sign of horizontal movement** (mirror when moving left) never ties and matches how a side-on rig is actually read. The rule is a host concern under §10 answer 7, but the package's helper has to encode one, so it needs stating.
 
 **Sequencing consequence: Mirror Clip is pulled forward from C7.** It is M5 work, but it depends only on M1 (`ClipAsset`, `RigAsset.mirrorPairs` — both closed and shipping) and touches neither shaders nor VAT, so it does not violate dependency order. It is worth pulling forward because the migration's content step is "author 8 directions per locomotion state", which is materially harder without it. **It is not, however, useful before the clip converter runs** — there are no `ClipAsset`s to flip until then. Order: A37 runtime → converters (§13.2 step 1) → Mirror Clip → C5.
 
