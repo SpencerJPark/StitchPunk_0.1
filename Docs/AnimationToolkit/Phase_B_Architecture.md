@@ -891,6 +891,32 @@ Two consequences follow. **The host's `Direction` layer disappears** — it exis
 
 *Owner decision (2026-08-06): **all 8 directions are authored explicitly per locomotion state, and mirroring is an authoring accelerator rather than a runtime derivation.** Every direction is a real, hand-editable `ClipAsset`; the Mirror Clip utility (§7.1, M5) is used to *seed* the mirrored ones — duplicate a clip, press Flip, then tune — instead of deriving NW/W/SW at runtime from five authored clips. The distinction matters: a runtime mirror is a permanent constraint that cannot express an asymmetric costume detail or a limp, whereas a bake-in-place flip is a starting point the animator owns from that moment on.*
 
+**Amendment A38 (2026-08-07): the host's direction sets, and why runtime mirroring replaces most direction clips.** The host carries two enums (`Assets/_Scripts/Data/Enums/Direction.cs`): `Direction` — which of eight ways a character faces — and `AnimationDirections { One, Two, Four, Six, Eight }` — how many variants that *character* has. The second is **per character, not per rig**: a citizen and a boss share a rig and differ in how many directions were drawn for them, which is exactly the "directional clip-set convention + pick-nearest-facing helper" of §10 answer 7.
+
+**The six-direction set is (owner, 2026-08-07), with south facing the camera and north away:** `South, SouthEast, NorthEast, North, NorthWest, SouthWest`. **East and West are absent** — a six-direction character never shows a pure side view.
+
+**That set is mirror-symmetric, and the consequence is large.** `South` and `North` are self-symmetric; `SouthEast`↔`SouthWest` and `NorthEast`↔`NorthWest` are mirror pairs. So six directions need **four authored clips**, not six:
+
+| Facing | Clip played | `mirrorX` |
+|---|---|---|
+| South | `Walk_S` | false |
+| SouthEast | `Walk_SE` | false |
+| NorthEast | `Walk_NE` | false |
+| North | `Walk_N` | false |
+| NorthWest | `Walk_NE` | **true** |
+| SouthWest | `Walk_SE` | **true** |
+
+Eight directions extend the same way: author `N, NE, E, SE, S` and mirror three.
+
+**This settles how `mirrorX` and the Mirror Clip utility divide.** They are not alternatives and not duplicates:
+
+- **`mirrorX` (runtime) is the default path.** One clip serves two facings, and because it mirrors the *composited pose* it flips transforms and art together — no second clip, no duplicated keys to keep in sync when the walk is retimed.
+- **Mirror Clip (authoring) is the escape hatch**, for a facing that must *deviate* from a pure reflection: an asymmetric costume detail, a satchel on one hip, a limp. Press Flip to get the mirrored keys as a real clip, then hand-tune. That is precisely the owner's "then I can make my own adjustments after".
+
+**They must never both apply to one facing** — baked mirrored keys plus a runtime `mirrorX` is a double reflection, which is no reflection at all. A facing uses one or the other: the runtime mirror, or its own authored clip with `mirrorX` false.
+
+**Open, and not guessed:** the member sets for `Four`, `Two` and `One`. `One` is presumably `South` alone and `Two` presumably `South`/`North`, but `Four` could reasonably be `S/E/N/W` or `S/SE/N/NW`, and those produce visibly different results. The pick-nearest helper needs all five tables before it can ship.
+
 **Sequencing consequence: Mirror Clip is pulled forward from C7.** It is M5 work, but it depends only on M1 (`ClipAsset`, `RigAsset.mirrorPairs` — both closed and shipping) and touches neither shaders nor VAT, so it does not violate dependency order. It is worth pulling forward because the migration's content step is "author 8 directions per locomotion state", which is materially harder without it. **It is not, however, useful before the clip converter runs** — there are no `ClipAsset`s to flip until then. Order: A37 runtime → converters (§13.2 step 1) → Mirror Clip → C5.
 
 `RigAsset.mirrorPairs` is currently read by nothing (its own doc comment says so), which makes it the one piece of authoring data in the package with no consumer and therefore no test. Building the utility discharges that.
