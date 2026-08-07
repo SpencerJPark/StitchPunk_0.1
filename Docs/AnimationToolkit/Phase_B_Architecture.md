@@ -933,7 +933,19 @@ Eight directions extend the same way: author `N, NE, E, SE, S` and mirror three.
 
 **The nesting also resolves the quantization worry.** Because every set is built from left/right pairs, the facing decision is fundamentally *"which side is the character moving toward"* plus *"how much toward or away from the camera"* — not "which of N compass points is nearest". Quantizing by the **sign of horizontal movement** for the mirror, and by the vertical component for which pair, never ties and never flickers on a boundary. Nearest-angle would leave a `Four` character walking straight at the camera undefined between `SE` and `SW`, which under this scheme is the same clip with `mirrorX` on or off.
 
-**Still open:** the `One` member. The nesting makes `SouthEast` the likely answer — `One` would be the first member of `Two` — but `South` is defensible for something that never turns, and the previous two guesses argue for asking rather than inferring.
+**`One` = `South`, and it is deliberately outside the nesting.** It is not "the first direction of a turning character" — it is *this thing does not turn*: a boss at the top of the screen, or a stationary effect with no directional views. So it faces the camera head-on rather than taking `Two`'s three-quarter view. **The complete table:**
+
+| Count | Members | Authored | Derived by `mirrorX` |
+|---|---|---|---|
+| `One` | S | **1** — S | — |
+| `Two` | SE, SW | **1** — SE | SW |
+| `Four` | SE, NE, NW, SW | **2** — SE, NE | SW, NW |
+| `Six` | S, SE, NE, N, NW, SW | **4** — SE, NE, S, N | SW, NW |
+| `Eight` | S, SE, E, NE, N, NW, W, SW | **5** — SE, NE, S, N, E | SW, NW, W |
+
+**`One` needs no facing machinery at all** — no `PartFacing`, no quantization, no mirror. A one-direction actor is simply an actor, so the cheapest content in the game also costs the least at runtime. Worth stating because it is exactly the case a facing system is most likely to over-serve.
+
+**Host fact with consequences beyond facing: the game camera never moves.** Recorded here because it is load-bearing for **M4/C5**. §6.3's billboard modes exist so a quad can face a camera that orbits, and the normative facing rule (`_WorldSpaceCameraPos` only, never `UNITY_MATRIX_V`) exists so shadows re-orient correctly under that orbit. A fixed camera does not make the rule wrong — the package is sold to hosts whose cameras *do* move, so it must still ship it — but **Stitch Punk itself will never exercise it**, which means C5's human-verification step "billboard modes under camera orbit" cannot be done in the game and needs a scratch scene with a moving camera.
 
 **Sequencing consequence: Mirror Clip is pulled forward from C7.** It is M5 work, but it depends only on M1 (`ClipAsset`, `RigAsset.mirrorPairs` — both closed and shipping) and touches neither shaders nor VAT, so it does not violate dependency order. It is worth pulling forward because the migration's content step is "author 8 directions per locomotion state", which is materially harder without it. **It is not, however, useful before the clip converter runs** — there are no `ClipAsset`s to flip until then. Order: A37 runtime → converters (§13.2 step 1) → Mirror Clip → C5.
 
