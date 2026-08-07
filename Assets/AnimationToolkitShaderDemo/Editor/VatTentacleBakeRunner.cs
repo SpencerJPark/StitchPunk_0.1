@@ -84,6 +84,24 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
             // silhouette would sample the wrong rows.
             Mesh runtimeMesh = Object.Instantiate(renderer.sharedMesh);
             runtimeMesh.name = "TentacleRuntimeMesh";
+
+            // Bone influences move into UV1, because the runtime mesh is rendered by a plain
+            // MeshRenderer and that does not bind BLENDINDICES/BLENDWEIGHT. Needing no
+            // SkinnedMeshRenderer is the entire point of VAT, so the data has to travel somewhere
+            // an ordinary vertex stream reaches.
+            BoneWeight[] sourceWeights = renderer.sharedMesh.boneWeights;
+            List<Vector4> packedBoneData = new List<Vector4>(sourceWeights.Length);
+            for (int vertexIndex = 0; vertexIndex < sourceWeights.Length; vertexIndex++)
+            {
+                BoneWeight boneWeight = sourceWeights[vertexIndex];
+                packedBoneData.Add(new Vector4(
+                    boneWeight.boneIndex0,
+                    boneWeight.boneIndex1,
+                    boneWeight.weight0,
+                    boneWeight.weight1));
+            }
+            runtimeMesh.SetUVs(1, packedBoneData);
+
             AssetDatabase.CreateAsset(runtimeMesh, OutputFolder + "/TentacleRuntimeMesh.asset");
 
             AnimationClip savedClip = Object.Instantiate(waveClip);

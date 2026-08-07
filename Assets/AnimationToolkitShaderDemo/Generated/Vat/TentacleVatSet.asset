@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 58d6484bda0c4755afd593d6ca9ba4af, type: 3}
   m_Name: TentacleVatSet
   m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.VatTextureSetAsset
-  setKey: 5547688363109165093
+  setKey: 17224774649214723572
   flavor: 0
   boneTexture: {fileID: 2800000, guid: 5f16f9f34c7523843a85f4b535738ad5, type: 2}
   positionTexture: {fileID: 0}
