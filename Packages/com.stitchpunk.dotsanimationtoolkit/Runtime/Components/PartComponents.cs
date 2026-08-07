@@ -63,14 +63,32 @@ namespace StitchPunk.AnimationToolkit
         public int viewOffset;
 
         /// <summary>
-        /// Whether the part's art is <em>mirrored</em> horizontally. Multiplies the composited
-        /// scale.x by −1, which <c>TransformApplySystem</c> already carries live through
-        /// <c>PostTransformMatrix</c>.
+        /// Whether the part is <em>mirrored</em> — reflected about the actor's vertical axis.
         /// </summary>
         /// <remarks>
-        /// Applied to the composited scale rather than the rest scale, so it survives a clip that
-        /// animates scale — and it composes with an already-negative rest scale rather than fighting
-        /// it, since a part authored flipped and then mirrored is simply unflipped.
+        /// <para>
+        /// A mirror reflects the whole part, not only its art, so it negates three channels of the
+        /// composited pose:
+        /// </para>
+        /// <list type="bullet">
+        /// <item><description>
+        /// <c>localPosition.x</c> — the plane moves to the other side. An ear sits left of the head
+        /// at rest; mirrored, it belongs on the right. Flipping only the art leaves it pinned to the
+        /// wrong side of the skull, which is a half-mirror and looks worse than none.
+        /// </description></item>
+        /// <item><description>
+        /// <c>rotationZ</c> — rotation is handed. An arm swung +30° reflects to −30°.
+        /// </description></item>
+        /// <item><description>
+        /// <c>scale.x</c> — the drawn shape faces the other way, carried live by
+        /// <c>PostTransformMatrix</c>.
+        /// </description></item>
+        /// </list>
+        /// <para>
+        /// All three are negations of the <em>composited</em> pose rather than assignments over the
+        /// rest pose, so they survive a clip that animates the same channels and compose with a part
+        /// authored already offset, rotated or flipped — mirroring a flipped part unflips it.
+        /// </para>
         /// </remarks>
         public bool mirrorX;
     }

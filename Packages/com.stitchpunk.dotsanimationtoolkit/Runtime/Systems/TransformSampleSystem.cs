@@ -223,11 +223,22 @@ namespace StitchPunk.AnimationToolkit
                         partFacing.viewOffset,
                         framesPerVariant);
 
-                    // A mirror is the same frame reflected: a nose from the left is a nose from the
-                    // right. Multiplied rather than assigned, so a part authored already-flipped
-                    // composes instead of being overridden.
+                    // A mirror reflects the whole part about the actor's vertical axis, which is
+                    // three negations rather than one:
+                    //
+                    //   position.x — the plane moves to the other side. An ear sits left of the
+                    //                head at rest; mirrored, it belongs on the right. Flipping only
+                    //                the art leaves it pinned to the wrong side of the skull.
+                    //   rotationZ  — rotation is handed. An arm swung +30° reflects to −30°;
+                    //                leaving it alone makes a mirrored pose lean the wrong way.
+                    //   scale.x    — the art itself, so the drawn shape faces the other way.
+                    //
+                    // All three are negations rather than assignments, so a part authored already
+                    // offset, rotated or flipped composes with facing instead of being overridden.
                     if (partFacing.mirrorX)
                     {
+                        sampledPose.localPosition.x = -sampledPose.localPosition.x;
+                        sampledPose.rotationZ = -sampledPose.rotationZ;
                         sampledPose.scale.x = -sampledPose.scale.x;
                     }
                 }

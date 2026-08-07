@@ -214,6 +214,46 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// <strong>A mirror reflects the rig, not just the art.</strong> Catches: negating only
+        /// <c>scale.x</c>. An ear authored to the left of the head must end up on the <em>right</em>
+        /// when mirrored; flipping its texture while leaving it pinned to the same side of the skull
+        /// is a half-mirror, and looks worse than not mirroring at all. Rotation goes with it,
+        /// because rotation is handed — an arm swung +30° reflects to −30°.
+        /// </summary>
+        [Test]
+        public void MirroringAPart_AlsoReflectsItsPositionAndRotation()
+        {
+            registry = PlaybackTestActor.BuildRegistry(
+                new[]
+                {
+                    new PlaybackTestActor.ClipSpec { clipId = IdleClipId, duration = 1f }
+                },
+                targetCount: 1,
+                framesPerVariant: EarFramesPerVariant);
+            actor = PlaybackTestActor.CreateActor(testWorld, registry);
+
+            // An ear off to one side of the head, tilted — the shape of a real cutout part.
+            Entity ear = PlaybackTestActor.AddPart(
+                testWorld, actor, EarTargetIndex,
+                restPosition: new Unity.Mathematics.float3(-0.9f, 0.05f, 0.25f),
+                restRotationZ: 0.4f,
+                restSliceIndex: RoundFrontRestSlice,
+                asFlipbookPlane: true);
+            testWorld.EntityManager.AddComponentData(
+                ear, new PartFacing { viewOffset = 0, mirrorX = true });
+
+            RunSample();
+
+            TargetPose pose = testWorld.EntityManager.GetComponentData<TargetPose>(ear);
+            Assert.AreEqual(
+                0.9f, pose.localPosition.x, 1e-4f, "The plane belongs on the other side of the head.");
+            Assert.AreEqual(
+                -0.4f, pose.rotationZ, 1e-4f, "Rotation is handed and reflects with the part.");
+            Assert.AreEqual(
+                0.05f, pose.localPosition.y, 1e-4f, "Only x reflects — height is unchanged.");
+        }
+
+        /// <summary>
         /// Catches: assigning −1 rather than negating. A part authored already-flipped (a left ear
         /// built by mirroring the right one) composes with facing instead of being overridden by it,
         /// so mirroring a flipped part unflips it.
