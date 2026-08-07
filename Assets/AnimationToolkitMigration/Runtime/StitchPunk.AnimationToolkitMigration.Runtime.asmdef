@@ -1,19 +1,17 @@
 {
-    "name": "StitchPunk.AnimationToolkitMigration.Editor",
-    "rootNamespace": "StitchPunk.AnimationToolkitMigration.Editor",
+    "name": "StitchPunk.AnimationToolkitMigration.Runtime",
+    "rootNamespace": "StitchPunk.AnimationToolkitMigration",
     "references": [
         "StitchPunk.AnimationToolkit.Runtime",
         "StitchPunk.AnimationToolkit.Authoring",
-        "StitchPunk.AnimationToolkitMigration.Runtime",
-        "StitchPunk.Data",
         "Unity.Entities",
-        "Unity.Scenes",
+        "Unity.Entities.Hybrid",
         "Unity.Collections",
-        "Unity.Mathematics"
+        "Unity.Mathematics",
+        "Unity.Burst",
+        "Unity.Transforms"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

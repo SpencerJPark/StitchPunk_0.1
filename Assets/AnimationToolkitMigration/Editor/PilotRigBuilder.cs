@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using StitchPunk.AnimationToolkit;
 using StitchPunk.AnimationToolkit.Authoring;
+using StitchPunk.AnimationToolkitMigration;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -44,6 +45,13 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
         private const int EyesLayerIndex = 3;
 
         private const string HostMaterialFolder = "Assets/Materials/Units/";
+
+        /// <summary>
+        /// The clip the driver crossfades to and from. Angry differs from Normal in its eyebrow
+        /// transform tracks, so the blend is visible as eyebrows sliding between two poses — sprite
+        /// frames never blend by design (§10 answer 2), so a slice-only pair would show nothing.
+        /// </summary>
+        private const string SecondClipName = "HumanBlinkAngry";
 
         /// <summary>
         /// One part of the pilot face: which rig target it is, where it sits, which host material
@@ -134,6 +142,16 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             GameObject plainActor = BuildActor(
                 rig, clipSet, pilotClip, targetIdByName, "PilotActor",
                 new Vector3(-1.35f, 0f, 0f), false, out int builtParts);
+
+            // The driver goes on the LEFT face only. The right one stays a fixed mirrored reference,
+            // so there is always a still frame to compare the moving one against — the same reason
+            // the pair exists at all.
+            ClipAsset secondClip =
+                AssetDatabase.LoadAssetAtPath<ClipAsset>(GeneratedFolder + "/" + SecondClipName + ".asset");
+            PilotDriverAuthoring driverAuthoring = plainActor.AddComponent<PilotDriverAuthoring>();
+            driverAuthoring.layerIndex = EyesLayerIndex;
+            driverAuthoring.firstClip = pilotClip;
+            driverAuthoring.secondClip = secondClip != null ? secondClip : pilotClip;
             GameObject mirroredActor = BuildActor(
                 rig, clipSet, pilotClip, targetIdByName, "PilotActorMirrored",
                 new Vector3(1.35f, 0f, 0f), true, out int _);
@@ -164,7 +182,9 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
                 "[PilotRigBuilder] Built " + ScenePath + " with " + builtParts + " parts playing the "
                 + "converted '" + PilotClipName + "' clip on the Eyes layer. Open the scene and press "
                 + "Play: both faces blink through real texture-array slices (53 -> 11 -> 9), and the "
-                + "RIGHT-HAND face is mirrored — its nose, ear and hair should point the other way.");
+                + "RIGHT-HAND face is permanently mirrored as a reference. The LEFT face is driven: "
+                + "it crossfades between two blinks every 3s (watch the eyebrows slide) and flips "
+                + "mirror every 4s, so facing is visibly live state rather than a bake-time value.");
         }
 
         private static Dictionary<string, uint> BuildTargetLookup(RigAsset rig)
