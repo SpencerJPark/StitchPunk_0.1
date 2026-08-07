@@ -5,6 +5,8 @@
         "StitchPunk.AnimationToolkit.Runtime",
         "StitchPunk.AnimationToolkit.Authoring",
         "StitchPunk.Data",
+        "Unity.Entities",
+        "Unity.Scenes",
         "Unity.Collections",
         "Unity.Mathematics"
     ],
