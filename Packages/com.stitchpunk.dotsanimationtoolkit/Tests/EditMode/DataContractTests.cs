@@ -462,7 +462,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(AnimationToolkitCameraData)));
             AssertFieldsMatch(typeof(AnimationToolkitCameraData), new FieldContract[]
             {
-                Field("position", typeof(float3))
+                Field("position", typeof(float3)),
+
+                // Amendment A39: screen-aligned billboarding needs the camera's forward, and it must
+                // be a host-written per-frame value for the same reason position is — it has to be
+                // identical in the ShadowCaster pass, where UNITY_MATRIX_V is the light's.
+                Field("forward", typeof(float3))
             });
         }
 

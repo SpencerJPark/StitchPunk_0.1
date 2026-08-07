@@ -34,5 +34,27 @@ namespace StitchPunk.AnimationToolkit
     {
         /// <summary>The rendering camera's world-space position.</summary>
         public float3 position;
+
+        /// <summary>
+        /// The rendering camera's world-space forward vector (amendment A39).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Carried alongside <see cref="position"/> so a billboard can be <em>screen-aligned</em> —
+        /// every quad taking the same rotation — as well as <em>spherical</em>, each quad turning to
+        /// face the camera point. Those are visibly different looks, and §6.3's rule does not choose
+        /// between them: it requires only that facing come from a value that is <strong>the same in
+        /// every pass</strong>, because the ShadowCaster pass substitutes the light's view matrix and
+        /// a quad that faced differently there would cast the shadow of a shape the camera never
+        /// sees. A host-written forward vector is as pass-invariant as
+        /// <c>_WorldSpaceCameraPos</c>, so it satisfies that requirement exactly.
+        /// </para>
+        /// <para>
+        /// Host-written, like <see cref="position"/> — the package never reads a
+        /// <c>Camera</c>. Leave it at zero and screen-aligned modes fall back to spherical, which is
+        /// the safe degradation: a wrong-looking billboard rather than a degenerate one.
+        /// </para>
+        /// </remarks>
+        public float3 forward;
     }
 }
