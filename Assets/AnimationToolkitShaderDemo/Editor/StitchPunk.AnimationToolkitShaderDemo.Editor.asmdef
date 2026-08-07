@@ -1,0 +1,20 @@
+{
+    "name": "StitchPunk.AnimationToolkitShaderDemo.Editor",
+    "rootNamespace": "StitchPunk.AnimationToolkitShaderDemo.Editor",
+    "references": [
+        "StitchPunk.AnimationToolkit.Runtime",
+        "StitchPunk.AnimationToolkitShaderDemo",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
