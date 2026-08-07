@@ -1086,6 +1086,23 @@ Material-level (shared, **not** per-instance — anything per-instance here woul
 
   **What C5 owes:** the mode enumeration in §6.2's `_BillboardParams` grows a screen-aligned value, `BillboardTransform`'s signature takes the forward vector, and the human-verified checklist gains "screen-aligned mode reproduces the host's pre-migration framing side by side". The death-freeze (mode 3 + frozen yaw, §13.1) is unaffected — it constrains *which* rotation is applied, not where facing comes from.
 
+- **Amendment A41 (2026-08-07 — product-owner directive): transform-level billboarding is the default for actors, and §13.1's deletion of the host's CPU system is withdrawn.** The owner: *"the billboarding might have made more sense outside the material space and on the entities as a group themselves like how I originally designed it… characters are layered billboards and it looks way better to move them as a group from a single parent."*
+
+  **This is correct on the merits, not a preference.** Per-vertex billboarding rotates **each quad about its own pivot**. A cutout character is a dozen-plus layered quads at different offsets, so every layer would turn independently and the authored arrangement would fan apart — the parts stop occupying their relative positions the moment the camera moves off axis. Rotating the **actor root** keeps the rig rigid and turns it as one, which is the only thing that preserves a layered composition.
+
+  §13.1 deleted the host's `BillboardSystem` and overruled the audit's advice to absorb it, on the grounds that a shader-side property was the more general mechanism. **It is more general and it is wrong for this content**: generality bought nothing here and cost the composition. The row is withdrawn; the host's system is absorbed as the audit originally recommended, generalised into the package.
+
+  **The package therefore ships both, because they serve genuinely different content:**
+
+  | Path | Rotates | Right for |
+  |---|---|---|
+  | **`ActorBillboardSystem`** (CPU, transform) | the actor root — whole rig as one | **layered cutout characters** — the default |
+  | `BillboardTransform` (shader, per-vertex) | each quad about its own pivot | single-quad imposters, grass, VAT crowd meshes where CPU cost per instance is the constraint |
+
+  Neither replaces the other, and an actor must use exactly one — a root rotated on the CPU *and* quads rotated in the shader is a double rotation, the same trap A38 records for `mirrorX` versus baked mirrored clips.
+
+  **The shader path stays** — it is already built, already tested, and is the right answer for the crowd/VAT cases C6 targets. Nothing in C5 is wasted; what changes is which path an *actor* uses by default.
+
 - **Motion-vector velocity caveat:** the MV pass renders VAT-displaced positions (correct depth), but the **velocity** it writes derives from the entity transform delta, not the deformation delta. Deformation-accurate velocity (previous-frame `_VatPrevFrameA/B/Blend` per-instance props + dual sampling in the MV pass) is designed but ships **default-off** behind the `_VAT_DEFORMATION_MV` shader feature in v1 — see §12 R6 for the risk entry and mitigation. This is a documented limitation, not an oversight; the audit found the host has motion vectors entirely unhandled today (§5), so v1 is a strict improvement.
 
 ### 6.4 VAT sampling math (in `ToolkitVat.hlsl`)
