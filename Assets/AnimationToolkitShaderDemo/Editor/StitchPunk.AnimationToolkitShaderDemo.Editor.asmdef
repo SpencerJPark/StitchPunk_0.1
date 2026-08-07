@@ -3,6 +3,8 @@
     "rootNamespace": "StitchPunk.AnimationToolkitShaderDemo.Editor",
     "references": [
         "StitchPunk.AnimationToolkit.Runtime",
+        "StitchPunk.AnimationToolkit.Authoring",
+        "StitchPunk.AnimationToolkit.Editor",
         "StitchPunk.AnimationToolkitShaderDemo",
         "Unity.Mathematics"
     ],

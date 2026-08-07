@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58d6484bda0c4755afd593d6ca9ba4af, type: 3}
+  m_Name: TentacleVatSet
+  m_EditorClassIdentifier: StitchPunk.AnimationToolkit.Authoring::StitchPunk.AnimationToolkit.Authoring.VatTextureSetAsset
+  setKey: 5547688363109165093
+  flavor: 0
+  boneTexture: {fileID: 2800000, guid: 5f16f9f34c7523843a85f4b535738ad5, type: 2}
+  positionTexture: {fileID: 0}
+  normalTexture: {fileID: 0}
+  runtimeMesh: {fileID: 4300000, guid: 70a719662177d14488094c6b67ea57f8, type: 2}
+  boneCount: 12
+  vertexCount: 0
+  textureWidth: 16
+  rowsPerFrame: 3
+  clipRanges:
+  - clipId: 655361
+    frameStart: 0
+    frameCount: 61
+    fps: 30
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
+  sourceHash: 8510249254959712513
+  schemaVersion: 0

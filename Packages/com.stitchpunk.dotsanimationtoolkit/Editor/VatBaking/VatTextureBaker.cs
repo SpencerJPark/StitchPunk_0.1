@@ -138,22 +138,36 @@ namespace StitchPunk.AnimationToolkit.Editor
             List<Vector3[]> framesOfPositions = new List<Vector3[]>();
             List<Vector3[]> framesOfNormals = new List<Vector3[]>();
 
+            // Sampling happens inside AnimationMode, not through AnimationClip.SampleAnimation.
+            // That method only drives LEGACY clips; against an ordinary imported clip it logs a
+            // warning and poses nothing, so every frame would sample the rest pose and the bake
+            // would produce a texture full of identical, entirely valid-looking matrices.
+            UnityEditor.AnimationMode.StartAnimationMode();
             int globalFrame = 0;
-            for (int clipIndex = 0; clipIndex < input.clips.Count; clipIndex++)
+            try
             {
-                VatBakeClip bakeClip = input.clips[clipIndex];
-                int frameCount = SampleClip(
-                    bakeClip, input, rootTransform, renderer, sharedMesh, isBoneFlavor,
-                    framesOfMatrices, framesOfPositions, framesOfNormals);
-
-                result.clipRanges.Add(new VatClipRange
+                for (int clipIndex = 0; clipIndex < input.clips.Count; clipIndex++)
                 {
-                    clipId = bakeClip.clipId,
-                    frameStart = globalFrame,
-                    frameCount = frameCount,
-                    fps = input.samplesPerSecond
-                });
-                globalFrame += frameCount;
+                    VatBakeClip bakeClip = input.clips[clipIndex];
+                    int frameCount = SampleClip(
+                        bakeClip, input, rootTransform, renderer, sharedMesh, isBoneFlavor,
+                        framesOfMatrices, framesOfPositions, framesOfNormals);
+
+                    result.clipRanges.Add(new VatClipRange
+                    {
+                        clipId = bakeClip.clipId,
+                        frameStart = globalFrame,
+                        frameCount = frameCount,
+                        fps = input.samplesPerSecond
+                    });
+                    globalFrame += frameCount;
+                }
+            }
+            finally
+            {
+                // Leaving animation mode on would freeze the whole Editor's inspector in a posed
+                // state, so it is released even when a clip throws mid-bake.
+                UnityEditor.AnimationMode.StopAnimationMode();
             }
 
             int totalFrames = globalFrame;
@@ -253,7 +267,9 @@ namespace StitchPunk.AnimationToolkit.Editor
                     ? 0f
                     : animationClip.length * sampleIndex / sampleCount;
 
-                animationClip.SampleAnimation(rootTransform.gameObject, time);
+                UnityEditor.AnimationMode.BeginSampling();
+                UnityEditor.AnimationMode.SampleAnimationClip(rootTransform.gameObject, animationClip, time);
+                UnityEditor.AnimationMode.EndSampling();
 
                 if (isBoneFlavor)
                 {
