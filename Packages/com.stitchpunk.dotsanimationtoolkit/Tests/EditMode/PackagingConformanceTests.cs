@@ -300,8 +300,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             }
             foreach (string editorSourceFile in editorSourceFiles)
             {
-                string fileText = File.ReadAllText(editorSourceFile);
-                if (imguiPattern.IsMatch(fileText))
+                // Comments are stripped first. The ban is on USING these APIs, not on naming them —
+                // and a file explaining why it avoids IMGUI is exactly the file most likely to spell
+                // them out. Checking raw text would push that explanation out of the source, which
+                // is the opposite of what a conformance rule should encourage.
+                string fileCode = StripComments(File.ReadAllText(editorSourceFile));
+                if (imguiPattern.IsMatch(fileCode))
                 {
                     violations.Add(ToPackageRelativePath(editorSourceFile));
                 }
@@ -418,6 +422,85 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 }
             }
             return matchingFiles;
+        }
+
+        /// <summary>
+        /// Blanks out C# comments so a scan sees only code.
+        /// </summary>
+        /// <remarks>
+        /// Comments are replaced with spaces rather than removed so that reported positions still
+        /// line up with the original file. String literals are honoured, otherwise a path like
+        /// <c>"http://…"</c> would swallow the rest of its line. Verbatim and interpolated strings
+        /// are not modelled — for a ban on API identifiers that is immaterial, since a false
+        /// negative would require the banned call to sit inside a string that this misreads.
+        /// </remarks>
+        private static string StripComments(string sourceText)
+        {
+            char[] characters = sourceText.ToCharArray();
+            bool inLineComment = false;
+            bool inBlockComment = false;
+            bool inString = false;
+            char stringQuote = '"';
+
+            for (int index = 0; index < characters.Length; index++)
+            {
+                char current = characters[index];
+                char next = index + 1 < characters.Length ? characters[index + 1] : '\0';
+
+                if (inLineComment)
+                {
+                    if (current == '\n')
+                    {
+                        inLineComment = false;
+                        continue;
+                    }
+                    characters[index] = ' ';
+                }
+                else if (inBlockComment)
+                {
+                    if (current == '*' && next == '/')
+                    {
+                        characters[index] = ' ';
+                        characters[index + 1] = ' ';
+                        index++;
+                        inBlockComment = false;
+                        continue;
+                    }
+                    if (current != '\n')
+                    {
+                        characters[index] = ' ';
+                    }
+                }
+                else if (inString)
+                {
+                    if (current == '\\')
+                    {
+                        index++;
+                        continue;
+                    }
+                    if (current == stringQuote)
+                    {
+                        inString = false;
+                    }
+                }
+                else if (current == '/' && next == '/')
+                {
+                    inLineComment = true;
+                    characters[index] = ' ';
+                }
+                else if (current == '/' && next == '*')
+                {
+                    inBlockComment = true;
+                    characters[index] = ' ';
+                }
+                else if (current == '"' || current == '\'')
+                {
+                    inString = true;
+                    stringQuote = current;
+                }
+            }
+
+            return new string(characters);
         }
 
         private static string ToPackageRelativePath(string absolutePath)
