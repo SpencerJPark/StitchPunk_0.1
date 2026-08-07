@@ -126,7 +126,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
             // To revert: drop this block and the component is simply never baked.
             if (targetDefinition != null && targetDefinition.framesPerVariant > 1)
             {
-                AddComponent(partEntity, new SpriteViewOffset { value = 0 });
+                AddComponent(partEntity, new PartFacing { viewOffset = 0, mirrorX = false });
             }
 
             AddTechniqueComponents(authoring, partEntity, targetKind, restPose);

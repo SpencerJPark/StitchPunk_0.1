@@ -21,14 +21,22 @@ namespace StitchPunk.AnimationToolkit
     }
 
     /// <summary>
-    /// Which <em>view</em> of its variant a part is currently showing — the facing term of the
-    /// slice sum (architecture section 5.7, amendment A37). Written by the host, never by this
-    /// package.
+    /// How a part is presented for the direction it faces (architecture section 5.7,
+    /// amendment A37). Written by the host, never by this package.
     /// </summary>
     /// <remarks>
     /// <para>
+    /// <strong>Facing changes a cutout part in two unrelated ways, and conflating them is a
+    /// mistake this amendment made once already.</strong> Some parts have a genuinely different
+    /// <em>alt view</em> drawn for them — an ear seen from behind is different art from an ear seen
+    /// from the front, so it is a different slice. Other parts are simply <em>mirrored</em> — a nose
+    /// seen from the left is the same art as a nose seen from the right, reflected. One needs a
+    /// different texture index; the other needs a negative scale. A part may need either, both, or
+    /// neither, so they are separate fields rather than one packed value.
+    /// </para>
+    /// <para>
     /// The final slice is <c>restSliceIndex</c> (which variant this character rolled) +
-    /// <see cref="value"/> (which way the part faces) + the clip's own key (which frame the
+    /// <see cref="viewOffset"/> (which way the part faces) + the clip's own key (which frame the
     /// animation is on). Three terms, three owners, none able to clobber another's.
     /// </para>
     /// <para>
@@ -46,10 +54,25 @@ namespace StitchPunk.AnimationToolkit
     /// never asked for facing.
     /// </para>
     /// </remarks>
-    public struct SpriteViewOffset : IComponentData
+    public struct PartFacing : IComponentData
     {
-        /// <summary>Frames to step from the rest slice, wrapped inside the target's variant block.</summary>
-        public int value;
+        /// <summary>
+        /// Frames to step from the rest slice for an <em>alt view</em>, wrapped inside the target's
+        /// variant block. 0 for a part whose art does not change with facing.
+        /// </summary>
+        public int viewOffset;
+
+        /// <summary>
+        /// Whether the part's art is <em>mirrored</em> horizontally. Multiplies the composited
+        /// scale.x by −1, which <c>TransformApplySystem</c> already carries live through
+        /// <c>PostTransformMatrix</c>.
+        /// </summary>
+        /// <remarks>
+        /// Applied to the composited scale rather than the rest scale, so it survives a clip that
+        /// animates scale — and it composes with an already-negative rest scale rather than fighting
+        /// it, since a part authored flipped and then mirrored is simply unflipped.
+        /// </remarks>
+        public bool mirrorX;
     }
 
     /// <summary>

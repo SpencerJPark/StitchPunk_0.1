@@ -18,7 +18,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
     /// last of those is the reason the term is a component rather than clip data, so it is the one
     /// worth proving rather than asserting.
     /// </remarks>
-    public sealed class SpriteViewOffsetWiringTests
+    public sealed class PartFacingWiringTests
     {
         private const ulong IdleClipId = 100;
         private const int IdleClipIndex = 0;
@@ -40,7 +40,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         [SetUp]
         public void SetUp()
         {
-            testWorld = new World("SpriteViewOffsetWiringTests");
+            testWorld = new World("PartFacingWiringTests");
             elapsedTime = 0d;
         }
 
@@ -79,7 +79,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
-        /// Catches: applying the facing term to parts that never opted in. <see cref="SpriteViewOffset"/>
+        /// Catches: applying the facing term to parts that never opted in. <see cref="PartFacing"/>
         /// is optional (A23 precedent), and a part without it must sample exactly as it did before
         /// A37 existed.
         /// </summary>
@@ -89,7 +89,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Entity ear = BuildActorWithEar(spriteTrack: null);
 
             Assert.IsFalse(
-                testWorld.EntityManager.HasComponent<SpriteViewOffset>(ear),
+                testWorld.EntityManager.HasComponent<PartFacing>(ear),
                 "Guard: the fixture part must not carry the component, or this proves nothing.");
 
             RunSample();
@@ -185,7 +185,65 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
         private void SetViewOffset(Entity part, int viewOffset)
         {
-            testWorld.EntityManager.AddComponentData(part, new SpriteViewOffset { value = viewOffset });
+            testWorld.EntityManager.AddComponentData(
+                part, new PartFacing { viewOffset = viewOffset, mirrorX = false });
+        }
+
+        /// <summary>
+        /// <strong>A mirror is not an alt view, and the distinction is the whole reason
+        /// <see cref="PartFacing"/> has two fields.</strong> Catches: implementing "flip the nose"
+        /// as a slice offset. A nose seen from the left is the <em>same art</em> reflected, so it
+        /// needs a negative scale and the same frame — an offset would send it to whatever slice
+        /// happens to sit next to it, which for a design-driven target is another character's nose.
+        /// </summary>
+        [Test]
+        public void MirroringAPart_NegatesItsScaleAndLeavesTheSliceAlone()
+        {
+            Entity ear = BuildActorWithEar(spriteTrack: null);
+            testWorld.EntityManager.AddComponentData(
+                ear, new PartFacing { viewOffset = 0, mirrorX = true });
+
+            RunSample();
+
+            TargetPose pose = testWorld.EntityManager.GetComponentData<TargetPose>(ear);
+            Assert.Less(pose.scale.x, 0f, "A mirrored part is reflected on x.");
+            Assert.AreEqual(
+                RoundFrontRestSlice,
+                pose.sliceIndex,
+                "Mirroring must not move the frame — that is what viewOffset is for.");
+        }
+
+        /// <summary>
+        /// Catches: assigning −1 rather than negating. A part authored already-flipped (a left ear
+        /// built by mirroring the right one) composes with facing instead of being overridden by it,
+        /// so mirroring a flipped part unflips it.
+        /// </summary>
+        [Test]
+        public void MirroringAnAlreadyFlippedPart_UnflipsIt()
+        {
+            registry = PlaybackTestActor.BuildRegistry(
+                new[]
+                {
+                    new PlaybackTestActor.ClipSpec { clipId = IdleClipId, duration = 1f }
+                },
+                targetCount: 1,
+                framesPerVariant: EarFramesPerVariant);
+            actor = PlaybackTestActor.CreateActor(testWorld, registry);
+
+            Entity flippedPart = PlaybackTestActor.AddPart(
+                testWorld, actor, EarTargetIndex,
+                restScale: new Unity.Mathematics.float2(-1f, 1f),
+                restSliceIndex: RoundFrontRestSlice,
+                asFlipbookPlane: true);
+            testWorld.EntityManager.AddComponentData(
+                flippedPart, new PartFacing { viewOffset = 0, mirrorX = true });
+
+            RunSample();
+
+            Assert.Greater(
+                testWorld.EntityManager.GetComponentData<TargetPose>(flippedPart).scale.x,
+                0f,
+                "Negating composes with the authored flip; assigning -1 would swallow it.");
         }
 
         /// <summary>
