@@ -47,6 +47,32 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// cliff §12 R2 describes for rigs much larger than a couple of metres.
         /// </summary>
         public bool useFullPrecision;
+
+        /// <summary>
+        /// Bone sockets to capture alongside the textures, or null for none.
+        /// </summary>
+        /// <remarks>
+        /// Sampled in a second pass over each clip rather than woven into the texture pass. The
+        /// duplicated sampling costs bake time nobody waits on, and buys complete isolation: a
+        /// socket that fails to resolve cannot corrupt a texture, and the texture path is unchanged
+        /// whether sockets are requested or not.
+        /// </remarks>
+        public List<VatBakeSocket> sockets;
+    }
+
+    /// <summary>One bone socket to capture during a bake.</summary>
+    public struct VatBakeSocket
+    {
+        /// <summary>Stable id of the socket row on the rig.</summary>
+        public uint socketId;
+
+        /// <summary>
+        /// Name of the bone to follow, matched against the source hierarchy. Names are the only
+        /// handle an imported rig offers — this package cannot assign ids inside a hierarchy it
+        /// does not own — so an unmatched name is reported rather than silently baked as a socket
+        /// pinned to the origin.
+        /// </summary>
+        public string boneName;
     }
 
     /// <summary>
@@ -70,6 +96,16 @@ namespace StitchPunk.AnimationToolkit.Editor
         public int boneCount;
         public int vertexCount;
         public List<VatClipRange> clipRanges;
+
+        /// <summary>Captured bone-socket motion; empty when no sockets were requested.</summary>
+        public List<VatSocketTrack> socketTracks;
+
+        /// <summary>
+        /// Sockets whose bone name matched nothing in the source hierarchy. Non-fatal — the
+        /// textures are still valid — but every listed socket will sit at the actor origin, so the
+        /// caller is expected to surface these rather than treat an empty bake as success.
+        /// </summary>
+        public List<string> unresolvedSocketBones;
 
         /// <summary>Hash of every input that affects the output; changes when any of them does.</summary>
         public ulong sourceHash;
@@ -142,6 +178,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             // That method only drives LEGACY clips; against an ordinary imported clip it logs a
             // warning and poses nothing, so every frame would sample the rest pose and the bake
             // would produce a texture full of identical, entirely valid-looking matrices.
+            result.socketTracks = new List<VatSocketTrack>();
+            result.unresolvedSocketBones = new List<string>();
+            List<Transform> socketBones = ResolveSocketBones(
+                input.sockets, rootTransform, result.unresolvedSocketBones);
+
             UnityEditor.AnimationMode.StartAnimationMode();
             int globalFrame = 0;
             try
@@ -152,6 +193,9 @@ namespace StitchPunk.AnimationToolkit.Editor
                     int frameCount = SampleClip(
                         bakeClip, input, rootTransform, renderer, sharedMesh, isBoneFlavor,
                         framesOfMatrices, framesOfPositions, framesOfNormals);
+
+                    SampleSocketsForClip(
+                        bakeClip, input, rootTransform, socketBones, result.socketTracks);
 
                     result.clipRanges.Add(new VatClipRange
                     {
@@ -238,6 +282,152 @@ namespace StitchPunk.AnimationToolkit.Editor
             result.failed = true;
             result.message = message;
             return false;
+        }
+
+        /// <summary>
+        /// Finds each requested socket's bone in the source hierarchy, by name.
+        /// </summary>
+        /// <remarks>
+        /// Resolved once for the whole bake rather than per clip: the hierarchy does not change
+        /// between clips, and a per-clip search would repeat a full-tree walk hundreds of times.
+        /// Unresolved names produce a null slot and a reported name — never a substitute bone,
+        /// because a socket silently bound to the wrong bone is far worse than one that is
+        /// obviously missing.
+        /// </remarks>
+        private static List<Transform> ResolveSocketBones(
+            List<VatBakeSocket> sockets,
+            Transform rootTransform,
+            List<string> unresolvedBoneNames)
+        {
+            List<Transform> resolvedBones = new List<Transform>();
+            if (sockets == null)
+            {
+                return resolvedBones;
+            }
+
+            Transform[] hierarchy = rootTransform.GetComponentsInChildren<Transform>(true);
+            for (int socketIndex = 0; socketIndex < sockets.Count; socketIndex++)
+            {
+                string boneName = sockets[socketIndex].boneName;
+                Transform matchedBone = null;
+                if (!string.IsNullOrEmpty(boneName))
+                {
+                    for (int boneIndex = 0; boneIndex < hierarchy.Length; boneIndex++)
+                    {
+                        if (hierarchy[boneIndex].name == boneName)
+                        {
+                            matchedBone = hierarchy[boneIndex];
+                            break;
+                        }
+                    }
+                }
+                if (matchedBone == null)
+                {
+                    unresolvedBoneNames.Add(string.IsNullOrEmpty(boneName) ? "<unnamed>" : boneName);
+                }
+                resolvedBones.Add(matchedBone);
+            }
+            return resolvedBones;
+        }
+
+        /// <summary>
+        /// Captures every resolved socket's root-relative transform across one clip.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A second pass over the same clip, at the same rate and the same sample times as
+        /// <see cref="SampleClip"/> — including the loop-safe duplicate — so sample <c>n</c> of a
+        /// socket track and frame <c>n</c> of the texture describe the same instant. The two loops
+        /// must agree on timing; sharing the arithmetic rather than the loop is what keeps the
+        /// socket path from being able to break the texture path.
+        /// </para>
+        /// <para>
+        /// Must be called inside an active <c>AnimationMode</c> — it poses the hierarchy exactly as
+        /// the texture pass does.
+        /// </para>
+        /// </remarks>
+        private static void SampleSocketsForClip(
+            VatBakeClip bakeClip,
+            VatBakeInput input,
+            Transform rootTransform,
+            List<Transform> socketBones,
+            List<VatSocketTrack> socketTracks)
+        {
+            if (input.sockets == null || input.sockets.Count == 0)
+            {
+                return;
+            }
+
+            AnimationClip animationClip = bakeClip.animationClip;
+            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * input.samplesPerSecond));
+
+            List<VatSocketTrack> tracksForThisClip = new List<VatSocketTrack>();
+            for (int socketIndex = 0; socketIndex < input.sockets.Count; socketIndex++)
+            {
+                if (socketBones[socketIndex] == null)
+                {
+                    tracksForThisClip.Add(null);
+                    continue;
+                }
+                tracksForThisClip.Add(new VatSocketTrack
+                {
+                    clipId = bakeClip.clipId,
+                    socketId = input.sockets[socketIndex].socketId,
+                    fps = input.samplesPerSecond
+                });
+            }
+
+            Matrix4x4 worldToRoot = rootTransform.worldToLocalMatrix;
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+            {
+                float time = sampleCount == 1
+                    ? 0f
+                    : animationClip.length * sampleIndex / sampleCount;
+
+                UnityEditor.AnimationMode.BeginSampling();
+                UnityEditor.AnimationMode.SampleAnimationClip(rootTransform.gameObject, animationClip, time);
+                UnityEditor.AnimationMode.EndSampling();
+
+                AppendSocketSamples(tracksForThisClip, socketBones, worldToRoot);
+            }
+
+            // The duplicated final frame mirrors the texture's loop-safe row (§4.7), so an
+            // attachment interpolating toward the last sample lands on the loop start rather than
+            // whipping back through the whole clip.
+            if (bakeClip.loopSafe)
+            {
+                UnityEditor.AnimationMode.BeginSampling();
+                UnityEditor.AnimationMode.SampleAnimationClip(rootTransform.gameObject, animationClip, 0f);
+                UnityEditor.AnimationMode.EndSampling();
+                AppendSocketSamples(tracksForThisClip, socketBones, worldToRoot);
+            }
+
+            for (int socketIndex = 0; socketIndex < tracksForThisClip.Count; socketIndex++)
+            {
+                if (tracksForThisClip[socketIndex] != null)
+                {
+                    socketTracks.Add(tracksForThisClip[socketIndex]);
+                }
+            }
+        }
+
+        private static void AppendSocketSamples(
+            List<VatSocketTrack> tracksForThisClip,
+            List<Transform> socketBones,
+            Matrix4x4 worldToRoot)
+        {
+            for (int socketIndex = 0; socketIndex < tracksForThisClip.Count; socketIndex++)
+            {
+                VatSocketTrack track = tracksForThisClip[socketIndex];
+                if (track == null)
+                {
+                    continue;
+                }
+                Matrix4x4 boneToRoot = worldToRoot * socketBones[socketIndex].localToWorldMatrix;
+                track.positions.Add(boneToRoot.GetPosition());
+                track.rotations.Add(boneToRoot.rotation);
+            }
         }
 
         /// <summary>
