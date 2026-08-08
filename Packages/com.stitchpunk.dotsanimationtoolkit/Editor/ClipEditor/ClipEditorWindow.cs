@@ -44,6 +44,12 @@ namespace StitchPunk.AnimationToolkit.Editor
         private PlayheadElement playhead;
         private VisualElement inspectorPane;
         private Label statusLabel;
+        private Image previewImage;
+        private Label previewStatusLabel;
+
+        private ClipPreviewController previewController;
+        private bool previewRegistryDirty;
+        private double previewDirtiedAt;
 
         private ClipSetAsset clipSet;
         private ClipAsset selectedClip;
@@ -75,12 +81,22 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             Undo.undoRedoPerformed += OnUndoRedo;
             EditorApplication.update += OnEditorTick;
+            previewController = new ClipPreviewController();
         }
 
         private void OnDisable()
         {
             Undo.undoRedoPerformed -= OnUndoRedo;
             EditorApplication.update -= OnEditorTick;
+
+            // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
+            // which the GC reclaims. Leaking them survives domain reloads as a growing native
+            // allocation, so disposal here is load-bearing rather than tidy.
+            if (previewController != null)
+            {
+                previewController.Dispose();
+                previewController = null;
+            }
         }
 
         /// <summary>
@@ -92,6 +108,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             selectedKeys.Clear();
             RefreshSerializedClip();
+            MarkPreviewDirty();
             RebuildTimeline();
         }
 
@@ -118,8 +135,13 @@ namespace StitchPunk.AnimationToolkit.Editor
             clipListView.selectionChanged += OnClipSelectionChanged;
             outerSplit.Add(clipListView);
 
+            // Preview sits below the timeline rather than beside it: a pose is read horizontally,
+            // and stealing width from the timeline is what makes long clips unusable.
+            TwoPaneSplitView verticalSplit = new TwoPaneSplitView(1, 230f, TwoPaneSplitViewOrientation.Vertical);
+            outerSplit.Add(verticalSplit);
+
             TwoPaneSplitView innerSplit = new TwoPaneSplitView(1, 260f, TwoPaneSplitViewOrientation.Horizontal);
-            outerSplit.Add(innerSplit);
+            verticalSplit.Add(innerSplit);
             innerSplit.Add(BuildTimelinePane());
 
             inspectorPane = new ScrollView();
@@ -127,7 +149,61 @@ namespace StitchPunk.AnimationToolkit.Editor
             inspectorPane.style.paddingTop = 6f;
             innerSplit.Add(inspectorPane);
 
+            verticalSplit.Add(BuildPreviewPane());
+
             RebuildTimeline();
+        }
+
+        private VisualElement BuildPreviewPane()
+        {
+            VisualElement pane = new VisualElement();
+            pane.style.flexDirection = FlexDirection.Column;
+            pane.style.flexGrow = 1f;
+
+            previewStatusLabel = new Label(string.Empty);
+            previewStatusLabel.style.marginLeft = 6f;
+            previewStatusLabel.style.marginTop = 2f;
+            previewStatusLabel.style.whiteSpace = WhiteSpace.Normal;
+            pane.Add(previewStatusLabel);
+
+            previewImage = new Image { scaleMode = ScaleMode.ScaleToFit };
+            previewImage.style.flexGrow = 1f;
+            previewImage.RegisterCallback<PointerDownEvent>(OnPreviewPointerDown);
+            previewImage.RegisterCallback<PointerMoveEvent>(OnPreviewPointerMove);
+            previewImage.RegisterCallback<PointerUpEvent>(OnPreviewPointerUp);
+            previewImage.RegisterCallback<WheelEvent>(OnPreviewWheel);
+            pane.Add(previewImage);
+
+            return pane;
+        }
+
+        private void OnPreviewPointerDown(PointerDownEvent pointerEvent)
+        {
+            previewImage.CapturePointer(pointerEvent.pointerId);
+        }
+
+        private void OnPreviewPointerMove(PointerMoveEvent moveEvent)
+        {
+            if (!previewImage.HasPointerCapture(moveEvent.pointerId) || previewController == null)
+            {
+                return;
+            }
+            previewController.Orbit(moveEvent.deltaPosition);
+        }
+
+        private void OnPreviewPointerUp(PointerUpEvent upEvent)
+        {
+            previewImage.ReleasePointer(upEvent.pointerId);
+        }
+
+        private void OnPreviewWheel(WheelEvent wheelEvent)
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+            previewController.Zoom(wheelEvent.delta.y * 0.3f);
+            wheelEvent.StopPropagation();
         }
 
         private Toolbar BuildToolbar()
@@ -264,6 +340,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 ? (System.Collections.IList)clipSet.clips
                 : new List<ClipAsset>();
             clipListView.Rebuild();
+
+            if (previewController != null)
+            {
+                previewController.SetClipSet(clipSet);
+            }
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)
@@ -308,11 +389,6 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private void OnEditorTick()
         {
-            if (!isPlaying || selectedClip == null)
-            {
-                return;
-            }
-
             double now = EditorApplication.timeSinceStartup;
             double elapsed = now - lastTickTime;
             if (elapsed < 1.0 / PlaybackHertz)
@@ -321,11 +397,74 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             lastTickTime = now;
 
-            // Advance in seconds then convert, so a clip's duration sets playback speed exactly the
-            // way it does at runtime rather than every clip taking the same wall time.
-            float duration = Mathf.Max(ClipAsset.MinimumDuration, selectedClip.duration);
-            float advanced = playheadTime + (float)elapsed / duration;
-            SetPlayheadTime(advanced - Mathf.Floor(advanced));
+            if (isPlaying && selectedClip != null)
+            {
+                // Advance in seconds then convert, so a clip's duration sets playback speed exactly
+                // the way it does at runtime rather than every clip taking the same wall time.
+                float duration = Mathf.Max(ClipAsset.MinimumDuration, selectedClip.duration);
+                float advanced = playheadTime + (float)elapsed / duration;
+                SetPlayheadTime(advanced - Mathf.Floor(advanced));
+            }
+
+            // The preview updates every tick, not only while playing — scrubbing a paused clip is
+            // the authoring loop this window exists for.
+            UpdatePreview(now);
+        }
+
+        /// <summary>Marks the preview's registry stale; the tick rebuilds it after a short delay.</summary>
+        /// <remarks>
+        /// Debounced rather than immediate because a drag mutates the clip dozens of times a second
+        /// and each rebuild re-canonicalises the whole set. Collapsing a gesture into one rebuild is
+        /// the difference between a live preview and a stuttering one.
+        /// </remarks>
+        private void MarkPreviewDirty()
+        {
+            previewRegistryDirty = true;
+            previewDirtiedAt = EditorApplication.timeSinceStartup;
+        }
+
+        private void UpdatePreview(double now)
+        {
+            if (previewController == null || previewImage == null)
+            {
+                return;
+            }
+
+            if (previewRegistryDirty && now - previewDirtiedAt > 0.25)
+            {
+                previewRegistryDirty = false;
+                previewController.Refresh();
+            }
+
+            previewStatusLabel.text = previewController.StatusMessage;
+
+            if (selectedClip == null || !previewController.HasRegistry)
+            {
+                previewImage.image = null;
+                return;
+            }
+
+            if (!previewController.SamplePose(selectedClip.Id.Value, playheadTime))
+            {
+                previewStatusLabel.text = "Clip is not in the built registry — is it listed in the set?";
+                previewImage.image = null;
+                return;
+            }
+
+            Rect previewRect = previewImage.contentRect;
+            if (float.IsNaN(previewRect.width) || previewRect.width < 1f || previewRect.height < 1f)
+            {
+                // Layout has not run yet; rendering into a zero rect throws inside the utility.
+                return;
+            }
+
+            Texture renderedTexture = previewController.Render(
+                Mathf.RoundToInt(previewRect.width), Mathf.RoundToInt(previewRect.height));
+            if (renderedTexture != null)
+            {
+                previewImage.image = renderedTexture;
+                previewImage.MarkDirtyRepaint();
+            }
         }
 
         private void SetPlayheadTime(float normalizedTime)
@@ -626,6 +765,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             // Ctrl+Z rather than dozens of them.
             Undo.CollapseUndoOperations(gestureUndoGroup);
             RefreshSerializedClip();
+            MarkPreviewDirty();
         }
 
         // -------------------------------------------------------------------------------------

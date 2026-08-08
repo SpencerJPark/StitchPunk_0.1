@@ -165,7 +165,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                 flavor = (VatFlavor)flavorField.value,
                 samplesPerSecond = sampleRateField.value,
                 useFullPrecision = fullPrecisionField.value,
-                clips = bakeClips
+                clips = bakeClips,
+                sockets = CollectBoneSockets(clipSet.rig)
             };
 
             VatBakeResult bakeResult;
@@ -173,6 +174,18 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 ReportFailure(bakeResult.message);
                 return;
+            }
+
+            // Surfaced as a warning, not a failure: the textures are valid and usable, but every
+            // listed socket would sit at the actor origin, which is not something to discover later
+            // by watching a sword hover at a character's feet.
+            if (bakeResult.unresolvedSocketBones != null && bakeResult.unresolvedSocketBones.Count > 0)
+            {
+                Debug.LogWarning(
+                    "VAT bake could not resolve " + bakeResult.unresolvedSocketBones.Count.ToString()
+                    + " socket bone(s) in the source hierarchy: "
+                    + string.Join(", ", bakeResult.unresolvedSocketBones)
+                    + ". Check the bone names on the rig's socket rows.");
             }
 
             string setPath = SaveResult(clipSet, bakeResult, bakeInput.flavor);
@@ -246,6 +259,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             textureSet.rowsPerFrame = bakeResult.rowsPerFrame;
             textureSet.sourceHash = bakeResult.sourceHash;
             textureSet.clipRanges = bakeResult.clipRanges;
+            textureSet.socketTracks = bakeResult.socketTracks;
 
             string setPath = outputFolder + "/" + baseName + "Set.asset";
             CreateOrReplaceAsset(textureSet, setPath);
@@ -281,6 +295,37 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             AppendLog(detail.ToString());
+        }
+
+        /// <summary>
+        /// Gathers the rig's bone sockets for the bake.
+        /// </summary>
+        /// <remarks>
+        /// Rig-target sockets are deliberately excluded: their motion is the part's own transform,
+        /// computed live every frame by the sampler, so baking it would store a second copy that
+        /// could only ever go stale.
+        /// </remarks>
+        private static List<VatBakeSocket> CollectBoneSockets(RigAsset rig)
+        {
+            List<VatBakeSocket> boneSockets = new List<VatBakeSocket>();
+            if (rig == null || rig.sockets == null)
+            {
+                return boneSockets;
+            }
+            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = rig.sockets[socketIndex];
+                if (socket == null || socket.mode != SocketAttachMode.Bone || !socket.Id.IsValid)
+                {
+                    continue;
+                }
+                boneSockets.Add(new VatBakeSocket
+                {
+                    socketId = socket.Id.Value,
+                    boneName = socket.boneName
+                });
+            }
+            return boneSockets;
         }
 
         private void ReportFailure(string message)

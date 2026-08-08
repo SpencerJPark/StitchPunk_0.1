@@ -48,6 +48,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public MirrorPair[] mirrorPairs = Array.Empty<MirrorPair>();
 
         /// <summary>
+        /// Attachment points on this rig. Empty for rigs nothing attaches to — a rig without
+        /// sockets bakes no socket blob and its actors carry no socket component.
+        /// </summary>
+        public List<SocketDefinition> sockets = new List<SocketDefinition>();
+
+        /// <summary>
         /// This rig's stable 64-bit identity (architecture section 3.4). Assigned once when the
         /// asset is created and never changed except through the editor's explicit remap tooling.
         /// </summary>
@@ -83,6 +89,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 if (targetDefinition.stableId == 0u)
                 {
                     targetDefinition.stableId = StableIdUtility.NewTargetStableId();
+                    hasUnpersistedStableId = true;
+                }
+            }
+
+            if (sockets == null)
+            {
+                return;
+            }
+            for (int socketIndex = 0; socketIndex < sockets.Count; socketIndex++)
+            {
+                SocketDefinition socketDefinition = sockets[socketIndex];
+                if (socketDefinition == null)
+                {
+                    continue;
+                }
+                // Sockets draw from the same 32-bit id space as targets. They are looked up in
+                // separate arrays, so a collision across the two kinds is harmless, and one
+                // generator is one fewer thing to keep in step.
+                if (socketDefinition.stableId == 0u)
+                {
+                    socketDefinition.stableId = StableIdUtility.NewTargetStableId();
                     hasUnpersistedStableId = true;
                 }
             }
@@ -218,6 +245,61 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// module reads it yet, so an unused-field search will not find a consumer until then.
         /// </summary>
         public bool defaultActive;
+    }
+
+    /// <summary>
+    /// One attachment point on a rig: a named place other entities can ride.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A socket either follows a <see cref="SocketAttachMode.RigTarget"/> — a part whose transform
+    /// the sampler already computes every frame, so nothing needs baking — or a
+    /// <see cref="SocketAttachMode.Bone"/> of the VAT source rig, whose motion exists only inside a
+    /// texture at runtime and so is sampled into the socket blob at bake time.
+    /// </para>
+    /// <para>
+    /// <strong>Bones are named, targets are not.</strong> A bone socket stores
+    /// <see cref="boneName"/> because the bone lives in an imported hierarchy this package does not
+    /// own and cannot assign ids to — the name is the only handle Unity gives us. Renaming a bone
+    /// in the DCC tool therefore breaks the binding, which is why the bake reports an unresolved
+    /// bone rather than silently baking a socket that never moves.
+    /// </para>
+    /// </remarks>
+    [Serializable]
+    public sealed class SocketDefinition
+    {
+        /// <summary>Cosmetic label; socket identity is <see cref="Id"/>, never this name.</summary>
+        public string displayName = string.Empty;
+
+        [SerializeField] internal uint stableId;
+
+        /// <summary>Whether this socket follows a rig target or an imported bone.</summary>
+        public SocketAttachMode mode = SocketAttachMode.RigTarget;
+
+        /// <summary>Stable id of the followed target, for <see cref="SocketAttachMode.RigTarget"/>.</summary>
+        public uint targetId;
+
+        /// <summary>Name of the followed bone, for <see cref="SocketAttachMode.Bone"/>.</summary>
+        public string boneName = string.Empty;
+
+        /// <summary>
+        /// Which playback layer drives a bone socket's time, mirroring the VAT part contract. A
+        /// hand and a cape may follow different layers, so this is per socket. Ignored by
+        /// rig-target sockets, which follow their part whatever drove it.
+        /// </summary>
+        [Min(0)] public int layerIndex;
+
+        /// <summary>Offset from the followed target or bone, in its local space.</summary>
+        public Vector3 localPosition = Vector3.zero;
+
+        /// <summary>Rotation offset from the followed target or bone, in degrees.</summary>
+        public Vector3 localEulerAngles = Vector3.zero;
+
+        /// <summary>This socket's stable 32-bit identity. Unique within the owning rig.</summary>
+        public SocketId Id
+        {
+            get { return new SocketId(stableId); }
+        }
     }
 
     /// <summary>

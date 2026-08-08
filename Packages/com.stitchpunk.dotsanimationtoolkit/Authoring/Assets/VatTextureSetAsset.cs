@@ -60,6 +60,17 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public List<VatClipRange> clipRanges = new List<VatClipRange>();
 
         /// <summary>
+        /// Bone-socket motion captured during the same bake pass that produced the textures.
+        /// </summary>
+        /// <remarks>
+        /// Stored here rather than on the rig because it is <em>baked</em> data keyed by clip, with
+        /// exactly the lifetime and staleness rules the textures have: rebake the clips and these
+        /// must be rebuilt with them. Putting sampled motion on the rig would let the two drift, so
+        /// a sword could ride a hand pose that no longer matches the mesh.
+        /// </remarks>
+        public List<VatSocketTrack> socketTracks = new List<VatSocketTrack>();
+
+        /// <summary>
         /// Hash of the sources this set was baked from (source mesh, clips, settings). A mismatch
         /// against a freshly recomputed hash means the bake is stale (validation rule V08).
         /// </summary>
@@ -157,6 +168,34 @@ namespace StitchPunk.AnimationToolkit.Authoring
         {
             EnsureStableIds();
         }
+    }
+
+    /// <summary>
+    /// One bone socket's baked motion for one clip, in actor-root space.
+    /// </summary>
+    /// <remarks>
+    /// Positions and rotations are parallel lists rather than a list of pairs: Unity serializes a
+    /// list of primitives compactly and a list of small structs verbosely, and a long clip's socket
+    /// track is thousands of entries. The two are written together and always have equal length —
+    /// the builder rejects the track if they do not.
+    /// </remarks>
+    [Serializable]
+    public sealed class VatSocketTrack
+    {
+        /// <summary>The clip this motion belongs to.</summary>
+        public ulong clipId;
+
+        /// <summary>The socket, by stable id.</summary>
+        public uint socketId;
+
+        /// <summary>Sample rate; matches the clip's baked VAT rate.</summary>
+        public float fps = 30f;
+
+        /// <summary>Per-frame positions relative to the actor root.</summary>
+        public List<Vector3> positions = new List<Vector3>();
+
+        /// <summary>Per-frame rotations relative to the actor root.</summary>
+        public List<Quaternion> rotations = new List<Quaternion>();
     }
 
     /// <summary>

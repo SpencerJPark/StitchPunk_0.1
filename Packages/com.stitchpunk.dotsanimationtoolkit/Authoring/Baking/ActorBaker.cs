@@ -73,6 +73,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
             Entity actorEntity = GetEntity(TransformUsageFlags.Dynamic);
 
             AddComponent(actorEntity, new ClipRegistry { Value = registry });
+            AddSocketRegistry(actorEntity, rig, vatTextures);
             AddPlaybackLayers(actorEntity, authoring, rig, registry);
             AddBuffer<AnimationCommand>(actorEntity);
             AddComponent<AnimationCommandPending>(actorEntity);
@@ -193,6 +194,47 @@ namespace StitchPunk.AnimationToolkit.Authoring
         // -----------------------------------------------------------------------------------
         // Registry blob: the canonical probe / store-hit / build / register pattern (section 4.5).
         // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Adds the socket registry, when the rig declares sockets.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Absent by design on rigs without sockets, so <c>SocketResolveSystem</c>'s query excludes
+        /// them entirely rather than filtering them every frame — the same opt-in-component shape
+        /// the rest of the toolkit uses.
+        /// </para>
+        /// <para>
+        /// The blob is keyed on the rig and the texture set together. Socket motion is baked from
+        /// the textures' source, so a rebake that moves a hand must produce a different key or
+        /// every actor would keep the stale attachment path from the store.
+        /// </para>
+        /// </remarks>
+        private void AddSocketRegistry(Entity actorEntity, RigAsset rig, VatTextureSetAsset vatTextures)
+        {
+            if (!SocketRegistryBuilder.HasSockets(rig))
+            {
+                return;
+            }
+
+            uint textureSetHash = vatTextures != null ? (uint)vatTextures.SetKey : 0u;
+            Unity.Entities.Hash128 socketHash = new Unity.Entities.Hash128(
+                (uint)(rig.StableId & 0xFFFFFFFFUL),
+                (uint)(rig.StableId >> 32),
+                textureSetHash,
+                (uint)SocketRegistryBuilder.SchemaVersion);
+
+            if (!TryGetBlobAssetReference(socketHash, out BlobAssetReference<SocketRegistryBlob> socketRegistry))
+            {
+                if (!SocketRegistryBuilder.TryBuild(rig, vatTextures, out socketRegistry))
+                {
+                    return;
+                }
+                AddBlobAssetWithCustomHash(ref socketRegistry, socketHash);
+            }
+
+            AddComponent(actorEntity, new SocketRegistry { Value = socketRegistry });
+        }
 
         private bool TryAcquireRegistry(
             ActorAuthoring authoring,
