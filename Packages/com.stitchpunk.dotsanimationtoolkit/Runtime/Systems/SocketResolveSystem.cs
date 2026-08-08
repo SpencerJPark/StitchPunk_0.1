@@ -99,7 +99,7 @@ namespace StitchPunk.AnimationToolkit
             }
 
             ref SocketDefinitionBlob socket = ref registry.sockets[socketIndex];
-            float4x4 actorToWorld = localToWorldLookup[actorEntity].Value;
+            LocalToWorld actorLocalToWorld = localToWorldLookup[actorEntity];
 
             float3 socketLocalPosition = float3.zero;
             quaternion socketLocalRotation = quaternion.identity;
@@ -133,9 +133,10 @@ namespace StitchPunk.AnimationToolkit
             float3 actorSpacePosition = socketLocalPosition + math.mul(socketLocalRotation, offsetInSocket);
             quaternion actorSpaceRotation = math.mul(socketLocalRotation, socket.localRotation);
 
-            float3 worldPosition = math.transform(actorToWorld, actorSpacePosition);
-            quaternion worldRotation = math.mul(
-                new quaternion(math.orthonormalize(new float3x3(actorToWorld))), actorSpaceRotation);
+            // LocalToWorld.Rotation orthonormalizes the basis for us, so a non-uniformly scaled
+            // actor still yields a pure rotation rather than one that shears the attachment.
+            float3 worldPosition = math.transform(actorLocalToWorld.Value, actorSpacePosition);
+            quaternion worldRotation = math.mul(actorLocalToWorld.Rotation, actorSpaceRotation);
 
             localTransform.Position = worldPosition;
             localTransform.Rotation = worldRotation;
