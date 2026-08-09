@@ -188,7 +188,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     + ". Check the bone names on the rig's socket rows.");
             }
 
-            string setPath = SaveResult(clipSet, bakeResult, bakeInput.flavor);
+            string setPath = SaveResult(clipSet, bakeResult, bakeInput.flavor, renderer);
             ReportSuccess(bakeResult, bakeClips, setPath);
         }
 
@@ -226,7 +226,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             return bakeClips;
         }
 
-        private string SaveResult(ClipSetAsset clipSet, VatBakeResult bakeResult, VatFlavor flavor)
+        private string SaveResult(
+            ClipSetAsset clipSet,
+            VatBakeResult bakeResult,
+            VatFlavor flavor,
+            SkinnedMeshRenderer sourceRenderer)
         {
             string outputFolder = ResolveOutputFolder(clipSet);
             EnsureFolderPath(outputFolder);
@@ -260,6 +264,28 @@ namespace StitchPunk.AnimationToolkit.Editor
             textureSet.sourceHash = bakeResult.sourceHash;
             textureSet.clipRanges = bakeResult.clipRanges;
             textureSet.socketTracks = bakeResult.socketTracks;
+
+            // Bone flavour only: a vertex-flavour shader reads baked positions and never touches
+            // bone influences, so packing them would be dead weight in the vertex stream.
+            if (isBoneFlavor)
+            {
+                Mesh runtimeMesh;
+                string meshFailureMessage;
+                if (VatMeshPreparer.TryCreateRuntimeMesh(sourceRenderer, out runtimeMesh, out meshFailureMessage))
+                {
+                    CreateOrReplaceAsset(runtimeMesh, outputFolder + "/" + baseName + "RuntimeMesh.asset");
+                    textureSet.runtimeMesh = runtimeMesh;
+                }
+                else
+                {
+                    // Warned rather than failed: the textures are valid and a host may already have
+                    // its own prepared mesh. But a null runtimeMesh renders as a motionless clump
+                    // rather than an error, so silence here would be the worst option.
+                    Debug.LogWarning(
+                        "VAT bake produced no runtime mesh: " + meshFailureMessage +
+                        " The shader needs bone influences in UV1 — see Docs/AnimationToolkit/shader-contract.md.");
+                }
+            }
 
             string setPath = outputFolder + "/" + baseName + "Set.asset";
             CreateOrReplaceAsset(textureSet, setPath);
