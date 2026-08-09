@@ -5,13 +5,79 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0]
+
+### Added — attachment, authoring surface and packaging
+
+- **Sockets.** Named attachment points that resolve to a world transform every
+  frame. `RigTarget` sockets follow a part and need no baked data — the sampler
+  already computes that transform. `Bone` sockets follow a bone of the VAT
+  source rig, whose motion exists only inside a texture at runtime and so is
+  sampled into `SocketRegistryBlob` at bake time.
+  - Sockets live in their **own blob**, not `ClipRegistryBlob`. Folding them in
+    would bump the clip schema and invalidate its golden content hash for every
+    project, including those that never attach anything.
+  - Baked samples rather than a second VAT texture: an attachment is an entity
+    with a `LocalTransform`, so the consumer is the CPU, and reading a texture
+    from the CPU means a readback that is slow, async, and unavailable when the
+    texture is not marked readable in a build.
+  - Attachments are transform **roots, not children** — the resolve system
+    writes a world transform into `LocalTransform`, and parenting as well would
+    apply the actor matrix twice.
+- **Clip editor preview** (§7.3). A GameObject mirror posed by `ClipSampler` —
+  the runtime's own functions — out of a registry built by the baker's own
+  builder, so it cannot drift from what ships. Doubles as a validation surface:
+  a set that fails to build shows the reason instead of rendering nothing.
+  Rig-target sockets draw as markers so offsets are authorable rather than
+  guesswork.
+- **Clip editor transport, ruler, playhead, keyboard map, copy/paste and
+  context inspector.** Undo is scoped per gesture, so one drag is one Ctrl+Z.
+- **`FacingResolver`** — amendment A38's direction tables. Every direction set
+  is closed under mirroring, so a facing is served by an east-side clip plus a
+  mirror flag; a four-direction character costs two locomotion clips per state
+  rather than four.
+- **Mirror Clip utility** — duplicate a clip and flip it, for facings that must
+  deviate from a pure reflection. Never combine with runtime `mirrorX` on the
+  same facing: that is a double reflection, which is no reflection at all.
+- **Inspectors** for `RigAsset` (with socket authoring and bone-name dropdowns),
+  `ClipSetAsset` (clip roster, validation column, clip-id constant generation),
+  `VatTextureSetAsset` and `ActorAuthoring`.
+- **`VatMeshPreparer`** and its wiring into the bake window. Closes a real hole:
+  `VatTextureSetAsset.runtimeMesh` was a field nothing in the package ever
+  wrote, so a bake produced textures and no usable mesh. A mesh without bone
+  influences in `UV1` does not error — it renders as a motionless clump.
+- **`Docs/AnimationToolkit/shader-contract.md`** — the integration contract for
+  the four standalone HLSL includes, so they are usable by someone other than
+  their author.
+- **Quick Start sample**, as a generator rather than shipped assets: committed
+  `.asset` files carry baked-in stable ids and could collide with a project
+  already using the package.
+- **Disk round-trip test tier** (§11.1), closing amendment A36's debt — the
+  serializer is part of the authoring contract, and a suite that builds every
+  input in memory has no coverage of it.
+
+### Fixed
+
+- `FacingResolver.FromMovement` took a `float2` by value on a `[BurstCompile]`
+  static. A Burst-compiled static is an external entry point and cannot take a
+  struct by value, which failed Burst compilation for the entire Runtime
+  assembly rather than just that method.
+
+### Known limitations
+
+- A clip may carry only **one** VAT source, so a torso and a cape cannot come
+  from different source animations in the same clip. Note that hybrid
+  flipbook + VAT on one actor *does* already work — VAT and sprite parts
+  compose per part.
+- Sockets, the clip preview and the VAT runtime-mesh step have not been
+  exercised by PlayMode integration tests.
+
 ## [Unreleased]
 
 Phase C build steps C4 through C7 (core), reconstructed from
 `Docs/AnimationToolkit/` and the package's own shipped tree rather than from
 dated releases — see the note at the end of this section for what is and is
-not verified. `package.json` still reports `0.4.0`; these changes have not
-been version-bumped.
+not verified.
 
 ### Added — C4: the systems slice
 
