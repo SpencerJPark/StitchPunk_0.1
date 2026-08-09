@@ -56,7 +56,15 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Texture rows occupied by one animation frame; 1 for the bone flavor.</summary>
         public int rowsPerFrame = 1;
 
-        /// <summary>One frame range per baked clip, keyed by the clip's stable id.</summary>
+        /// <summary>
+        /// One frame range per baked (clip, target) pair (C10). Keyed by <see cref="VatClipRange.clipId"/>
+        /// plus <see cref="VatClipRange.targetId"/> — a clip with only an untargeted
+        /// <c>ClipAsset.vatSource</c> bakes exactly one entry here with <c>targetId == 0</c>; a clip
+        /// whose <c>ClipAsset.vatTracks</c> names additional targets bakes one further entry per
+        /// track, each occupying its own frame block in the same texture. See
+        /// <see cref="TryGetTrackRange"/> for the per-target resolution this enables and
+        /// <see cref="TryGetClipRange"/> for the pre-C10 clip-only lookup this list still supports.
+        /// </summary>
         public List<VatClipRange> clipRanges = new List<VatClipRange>();
 
         /// <summary>
@@ -95,8 +103,16 @@ namespace StitchPunk.AnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Finds the frame range baked for a given clip.
+        /// Finds a frame range baked for a given clip, ignoring which target it belongs to.
         /// </summary>
+        /// <remarks>
+        /// Pre-C10 lookup, kept for the single-source case: when a clip bakes only its untargeted
+        /// <c>ClipAsset.vatSource</c>, exactly one range exists for it and clip id alone identifies
+        /// it unambiguously. Once a clip also bakes <c>ClipAsset.vatTracks</c> entries this method's
+        /// "first match in list order" behaviour is no longer a meaningful choice among them — call
+        /// <see cref="TryGetTrackRange"/> instead, which resolves per target and falls back to the
+        /// untargeted range the same way the runtime does.
+        /// </remarks>
         /// <param name="clipId">Stable id of the clip whose range is wanted.</param>
         /// <param name="clipRange">The matching range on success; <c>default</c> on failure.</param>
         /// <returns>True when this set holds a range for <paramref name="clipId"/>.</returns>
@@ -112,6 +128,66 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         return true;
                     }
                 }
+            }
+            clipRange = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Finds the frame range a specific VAT part should play for a clip (C10): the range baked
+        /// for <paramref name="targetId"/> when one exists, otherwise the clip's untargeted range
+        /// (<see cref="VatClipRange.targetId"/> <c>== 0</c>).
+        /// </summary>
+        /// <remarks>
+        /// This is the authoritative per-target resolution — <see cref="ClipRegistryBuilder"/> calls
+        /// it while filling <c>ClipBlob.vatTargetRanges</c>, and the fallback it performs here is
+        /// exactly the fallback <c>VatMaterialSystem.WriteVatPropertiesJob</c> performs again at
+        /// runtime against the baked blob. Keeping both resolutions the same two-step rule — exact
+        /// target match, else the untargeted range — is what lets a VAT part with no dedicated track
+        /// keep resolving <c>ClipAsset.vatSource</c> unchanged after another part on the same actor
+        /// gains one.
+        /// </remarks>
+        /// <param name="clipId">Stable id of the clip whose range is wanted.</param>
+        /// <param name="targetId">
+        /// Stable id of the target the requesting VAT part is bound to. Pass 0 to ask for the
+        /// untargeted range directly (equivalent to skipping the exact-match step).
+        /// </param>
+        /// <param name="clipRange">The resolved range on success; <c>default</c> on failure.</param>
+        /// <returns>
+        /// True when either an exact (clip, target) range or a clip-level untargeted range exists.
+        /// False when this clip has no baked VAT data at all.
+        /// </returns>
+        public bool TryGetTrackRange(ulong clipId, uint targetId, out VatClipRange clipRange)
+        {
+            VatClipRange untargetedRange = default;
+            bool hasUntargetedRange = false;
+
+            if (clipRanges != null)
+            {
+                for (int rangeIndex = 0; rangeIndex < clipRanges.Count; rangeIndex++)
+                {
+                    VatClipRange candidate = clipRanges[rangeIndex];
+                    if (candidate.clipId != clipId)
+                    {
+                        continue;
+                    }
+                    if (targetId != 0u && candidate.targetId == targetId)
+                    {
+                        clipRange = candidate;
+                        return true;
+                    }
+                    if (candidate.targetId == 0u && !hasUntargetedRange)
+                    {
+                        untargetedRange = candidate;
+                        hasUntargetedRange = true;
+                    }
+                }
+            }
+
+            if (hasUntargetedRange)
+            {
+                clipRange = untargetedRange;
+                return true;
             }
             clipRange = default;
             return false;
@@ -199,13 +275,22 @@ namespace StitchPunk.AnimationToolkit.Authoring
     }
 
     /// <summary>
-    /// The frame range one clip occupies in a baked VAT texture (architecture section 3.3).
+    /// The frame range one (clip, target) pair occupies in a baked VAT texture (architecture
+    /// section 3.3; target scoping added C10).
     /// </summary>
     [Serializable]
     public struct VatClipRange
     {
         /// <summary>Stable id of the <see cref="ClipAsset"/> this range belongs to.</summary>
         public ulong clipId;
+
+        /// <summary>
+        /// Stable id of the rig target this range is scoped to, or 0 for the clip's untargeted
+        /// range baked from <c>ClipAsset.vatSource</c>. Defaults to 0 on any range that predates
+        /// C10, so a texture set baked before multi-source VAT tracks existed reads back exactly as
+        /// the clip-wide range it always was — no migration step touches this field.
+        /// </summary>
+        public uint targetId;
 
         /// <summary>Index of this clip's first frame in the texture's global frame numbering.</summary>
         public int frameStart;

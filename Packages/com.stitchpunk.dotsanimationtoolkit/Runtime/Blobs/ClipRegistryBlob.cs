@@ -97,14 +97,36 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Event markers sorted by <c>normalizedTime</c> with stable original-order tie-break.</summary>
         public BlobArray<EventMarkerBlob> events;
 
-        /// <summary>First global frame index of this clip's VAT range, or −1 when the clip has no VAT range.</summary>
+        /// <summary>
+        /// First global frame index of this clip's <em>untargeted</em> VAT range, or −1 when the
+        /// clip has no VAT range at all. Baked from <c>ClipAsset.vatSource</c> — the range a VAT
+        /// part resolves when <see cref="vatTargetRanges"/> holds no entry for its target index.
+        /// </summary>
         public int vatFrameStart;
 
-        /// <summary>Number of VAT frames baked for this clip (includes the duplicated loop-safe frame).</summary>
+        /// <summary>
+        /// Number of VAT frames baked for the untargeted range (includes the duplicated loop-safe
+        /// frame). See <see cref="vatFrameStart"/>.
+        /// </summary>
         public int vatFrameCount;
 
-        /// <summary>Sample rate the clip's VAT frames were baked at.</summary>
+        /// <summary>Sample rate the untargeted VAT range was baked at. See <see cref="vatFrameStart"/>.</summary>
         public float vatFps;
+
+        /// <summary>
+        /// Per-target VAT frame range overrides, baked from <c>ClipAsset.vatTracks</c> (C10). Sorted
+        /// by ascending <c>targetIndex</c> (canonical order, architecture section 4.5); empty for
+        /// every clip that predates multi-source VAT tracks or simply does not use them.
+        /// </summary>
+        /// <remarks>
+        /// A VAT part resolves its frame range by first scanning this array for its own dense target
+        /// index and, only when no entry matches, falling back to
+        /// <see cref="vatFrameStart"/>/<see cref="vatFrameCount"/>/<see cref="vatFps"/> — the same
+        /// two-step rule <c>VatTextureSetAsset.TryGetTrackRange</c> uses at bake time, so a part with
+        /// no dedicated track keeps resolving the clip's shared range exactly as it did before this
+        /// array existed. See <c>VatMaterialSystem.WriteVatPropertiesJob.TryResolveGlobalFrame</c>.
+        /// </remarks>
+        public BlobArray<VatTrackRangeBlob> vatTargetRanges;
 
         /// <summary>
         /// Conservative bounds for this clip in <em>offset space</em> (section 4.6), as an
