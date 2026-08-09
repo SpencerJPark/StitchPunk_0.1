@@ -47,7 +47,7 @@ ActorAuthoring (prefab root) ── children ──> RigTargetAuthoring parts (q
 Identity throughout is a **stable, random, folded-GUID id** — never a name, a
 list position, or an enum ordinal — so renaming, reordering, or moving an
 asset never breaks a reference. See the rig/clip/set source files under
-`Authoring/Assets/` for the exact fields.
+the package's `Authoring` folder for the exact fields.
 
 ## Choosing a technique
 

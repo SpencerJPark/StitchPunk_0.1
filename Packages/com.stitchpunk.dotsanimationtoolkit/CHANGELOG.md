@@ -102,8 +102,8 @@ not verified.
   (`AnimLod`-gated), distance-based sampling-rate/freeze policy with three
   levels.
 - `ActorBillboardSystem` and the `ActorBillboard` component.
-- A re-runnable smoke scene, `Assets/Scenes/AnimationToolkitSmoke.unity` (built
-  by **Tools ▸ DOTS Animation Toolkit ▸ Build Smoke Scene**), used as the
+- A re-runnable smoke scene, generated into the host project by
+  **Tools ▸ DOTS Animation Toolkit ▸ Build Smoke Scene**, used as the
   human-verification step for on-screen clip playback.
 
 ### Added — C5/C6: shaders and VAT
@@ -144,8 +144,8 @@ not verified.
 ### Added, not yet compile/test-verified in this environment
 
 The following were written in a development session without a connected
-Unity Editor, per `Assets/_Vault/Tasks/Claude/DOTS_Animation_Toolkit_Handoff.md`
-("C8 — built blind"). They are present in the shipped source tree but have not
+Unity Editor (see the project's own toolkit handoff note, "C8 — built blind").
+They are present in the shipped source tree but have not
 been through this project's own compile-and-test gate as of this entry — do
 not treat them as confirmed working until a session reports a clean compile
 and a green test run against them:
