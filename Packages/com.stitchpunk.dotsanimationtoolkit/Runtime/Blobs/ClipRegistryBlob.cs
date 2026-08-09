@@ -264,4 +264,28 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Bone count (bone flavor) or vertex count (vertex flavor).</summary>
         public int boneOrVertexCount;
     }
+
+    /// <summary>
+    /// One target-scoped VAT frame range baked from a <c>ClipAsset.vatTracks</c> entry (C10),
+    /// mirroring <c>VatClipRange</c> minus the clip id — the clip is already known from whichever
+    /// <see cref="ClipBlob.vatTargetRanges"/> array this element sits in.
+    /// </summary>
+    public struct VatTrackRangeBlob
+    {
+        /// <summary>
+        /// Dense target index this range overrides (position in
+        /// <see cref="ClipRegistryBlob.sortedTargetIds"/>), matching <see cref="RigPartBinding.targetIndex"/>
+        /// of the VAT part it drives.
+        /// </summary>
+        public int targetIndex;
+
+        /// <summary>Index of this range's first frame in the texture's global frame numbering.</summary>
+        public int frameStart;
+
+        /// <summary>Number of frames this range occupies, including the duplicated loop-safe frame.</summary>
+        public int frameCount;
+
+        /// <summary>The rate these frames were sampled at.</summary>
+        public float fps;
+    }
 }

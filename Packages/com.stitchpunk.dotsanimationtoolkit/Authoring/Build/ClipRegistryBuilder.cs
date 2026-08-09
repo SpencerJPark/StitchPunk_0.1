@@ -54,8 +54,24 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <see cref="ClipRegistryBlob.sortedTargetIds"/>,
         /// <see cref="ClipRegistryBlob.targetBoundsExtents"/>, every
         /// <see cref="VatTextureInfoBlob"/> field and <see cref="ClipBlob.debugName"/>.
+        /// <para>
+        /// Version 3: <c>VatClipRange</c> gained <c>targetId</c> and <see cref="ClipBlob"/> gained
+        /// the (then-unfilled) <see cref="ClipBlob.vatTargetRanges"/> array, in preparation for
+        /// multi-source VAT tracks (C10).
+        /// </para>
+        /// <para>
+        /// Version 4 (C10, multi-source VAT tracks): <see cref="ClipBlob.vatTargetRanges"/> is
+        /// actually filled from <c>ClipAsset.vatTracks</c> via the exact (clip, target) ranges
+        /// <c>VatTextureSetAsset.clipRanges</c> holds, and the canonical hash stream widened to cover
+        /// it — see <see cref="HashClip"/>. A registry baked under version 3 or earlier always has an
+        /// empty <see cref="ClipBlob.vatTargetRanges"/> regardless of what a v4-and-later bake of the
+        /// same assets would produce, so the bump is required: the same source bytes now produce
+        /// different blob content depending on which builder version wrote them, and a stale
+        /// version-3 blob must never be mistaken for a version-4 one that would resolve differently
+        /// at runtime for any actor using <c>ClipAsset.vatTracks</c>.
+        /// </para>
         /// </remarks>
-        public const int SchemaVersion = 3;
+        public const int SchemaVersion = 4;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -492,6 +508,8 @@ namespace StitchPunk.AnimationToolkit.Authoring
             clipBlob.vatFrameCount = hasVatRange ? bakedRange.frameCount : 0;
             clipBlob.vatFps = hasVatRange ? bakedRange.fps : 0f;
 
+            FillVatTargetRanges(ref builder, ref clipBlob, clip, vatTextures, denseTargetIndexById);
+
             clipBlob.offsetBounds = ComputeOffsetBounds(
                 transformTrackEntries,
                 targetBoundsExtents,
@@ -695,6 +713,101 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     floatParam = authoredMarker.floatParam
                 };
             }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Per-target VAT ranges (C10, multi-source VAT tracks).
+        // -----------------------------------------------------------------------------------
+
+        private struct VatTargetRangeEntry
+        {
+            public int denseTargetIndex;
+            public int authoringIndex;
+            public VatClipRange range;
+        }
+
+        /// <summary>
+        /// Fills <see cref="ClipBlob.vatTargetRanges"/> from every exact (clip, target) range
+        /// <paramref name="vatTextures"/> holds for <paramref name="clip"/> — i.e. every entry of
+        /// <c>VatTextureSetAsset.clipRanges</c> whose <c>clipId</c> matches this clip and whose
+        /// <c>targetId</c> is non-zero.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The baked texture set, not <see cref="ClipAsset.vatTracks"/>, is the source of truth
+        /// here — exactly as <see cref="FillClip"/> already resolves the untargeted range through
+        /// <c>VatTextureSetAsset.TryGetClipRange</c> rather than reading
+        /// <c>ClipAsset.vatSource</c> directly. <c>vatTracks</c> is authoring <em>intent</em> (what
+        /// the next bake should sample); <c>vatTextures.clipRanges</c> is what was actually baked.
+        /// Validation rule V07 (see <c>ClipValidation.HasExactVatTrackRange</c>) already guarantees
+        /// that every track with a source clip has a matching exact range by the time
+        /// <see cref="Build"/> reaches here, so reading the baked ranges cannot silently drop a
+        /// track — it can only ever add coverage validation did not require (there is none, because
+        /// a stray range with no authoring track is harmless: nothing resolves it unless some part's
+        /// dense target index happens to match, and if it does, that is exactly the range that part
+        /// should play).
+        /// </para>
+        /// <para>
+        /// A range naming a target id the current rig does not declare (stale data left over after a
+        /// target was removed from the rig) is skipped rather than thrown on: validation would have
+        /// already reported this rig/clip combination as broken elsewhere, and a defensive skip here
+        /// keeps <see cref="Build"/>'s bounds-checked <c>Dictionary</c> lookup from being the thing
+        /// that turns a stale texture set into a hard failure instead of a validation message.
+        /// </para>
+        /// </remarks>
+        private static void FillVatTargetRanges(
+            ref BlobBuilder builder,
+            ref ClipBlob clipBlob,
+            ClipAsset clip,
+            VatTextureSetAsset vatTextures,
+            Dictionary<uint, int> denseTargetIndexById)
+        {
+            List<VatTargetRangeEntry> entries = new List<VatTargetRangeEntry>();
+            if (vatTextures != null && vatTextures.clipRanges != null)
+            {
+                for (int rangeIndex = 0; rangeIndex < vatTextures.clipRanges.Count; rangeIndex++)
+                {
+                    VatClipRange candidate = vatTextures.clipRanges[rangeIndex];
+                    if (candidate.clipId != clip.stableId || candidate.targetId == 0u)
+                    {
+                        continue;
+                    }
+
+                    int denseTargetIndex;
+                    if (!denseTargetIndexById.TryGetValue(candidate.targetId, out denseTargetIndex))
+                    {
+                        continue;
+                    }
+
+                    entries.Add(new VatTargetRangeEntry
+                    {
+                        denseTargetIndex = denseTargetIndex,
+                        authoringIndex = rangeIndex,
+                        range = candidate
+                    });
+                }
+            }
+            entries.Sort(CompareVatTargetRangeEntries);
+
+            BlobBuilderArray<VatTrackRangeBlob> rangeArray =
+                builder.Allocate(ref clipBlob.vatTargetRanges, entries.Count);
+            for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                VatTargetRangeEntry entry = entries[entryIndex];
+                rangeArray[entryIndex] = new VatTrackRangeBlob
+                {
+                    targetIndex = entry.denseTargetIndex,
+                    frameStart = entry.range.frameStart,
+                    frameCount = entry.range.frameCount,
+                    fps = entry.range.fps
+                };
+            }
+        }
+
+        private static int CompareVatTargetRangeEntries(VatTargetRangeEntry left, VatTargetRangeEntry right)
+        {
+            int targetOrder = left.denseTargetIndex.CompareTo(right.denseTargetIndex);
+            return targetOrder != 0 ? targetOrder : left.authoringIndex.CompareTo(right.authoringIndex);
         }
 
         // -----------------------------------------------------------------------------------
@@ -937,6 +1050,20 @@ namespace StitchPunk.AnimationToolkit.Authoring
             hashState.Update(clipBlob.vatFrameStart);
             hashState.Update(clipBlob.vatFrameCount);
             hashState.Update(math.asuint(clipBlob.vatFps));
+
+            // C10: per-target VAT range overrides join the canonical stream the same way every other
+            // array does — length first, then each element — so two blobs that differ only in which
+            // parts have a dedicated baked range can never hash the same.
+            hashState.Update(clipBlob.vatTargetRanges.Length);
+            for (int rangeIndex = 0; rangeIndex < clipBlob.vatTargetRanges.Length; rangeIndex++)
+            {
+                ref VatTrackRangeBlob rangeBlob = ref clipBlob.vatTargetRanges[rangeIndex];
+                hashState.Update(rangeBlob.targetIndex);
+                hashState.Update(rangeBlob.frameStart);
+                hashState.Update(rangeBlob.frameCount);
+                hashState.Update(math.asuint(rangeBlob.fps));
+            }
+
             hashState.Update(math.asuint(clipBlob.offsetBounds.Center.x));
             hashState.Update(math.asuint(clipBlob.offsetBounds.Center.y));
             hashState.Update(math.asuint(clipBlob.offsetBounds.Center.z));

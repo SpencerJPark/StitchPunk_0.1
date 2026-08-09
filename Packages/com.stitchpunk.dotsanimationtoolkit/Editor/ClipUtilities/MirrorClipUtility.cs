@@ -170,6 +170,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             mirroredClip.spriteTracks = CopySpriteTracks(source.spriteTracks);
             mirroredClip.events = CopyEventMarkers(source.events);
             mirroredClip.vatSource = CopyVatSource(source);
+            mirroredClip.vatTracks = CopyVatTracks(source);
 
             MirrorTracks(mirroredClip, mirroredTargetIds);
             mirroredClip.EnsureStableIds();
@@ -317,9 +318,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// Applies the mirror to <paramref name="clip"/>'s tracks in place.
         /// </summary>
         /// <remarks>
-        /// Transform and sprite tracks both rebind, because a mirror moves the whole part to the
-        /// other side of the body whether that part is animated by pose or by frame. Only transform
-        /// keys have their values touched.
+        /// Transform, sprite, and VAT tracks (C10) all rebind, because a mirror moves the whole part
+        /// to the other side of the body whether that part is animated by pose, by frame, or by a
+        /// target-scoped VAT source. Only transform keys have their values touched.
         /// </remarks>
         private static void MirrorTracks(ClipAsset clip, Dictionary<uint, uint> mirroredTargetIds)
         {
@@ -355,21 +356,39 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
             }
 
-            if (clip.spriteTracks == null)
+            if (clip.spriteTracks != null)
+            {
+                for (int spriteTrackIndex = 0; spriteTrackIndex < clip.spriteTracks.Count; spriteTrackIndex++)
+                {
+                    SpriteTrack spriteTrack = clip.spriteTracks[spriteTrackIndex];
+                    if (spriteTrack == null)
+                    {
+                        continue;
+                    }
+
+                    // Rebind only. Slice indices and atlas rects are left exactly as authored — that
+                    // is not an omission, it is the A37a division of labour described in the type
+                    // remarks.
+                    spriteTrack.targetId = ResolveMirroredTargetId(spriteTrack.targetId, mirroredTargetIds);
+                }
+            }
+
+            if (clip.vatTracks == null)
             {
                 return;
             }
-            for (int spriteTrackIndex = 0; spriteTrackIndex < clip.spriteTracks.Count; spriteTrackIndex++)
+            for (int vatTrackIndex = 0; vatTrackIndex < clip.vatTracks.Count; vatTrackIndex++)
             {
-                SpriteTrack spriteTrack = clip.spriteTracks[spriteTrackIndex];
-                if (spriteTrack == null)
+                VatTrack vatTrack = clip.vatTracks[vatTrackIndex];
+                if (vatTrack == null)
                 {
                     continue;
                 }
 
-                // Rebind only. Slice indices and atlas rects are left exactly as authored — that is
-                // not an omission, it is the A37a division of labour described in the type remarks.
-                spriteTrack.targetId = ResolveMirroredTargetId(spriteTrack.targetId, mirroredTargetIds);
+                // Rebind only, exactly like a sprite track (C10): which part plays this baked range
+                // is independent of the motion inside it, so the target id still swaps to its mirror
+                // partner even though CopyVatTracks left the source clip itself unmirrored.
+                vatTrack.targetId = ResolveMirroredTargetId(vatTrack.targetId, mirroredTargetIds);
             }
         }
 
@@ -631,6 +650,59 @@ namespace StitchPunk.AnimationToolkit.Editor
                 sampleFps = sourceVat.sampleFps,
                 loopSafe = sourceVat.loopSafe
             };
+        }
+
+        /// <summary>
+        /// Copies the clip's target-scoped VAT bake sources (C10), unmirrored, and warns once.
+        /// </summary>
+        /// <remarks>
+        /// Same limitation as <see cref="CopyVatSource"/>, applied per track: a <see cref="VatTrack"/>
+        /// names a Unity <c>AnimationClip</c> this utility cannot reflect, so every copied track keeps
+        /// its <c>sourceClip</c> exactly as authored. Unlike <see cref="CopyVatSource"/>'s single
+        /// clip-wide source, though, <see cref="VatTrack.targetId"/> is data this utility already
+        /// knows how to rebind — <see cref="MirrorTracks"/> swaps it to the target's mirror partner
+        /// the same way it does for a sprite track, so a cape track authored against the left socket
+        /// still lands on the right one in the copy. Only the motion inside the track is left for the
+        /// caller to fix.
+        /// </remarks>
+        private static List<VatTrack> CopyVatTracks(ClipAsset source)
+        {
+            List<VatTrack> copiedTracks = new List<VatTrack>();
+            if (source.vatTracks == null)
+            {
+                return copiedTracks;
+            }
+
+            bool warnedAboutUnmirroredSource = false;
+            for (int trackIndex = 0; trackIndex < source.vatTracks.Count; trackIndex++)
+            {
+                VatTrack sourceTrack = source.vatTracks[trackIndex];
+                if (sourceTrack == null)
+                {
+                    continue;
+                }
+
+                if (sourceTrack.sourceClip != null && !warnedAboutUnmirroredSource)
+                {
+                    warnedAboutUnmirroredSource = true;
+                    Debug.LogWarning(
+                        LogPrefix + "Clip '" + source.name + "' carries one or more target-scoped " +
+                        "VAT tracks (C10). Mirroring reflects authored transform tracks only, so each " +
+                        "copy keeps its source clip unmirrored — its target id is still rebound to " +
+                        "the mirror partner, but point the source clip at a mirrored animation and " +
+                        "re-bake, or clear it, before the copy is used.",
+                        source);
+                }
+
+                copiedTracks.Add(new VatTrack
+                {
+                    targetId = sourceTrack.targetId,
+                    sourceClip = sourceTrack.sourceClip,
+                    sampleFps = sourceTrack.sampleFps,
+                    loopSafe = sourceTrack.loopSafe
+                });
+            }
+            return copiedTracks;
         }
 
         // -------------------------------------------------------------------------------------

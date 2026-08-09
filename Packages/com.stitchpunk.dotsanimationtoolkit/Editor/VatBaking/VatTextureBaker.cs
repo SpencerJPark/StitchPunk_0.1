@@ -14,6 +14,14 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>The stable id of the <c>ClipAsset</c> this animation corresponds to.</summary>
         public ulong clipId;
 
+        /// <summary>
+        /// Stable id of the rig target this bake is scoped to, or 0 for the clip's untargeted range
+        /// baked from <c>ClipAsset.vatSource</c> (C10). A non-zero value bakes an additional frame
+        /// block for the same <see cref="clipId"/>, occupying its own row range in the same texture —
+        /// see <see cref="VatBakeResult.clipRanges"/>.
+        /// </summary>
+        public uint targetId;
+
         /// <summary>The animation to sample.</summary>
         public AnimationClip animationClip;
 
@@ -200,6 +208,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     result.clipRanges.Add(new VatClipRange
                     {
                         clipId = bakeClip.clipId,
+                        targetId = bakeClip.targetId,
                         frameStart = globalFrame,
                         frameCount = frameCount,
                         fps = input.samplesPerSecond
@@ -595,6 +604,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 VatBakeClip bakeClip = input.clips[clipIndex];
                 hash = FoldHash(hash, bakeClip.clipId);
+                hash = FoldHash(hash, (ulong)bakeClip.targetId);
                 hash = FoldHash(hash, bakeClip.loopSafe ? 1UL : 0UL);
                 if (bakeClip.animationClip != null)
                 {
