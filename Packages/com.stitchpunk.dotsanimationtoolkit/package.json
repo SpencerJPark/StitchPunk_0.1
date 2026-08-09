@@ -28,5 +28,11 @@
     "com.unity.mathematics": "1.4.0",
     "com.unity.render-pipelines.universal": "17.5.0"
   },
-  "samples": []
+  "samples": [
+    {
+      "displayName": "Quick Start Actor",
+      "description": "Generates a complete working actor - rig, clip set, an animated clip, and a prefab wired to bake - through the same public API you would use yourself.",
+      "path": "Samples~/QuickStartActor"
+    }
+  ]
 }
