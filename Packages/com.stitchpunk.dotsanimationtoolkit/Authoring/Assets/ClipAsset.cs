@@ -63,11 +63,42 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public List<EventMarker> events = new List<EventMarker>();
 
         /// <summary>
-        /// Optional source for vertex-animation-texture baking. Consumed only in-editor by the VAT
-        /// texture baker; a clip carrying one requires its set to reference a texture set holding a
-        /// matching frame range (validation rule V07).
+        /// Optional <em>untargeted</em> source for vertex-animation-texture baking. Consumed only
+        /// in-editor by the VAT texture baker; a clip carrying one requires its set to reference a
+        /// texture set holding a matching frame range (validation rule V07).
         /// </summary>
+        /// <remarks>
+        /// This is the single-source shape the toolkit shipped with before <see cref="vatTracks"/>
+        /// (C10): it names no target, so every <c>VatDriven</c> part bound to this clip resolves the
+        /// same baked range from it. It stays first-class rather than becoming sugar over a
+        /// zero-target <see cref="VatTrack"/>, because every existing project's clips already carry
+        /// a populated instance of this exact field (see the A36 note on <c>ClipValidation</c>) and
+        /// a schema change here would be a silent migration for data this package cannot see. A
+        /// clip that also carries <see cref="vatTracks"/> entries keeps this as the fallback range
+        /// for any VAT part whose target is not named by one of them — so adding a targeted track to
+        /// one part of an actor never disturbs the parts that never asked for one.
+        /// </remarks>
         public VatClipSource vatSource;
+
+        /// <summary>
+        /// Additional VAT sources scoped to specific rig targets (architecture section 3.2, C10) —
+        /// what lets one clip drive several VAT-mesh parts from independent source animations, e.g.
+        /// a torso baked from <c>walk_torso.anim</c> and a cape baked from <c>walk_cape.anim</c>
+        /// under one clip identity. A track's baked range overrides <see cref="vatSource"/>'s only
+        /// for the part bound to its <see cref="VatTrack.targetId"/>; every other VAT part on the
+        /// same clip keeps resolving <see cref="vatSource"/> exactly as it did before this list
+        /// existed.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="vatSource"/>, this list carries none of the amendment A36
+        /// serialization trap: it is a <c>List&lt;VatTrack&gt;</c>, and Unity round-trips an empty
+        /// list as an empty list rather than manufacturing a phantom element the way it does for a
+        /// lone <c>[Serializable]</c> class field. A clip that never used this feature therefore
+        /// reads back with a genuinely empty list, and "does this clip have a track for target X"
+        /// can be answered by iterating it directly — no null-vs-default disambiguation is needed
+        /// the way it is for <see cref="vatSource"/>.
+        /// </remarks>
+        public List<VatTrack> vatTracks = new List<VatTrack>();
 
         /// <summary>
         /// This clip's stable 64-bit identity (architecture section 3.4) — the value games pass in
@@ -252,5 +283,41 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </summary>
         public bool loopSafe;
 
+    }
+
+    /// <summary>
+    /// One target-scoped vertex-animation-texture source (architecture sections 3.2, 4.7; C10).
+    /// Read only by the editor's texture baker, exactly like <see cref="VatClipSource"/> — entity
+    /// baking never sees this type, only the frame ranges it produced.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately shaped as a sibling of <see cref="VatClipSource"/> rather than a reuse of it:
+    /// the two differ only by the added <see cref="targetId"/>, but giving this its own type keeps
+    /// <see cref="ClipAsset.vatSource"/>'s meaning ("the untargeted source") from becoming ambiguous
+    /// with a <see cref="ClipAsset.vatTracks"/> entry whose <see cref="targetId"/> happens to be the
+    /// reserved 0 value. A track naming 0 targets nothing (<c>TargetId.IsValid</c> is false for it)
+    /// and fails validation rule V02, the same as any other track bound to a target the rig does not
+    /// declare — the toolkit never treats 0 here as "same as vatSource".
+    /// </remarks>
+    [Serializable]
+    public sealed class VatTrack
+    {
+        /// <summary>
+        /// Stable id of the rig target this source drives (validation rule V02). Must name a target
+        /// this clip's rig actually declares; the reserved value 0 always fails that check.
+        /// </summary>
+        public uint targetId;
+
+        /// <summary>The Unity animation clip sampled at bake time for <see cref="targetId"/>.</summary>
+        public AnimationClip sourceClip;
+
+        /// <summary>Sampling rate in frames per second; overrides the bake settings' rate for this track.</summary>
+        [Min(1f)] public float sampleFps = 30f;
+
+        /// <summary>
+        /// When true the baker appends one extra frame duplicating frame 0, so the shader's
+        /// two-row lerp never reads across the clip boundary at the loop seam.
+        /// </summary>
+        public bool loopSafe;
     }
 }

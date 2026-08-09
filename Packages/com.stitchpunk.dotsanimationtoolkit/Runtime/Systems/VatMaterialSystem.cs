@@ -154,7 +154,9 @@ namespace StitchPunk.AnimationToolkit
             ref ClipRegistryBlob registry = ref registryReference.Value;
 
             if ((layer.flags & PlaybackFlags.Active) == 0
-                || !TryResolveGlobalFrame(ref registry, layer.clipIndex, layer.time, layer.loop, out float currentFrame))
+                || !TryResolveGlobalFrame(
+                    ref registry, layer.clipIndex, layer.time, layer.loop, partBinding.targetIndex,
+                    out float currentFrame))
             {
                 // The driving layer is stopped, or is playing a clip with no baked VAT range. Hold
                 // the last published frame — a VAT mesh has no rest pose to fall back to, so
@@ -169,7 +171,7 @@ namespace StitchPunk.AnimationToolkit
             if ((layer.flags & PlaybackFlags.Blending) != 0 && layer.blendDuration > 0f
                 && TryResolveGlobalFrame(
                     ref registry, layer.previousClipIndex, layer.previousTime, layer.previousLoop,
-                    out float previousFrame))
+                    partBinding.targetIndex, out float previousFrame))
             {
                 sourceFrame = previousFrame;
                 blendWeight = math.saturate(layer.blendElapsed / layer.blendDuration);
@@ -183,14 +185,36 @@ namespace StitchPunk.AnimationToolkit
         }
 
         /// <summary>
-        /// Maps a layer's playback time onto a fractional global frame index into the VAT texture.
+        /// Maps a layer's playback time onto a fractional global frame index into the VAT texture,
+        /// for the specific part requesting it.
         /// </summary>
-        /// <returns>False when the clip index is unresolved or the clip has no baked VAT range.</returns>
+        /// <remarks>
+        /// <strong>C10, multi-source VAT tracks.</strong> A part resolves its own dense
+        /// <paramref name="targetIndex"/> first against <see cref="ClipBlob.vatTargetRanges"/> and
+        /// only falls back to the clip-wide <see cref="ClipBlob.vatFrameStart"/> /
+        /// <see cref="ClipBlob.vatFrameCount"/> / <see cref="ClipBlob.vatFps"/> range when no entry
+        /// names its target — the same two-step rule <c>VatTextureSetAsset.TryGetTrackRange</c>
+        /// performs at bake time (see its remarks for why the two must agree). This is what lets a
+        /// torso and a cape on one actor, both bound to the same clip identity, play independently
+        /// baked motion: the torso's part keeps resolving the shared range exactly as it always did,
+        /// while the cape's part — whose <see cref="RigPartBinding.targetIndex"/> matches an entry in
+        /// <see cref="ClipBlob.vatTargetRanges"/> — resolves its own.
+        /// </remarks>
+        /// <param name="registry">The actor's clip registry blob.</param>
+        /// <param name="clipIndex">Dense index of the clip the driving layer is playing.</param>
+        /// <param name="playbackTime">The layer's current playback time in seconds.</param>
+        /// <param name="requestedLoopMode">The layer's requested loop mode.</param>
+        /// <param name="targetIndex">
+        /// Dense target index of the VAT part asking for a frame (<see cref="RigPartBinding.targetIndex"/>).
+        /// </param>
+        /// <param name="globalFrame">The resolved fractional global frame index on success.</param>
+        /// <returns>False when the clip index is unresolved or the resolved range is empty.</returns>
         private static bool TryResolveGlobalFrame(
             ref ClipRegistryBlob registry,
             int clipIndex,
             float playbackTime,
             LoopMode requestedLoopMode,
+            int targetIndex,
             out float globalFrame)
         {
             globalFrame = 0f;
@@ -200,7 +224,24 @@ namespace StitchPunk.AnimationToolkit
             }
 
             ref ClipBlob clip = ref registry.clips[clipIndex];
-            if (clip.vatFrameStart < 0 || clip.vatFrameCount <= 0)
+
+            int frameStart = clip.vatFrameStart;
+            int frameCount = clip.vatFrameCount;
+            float fps = clip.vatFps;
+
+            for (int rangeIndex = 0; rangeIndex < clip.vatTargetRanges.Length; rangeIndex++)
+            {
+                ref VatTrackRangeBlob targetRange = ref clip.vatTargetRanges[rangeIndex];
+                if (targetRange.targetIndex == targetIndex)
+                {
+                    frameStart = targetRange.frameStart;
+                    frameCount = targetRange.frameCount;
+                    fps = targetRange.fps;
+                    break;
+                }
+            }
+
+            if (frameStart < 0 || frameCount <= 0)
             {
                 return false;
             }
@@ -208,10 +249,12 @@ namespace StitchPunk.AnimationToolkit
             LoopMode resolvedLoopMode = ClipSampler.ResolveLoopMode(requestedLoopMode, clip.defaultLoop);
             float mappedTime = ClipSampler.MapTime(playbackTime, clip.duration, resolvedLoopMode);
 
-            // Clamped to the clip's own row range: the last frame is a real texel, so the index may
-            // reach frameCount - 1 but never the first row of whatever clip was baked after it.
-            float localFrame = math.clamp(mappedTime * clip.vatFps, 0f, clip.vatFrameCount - 1);
-            globalFrame = clip.vatFrameStart + localFrame;
+            // Clamped to the resolved range's own row span: the last frame is a real texel, so the
+            // index may reach frameCount - 1 but never the first row of whatever range was baked
+            // after it, whether that neighbour is another clip or another target's block of the same
+            // clip.
+            float localFrame = math.clamp(mappedTime * fps, 0f, frameCount - 1);
+            globalFrame = frameStart + localFrame;
             return true;
         }
     }

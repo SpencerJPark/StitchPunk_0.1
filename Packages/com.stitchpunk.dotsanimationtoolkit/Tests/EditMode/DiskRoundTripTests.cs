@@ -114,9 +114,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             clipSet.rig = rig;
             clipSet.clips.Add(clip);
 
-            SaveAsset(rig, "Rig.asset");
-            SaveAsset(clip, "Clip.asset");
-            string clipSetPath = SaveAsset(clipSet, "Set.asset");
+            SaveAsset(rig);
+            SaveAsset(clip);
+            string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(rig, clip, clipSet);
 
@@ -206,9 +206,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             clipSet.rig = rig;
             clipSet.clips.Add(clip);
 
-            SaveAsset(rig, "Rig.asset");
-            SaveAsset(clip, "Clip.asset");
-            string clipSetPath = SaveAsset(clipSet, "Set.asset");
+            SaveAsset(rig);
+            SaveAsset(clip);
+            string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(rig, clip, clipSet);
 
@@ -274,9 +274,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             // that names one, so a correctly-detecting reload must fail V07.
 
             SaveAsset(sourceAnimationClip, "SourceAnim.anim");
-            SaveAsset(rig, "Rig.asset");
-            SaveAsset(clip, "Clip.asset");
-            string clipSetPath = SaveAsset(clipSet, "Set.asset");
+            SaveAsset(rig);
+            SaveAsset(clip);
+            string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(sourceAnimationClip, rig, clip, clipSet);
 
@@ -359,9 +359,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 clipSet, out Unity.Entities.Hash128 hashBeforeSave);
             Assert.IsTrue(computedBeforeSave, "The set must validate cleanly before it is ever written to disk.");
 
-            SaveAsset(rig, "Rig.asset");
-            SaveAsset(clip, "Clip.asset");
-            string clipSetPath = SaveAsset(clipSet, "Set.asset");
+            SaveAsset(rig);
+            SaveAsset(clip);
+            string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(rig, clip, clipSet);
 
@@ -421,8 +421,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddSpriteKey(spriteTrack, 0.25f, 3, new float4(0.5f, 0.5f, 0.25f, 0.5f));
             AuthoringTestAssets.AddSpriteKey(spriteTrack, 0.75f, 7, new float4(0.25f, 0.25f, 0.75f, 0.75f));
 
-            SaveAsset(rig, "Rig.asset");
-            string clipAssetPath = SaveAsset(clip, "Clip.asset");
+            SaveAsset(rig);
+            string clipAssetPath = SaveAsset(clip);
 
             CommitAndForceReload(rig, clip);
 
@@ -456,6 +456,36 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         // -----------------------------------------------------------------------------------
 
         /// <summary>Writes a ScriptableObject to the current test's scratch folder and returns its asset path.</summary>
+        /// <summary>
+        /// Writes <paramref name="asset"/> to the scratch folder under <em>its own object name</em>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The file name is derived rather than passed, because <see cref="AssetDatabase.CreateAsset"/>
+        /// renames the object to match the file. A fixture that sets <c>clip.name = "Idle"</c> and
+        /// then saves it as <c>Clip.asset</c> gets an object called "Clip" back — and
+        /// <c>ClipBlob.debugName</c> is baked from that name and folded into the content hash, so the
+        /// hash legitimately differs before and after the round trip.
+        /// </para>
+        /// <para>
+        /// That presented as a serializer defect when it was a naming slip in the fixture. Deriving
+        /// the name makes the mismatch unrepresentable rather than relying on every future fixture
+        /// remembering to keep the two in step.
+        /// </para>
+        /// </remarks>
+        private string SaveAsset(UnityEngine.Object asset)
+        {
+            return SaveAsset(asset, asset.name + ".asset");
+        }
+
+        /// <summary>
+        /// Writes <paramref name="asset"/> under an explicit file name.
+        /// </summary>
+        /// <remarks>
+        /// Only for assets whose extension is dictated by their type — an <see cref="AnimationClip"/>
+        /// must be written as <c>.anim</c> or Unity will not import it as one. Prefer the
+        /// name-deriving overload everywhere else, so object name and file name cannot drift.
+        /// </remarks>
         private string SaveAsset(UnityEngine.Object asset, string fileName)
         {
             string assetPath = scratchFolderPath + "/" + fileName;

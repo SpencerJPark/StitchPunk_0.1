@@ -5,6 +5,170 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0]
+
+### Added — attachment, authoring surface and packaging
+
+- **Sockets.** Named attachment points that resolve to a world transform every
+  frame. `RigTarget` sockets follow a part and need no baked data — the sampler
+  already computes that transform. `Bone` sockets follow a bone of the VAT
+  source rig, whose motion exists only inside a texture at runtime and so is
+  sampled into `SocketRegistryBlob` at bake time.
+  - Sockets live in their **own blob**, not `ClipRegistryBlob`. Folding them in
+    would bump the clip schema and invalidate its golden content hash for every
+    project, including those that never attach anything.
+  - Baked samples rather than a second VAT texture: an attachment is an entity
+    with a `LocalTransform`, so the consumer is the CPU, and reading a texture
+    from the CPU means a readback that is slow, async, and unavailable when the
+    texture is not marked readable in a build.
+  - Attachments are transform **roots, not children** — the resolve system
+    writes a world transform into `LocalTransform`, and parenting as well would
+    apply the actor matrix twice.
+- **Clip editor preview** (§7.3). A GameObject mirror posed by `ClipSampler` —
+  the runtime's own functions — out of a registry built by the baker's own
+  builder, so it cannot drift from what ships. Doubles as a validation surface:
+  a set that fails to build shows the reason instead of rendering nothing.
+  Rig-target sockets draw as markers so offsets are authorable rather than
+  guesswork.
+- **Clip editor transport, ruler, playhead, keyboard map, copy/paste and
+  context inspector.** Undo is scoped per gesture, so one drag is one Ctrl+Z.
+- **`FacingResolver`** — amendment A38's direction tables. Every direction set
+  is closed under mirroring, so a facing is served by an east-side clip plus a
+  mirror flag; a four-direction character costs two locomotion clips per state
+  rather than four.
+- **Mirror Clip utility** — duplicate a clip and flip it, for facings that must
+  deviate from a pure reflection. Never combine with runtime `mirrorX` on the
+  same facing: that is a double reflection, which is no reflection at all.
+- **Inspectors** for `RigAsset` (with socket authoring and bone-name dropdowns),
+  `ClipSetAsset` (clip roster, validation column, clip-id constant generation),
+  `VatTextureSetAsset` and `ActorAuthoring`.
+- **`VatMeshPreparer`** and its wiring into the bake window. Closes a real hole:
+  `VatTextureSetAsset.runtimeMesh` was a field nothing in the package ever
+  wrote, so a bake produced textures and no usable mesh. A mesh without bone
+  influences in `UV1` does not error — it renders as a motionless clump.
+- **`Docs/AnimationToolkit/shader-contract.md`** — the integration contract for
+  the four standalone HLSL includes, so they are usable by someone other than
+  their author.
+- **Quick Start sample**, as a generator rather than shipped assets: committed
+  `.asset` files carry baked-in stable ids and could collide with a project
+  already using the package.
+- **Disk round-trip test tier** (§11.1), closing amendment A36's debt — the
+  serializer is part of the authoring contract, and a suite that builds every
+  input in memory has no coverage of it.
+
+### Fixed
+
+- `FacingResolver.FromMovement` took a `float2` by value on a `[BurstCompile]`
+  static. A Burst-compiled static is an external entry point and cannot take a
+  struct by value, which failed Burst compilation for the entire Runtime
+  assembly rather than just that method.
+
+### Known limitations
+
+- A clip may carry only **one** VAT source, so a torso and a cape cannot come
+  from different source animations in the same clip. Note that hybrid
+  flipbook + VAT on one actor *does* already work — VAT and sprite parts
+  compose per part.
+- Sockets, the clip preview and the VAT runtime-mesh step have not been
+  exercised by PlayMode integration tests.
+
+## [Unreleased]
+
+Phase C build steps C4 through C7 (core), reconstructed from
+`Docs/AnimationToolkit/` and the package's own shipped tree rather than from
+dated releases — see the note at the end of this section for what is and is
+not verified.
+
+### Added — C4: the systems slice
+
+- `AnimationToolkitSystemGroup` and its three child groups
+  (`AnimationToolkitBindingSystemGroup`, `AnimationToolkitLogicSystemGroup`,
+  `AnimationToolkitPresentationSystemGroup`) plus `ToolkitWorldControl`, the
+  supported way for a host to enable/disable the whole toolkit in a world.
+- `RigBindingSystem` — re-resolves a spawned actor's part bindings.
+- `CommandApplySystem` + `PlaybackTimeSystem` — the `AnimationCommand` → layer
+  state machine: play, queue (one deep), stop, set-speed, set-time, crossfade,
+  loop/ping-pong/reverse time mapping, finish signaling.
+- `EventEmissionSystem` — wrap-correct event marker emission into
+  `AnimEventOutput`, gated by the `AnimEventsPending` enableable.
+- `TransformSampleSystem` + `TransformApplySystem` — the transform-track
+  (2D cutout) technique end to end, including `PostTransformMatrix`-based
+  scale/flip.
+- `SpriteMaterialSystem` — the flipbook technique: `_ImageIndex` (array slice)
+  and `_AtlasFrame` (atlas rect) per-instance properties.
+- `RenderBoundsUpdateSystem` — updates `RenderBounds` on clip change only, via
+  the `BoundsDirty` enableable, not every frame.
+- `AnimationLodPolicy` + `AnimLodDistanceSystem` — an opt-in
+  (`AnimLod`-gated), distance-based sampling-rate/freeze policy with three
+  levels.
+- `ActorBillboardSystem` and the `ActorBillboard` component.
+- A re-runnable smoke scene, generated into the host project by
+  **Tools ▸ DOTS Animation Toolkit ▸ Build Smoke Scene**, used as the
+  human-verification step for on-screen clip playback.
+
+### Added — C5/C6: shaders and VAT
+
+- `Shaders/Includes/`: `ToolkitBillboard.hlsl`, `ToolkitFlipbook.hlsl`,
+  `ToolkitVat.hlsl`, `ToolkitInstancing.hlsl` — standalone HLSL with no
+  `#include`s of their own, each usable independently in a host's own shader.
+  Full contract in `Docs/AnimationToolkit/shader-contract.md`, mirrored into
+  the package as `Documentation~/shader-contract.md` this cycle.
+- Reference shaders: `ToolkitSpriteUnlit.shader`, `ToolkitVatCrowdUnlit.shader`,
+  `ToolkitCompositeExample.shader` (billboard + flipbook composed in one
+  hand-written shader).
+- `Editor/VatBaking/VatTextureBaker.cs` — bakes a skinned mesh's clips into a
+  bone-matrix or vertex-position VAT texture; point-filtered, clamped,
+  loop-safe (duplicates the first frame after the last for seamless looping).
+- `VatMaterialSystem` — layers → `_VatFrameA`/`_VatFrameB`/`_VatBlend`
+  per-instance properties, including the two-frame crossfade path.
+- `ShaderConformanceTests` — structural, source-level checks: the billboard
+  include never reads `UNITY_MATRIX_V`/`UNITY_MATRIX_I_V` (the shadow-facing
+  hazard), every declared render pass calls the shared displacement function,
+  the includes stay standalone (no cross-include `#include`s), no legacy
+  built-in-pipeline code (`CGPROGRAM`/`CGINCLUDE`/`UnityCG.cginc`) anywhere in
+  the package.
+
+### Added — C7: editor tooling
+
+- `ClipEditorWindow` (**Window ▸ DOTS Animation Toolkit ▸ Clip Editor**) — a
+  UI Toolkit timeline: track lanes, time ruler, playhead, transport, clip
+  browser, context inspector, and a live preview pane sampled through the
+  runtime's own `ClipSampler` (not a separate editor implementation) so
+  preview and play mode cannot drift apart. Undo is per-gesture (one drag is
+  one Ctrl+Z), via `TimeRulerElement`, `PlayheadElement`, `TrackLaneElement`,
+  `ClipKeyClipboard`.
+- `VatBakeWindow` (**Window ▸ DOTS Animation Toolkit ▸ VAT Bake**) — a wizard
+  over `VatTextureBaker.Bake`: source prefab, clip list, flavor/sample-rate
+  settings, validation preflight, bake log.
+
+### Added, not yet compile/test-verified in this environment
+
+The following were written in a development session without a connected
+Unity Editor (see the project's own toolkit handoff note, "C8 — built blind").
+They are present in the shipped source tree but have not
+been through this project's own compile-and-test gate as of this entry — do
+not treat them as confirmed working until a session reports a clean compile
+and a green test run against them:
+
+- The socket system (`Runtime/Identity`, `Blobs`, `Components`, `Systems`;
+  `Authoring/Assets`, `Build`, `Baking`; `Editor/VatBaking`) — named
+  attachment points that resolve to a world transform every frame, either by
+  following a rig part directly (no bake needed) or by sampling a baked bone
+  of the VAT source rig.
+- `FacingResolver` and its tests — 2/4/8-direction facing tables (which clip
+  to play, mirrored or not, given a facing) and their mirror derivation.
+- The Mirror Clip editor utility (`Editor/ClipUtilities/MirrorClipUtility.cs`)
+  and its context-menu entry.
+- Custom inspectors for `RigAsset`, `ClipSetAsset`, `VatTextureSetAsset`, and
+  `ActorAuthoring`.
+- `ValidationBadgeElement`, surfacing `ClipValidation` results in the Clip
+  Editor toolbar.
+- A disk-round-trip EditMode test tier, closing a gap that had let a
+  shipping-blocking serialization defect through 221 purely in-memory
+  fixtures (that defect — clip-level VAT-source detection reading every saved
+  clip as VAT-sourced — is itself already fixed; this tier exists so its class
+  of bug cannot recur unnoticed).
+
 ## [0.4.0] - Unreleased
 
 Phase C build step C3: entity baking — the M2 slice, excluding the VAT texture

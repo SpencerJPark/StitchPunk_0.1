@@ -39,6 +39,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly Dictionary<uint, int> targetIdToMirrorIndex = new Dictionary<uint, int>();
         private MaterialPropertyBlock propertyBlock;
 
+        private readonly List<Transform> socketMarkers = new List<Transform>();
+        private readonly List<SocketDefinition> previewedSockets = new List<SocketDefinition>();
+
         /// <summary>The mirror's root, or null when nothing is built.</summary>
         public GameObject RootObject
         {
@@ -109,6 +112,99 @@ namespace StitchPunk.AnimationToolkit.Editor
                 partTransforms.Add(partObject.transform);
                 partRenderers.Add(partRenderer);
             }
+
+            BuildSocketMarkers(rig, previewMaterial);
+        }
+
+        /// <summary>
+        /// Creates a small marker per rig-target socket so its offset is visible while authoring.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Only <see cref="SocketAttachMode.RigTarget"/> sockets appear.</strong> A bone
+        /// socket follows a bone that exists solely inside a VAT texture, and this preview renders
+        /// untextured quads with no VAT playback — there is nothing here for it to follow. Drawing
+        /// it at the origin would be worse than omitting it: an author would tune an offset against
+        /// a marker that is not where the socket will be.
+        /// </para>
+        /// <para>
+        /// Markers exist because a socket offset is otherwise pure guesswork until Play mode. They
+        /// are deliberately small and unlit — this is a reference point, not a thing to look at.
+        /// </para>
+        /// </remarks>
+        private void BuildSocketMarkers(RigAsset rig, Material previewMaterial)
+        {
+            if (rig.sockets == null)
+            {
+                return;
+            }
+
+            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = rig.sockets[socketIndex];
+                if (socket == null
+                    || socket.mode != SocketAttachMode.RigTarget
+                    || !targetIdToMirrorIndex.ContainsKey(socket.targetId))
+                {
+                    continue;
+                }
+
+                GameObject markerObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                markerObject.name = "Socket " + (string.IsNullOrEmpty(socket.displayName)
+                    ? socket.Id.Value.ToString()
+                    : socket.displayName);
+                markerObject.hideFlags = HideFlags.HideAndDontSave;
+                markerObject.transform.SetParent(rootObject.transform, false);
+                markerObject.transform.localScale = new Vector3(0.06f, 0.06f, 0.06f);
+
+                Collider markerCollider = markerObject.GetComponent<Collider>();
+                if (markerCollider != null)
+                {
+                    Object.DestroyImmediate(markerCollider);
+                }
+
+                MeshRenderer markerRenderer = markerObject.GetComponent<MeshRenderer>();
+                if (markerRenderer != null)
+                {
+                    markerRenderer.sharedMaterial = previewMaterial;
+                    markerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+
+                previewedSockets.Add(socket);
+                socketMarkers.Add(markerObject.transform);
+            }
+        }
+
+        /// <summary>
+        /// Moves every socket marker onto its part's current pose.
+        /// </summary>
+        /// <remarks>
+        /// Call after every <see cref="ApplyPose"/> for the frame, never between them — a marker
+        /// placed before its part has been posed shows the previous frame's position, which reads
+        /// as the socket lagging the rig rather than as an ordering mistake here.
+        /// </remarks>
+        public void UpdateSocketMarkers()
+        {
+            for (int socketIndex = 0; socketIndex < previewedSockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = previewedSockets[socketIndex];
+                int mirrorIndex;
+                if (!targetIdToMirrorIndex.TryGetValue(socket.targetId, out mirrorIndex))
+                {
+                    continue;
+                }
+
+                // Composed from the part's local transform rather than read from its world matrix,
+                // matching how SocketResolveSystem composes at runtime — so what is authored here
+                // is what the attachment gets.
+                Transform partTransform = partTransforms[mirrorIndex];
+                Quaternion socketRotation = partTransform.localRotation
+                    * Quaternion.Euler(socket.localEulerAngles);
+
+                socketMarkers[socketIndex].localPosition =
+                    partTransform.localPosition + partTransform.localRotation * socket.localPosition;
+                socketMarkers[socketIndex].localRotation = socketRotation;
+            }
         }
 
         /// <summary>
@@ -158,6 +254,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             partTransforms.Clear();
             partRenderers.Clear();
             targetIdToMirrorIndex.Clear();
+
+            // The marker GameObjects were children of rootObject, so destroying it took them with
+            // it; only the bookkeeping needs clearing here.
+            socketMarkers.Clear();
+            previewedSockets.Clear();
             propertyBlock = null;
         }
     }

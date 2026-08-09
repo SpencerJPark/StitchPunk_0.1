@@ -154,8 +154,9 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 ReportFailure(
                     "No clip in '" + clipSet.name + "' names a VAT source. Set "
-                    + "vatSource.sourceClip on the ClipAssets you want baked — that field is what "
-                    + "marks a clip as VAT-bound (amendment A36).");
+                    + "vatSource.sourceClip on the ClipAssets you want baked (amendment A36), or add "
+                    + "a vatTracks entry naming a target and a source clip for a target-scoped VAT "
+                    + "part (C10) — one of those is what marks a clip as VAT-bound.");
                 return;
             }
 
@@ -193,12 +194,19 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The clips a set wants baked: those whose <c>ClipAsset</c> names a source clip.
+        /// The clips a set wants baked: one entry per clip's untargeted <c>vatSource</c> when it
+        /// names a source clip, plus one further entry per <c>vatTracks</c> row that names a source
+        /// clip (C10) — so one <c>ClipAsset</c> can contribute several bake passes, each occupying its
+        /// own frame block in the same texture.
         /// </summary>
         /// <remarks>
-        /// Ids come from the <c>ClipAsset</c>, never minted here. A texture set whose ranges do not
-        /// match the registry's clip ids is a set that resolves to nothing at runtime, and the
-        /// failure is silent — <c>VatMaterialSystem</c> simply holds the last frame.
+        /// Ids come from the <c>ClipAsset</c> and its tracks, never minted here. A texture set whose
+        /// ranges do not match the registry's clip/target ids is a set that resolves to nothing at
+        /// runtime, and the failure is silent — <c>VatMaterialSystem</c> simply holds the last frame.
+        /// A <c>vatTracks</c> row with no source clip yet (added in the inspector but not filled in)
+        /// carries no VAT intent and is skipped, exactly like an empty <c>vatSource</c> — the same
+        /// rule <c>ClipValidation</c>'s coverage check applies when deciding whether a clip counts as
+        /// VAT-sourced.
         /// </remarks>
         private static List<VatBakeClip> CollectVatClips(ClipSetAsset clipSet)
         {
@@ -211,17 +219,39 @@ namespace StitchPunk.AnimationToolkit.Editor
             for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
             {
                 ClipAsset clip = clipSet.clips[clipIndex];
-                if (clip == null || clip.vatSource == null || clip.vatSource.sourceClip == null)
+                if (clip == null)
                 {
                     continue;
                 }
 
-                bakeClips.Add(new VatBakeClip
+                if (clip.vatSource != null && clip.vatSource.sourceClip != null)
                 {
-                    clipId = clip.Id.Value,
-                    animationClip = clip.vatSource.sourceClip,
-                    loopSafe = clip.vatSource.loopSafe
-                });
+                    bakeClips.Add(new VatBakeClip
+                    {
+                        clipId = clip.Id.Value,
+                        targetId = 0u,
+                        animationClip = clip.vatSource.sourceClip,
+                        loopSafe = clip.vatSource.loopSafe
+                    });
+                }
+
+                int vatTrackCount = clip.vatTracks == null ? 0 : clip.vatTracks.Count;
+                for (int trackIndex = 0; trackIndex < vatTrackCount; trackIndex++)
+                {
+                    VatTrack track = clip.vatTracks[trackIndex];
+                    if (track == null || track.sourceClip == null)
+                    {
+                        continue;
+                    }
+
+                    bakeClips.Add(new VatBakeClip
+                    {
+                        clipId = clip.Id.Value,
+                        targetId = track.targetId,
+                        animationClip = track.sourceClip,
+                        loopSafe = track.loopSafe
+                    });
+                }
             }
             return bakeClips;
         }
@@ -313,8 +343,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             for (int rangeIndex = 0; rangeIndex < bakeResult.clipRanges.Count; rangeIndex++)
             {
                 VatClipRange range = bakeResult.clipRanges[rangeIndex];
+                string targetLabel = range.targetId == 0u
+                    ? string.Empty
+                    : "  target 0x" + range.targetId.ToString("X8");
                 detail.AppendLine(
                     "clip 0x" + range.clipId.ToString("X16")
+                    + targetLabel
                     + "  frames " + range.frameStart.ToString()
                     + ".." + (range.frameStart + range.frameCount - 1).ToString()
                     + "  @" + range.fps.ToString() + "fps");

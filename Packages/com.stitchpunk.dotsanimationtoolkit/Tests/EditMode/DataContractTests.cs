@@ -195,6 +195,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("vatFrameStart", typeof(int)),
                 Field("vatFrameCount", typeof(int)),
                 Field("vatFps", typeof(float)),
+                Field("vatTargetRanges", typeof(BlobArray<VatTrackRangeBlob>)),
                 Field("offsetBounds", typeof(AABB))
             });
         }

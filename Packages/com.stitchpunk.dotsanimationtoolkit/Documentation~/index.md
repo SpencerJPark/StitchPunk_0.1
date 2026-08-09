@@ -1,139 +1,145 @@
-# DOTS Animation Toolkit
+# DOTS Animation Toolkit — Documentation
 
-## What this package is
+A DOTS-native animation toolkit for Unity Entities projects: 2.5D cutout
+transform-track animation, flipbook sprite animation, and vertex/bone
+animation textures (VAT) for crowd-scale instancing. Clips are authored as
+ScriptableObjects, baked into blob-asset registries, and sampled by
+Burst-compiled systems. Root C# namespace: `StitchPunk.AnimationToolkit`
+(`.Authoring` and `.Editor` sub-namespaces).
 
-The DOTS Animation Toolkit (`com.stitchpunk.dotsanimationtoolkit`) is a
-DOTS-native animation toolkit for Unity Entities projects. It targets 2.5D
-character animation built from composed techniques:
+New here? Start with [`getting-started.md`](getting-started.md) for an
+end-to-end first-run walkthrough. This page is the map.
 
-- **Transform tracks** — keyed position / rotation / scale animation of 2D
-  cutout ("paper doll") part quads.
-- **Flipbook** — sprite-frame animation via `Texture2DArray` slices or atlas
-  rects.
-- **VAT (vertex / bone animation textures)** — prebaked skinned animation
-  sampled in the vertex shader, for crowd-scale instancing.
-- **Billboarding** — a per-target render modifier, combinable with the above.
+## Concept model
 
-Clips are authored as ScriptableObjects, baked into blob-asset registries, and
-sampled by Burst-compiled systems. The C# root namespace is
-`StitchPunk.AnimationToolkit` (with `.Authoring` and `.Editor` sub-namespaces).
-The package is developed against a fixed, reviewed architecture; features are
-built module by module, and this manual only documents what actually exists in
-the installed version.
+```
+RigAsset ──defines──> Targets (stable-id'd named slots) + Layers (ordered priority slots)
+   ▲                        ▲
+   │ scoped to              │ tracks bind to targets by TargetId
+ClipAsset ──contains──> TransformTracks / SpriteTracks / EventMarkers / (optional) VatSource
+   ▲
+   │ registered in
+ClipSetAsset ──references──> RigAsset + N ClipAssets + (optional) VatTextureSetAsset
+   ▲                                                        ▲
+   │ bound by                                               │ produced by the VAT bake window from
+ActorAuthoring (prefab root) ── children ──> RigTargetAuthoring parts (quads / VAT meshes / flipbook quads)
+```
 
-## Current status: pre-release 0.4.0, build step C3
+- **`RigAsset`** — the skeleton of *slots*, not bones: named, stable-id'd
+  **targets** (the parts an actor can animate) and ordered **layers**
+  (compositing priority — index *is* meaning, so reordering layers is a
+  content edit, not a rename). Also carries the left/right mirror-pair table
+  the Mirror Clip utility uses.
+- **`ClipAsset`** — one authored animation against a specific rig: duration,
+  loop mode, blend-in/out defaults, transform tracks, sprite tracks, event
+  markers, and (optionally) a source `AnimationClip` to bake into VAT.
+- **`ClipSetAsset`** — the registry: one rig, the clips authored against it,
+  and (if any clip has a VAT source) the baked `VatTextureSetAsset`. This is
+  what an actor references and what the bake turns into one
+  `BlobAssetReference<ClipRegistryBlob>`.
+- **`ActorAuthoring`** (on a prefab root) — bakes to the runtime actor entity:
+  the shared registry blob, one `PlaybackLayer` per rig layer, the command and
+  event buffers, and the actor-space rest bounds.
+- **`RigTargetAuthoring`** (on each animatable child) — binds that child to
+  one of the rig's targets by stable id and bakes its rest pose and technique
+  components.
 
-This version contains the **data and sampling layer**, the **authoring layer**,
-and **entity baking**: the types, blob schema, pure math, authoring assets,
-validation, the bake that turns authored assets into that blob schema, and the
-bakers that turn an authored prefab into actor and part entities. Nothing drives
-those entities yet. What exists today:
+Identity throughout is a **stable, random, folded-GUID id** — never a name, a
+list position, or an enum ordinal — so renaming, reordering, or moving an
+asset never breaks a reference. See the rig/clip/set source files under
+the package's `Authoring` folder for the exact fields.
 
-- The package manifest (identity, Unity 6000.5 minimum, pinned dependencies),
-  five assembly definitions, and the `InternalsVisibleTo` grants from the
-  Authoring assembly to the Editor and test assemblies.
-- **Identity types** — `ClipId` (64-bit stable clip identity) and `TargetId`
-  (32-bit rig-target identity), both reserving 0 as "none/invalid".
-- **Blob schema** — the baked `ClipRegistryBlob` and its clip, transform-track,
-  sprite-track, key, event-marker and VAT-info payloads. Blobs carry metadata
-  and keys only; textures are resolved through components, never stored inside
-  a blob.
-- **Runtime components** — the actor-root, per-part, and singleton component
-  set, including the `[MaterialProperty]` components that carry animation state
-  into DOTS-instanced draws.
-- **Sampling and composition math** — `ClipSampler` (easing, loop/clamp/ping-pong
-  time mapping, track sampling, pose blending, layer composition, sample-rate
-  quantization), `EventWrapMath` (wrap-correct event crossings), and
-  `ClipRegistryUtil` (binary-search id resolution). These are pure static
-  functions with no ECS world dependency, so editor preview and runtime share
-  one implementation.
-- **Authoring assets** — `RigAsset` (targets, layers, mirror pairs), `ClipAsset`
-  (duration, loop and blend defaults, transform tracks, sprite tracks, event
-  markers, optional VAT source), `ClipSetAsset` (the registry: rig + clips +
-  optional VAT texture set), and the baker-generated `VatTextureSetAsset`. Rigs,
-  clips and sets are creatable from **Assets ▸ Create ▸ DOTS Animation Toolkit**.
-- **Stable identity** — `StableIdUtility` mints random folded-GUID ids, which
-  every identity-bearing asset self-assigns on creation and on deserialization.
-  Because ids are never derived from a name, a path, or a list position, they
-  survive renames, reordering and asset moves; duplicating an asset copies its
-  id, and the editor's import-time collision tooling (a later build step) is what
-  separates the copy.
-- **Validation** — `ClipValidation` implements rules V01 to V14 once, for the
-  inspectors, the clip editor and the bake alike, returning `ValidationMessage`
-  findings with a rule code, a severity, an asset context and an explanation.
-- **The bake** — `ClipRegistryBuilder.Build` turns a `ClipSetAsset` into its
-  `ClipRegistryBlob` plus the content hash that keys it in the `BlobAssetStore`.
-  The build is deterministic: authoring list order is discarded in favour of a
-  canonical ordering, degrees become radians and blend defaults are clamped once
-  at bake, and the hash is taken over float bit patterns, so the same assets
-  produce the same blob and the same hash on every machine and in every session.
-  A set carrying validation errors throws `ClipValidationException` naming the
-  offending rules rather than baking something broken.
-- 205 EditMode tests — packaging conformance, the sampling math, the validation
-  rule table, identity stability, canonical ordering, bake determinism and
-  diagnostic path rendering — plus 27 PlayMode tests, 26 of which bake real
-  GameObject hierarchies and assert the resulting entity data. Together they
-  assert the blob and component layouts against the architecture.
+## Choosing a technique
 
-- **Entity baking** — `ActorAuthoring` and `RigTargetAuthoring` bake an actor and
-  its parts into the runtime archetypes: the shared registry blob (deduplicated
-  through the `BlobAssetStore`, so many actors on one clip set share one blob),
-  the seeded playback layers, the command and event channels, each part's rest
-  pose and binding, and the actor-space rest bounds.
+An actor is built from **parts**, and each part picks its own technique — a
+VAT torso and a flipbook face can coexist on one actor. The two runtime
+techniques:
 
-What does **not** exist yet: every system. Actors bake to entities, but nothing
-drives them — no playback, events, bounds updates or LOD — and there are no
-shaders, editor windows, or samples. Do not install this version expecting to
-animate anything.
+| | Transform tracks (2D cutout) | VAT (vertex animation texture) |
+|---|---|---|
+| What's authored | Keyed position/rotation/scale per target, in the Clip Editor | A source `AnimationClip` on a skinned mesh, baked offline into a texture |
+| What plays it | `TransformSampleSystem` / `TransformApplySystem` | `VatMaterialSystem` + a VAT-aware shader (`ToolkitVat.hlsl`) |
+| Best for | Paper-doll / cutout characters built from separately animated quads; cheap, precise, blends properly | Organic or skinned motion at crowd scale — hundreds to thousands of instances in one draw |
+| Cost shape | Per-part transform writes, scales with part count | One texture read per bone/vertex influence in the vertex shader; instance count is nearly free once baked |
+| Blend quality | Proper keyframe interpolation and crossfade | Linear frame-to-frame lerp — correct within one clip, can look "rubbery" across very different poses in a long crossfade |
 
-**Running the baking tests:** the PlayMode suite is Editor-only by design.
-Unity's baking pipeline has no player-side equivalent, so run it from the Test
-Runner's PlayMode tab in the Editor; "Run all tests (Player)" cannot execute it.
+Flipbook sprite frames (`Texture2DArray` slice or atlas rect) are a third,
+lighter option for parts that are just swapping a 2D image — a face, an icon,
+a simple creature — and compose with either technique on other parts of the
+same actor. Billboarding (`ActorBillboard`, `ToolkitBillboard.hlsl`) is an
+orthogonal per-target render modifier, not a technique of its own — it can sit
+on top of any of the above.
 
-That suite drives a bake through `BakingUtility.BakeGameObjects`, which Entities
-exposes only to its own test assemblies — the harness reaches it by reflection.
-This is disclosed rather than hidden because it is a real maintenance risk: an
-Entities update that renames or reshapes that method breaks the baking tests,
-not the package, and the failure will read as a missing method rather than as a
-behavioural regression. The dependency is confined to
-`Tests/PlayMode/BakingTestWorld.cs`. No *runtime or authoring* code path uses
-reflection — but note that `Tests/` is inside the package and therefore ships,
-so this file and the contract tests described below do reach you; they simply
-never execute unless you run the suite.
+## Windows and inspectors
 
-## Installing
+| Window / inspector | Menu | What it's for |
+|---|---|---|
+| Clip Editor | Window ▸ DOTS Animation Toolkit ▸ Clip Editor | Timeline authoring for a `ClipSetAsset`'s clips: track lanes, transport, live preview (sampled through the real runtime code), full undo. |
+| VAT Bake | Window ▸ DOTS Animation Toolkit ▸ VAT Bake | Wizard over the VAT texture baker: pick a source prefab and a clip set, choose bone or vertex flavour, bake to a `VatTextureSetAsset`. |
+| `RigAsset` inspector | Select a `RigAsset` | Target and layer lists, mirror-pair table. |
+| `ClipSetAsset` inspector | Select a `ClipSetAsset` | Clip roster with a per-clip validation status column. |
+| `VatTextureSetAsset` inspector | Select a generated `VatTextureSetAsset` | Read-only bake stats (format, memory, per-clip frame ranges). |
+| `ActorAuthoring` inspector | Select a GameObject with `ActorAuthoring` | Starting-layer editor. |
 
-The package is currently developed as an embedded package inside its host
-repository, under `Packages/com.stitchpunk.dotsanimationtoolkit`. To try it in
-another project:
+The clip inspector and clip-set inspector share the same `ClipValidation` rule
+set the bake enforces, so a problem you see in the editor is the same one that
+would fail the bake.
 
-1. Use Unity 6000.5 or newer.
-2. Copy the `com.stitchpunk.dotsanimationtoolkit` folder into your project's
-   `Packages/` directory (Unity picks up embedded packages automatically), or
-   reference it from `Packages/manifest.json` with a `file:` entry.
-3. The dependencies declared in `package.json` (Entities 6.5.0, Entities
-   Graphics 6.5.0, Burst 1.8.29, Collections 6.5.0, Mathematics 1.4.0,
-   URP 17.5.0) resolve automatically through the Package Manager.
+## Runtime API surface
 
-Note: per `LICENSE.md`, this package is not yet licensed for redistribution.
+- **`AnimationCommandUtil`** (Runtime/Api) — the write side: `Play`, `Queue`,
+  `Stop`, `SetSpeed`, `SetTime`. Always pairs an `AnimationCommand` buffer
+  append with enabling `AnimationCommandPending` — that pairing is why you
+  call this instead of writing buffer elements by hand.
+- **`PlaybackQuery`** (Runtime/Api) — the read side: query a layer's current
+  clip, normalized time, and finished state.
+- **`ToolkitWorldControl.SetEnabled(world, enabled)`** — the supported way to
+  turn the whole toolkit on or off in a world (stops every system, timers
+  included). To hide actors while keeping timers running, disable the
+  `AnimVisible` enableable on them instead — that's a different question (the
+  visibility boundary, not the world switch).
+- **`ClipId` / `TargetId`** (Runtime/Identity) — the 64-bit and 32-bit stable
+  id types commands and tracks are keyed by.
+
+## Editor tooling not covered above
+
+- **Mirror Clip** (Editor/ClipUtilities) — reflects an authored clip against
+  the rig's mirror-pair table, for building a matching opposite-facing clip
+  without re-authoring keys by hand.
+- **`FacingResolver`** (Runtime/Sampling) — pure functions mapping a movement
+  direction to "which clip, mirrored or not" across 2/4/8-direction facing
+  sets.
+- **Sockets** (Runtime/Identity, Blobs, Components, Systems;
+  Authoring/Assets, Build, Baking) — named attachment points that resolve to a
+  world transform each frame, following either a rig part directly or a baked
+  bone of a VAT source.
+
+The Mirror Clip utility, `FacingResolver`, sockets, and several custom
+inspectors are the newest code in this package and have not yet been through
+this project's compile-and-test gate — see the **README**'s "Not
+battle-tested yet" section and the `CHANGELOG` before depending on them in a
+shipping project.
+
+## Further reading
+
+- [`getting-started.md`](getting-started.md) — create a rig, author a clip,
+  wire up an actor, play it.
+- [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
+  property contract, one section per HLSL include, and a troubleshooting
+  table for the most common integration mistakes.
+- The package `README.md` — feature status, requirements, installation.
+- `CHANGELOG.md` — what shipped, phase by phase.
 
 ## Running the tests
 
-Open **Window ▸ General ▸ Test Runner**. The **EditMode** tab lists the packaging
-conformance tests, the C1 data/sampling suites, the C2 identity, validation,
-builder and determinism suites, and the C3 diagnostic-path suite, all under
-`StitchPunk.AnimationToolkit.Tests.EditMode`. The **PlayMode** tab lists the
-assembly smoke test plus the C3 baking acceptance suite, which bakes real
-GameObject hierarchies and asserts the entity data that comes out.
+Open **Window ▸ General ▸ Test Runner**. The **EditMode** tab covers packaging
+conformance, sampling/event math, validation, bake determinism, and
+shader-source conformance. The **PlayMode** tab covers entity baking and
+system/world integration — it is Editor-only by design, because Unity's
+baking pipeline (which these fixtures drive directly) has no player-side
+equivalent; "Run all tests (Player)" cannot execute it.
 
-The packaging tests read the real files of the installed package from disk, and
-the contract tests assert the shipped blob and component layouts by reflection —
-together they are the mechanical check that the package matches its architecture
-contract.
-
-Expect the Console to carry toolkit errors and warnings after a PlayMode run.
-Several acceptance tests deliberately provoke a diagnostic — an unknown target
-id, a duplicate target claim, a clip set that fails validation — and assert on
-its content. Each such test declares how many errors it expects, and every other
-test is held to zero, so an *unexpected* one fails the suite rather than hiding
-in the noise.
+Expect the Console to carry toolkit errors and warnings after a PlayMode run:
+several acceptance tests deliberately provoke a diagnostic (an unknown target
+id, a clip set that fails validation) and assert on its content. Every other
+test is held to zero unexpected errors.

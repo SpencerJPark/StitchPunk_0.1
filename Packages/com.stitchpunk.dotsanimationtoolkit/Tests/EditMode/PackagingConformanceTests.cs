@@ -236,8 +236,15 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             List<string> scannedFiles = EnumeratePackageFiles(new string[] { "*.cs", "*.asmdef" });
             foreach (string scannedFile in scannedFiles)
             {
-                string relativePath = ToPackageRelativePath(scannedFile);
-                if (relativePath.StartsWith("Editor/") || relativePath.StartsWith("Tests/"))
+                string relativePath = ToPackageRelativePath(scannedFile).Replace('\\', '/');
+
+                // Any folder literally named Editor is editor-only to Unity, wherever it sits — the
+                // rule is about what reaches a player build, not about top-level layout. Checking
+                // only the first segment failed a sample whose editor code lives at
+                // Samples~/<Name>/Editor/, which Unity never compiles into a build at all.
+                if (relativePath.StartsWith("Editor/")
+                    || relativePath.StartsWith("Tests/")
+                    || relativePath.Contains("/Editor/"))
                 {
                     continue;
                 }
@@ -329,7 +336,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             PackageManifestContents manifest = JsonUtility.FromJson<PackageManifestContents>(manifestText);
             Assert.AreEqual(PackageId, manifest.name, "Package id must match architecture section 1.1.");
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
-            Assert.AreEqual("0.4.0", manifest.version, "Version tracks the Phase C build step (C3) per architecture section 1.1.");
+            Assert.AreEqual("0.8.0", manifest.version, "Version tracks the shipped feature set; 0.8.0 covers C4-C7 plus sockets and the clip editor.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

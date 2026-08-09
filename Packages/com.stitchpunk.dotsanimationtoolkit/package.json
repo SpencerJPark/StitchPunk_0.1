@@ -1,9 +1,9 @@
 {
   "name": "com.stitchpunk.dotsanimationtoolkit",
   "displayName": "DOTS Animation Toolkit",
-  "version": "0.4.0",
+  "version": "0.8.0",
   "unity": "6000.5",
-  "description": "DOTS-native animation toolkit for Unity Entities: 2.5D cutout transform tracks, flipbook sprite animation, and bone/vertex animation textures (VAT), with blob-baked clip registries, Burst-compiled sampling, and an editor clip pipeline. Pre-release: version 0.4.0 contains the data and sampling layer, the authoring assets with validation and the deterministic clip-registry builder, and entity baking (build steps C1 to C3). Actors now bake to entities, but no system drives them yet — playback, events, bounds and LOD land in subsequent 0.x versions.",
+  "description": "DOTS-native animation toolkit for Unity Entities: 2.5D cutout transform tracks, flipbook sprite animation, and bone/vertex animation textures (VAT), with blob-baked clip registries, Burst-compiled sampling, and a full editor clip pipeline. Pre-release: 0.8.0 adds playback, layer compositing and crossfades, animation events, bounds and LOD, VAT texture baking, standalone HLSL shader components, a UI Toolkit clip editor with live preview, socket attachment points, and asset inspectors. Sockets, the clip preview and the VAT runtime-mesh step are new and not yet battle-tested. Remaining before 1.0: multi-source VAT tracks, and PlayMode integration coverage of the socket and preview paths.",
   "keywords": [
     "dots",
     "entities",
@@ -28,5 +28,11 @@
     "com.unity.mathematics": "1.4.0",
     "com.unity.render-pipelines.universal": "17.5.0"
   },
-  "samples": []
+  "samples": [
+    {
+      "displayName": "Quick Start Actor",
+      "description": "Generates a complete working actor - rig, clip set, an animated clip, and a prefab wired to bake - through the same public API you would use yourself.",
+      "path": "Samples~/QuickStartActor"
+    }
+  ]
 }

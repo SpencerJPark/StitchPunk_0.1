@@ -158,6 +158,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 ClipSampler.SamplePose(ref clipBlob, targetIndex, normalizedTime, in identityRest, out pose);
                 rigMirror.ApplyPose(registryBlob.sortedTargetIds[targetIndex], in pose);
             }
+
+            // After the whole pose, never inside the loop: a marker placed before its part is posed
+            // shows the previous frame and reads as the socket lagging the rig.
+            rigMirror.UpdateSocketMarkers();
             return true;
         }
 

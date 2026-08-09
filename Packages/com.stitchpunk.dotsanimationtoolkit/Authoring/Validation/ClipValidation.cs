@@ -437,10 +437,32 @@ namespace StitchPunk.AnimationToolkit.Authoring
             // without a texture set, which throws out of ClipRegistryBuilder and bakes no registry
             // at all. An empty source names nothing for VatTextureBaker to sample, so it carries no
             // VAT intent and must not be treated as one.
-            if (clip.vatSource == null || clip.vatSource.sourceClip == null)
+            bool hasLegacySource = clip.vatSource != null && clip.vatSource.sourceClip != null;
+
+            // C10: `vatTracks` does NOT repeat the A36 trap. It is a List<VatTrack>, and Unity
+            // round-trips an empty list as an empty list rather than manufacturing a phantom element
+            // the way it does for a lone [Serializable] class field, so a clip that never used this
+            // feature reads back with a genuinely empty list — no null-vs-default disambiguation is
+            // needed here the way it is for vatSource. A row with no sourceClip yet (added in the
+            // inspector but not filled in) still carries no VAT intent, so it is skipped exactly
+            // like an empty vatSource.
+            int vatTrackCount = clip.vatTracks == null ? 0 : clip.vatTracks.Count;
+            bool hasAnyTrackSource = false;
+            for (int trackIndex = 0; trackIndex < vatTrackCount; trackIndex++)
+            {
+                VatTrack track = clip.vatTracks[trackIndex];
+                if (track != null && track.sourceClip != null)
+                {
+                    hasAnyTrackSource = true;
+                    break;
+                }
+            }
+
+            if (!hasLegacySource && !hasAnyTrackSource)
             {
                 return;
             }
+
             if (clipSet.vatTextures == null)
             {
                 messages.Add(new ValidationMessage(
@@ -451,16 +473,76 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     "' references no VAT texture set."));
                 return;
             }
-            VatClipRange bakedRange;
-            if (!clipSet.vatTextures.TryGetClipRange(clip.stableId, out bakedRange))
+
+            if (hasLegacySource)
             {
-                messages.Add(new ValidationMessage(
-                    ValidationSeverity.Error,
-                    ValidationCode.V07,
-                    clipSet.vatTextures,
-                    "VAT texture set '" + clipSet.vatTextures.name +
-                    "' holds no baked frame range for VAT-sourced clip '" + clip.name + "'."));
+                VatClipRange bakedRange;
+                if (!clipSet.vatTextures.TryGetClipRange(clip.stableId, out bakedRange))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V07,
+                        clipSet.vatTextures,
+                        "VAT texture set '" + clipSet.vatTextures.name +
+                        "' holds no baked frame range for VAT-sourced clip '" + clip.name + "'."));
+                }
             }
+
+            for (int trackIndex = 0; trackIndex < vatTrackCount; trackIndex++)
+            {
+                VatTrack track = clip.vatTracks[trackIndex];
+                if (track == null || track.sourceClip == null)
+                {
+                    continue;
+                }
+
+                ValidateTargetBindingInto(clip, track.targetId, "VAT track", trackIndex, messages);
+
+                if (!HasExactVatTrackRange(clipSet.vatTextures, clip.stableId, track.targetId))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V07,
+                        clipSet.vatTextures,
+                        "VAT texture set '" + clipSet.vatTextures.name +
+                        "' holds no baked frame range for target " +
+                        new TargetId(track.targetId).ToString() + " of VAT-sourced clip '" +
+                        clip.name + "'."));
+                }
+            }
+        }
+
+        /// <summary>
+        /// True when <paramref name="vatTextures"/> holds a range baked specifically for
+        /// (<paramref name="clipId"/>, <paramref name="targetId"/>) — an exact match, never the
+        /// untargeted-range fallback <see cref="VatTextureSetAsset.TryGetTrackRange"/> performs.
+        /// </summary>
+        /// <remarks>
+        /// Coverage for a <see cref="VatTrack"/> must be judged strictly: if this fell back to the
+        /// untargeted range the way runtime resolution does, a track naming a target that was never
+        /// actually baked would pass validation while silently rendering whatever motion the
+        /// clip-wide <c>vatSource</c> baked instead — the wrong mesh's animation, discovered only by
+        /// looking at the actor rather than at a validation message.
+        /// </remarks>
+        /// <param name="vatTextures">The texture set to search; must not be null.</param>
+        /// <param name="clipId">Stable id of the clip the track belongs to.</param>
+        /// <param name="targetId">Stable id of the target the track names.</param>
+        /// <returns>True when an exact (clip, target) range was baked.</returns>
+        private static bool HasExactVatTrackRange(VatTextureSetAsset vatTextures, ulong clipId, uint targetId)
+        {
+            if (vatTextures.clipRanges == null)
+            {
+                return false;
+            }
+            for (int rangeIndex = 0; rangeIndex < vatTextures.clipRanges.Count; rangeIndex++)
+            {
+                VatClipRange candidate = vatTextures.clipRanges[rangeIndex];
+                if (candidate.clipId == clipId && candidate.targetId == targetId)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

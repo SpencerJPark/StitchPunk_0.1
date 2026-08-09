@@ -1,0 +1,21 @@
+{
+    "name": "StitchPunk.AnimationToolkit.Samples.QuickStart",
+    "rootNamespace": "StitchPunk.AnimationToolkit.Samples",
+    "references": [
+        "StitchPunk.AnimationToolkit.Runtime",
+        "StitchPunk.AnimationToolkit.Authoring",
+        "Unity.Entities",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -244,9 +244,9 @@ namespace StitchPunk.AnimationToolkit.Editor
             summary.style.marginBottom = 4f;
             container.Add(summary);
 
-            float[] columnWidths = { 150f, 90f, 90f, 60f };
+            float[] columnWidths = { 150f, 90f, 90f, 90f, 60f };
             container.Add(BuildTableHeaderRow(
-                new string[] { "Clip Id", "Frame Start", "Frame Count", "FPS" }, columnWidths));
+                new string[] { "Clip Id", "Target", "Frame Start", "Frame Count", "FPS" }, columnWidths));
 
             ListView listView = new ListView { fixedItemHeight = TableRowHeight };
             listView.itemsSource = clipRanges;
@@ -259,12 +259,21 @@ namespace StitchPunk.AnimationToolkit.Editor
             return container;
         }
 
+        /// <summary>
+        /// Target reads "(untargeted)" for a clip-wide range baked from <c>ClipAsset.vatSource</c>
+        /// (<see cref="VatClipRange.targetId"/> <c>== 0</c>) and the raw hex id otherwise (C10) — the
+        /// untargeted case is common enough on a set with no multi-source tracks that spelling it out
+        /// reads better than a bare zero would.
+        /// </summary>
         private static void BindClipRangeRow(VisualElement rowElement, VatClipRange clipRange)
         {
             (rowElement[0] as Label).text = "0x" + clipRange.clipId.ToString("X16");
-            (rowElement[1] as Label).text = clipRange.frameStart.ToString();
-            (rowElement[2] as Label).text = clipRange.frameCount.ToString();
-            (rowElement[3] as Label).text = clipRange.fps.ToString("0.##");
+            (rowElement[1] as Label).text = clipRange.targetId == 0u
+                ? "(untargeted)"
+                : "0x" + clipRange.targetId.ToString("X8");
+            (rowElement[2] as Label).text = clipRange.frameStart.ToString();
+            (rowElement[3] as Label).text = clipRange.frameCount.ToString();
+            (rowElement[4] as Label).text = clipRange.fps.ToString("0.##");
         }
 
         // -----------------------------------------------------------------------------------
