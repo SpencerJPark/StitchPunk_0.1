@@ -1,5 +1,22 @@
 # DOTS Animation Toolkit — session handoff
 
+> ## ✅ CURRENT — 2026-08-09
+>
+> **`main` is at the c10 merge: 255 EditMode + 178 PlayMode green, compile clean, verified through the MCP.** The bridge dropped for most of 2026-08-08 and came back on the 9th; the gate is live again, so verify through `run_tests` rather than asking the owner to compile.
+>
+> Shipped since the block below: sockets (own blob, `RigTarget` + `Bone` modes), the clip-editor preview with socket markers, `FacingResolver` (A38 tables), Mirror Clip, all four §7.1 inspectors, `shader-contract.md`, `VatMeshPreparer`, the §11.1 disk round-trip tier, the Quick Start sample, and **multi-source VAT tracks (schema 4)**.
+>
+> **Two traps this stretch, both worth remembering:**
+> 1. A killed subagent's partial work got committed in `6bf0b3e`, leaving `ClipBlob.vatTargetRanges` referencing an undefined `VatTrackRangeBlob` — the package did not compile. I had checked `git status`, seen a clean tree, and concluded nothing was written. **A clean working tree proves nothing when someone else may have committed.** Diff against the pre-agent commit instead.
+> 2. `ClipBlob.debugName` is baked from the asset's *file* name (`CreateAsset` renames the object) and is folded into the content hash. A fixture that names an object one thing and saves it as another gets a different hash across a round trip, which presents as a serializer defect. `SaveAsset` in `DiskRoundTripTests` now derives the file name from the object name so the two cannot drift.
+>
+> **Schema is now 4.** A bump must land together with a re-recorded `ExpectedContentHash` *and* the paired schema literal in `ContentHashGoldenTests` — the failing assertion prints the value to record, so never invent one.
+>
+> Remaining: host migration §13.2 step 3 (game-side, not package), and `Documentation~/getting-started.md` has not been re-read since the C10 authoring changes.
+
+<details>
+<summary>Superseded — verification state as of 2026-08-08</summary>
+
 > ## ⚠️ READ FIRST — verification state as of 2026-08-08
 >
 > **`main` is at `11ecdbe` and is the last state with a verified clean compile.** It contains C5–C7 (VAT bake, shaders, clip editor incl. preview pane) and the socket system. Verified by a real Unity compile — ScriptCompilation ran, ILPP post-processed every assembly, zero `error CS`/`BC` in fresh log output.
@@ -8,8 +25,10 @@
 >
 > **Branch `c8-authoring-tools` is UNVERIFIED — never compiled at all.** The Editor was closed for that entire stretch. Do not merge it without a compile pass. See "C8 — built blind" below.
 
-**Written:** 2026-08-07, updated 2026-08-08
-**State:** Phases done: A, B, C0, C1, C2, C3, C4, C5, C6, C7 (core). Host migration steps 1–2 done, step 3 not started.
+</details>
+
+**Written:** 2026-08-07, updated 2026-08-09
+**State:** Phases done: A, B, C0–C7, plus sockets, multi-source VAT and packaging. Host migration steps 1–2 done, step 3 not started.
 
 **Baseline, verified through the MCP 2026-08-07:** Console clean of `error CS` / `BC`; **232 EditMode + 178 PlayMode, all passing, each in its real mode.**
 
