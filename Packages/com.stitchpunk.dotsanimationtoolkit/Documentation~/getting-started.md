@@ -12,6 +12,14 @@ below for that path.
 Before starting, confirm the package is installed and its dependencies are
 resolved (see the project `README.md`).
 
+> **In a hurry?** Import the **Quick Start Actor** sample from the Package
+> Manager, then run **Window ▸ DOTS Animation Toolkit ▸ Samples ▸ Build Quick
+> Start Actor**. It generates the whole graph below — rig, clip set, an animated
+> clip, and a bake-ready prefab — in one click, so you can look at a working
+> setup before building one. Read this page afterwards to understand what it
+> made and why. The sample generates rather than shipping `.asset` files, so it
+> mints fresh stable ids and cannot collide with assets you already have.
+
 ## 1. Create a rig
 
 A `RigAsset` is the skeleton of *slots* your clips will animate — not bones,
