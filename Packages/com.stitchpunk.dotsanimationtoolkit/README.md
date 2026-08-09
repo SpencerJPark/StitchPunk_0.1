@@ -79,19 +79,27 @@ entity.
 ## Not battle-tested yet
 
 The socket/attachment system, the `FacingResolver` 2/4/8-direction helper, the
-Mirror Clip editor utility, and several custom inspectors
-(`RigAsset`/`ClipSetAsset`/`VatTextureSetAsset`/`ActorAuthoring`) are present
-in this version's source tree but were written in a development session
-without a working Unity Editor connection, so they have not yet been through
-this project's own compile-and-test gate. Treat them as unverified until a
-session reports a clean compile and green test run against them.
+Mirror Clip editor utility, the clip-editor preview, and the custom inspectors
+(`RigAsset`/`ClipSetAsset`/`VatTextureSetAsset`/`ActorAuthoring`) **compile
+clean and pass the EditMode and PlayMode suites.**
+
+What they have not had is *use*. The suites cover their logic, not their
+ergonomics, and nothing here has been exercised by PlayMode integration tests
+that drive a socket through a real playback frame or a VAT bake end to end.
+Expect rough edges in the authoring flow rather than incorrect maths.
 
 ## Not shipped yet
 
-- The `Samples~/` folder (`CutoutCharacter`, `VatCrowd`, `CompositeActor`)
-  called for by the package's design doc is not packaged in this version.
-- No system currently drives a **VAT socket's** attachment purely from a
-  package-shipped sample — see the caveat above.
+- **One sample ships**, `Quick Start Actor`, which *generates* a rig, clip set,
+  animated clip and a bake-ready prefab rather than shipping `.asset` files —
+  committed assets carry baked-in stable ids that could collide with a project
+  already using this package. The `VatCrowd` and `CompositeActor` samples the
+  design doc calls for are not packaged yet.
+- **A clip may carry only one VAT source**, so a torso and a cape cannot come
+  from different source animations in the same clip. Hybrid flipbook + VAT on
+  one actor *does* work — VAT and sprite parts compose per part.
+- No package-shipped sample drives a **bone socket** end to end; bone sockets
+  need a VAT rebake to populate their sample tracks.
 
 ## Requirements
 
