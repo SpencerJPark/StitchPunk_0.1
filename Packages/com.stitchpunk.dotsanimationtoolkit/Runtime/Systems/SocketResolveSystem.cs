@@ -2,6 +2,7 @@
 
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -66,12 +67,34 @@ namespace StitchPunk.AnimationToolkit
     /// <c>LocalTransform</c> is only correct there.
     /// </remarks>
     [BurstCompile]
+    [WithNone(typeof(RigPartBinding))]
     internal partial struct ResolveSocketsJob : IJobEntity
     {
         [ReadOnly] public ComponentLookup<SocketRegistry> socketRegistryLookup;
         [ReadOnly] public ComponentLookup<ClipRegistry> clipRegistryLookup;
         [ReadOnly] public ComponentLookup<LocalToWorld> localToWorldLookup;
-        [ReadOnly] public ComponentLookup<LocalTransform> localTransformLookup;
+
+        /// <summary>
+        /// The parts' transforms, read while this job writes the attachment's own.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The safety restriction is disabled because the two sets are disjoint, and the
+        /// job cannot run at all without it.</strong> <c>LocalTransform</c> appears twice here —
+        /// written through the <c>ref</c> parameter for the entity being iterated, and read through
+        /// this lookup for the part being followed. Unity's job safety system sees one component
+        /// type used both writably and as a lookup and rejects it as aliasing, which threw
+        /// <c>InvalidOperationException</c> on every update.
+        /// </para>
+        /// <para>
+        /// Disjointness is enforced, not assumed: <c>[WithNone(typeof(RigPartBinding))]</c> excludes
+        /// every part entity from this query, so an entity can never be both the attachment being
+        /// written and a part being read. Putting <c>SocketAttachment</c> on a part is now a
+        /// no-op rather than a self-referential write.
+        /// </para>
+        /// </remarks>
+        [ReadOnly] [NativeDisableContainerSafetyRestriction]
+        public ComponentLookup<LocalTransform> localTransformLookup;
         [ReadOnly] public BufferLookup<RigPartRef> partRefLookup;
         [ReadOnly] public BufferLookup<PlaybackLayer> playbackLayerLookup;
 
