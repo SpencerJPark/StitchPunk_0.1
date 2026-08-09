@@ -79,3 +79,9 @@ Building1.blend
 
 # Embedded packages developed in this repo ARE source-controlled
 !/Packages/com.stitchpunk.dotsanimationtoolkit/
+
+# Disk round-trip test scratch assets. TearDown deletes these, but an Editor crash
+# mid-test leaves them inside the package folder — and this package is shipped, so a
+# stray commit would put test junk in a customer's install.
+Packages/com.stitchpunk.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*/
+Packages/com.stitchpunk.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
