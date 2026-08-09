@@ -1,7 +1,15 @@
 # DOTS Animation Toolkit — session handoff
 
-**Written:** 2026-08-07 (C4 complete; **host migration §13.2 steps 1–2 complete and owner-verified**)
-**State:** Phases done: A, B, C0, C1, C2, C3, **C4**. Host migration steps 1–2 done. **Next is either C5 (M4 shader slice 1) or §13.2 step 3 — see "Which way next".**
+> ## ⚠️ READ FIRST — verification state as of 2026-08-08
+>
+> **`main` is at `11ecdbe` and is the last state with a verified clean compile.** It contains C5–C7 (VAT bake, shaders, clip editor incl. preview pane) and the socket system. Verified by a real Unity compile — ScriptCompilation ran, ILPP post-processed every assembly, zero `error CS`/`BC` in fresh log output.
+>
+> **The test suite has NOT run since `c6ab736`** (239 EditMode green). The Unity MCP bridge died mid-session and never re-registered (`instance_count: 0` with Unity running). So `11ecdbe` is *compile-verified but not test-verified*. **First action next session: run EditMode + PlayMode.** Watch `PackagingConformanceTests` (new Editor files) and `ActorBakingAcceptanceTests` (`ActorBaker` gained a socket-registry call). `SystemGroupStructureTests` was checked by hand — it asserts named systems are in named groups rather than enforcing a closed set, so the new `SocketResolveSystem` does not trip it.
+>
+> **Branch `c8-authoring-tools` is UNVERIFIED — never compiled at all.** The Editor was closed for that entire stretch. Do not merge it without a compile pass. See "C8 — built blind" below.
+
+**Written:** 2026-08-07, updated 2026-08-08
+**State:** Phases done: A, B, C0, C1, C2, C3, C4, C5, C6, C7 (core). Host migration steps 1–2 done, step 3 not started.
 
 **Baseline, verified through the MCP 2026-08-07:** Console clean of `error CS` / `BC`; **232 EditMode + 178 PlayMode, all passing, each in its real mode.**
 
@@ -203,3 +211,49 @@ Four candidates, none blocking the others:
 ## Unrelated host-game bug, still open
 
 `Assets/_Scripts/Editor/StitchPunk.Editor.asmdef` has `"includePlatforms": []`, so editor code compiles into player builds and any player test run fails with ~58 compile errors. One-line fix: `["Editor"]`. Offered twice; the owner has not taken it. Not a package issue — and note the irony that the *correct* fix there is what broke the toolkit's PlayMode suite when applied to a test assembly (A17/A25).
+
+---
+
+## C8 — built blind (branch `c8-authoring-tools`, 2026-08-08)
+
+The owner went remote with the Editor closed and asked for maximum progress. Everything in this section was written **without a compiler**. APIs were verified by reading `Library/PackageCache` and existing package source rather than from memory, but reading is not compiling. **Assume it does not build until it does.**
+
+### The correction that reshaped the roadmap
+
+I told the owner clip-level `vatSource` was the keystone blocker for hybrid flipbook+VAT, and he authorised work on that premise. **It was wrong.** `ClipValidation` has no exclusivity rule, and `VatMaterialSystem` iterates *parts* (`VatDriven` + `RigPartBinding.actorRoot`), so **a VAT torso and a flipbook head on one actor already worked.** The real limit of clip-level `vatSource` is narrower — *one VAT source per clip*, so you cannot bake a torso and a cape from two different source clips into one `ClipAsset`.
+
+**Lesson, recorded because it cost a wrong recommendation:** before proposing a format change, check whether the runtime already does the thing per-part. This toolkit's runtime spine is consistently more capable than its authoring surface exposes; the gaps are in authoring and preview, not in the data model.
+
+### What landed
+
+| Piece | Where | Notes |
+|---|---|---|
+| Socket system | `Runtime/{Identity,Blobs,Components,Systems}`, `Authoring/{Assets,Build,Baking}`, `Editor/VatBaking` | Own blob, not `ClipRegistryBlob` — keeps the clip schema and golden hash untouched, and makes sockets opt-in |
+| Clip editor preview | `Editor/ClipEditor/Preview/` | Poses via the runtime's own `ClipSampler` out of a `ClipRegistryBuilder` blob, so it cannot drift from what ships |
+| `FacingResolver` + tests | `Runtime/Sampling/`, `Tests/EditMode/` | A38's tables longhand |
+| Validation badge | `Editor/ClipEditor/ValidationBadgeElement.cs` | Renders `ClipValidation`; never decides validity itself |
+| Mirror Clip utility, `RigAsset`/`ClipSetAsset` inspectors, `shader-contract.md`, composite example shader | see branch | Written by parallel subagents; **review before trusting** |
+
+### Sockets — the design, so it is not re-litigated
+
+A socket is a named attachment point resolving to a world transform each frame. Two modes: `RigTarget` follows a part entity and needs **no baked data** (the sampler already computes it); `Bone` follows a bone of the VAT source rig, whose motion exists only in a texture at runtime and so is sampled at bake.
+
+**Baked samples, not a second VAT texture** — the idea the owner remembered from an earlier session. A texture is right for data the *GPU* consumes; an attachment is an entity with a `LocalTransform`, so the consumer is the CPU, and CPU-reading a texture means a readback that is slow, async, and unavailable when the texture is not readable in a build. The data is ~100KB for eight sockets over six hundred frames — a blob answers it with one indexed load in Burst. A socket texture would earn its place only if a shader needed the position directly.
+
+**Two traps the code is shaped to avoid**, both of which fail silently:
+- The world transform is **composed** (actor `LocalToWorld` × part `LocalTransform`), not read from the part's `LocalToWorld`. Unity's transform systems run after this group, so reading it leaves every attachment a frame behind.
+- Attachments are **transform roots, not children**. The system writes a world transform into `LocalTransform`; parenting as well applies the actor matrix twice, which reads as a subtle scale error.
+
+### Highest-risk spots to compile-check first
+
+1. `Editor/VatBaking/VatTextureBaker.cs` — the only edit inside a *working* path. The socket sampling is a deliberately isolated second pass so a failure there cannot corrupt a texture, but it is still the riskiest diff.
+2. `Authoring/Baking/ActorBaker.cs` — `AddSocketRegistry`, particularly the `Hash128` construction.
+3. The three subagent-written Editor files — never reviewed by a compiler *or* by their author running anything.
+
+### Next, in order
+
+1. **Compile + full test run.** Nothing else matters until then.
+2. **Socket authoring UI review** — this is what makes sockets usable; without it bone names are free text and a typo yields a silent origin-pinned attachment.
+3. **Bone sockets need a VAT rebake** to populate sample tracks. Rig-target sockets should work without one.
+4. Multi-source VAT tracks (the *real* `vatSource` limitation).
+5. §13.2 step 3 — host call-site rewrites; then delete `Assets/AnimationToolkitMigration/Runtime/PilotDriver*.cs`.

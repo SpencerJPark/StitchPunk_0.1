@@ -46,6 +46,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private Label statusLabel;
         private Image previewImage;
         private Label previewStatusLabel;
+        private ValidationBadgeElement validationBadge;
 
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
@@ -246,6 +247,9 @@ namespace StitchPunk.AnimationToolkit.Editor
             toolbar.Add(MakeToolbarLabel("Frames"));
             toolbar.Add(frameCountField);
 
+            validationBadge = new ValidationBadgeElement();
+            toolbar.Add(validationBadge);
+
             return toolbar;
         }
 
@@ -345,6 +349,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 previewController.SetClipSet(clipSet);
             }
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(clipSet);
+            }
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)
@@ -434,6 +442,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 previewRegistryDirty = false;
                 previewController.Refresh();
+
+                // Revalidated on the same debounced beat as the preview rebuild, for the same
+                // reason: a full set validation walks every key of every clip, so running it per
+                // repaint would make a large set's window crawl.
+                if (validationBadge != null)
+                {
+                    validationBadge.Refresh(clipSet);
+                }
             }
 
             previewStatusLabel.text = previewController.StatusMessage;
