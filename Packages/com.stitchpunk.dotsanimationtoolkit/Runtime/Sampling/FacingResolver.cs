@@ -166,6 +166,12 @@ namespace StitchPunk.AnimationToolkit
         /// </summary>
         /// <param name="movementXY">
         /// Horizontal movement in screen-ish space: +x is east, +y is north (away from the camera).
+        /// <strong>Passed by <c>in</c>, and it must stay that way.</strong> A <c>[BurstCompile]</c>
+        /// static method is an <em>external entry point</em>, and Burst cannot pass a struct — least
+        /// of all a vector type — across one by value (BC1064/BC1067). Every other Burst-compiled
+        /// static in this package takes primitives, enums, or by-ref structs for exactly this
+        /// reason; this parameter was by value once and broke the whole Runtime assembly's Burst
+        /// compilation, not just this method.
         /// </param>
         /// <param name="availableDirections">How many directions this character has art for.</param>
         /// <param name="currentFacing">
@@ -174,7 +180,7 @@ namespace StitchPunk.AnimationToolkit
         /// </param>
         [BurstCompile]
         public static Direction FromMovement(
-            float2 movementXY,
+            in float2 movementXY,
             AnimationDirections availableDirections,
             Direction currentFacing)
         {
