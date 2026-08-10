@@ -1,20 +1,19 @@
 # Rigged characters and bone VAT
 
-## Read this first: the Clip Editor does not pose bones
+## Two routes to a rigged character's motion
 
-This is the single most important thing to understand before you start, because it decides your whole workflow.
+You can **author bone animation directly in the Clip Editor**, or **import it from Blender**. Both bake to the same VAT texture, and a single clip can use both — some bones authored, others imported.
 
-The Clip Editor authors **2D cutout and flipbook clips** — transform tracks (position, one rotation axis, 2D scale) bound to rig *targets*, and sprite tracks that change which texture slice a part shows. Its `TransformKey` is:
+| Route | Author with | Best for |
+|---|---|---|
+| **Bone tracks** (`BoneTrack`) | The Clip Editor timeline | Motion that has to line up with flipbook, socket or event rows on the same character. Hit frames, reactions, anything hybrid |
+| **Imported clip** (`vatSource` / `vatTracks`) | Blender, Maya, Unity's animation window | Full walk cycles and anything authored from nothing. Blender is the better tool for that and always will be |
 
-```csharp
-public float3 position;   // full 3D position
-public float rotationZ;   // ONE axis
-public float2 scale;      // 2D
-```
+**Why bone tracks exist at all:** the value is composition. A hit frame whose event marker, arm swing, cape VAT and weapon socket all sit on one timeline and scrub together is the thing this toolkit is for. Doing that across two applications is the friction it removes.
 
-That is a paper-doll format. There is no way to express a 3D skeleton's joint orientations in it, so **there is nothing in the Clip Editor that can author a rigged character's motion.** It is not a missing feature you can work around; the authored format does not carry that information.
+**What bone tracks are not:** a rigging suite. There is no weight painting, no IK solver, no constraint graph. You are keyframing an existing skeleton — one imported and rigged elsewhere.
 
-For a rigged 3D character, the motion is authored **in Blender** (or Maya, or Unity's own animation window) and baked into a texture. The toolkit's job is baking, playback, blending, events and attachment — not posing.
+> **A note on key types.** The cutout `TransformKey` carries `float3 position, float rotationZ, float2 scale` — one rotation axis, because a paper-doll part only needs one. Bones use a separate `BoneKey` with a full quaternion and 3D scale. They are deliberately different types: adding a quaternion to `TransformKey` would grow every cutout key in every clip to carry channels it never sets.
 
 ---
 
@@ -121,9 +120,9 @@ Send an `AnimationCommand` naming the clip id. `ClipSetAsset`'s inspector has **
 
 ---
 
-## What the Clip Editor *is* good for on a rigged character
+## What else the Clip Editor gives you on a rigged character
 
-You don't author the motion there, but the editor is still where you do real work:
+Beyond authoring bone tracks:
 
 - **Retiming.** Change `duration` and every key moves with it — times are normalized, so a re-time never moves a key relative to the clip.
 - **Events.** Place `EventMarker`s on the timeline — footfalls, hit frames, VFX triggers. These surface at runtime in the actor's `AnimEventOutput` buffer.

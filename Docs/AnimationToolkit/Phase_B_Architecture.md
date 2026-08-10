@@ -1375,4 +1375,58 @@ Migration happens **after** Phase C, as host work. Old and new systems can coexi
 
 ---
 
+
+---
+
+<a name="a42"></a>
+## Amendment A42 (2026-08-09 — product-owner correction): bone tracks are authored in the Clip Editor, and bake to VAT
+
+**The owner, on being shown a guide that said the opposite:** *"it definitely should be able to author bones, that's literally the whole point of what I've been having you build, an animation tool that allows me to mix all the different methods… it is meant to make me making these hybrid animations in one place easy."*
+
+**This was stated at the outset and I narrowed it away.** The original framing was *"I do all animation regardless of type in one location then it gets baked/saved in a format that makes sense for, is bone to VATs, movements to position, flipbook, socket data, and index nudges for direction."* I later offered a choice between *one authoring surface* and *one composition surface*, recommended the latter, and built to it — then wrote `rigged-characters.md` asserting the Clip Editor "cannot author a rigged character's motion", which hardened a wrong call into documentation. The requirement never changed; my reading of it did.
+
+### What was actually blocking it
+
+`TransformKey` carries `float3 position`, **`float rotationZ`**, `float2 scale`. One rotation axis cannot express a joint orientation. That is real — but it is a property of *that key type*, not of the toolkit, and the fix is a new track kind rather than a redesign.
+
+### The shape
+
+**A new track kind, `BoneTrack`, parallel to the existing three.** Not an extension of `TransformKey`:
+
+- Extending `TransformKey` with a quaternion and a `float3` scale would grow **every cutout key** — the format most clips use — to carry channels they never set, for a technique they never use. Blob size is the one cost a crowd actually pays per clip.
+- The toolkit already separates track kinds by what they drive (`transformTracks`, `spriteTracks`, `vatTracks`). A fourth is the consistent move, and it means a cutout clip's on-disk layout does not change at all.
+
+```
+BoneTrack { string boneName; List<BoneKey> keys; }
+BoneKey   { float normalizedTime; float3 localPosition;
+            quaternion localRotation; float3 localScale; Interpolation interpolation; }
+```
+
+**Bones are named, targets are id'd** — the same asymmetry sockets already carry (A-socket note). A rig target is a row this package owns and can assign a stable id to; a bone lives in an imported hierarchy this package does not own, so the name is the only handle Unity offers. The consequence is identical: renaming a bone in the DCC tool breaks the binding, and the bake must **report** the unresolved name rather than silently baking a bone pinned to rest.
+
+### Where it bakes
+
+**Authored bone tracks are a second *source* for the existing VAT bake, not a second output format.** `VatTextureBaker` already walks a clip frame by frame, poses the hierarchy, and reads `bones[i].localToWorldMatrix`. Today the posing step is `AnimationMode.SampleAnimationClip`. With authored tracks it becomes "apply the sampled `BoneKey` values to the named bone transforms". **Everything downstream — matrix capture, texel layout, loop-safe duplication, socket sampling — is unchanged.**
+
+That is what makes this tractable rather than a rewrite: the insertion point is one method, and the output is the same texture the imported-clip path already produces. A clip may therefore draw its bone motion from an imported `AnimationClip`, from authored `BoneTrack`s, or from both on different bones.
+
+### Why this is not "rebuilding Blender"
+
+It is worth being explicit, because the earlier recommendation leaned on this and it was the wrong objection. The goal is **not** a rigging suite — no weight painting, no IK solving, no constraint graph. It is *keyframing an existing skeleton on a timeline that also carries the flipbook, sprite, socket and event rows for the same character*. The value is entirely in the composition: a hit frame whose event marker, arm swing, cape VAT and weapon socket all sit on one timeline and scrub together. Doing that across two tools is exactly the friction this toolkit exists to remove.
+
+Blender remains the better tool for authoring a walk cycle from nothing, and importing one stays fully supported. Both routes bake to the same texture.
+
+### Build order
+
+| Phase | Delivers |
+|---|---|
+| **B1** | `BoneTrack`/`BoneKey` authoring types, validation rules, blob layout (schema bump), and round-trip coverage |
+| **B2** | Bake path — `VatTextureBaker` poses from authored tracks; a clip may mix authored and imported bone sources |
+| **B3** | Clip Editor — bone rows on the timeline, key editing through the context inspector, bone picker sourced from the rig's skinned prefab |
+| **B4** | Preview — the mirror instantiates the rigged prefab and poses its bones, so bone rows scrub live rather than only after a bake |
+
+B4 is what closes the loop the owner asked for: **one timeline, scrubbed once, showing every technique at the same instant.** Until it lands, bone rows are authorable and bakeable but only previewable through a bake.
+
+---
+
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*
