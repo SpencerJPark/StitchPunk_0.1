@@ -22,8 +22,21 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         public uint targetId;
 
-        /// <summary>The animation to sample.</summary>
+        /// <summary>The animation to sample, or null when the clip is authored-only.</summary>
         public AnimationClip animationClip;
+
+        /// <summary>
+        /// Authored bone tracks applied on top of <see cref="animationClip"/> (amendment A42), or
+        /// null. A bake clip may carry an imported clip, authored tracks, or both.
+        /// </summary>
+        public List<BoneTrack> boneTracks;
+
+        /// <summary>
+        /// Clip length in seconds, used when <see cref="animationClip"/> is null. An authored-only
+        /// clip has no imported asset to take a length from, so the <c>ClipAsset</c>'s own duration
+        /// is the only source of truth for how many frames to bake.
+        /// </summary>
+        public float durationSeconds;
 
         /// <summary>
         /// Append a duplicate of frame 0 after the last frame, so the shader's two-row lerp never
@@ -115,6 +128,14 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         public List<string> unresolvedSocketBones;
 
+        /// <summary>
+        /// Authored bone-track names that matched nothing in the source hierarchy (amendment A42).
+        /// Non-fatal for the same reason as <see cref="unresolvedSocketBones"/> — the textures are
+        /// valid — but every listed bone stayed at rest, which presents as an animation that simply
+        /// does not play rather than as an error.
+        /// </summary>
+        public List<string> unresolvedBoneTrackNames;
+
         /// <summary>Hash of every input that affects the output; changes when any of them does.</summary>
         public ulong sourceHash;
     }
@@ -191,6 +212,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             List<Transform> socketBones = ResolveSocketBones(
                 input.sockets, rootTransform, result.unresolvedSocketBones);
 
+            // Bound once for the whole bake: the hierarchy does not change between clips, and a
+            // tree walk per bone per frame is how a bake of a real rig becomes unusable.
+            BoneTrackPoser bonePoser = new BoneTrackPoser();
+            bonePoser.Bind(rootTransform);
+            result.unresolvedBoneTrackNames = bonePoser.UnresolvedBoneNames;
+
             UnityEditor.AnimationMode.StartAnimationMode();
             int globalFrame = 0;
             try
@@ -200,10 +227,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                     VatBakeClip bakeClip = input.clips[clipIndex];
                     int frameCount = SampleClip(
                         bakeClip, input, rootTransform, renderer, sharedMesh, isBoneFlavor,
-                        framesOfMatrices, framesOfPositions, framesOfNormals);
+                        framesOfMatrices, framesOfPositions, framesOfNormals, bonePoser);
 
                     SampleSocketsForClip(
-                        bakeClip, input, rootTransform, socketBones, result.socketTracks);
+                        bakeClip, input, rootTransform, socketBones, result.socketTracks, bonePoser);
 
                     result.clipRanges.Add(new VatClipRange
                     {
@@ -218,8 +245,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             finally
             {
-                // Leaving animation mode on would freeze the whole Editor's inspector in a posed
-                // state, so it is released even when a clip throws mid-bake.
+                // Order matters. Authored tracks were written straight onto Transforms, which
+                // AnimationMode knows nothing about and will not undo — so the manual restore runs
+                // first, then AnimationMode reverts what it posed. Reversing this would leave the
+                // user's rig stuck in the last sampled pose, a destructive edit to their scene as a
+                // side effect of what looks like a read-only operation.
+                bonePoser.RestoreOriginalPose();
                 UnityEditor.AnimationMode.StopAnimationMode();
             }
 
@@ -284,6 +315,48 @@ namespace StitchPunk.AnimationToolkit.Editor
                     + "flavour for unskinned or blendshape-driven meshes.");
             }
             return true;
+        }
+
+        /// <summary>
+        /// Poses the hierarchy for one sample, from whichever sources this clip carries.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The imported clip poses first, authored tracks second, so authored keys override
+        /// imported motion on the bones they name (amendment A42). That order makes an authored
+        /// track the more specific statement of intent, which is the case this feature exists for:
+        /// an imported walk cycle with a hand-authored arm on top. The reverse would let the import
+        /// silently erase deliberate hand-authoring.
+        /// </para>
+        /// <para>
+        /// A clip with no imported source poses purely from authored tracks — <c>AnimationMode</c>
+        /// is skipped entirely rather than called with null, which logs and poses nothing.
+        /// </para>
+        /// </remarks>
+        private static void PoseHierarchy(
+            VatBakeClip bakeClip,
+            Transform rootTransform,
+            BoneTrackPoser bonePoser,
+            float timeSeconds,
+            float clipLengthSeconds)
+        {
+            if (bakeClip.animationClip != null)
+            {
+                UnityEditor.AnimationMode.BeginSampling();
+                UnityEditor.AnimationMode.SampleAnimationClip(
+                    rootTransform.gameObject, bakeClip.animationClip, timeSeconds);
+                UnityEditor.AnimationMode.EndSampling();
+            }
+
+            if (bakeClip.boneTracks == null || bakeClip.boneTracks.Count == 0)
+            {
+                return;
+            }
+
+            float normalizedTime = clipLengthSeconds > 1e-6f
+                ? Mathf.Clamp01(timeSeconds / clipLengthSeconds)
+                : 0f;
+            bonePoser.ApplyTracks(bakeClip.boneTracks, normalizedTime);
         }
 
         private static bool Fail(ref VatBakeResult result, string message)
@@ -360,7 +433,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             VatBakeInput input,
             Transform rootTransform,
             List<Transform> socketBones,
-            List<VatSocketTrack> socketTracks)
+            List<VatSocketTrack> socketTracks,
+            BoneTrackPoser bonePoser)
         {
             if (input.sockets == null || input.sockets.Count == 0)
             {
@@ -368,7 +442,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             AnimationClip animationClip = bakeClip.animationClip;
-            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * input.samplesPerSecond));
+            float clipLengthSeconds = animationClip != null ? animationClip.length : bakeClip.durationSeconds;
+            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(clipLengthSeconds * input.samplesPerSecond));
 
             List<VatSocketTrack> tracksForThisClip = new List<VatSocketTrack>();
             for (int socketIndex = 0; socketIndex < input.sockets.Count; socketIndex++)
@@ -392,11 +467,9 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 float time = sampleCount == 1
                     ? 0f
-                    : animationClip.length * sampleIndex / sampleCount;
+                    : clipLengthSeconds * sampleIndex / sampleCount;
 
-                UnityEditor.AnimationMode.BeginSampling();
-                UnityEditor.AnimationMode.SampleAnimationClip(rootTransform.gameObject, animationClip, time);
-                UnityEditor.AnimationMode.EndSampling();
+                PoseHierarchy(bakeClip, rootTransform, bonePoser, time, clipLengthSeconds);
 
                 AppendSocketSamples(tracksForThisClip, socketBones, worldToRoot);
             }
@@ -406,9 +479,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             // whipping back through the whole clip.
             if (bakeClip.loopSafe)
             {
-                UnityEditor.AnimationMode.BeginSampling();
-                UnityEditor.AnimationMode.SampleAnimationClip(rootTransform.gameObject, animationClip, 0f);
-                UnityEditor.AnimationMode.EndSampling();
+                PoseHierarchy(bakeClip, rootTransform, bonePoser, 0f, clipLengthSeconds);
                 AppendSocketSamples(tracksForThisClip, socketBones, worldToRoot);
             }
 
@@ -451,10 +522,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             bool isBoneFlavor,
             List<Matrix4x4[]> framesOfMatrices,
             List<Vector3[]> framesOfPositions,
-            List<Vector3[]> framesOfNormals)
+            List<Vector3[]> framesOfNormals,
+            BoneTrackPoser bonePoser)
         {
             AnimationClip animationClip = bakeClip.animationClip;
-            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(animationClip.length * input.samplesPerSecond));
+            float clipLengthSeconds = animationClip != null ? animationClip.length : bakeClip.durationSeconds;
+            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(clipLengthSeconds * input.samplesPerSecond));
 
             Matrix4x4 worldToRoot = rootTransform.worldToLocalMatrix;
             Matrix4x4[] bindposes = sharedMesh.bindposes;
@@ -464,11 +537,9 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 float time = sampleCount == 1
                     ? 0f
-                    : animationClip.length * sampleIndex / sampleCount;
+                    : clipLengthSeconds * sampleIndex / sampleCount;
 
-                UnityEditor.AnimationMode.BeginSampling();
-                UnityEditor.AnimationMode.SampleAnimationClip(rootTransform.gameObject, animationClip, time);
-                UnityEditor.AnimationMode.EndSampling();
+                PoseHierarchy(bakeClip, rootTransform, bonePoser, time, clipLengthSeconds);
 
                 if (isBoneFlavor)
                 {

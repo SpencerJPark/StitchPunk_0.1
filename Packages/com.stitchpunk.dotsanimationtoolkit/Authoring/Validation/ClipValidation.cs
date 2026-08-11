@@ -7,7 +7,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
 {
     /// <summary>
     /// The single authoritative implementation of the architecture section 3.5 rule table
-    /// (V01–V14), shared by the inspectors, the clip editor, and the bake so that all three agree on
+    /// (V01–V16), shared by the inspectors, the clip editor, and the bake so that all three agree on
     /// what is legal. Pure static managed code — no editor-assembly dependency, no ECS world, and
     /// no side effects on the assets it inspects.
     /// </summary>
@@ -34,15 +34,20 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>
         /// Validates one clip against the rules that concern a clip in isolation: V01, V02, V03,
-        /// V04, V09, V10, V12 and V14. Set-scoped rules (V05, V06, V07, V08, V11) are checked by
-        /// <see cref="ValidateSet"/>.
+        /// V04, V09, V10, V12, V14, V15 and V16. Set-scoped rules (V05, V06, V07, V08, V11) are
+        /// checked by <see cref="ValidateSet"/>. V16 (duplicate bone name) is a clip-local sibling of
+        /// V05 rather than a V05 case itself: a bone track has no stable id, so its only identity is
+        /// the name, and uniqueness of that name only ever needs judging within one clip — there is
+        /// no set- or rig-scoped notion of "the same bone" the way there is for a <c>ClipId</c> or a
+        /// <c>TargetId</c>.
         /// </summary>
         /// <param name="clip">The clip to validate.</param>
         /// <returns>
         /// The findings in discovery order — the clip-level rules (V01, V10, V12) first, then each
-        /// transform and sprite track in authoring order (V02, V03, V04, V14), then each event
-        /// (V04, V09). Deliberately not sorted by rule number, so a reader can walk the asset top
-        /// to bottom. Empty when the clip is fully valid.
+        /// transform and sprite track in authoring order (V02, V03, V04, V14), then each bone track
+        /// in authoring order (V03, V04, V15, V16), then each event (V04, V09). Deliberately not
+        /// sorted by rule number, so a reader can walk the asset top to bottom. Empty when the clip
+        /// is fully valid.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="clip"/> is null.</exception>
         public static List<ValidationMessage> ValidateClip(ClipAsset clip)
@@ -243,6 +248,93 @@ namespace StitchPunk.AnimationToolkit.Authoring
             }
         }
 
+        /// <summary>
+        /// Validates the clip's authored bone tracks (amendment A42): V03, V04, V15 and V16.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A bone track is checked for a <em>name</em> where a transform or sprite track is checked
+        /// for a target binding. That asymmetry is the design: a rig target is a row this package
+        /// owns and can assign a stable id to, while a bone lives in an imported hierarchy it does
+        /// not own, so the name is the only handle Unity offers.
+        /// </para>
+        /// <para>
+        /// Whether the name resolves to a real bone is deliberately <strong>not</strong> checked
+        /// here. Validation sees only the asset graph, and the skeleton lives on a prefab the clip
+        /// does not reference — the VAT bake is the first point where the hierarchy exists, so that
+        /// is where an unresolved name is reported. Guessing here would produce false errors for
+        /// every clip authored before its rig was imported.
+        /// </para>
+        /// </remarks>
+        private static void ValidateBoneTracksInto(ClipAsset clip, List<ValidationMessage> messages)
+        {
+            int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
+            for (int trackIndex = 0; trackIndex < boneTrackCount; trackIndex++)
+            {
+                BoneTrack boneTrack = clip.boneTracks[trackIndex];
+                if (boneTrack == null)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(boneTrack.boneName))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V15,
+                        clip,
+                        "Bone track " + trackIndex + " of clip '" + clip.name +
+                        "' has no bone name, so it names nothing for the VAT bake to pose."));
+                }
+                else
+                {
+                    for (int earlierIndex = 0; earlierIndex < trackIndex; earlierIndex++)
+                    {
+                        BoneTrack earlierTrack = clip.boneTracks[earlierIndex];
+                        if (earlierTrack == null || earlierTrack.boneName != boneTrack.boneName)
+                        {
+                            continue;
+                        }
+                        messages.Add(new ValidationMessage(
+                            ValidationSeverity.Error,
+                            ValidationCode.V16,
+                            clip,
+                            "Bone tracks " + earlierIndex + " and " + trackIndex + " of clip '" +
+                            clip.name + "' both animate bone '" + boneTrack.boneName +
+                            "'. The bake applies tracks in order, so the later one would silently " +
+                            "win and the earlier one's keys would never be seen."));
+                        break;
+                    }
+                }
+
+                int keyCount = boneTrack.keys == null ? 0 : boneTrack.keys.Count;
+                float previousKeyTime = float.NegativeInfinity;
+                bool reportedUnsortedKeys = false;
+                for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
+                {
+                    BoneKey boneKey = boneTrack.keys[keyIndex];
+                    if (!reportedUnsortedKeys && boneKey.normalizedTime <= previousKeyTime)
+                    {
+                        reportedUnsortedKeys = true;
+                        messages.Add(new ValidationMessage(
+                            ValidationSeverity.Error,
+                            ValidationCode.V03,
+                            clip,
+                            "Bone track " + trackIndex + " of clip '" + clip.name +
+                            "' is not strictly time-sorted: key " + keyIndex + " is at " +
+                            boneKey.normalizedTime + " but the previous key is at " +
+                            previousKeyTime + "."));
+                    }
+                    previousKeyTime = boneKey.normalizedTime;
+                    ValidateNormalizedTimeInto(
+                        clip,
+                        boneKey.normalizedTime,
+                        "Bone track " + trackIndex + " key " + keyIndex,
+                        messages);
+                }
+            }
+        }
+
         private static void ValidateClipInto(ClipAsset clip, List<ValidationMessage> messages)
         {
             if (clip.duration < ClipAsset.MinimumDuration)
@@ -367,6 +459,8 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     }
                 }
             }
+
+            ValidateBoneTracksInto(clip, messages);
 
             for (int eventIndex = 0; eventIndex < eventCount; eventIndex++)
             {

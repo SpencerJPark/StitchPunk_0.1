@@ -579,6 +579,27 @@ namespace StitchPunk.AnimationToolkit.Editor
                     TimelineTrackKind.Sprite, trackIndex, times, rowIndex++);
             }
 
+            // Bone rows sit between the part rows and the events, so a character's skeleton and its
+            // cutout parts read as one stack — which is the entire point of authoring both here
+            // rather than in two applications (amendment A42).
+            List<BoneTrack> boneTracks = selectedClip.boneTracks;
+            for (int trackIndex = 0; boneTracks != null && trackIndex < boneTracks.Count; trackIndex++)
+            {
+                BoneTrack track = boneTracks[trackIndex];
+                if (track == null)
+                {
+                    continue;
+                }
+                times.Clear();
+                for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
+                {
+                    times.Add(track.keys[keyIndex].normalizedTime);
+                }
+                AddTrackRow(
+                    "B " + (string.IsNullOrEmpty(track.boneName) ? "<unnamed bone>" : track.boneName),
+                    TimelineTrackKind.Bone, trackIndex, times, rowIndex++);
+            }
+
             if (selectedClip.events != null)
             {
                 times.Clear();
@@ -908,6 +929,14 @@ namespace StitchPunk.AnimationToolkit.Editor
                             selectedClip.spriteTracks[address.trackIndex].keys.RemoveAt(address.keyIndex);
                         }
                         break;
+                    case TimelineTrackKind.Bone:
+                        if (selectedClip.boneTracks != null
+                            && address.trackIndex < selectedClip.boneTracks.Count
+                            && address.keyIndex < selectedClip.boneTracks[address.trackIndex].keys.Count)
+                        {
+                            selectedClip.boneTracks[address.trackIndex].keys.RemoveAt(address.keyIndex);
+                        }
+                        break;
                     default:
                         if (address.keyIndex < selectedClip.events.Count)
                         {
@@ -939,6 +968,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                     return selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
                 case TimelineTrackKind.Sprite:
                     return selectedClip.spriteTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
+                case TimelineTrackKind.Bone:
+                    return selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
                 default:
                     return selectedClip.events[address.keyIndex].normalizedTime;
             }
@@ -964,6 +995,14 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     SpriteTrack track = selectedClip.spriteTracks[address.trackIndex];
                     SpriteKey key = track.keys[address.keyIndex];
+                    key.normalizedTime = normalizedTime;
+                    track.keys[address.keyIndex] = key;
+                    break;
+                }
+                case TimelineTrackKind.Bone:
+                {
+                    BoneTrack track = selectedClip.boneTracks[address.trackIndex];
+                    BoneKey key = track.keys[address.keyIndex];
                     key.normalizedTime = normalizedTime;
                     track.keys[address.keyIndex] = key;
                     break;
@@ -1026,6 +1065,32 @@ namespace StitchPunk.AnimationToolkit.Editor
                     keys.Add(inserted);
                     break;
                 }
+                case TimelineTrackKind.Bone:
+                {
+                    List<BoneKey> keys = selectedClip.boneTracks[trackIndex].keys;
+
+                    // Identity rotation and unit scale, so an inserted key on an empty track is the
+                    // bone's rest pose rather than a degenerate zero-scale quaternion. A default
+                    // quaternion is all zeros, which is not a rotation at all and collapses the
+                    // skin the moment it is sampled.
+                    BoneKey inserted = new BoneKey
+                    {
+                        localPosition = float3.zero,
+                        localRotation = quaternion.identity,
+                        localScale = new float3(1f, 1f, 1f),
+                        interpolation = Interpolation.Linear
+                    };
+                    for (int keyIndex = 0; keyIndex < keys.Count; keyIndex++)
+                    {
+                        if (keys[keyIndex].normalizedTime <= normalizedTime)
+                        {
+                            inserted = keys[keyIndex];
+                        }
+                    }
+                    inserted.normalizedTime = normalizedTime;
+                    keys.Add(inserted);
+                    break;
+                }
                 default:
                 {
                     selectedClip.events.Add(new EventMarker { normalizedTime = normalizedTime });
@@ -1053,6 +1118,9 @@ namespace StitchPunk.AnimationToolkit.Editor
                 case TimelineTrackKind.Sprite:
                     selectedClip.spriteTracks[trackIndex].keys.Sort(CompareSpriteKeys);
                     break;
+                case TimelineTrackKind.Bone:
+                    selectedClip.boneTracks[trackIndex].keys.Sort(CompareBoneKeys);
+                    break;
                 default:
                     selectedClip.events.Sort(CompareEventMarkers);
                     break;
@@ -1072,6 +1140,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 selectedClip.spriteTracks[trackIndex].keys.Sort(CompareSpriteKeys);
             }
+            for (int trackIndex = 0;
+                selectedClip.boneTracks != null && trackIndex < selectedClip.boneTracks.Count;
+                trackIndex++)
+            {
+                selectedClip.boneTracks[trackIndex].keys.Sort(CompareBoneKeys);
+            }
             selectedClip.events.Sort(CompareEventMarkers);
             selectedKeys.Clear();
         }
@@ -1082,6 +1156,11 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         private static int CompareSpriteKeys(SpriteKey first, SpriteKey second)
+        {
+            return first.normalizedTime.CompareTo(second.normalizedTime);
+        }
+
+        private static int CompareBoneKeys(BoneKey first, BoneKey second)
         {
             return first.normalizedTime.CompareTo(second.normalizedTime);
         }
@@ -1116,6 +1195,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 AddBoundField("duration");
                 AddBoundField("defaultLoop");
                 AddBoundField("rig");
+                AddBoneTrackControls();
                 inspectorPane.Bind(clipSerializedObject);
                 return;
             }
@@ -1148,6 +1228,80 @@ namespace StitchPunk.AnimationToolkit.Editor
             inspectorPane.Bind(clipSerializedObject);
         }
 
+        /// <summary>
+        /// Clip-level bone-track management: name a bone, add a track for it, remove empty ones.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Lives in the clip inspector rather than the toolbar because adding a track is a
+        /// structural edit to the clip, not a view action — and the toolbar is already the busiest
+        /// row in the window.
+        /// </para>
+        /// <para>
+        /// The bone name is typed rather than picked, for now. A dropdown sourced from the preview's
+        /// skinned prefab is the better answer and is what kills the typo class outright — it needs
+        /// the preview to expose its bone list, which is the last piece of amendment A42's phase B4.
+        /// A typed name that resolves to nothing is reported by the bake rather than baked as a
+        /// bone frozen at rest, so a mistake here is loud rather than silent.
+        /// </para>
+        /// </remarks>
+        private void AddBoneTrackControls()
+        {
+            inspectorPane.Add(MakeHeading("Bone Tracks"));
+
+            int boneTrackCount = selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0;
+            inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
+
+            TextField boneNameField = new TextField("Bone Name");
+            boneNameField.tooltip =
+                "Must match a bone in the skinned hierarchy the VAT bake samples. "
+                + "Case sensitive — the bake reports a name it cannot resolve.";
+            inspectorPane.Add(boneNameField);
+
+            Button addBoneTrackButton = new Button(() => AddBoneTrack(boneNameField.value))
+            {
+                text = "Add Bone Track"
+            };
+            inspectorPane.Add(addBoneTrackButton);
+        }
+
+        private void AddBoneTrack(string boneName)
+        {
+            if (selectedClip == null || string.IsNullOrWhiteSpace(boneName))
+            {
+                return;
+            }
+
+            if (selectedClip.boneTracks == null)
+            {
+                selectedClip.boneTracks = new List<BoneTrack>();
+            }
+
+            // One track per bone. Two tracks naming the same bone is a validation error, and the
+            // second one would silently lose to whichever the bake applied last — better to refuse
+            // it here, where the user can see why.
+            for (int trackIndex = 0; trackIndex < selectedClip.boneTracks.Count; trackIndex++)
+            {
+                BoneTrack existingTrack = selectedClip.boneTracks[trackIndex];
+                if (existingTrack != null && existingTrack.boneName == boneName)
+                {
+                    previewStatusLabel.text = "A bone track for '" + boneName + "' already exists.";
+                    return;
+                }
+            }
+
+            BeginUndoGesture("Add Bone Track");
+            selectedClip.boneTracks.Add(new BoneTrack
+            {
+                boneName = boneName,
+                keys = new List<BoneKey>()
+            });
+            EndUndoGesture();
+
+            EditorUtility.SetDirty(selectedClip);
+            RebuildTimeline();
+        }
+
         private static Label MakeHeading(string text)
         {
             Label label = new Label(text);
@@ -1173,6 +1327,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                     return FindTrackKeyProperty("transformTracks", address);
                 case TimelineTrackKind.Sprite:
                     return FindTrackKeyProperty("spriteTracks", address);
+                case TimelineTrackKind.Bone:
+                    return FindTrackKeyProperty("boneTracks", address);
                 default:
                 {
                     SerializedProperty events = clipSerializedObject.FindProperty("events");

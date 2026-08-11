@@ -59,6 +59,40 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Keyed sprite-frame curves, each bound to one rig target.</summary>
         public List<SpriteTrack> spriteTracks = new List<SpriteTrack>();
 
+        /// <summary>
+        /// Authored bone tracks (Amendment A42): keyed local TRS curves applied directly to named
+        /// bones of the rig's skinned hierarchy, as a second source for the VAT bake alongside the
+        /// imported-<see cref="AnimationClip"/> path (<see cref="vatSource"/>, <see cref="vatTracks"/>).
+        /// A track's own <see cref="BoneTrack.boneName"/> is its identity — bones are named rather
+        /// than id'd, because they live in an imported hierarchy this package does not own and
+        /// cannot assign a stable id to (the same asymmetry <c>RigAsset.SocketDefinition</c> already
+        /// carries for bone-attached sockets).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is a <c>List&lt;BoneTrack&gt;</c>, not a lone <c>[Serializable]</c> class field, so it
+        /// does not repeat the amendment A36 serialization trap documented on
+        /// <see cref="ClipValidation.ValidateVatCoverageInto"/> and on <see cref="vatTracks"/> above:
+        /// Unity round-trips an empty <c>List&lt;T&gt;</c> as an empty list, never manufacturing a
+        /// phantom element the way it does for a lone <c>[Serializable]</c> class field with no
+        /// <c>[SerializeReference]</c>. A36's trap exists specifically because <see cref="vatSource"/>
+        /// is a single class-typed field, so deserializing a clip that never set it still produces a
+        /// non-null instance with null contents, which is indistinguishable from "opted in with
+        /// nothing filled in" unless the predicate also checks the inner reference. A list carries no
+        /// such ambiguity: after a disk round trip, "no bone tracks were authored" and "this list is
+        /// empty" are exactly the same fact, so <c>boneTracks == null || boneTracks.Count == 0</c> (or
+        /// simply iterating it) answers "does this clip author any bones" correctly with no
+        /// null-vs-default disambiguation, the same way <see cref="vatTracks"/> already does.
+        /// </para>
+        /// <para>
+        /// A clip that has never used bone tracks therefore reads back with a genuinely empty list,
+        /// never carries any validation cost (rules V03/V04/V15/V16 all short-circuit on zero
+        /// entries), and never contributes anything to the bake beyond a zero-length blob array —
+        /// exactly like <see cref="vatTracks"/> for a clip that has never used multi-source VAT.
+        /// </para>
+        /// </remarks>
+        public List<BoneTrack> boneTracks = new List<BoneTrack>();
+
         /// <summary>Typed markers on this clip's timeline, emitted into the actor's event buffer at runtime.</summary>
         public List<EventMarker> events = new List<EventMarker>();
 
@@ -262,6 +296,77 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>User float payload delivered with the emitted event.</summary>
         public float floatParam;
+    }
+
+    /// <summary>
+    /// One authored bone track (Amendment A42): keyed local TRS curves posing a single named bone
+    /// of the rig's skinned hierarchy. Parallel to <see cref="TransformTrack"/> and
+    /// <see cref="SpriteTrack"/>, not an extension of either — a bone track drives an imported
+    /// bone's local transform directly, rather than a rig target's offset from rest.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is deliberately a new track kind rather than <see cref="TransformKey"/> gaining a
+    /// quaternion and a <c>float3</c> scale. <see cref="TransformKey"/> carries
+    /// <c>float rotationZ</c> because a 2.5D cutout part only ever needs one rotation axis; growing
+    /// it to a full joint orientation would add channels every cutout key carries and never sets,
+    /// for a technique most clips never use. Blob size is the one cost a crowd actually pays per
+    /// clip, so the toolkit's existing split by "what a track drives"
+    /// (<see cref="ClipAsset.transformTracks"/>, <see cref="ClipAsset.spriteTracks"/>) grows a
+    /// fourth member instead, and a cutout clip's on-disk layout is untouched by this type existing.
+    /// </para>
+    /// <para>
+    /// <strong>Bones are named, targets are id'd.</strong> A rig target is a row this package owns
+    /// and can mint a stable <c>targetId</c> for (architecture section 3.4); a bone lives in an
+    /// imported hierarchy this package does not own, so <see cref="boneName"/> is the only handle
+    /// Unity gives us — the identical asymmetry <c>RigAsset.SocketDefinition.boneName</c> already
+    /// carries for bone-attached sockets. Renaming a bone in the DCC tool breaks the binding; the
+    /// bake must report the unresolved name rather than silently baking a bone pinned to rest.
+    /// </para>
+    /// </remarks>
+    [Serializable]
+    public sealed class BoneTrack
+    {
+        /// <summary>
+        /// Name of the posed bone in the rig's imported skinned hierarchy (validation rule V15 for
+        /// emptiness, V16 for a duplicate within one clip). This is the track's identity — there is
+        /// no stable id, because the bone is not a row this package owns (see remarks above).
+        /// </summary>
+        public string boneName = string.Empty;
+
+        /// <summary>
+        /// Keys in strictly ascending <c>normalizedTime</c> order. The clip editor keeps them sorted
+        /// on every edit; hand-edited assets are caught by validation rule V03.
+        /// </summary>
+        public List<BoneKey> keys = new List<BoneKey>();
+    }
+
+    /// <summary>
+    /// One bone key (Amendment A42): a full local TRS sample for one bone at one point on a clip's
+    /// timeline, applied during VAT baking exactly as an imported <c>AnimationClip</c>'s sampled
+    /// pose would be (architecture section 4.7 posing step; the bake path itself is phase B2).
+    /// </summary>
+    [Serializable]
+    public struct BoneKey
+    {
+        /// <summary>Key time as a fraction of the clip's duration, in [0, 1] (validation rule V04).</summary>
+        public float normalizedTime;
+
+        /// <summary>Local position offset from the bone's bind pose.</summary>
+        public float3 localPosition;
+
+        /// <summary>
+        /// Local rotation, authored directly as a quaternion — unlike <see cref="TransformKey.rotationZ"/>,
+        /// a joint orientation is not expressible on one axis, which is the entire reason this is a
+        /// separate track kind (see <see cref="BoneTrack"/> remarks).
+        /// </summary>
+        public quaternion localRotation;
+
+        /// <summary>Local non-uniform scale.</summary>
+        public float3 localScale;
+
+        /// <summary>Easing applied from this key to the next one.</summary>
+        public Interpolation interpolation;
     }
 
     /// <summary>

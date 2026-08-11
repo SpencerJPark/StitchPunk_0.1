@@ -9,7 +9,18 @@ namespace StitchPunk.AnimationToolkit.Editor
     {
         Transform = 0,
         Sprite = 1,
-        Event = 2
+        Event = 2,
+
+        /// <summary>
+        /// An authored skeleton track (amendment A42) — a full 3D local TRS per key, bound to a
+        /// bone by name.
+        /// </summary>
+        /// <remarks>
+        /// Separate from <see cref="Transform"/> because the two carry genuinely different keys:
+        /// a cutout part needs one rotation axis, a joint needs a quaternion. Sharing a lane kind
+        /// would mean a lane could not tell which key type it addresses.
+        /// </remarks>
+        Bone = 3
     }
 
     /// <summary>

@@ -156,7 +156,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                     "No clip in '" + clipSet.name + "' names a VAT source. Set "
                     + "vatSource.sourceClip on the ClipAssets you want baked (amendment A36), or add "
                     + "a vatTracks entry naming a target and a source clip for a target-scoped VAT "
-                    + "part (C10) — one of those is what marks a clip as VAT-bound.");
+                    + "part (C10), or author bone tracks in the Clip Editor (A42) — any of those "
+                    + "marks a clip as VAT-bound.");
                 return;
             }
 
@@ -175,6 +176,19 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 ReportFailure(bakeResult.message);
                 return;
+            }
+
+            // Same reasoning as the socket warning below: the textures are valid, but every listed
+            // bone stayed at its rest pose, which presents as an animation that simply does not
+            // play rather than as an error anyone would go looking for.
+            if (bakeResult.unresolvedBoneTrackNames != null && bakeResult.unresolvedBoneTrackNames.Count > 0)
+            {
+                Debug.LogWarning(
+                    "VAT bake could not resolve " + bakeResult.unresolvedBoneTrackNames.Count.ToString()
+                    + " authored bone track name(s) in the source hierarchy: "
+                    + string.Join(", ", bakeResult.unresolvedBoneTrackNames)
+                    + ". Those bones baked at rest. Check the names on the clip's bone tracks "
+                    + "against the skinned mesh you assigned.");
             }
 
             // Surfaced as a warning, not a failure: the textures are valid and usable, but every
@@ -224,14 +238,23 @@ namespace StitchPunk.AnimationToolkit.Editor
                     continue;
                 }
 
-                if (clip.vatSource != null && clip.vatSource.sourceClip != null)
+                int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
+                bool hasImportedSource = clip.vatSource != null && clip.vatSource.sourceClip != null;
+
+                // Authored bone tracks make a clip VAT-bound on their own (amendment A42), so a
+                // clip animated entirely inside the Clip Editor bakes without ever naming an
+                // imported AnimationClip. When it has both, one bake pass carries both and the
+                // baker applies the authored keys on top.
+                if (hasImportedSource || boneTrackCount > 0)
                 {
                     bakeClips.Add(new VatBakeClip
                     {
                         clipId = clip.Id.Value,
                         targetId = 0u,
-                        animationClip = clip.vatSource.sourceClip,
-                        loopSafe = clip.vatSource.loopSafe
+                        animationClip = hasImportedSource ? clip.vatSource.sourceClip : null,
+                        boneTracks = clip.boneTracks,
+                        durationSeconds = clip.duration,
+                        loopSafe = hasImportedSource && clip.vatSource.loopSafe
                     });
                 }
 

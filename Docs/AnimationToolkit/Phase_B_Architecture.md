@@ -1420,10 +1420,20 @@ Blender remains the better tool for authoring a walk cycle from nothing, and imp
 
 | Phase | Delivers |
 |---|---|
-| **B1** | `BoneTrack`/`BoneKey` authoring types, validation rules, blob layout (schema bump), and round-trip coverage |
+| **B1** | `BoneTrack`/`BoneKey` authoring types and validation rules |
 | **B2** | Bake path — `VatTextureBaker` poses from authored tracks; a clip may mix authored and imported bone sources |
 | **B3** | Clip Editor — bone rows on the timeline, key editing through the context inspector, bone picker sourced from the rig's skinned prefab |
 | **B4** | Preview — the mirror instantiates the rigged prefab and poses its bones, so bone rows scrub live rather than only after a bake |
+
+### Correction (2026-08-09): authored bone tracks never reach the blob
+
+B1 was originally specced to add a `BoneTrackBlob` to `ClipBlob`, bump `SchemaVersion` to 5, and re-record the golden content hash. **All of that is unnecessary, and specifying it was an error.**
+
+Nothing at runtime samples a bone. `VatMaterialSystem` reads frames out of a texture; `TransformSampleSystem` reads transform tracks for cutout parts. A bone track's entire purpose is to *pose a skeleton at bake time* so `VatTextureBaker` can capture matrices — exactly the role an imported `AnimationClip` plays, and that never enters the blob either.
+
+So authored bone tracks are **editor-time bake input**, in the same category as `vatSource`. The blob layout is untouched, the schema stays at 4, the golden hash stands, and `DataContractTests`' `ClipBlob` contract does not change.
+
+The tell was there in A42's own framing — *"a second source for the existing VAT bake, not a second output format"*. A source does not need a runtime representation. Writing the phase table before following that sentence through is what added a schema bump nobody needed.
 
 B4 is what closes the loop the owner asked for: **one timeline, scrubbed once, showing every technique at the same instant.** Until it lands, bone rows are authorable and bakeable but only previewable through a bake.
 

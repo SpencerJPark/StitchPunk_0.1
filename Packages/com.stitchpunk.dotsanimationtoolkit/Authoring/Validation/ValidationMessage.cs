@@ -70,7 +70,21 @@ namespace StitchPunk.AnimationToolkit.Authoring
         V13 = 13,
 
         /// <summary>Warning: a sprite key's <c>sliceIndex</c> is below −1.</summary>
-        V14 = 14
+        V14 = 14,
+
+        /// <summary>
+        /// Error: a <see cref="BoneTrack"/>'s <c>boneName</c> is null or empty (Amendment A42). A
+        /// bone track has no stable id — the name is its only identity — so an empty name names
+        /// nothing for the VAT bake to pose.
+        /// </summary>
+        V15 = 15,
+
+        /// <summary>
+        /// Error: two bone tracks in one clip name the same bone (Amendment A42). Mirrors V05's
+        /// duplicate-identity shape, scoped to <see cref="BoneTrack.boneName"/> instead of a stable
+        /// id, since a bone's name is the only identity it has.
+        /// </summary>
+        V16 = 16
     }
 
     /// <summary>
