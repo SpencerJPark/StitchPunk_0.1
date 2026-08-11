@@ -47,6 +47,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private Image previewImage;
         private Label previewStatusLabel;
         private ValidationBadgeElement validationBadge;
+        private ObjectField skinnedSourceField;
 
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
@@ -247,10 +248,56 @@ namespace StitchPunk.AnimationToolkit.Editor
             toolbar.Add(MakeToolbarLabel("Frames"));
             toolbar.Add(frameCountField);
 
+            // The rigged prefab authored bone tracks pose against (amendment A42, B4). Left empty
+            // for cutout clip sets, which then behave exactly as before.
+            skinnedSourceField = new ObjectField
+            {
+                objectType = typeof(GameObject),
+                allowSceneObjects = false,
+                tooltip = "Rigged prefab for bone tracks. Use the same one the VAT bake samples — "
+                    + "a different skeleton would preview motion the bake never sees."
+            };
+            skinnedSourceField.style.width = 170f;
+            skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
+            toolbar.Add(MakeToolbarLabel("Rig"));
+            toolbar.Add(skinnedSourceField);
+
             validationBadge = new ValidationBadgeElement();
             toolbar.Add(validationBadge);
 
             return toolbar;
+        }
+
+        private void OnSkinnedSourceChanged(ChangeEvent<Object> changeEvent)
+        {
+            if (previewController != null)
+            {
+                previewController.SetSkinnedSource(changeEvent.newValue as GameObject);
+            }
+            RebuildInspector();
+        }
+
+        /// <summary>Bone names on the assigned rigged prefab, for the add-track picker.</summary>
+        private List<string> CollectSourceBoneNames()
+        {
+            List<string> boneNames = new List<string>();
+            GameObject source = skinnedSourceField != null
+                ? skinnedSourceField.value as GameObject
+                : null;
+            if (source == null)
+            {
+                return boneNames;
+            }
+            Transform[] hierarchy = source.GetComponentsInChildren<Transform>(true);
+            for (int boneIndex = 0; boneIndex < hierarchy.Length; boneIndex++)
+            {
+                if (!boneNames.Contains(hierarchy[boneIndex].name))
+                {
+                    boneNames.Add(hierarchy[boneIndex].name);
+                }
+            }
+            boneNames.Sort();
+            return boneNames;
         }
 
         private VisualElement BuildTimelinePane()
@@ -1252,17 +1299,30 @@ namespace StitchPunk.AnimationToolkit.Editor
             int boneTrackCount = selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0;
             inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
 
+            // A dropdown when a rig is assigned, a text field when it is not. The dropdown is what
+            // removes the typo class outright: a typed name that resolves to nothing bakes the bone
+            // at rest, which reads as an animation that simply does not play.
+            List<string> sourceBoneNames = CollectSourceBoneNames();
+            if (sourceBoneNames.Count > 0)
+            {
+                DropdownField boneNameDropdown = new DropdownField("Bone", sourceBoneNames, 0);
+                inspectorPane.Add(boneNameDropdown);
+                inspectorPane.Add(new Button(() => AddBoneTrack(boneNameDropdown.value))
+                {
+                    text = "Add Bone Track"
+                });
+                return;
+            }
+
             TextField boneNameField = new TextField("Bone Name");
             boneNameField.tooltip =
-                "Must match a bone in the skinned hierarchy the VAT bake samples. "
+                "Assign a rigged prefab in the toolbar to pick from a list instead. "
                 + "Case sensitive — the bake reports a name it cannot resolve.";
             inspectorPane.Add(boneNameField);
-
-            Button addBoneTrackButton = new Button(() => AddBoneTrack(boneNameField.value))
+            inspectorPane.Add(new Button(() => AddBoneTrack(boneNameField.value))
             {
                 text = "Add Bone Track"
-            };
-            inspectorPane.Add(addBoneTrackButton);
+            });
         }
 
         private void AddBoneTrack(string boneName)

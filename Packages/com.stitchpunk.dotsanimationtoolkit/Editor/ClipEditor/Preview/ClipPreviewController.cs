@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Entities;
 using UnityEditor;
@@ -47,6 +48,17 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// outside the scene, rendering an empty preview that looks exactly like a broken clip.
         /// </summary>
         private bool mirrorRootAdded;
+
+        private readonly PreviewSkeletonMirror skeletonMirror = new PreviewSkeletonMirror();
+        private GameObject skinnedSourcePrefab;
+
+        /// <summary>
+        /// Tracked separately from <see cref="mirrorRootAdded"/> for the same reason it exists: the
+        /// skeleton instance is rebuilt whenever the source changes, and a flag tied to "the render
+        /// utility exists" would leave every instance after the first outside the preview scene —
+        /// an empty preview that looks exactly like a broken clip.
+        /// </summary>
+        private bool skeletonRootAdded;
 
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
@@ -111,6 +123,51 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Assigns the rigged prefab whose skeleton authored bone tracks pose (amendment A42, B4).
+        /// </summary>
+        /// <remarks>
+        /// Optional. Passing null returns the preview to quads-only, which is exactly right for a
+        /// cutout clip set — that workflow must not pay for a feature it does not use. This is the
+        /// same prefab the VAT bake samples; using a different one would preview motion against a
+        /// skeleton the bake never sees.
+        /// </remarks>
+        public void SetSkinnedSource(GameObject prefab)
+        {
+            if (skinnedSourcePrefab == prefab)
+            {
+                return;
+            }
+            skinnedSourcePrefab = prefab;
+            skeletonMirror.Rebuild(prefab);
+            skeletonRootAdded = false;
+        }
+
+        /// <summary>
+        /// Finds the authoring clip behind a baked clip id.
+        /// </summary>
+        /// <remarks>
+        /// Bone tracks are authoring-only data — amendment A42's correction: they never reach the
+        /// blob, because nothing at runtime samples a bone. So posing the skeleton needs the
+        /// <c>ClipAsset</c> itself, which the blob's id is the only handle back to.
+        /// </remarks>
+        private List<BoneTrack> FindClipById(ulong clipId)
+        {
+            if (boundClipSet == null || boundClipSet.clips == null)
+            {
+                return null;
+            }
+            for (int clipIndex = 0; clipIndex < boundClipSet.clips.Count; clipIndex++)
+            {
+                ClipAsset candidate = boundClipSet.clips[clipIndex];
+                if (candidate != null && candidate.Id.Value == clipId)
+                {
+                    return candidate.boneTracks;
+                }
+            }
+            return null;
+        }
+
         /// <summary>Rebuilds against the currently bound set — call after an edit.</summary>
         public void Refresh()
         {
@@ -162,6 +219,15 @@ namespace StitchPunk.AnimationToolkit.Editor
             // After the whole pose, never inside the loop: a marker placed before its part is posed
             // shows the previous frame and reads as the socket lagging the rig.
             rigMirror.UpdateSocketMarkers();
+
+            // Posed after the parts so one scrub shows both at the same instant, which is the
+            // entire point of authoring bone and cutout rows on one timeline.
+            skeletonMirror.ApplyBoneTracks(FindClipById(clipId), normalizedTime);
+            if (skeletonMirror.UnresolvedBoneNames.Count > 0)
+            {
+                statusMessage = "Bone name(s) not in the skinned source: "
+                    + string.Join(", ", skeletonMirror.UnresolvedBoneNames);
+            }
             return true;
         }
 
@@ -190,6 +256,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             EnsureRenderUtility();
+            if (skeletonMirror.InstanceRoot != null && !skeletonRootAdded)
+            {
+                renderUtility.AddSingleGO(skeletonMirror.InstanceRoot);
+                skeletonRootAdded = true;
+            }
             if (!mirrorRootAdded)
             {
                 renderUtility.AddSingleGO(rigMirror.RootObject);
@@ -239,7 +310,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             ReleaseRegistry();
             rigMirror.Dispose();
+            skeletonMirror.Dispose();
             mirrorRootAdded = false;
+            skeletonRootAdded = false;
             if (renderUtility != null)
             {
                 renderUtility.Cleanup();
