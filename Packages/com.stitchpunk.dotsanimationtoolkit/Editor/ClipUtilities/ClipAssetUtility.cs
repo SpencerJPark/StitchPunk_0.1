@@ -7,11 +7,11 @@ using UnityEngine;
 namespace StitchPunk.AnimationToolkit.Editor
 {
     /// <summary>
-    /// Mints a new <see cref="ClipAsset"/> into a <see cref="ClipSetAsset"/>.
+    /// Creates, renames, removes and deletes the assets a <see cref="ClipSetAsset"/> is made of.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <strong>One creation path, two callers.</strong> The clip set's inspector and the clip
+    /// <strong>One lifecycle path, several callers.</strong> The clip set's inspector and the clip
     /// editor's Clips pane both offer "new clip", and a clip created from one has to be
     /// indistinguishable from a clip created from the other — same folder, same rig, same id
     /// minting, same undo entry. Two implementations of that would agree on the day they were
@@ -34,12 +34,13 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// rather than as a generic property change.
     /// </para>
     /// </remarks>
-    public static class ClipCreationUtility
+    public static class ClipAssetUtility
     {
         private const string LogPrefix = "[DOTS Animation Toolkit] ";
         private const string NewClipAssetBaseName = "NewClip";
         private const string AssetExtension = ".asset";
         private const string UndoActionName = "Create Clip In Set";
+        private const string RemoveUndoActionName = "Remove Clip From Set";
 
         /// <summary>
         /// Creates a clip beside <paramref name="clipSet"/> on disk, gives it the set's rig, and
@@ -113,6 +114,155 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             Undo.CollapseUndoOperations(undoGroup);
+        }
+
+        /// <summary>
+        /// Creates an empty <see cref="ClipSetAsset"/> at <paramref name="assetPath"/>.
+        /// </summary>
+        /// <returns>The new set, or null when the path is unusable.</returns>
+        /// <remarks>
+        /// <para>
+        /// The path is chosen by the caller rather than derived, because a clip set has no anchor to
+        /// sit beside the way a clip sits beside its set — it is the root of the graph, so there is
+        /// nothing to infer a home from and guessing one would scatter sets across a project.
+        /// </para>
+        /// <para>
+        /// The rig is left null deliberately. There is no rig in scope at creation, and inheriting
+        /// one from whatever the window happened to have open would silently bind a new set to a rig
+        /// nobody chose. Validation reports the empty rig immediately, which is the honest prompt.
+        /// </para>
+        /// </remarks>
+        public static ClipSetAsset CreateClipSet(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return null;
+            }
+
+            ClipSetAsset newClipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
+            newClipSet.EnsureStableIds();
+            newClipSet.name = ExtractAssetName(assetPath);
+
+            AssetDatabase.CreateAsset(newClipSet, assetPath);
+            AssetDatabase.SaveAssets();
+            newClipSet.MarkStableIdPersisted();
+
+            return newClipSet;
+        }
+
+        /// <summary>
+        /// Un-registers a clip from a set, leaving the asset on disk. One undo step.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="SerializedProperty.DeleteArrayElementAtIndex"/> on an array of
+        /// <see cref="Object"/> references only <em>nulls</em> a non-null element on its first call;
+        /// a second call at the same index removes the now-empty slot. Skipping that second call
+        /// leaves a null entry behind instead of shortening the list, which is silently wrong — the
+        /// set would report one more clip than it shows. <c>ClipSetAssetEditor.RemoveClipAt</c>
+        /// documented this quirk first; centralising it here is what stops the next caller
+        /// rediscovering it the hard way.
+        /// </remarks>
+        public static bool RemoveClipFromSet(ClipSetAsset clipSet, int clipIndex)
+        {
+            return RemoveClipEntry(clipSet, clipIndex, true);
+        }
+
+        private static bool RemoveClipEntry(ClipSetAsset clipSet, int clipIndex, bool recordUndo)
+        {
+            if (clipSet == null)
+            {
+                return false;
+            }
+
+            SerializedObject serializedSet = new SerializedObject(clipSet);
+            SerializedProperty clipsProperty = serializedSet.FindProperty("clips");
+            if (clipsProperty == null || clipIndex < 0 || clipIndex >= clipsProperty.arraySize)
+            {
+                return false;
+            }
+
+            // Opened only once the edit is known to be possible, so a refused call does not leave an
+            // empty step in the user's undo history.
+            int undoGroup = 0;
+            if (recordUndo)
+            {
+                Undo.IncrementCurrentGroup();
+                undoGroup = Undo.GetCurrentGroup();
+                Undo.SetCurrentGroupName(RemoveUndoActionName);
+            }
+
+            bool wasNonNullReference =
+                clipsProperty.GetArrayElementAtIndex(clipIndex).objectReferenceValue != null;
+            clipsProperty.DeleteArrayElementAtIndex(clipIndex);
+
+            if (wasNonNullReference
+                && clipIndex < clipsProperty.arraySize
+                && clipsProperty.GetArrayElementAtIndex(clipIndex).objectReferenceValue == null)
+            {
+                clipsProperty.DeleteArrayElementAtIndex(clipIndex);
+            }
+
+            if (recordUndo)
+            {
+                serializedSet.ApplyModifiedProperties();
+                Undo.CollapseUndoOperations(undoGroup);
+            }
+            else
+            {
+                serializedSet.ApplyModifiedPropertiesWithoutUndo();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Un-registers a clip and sends its asset to the OS trash.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Trash, not <see cref="AssetDatabase.DeleteAsset"/>.</strong> Undo does not bring a
+        /// deleted file back, so the only recovery for a mis-click is the one the operating system
+        /// provides — and it only provides it if the file went to the trash. The cost is nothing; the
+        /// difference on the day it matters is the whole clip.
+        /// </para>
+        /// <para>
+        /// The set is updated <em>before</em> the file goes, so the set never holds a reference to an
+        /// asset that no longer exists. Doing it the other way round leaves a missing-reference entry
+        /// in the list if the trash call fails.
+        /// </para>
+        /// <para>
+        /// <strong>The list edit is deliberately not undoable on this path</strong>, unlike
+        /// <see cref="RemoveClipFromSet"/>. Undo cannot bring the file back, so an undoable removal
+        /// would restore an entry pointing at an asset that is now in the trash — a missing
+        /// reference sitting in the set, which no validation rule reports. A delete that cannot be
+        /// half-undone into a broken state is worth more than one that can be half-undone at all.
+        /// </para>
+        /// </remarks>
+        public static bool DeleteClipFromSet(ClipSetAsset clipSet, int clipIndex, ClipAsset clip)
+        {
+            if (clip == null)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(clip);
+            RemoveClipEntry(clipSet, clipIndex, false);
+
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                // Never saved, so there is no file to trash; un-registering was the whole job.
+                return true;
+            }
+
+            if (!AssetDatabase.MoveAssetToTrash(assetPath))
+            {
+                Debug.LogWarning(
+                    LogPrefix + "Removed the clip from the set, but could not move '" + assetPath +
+                    "' to the trash. The file is still on disk.", clipSet);
+                return false;
+            }
+
+            AssetDatabase.SaveAssets();
+            return true;
         }
 
         /// <summary>

@@ -29,10 +29,11 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         private static readonly string[] RequiredElementNames = new string[]
         {
             "clip-editor-root", "clip-editor-toolbar",
-            "clip-set-field", "play-toggle", "rewind-button", "time-label", "snap-toggle",
+            "clip-set-field", "new-clip-set-button",
+            "play-toggle", "rewind-button", "time-label", "snap-toggle",
             "frame-count-field", "skinned-source-field", "validation-badge-slot",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
-            "clip-list-pane", "new-clip-button", "clip-list",
+            "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",
             "viewport-pane", "viewport-status", "viewport-image",
             "inspector-pane", "inspector-content",

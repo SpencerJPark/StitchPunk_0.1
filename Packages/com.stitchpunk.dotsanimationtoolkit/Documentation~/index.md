@@ -74,7 +74,7 @@ on top of any of the above.
 
 | Window / inspector | Menu | What it's for |
 |---|---|---|
-| Clip Editor | Window ▸ DOTS Animation Toolkit ▸ Clip Editor | Timeline authoring for a `ClipSetAsset`'s clips. A dock of three zones — clips and rig hierarchy on the left, viewport in the middle, inspector on the right — over a timeline. Every boundary drags, and each position is remembered. The viewport renders from the moment the window opens, with or without a selection, and objects and bones can be clicked in it directly. Clips can be created and renamed from the Clips pane. |
+| Clip Editor | Window ▸ DOTS Animation Toolkit ▸ Clip Editor | Timeline authoring for a `ClipSetAsset`'s clips. A dock of three zones — clips and rig hierarchy on the left, viewport in the middle, inspector on the right — over a timeline. Every boundary drags, and each position is remembered. The viewport renders from the moment the window opens, with or without a selection, and objects and bones can be clicked in it directly. Clip sets are created from the toolbar; clips are created, renamed and deleted from the Clips pane. |
 | VAT Bake | Window ▸ DOTS Animation Toolkit ▸ VAT Bake | Wizard over the VAT texture baker: pick a source prefab and a clip set, choose bone or vertex flavour, bake to a `VatTextureSetAsset`. |
 | `RigAsset` inspector | Select a `RigAsset` | Target and layer lists, mirror-pair table. |
 | `ClipSetAsset` inspector | Select a `ClipSetAsset` | Clip roster with a per-clip validation status column. |

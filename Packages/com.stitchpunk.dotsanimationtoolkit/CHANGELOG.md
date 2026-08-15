@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duplicate-bone-track warnings now go to the timeline's status line instead of
   the viewport's, which the preview tick overwrote thirty times a second.
 
-### Added — create clips without leaving the editor
+### Added — clip and clip-set lifecycle in the editor
 
 - **New** in the Clips pane creates a `ClipAsset` beside the set on disk, gives
   it the set's rig, appends it to the set as one undo step, and selects it. The
@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   born failing validation.
   - The button is **disabled until a set is assigned**. A clip is only meaningful
     inside a set, so "no set" is not a case to invent a home for.
-  - The creation itself moved into `ClipCreationUtility`, shared with
+  - The creation itself moved into `ClipAssetUtility`, shared with
     `ClipSetAssetEditor`'s existing "new clip in set" button, which now calls it.
     A clip made from the window and one made from the inspector have to be
     indistinguishable — same folder, same inherited rig, same id minting, same
@@ -62,6 +62,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The asset write is not undoable and deliberately is not made so: Ctrl+Z does
     not delete a file. The append to the set's clip list is, under the name
     "Create Clip In Set".
+- **Delete** in the Clips pane asks before it does anything, and offers both
+  outcomes rather than making one word on a button carry the difference:
+  - **Delete Asset** sends the clip file to the OS trash and un-registers it.
+    Trash rather than `AssetDatabase.DeleteAsset`, because undo does not bring a
+    file back and the trash is the only recovery a mis-click has.
+  - **Remove From Set** un-registers it and leaves the asset on disk. A
+    two-button dialog would have made this reachable only from the clip set's
+    inspector, so anyone who meant "take it out of the set" would have had to
+    confirm a deletion to get there.
+  - **Delete Asset is deliberately not undoable, and the dialog says so.** An
+    undoable removal would restore a set entry pointing at a file now in the
+    trash — a missing reference that no validation rule reports. Remove From Set
+    destroys nothing and stays undoable.
+  - The set edit is applied before the file is trashed, so the set never holds a
+    reference to an asset that no longer exists.
+  - Deleting selects the neighbouring clip, so deleting several in a row does not
+    need a manual re-select between each one.
+- **New Set** in the toolbar creates a `ClipSetAsset` and loads it into the
+  window. The location is asked for rather than derived: a clip is created beside
+  its set because the set is a natural anchor, but a set is the root of the graph
+  and has none, and a package guessing a folder is how projects end up with
+  assets scattered wherever a tool felt like putting them. The rig is left empty
+  for the same reason — inheriting whatever the window had open would bind a new
+  set to a rig nobody chose, and validation prompts for it immediately.
+- `ClipCreationUtility` became `ClipAssetUtility`, since it now covers the whole
+  clip lifecycle rather than creation alone. It also absorbs the
+  `DeleteArrayElementAtIndex` quirk `ClipSetAssetEditor` documented first — on an
+  array of object references the first call only *nulls* the element and a second
+  is needed to remove the slot — so the next caller does not rediscover it by
+  shipping a set that reports one more clip than it shows.
 - **A Name field in the clip inspector**, so a clip can be renamed where it was
   created. A clip's name is not cosmetic — the set's id-constant generator turns
   it into a C# identifier — and without this the flow was "create here, go to the

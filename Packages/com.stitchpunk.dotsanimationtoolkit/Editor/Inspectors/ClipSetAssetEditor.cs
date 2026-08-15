@@ -542,7 +542,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// Creates a fresh <see cref="ClipAsset"/> in the set, then selects and pings it.
         /// </summary>
         /// <remarks>
-        /// The creation itself lives in <see cref="ClipCreationUtility"/>, shared with the clip
+        /// The creation itself lives in <see cref="ClipAssetUtility"/>, shared with the clip
         /// editor's Clips pane. A clip made here and a clip made there have to be
         /// indistinguishable — same folder, same inherited rig, same id minting, same undo entry —
         /// and two implementations of that would agree only until one of them was edited. What stays
@@ -557,7 +557,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            ClipAsset newClip = ClipCreationUtility.CreateClipInSet(clipSetAsset);
+            ClipAsset newClip = ClipAssetUtility.CreateClipInSet(clipSetAsset);
             if (newClip == null)
             {
                 return;

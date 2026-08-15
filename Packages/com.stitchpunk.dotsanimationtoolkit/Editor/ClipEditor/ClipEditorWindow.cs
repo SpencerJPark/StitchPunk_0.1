@@ -79,6 +79,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private ObjectField clipSetField;
         private ListView clipListView;
         private Button newClipButton;
+        private Button deleteClipButton;
         private TreeView hierarchyTreeView;
         private Label hierarchyEmptyLabel;
         private ToolbarToggle playToggle;
@@ -233,7 +234,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 validationBadge.Refresh(clipSet);
             }
 
-            RefreshNewClipButton();
+            RefreshClipActionButtons();
             RebuildHierarchy();
             RebuildTimeline();
         }
@@ -246,6 +247,13 @@ namespace StitchPunk.AnimationToolkit.Editor
                 clipSetField.objectType = typeof(ClipSetAsset);
                 clipSetField.allowSceneObjects = false;
                 clipSetField.RegisterValueChangedCallback(OnClipSetChanged);
+            }
+
+            ToolbarButton newClipSetButton = rootVisualElement.Q<ToolbarButton>("new-clip-set-button");
+            if (newClipSetButton != null)
+            {
+                newClipSetButton.clicked += CreateClipSet;
+                newClipSetButton.tooltip = "Create a new clip set asset and load it into this window.";
             }
 
             playToggle = rootVisualElement.Q<ToolbarToggle>("play-toggle");
@@ -309,6 +317,15 @@ namespace StitchPunk.AnimationToolkit.Editor
                     + "the set.";
             }
 
+            deleteClipButton = rootVisualElement.Q<Button>("delete-clip-button");
+            if (deleteClipButton != null)
+            {
+                deleteClipButton.clicked += DeleteSelectedClip;
+                deleteClipButton.tooltip =
+                    "Remove the selected clip from the set, and optionally send its asset to the "
+                    + "trash. Asks first.";
+            }
+
             clipListView = rootVisualElement.Q<ListView>("clip-list");
             if (clipListView == null)
             {
@@ -327,7 +344,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// <para>
-        /// The creation is <see cref="ClipCreationUtility"/>'s, shared with the clip set's own
+        /// The creation is <see cref="ClipAssetUtility"/>'s, shared with the clip set's own
         /// inspector, so a clip made here is indistinguishable from one made there — same folder,
         /// same inherited rig, same id minting, same undo entry.
         /// </para>
@@ -346,7 +363,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            ClipAsset newClip = ClipCreationUtility.CreateClipInSet(clipSet);
+            ClipAsset newClip = ClipAssetUtility.CreateClipInSet(clipSet);
             if (newClip == null)
             {
                 return;
@@ -382,20 +399,153 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Enables the New button only when there is a set for a clip to be created in.
+        /// Enables the Clips pane's actions for the states in which they mean something.
         /// </summary>
         /// <remarks>
         /// A clip is only meaningful inside a set — it inherits the set's rig, and validation rule
         /// V06 refuses a clip whose rig is anything else. So "no set assigned" is not a case to
-        /// invent a home for; it is a case to disable, with the reason on the button.
+        /// invent a home for; it is a case to disable. Delete additionally needs a clip selected to
+        /// be about.
         /// </remarks>
-        private void RefreshNewClipButton()
+        private void RefreshClipActionButtons()
         {
-            if (newClipButton == null)
+            if (newClipButton != null)
+            {
+                newClipButton.SetEnabled(clipSet != null);
+            }
+            if (deleteClipButton != null)
+            {
+                deleteClipButton.SetEnabled(clipSet != null && selectedClip != null);
+            }
+        }
+
+        /// <summary>
+        /// Asks what to do with the selected clip, then un-registers it and optionally trashes it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Three answers, because there are genuinely three.</strong> "Remove from the set"
+        /// and "delete the file" are different intentions with very different consequences, and a
+        /// two-button dialog would make the safe one unreachable from here — so someone who meant
+        /// "take this out of the set" would confirm a deletion to get it. The dialog names both
+        /// outcomes rather than making the user infer them from one word on a button.
+        /// </para>
+        /// <para>
+        /// The dialog says plainly which outcome is undoable. Deleting the asset is not, on purpose:
+        /// undo cannot bring a file back, so an undoable delete would restore a set entry pointing
+        /// at something in the trash. The file going to the operating system's trash rather than
+        /// being unlinked outright is the one recovery path a mis-click actually has.
+        /// </para>
+        /// </remarks>
+        private void DeleteSelectedClip()
+        {
+            if (clipSet == null || selectedClip == null || clipSet.clips == null)
             {
                 return;
             }
-            newClipButton.SetEnabled(clipSet != null);
+
+            int clipIndex = clipSet.clips.IndexOf(selectedClip);
+            if (clipIndex < 0)
+            {
+                return;
+            }
+
+            ClipAsset clipToDelete = selectedClip;
+            int choice = EditorUtility.DisplayDialogComplex(
+                "Delete Clip",
+                "Delete '" + clipToDelete.name + "'?\n\n"
+                + "Delete Asset sends the clip file to the trash and removes it from '"
+                + clipSet.name + "'. This cannot be undone.\n\n"
+                + "Remove From Set un-registers it, leaves the asset on disk, and can be undone.",
+                "Delete Asset",
+                "Cancel",
+                "Remove From Set");
+
+            if (choice == 1)
+            {
+                return;
+            }
+
+            if (choice == 0)
+            {
+                ClipAssetUtility.DeleteClipFromSet(clipSet, clipIndex, clipToDelete);
+            }
+            else
+            {
+                ClipAssetUtility.RemoveClipFromSet(clipSet, clipIndex);
+            }
+
+            SelectClip(null);
+            RefreshClipList();
+            SelectClipNearIndex(clipIndex);
+
+            MarkPreviewDirty();
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(clipSet);
+            }
+        }
+
+        /// <summary>
+        /// Selects whatever now occupies <paramref name="removedIndex"/>, or the last clip.
+        /// </summary>
+        /// <remarks>
+        /// Landing on the neighbour is what makes deleting several clips in a row workable — leaving
+        /// nothing selected would mean re-selecting by hand between every deletion.
+        /// </remarks>
+        private void SelectClipNearIndex(int removedIndex)
+        {
+            if (clipListView == null || clipSet == null || clipSet.clips == null
+                || clipSet.clips.Count == 0)
+            {
+                RefreshClipActionButtons();
+                return;
+            }
+
+            int nextIndex = Mathf.Clamp(removedIndex, 0, clipSet.clips.Count - 1);
+            clipListView.SetSelection(nextIndex);
+            clipListView.ScrollToItem(nextIndex);
+        }
+
+        /// <summary>
+        /// Creates a clip set wherever the user chooses, and loads it into the window.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The location is asked for rather than derived. A clip is created beside its set because
+        /// the set is a natural anchor; a set is the root of the graph and has no anchor at all, so
+        /// there is nothing to infer a home from — and a package guessing a folder is how projects
+        /// end up with assets scattered wherever a tool felt like putting them.
+        /// </para>
+        /// <para>
+        /// Assigned through the toolbar field rather than to <c>clipSet</c> directly, so loading a
+        /// new set runs the same path as picking one by hand: the clip list, preview, validation
+        /// badge and button states all follow from the one change notification.
+        /// </para>
+        /// </remarks>
+        private void CreateClipSet()
+        {
+            string assetPath = EditorUtility.SaveFilePanelInProject(
+                "Create Clip Set",
+                "NewClipSet",
+                "asset",
+                "Choose where to save the new clip set.");
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return;
+            }
+
+            ClipSetAsset newClipSet = ClipAssetUtility.CreateClipSet(assetPath);
+            if (newClipSet == null)
+            {
+                return;
+            }
+
+            if (clipSetField != null)
+            {
+                clipSetField.value = newClipSet;
+            }
+            EditorGUIUtility.PingObject(newClipSet);
         }
 
         private void BindHierarchy()
@@ -984,7 +1134,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             SelectClip(null);
 
             RefreshClipList();
-            RefreshNewClipButton();
+            RefreshClipActionButtons();
 
             if (previewController != null)
             {
@@ -1014,6 +1164,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             SetPlaying(false);
             playheadTime = 0f;
             RefreshSerializedClip();
+            RefreshClipActionButtons();
             RebuildTimeline();
         }
 
@@ -2112,7 +2263,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             nameField.SetValueWithoutNotify(selectedClip.name);
             nameField.RegisterValueChangedCallback(changeEvent =>
             {
-                if (!ClipCreationUtility.RenameClip(selectedClip, changeEvent.newValue))
+                if (!ClipAssetUtility.RenameClip(selectedClip, changeEvent.newValue))
                 {
                     // Refused — an illegal or duplicate name. Put the field back to the truth rather
                     // than leaving it showing a name the asset does not have.

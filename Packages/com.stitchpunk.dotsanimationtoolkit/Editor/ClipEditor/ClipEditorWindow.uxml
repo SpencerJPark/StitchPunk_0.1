@@ -21,6 +21,7 @@
         <uie:Toolbar name="clip-editor-toolbar" class="clip-editor__toolbar">
             <ui:Label text="Clip Set" class="clip-editor__toolbar-label" />
             <uie:ObjectField name="clip-set-field" class="clip-editor__object-field" />
+            <uie:ToolbarButton name="new-clip-set-button" text="New Set" />
             <uie:ToolbarToggle name="play-toggle" text="Play" />
             <uie:ToolbarButton name="rewind-button" text="|&lt;" />
             <ui:Label name="time-label" text="0.000s" class="clip-editor__toolbar-label clip-editor__time-label" />
@@ -51,7 +52,10 @@
                     <ui:VisualElement name="clip-list-pane" class="clip-editor__pane">
                         <ui:VisualElement class="clip-editor__pane-header">
                             <ui:Label text="Clips" class="clip-editor__pane-title" />
-                            <ui:Button name="new-clip-button" text="New" class="clip-editor__pane-action" />
+                            <ui:VisualElement class="clip-editor__pane-actions">
+                                <ui:Button name="new-clip-button" text="New" class="clip-editor__pane-action" />
+                                <ui:Button name="delete-clip-button" text="Delete" class="clip-editor__pane-action" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:ListView name="clip-list" class="clip-editor__clip-list" />
                     </ui:VisualElement>
