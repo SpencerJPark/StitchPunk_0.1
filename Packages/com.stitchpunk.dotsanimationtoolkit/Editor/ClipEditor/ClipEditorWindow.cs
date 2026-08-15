@@ -213,6 +213,11 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>The selected rig target, or 0 when the selection is a bone or nothing.</summary>
         private uint selectedTargetId;
 
+        // Reused per inspector rebuild rather than allocated, since a rebuild happens on every
+        // scrub tick that changes the displayed value.
+        private readonly List<SpriteTrack> flipbookTracks = new List<SpriteTrack>();
+        private readonly List<int> flipbookTrackIndices = new List<int>();
+
         // Viewport picking. Hits are gathered on pointer-down, from the press position, and applied
         // on release — see OnPreviewPointerUp for why that is not the same as selecting on press.
         private readonly List<PreviewPickHit> pickCandidates = new List<PreviewPickHit>();
@@ -1857,6 +1862,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 float duration = selectedClip != null ? selectedClip.duration : 1f;
                 timeLabel.text = (playheadTime * duration).ToString("0.000") + "s";
             }
+
+            // The inspector shows the value at the playhead, so it moves with it. In place rather
+            // than by rebuilding: a rebuild would destroy the field being typed into.
+            RefreshLiveInspectorValues();
         }
 
         /// <summary>Frames to snap to, or zero when snapping is off.</summary>
@@ -2837,6 +2846,183 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// fallback — the pane is never empty, because "nothing here" and "the window is broken"
         /// look identical to someone who has just opened it.
         /// </remarks>
+        /// <summary>One flipbook track's live fields, so a scrub can update them without a rebuild.</summary>
+        private sealed class LiveFlipbookBinding
+        {
+            public SpriteTrack track;
+            public IntegerField valueField;
+            public EnumField indexModeField;
+            public Label resolvedLabel;
+            public Label stateHint;
+        }
+
+        private VisualElement liveTransformBlock;
+        private BoneTrack liveBoneTrack;
+        private Label liveTransformStateChip;
+        private Vector3Field liveTransformPositionField;
+        private Vector3Field liveTransformRotationField;
+        private Vector3Field liveTransformScaleField;
+        private readonly List<LiveFlipbookBinding> liveFlipbookBindings =
+            new List<LiveFlipbookBinding>();
+
+        private void ClearLiveInspectorBindings()
+        {
+            liveTransformBlock = null;
+            liveBoneTrack = null;
+            liveTransformStateChip = null;
+            liveTransformPositionField = null;
+            liveTransformRotationField = null;
+            liveTransformScaleField = null;
+            liveFlipbookBindings.Clear();
+        }
+
+        /// <summary>
+        /// Pushes the value at the playhead into the fields already on screen.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>This is what makes the panel live.</strong> Scrubbing used to leave it showing
+        /// whatever it held when the selection last changed, which made it a snapshot wearing a
+        /// live panel's clothes. Rebuilding the pane per tick would have been the easy fix and the
+        /// wrong one: it destroys and recreates the very field a user is typing into.
+        /// </para>
+        /// <para>
+        /// A focused field is therefore skipped rather than overwritten. Half-typed text is a value
+        /// the user is in the middle of authoring, and a scrub that stamped over it would be the
+        /// panel arguing with the person using it.
+        /// </para>
+        /// </remarks>
+        private void RefreshLiveInspectorValues()
+        {
+            if (liveTransformPositionField != null && liveBoneTrack != null)
+            {
+                RefreshLiveBoneValues();
+            }
+            else if (liveTransformPositionField != null)
+            {
+                float3 position;
+                float3 rotationDegrees;
+                float3 scale;
+                TransformValueState valueState =
+                    ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+
+                SetVectorWithoutDisturbingEdit(
+                    liveTransformPositionField, new Vector3(position.x, position.y, position.z));
+                SetVectorWithoutDisturbingEdit(
+                    liveTransformRotationField,
+                    new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+                SetVectorWithoutDisturbingEdit(
+                    liveTransformScaleField, new Vector3(scale.x, scale.y, scale.z));
+
+                if (liveTransformStateChip != null)
+                {
+                    liveTransformStateChip.text = DescribeTransformState(valueState);
+                    liveTransformStateChip.EnableInClassList(
+                        TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+                }
+                if (liveTransformBlock != null)
+                {
+                    liveTransformBlock.EnableInClassList(
+                        TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
+                    liveTransformBlock.EnableInClassList(
+                        TransformInterpolatedUssClassName,
+                        valueState == TransformValueState.Interpolated);
+                    liveTransformBlock.EnableInClassList(
+                        TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+                }
+            }
+
+            for (int bindingIndex = 0; bindingIndex < liveFlipbookBindings.Count; bindingIndex++)
+            {
+                RefreshLiveFlipbookBinding(liveFlipbookBindings[bindingIndex]);
+            }
+        }
+
+        private void RefreshLiveBoneValues()
+        {
+            float3 position;
+            float3 rotationDegrees;
+            float3 scale;
+            bool hasKeys = ClipBoneEditing.TryEvaluate(
+                liveBoneTrack, playheadTime, out position, out rotationDegrees, out scale);
+            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(liveBoneTrack, playheadTime) >= 0;
+
+            SetVectorWithoutDisturbingEdit(
+                liveTransformPositionField, new Vector3(position.x, position.y, position.z));
+            SetVectorWithoutDisturbingEdit(
+                liveTransformRotationField,
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            SetVectorWithoutDisturbingEdit(
+                liveTransformScaleField, new Vector3(scale.x, scale.y, scale.z));
+
+            if (liveTransformStateChip != null)
+            {
+                liveTransformStateChip.text = DescribeBoneState(hasKeys, isOnKey);
+            }
+            if (liveTransformBlock != null)
+            {
+                liveTransformBlock.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
+                liveTransformBlock.EnableInClassList(
+                    TransformInterpolatedUssClassName, hasKeys && !isOnKey);
+            }
+        }
+
+        private void RefreshLiveFlipbookBinding(LiveFlipbookBinding binding)
+        {
+            SpriteTrack track = binding.track;
+            if (track == null || track.keys == null || track.keys.Count == 0)
+            {
+                return;
+            }
+
+            int effectiveKeyIndex = ClipSpriteEditing.FindEffectiveKeyIndex(track, playheadTime);
+            if (effectiveKeyIndex < 0)
+            {
+                return;
+            }
+            SpriteKey currentKey = track.keys[effectiveKeyIndex];
+
+            if (binding.valueField != null && !IsBeingEdited(binding.valueField))
+            {
+                binding.valueField.SetValueWithoutNotify(currentKey.sliceIndex);
+            }
+            if (binding.indexModeField != null && !IsBeingEdited(binding.indexModeField))
+            {
+                binding.indexModeField.SetValueWithoutNotify(currentKey.indexMode);
+            }
+            if (binding.resolvedLabel != null)
+            {
+                ApplyFlipbookResolvedLabel(binding.resolvedLabel, currentKey, track.baseIndex);
+            }
+            if (binding.stateHint != null)
+            {
+                binding.stateHint.text =
+                    ClipSpriteEditing.FindKeyIndexAt(track, playheadTime) >= 0
+                        ? "On a key — editing changes this key."
+                        : "Held from an earlier key — editing keys the value here.";
+            }
+        }
+
+        private static void SetVectorWithoutDisturbingEdit(Vector3Field field, Vector3 value)
+        {
+            if (field == null || IsBeingEdited(field))
+            {
+                return;
+            }
+            field.SetValueWithoutNotify(value);
+        }
+
+        /// <summary>Whether the user currently has focus inside a field.</summary>
+        private static bool IsBeingEdited(VisualElement field)
+        {
+            if (field == null || field.panel == null)
+            {
+                return false;
+            }
+            VisualElement focused = field.panel.focusController.focusedElement as VisualElement;
+            return focused != null && (focused == field || field.Contains(focused));
+        }
+
         private void RebuildInspector()
         {
             if (inspectorPane == null)
@@ -2844,6 +3030,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
             inspectorPane.Clear();
+            ClearLiveInspectorBindings();
 
             if (selectedKeys.Count > 0 && BuildKeyInspector())
             {
@@ -2887,12 +3074,21 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             inspectorPane.Add(MakeHeading(
-                shown.trackKind.ToString() + " key "
-                + shown.trackIndex.ToString() + " / " + shown.keyIndex.ToString()));
+                shown.trackKind.ToString() + " key at "
+                + GetKeyTime(shown).ToString("0.###")));
             if (selectedKeys.Count > 1)
             {
-                inspectorPane.Add(new Label(
+                inspectorPane.Add(MakeHint(
                     selectedKeys.Count.ToString() + " selected — editing the last."));
+            }
+
+            // A flipbook key gets purpose-built fields rather than the generic property drawer,
+            // because its stored number is only meaningful beside its mode and its track's base —
+            // three fields the drawer renders as three unrelated numbers.
+            if (shown.trackKind == TimelineTrackKind.Sprite)
+            {
+                AddSelectedFlipbookKeyFields(shown);
+                return true;
             }
 
             inspectorPane.Add(new PropertyField(keyProperty));
@@ -2900,6 +3096,58 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             AddInterpolationControls(shown);
             return true;
+        }
+
+        /// <summary>The selected flipbook key: stored value, mode, and what it resolves to.</summary>
+        private void AddSelectedFlipbookKeyFields(KeyAddress address)
+        {
+            if (selectedClip.spriteTracks == null
+                || address.trackIndex >= selectedClip.spriteTracks.Count)
+            {
+                return;
+            }
+            SpriteTrack track = selectedClip.spriteTracks[address.trackIndex];
+            if (track == null || track.keys == null || address.keyIndex >= track.keys.Count)
+            {
+                return;
+            }
+
+            SpriteKey key = track.keys[address.keyIndex];
+
+            IntegerField valueField = new IntegerField("Index");
+            valueField.SetValueWithoutNotify(key.sliceIndex);
+            valueField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Edit Flipbook Key");
+                SpriteKey editedKey = track.keys[address.keyIndex];
+                editedKey.sliceIndex = changeEvent.newValue;
+                track.keys[address.keyIndex] = editedKey;
+                CommitClipEdit();
+                RebuildInspector();
+            });
+            inspectorPane.Add(valueField);
+
+            EnumField indexModeField = new EnumField("Index Mode", key.indexMode);
+            indexModeField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ToggleFlipbookKeyMode(
+                    track, address.keyIndex, (SpriteIndexMode)changeEvent.newValue);
+            });
+            inspectorPane.Add(indexModeField);
+
+            inspectorPane.Add(MakeFlipbookResolvedLabel(key, track.baseIndex));
+
+            IntegerField baseIndexField = new IntegerField("Base Index");
+            baseIndexField.SetValueWithoutNotify(track.baseIndex);
+            baseIndexField.tooltip = "Shared by every relative key on this track.";
+            baseIndexField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Change Flipbook Base Index");
+                track.baseIndex = changeEvent.newValue;
+                CommitClipEdit();
+                RebuildInspector();
+            });
+            inspectorPane.Add(baseIndexField);
         }
 
         /// <summary>
@@ -3086,19 +3334,122 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            if (clipSerializedObject == null)
-            {
-                return;
-            }
-            clipSerializedObject.Update();
+            AddBoneTransformFields(selectedClip.boneTracks[boneTrackIndex]);
+        }
 
-            SerializedProperty tracksProperty = clipSerializedObject.FindProperty("boneTracks");
-            if (tracksProperty == null || boneTrackIndex >= tracksProperty.arraySize)
+        /// <summary>
+        /// The live pose of a bone at the playhead, editable in place.
+        /// </summary>
+        /// <remarks>
+        /// This replaced a property drawer on the whole <c>BoneTrack</c>, which rendered every key
+        /// as an array — the panel showing a list of keys rather than the value at the time being
+        /// looked at. The keys belong on the timeline; this answers "what is this bone doing now".
+        /// </remarks>
+        private void AddBoneTransformFields(BoneTrack track)
+        {
+            liveBoneTrack = track;
+
+            float3 position;
+            float3 rotationDegrees;
+            float3 scale;
+            bool hasKeys = ClipBoneEditing.TryEvaluate(
+                track, playheadTime, out position, out rotationDegrees, out scale);
+            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
+
+            inspectorPane.Add(MakeHeading("Bone Transform"));
+
+            liveTransformStateChip = MakeHint(DescribeBoneState(hasKeys, isOnKey));
+            inspectorPane.Add(liveTransformStateChip);
+
+            VisualElement transformBlock = new VisualElement();
+            transformBlock.AddToClassList(TransformBlockUssClassName);
+            transformBlock.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
+            transformBlock.EnableInClassList(TransformInterpolatedUssClassName, hasKeys && !isOnKey);
+            liveTransformBlock = transformBlock;
+
+            Vector3Field positionField = new Vector3Field("Position");
+            positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
+            positionField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ApplyBoneEdit(
+                    track,
+                    new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
+                    rotationDegrees, scale);
+            });
+            liveTransformPositionField = positionField;
+            transformBlock.Add(positionField);
+
+            Vector3Field rotationField = new Vector3Field("Rotation");
+            rotationField.SetValueWithoutNotify(
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            rotationField.tooltip =
+                "Euler degrees. The authored key stores a quaternion; this is the readable form of "
+                + "it, converted at the boundary.";
+            rotationField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ApplyBoneEdit(
+                    track, position,
+                    new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
+                    scale);
+            });
+            liveTransformRotationField = rotationField;
+            transformBlock.Add(rotationField);
+
+            Vector3Field scaleField = new Vector3Field("Scale");
+            scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
+            scaleField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ApplyBoneEdit(
+                    track, position, rotationDegrees,
+                    new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z));
+            });
+            liveTransformScaleField = scaleField;
+            transformBlock.Add(scaleField);
+
+            inspectorPane.Add(transformBlock);
+
+            inspectorPane.Add(new Button(() =>
+            {
+                ApplyBoneEdit(track, position, rotationDegrees, scale);
+            })
+            {
+                text = "Key"
+            });
+        }
+
+        private static string DescribeBoneState(bool hasKeys, bool isOnKey)
+        {
+            if (!hasKeys)
+            {
+                return "No keys yet — editing creates the first one.";
+            }
+            return isOnKey
+                ? "On a key — editing changes this key."
+                : "Between keys — this value is sampled, not stored.";
+        }
+
+        /// <summary>
+        /// Writes a bone pose at the playhead.
+        /// </summary>
+        /// <remarks>
+        /// Always keys, unlike a transform edit. A bone track has no rest pose in this window to
+        /// fall back to, so a held-but-unkeyed value would have nothing to be shown against — it
+        /// would just be a number that vanished on the next scrub.
+        /// </remarks>
+        private void ApplyBoneEdit(
+            BoneTrack track, float3 position, float3 rotationDegrees, float3 scale)
+        {
+            if (selectedClip == null || track == null)
             {
                 return;
             }
-            inspectorPane.Add(new PropertyField(tracksProperty.GetArrayElementAtIndex(boneTrackIndex)));
-            inspectorPane.Bind(clipSerializedObject);
+
+            RecordClipEdit("Key Bone");
+            ClipBoneEditing.SetKeyValues(track, playheadTime, position, rotationDegrees, scale);
+            CommitClipEdit();
+
+            selectedKeys.Clear();
+            RebuildTimeline();
         }
 
         /// <summary>
@@ -3131,25 +3482,42 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             AddTransformFields();
             RefreshGizmo();
-            inspectorPane.Add(MakeHeading("Flipbook Tracks"));
+            AddFlipbookFields();
+        }
 
-            bool foundAnyTrack = false;
-            for (int trackIndex = 0;
-                selectedClip.spriteTracks != null && trackIndex < selectedClip.spriteTracks.Count;
-                trackIndex++)
-            {
-                SpriteTrack track = selectedClip.spriteTracks[trackIndex];
-                if (track == null || track.targetId != selectedTargetId)
-                {
-                    continue;
-                }
-                foundAnyTrack = true;
-                inspectorPane.Add(BuildFlipbookTrackRow(track, trackIndex));
-            }
+        /// <summary>
+        /// The live flipbook index for the selected part: one block per track driving it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The value at the playhead, not a list of keys.</strong> This panel answers "what
+        /// is this part showing right now", the same question the transform block above it answers.
+        /// The keys themselves live on the timeline, which is where they can be moved and selected;
+        /// repeating them here made a long track unreadable and put the same data in two places that
+        /// could disagree.
+        /// </para>
+        /// <para>
+        /// Several blocks are expected. A target can carry several flipbook tracks, each with its
+        /// own base — that is how one texture array holds independent feature sets, a mouth based
+        /// at 0 and eyes based at 32 driving the same part.
+        /// </para>
+        /// </remarks>
+        private void AddFlipbookFields()
+        {
+            ClipSpriteEditing.CollectTracksForTarget(
+                selectedClip, selectedTargetId, flipbookTracks, flipbookTrackIndices);
 
-            if (!foundAnyTrack)
+            inspectorPane.Add(MakeHeading("Flipbook Index"));
+
+            if (flipbookTracks.Count == 0)
             {
                 inspectorPane.Add(MakeHint("No flipbook track on this clip drives this part."));
+            }
+
+            for (int listIndex = 0; listIndex < flipbookTracks.Count; listIndex++)
+            {
+                inspectorPane.Add(BuildFlipbookTrackBlock(
+                    flipbookTracks[listIndex], flipbookTrackIndices[listIndex]));
             }
 
             inspectorPane.Add(new Button(() => AddFlipbookTrack(selectedTargetId))
@@ -3159,24 +3527,75 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// One flipbook track's editable summary: its mode, its base index and its key count.
+        /// One track's settings plus the value it is showing at the playhead, editable in place.
         /// </summary>
-        private VisualElement BuildFlipbookTrackRow(SpriteTrack track, int trackIndex)
+        private VisualElement BuildFlipbookTrackBlock(SpriteTrack track, int trackIndex)
         {
-            VisualElement trackRow = new VisualElement();
-            trackRow.AddToClassList(FlipbookTrackUssClassName);
+            VisualElement trackBlock = new VisualElement();
+            trackBlock.AddToClassList(FlipbookTrackUssClassName);
 
             int keyCount = track.keys != null ? track.keys.Count : 0;
-            trackRow.Add(MakeHeading("Track " + trackIndex + "  ·  " + keyCount + " key(s)"));
+            int effectiveKeyIndex = ClipSpriteEditing.FindEffectiveKeyIndex(track, playheadTime);
+            bool isOnKey = ClipSpriteEditing.FindKeyIndexAt(track, playheadTime) >= 0;
 
-            EnumField frameModeField = new EnumField("Frame Mode", track.mode);
-            frameModeField.RegisterValueChangedCallback(changeEvent =>
+            trackBlock.Add(MakeHeading("Track " + trackIndex + "  ·  " + keyCount + " key(s)"));
+
+            Label stateHint = MakeHint(keyCount == 0
+                ? "Empty — editing the index below creates the first key."
+                : (isOnKey
+                    ? "On a key — editing changes this key."
+                    : "Held from an earlier key — editing keys the value here."));
+            trackBlock.Add(stateHint);
+
+            LiveFlipbookBinding binding = new LiveFlipbookBinding
             {
-                RecordClipEdit("Change Flipbook Frame Mode");
-                track.mode = (SpriteFrameMode)changeEvent.newValue;
-                CommitClipEdit();
-            });
-            trackRow.Add(frameModeField);
+                track = track,
+                stateHint = stateHint
+            };
+            liveFlipbookBindings.Add(binding);
+
+            if (keyCount > 0 && effectiveKeyIndex >= 0)
+            {
+                SpriteKey currentKey = track.keys[effectiveKeyIndex];
+
+                IntegerField valueField = new IntegerField("Index");
+                valueField.SetValueWithoutNotify(currentKey.sliceIndex);
+                valueField.tooltip =
+                    "The number this key stores: an array index in Absolute mode, or an offset from "
+                    + "the base index in RelativeToBase.";
+                valueField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    ApplyFlipbookEdit(track, changeEvent.newValue, currentKey.indexMode);
+                });
+                binding.valueField = valueField;
+                trackBlock.Add(valueField);
+
+                EnumField indexModeField = new EnumField("Index Mode", currentKey.indexMode);
+                indexModeField.tooltip =
+                    "Absolute names a frame outright. RelativeToBase holds an offset from the "
+                    + "track's base index. Switching keeps the frame the key shows.";
+                indexModeField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    ToggleFlipbookKeyMode(
+                        track, effectiveKeyIndex, (SpriteIndexMode)changeEvent.newValue);
+                });
+                binding.indexModeField = indexModeField;
+                trackBlock.Add(indexModeField);
+
+                Label resolvedLabel = MakeFlipbookResolvedLabel(currentKey, track.baseIndex);
+                binding.resolvedLabel = resolvedLabel;
+                trackBlock.Add(resolvedLabel);
+            }
+            else
+            {
+                IntegerField emptyValueField = new IntegerField("Index");
+                emptyValueField.SetValueWithoutNotify(0);
+                emptyValueField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    ApplyFlipbookEdit(track, changeEvent.newValue, SpriteIndexMode.Absolute);
+                });
+                trackBlock.Add(emptyValueField);
+            }
 
             IntegerField baseIndexField = new IntegerField("Base Index");
             baseIndexField.SetValueWithoutNotify(track.baseIndex);
@@ -3191,10 +3610,19 @@ namespace StitchPunk.AnimationToolkit.Editor
                 CommitClipEdit();
 
                 // Rebuilt because every relative key's resolved index just moved, and the resolved
-                // index is what the rows below show.
+                // index is what the line above shows.
                 RebuildInspector();
             });
-            trackRow.Add(baseIndexField);
+            trackBlock.Add(baseIndexField);
+
+            EnumField frameModeField = new EnumField("Frame Mode", track.mode);
+            frameModeField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Change Flipbook Frame Mode");
+                track.mode = (SpriteFrameMode)changeEvent.newValue;
+                CommitClipEdit();
+            });
+            trackBlock.Add(frameModeField);
 
             EnumField sliceSpaceField = new EnumField("Slice Space", track.sliceSpace);
             sliceSpaceField.tooltip =
@@ -3206,67 +3634,50 @@ namespace StitchPunk.AnimationToolkit.Editor
                 track.sliceSpace = (SpriteSliceSpace)changeEvent.newValue;
                 CommitClipEdit();
             });
-            trackRow.Add(sliceSpaceField);
+            trackBlock.Add(sliceSpaceField);
 
-            for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
-            {
-                trackRow.Add(BuildFlipbookKeyRow(track, trackIndex, keyIndex));
-            }
-
-            trackRow.Add(new Button(() => RemoveFlipbookTrack(trackIndex))
+            trackBlock.Add(new Button(() => RemoveFlipbookTrack(trackIndex))
             {
                 text = "Remove Track"
             });
-            return trackRow;
+            return trackBlock;
         }
 
         /// <summary>
-        /// One flipbook key: its stored number, what that resolves to, and a lossless mode toggle.
+        /// Writes a flipbook index at the playhead, creating a key there when there is none.
         /// </summary>
         /// <remarks>
-        /// Both numbers are shown because they answer different questions. The stored value is what
-        /// the asset holds and what an author edits; the resolved index is the frame that will
-        /// actually play. Showing only one of them is how "+5" and "12" become the same confusing
-        /// number in a bug report.
+        /// Unlike a transform edit this always keys, regardless of the auto-key toggle. A flipbook
+        /// value is a discrete frame with no in-between to hold: there is no equivalent of "showing
+        /// a modified pose without committing it", so a held edit would only be a value that
+        /// silently disappeared.
         /// </remarks>
-        private VisualElement BuildFlipbookKeyRow(SpriteTrack track, int trackIndex, int keyIndex)
+        private void ApplyFlipbookEdit(SpriteTrack track, int storedValue, SpriteIndexMode indexMode)
         {
-            SpriteKey key = track.keys[keyIndex];
-
-            VisualElement keyRow = new VisualElement();
-            keyRow.AddToClassList(FlipbookKeyUssClassName);
-
-            IntegerField valueField = new IntegerField(
-                "@" + key.normalizedTime.ToString("0.###"));
-            valueField.SetValueWithoutNotify(key.sliceIndex);
-            valueField.RegisterValueChangedCallback(changeEvent =>
+            if (selectedClip == null || track == null)
             {
-                RecordClipEdit("Edit Flipbook Key");
-                SpriteKey editedKey = track.keys[keyIndex];
-                editedKey.sliceIndex = changeEvent.newValue;
-                track.keys[keyIndex] = editedKey;
-                CommitClipEdit();
-                RebuildInspector();
-            });
-            keyRow.Add(valueField);
+                return;
+            }
 
-            keyRow.Add(MakeFlipbookResolvedLabel(key, track.baseIndex));
+            RecordClipEdit("Edit Flipbook Index");
+            ClipSpriteEditing.SetKeyValue(track, playheadTime, storedValue, indexMode);
+            CommitClipEdit();
 
-            EnumField indexModeField = new EnumField(key.indexMode);
-            indexModeField.tooltip =
-                "Absolute keys name a frame outright. Relative keys hold an offset from the "
-                + "track's base index. Switching between them keeps the frame the key shows.";
-            indexModeField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ToggleFlipbookKeyMode(track, keyIndex, (SpriteIndexMode)changeEvent.newValue);
-            });
-            keyRow.Add(indexModeField);
-
-            return keyRow;
+            selectedKeys.Clear();
+            RebuildTimeline();
         }
 
         /// <summary>Shows what a key resolves to, in the "+5 → 12" form.</summary>
         private static Label MakeFlipbookResolvedLabel(SpriteKey key, int baseIndex)
+        {
+            Label resolvedLabel = new Label();
+            resolvedLabel.AddToClassList(FlipbookResolvedUssClassName);
+            ApplyFlipbookResolvedLabel(resolvedLabel, key, baseIndex);
+            return resolvedLabel;
+        }
+
+        /// <summary>Writes the "+5 → 12" reading onto an existing label.</summary>
+        private static void ApplyFlipbookResolvedLabel(Label resolvedLabel, SpriteKey key, int baseIndex)
         {
             int resolvedIndex = SpriteIndexResolver.Resolve(key.sliceIndex, key.indexMode, baseIndex);
 
@@ -3287,12 +3698,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 resolvedText = "→ " + resolvedIndex.ToString();
             }
 
-            Label resolvedLabel = new Label(resolvedText);
-            resolvedLabel.AddToClassList(FlipbookResolvedUssClassName);
+            resolvedLabel.text = resolvedText;
             resolvedLabel.EnableInClassList(
                 FlipbookInvalidUssClassName,
                 key.indexMode == SpriteIndexMode.RelativeToBase && resolvedIndex < 0);
-            return resolvedLabel;
         }
 
         /// <summary>
@@ -3534,9 +3943,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
 
             inspectorPane.Add(MakeHeading("Transform"));
-            inspectorPane.Add(MakeTransformStateChip(valueState));
+            liveTransformStateChip = MakeTransformStateChip(valueState);
+            inspectorPane.Add(liveTransformStateChip);
 
             VisualElement transformBlock = new VisualElement();
+            liveTransformBlock = transformBlock;
             transformBlock.AddToClassList(TransformBlockUssClassName);
             transformBlock.EnableInClassList(
                 TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
@@ -3554,6 +3965,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 ApplyTransformEdit(edited, rotationDegrees, scale, false);
                 RebuildInspector();
             });
+            liveTransformPositionField = positionField;
             transformBlock.Add(positionField);
 
             Vector3Field rotationField = new Vector3Field("Rotation");
@@ -3569,6 +3981,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 ApplyTransformEdit(position, edited, scale, false);
                 RebuildInspector();
             });
+            liveTransformRotationField = rotationField;
             transformBlock.Add(rotationField);
 
             Vector3Field scaleField = new Vector3Field("Scale");
@@ -3580,6 +3993,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 ApplyTransformEdit(position, rotationDegrees, edited, false);
                 RebuildInspector();
             });
+            liveTransformScaleField = scaleField;
             transformBlock.Add(scaleField);
 
             inspectorPane.Add(transformBlock);
@@ -3617,26 +4031,24 @@ namespace StitchPunk.AnimationToolkit.Editor
             inspectorPane.Add(keyRow);
         }
 
-        private static Label MakeTransformStateChip(TransformValueState valueState)
+        private static string DescribeTransformState(TransformValueState valueState)
         {
-            string chipText;
             switch (valueState)
             {
                 case TransformValueState.OnKey:
-                    chipText = "On a key — editing changes this key.";
-                    break;
+                    return "On a key — editing changes this key.";
                 case TransformValueState.Interpolated:
-                    chipText = "Between keys — this value is sampled, not stored.";
-                    break;
+                    return "Between keys — this value is sampled, not stored.";
                 case TransformValueState.Modified:
-                    chipText = "Modified, not keyed — press Key to keep it.";
-                    break;
+                    return "Modified, not keyed — press Key to keep it.";
                 default:
-                    chipText = "No transform track yet — editing creates one.";
-                    break;
+                    return "No transform track yet — editing creates one.";
             }
+        }
 
-            Label chip = new Label(chipText);
+        private static Label MakeTransformStateChip(TransformValueState valueState)
+        {
+            Label chip = new Label(DescribeTransformState(valueState));
             chip.AddToClassList(HintUssClassName);
             chip.AddToClassList(TransformStateChipUssClassName);
             chip.EnableInClassList(

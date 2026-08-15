@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the inspector shows one value, and it is live
+
+The right-hand pane was a snapshot wearing a live panel's clothes, and in places
+it was a list of keys. Both are fixed.
+
+- **It updates as the playhead moves.** The fields were only refilled when the
+  selection changed, so scrubbing left them showing a value from whenever you had
+  last clicked something. They now track the playhead. In place rather than by
+  rebuilding the pane — a rebuild destroys the very field you are typing into —
+  and a focused field is skipped rather than overwritten, because half-typed text
+  is a value being authored, not a stale one to stamp over.
+- **No more key lists.** A flipbook track showed a row per key and a bone track
+  rendered its whole key array through a property drawer. Both are gone. The pane
+  now shows either the value at the playhead, or the selected key's own data —
+  nothing else. Keys live on the timeline, which is where they can be moved and
+  selected; repeating them here made a long track unreadable and put the same
+  data in two places that could disagree.
+- **The flipbook index is a live field.** One `Index` per track showing the value
+  at the playhead, with its `Index Mode`, the resolved reading (`+5 → 37`) and the
+  track's `Base Index` beside it. Editing it keys at the playhead — always, unlike
+  a transform edit, because a frame index has no in-between to hold and a
+  held-but-unkeyed value would just be a number that vanished on the next scrub.
+- **Bones get a live transform too**, sampled through `BoneTrackPoser` — the same
+  function the preview and the VAT bake use — with rotation exchanged as signed
+  Euler degrees over the stored quaternion. A joint at −30° reads as −30, not the
+  +330 `eulerAngles` would give.
+- A selected flipbook key gets purpose-built fields rather than the generic
+  property drawer, because its stored number is only meaningful beside its mode
+  and its track's base — three fields the drawer renders as three unrelated
+  numbers.
+
 ### Changed — transform data is 3D (schema version 6)
 
 **Breaking, and the reason for a full re-bake.** A transform key's rotation is now
