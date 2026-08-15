@@ -87,6 +87,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         private const string TransformInterpolatedUssClassName = "clip-editor__transform-block--interpolated";
         private const string TransformModifiedUssClassName = "clip-editor__transform-block--modified";
         private const string TransformStateChipUssClassName = "clip-editor__transform-state";
+        private const string SelectionHeadingUssClassName = "clip-editor__selection-heading";
+        private const string SelectionHeadingActiveUssClassName =
+            "clip-editor__selection-heading--active";
 
         private ObjectField clipSetField;
         private ListView clipListView;
@@ -125,6 +128,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly HashSet<long> expandedTrackKeys = new HashSet<long>();
 
         private bool hasPendingTransformEdit;
+        private uint pendingTransformTargetId;
         private float3 pendingPosition;
         private float3 pendingRotationDegrees;
         private float3 pendingScale;
@@ -202,6 +206,20 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private readonly Dictionary<int, HierarchyItem> hierarchyItemsById =
             new Dictionary<int, HierarchyItem>();
+
+        /// <summary>
+        /// Every selected row, in tree order. The timeline shows the tracks of all of them and the
+        /// inspector gives each its own labelled block.
+        /// </summary>
+        private readonly List<HierarchyItem> selectedHierarchyItems = new List<HierarchyItem>();
+
+        /// <summary>The row the gizmo and the viewport outline follow, of the several selected.</summary>
+        private int activeHierarchyItemId = NothingSelectedItemId;
+
+        /// <summary>
+        /// The previous selection, so the next change can be diffed to find the row just added.
+        /// </summary>
+        private readonly HashSet<int> previouslySelectedItemIds = new HashSet<int>();
 
         /// <summary>
         /// The selected transform's name, which is the identity bone <em>tracks</em> bind by.
@@ -666,7 +684,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
             hierarchyTreeView.fixedItemHeight = 20f;
-            hierarchyTreeView.selectionType = SelectionType.Single;
+
+            // Multiple, so several parts can be focused on the timeline at once. Ctrl-click adds,
+            // shift-click extends — the conventions every list in the editor already uses.
+            hierarchyTreeView.selectionType = SelectionType.Multiple;
             hierarchyTreeView.makeItem = MakeHierarchyRow;
             hierarchyTreeView.bindItem = BindHierarchyRow;
             hierarchyTreeView.selectionChanged += OnHierarchySelectionChanged;
@@ -917,7 +938,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             float3 position;
             float3 rotationDegrees;
             float3 scale;
-            ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+            ResolveDisplayedTransform(
+                selectedTargetId, out position, out rotationDegrees, out scale);
 
             previewController.SetGizmo(
                 true, gizmoMode, new Vector3(position.x, position.y, position.z), activeGizmoHandle);
@@ -1011,7 +1033,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             float3 position;
             float3 rotationDegrees;
             float3 scale;
-            ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+            ResolveDisplayedTransform(
+                selectedTargetId, out position, out rotationDegrees, out scale);
 
             activeGizmoHandle = handle;
             gizmoDragStartPosition = position;
@@ -1099,7 +1122,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                         break;
                 }
                 ApplyTransformEdit(
-                    gizmoDragStartPosition, rotatedValue, gizmoDragStartScale, false);
+                    selectedTargetId, gizmoDragStartPosition, rotatedValue, gizmoDragStartScale, false);
                 RebuildInspector();
                 RefreshGizmo();
                 return;
@@ -1132,7 +1155,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                         break;
                 }
                 ApplyTransformEdit(
-                    movedPosition, gizmoDragStartRotation, gizmoDragStartScale, false);
+                    selectedTargetId, movedPosition, gizmoDragStartRotation, gizmoDragStartScale, false);
             }
             else
             {
@@ -1153,7 +1176,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                         break;
                 }
                 ApplyTransformEdit(
-                    gizmoDragStartPosition, gizmoDragStartRotation, scaledValue, false);
+                    selectedTargetId, gizmoDragStartPosition, gizmoDragStartRotation, scaledValue, false);
             }
 
             RebuildInspector();
@@ -1352,6 +1375,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             previousPickCandidates.Clear();
             pickCandidates.Clear();
             RebuildHierarchy();
+            RebuildTimeline();
             RebuildInspector();
         }
 
@@ -1576,34 +1600,109 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// own thing, so "clicked in the tree" and "clicked in the viewport" cannot drift into
         /// meaning two different things.
         /// </remarks>
+        /// <summary>
+        /// Adopts the tree's whole selection and works out which row of it is active.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Every selected row gets its own block in the inspector and its own rows on the timeline.
+        /// One of them is additionally the <em>active</em> row — the one the viewport outline and
+        /// the gizmo follow, because those can only be in one place. The distinction is "which one
+        /// is the gizmo on", not "which one am I editing".
+        /// </para>
+        /// <para>
+        /// <strong>Active is the row just added, found by diffing against the previous selection
+        /// rather than by taking the last of <c>selectedIndices</c>.</strong> That enumerable is
+        /// ordered by row, not by when each row was clicked, so ctrl-clicking a row above an
+        /// existing selection would otherwise put the gizmo on the row the user did not touch.
+        /// </para>
+        /// </remarks>
         private void OnHierarchySelectionChanged(IEnumerable<object> selection)
         {
-            int itemId = NothingSelectedItemId;
+            int previousActiveItemId = selectedHierarchyItemId;
+
+            selectedHierarchyItems.Clear();
+            int newlySelectedItemId = NothingSelectedItemId;
+            bool previousActiveIsStillSelected = false;
+
             foreach (int selectedIndex in hierarchyTreeView.selectedIndices)
             {
-                itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
-                break;
+                int itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
+                HierarchyItem item;
+                if (!hierarchyItemsById.TryGetValue(itemId, out item))
+                {
+                    continue;
+                }
+                selectedHierarchyItems.Add(item);
+
+                if (itemId == previousActiveItemId)
+                {
+                    previousActiveIsStillSelected = true;
+                }
+                else if (!previouslySelectedItemIds.Contains(itemId))
+                {
+                    newlySelectedItemId = itemId;
+                }
+            }
+
+            // A row was added: that is the one just clicked. Nothing was added (a row was removed
+            // instead, or the whole range was replaced): keep the active row if it survived, else
+            // fall back to the first of what is left.
+            if (newlySelectedItemId != NothingSelectedItemId)
+            {
+                activeHierarchyItemId = newlySelectedItemId;
+            }
+            else if (!previousActiveIsStillSelected)
+            {
+                activeHierarchyItemId = selectedHierarchyItems.Count > 0
+                    ? FindItemIdOf(selectedHierarchyItems[0])
+                    : NothingSelectedItemId;
+            }
+
+            previouslySelectedItemIds.Clear();
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                previouslySelectedItemIds.Add(FindItemIdOf(selectedHierarchyItems[itemIndex]));
             }
 
             // Key selection and hierarchy selection are one selection with two sources: showing a
             // key's values under a heading naming a different object would be a lie about what the
             // fields edit.
             selectedKeys.Clear();
-            SelectHierarchyItem(itemId);
-            RepaintLanes();
+            ApplyHierarchySelection();
+            RebuildTimeline();
             RebuildInspector();
         }
 
-        /// <summary>Points the viewport outline and the inspector at one row, or at nothing.</summary>
+        /// <summary>
+        /// Selects one row and nothing else — the viewport's click path and the timeline's.
+        /// </summary>
         private void SelectHierarchyItem(int itemId)
         {
-            // A held edit belongs to the part it was made on; selecting another one ends it.
-            DiscardPendingTransformEdit();
-            selectedHierarchyItemId = itemId;
+            selectedHierarchyItems.Clear();
+            previouslySelectedItemIds.Clear();
+            activeHierarchyItemId = NothingSelectedItemId;
 
             HierarchyItem item;
-            if (!hierarchyItemsById.TryGetValue(itemId, out item))
+            if (hierarchyItemsById.TryGetValue(itemId, out item))
             {
+                selectedHierarchyItems.Add(item);
+                previouslySelectedItemIds.Add(itemId);
+                activeHierarchyItemId = itemId;
+            }
+            ApplyHierarchySelection();
+        }
+
+        /// <summary>Points the viewport outline and the gizmo at the active row, or at nothing.</summary>
+        private void ApplyHierarchySelection()
+        {
+            // A held edit belongs to the part it was made on; changing the selection ends it.
+            DiscardPendingTransformEdit();
+
+            HierarchyItem activeItem = ActiveHierarchyItem;
+            if (activeItem == null)
+            {
+                selectedHierarchyItemId = NothingSelectedItemId;
                 selectedBoneName = null;
                 selectedTargetId = 0u;
                 if (previewController != null)
@@ -1613,23 +1712,120 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            if (item.isRigTarget)
+            selectedHierarchyItemId = FindItemIdOf(activeItem);
+            if (activeItem.isRigTarget)
             {
                 selectedBoneName = null;
-                selectedTargetId = item.targetId;
+                selectedTargetId = activeItem.targetId;
                 if (previewController != null)
                 {
-                    previewController.SetSelectedTargetId(item.targetId);
+                    previewController.SetSelectedTargetId(activeItem.targetId);
                 }
                 return;
             }
 
-            selectedBoneName = item.displayName;
+            selectedBoneName = activeItem.displayName;
             selectedTargetId = 0u;
             if (previewController != null)
             {
-                previewController.SetSelectedHierarchyIndex(item.previewIndex);
+                previewController.SetSelectedHierarchyIndex(activeItem.previewIndex);
             }
+        }
+
+        /// <summary>The row the gizmo and the outline follow: the one most recently added.</summary>
+        private HierarchyItem ActiveHierarchyItem
+        {
+            get
+            {
+                HierarchyItem item;
+                if (activeHierarchyItemId != NothingSelectedItemId
+                    && hierarchyItemsById.TryGetValue(activeHierarchyItemId, out item)
+                    && selectedHierarchyItems.Contains(item))
+                {
+                    return item;
+                }
+                return selectedHierarchyItems.Count > 0 ? selectedHierarchyItems[0] : null;
+            }
+        }
+
+        private int FindItemIdOf(HierarchyItem item)
+        {
+            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
+            {
+                if (pair.Value == item)
+                {
+                    return pair.Key;
+                }
+            }
+            return NothingSelectedItemId;
+        }
+
+        /// <summary>Whether a transform or flipbook track's target is in the current selection.</summary>
+        private bool IsTargetSelected(uint targetId)
+        {
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                HierarchyItem item = selectedHierarchyItems[itemIndex];
+                if (item.isRigTarget && item.targetId == targetId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Whether a bone track's bone is in the current selection.</summary>
+        private bool IsBoneSelected(string boneName)
+        {
+            if (string.IsNullOrEmpty(boneName))
+            {
+                return false;
+            }
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                HierarchyItem item = selectedHierarchyItems[itemIndex];
+                if (!item.isRigTarget && item.displayName == boneName)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Names what the timeline is focused on, for the status line.
+        /// </summary>
+        /// <remarks>
+        /// Hiding rows without saying why would read as tracks having been lost. Past two names the
+        /// list is replaced by a count, because a status line that wraps is worse than one that
+        /// summarises.
+        /// </remarks>
+        private string DescribeSelection()
+        {
+            if (selectedHierarchyItems.Count == 0)
+            {
+                return "nothing";
+            }
+            if (selectedHierarchyItems.Count > 2)
+            {
+                return selectedHierarchyItems.Count.ToString() + " objects";
+            }
+
+            string described = string.Empty;
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                if (itemIndex > 0)
+                {
+                    described += " + ";
+                }
+                described += DescribeHierarchyItemName(selectedHierarchyItems[itemIndex]);
+            }
+            return described;
+        }
+
+        private string DescribeHierarchyItemName(HierarchyItem item)
+        {
+            return item.isRigTarget ? ResolveTargetDisplayName(item.targetId) : item.displayName;
         }
 
         /// <summary>Deselects everywhere at once — tree, viewport outline and inspector.</summary>
@@ -1650,6 +1846,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
             }
             SelectHierarchyItem(NothingSelectedItemId);
+            // The timeline is rebuilt too: with nothing selected the focus filter lifts, and the
+            // rows it was hiding have to come back or clearing the selection would look like it
+            // deleted them.
+            RebuildTimeline();
             RebuildInspector();
         }
 
@@ -1909,6 +2109,12 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
+            // Focus mode: with a selection, the timeline shows only that selection's tracks. It is
+            // what makes a busy clip readable — but a row that has silently vanished is worse than a
+            // busy timeline, so the status line always says what is being hidden and how to undo it.
+            bool isFocused = selectedHierarchyItems.Count > 0;
+            int hiddenTrackCount = 0;
+
             statusLabel.text = selectedClip.name
                 + "   duration " + selectedClip.duration.ToString("0.###") + "s"
                 + "   loop " + selectedClip.defaultLoop.ToString()
@@ -1929,6 +2135,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     continue;
                 }
+                if (isFocused && !IsTargetSelected(track.targetId))
+                {
+                    hiddenTrackCount++;
+                    continue;
+                }
                 times.Clear();
                 for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
                 {
@@ -1945,6 +2156,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 SpriteTrack track = spriteTracks[trackIndex];
                 if (track == null)
                 {
+                    continue;
+                }
+                if (isFocused && !IsTargetSelected(track.targetId))
+                {
+                    hiddenTrackCount++;
                     continue;
                 }
                 times.Clear();
@@ -1968,6 +2184,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     continue;
                 }
+                if (isFocused && !IsBoneSelected(track.boneName))
+                {
+                    hiddenTrackCount++;
+                    continue;
+                }
                 times.Clear();
                 for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
                 {
@@ -1985,7 +2206,18 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     times.Add(selectedClip.events[eventIndex].normalizedTime);
                 }
+                // Events stay visible while focused. They belong to the clip rather than to any one
+                // part, so hiding them would make event authoring impossible the moment anything
+                // was selected — and they are one row, not the clutter focus exists to remove.
                 AddTrackRow("Events", TimelineTrackKind.Event, 0, times, ref rowIndex);
+            }
+
+            if (isFocused)
+            {
+                statusLabel.text += "   ·   focused on " + DescribeSelection()
+                    + (hiddenTrackCount > 0
+                        ? " (" + hiddenTrackCount.ToString() + " track(s) hidden — deselect to show all)"
+                        : string.Empty);
             }
 
             SetPlayheadTime(playheadTime);
@@ -2392,7 +2624,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 Mathf.Max(boxSelectOriginInStack.y, endInStack.y));
 
             SelectKeysInsideBand(bandRect);
-            boxSelectElement.Clear();
+            boxSelectElement.HideBand();
 
             RepaintLanes();
             RebuildInspector();
@@ -2856,23 +3088,35 @@ namespace StitchPunk.AnimationToolkit.Editor
             public Label stateHint;
         }
 
-        private VisualElement liveTransformBlock;
-        private BoneTrack liveBoneTrack;
-        private Label liveTransformStateChip;
-        private Vector3Field liveTransformPositionField;
-        private Vector3Field liveTransformRotationField;
-        private Vector3Field liveTransformScaleField;
+        /// <summary>One selected object's transform fields, so a scrub can update them in place.</summary>
+        /// <remarks>
+        /// One of these per selected object rather than one per window: with several parts selected
+        /// the panel is a stack of blocks, and a single set of field references would leave every
+        /// block but the last frozen at the value it was built with.
+        /// </remarks>
+        private sealed class LiveTransformBinding
+        {
+            /// <summary>The rig target this block edits; 0 when <see cref="boneTrack"/> is set.</summary>
+            public uint targetId;
+
+            /// <summary>The bone track this block edits; null for a rig target.</summary>
+            public BoneTrack boneTrack;
+
+            public VisualElement block;
+            public Label stateChip;
+            public Vector3Field positionField;
+            public Vector3Field rotationField;
+            public Vector3Field scaleField;
+        }
+
+        private readonly List<LiveTransformBinding> liveTransformBindings =
+            new List<LiveTransformBinding>();
         private readonly List<LiveFlipbookBinding> liveFlipbookBindings =
             new List<LiveFlipbookBinding>();
 
         private void ClearLiveInspectorBindings()
         {
-            liveTransformBlock = null;
-            liveBoneTrack = null;
-            liveTransformStateChip = null;
-            liveTransformPositionField = null;
-            liveTransformRotationField = null;
-            liveTransformScaleField = null;
+            liveTransformBindings.Clear();
             liveFlipbookBindings.Clear();
         }
 
@@ -2894,42 +3138,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         private void RefreshLiveInspectorValues()
         {
-            if (liveTransformPositionField != null && liveBoneTrack != null)
+            for (int bindingIndex = 0; bindingIndex < liveTransformBindings.Count; bindingIndex++)
             {
-                RefreshLiveBoneValues();
-            }
-            else if (liveTransformPositionField != null)
-            {
-                float3 position;
-                float3 rotationDegrees;
-                float3 scale;
-                TransformValueState valueState =
-                    ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
-
-                SetVectorWithoutDisturbingEdit(
-                    liveTransformPositionField, new Vector3(position.x, position.y, position.z));
-                SetVectorWithoutDisturbingEdit(
-                    liveTransformRotationField,
-                    new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-                SetVectorWithoutDisturbingEdit(
-                    liveTransformScaleField, new Vector3(scale.x, scale.y, scale.z));
-
-                if (liveTransformStateChip != null)
-                {
-                    liveTransformStateChip.text = DescribeTransformState(valueState);
-                    liveTransformStateChip.EnableInClassList(
-                        TransformModifiedUssClassName, valueState == TransformValueState.Modified);
-                }
-                if (liveTransformBlock != null)
-                {
-                    liveTransformBlock.EnableInClassList(
-                        TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
-                    liveTransformBlock.EnableInClassList(
-                        TransformInterpolatedUssClassName,
-                        valueState == TransformValueState.Interpolated);
-                    liveTransformBlock.EnableInClassList(
-                        TransformModifiedUssClassName, valueState == TransformValueState.Modified);
-                }
+                RefreshLiveTransformBinding(liveTransformBindings[bindingIndex]);
             }
 
             for (int bindingIndex = 0; bindingIndex < liveFlipbookBindings.Count; bindingIndex++)
@@ -2938,31 +3149,71 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
         }
 
-        private void RefreshLiveBoneValues()
+        private void RefreshLiveTransformBinding(LiveTransformBinding binding)
+        {
+            if (binding.boneTrack != null)
+            {
+                RefreshLiveBoneValues(binding);
+                return;
+            }
+
+            float3 position;
+            float3 rotationDegrees;
+            float3 scale;
+            TransformValueState valueState = ResolveDisplayedTransform(
+                binding.targetId, out position, out rotationDegrees, out scale);
+
+            SetVectorWithoutDisturbingEdit(
+                binding.positionField, new Vector3(position.x, position.y, position.z));
+            SetVectorWithoutDisturbingEdit(
+                binding.rotationField,
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            SetVectorWithoutDisturbingEdit(
+                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
+
+            if (binding.stateChip != null)
+            {
+                binding.stateChip.text = DescribeTransformState(valueState);
+                binding.stateChip.EnableInClassList(
+                    TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+            }
+            if (binding.block != null)
+            {
+                binding.block.EnableInClassList(
+                    TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
+                binding.block.EnableInClassList(
+                    TransformInterpolatedUssClassName,
+                    valueState == TransformValueState.Interpolated);
+                binding.block.EnableInClassList(
+                    TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+            }
+        }
+
+        private void RefreshLiveBoneValues(LiveTransformBinding binding)
         {
             float3 position;
             float3 rotationDegrees;
             float3 scale;
             bool hasKeys = ClipBoneEditing.TryEvaluate(
-                liveBoneTrack, playheadTime, out position, out rotationDegrees, out scale);
-            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(liveBoneTrack, playheadTime) >= 0;
+                binding.boneTrack, playheadTime, out position, out rotationDegrees, out scale);
+            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(binding.boneTrack, playheadTime) >= 0;
 
             SetVectorWithoutDisturbingEdit(
-                liveTransformPositionField, new Vector3(position.x, position.y, position.z));
+                binding.positionField, new Vector3(position.x, position.y, position.z));
             SetVectorWithoutDisturbingEdit(
-                liveTransformRotationField,
+                binding.rotationField,
                 new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
             SetVectorWithoutDisturbingEdit(
-                liveTransformScaleField, new Vector3(scale.x, scale.y, scale.z));
+                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
 
-            if (liveTransformStateChip != null)
+            if (binding.stateChip != null)
             {
-                liveTransformStateChip.text = DescribeBoneState(hasKeys, isOnKey);
+                binding.stateChip.text = DescribeBoneState(hasKeys, isOnKey);
             }
-            if (liveTransformBlock != null)
+            if (binding.block != null)
             {
-                liveTransformBlock.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
-                liveTransformBlock.EnableInClassList(
+                binding.block.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
+                binding.block.EnableInClassList(
                     TransformInterpolatedUssClassName, hasKeys && !isOnKey);
             }
         }
@@ -3036,16 +3287,33 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 return;
             }
-            if (selectedTargetId != 0u)
+
+            // One labelled block per selected object, in pick order. With a single selection this
+            // is exactly the old panel plus a name; with several it is the only way to tell whose
+            // numbers are whose.
+            if (selectedHierarchyItems.Count > 0)
             {
-                BuildRigTargetInspector();
+                // Only marked when there is more than one block: with a single selection every
+                // block is the active one, and saying so is noise.
+                HierarchyItem activeItem =
+                    selectedHierarchyItems.Count > 1 ? ActiveHierarchyItem : null;
+
+                for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+                {
+                    HierarchyItem item = selectedHierarchyItems[itemIndex];
+                    bool isActive = item == activeItem;
+                    if (item.isRigTarget)
+                    {
+                        BuildRigTargetInspector(item, isActive);
+                    }
+                    else
+                    {
+                        BuildBoneInspector(item, isActive);
+                    }
+                }
                 return;
             }
-            if (!string.IsNullOrEmpty(selectedBoneName))
-            {
-                BuildBoneInspector();
-                return;
-            }
+
             BuildClipInspector();
         }
 
@@ -3301,16 +3569,17 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// which reads as an animation that simply does not play; picking it from the rig's own
         /// hierarchy removes that failure outright.
         /// </remarks>
-        private void BuildBoneInspector()
+        private void BuildBoneInspector(HierarchyItem item, bool isActive)
         {
-            inspectorPane.Add(MakeHeading(selectedBoneName));
+            string boneName = item.displayName;
+            inspectorPane.Add(MakeSelectionHeading(boneName, isActive));
 
             // The hierarchy lists every transform, not only bones, so the inspector says which kind
             // this one is. What you can usefully do with it depends on the answer: only a skinned
             // bone moves the mesh when a bone track drives it.
             if (previewController != null)
             {
-                string description = previewController.DescribeHierarchyItem(selectedHierarchyItemId);
+                string description = previewController.DescribeHierarchyItem(item.previewIndex);
                 if (!string.IsNullOrEmpty(description))
                 {
                     inspectorPane.Add(MakeHint(description));
@@ -3323,11 +3592,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            int boneTrackIndex = FindBoneTrackIndex(selectedBoneName);
+            int boneTrackIndex = FindBoneTrackIndex(boneName);
             if (boneTrackIndex < 0)
             {
                 inspectorPane.Add(MakeHint("No track on this clip animates this bone."));
-                inspectorPane.Add(new Button(() => AddBoneTrack(selectedBoneName))
+                inspectorPane.Add(new Button(() => AddBoneTrack(boneName))
                 {
                     text = "Add Bone Track"
                 });
@@ -3347,7 +3616,8 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         private void AddBoneTransformFields(BoneTrack track)
         {
-            liveBoneTrack = track;
+            LiveTransformBinding binding = new LiveTransformBinding { boneTrack = track };
+            liveTransformBindings.Add(binding);
 
             float3 position;
             float3 rotationDegrees;
@@ -3358,14 +3628,14 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             inspectorPane.Add(MakeHeading("Bone Transform"));
 
-            liveTransformStateChip = MakeHint(DescribeBoneState(hasKeys, isOnKey));
-            inspectorPane.Add(liveTransformStateChip);
+            binding.stateChip = MakeHint(DescribeBoneState(hasKeys, isOnKey));
+            inspectorPane.Add(binding.stateChip);
 
             VisualElement transformBlock = new VisualElement();
             transformBlock.AddToClassList(TransformBlockUssClassName);
             transformBlock.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
             transformBlock.EnableInClassList(TransformInterpolatedUssClassName, hasKeys && !isOnKey);
-            liveTransformBlock = transformBlock;
+            binding.block = transformBlock;
 
             Vector3Field positionField = new Vector3Field("Position");
             positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
@@ -3376,7 +3646,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
                     rotationDegrees, scale);
             });
-            liveTransformPositionField = positionField;
+            binding.positionField = positionField;
             transformBlock.Add(positionField);
 
             Vector3Field rotationField = new Vector3Field("Rotation");
@@ -3392,7 +3662,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
                     scale);
             });
-            liveTransformRotationField = rotationField;
+            binding.rotationField = rotationField;
             transformBlock.Add(rotationField);
 
             Vector3Field scaleField = new Vector3Field("Scale");
@@ -3403,7 +3673,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     track, position, rotationDegrees,
                     new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z));
             });
-            liveTransformScaleField = scaleField;
+            binding.scaleField = scaleField;
             transformBlock.Add(scaleField);
 
             inspectorPane.Add(transformBlock);
@@ -3468,10 +3738,11 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// onto a different span of the array without touching a key.
         /// </para>
         /// </remarks>
-        private void BuildRigTargetInspector()
+        private void BuildRigTargetInspector(HierarchyItem item, bool isActive)
         {
-            string targetName = ResolveTargetDisplayName(selectedTargetId);
-            inspectorPane.Add(MakeHeading(targetName));
+            uint targetId = item.targetId;
+            inspectorPane.Add(MakeSelectionHeading(
+                ResolveTargetDisplayName(targetId), isActive));
             inspectorPane.Add(MakeHint("Rig target — animated by transform and flipbook tracks."));
 
             if (selectedClip == null)
@@ -3480,9 +3751,32 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            AddTransformFields();
-            RefreshGizmo();
-            AddFlipbookFields();
+            AddTransformFields(targetId);
+
+            // Keyed off the window's active target rather than the heading's marker: the marker is
+            // suppressed when there is only one block, but that block is still the one with a gizmo.
+            if (targetId == selectedTargetId)
+            {
+                RefreshGizmo();
+            }
+
+            AddFlipbookFields(targetId);
+        }
+
+        /// <summary>
+        /// A block's name, marked when it is the active row.
+        /// </summary>
+        /// <remarks>
+        /// With several objects selected the panel is a stack of near-identical blocks, so each one
+        /// has to say whose numbers it holds. The active marker explains why only one of them has a
+        /// gizmo in the viewport.
+        /// </remarks>
+        private static Label MakeSelectionHeading(string name, bool isActive)
+        {
+            Label heading = MakeHeading(isActive ? name + "   (active)" : name);
+            heading.AddToClassList(SelectionHeadingUssClassName);
+            heading.EnableInClassList(SelectionHeadingActiveUssClassName, isActive);
+            return heading;
         }
 
         /// <summary>
@@ -3502,10 +3796,10 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// at 0 and eyes based at 32 driving the same part.
         /// </para>
         /// </remarks>
-        private void AddFlipbookFields()
+        private void AddFlipbookFields(uint targetId)
         {
             ClipSpriteEditing.CollectTracksForTarget(
-                selectedClip, selectedTargetId, flipbookTracks, flipbookTrackIndices);
+                selectedClip, targetId, flipbookTracks, flipbookTrackIndices);
 
             inspectorPane.Add(MakeHeading("Flipbook Index"));
 
@@ -3520,7 +3814,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     flipbookTracks[listIndex], flipbookTrackIndices[listIndex]));
             }
 
-            inspectorPane.Add(new Button(() => AddFlipbookTrack(selectedTargetId))
+            inspectorPane.Add(new Button(() => AddFlipbookTrack(targetId))
             {
                 text = "Add Flipbook Track"
             });
@@ -3828,13 +4122,15 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// sampled track value otherwise.
         /// </summary>
         private TransformValueState ResolveDisplayedTransform(
-            out float3 position, out float3 rotationDegrees, out float3 scale)
+            uint targetId, out float3 position, out float3 rotationDegrees, out float3 scale)
         {
-            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, selectedTargetId);
+            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, targetId);
             bool hasSample = ClipTransformEditing.TryEvaluate(
                 track, playheadTime, out position, out rotationDegrees, out scale);
 
-            if (hasPendingTransformEdit)
+            // The held edit belongs to one part. With several selected, the other blocks must keep
+            // showing their own sampled values rather than borrowing this one's uncommitted pose.
+            if (hasPendingTransformEdit && pendingTransformTargetId == targetId)
             {
                 position = pendingPosition;
                 rotationDegrees = pendingRotationDegrees;
@@ -3862,13 +4158,22 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// though the frames during it were not.
         /// </remarks>
         private void ApplyTransformEdit(
-            float3 position, float3 rotationDegrees, float3 scale, bool forceKey)
+            uint targetId, float3 position, float3 rotationDegrees, float3 scale, bool forceKey)
         {
-            if (selectedClip == null || selectedTargetId == 0u)
+            if (selectedClip == null || targetId == 0u)
             {
                 return;
             }
 
+            // Only one part can hold an uncommitted edit at a time. Starting one on a second part
+            // keys the first rather than dropping it, because a value you typed and watched should
+            // not disappear because you looked at the block below it.
+            if (hasPendingTransformEdit && pendingTransformTargetId != targetId)
+            {
+                CommitPendingTransformEdit();
+            }
+
+            pendingTransformTargetId = targetId;
             pendingPosition = position;
             pendingRotationDegrees = rotationDegrees;
             pendingScale = scale;
@@ -3885,14 +4190,15 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Writes the held edit into a key at the playhead, creating the track if needed.</summary>
         private void CommitPendingTransformEdit()
         {
-            if (!hasPendingTransformEdit || selectedClip == null || selectedTargetId == 0u)
+            if (!hasPendingTransformEdit || selectedClip == null || pendingTransformTargetId == 0u)
             {
                 return;
             }
 
             RecordClipEdit("Key Transform");
 
-            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, selectedTargetId);
+            TransformTrack track =
+                ClipTransformEditing.FindTransformTrack(selectedClip, pendingTransformTargetId);
             if (track == null)
             {
                 // Keying a part with no track yet creates one. Requiring the user to add a track
@@ -3903,7 +4209,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
                 track = new TransformTrack
                 {
-                    targetId = selectedTargetId,
+                    targetId = pendingTransformTargetId,
                     keys = new List<TransformKey>()
                 };
                 selectedClip.transformTracks.Add(track);
@@ -3934,20 +4240,23 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// keys makes scrubbing useless for judging a pose. The state chip says which kind of value
         /// is on screen so a sampled number is never mistaken for a stored one.
         /// </remarks>
-        private void AddTransformFields()
+        private void AddTransformFields(uint targetId)
         {
+            LiveTransformBinding binding = new LiveTransformBinding { targetId = targetId };
+            liveTransformBindings.Add(binding);
+
             float3 position;
             float3 rotationDegrees;
             float3 scale;
             TransformValueState valueState =
-                ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+                ResolveDisplayedTransform(targetId, out position, out rotationDegrees, out scale);
 
             inspectorPane.Add(MakeHeading("Transform"));
-            liveTransformStateChip = MakeTransformStateChip(valueState);
-            inspectorPane.Add(liveTransformStateChip);
+            binding.stateChip = MakeTransformStateChip(valueState);
+            inspectorPane.Add(binding.stateChip);
 
             VisualElement transformBlock = new VisualElement();
-            liveTransformBlock = transformBlock;
+            binding.block = transformBlock;
             transformBlock.AddToClassList(TransformBlockUssClassName);
             transformBlock.EnableInClassList(
                 TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
@@ -3962,10 +4271,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 float3 edited = new float3(
                     changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(edited, rotationDegrees, scale, false);
+                ApplyTransformEdit(targetId, edited, rotationDegrees, scale, false);
                 RebuildInspector();
             });
-            liveTransformPositionField = positionField;
+            binding.positionField = positionField;
             transformBlock.Add(positionField);
 
             Vector3Field rotationField = new Vector3Field("Rotation");
@@ -3978,10 +4287,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 float3 edited = new float3(
                     changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(position, edited, scale, false);
+                ApplyTransformEdit(targetId, position, edited, scale, false);
                 RebuildInspector();
             });
-            liveTransformRotationField = rotationField;
+            binding.rotationField = rotationField;
             transformBlock.Add(rotationField);
 
             Vector3Field scaleField = new Vector3Field("Scale");
@@ -3990,10 +4299,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 float3 edited = new float3(
                     changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(position, rotationDegrees, edited, false);
+                ApplyTransformEdit(targetId, position, rotationDegrees, edited, false);
                 RebuildInspector();
             });
-            liveTransformScaleField = scaleField;
+            binding.scaleField = scaleField;
             transformBlock.Add(scaleField);
 
             inspectorPane.Add(transformBlock);
@@ -4002,10 +4311,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             keyRow.AddToClassList(FlipbookKeyUssClassName);
             keyRow.Add(new Button(() =>
             {
-                if (!hasPendingTransformEdit)
+                if (!hasPendingTransformEdit || pendingTransformTargetId != targetId)
                 {
                     // Nothing held: key the value currently on screen, which is how a pose reached
                     // by scrubbing gets pinned down.
+                    pendingTransformTargetId = targetId;
                     pendingPosition = position;
                     pendingRotationDegrees = rotationDegrees;
                     pendingScale = scale;
@@ -4017,7 +4327,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 text = "Key"
             });
-            if (hasPendingTransformEdit)
+            if (hasPendingTransformEdit && pendingTransformTargetId == targetId)
             {
                 keyRow.Add(new Button(() =>
                 {

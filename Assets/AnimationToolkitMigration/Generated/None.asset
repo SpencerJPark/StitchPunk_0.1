@@ -20,8 +20,58 @@ MonoBehaviour:
   defaultBlendOut: 0
   transformTracks: []
   spriteTracks: []
+  boneTracks:
+  - boneName: Hair
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0
+          w: 0
+      localScale:
+        x: 0
+        y: 0
+        z: 0
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Nose
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0
+          w: 0
+      localScale:
+        x: 0
+        y: 0
+        z: 0
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   events: []
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30
     loopSafe: 0
+  vatTracks: []

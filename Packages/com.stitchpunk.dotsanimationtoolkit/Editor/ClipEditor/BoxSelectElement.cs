@@ -40,7 +40,11 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>Hides the band. Idempotent.</summary>
-        public void Clear()
+        /// <remarks>
+        /// Named for the band rather than called <c>Clear</c>, which on a <c>VisualElement</c> already
+        /// means "remove every child" — two very different operations behind one name.
+        /// </remarks>
+        public void HideBand()
         {
             if (!isActive)
             {

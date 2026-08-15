@@ -257,6 +257,23 @@
     margin-bottom: 4px;
 }
 
+/* Names the object a block of fields belongs to. With several parts selected the inspector is a
+   stack of near-identical blocks, so the rule is a separator as much as a label. */
+.clip-editor__selection-heading {
+    margin-top: 10px;
+    padding-top: 6px;
+    padding-bottom: 2px;
+    border-top-width: 1px;
+    border-top-color: rgba(0, 0, 0, 0.35);
+    font-size: 12px;
+}
+
+/* The row the viewport gizmo and outline are on — one of many blocks, but only one of them is
+   being pointed at in the scene. */
+.clip-editor__selection-heading--active {
+    color: rgb(120, 190, 255);
+}
+
 /* ------------------------------------------------------------------------------------------- */
 /* Timeline                                                                                      */
 /* ------------------------------------------------------------------------------------------- */
