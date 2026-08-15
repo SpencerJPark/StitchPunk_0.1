@@ -266,6 +266,78 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// every clip authored before its rig was imported.
         /// </para>
         /// </remarks>
+        /// <summary>
+        /// Reports rule V17 for one key's Bézier handles, and says nothing for any other mode.
+        /// </summary>
+        /// <remarks>
+        /// The all-zero pair is exempt. That is the value a key deserializes to when these fields
+        /// did not exist yet, and <c>ClipSampler.EaseBezier</c> reads it as linear rather than as a
+        /// curve — so reporting it would flag every clip authored before Bézier existed for a shape
+        /// nothing will ever evaluate.
+        /// </remarks>
+        private static void ValidateBezierHandlesInto(
+            ClipAsset clip,
+            Interpolation interpolation,
+            Unity.Mathematics.float2 startHandle,
+            Unity.Mathematics.float2 endHandle,
+            string keyDescription,
+            List<ValidationMessage> messages)
+        {
+            if (interpolation != Interpolation.Bezier)
+            {
+                return;
+            }
+            if (startHandle.x == 0f && startHandle.y == 0f && endHandle.x == 0f && endHandle.y == 0f)
+            {
+                return;
+            }
+
+            if (IsInsideUnitSquare(startHandle) && IsInsideUnitSquare(endHandle))
+            {
+                return;
+            }
+
+            messages.Add(new ValidationMessage(
+                ValidationSeverity.Error,
+                ValidationCode.V17,
+                clip,
+                keyDescription + " of clip '" + clip.name + "' has Bezier handles (" +
+                startHandle.x + ", " + startHandle.y + ") and (" + endHandle.x + ", " +
+                endHandle.y + ") outside the unit square; x must stay in [0,1] for the curve to be " +
+                "a function of time, and y must stay in [0,1] because the bake's bounds assume a " +
+                "segment never travels past its own keys."));
+        }
+
+        private static bool IsInsideUnitSquare(Unity.Mathematics.float2 handle)
+        {
+            return handle.x >= 0f && handle.x <= 1f && handle.y >= 0f && handle.y <= 1f;
+        }
+
+        private static void ValidateBoneBezierHandlesInto(
+            ClipAsset clip, List<ValidationMessage> messages)
+        {
+            int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
+            for (int trackIndex = 0; trackIndex < boneTrackCount; trackIndex++)
+            {
+                BoneTrack boneTrack = clip.boneTracks[trackIndex];
+                if (boneTrack == null || boneTrack.keys == null)
+                {
+                    continue;
+                }
+                for (int keyIndex = 0; keyIndex < boneTrack.keys.Count; keyIndex++)
+                {
+                    BoneKey boneKey = boneTrack.keys[keyIndex];
+                    ValidateBezierHandlesInto(
+                        clip,
+                        boneKey.interpolation,
+                        boneKey.bezierStartHandle,
+                        boneKey.bezierEndHandle,
+                        "Bone track " + trackIndex + " key " + keyIndex,
+                        messages);
+                }
+            }
+        }
+
         private static void ValidateBoneTracksInto(ClipAsset clip, List<ValidationMessage> messages)
         {
             int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
@@ -410,6 +482,14 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         keyTime,
                         "Transform track " + trackIndex + " key " + keyIndex,
                         messages);
+
+                    ValidateBezierHandlesInto(
+                        clip,
+                        transformTrack.keys[keyIndex].interpolation,
+                        transformTrack.keys[keyIndex].bezierStartHandle,
+                        transformTrack.keys[keyIndex].bezierEndHandle,
+                        "Transform track " + trackIndex + " key " + keyIndex,
+                        messages);
                 }
             }
 
@@ -447,7 +527,10 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         "Sprite track " + trackIndex + " key " + keyIndex,
                         messages);
 
-                    if (spriteKey.sliceIndex < -1)
+                    // V14 is about the absolute-mode sentinel and applies only there. A relative
+                    // key's number is a displacement, so -3 is three frames back, not a malformed
+                    // index — reporting it would train authors to ignore the rule.
+                    if (spriteKey.indexMode == SpriteIndexMode.Absolute && spriteKey.sliceIndex < -1)
                     {
                         messages.Add(new ValidationMessage(
                             ValidationSeverity.Warning,
@@ -457,10 +540,30 @@ namespace StitchPunk.AnimationToolkit.Authoring
                             clip.name + "' has slice index " + spriteKey.sliceIndex +
                             "; -1 is the lowest meaningful value and means \"no change\"."));
                     }
+
+                    if (spriteKey.indexMode == SpriteIndexMode.RelativeToBase)
+                    {
+                        int resolvedIndex = SpriteIndexResolver.Resolve(
+                            spriteKey.sliceIndex, spriteKey.indexMode, spriteTrack.baseIndex);
+                        if (resolvedIndex < 0)
+                        {
+                            messages.Add(new ValidationMessage(
+                                ValidationSeverity.Error,
+                                ValidationCode.V18,
+                                clip,
+                                "Sprite track " + trackIndex + " key " + keyIndex + " of clip '" +
+                                clip.name + "' is relative with offset " + spriteKey.sliceIndex +
+                                " against base index " + spriteTrack.baseIndex +
+                                ", which resolves to " + resolvedIndex +
+                                "; a relative key has no \"no change\" sentinel, so this cannot " +
+                                "name a frame."));
+                        }
+                    }
                 }
             }
 
             ValidateBoneTracksInto(clip, messages);
+            ValidateBoneBezierHandlesInto(clip, messages);
 
             for (int eventIndex = 0; eventIndex < eventCount; eventIndex++)
             {

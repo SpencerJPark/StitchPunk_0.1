@@ -69,7 +69,11 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Error: the rig defines no layers, or more than <see cref="RigAsset.MaxLayerCount"/>.</summary>
         V13 = 13,
 
-        /// <summary>Warning: a sprite key's <c>sliceIndex</c> is below −1.</summary>
+        /// <summary>
+        /// Warning: an <see cref="SpriteIndexMode.Absolute"/> sprite key's <c>sliceIndex</c> is
+        /// below −1. Scoped to absolute keys because a relative key's stored number is a
+        /// displacement, where any negative is a legitimate step backwards.
+        /// </summary>
         V14 = 14,
 
         /// <summary>
@@ -84,7 +88,28 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// duplicate-identity shape, scoped to <see cref="BoneTrack.boneName"/> instead of a stable
         /// id, since a bone's name is the only identity it has.
         /// </summary>
-        V16 = 16
+        V16 = 16,
+
+        /// <summary>
+        /// Error: a <see cref="Interpolation.Bezier"/> key's handles leave the unit square.
+        /// </summary>
+        /// <remarks>
+        /// x outside [0, 1] makes the curve non-functional — one time mapping to two weights — and
+        /// there is no correct value for the sampler to return. y outside it is overshoot, which is
+        /// well defined but breaks the bake's bounds union: architecture section 4.6 unions the
+        /// keys on the argument that every interpolation mode is monotonic between them, so a curve
+        /// that travels past its own keys would produce a box too small and parts that cull while
+        /// still visible.
+        /// </remarks>
+        V17 = 17,
+
+        /// <summary>
+        /// Error: a <see cref="SpriteIndexMode.RelativeToBase"/> key resolves to a negative array
+        /// index against its track's <c>baseIndex</c> — a base and an offset that disagree. The −1
+        /// "no change" sentinel belongs to absolute keys only, so there is nothing else this could
+        /// mean.
+        /// </remarks>
+        V18 = 18
     }
 
     /// <summary>

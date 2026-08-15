@@ -601,6 +601,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                     targetId = sourceTrack.targetId,
                     mode = sourceTrack.mode,
                     sliceSpace = sourceTrack.sliceSpace,
+
+                    // Carried across unchanged: a mirrored clip drives the same texture array from
+                    // the same base, and the keys copied below hold offsets against it. Dropping it
+                    // would silently rebase every relative key of the mirror onto zero.
+                    baseIndex = sourceTrack.baseIndex,
                     keys = sourceTrack.keys != null
                         ? new List<SpriteKey>(sourceTrack.keys)
                         : new List<SpriteKey>()

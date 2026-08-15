@@ -44,7 +44,10 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         /// message first and decide which of the two cases you are in.
         /// </summary>
         // Re-recorded for schema version 4, which added ClipBlob.vatTargetRanges (multi-source VAT).
-        private const ulong ExpectedContentHash = 0xEA2F60F3DB1DE87DUL;
+        // Re-recorded again for schema version 5, which added per-key Bezier handles to transform
+        // keys, a per-track baseIndex and a per-key SpriteIndexMode to sprite tracks, and put
+        // sliceSpace into the hash stream for the first time.
+        private const ulong ExpectedContentHash = 0xEC3FE19C545CA567UL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -166,9 +169,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                4,
+                5,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 4. A bump must be paired " +
+                "The golden value above was recorded under schema version 5. A bump must be paired " +
                 "with a re-recorded constant, never landed on its own.");
         }
 

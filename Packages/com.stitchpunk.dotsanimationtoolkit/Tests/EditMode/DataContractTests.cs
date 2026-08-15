@@ -217,7 +217,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("position", typeof(float3)),
                 Field("rotationZ", typeof(float)),
                 Field("scale", typeof(float2)),
-                Field("interpolation", typeof(Interpolation))
+                Field("interpolation", typeof(Interpolation)),
+                Field("bezierStartHandle", typeof(float2)),
+                Field("bezierEndHandle", typeof(float2))
             });
 
             AssertFieldsMatch(typeof(SpriteTrackBlob), new FieldContract[]
@@ -225,6 +227,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("targetIndex", typeof(int)),
                 Field("mode", typeof(SpriteFrameMode)),
                 Field("sliceSpace", typeof(SpriteSliceSpace)),
+                Field("baseIndex", typeof(int)),
                 Field("keys", typeof(BlobArray<SpriteKeyBlob>))
             });
 
@@ -232,6 +235,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             {
                 Field("normalizedTime", typeof(float)),
                 Field("sliceIndex", typeof(int)),
+                Field("indexMode", typeof(SpriteIndexMode)),
                 Field("atlasRect", typeof(float4))
             });
 

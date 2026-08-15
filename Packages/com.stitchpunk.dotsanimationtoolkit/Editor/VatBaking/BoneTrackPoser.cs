@@ -180,7 +180,9 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             // The easing belongs to the FROM key, matching ClipSampler: a key's interpolation
             // describes how the curve leaves it.
-            float easedTime = ClipSampler.Ease(linearTime, fromKey.interpolation);
+            float easedTime = ClipSampler.Ease(
+                linearTime, fromKey.interpolation,
+                in fromKey.bezierStartHandle, in fromKey.bezierEndHandle);
 
             position = math.lerp(fromKey.localPosition, toKey.localPosition, easedTime);
             rotation = math.slerp(fromKey.localRotation, toKey.localRotation, easedTime);

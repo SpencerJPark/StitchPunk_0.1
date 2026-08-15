@@ -70,8 +70,15 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// version-3 blob must never be mistaken for a version-4 one that would resolve differently
         /// at runtime for any actor using <c>ClipAsset.vatTracks</c>.
         /// </para>
+        /// <para>
+        /// Version 5 adds per-key Bézier handles to transform keys, and a per-track
+        /// <c>baseIndex</c> plus a per-key <see cref="SpriteIndexMode"/> to sprite tracks. A
+        /// version-4 blob read as version 5 would resolve every relative flipbook key against a
+        /// base of zero and ease every Bézier key as linear, so the two are not interchangeable.
+        /// This version also puts <c>sliceSpace</c> into the content hash for the first time.
+        /// </para>
         /// </remarks>
-        public const int SchemaVersion = 4;
+        public const int SchemaVersion = 5;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -647,7 +654,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         // Section 4.5 point 2: degrees in, radians out, converted once at bake.
                         rotationZ = math.radians(authoredKey.rotationZ),
                         scale = authoredKey.scale,
-                        interpolation = authoredKey.interpolation
+                        interpolation = authoredKey.interpolation,
+                        bezierStartHandle = authoredKey.bezierStartHandle,
+                        bezierEndHandle = authoredKey.bezierEndHandle
                     };
                 }
             }
@@ -666,6 +675,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 trackArray[trackIndex].targetIndex = entry.denseTargetIndex;
                 trackArray[trackIndex].mode = entry.track.mode;
                 trackArray[trackIndex].sliceSpace = entry.track.sliceSpace;
+                trackArray[trackIndex].baseIndex = entry.track.baseIndex;
 
                 int keyCount = entry.track.keys == null ? 0 : entry.track.keys.Count;
                 BlobBuilderArray<SpriteKeyBlob> keyArray =
@@ -677,6 +687,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     {
                         normalizedTime = authoredKey.normalizedTime,
                         sliceIndex = authoredKey.sliceIndex,
+                        indexMode = authoredKey.indexMode,
                         atlasRect = authoredKey.atlasRect
                     };
                 }
@@ -1015,6 +1026,10 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     hashState.Update(math.asuint(keyBlob.scale.x));
                     hashState.Update(math.asuint(keyBlob.scale.y));
                     hashState.Update((byte)keyBlob.interpolation);
+                    hashState.Update(math.asuint(keyBlob.bezierStartHandle.x));
+                    hashState.Update(math.asuint(keyBlob.bezierStartHandle.y));
+                    hashState.Update(math.asuint(keyBlob.bezierEndHandle.x));
+                    hashState.Update(math.asuint(keyBlob.bezierEndHandle.y));
                 }
             }
 
@@ -1024,12 +1039,20 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 ref SpriteTrackBlob trackBlob = ref clipBlob.spriteTracks[trackIndex];
                 hashState.Update(trackBlob.targetIndex);
                 hashState.Update((byte)trackBlob.mode);
+
+                // sliceSpace was never in this stream, which meant two clips differing only in
+                // whether their keys were absolute or rest-relative hashed identically — so flipping
+                // it left every consumer's baked registry looking current. Fixed here rather than
+                // left alone because this schema bump is the one moment the change costs nothing.
+                hashState.Update((byte)trackBlob.sliceSpace);
+                hashState.Update(trackBlob.baseIndex);
                 hashState.Update(trackBlob.keys.Length);
                 for (int keyIndex = 0; keyIndex < trackBlob.keys.Length; keyIndex++)
                 {
                     ref SpriteKeyBlob keyBlob = ref trackBlob.keys[keyIndex];
                     hashState.Update(math.asuint(keyBlob.normalizedTime));
                     hashState.Update(keyBlob.sliceIndex);
+                    hashState.Update((byte)keyBlob.indexMode);
                     hashState.Update(math.asuint(keyBlob.atlasRect.x));
                     hashState.Update(math.asuint(keyBlob.atlasRect.y));
                     hashState.Update(math.asuint(keyBlob.atlasRect.z));

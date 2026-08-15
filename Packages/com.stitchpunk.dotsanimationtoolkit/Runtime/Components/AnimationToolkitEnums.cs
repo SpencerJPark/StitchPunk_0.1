@@ -221,7 +221,55 @@ namespace StitchPunk.AnimationToolkit
         EaseOut = 3,
 
         /// <summary>Piecewise quadratic ease-in-out: <c>t &lt; ½ ? 2t² : 1 − 2(1 − t)²</c>.</summary>
-        EaseInOut = 4
+        EaseInOut = 4,
+
+        /// <summary>
+        /// A cubic Bézier ease shaped by the key's two editable handles.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The curve warps the segment's blend weight, exactly as the four fixed modes above do —
+        /// it is not a per-channel value curve. That keeps one key driving position, rotation and
+        /// scale together, which is the shape the whole track model is built on; per-channel curves
+        /// would mean per-channel keys.
+        /// </para>
+        /// <para>
+        /// Handles are constrained to the unit square (validation rule V17). x outside [0, 1] makes
+        /// the curve non-functional — two weights for one time — and y outside it makes the eased
+        /// weight leave the segment, which is overshoot. Overshoot is expressive and deliberately
+        /// not allowed yet: the bake's bounds union assumes the keys bound the sampled extremes
+        /// (architecture section 4.6), so a curve that travels past its keys would produce a box
+        /// too small and parts that cull while still on screen.
+        /// </para>
+        /// </remarks>
+        Bezier = 5
+    }
+
+    /// <summary>
+    /// Whether a flipbook key names an array index outright or an offset from its track's
+    /// <c>baseIndex</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Per <em>key</em>, unlike <see cref="SpriteSliceSpace"/>, which is per track. The two are
+    /// different axes and both apply: this one decides how a key's stored number becomes a track
+    /// value, and <see cref="SpriteSliceSpace"/> decides whether that value replaces the pose's
+    /// slice or is added to the rest slice the character's variant chose.
+    /// </para>
+    /// <para>
+    /// <strong>A relative key stores its offset, never the resolved index.</strong> That is the
+    /// whole point: moving a track's <c>baseIndex</c> retargets every relative key at once, and no
+    /// offset is recomputed or lost in the process. Storing the resolved value instead would make
+    /// <c>baseIndex</c> a one-shot edit that silently bakes itself into the keys.
+    /// </para>
+    /// </remarks>
+    public enum SpriteIndexMode : byte
+    {
+        /// <summary>The stored number is the array index itself; −1 still means "no change".</summary>
+        Absolute = 0,
+
+        /// <summary>The stored number is an offset; the index is the track's <c>baseIndex</c> plus it.</summary>
+        RelativeToBase = 1
     }
 
     /// <summary>

@@ -54,6 +54,139 @@ namespace StitchPunk.AnimationToolkit
         }
 
         /// <summary>
+        /// Applies the per-key easing curve, including <see cref="Interpolation.Bezier"/>, which
+        /// needs the key's handles and so cannot be served by the parameterless overload.
+        /// </summary>
+        /// <remarks>
+        /// Kept as an overload rather than replacing <see cref="Ease(float, Interpolation)"/>,
+        /// because that signature is the one the four fixed curves need and callers that never
+        /// author Bézier should not have to carry handles they do not use.
+        /// </remarks>
+        [BurstCompile]
+        public static float Ease(
+            float linearTime, Interpolation interpolation,
+            in float2 bezierStartHandle, in float2 bezierEndHandle)
+        {
+            if (interpolation != Interpolation.Bezier)
+            {
+                return Ease(linearTime, interpolation);
+            }
+            return EaseBezier(linearTime, in bezierStartHandle, in bezierEndHandle);
+        }
+
+        /// <summary>
+        /// Evaluates a cubic Bézier ease with endpoints pinned at (0,0) and (1,1).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The curve is parametric, so finding the weight for a time means solving x(s) = t for the
+        /// parameter s first and then reading y(s). Newton's method converges in a handful of
+        /// iterations for the monotonic-x curves validation rule V17 permits; the bisection fallback
+        /// covers the flat-derivative case Newton cannot make progress on, so the loop always
+        /// terminates with a bounded error rather than sometimes not terminating.
+        /// </para>
+        /// <para>
+        /// Two zero handles mean "these fields did not exist when this asset was written", not "a
+        /// curve that collapses to the origin". Reading that as linear is what stops an old clip,
+        /// or a key switched to Bézier by something that did not initialise it, from freezing at
+        /// the segment's left key.
+        /// </para>
+        /// </remarks>
+        [BurstCompile]
+        public static float EaseBezier(
+            float linearTime, in float2 bezierStartHandle, in float2 bezierEndHandle)
+        {
+            if (math.all(bezierStartHandle == float2.zero) && math.all(bezierEndHandle == float2.zero))
+            {
+                return linearTime;
+            }
+
+            if (linearTime <= 0f)
+            {
+                return 0f;
+            }
+            if (linearTime >= 1f)
+            {
+                return 1f;
+            }
+
+            float parameter = SolveBezierParameterForTime(
+                linearTime, bezierStartHandle.x, bezierEndHandle.x);
+            return CubicBezierComponent(parameter, bezierStartHandle.y, bezierEndHandle.y);
+        }
+
+        /// <summary>One axis of a cubic Bézier with endpoints pinned at 0 and 1.</summary>
+        [BurstCompile]
+        private static float CubicBezierComponent(float parameter, float firstHandle, float secondHandle)
+        {
+            float inverse = 1f - parameter;
+            return 3f * inverse * inverse * parameter * firstHandle
+                + 3f * inverse * parameter * parameter * secondHandle
+                + parameter * parameter * parameter;
+        }
+
+        /// <summary>Derivative of <see cref="CubicBezierComponent"/> with respect to the parameter.</summary>
+        [BurstCompile]
+        private static float CubicBezierDerivative(
+            float parameter, float firstHandle, float secondHandle)
+        {
+            float inverse = 1f - parameter;
+            return 3f * inverse * inverse * firstHandle
+                + 6f * inverse * parameter * (secondHandle - firstHandle)
+                + 3f * parameter * parameter * (1f - secondHandle);
+        }
+
+        [BurstCompile]
+        private static float SolveBezierParameterForTime(
+            float targetTime, float firstHandleX, float secondHandleX)
+        {
+            const float SolveTolerance = 1e-5f;
+            const int NewtonIterations = 8;
+            const int BisectionIterations = 24;
+
+            float parameter = targetTime;
+            for (int iteration = 0; iteration < NewtonIterations; iteration++)
+            {
+                float error = CubicBezierComponent(parameter, firstHandleX, secondHandleX) - targetTime;
+                if (math.abs(error) < SolveTolerance)
+                {
+                    return parameter;
+                }
+
+                float derivative = CubicBezierDerivative(parameter, firstHandleX, secondHandleX);
+                if (math.abs(derivative) < 1e-6f)
+                {
+                    break;
+                }
+                parameter -= error / derivative;
+            }
+
+            // Newton stalled on a near-flat stretch. Bisection cannot stall, so the solve is bounded
+            // rather than merely usually fast.
+            float lowerBound = 0f;
+            float upperBound = 1f;
+            parameter = targetTime;
+            for (int iteration = 0; iteration < BisectionIterations; iteration++)
+            {
+                float sampledTime = CubicBezierComponent(parameter, firstHandleX, secondHandleX);
+                if (math.abs(sampledTime - targetTime) < SolveTolerance)
+                {
+                    break;
+                }
+                if (sampledTime < targetTime)
+                {
+                    lowerBound = parameter;
+                }
+                else
+                {
+                    upperBound = parameter;
+                }
+                parameter = (lowerBound + upperBound) * 0.5f;
+            }
+            return parameter;
+        }
+
+        /// <summary>
         /// Resolves the <see cref="LoopMode.UseClipDefault"/> command sentinel against a clip's
         /// authored default (architecture section 5.4).
         /// </summary>
@@ -160,7 +293,9 @@ namespace StitchPunk.AnimationToolkit
 
             float keySpan = nextKey.normalizedTime - previousKey.normalizedTime;
             float linearWeight = keySpan > 0f ? (normalizedTime - previousKey.normalizedTime) / keySpan : 0f;
-            float easedWeight = Ease(linearWeight, previousKey.interpolation);
+            float easedWeight = Ease(
+                linearWeight, previousKey.interpolation,
+                in previousKey.bezierStartHandle, in previousKey.bezierEndHandle);
 
             position = math.lerp(previousKey.position, nextKey.position, easedWeight);
             rotationZ = math.lerp(previousKey.rotationZ, nextKey.rotationZ, easedWeight);
@@ -252,17 +387,31 @@ namespace StitchPunk.AnimationToolkit
 
             if (track.mode == SpriteFrameMode.Slice)
             {
+                // Two independent bases compose here, and the order matters. The key's own mode
+                // resolves it against the track's authored baseIndex first, producing the track's
+                // value; sliceSpace then decides whether that value replaces the pose's slice or is
+                // added to the rest slice the character's variant chose. Collapsing them would cost
+                // one of the two retargeting behaviours: an authored base that moves a whole track
+                // onto another span of the array, and a runtime base that follows the character.
+                int trackValue = SpriteIndexResolver.Resolve(
+                    keys[chosenIndex].sliceIndex, keys[chosenIndex].indexMode, track.baseIndex);
+
                 if (track.sliceSpace == SpriteSliceSpace.RelativeToRest)
                 {
                     // Amendment A37: the key is an offset from whatever the seed carries, which is
                     // the rest slice the host's design system chose for this character. There is no
                     // -1 sentinel here — 0 is the no-op, and a negative offset is a legitimate step
                     // backwards through the variant's frames.
-                    sliceIndex += keys[chosenIndex].sliceIndex;
+                    sliceIndex += trackValue;
                 }
-                else if (keys[chosenIndex].sliceIndex >= 0)
+                else if (trackValue >= 0
+                    || keys[chosenIndex].indexMode == SpriteIndexMode.RelativeToBase)
                 {
-                    sliceIndex = keys[chosenIndex].sliceIndex;
+                    // The −1 sentinel belongs to absolute keys only. A relative key that resolves
+                    // below zero is a base and offset that disagree, not a request to hold the
+                    // current frame — validation rule V18 reports it, and clamping keeps the
+                    // material on a renderable slice meanwhile.
+                    sliceIndex = math.max(0, trackValue);
                 }
             }
             else

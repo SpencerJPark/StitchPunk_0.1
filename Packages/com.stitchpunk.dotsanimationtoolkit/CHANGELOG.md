@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — flipbook base indices and Bézier easing (schema version 5)
+
+The data model behind the keying/dopesheet rework. The editing surface that
+renders it lands in later phases; this is what it renders.
+
+- **Flipbook tracks gain a per-track `baseIndex` and a per-key
+  `SpriteIndexMode`** (`Absolute` / `RelativeToBase`). A relative key stores its
+  **offset and nothing else**, so moving `baseIndex` retargets every relative key
+  at once and no offset is recomputed or lost — the same mouth set slid onto a
+  different character's block by editing one number. Storing the resolved index
+  instead would make `baseIndex` a one-shot edit that quietly consumed itself.
+  - **Two bases now compose, and both survive.** The per-key mode resolves
+    against the track's authored `baseIndex` first, producing the track's value;
+    `SpriteSliceSpace` (amendment A37) then decides whether that value replaces
+    the pose's slice or is added to the rest slice the character's variant chose.
+    Collapsing them would have cost one of the two retargeting behaviours — an
+    authored base that moves a whole track, and a runtime base that follows the
+    character's skin.
+  - Several tracks may drive one target from different bases, which is how a
+    single texture array holds independent feature sets: a mouth track based at 0
+    and an eye track based at 32 animate the same part without either knowing the
+    other exists.
+  - `SpriteIndexResolver` is the only thing that resolves an index, shared by the
+    Burst sampler, validation and (from the next phase) the editor's "+5 → 12"
+    display. Three implementations of that arithmetic would eventually disagree,
+    and the number an author reads would stop matching the frame that plays.
+  - Rule **V14** is now scoped to absolute keys. A relative key's number is a
+    displacement, so −3 is three frames back, not a malformed index; warning on it
+    would have trained authors to ignore the rule.
+  - New rule **V18**: a relative key that resolves below zero. The −1 "no change"
+    sentinel belongs to absolute keys only, so there is nothing else it could mean.
+- **`Interpolation.Bezier`**, shaped by two editable handles stored per key and
+  evaluated in the Burst sampler — what you author is what plays, rather than an
+  editor curve the bake approximates. The curve warps the segment's blend weight,
+  as the four fixed curves already do, so one key still drives position, rotation
+  and scale together.
+  - Solved with Newton plus a bisection fallback, so the solve is bounded rather
+    than merely usually fast.
+  - An all-zero handle pair reads as **linear**, not as a degenerate curve. That
+    is the value a key deserializes to when these fields did not exist, and the
+    same defensive reading `BoneKey.localRotation` needs for an all-zero
+    quaternion.
+  - New rule **V17**: handles are confined to the unit square. x outside it makes
+    the curve non-functional; y outside it is overshoot, which is well defined but
+    breaks the bake's bounds union — section 4.6 unions the keys on the argument
+    that every interpolation mode is monotonic between them, so a curve that
+    travelled past its own keys would bake a box too small and cull parts that are
+    still visible. **Overshoot is therefore not available yet**; lifting the limit
+    means teaching `ComputeOffsetBounds` about curve extrema.
+- **Schema version 4 → 5**, with the golden content hash re-recorded in the same
+  commit. A version-4 blob read as version 5 would resolve every relative key
+  against a base of zero and ease every Bézier key as linear.
+- `sliceSpace` is in the content hash **for the first time**. It never was, which
+  meant two clips differing only in whether their keys were absolute or
+  rest-relative hashed identically — so flipping it left every consumer's baked
+  registry looking current. Fixed here because a schema bump is the one moment it
+  costs nothing.
+
 ### Changed — the clip editor is a persistent dock (§7.1)
 
 - **Three zones over a timeline**, declared in `ClipEditorWindow.uxml` as nested

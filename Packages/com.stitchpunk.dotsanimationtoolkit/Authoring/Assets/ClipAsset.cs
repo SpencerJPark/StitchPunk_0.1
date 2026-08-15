@@ -239,6 +239,22 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>Easing applied from this key to the next one.</summary>
         public Interpolation interpolation;
+
+        /// <summary>
+        /// The first Bézier handle, in segment space: x is time across the segment, y is the blend
+        /// weight. Read only when <see cref="interpolation"/> is <see cref="Interpolation.Bezier"/>.
+        /// </summary>
+        /// <remarks>
+        /// Both handles zero is the value a struct deserializes to when the fields did not exist,
+        /// and a zero-length handle pair is not a curve. <c>ClipSampler.Ease</c> reads that exact
+        /// case as linear rather than as a degenerate solve — the same defensive reading
+        /// <see cref="BoneKey.localRotation"/> needs for an all-zero quaternion, and for the same
+        /// reason: a struct's zero value is not always a meaningful value.
+        /// </remarks>
+        public float2 bezierStartHandle;
+
+        /// <summary>The second Bézier handle. See <see cref="bezierStartHandle"/>.</summary>
+        public float2 bezierEndHandle;
     }
 
     /// <summary>
@@ -260,6 +276,26 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// </summary>
         public SpriteSliceSpace sliceSpace = SpriteSliceSpace.Absolute;
 
+        /// <summary>
+        /// The array index every <see cref="SpriteIndexMode.RelativeToBase"/> key on this track
+        /// offsets from. Ignored by absolute keys.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>This is a retargeting handle, not a stored result.</strong> Relative keys hold
+        /// their offsets and nothing else, so moving this one number slides the whole track onto a
+        /// different span of the texture array — the same mouth shapes on a different character's
+        /// block — without touching a single key. Baking the sum into the keys instead would make
+        /// this a one-time edit that quietly consumed itself.
+        /// </para>
+        /// <para>
+        /// Several tracks may drive the same target with different bases, which is how one texture
+        /// array holds independent feature sets: a mouth track based at 0 and an eye track based at
+        /// 32 animate the same part without either knowing about the other.
+        /// </para>
+        /// </remarks>
+        public int baseIndex;
+
         /// <summary>Keys in strictly ascending <c>normalizedTime</c> order (validation rule V03).</summary>
         public List<SpriteKey> keys = new List<SpriteKey>();
     }
@@ -271,8 +307,26 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Key time as a fraction of the clip's duration, in [0, 1] (validation rule V04).</summary>
         public float normalizedTime;
 
-        /// <summary>Slice-mode frame index; −1 means "no change". Values below −1 fail validation rule V14.</summary>
+        /// <summary>
+        /// The key's stored number. In <see cref="SpriteIndexMode.Absolute"/> it is the slice index
+        /// itself, where −1 means "no change" and anything below −1 fails validation rule V14. In
+        /// <see cref="SpriteIndexMode.RelativeToBase"/> it is an offset from the track's
+        /// <c>baseIndex</c>, where negatives are ordinary steps backwards and −1 is not a sentinel.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately still one field rather than a stored offset beside a stored absolute. Two
+        /// fields would let them disagree, and then "which one is true" becomes a question the
+        /// asset cannot answer. One number plus <see cref="indexMode"/> always resolves the same
+        /// way, and <c>SpriteIndexResolver</c> is the only thing that resolves it.
+        /// </remarks>
         public int sliceIndex;
+
+        /// <summary>
+        /// Whether <see cref="sliceIndex"/> is an index or an offset from the track's base
+        /// (validation rule V18). Defaults to <see cref="SpriteIndexMode.Absolute"/>, which is the
+        /// zero value — so every clip authored before this field existed keeps its exact meaning.
+        /// </summary>
+        public SpriteIndexMode indexMode;
 
         /// <summary>Atlas-mode rect: scale in xy, offset in zw.</summary>
         public float4 atlasRect;
@@ -367,6 +421,22 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>Easing applied from this key to the next one.</summary>
         public Interpolation interpolation;
+
+        /// <summary>
+        /// The first Bézier handle, in segment space: x is time across the segment, y is the blend
+        /// weight. Read only when <see cref="interpolation"/> is <see cref="Interpolation.Bezier"/>.
+        /// </summary>
+        /// <remarks>
+        /// Both handles zero is the value a struct deserializes to when the fields did not exist,
+        /// and a zero-length handle pair is not a curve. <c>ClipSampler.Ease</c> reads that exact
+        /// case as linear rather than as a degenerate solve — the same defensive reading
+        /// <see cref="BoneKey.localRotation"/> needs for an all-zero quaternion, and for the same
+        /// reason: a struct's zero value is not always a meaningful value.
+        /// </remarks>
+        public float2 bezierStartHandle;
+
+        /// <summary>The second Bézier handle. See <see cref="bezierStartHandle"/>.</summary>
+        public float2 bezierEndHandle;
     }
 
     /// <summary>

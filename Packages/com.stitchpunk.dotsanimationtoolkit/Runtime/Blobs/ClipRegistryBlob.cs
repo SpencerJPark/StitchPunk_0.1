@@ -194,6 +194,12 @@ namespace StitchPunk.AnimationToolkit
 
         /// <summary>Easing from this key to the next one.</summary>
         public Interpolation interpolation;
+
+        /// <summary>First Bézier handle (time, weight); read only for <see cref="Interpolation.Bezier"/>.</summary>
+        public float2 bezierStartHandle;
+
+        /// <summary>Second Bézier handle (time, weight); read only for <see cref="Interpolation.Bezier"/>.</summary>
+        public float2 bezierEndHandle;
     }
 
     /// <summary>
@@ -213,6 +219,18 @@ namespace StitchPunk.AnimationToolkit
         /// </summary>
         public SpriteSliceSpace sliceSpace;
 
+        /// <summary>
+        /// The index <see cref="SpriteIndexMode.RelativeToBase"/> keys offset from.
+        /// </summary>
+        /// <remarks>
+        /// Baked as the authored base rather than folded into the keys, so the blob keeps the same
+        /// offsets the asset holds. Folding would cost nothing at runtime and lose nothing that
+        /// runtime reads — but it would make the baked data disagree with the authored data about
+        /// what a key means, and every tool that reads a blob back would report resolved indices an
+        /// author never typed.
+        /// </remarks>
+        public int baseIndex;
+
         /// <summary>Keys sorted by time.</summary>
         public BlobArray<SpriteKeyBlob> keys;
     }
@@ -223,8 +241,15 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Key time normalized to the clip's duration, in [0, 1].</summary>
         public float normalizedTime;
 
-        /// <summary>Slice-mode frame index; −1 = no change (keep the current frame).</summary>
+        /// <summary>
+        /// The key's stored number: a slice index in <see cref="SpriteIndexMode.Absolute"/> (−1 =
+        /// no change), or an offset from the track's <c>baseIndex</c> in
+        /// <see cref="SpriteIndexMode.RelativeToBase"/>.
+        /// </summary>
         public int sliceIndex;
+
+        /// <summary>How <see cref="sliceIndex"/> resolves. See <c>SpriteIndexResolver</c>.</summary>
+        public SpriteIndexMode indexMode;
 
         /// <summary>Atlas-mode rect: scale.xy, offset.zw.</summary>
         public float4 atlasRect;
