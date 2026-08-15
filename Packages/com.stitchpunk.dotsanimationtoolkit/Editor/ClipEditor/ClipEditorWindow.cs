@@ -73,12 +73,20 @@ namespace StitchPunk.AnimationToolkit.Editor
         private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
         private const string AnimatedBoneUssClassName = "clip-editor__hierarchy-row--animated";
         private const string TrackHeaderUssClassName = "clip-editor__track-header";
+        private const string TrackHeaderLabelUssClassName = "clip-editor__track-header-label";
+        private const string TrackFoldoutUssClassName = "clip-editor__track-foldout";
+        private const string ChannelHeaderUssClassName = "clip-editor__channel-header";
         private const string HeadingUssClassName = "clip-editor__heading";
         private const string HintUssClassName = "clip-editor__hint";
         private const string FlipbookTrackUssClassName = "clip-editor__flipbook-track";
         private const string FlipbookKeyUssClassName = "clip-editor__flipbook-key";
         private const string FlipbookResolvedUssClassName = "clip-editor__flipbook-resolved";
         private const string FlipbookInvalidUssClassName = "clip-editor__flipbook-resolved--invalid";
+        private const string TransformBlockUssClassName = "clip-editor__transform-block";
+        private const string TransformOnKeyUssClassName = "clip-editor__transform-block--on-key";
+        private const string TransformInterpolatedUssClassName = "clip-editor__transform-block--interpolated";
+        private const string TransformModifiedUssClassName = "clip-editor__transform-block--modified";
+        private const string TransformStateChipUssClassName = "clip-editor__transform-state";
 
         private ObjectField clipSetField;
         private ListView clipListView;
@@ -88,6 +96,38 @@ namespace StitchPunk.AnimationToolkit.Editor
         private Label hierarchyEmptyLabel;
         private ToolbarToggle playToggle;
         private ToolbarToggle snapToggle;
+        private ToolbarToggle autoKeyToggle;
+
+        // The held transform edit: a value the user has changed but not written to a key. Kept per
+        // selection and dropped when the playhead or the selection moves, because it describes
+        // "this part, at this instant" and neither survives the other changing.
+        // Gizmo state. The drag records the value it started from and re-derives the whole result
+        // each move, rather than accumulating deltas — accumulation drifts, and a drag that ends
+        // somewhere the pointer is not is the symptom.
+        private GizmoMode gizmoMode = GizmoMode.Move;
+        private GizmoHandle activeGizmoHandle = GizmoHandle.None;
+        private float3 gizmoDragStartPosition;
+        private float gizmoDragStartRotation;
+        private float2 gizmoDragStartScale;
+        private float gizmoDragStartParameter;
+
+        // Box selection. Armed on a press in empty lane space and only becomes a band once the
+        // pointer has travelled, so a plain click still just moves the playhead.
+        private const float BoxSelectStartToleranceSquared = 16f;
+        private BoxSelectElement boxSelectElement;
+        private VisualElement boxSelectLane;
+        private Vector2 boxSelectOriginInStack;
+        private bool isBoxSelectArmed;
+        private bool isBoxSelectActive;
+        private bool isBoxSelectAdditive;
+
+        /// <summary>Which tracks show their per-channel rows, keyed by kind and index.</summary>
+        private readonly HashSet<long> expandedTrackKeys = new HashSet<long>();
+
+        private bool hasPendingTransformEdit;
+        private float3 pendingPosition;
+        private float pendingRotationDegrees;
+        private float2 pendingScale;
         private IntegerField frameCountField;
         private Label timeLabel;
         private VisualElement trackHeaderColumn;
@@ -315,6 +355,24 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             timeLabel = rootVisualElement.Q<Label>("time-label");
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
+
+            autoKeyToggle = rootVisualElement.Q<ToolbarToggle>("auto-key-toggle");
+            if (autoKeyToggle != null)
+            {
+                autoKeyToggle.tooltip =
+                    "On: editing a transform value writes it into a key at the playhead. "
+                    + "Off: the change is held and shown as modified until you press Key.";
+                autoKeyToggle.RegisterValueChangedCallback(changeEvent =>
+                {
+                    // Turning auto-key on adopts whatever is currently held, rather than discarding
+                    // it — the user has just said they want their edits kept.
+                    if (changeEvent.newValue && hasPendingTransformEdit)
+                    {
+                        CommitPendingTransformEdit();
+                    }
+                    RebuildInspector();
+                });
+            }
 
             frameCountField = rootVisualElement.Q<IntegerField>("frame-count-field");
             if (frameCountField != null)
@@ -619,6 +677,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
             previewImage.scaleMode = ScaleMode.ScaleToFit;
+
+            // Focusable so W/E/R reach the viewport rather than the window's other shortcuts.
+            previewImage.focusable = true;
+            previewImage.RegisterCallback<KeyDownEvent>(OnViewportKeyDown);
             previewImage.RegisterCallback<PointerDownEvent>(OnPreviewPointerDown);
             previewImage.RegisterCallback<PointerMoveEvent>(OnPreviewPointerMove);
             previewImage.RegisterCallback<PointerUpEvent>(OnPreviewPointerUp);
@@ -651,6 +713,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             ruler = new TimeRulerElement();
             ruler.scrubbed += SetPlayheadTime;
             laneStack.Insert(0, ruler);
+
+            // Under the playhead so the current-time line stays readable over a band.
+            boxSelectElement = new BoxSelectElement();
+            laneStack.Add(boxSelectElement);
 
             playhead = new PlayheadElement();
             laneStack.Add(playhead);
@@ -798,6 +864,60 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <em>applied</em> on release, and only if this turned out to be a click rather than an
         /// orbit — see <see cref="OnPreviewPointerUp"/>.
         /// </remarks>
+        /// <summary>W / E / R switch the gizmo mode, matching every other 3D tool.</summary>
+        private void OnViewportKeyDown(KeyDownEvent keyEvent)
+        {
+            GizmoMode requestedMode;
+            switch (keyEvent.keyCode)
+            {
+                case KeyCode.W:
+                    requestedMode = GizmoMode.Move;
+                    break;
+                case KeyCode.E:
+                    requestedMode = GizmoMode.Rotate;
+                    break;
+                case KeyCode.R:
+                    requestedMode = GizmoMode.Scale;
+                    break;
+                default:
+                    return;
+            }
+
+            gizmoMode = requestedMode;
+            RefreshGizmo();
+            keyEvent.StopPropagation();
+        }
+
+        /// <summary>
+        /// Puts the gizmo on the selected part at the value currently displayed.
+        /// </summary>
+        /// <remarks>
+        /// The pivot comes from the authored value rather than from the mirrored quad, because the
+        /// quad follows the built registry and that is rebuilt on a debounce — a gizmo anchored to it
+        /// would lag its own drag by a quarter of a second.
+        /// </remarks>
+        private void RefreshGizmo()
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+
+            if (selectedTargetId == 0u || selectedClip == null)
+            {
+                previewController.SetGizmo(false, gizmoMode, Vector3.zero, GizmoHandle.None);
+                return;
+            }
+
+            float3 position;
+            float rotationDegrees;
+            float2 scale;
+            ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+
+            previewController.SetGizmo(
+                true, gizmoMode, new Vector3(position.x, position.y, position.z), activeGizmoHandle);
+        }
+
         private void OnPreviewPointerDown(PointerDownEvent pointerEvent)
         {
             isPickPending = false;
@@ -810,8 +930,17 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
             previewImage.CapturePointer(pointerEvent.pointerId);
+            previewImage.Focus();
 
             if (previewController == null)
+            {
+                return;
+            }
+
+            // A press on a gizmo handle is a transform drag, not an orbit and not a selection. Tested
+            // first for exactly that reason: the handle sits on top of the thing it edits, so any
+            // other order would make it unusable.
+            if (TryBeginGizmoDrag(pointerEvent.localPosition))
             {
                 return;
             }
@@ -844,7 +973,211 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 return;
             }
+
+            if (activeGizmoHandle != GizmoHandle.None)
+            {
+                ContinueGizmoDrag(moveEvent.localPosition);
+                return;
+            }
             previewController.Orbit(moveEvent.deltaPosition);
+        }
+
+        /// <summary>Whether the press landed on a gizmo handle, and if so, starts the drag.</summary>
+        private bool TryBeginGizmoDrag(Vector2 localPosition)
+        {
+            if (selectedTargetId == 0u || selectedClip == null)
+            {
+                return false;
+            }
+
+            Vector2 viewportPoint;
+            float aspect;
+            if (!TryGetViewportPoint(localPosition, out viewportPoint, out aspect))
+            {
+                return false;
+            }
+
+            GizmoHandle handle = previewController.PickGizmoHandle(viewportPoint, aspect);
+            if (handle == GizmoHandle.None)
+            {
+                return false;
+            }
+
+            float3 position;
+            float rotationDegrees;
+            float2 scale;
+            ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+
+            activeGizmoHandle = handle;
+            gizmoDragStartPosition = position;
+            gizmoDragStartRotation = rotationDegrees;
+            gizmoDragStartScale = scale;
+
+            Ray pressRay = previewController.BuildViewportRay(viewportPoint, aspect);
+            Vector3 pivot = new Vector3(position.x, position.y, position.z);
+
+            if (gizmoMode == GizmoMode.Rotate)
+            {
+                Vector3 planeHit;
+                if (!PreviewGizmoMath.TryIntersectPlane(pressRay, pivot, Vector3.forward, out planeHit))
+                {
+                    activeGizmoHandle = GizmoHandle.None;
+                    return false;
+                }
+                gizmoDragStartParameter = PreviewGizmoMath.AngleAroundPivotDegrees(planeHit, pivot);
+            }
+            else
+            {
+                Vector3 axis = handle == GizmoHandle.ScaleUniform
+                    ? Vector3.right
+                    : PreviewGizmoMath.GetHandleAxis(handle);
+                if (!PreviewGizmoMath.TryGetClosestAxisParameter(
+                        pressRay, pivot, axis, out gizmoDragStartParameter))
+                {
+                    activeGizmoHandle = GizmoHandle.None;
+                    return false;
+                }
+            }
+
+            RefreshGizmo();
+            return true;
+        }
+
+        /// <summary>
+        /// Turns pointer motion into a transform value and writes it through the shared path.
+        /// </summary>
+        /// <remarks>
+        /// Every frame of the drag writes with <c>forceKey: false</c>, so with auto-key off the
+        /// whole gesture stays a held edit and the clip gains nothing until release. With auto-key
+        /// on the first write creates the key and the rest update it, because
+        /// <c>SetKeyValues</c> finds the key already at the playhead.
+        /// </remarks>
+        private void ContinueGizmoDrag(Vector2 localPosition)
+        {
+            Vector2 viewportPoint;
+            float aspect;
+            if (!TryGetViewportPoint(localPosition, out viewportPoint, out aspect))
+            {
+                return;
+            }
+
+            Ray dragRay = previewController.BuildViewportRay(viewportPoint, aspect);
+            Vector3 pivot = new Vector3(
+                gizmoDragStartPosition.x, gizmoDragStartPosition.y, gizmoDragStartPosition.z);
+
+            if (gizmoMode == GizmoMode.Rotate)
+            {
+                Vector3 planeHit;
+                if (!PreviewGizmoMath.TryIntersectPlane(dragRay, pivot, Vector3.forward, out planeHit))
+                {
+                    return;
+                }
+                float currentAngle = PreviewGizmoMath.AngleAroundPivotDegrees(planeHit, pivot);
+                float angleDelta = Mathf.DeltaAngle(gizmoDragStartParameter, currentAngle);
+                ApplyTransformEdit(
+                    gizmoDragStartPosition,
+                    gizmoDragStartRotation + angleDelta,
+                    gizmoDragStartScale,
+                    false);
+                RebuildInspector();
+                RefreshGizmo();
+                return;
+            }
+
+            Vector3 dragAxis = activeGizmoHandle == GizmoHandle.ScaleUniform
+                ? Vector3.right
+                : PreviewGizmoMath.GetHandleAxis(activeGizmoHandle);
+            float currentParameter;
+            if (!PreviewGizmoMath.TryGetClosestAxisParameter(
+                    dragRay, pivot, dragAxis, out currentParameter))
+            {
+                return;
+            }
+            float parameterDelta = currentParameter - gizmoDragStartParameter;
+
+            if (gizmoMode == GizmoMode.Move)
+            {
+                float3 movedPosition = gizmoDragStartPosition;
+                switch (activeGizmoHandle)
+                {
+                    case GizmoHandle.AxisX:
+                        movedPosition.x += parameterDelta;
+                        break;
+                    case GizmoHandle.AxisY:
+                        movedPosition.y += parameterDelta;
+                        break;
+                    default:
+                        movedPosition.z += parameterDelta;
+                        break;
+                }
+                ApplyTransformEdit(
+                    movedPosition, gizmoDragStartRotation, gizmoDragStartScale, false);
+            }
+            else
+            {
+                float2 scaledValue = gizmoDragStartScale;
+                switch (activeGizmoHandle)
+                {
+                    case GizmoHandle.AxisX:
+                        scaledValue.x += parameterDelta;
+                        break;
+                    case GizmoHandle.AxisY:
+                        scaledValue.y += parameterDelta;
+                        break;
+                    default:
+                        scaledValue.x += parameterDelta;
+                        scaledValue.y += parameterDelta;
+                        break;
+                }
+                ApplyTransformEdit(
+                    gizmoDragStartPosition, gizmoDragStartRotation, scaledValue, false);
+            }
+
+            RebuildInspector();
+            RefreshGizmo();
+        }
+
+        /// <summary>
+        /// Ends a gizmo drag, keying the result when auto-key asked for it.
+        /// </summary>
+        /// <remarks>
+        /// The key is written on release rather than per frame so a drag is one key and one undo
+        /// step, not one per pointer move.
+        /// </remarks>
+        private void EndGizmoDrag()
+        {
+            if (activeGizmoHandle == GizmoHandle.None)
+            {
+                return;
+            }
+            activeGizmoHandle = GizmoHandle.None;
+
+            if (IsAutoKeyEnabled && hasPendingTransformEdit)
+            {
+                CommitPendingTransformEdit();
+            }
+            RebuildInspector();
+            RefreshGizmo();
+        }
+
+        /// <summary>Maps a pointer position in the image to a viewport point and the rect's aspect.</summary>
+        private bool TryGetViewportPoint(
+            Vector2 localPosition, out Vector2 viewportPoint, out float aspect)
+        {
+            viewportPoint = Vector2.zero;
+            aspect = 1f;
+
+            Rect viewportRect = previewImage.contentRect;
+            if (viewportRect.width < 1f || viewportRect.height < 1f)
+            {
+                return false;
+            }
+
+            viewportPoint = new Vector2(
+                localPosition.x / viewportRect.width,
+                1f - localPosition.y / viewportRect.height);
+            aspect = viewportRect.width / viewportRect.height;
+            return true;
         }
 
         /// <summary>
@@ -858,6 +1191,12 @@ namespace StitchPunk.AnimationToolkit.Editor
         private void OnPreviewPointerUp(PointerUpEvent upEvent)
         {
             previewImage.ReleasePointer(upEvent.pointerId);
+
+            if (activeGizmoHandle != GizmoHandle.None)
+            {
+                EndGizmoDrag();
+                return;
+            }
 
             if (!isPickPending)
             {
@@ -1235,6 +1574,8 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Points the viewport outline and the inspector at one row, or at nothing.</summary>
         private void SelectHierarchyItem(int itemId)
         {
+            // A held edit belongs to the part it was made on; selecting another one ends it.
+            DiscardPendingTransformEdit();
             selectedHierarchyItemId = itemId;
 
             HierarchyItem item;
@@ -1477,7 +1818,18 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private void SetPlayheadTime(float normalizedTime)
         {
-            playheadTime = Mathf.Clamp01(normalizedTime);
+            float clampedTime = Mathf.Clamp01(normalizedTime);
+
+            // A held edit describes the part at one instant, so moving off that instant ends it.
+            // Carrying it along would silently apply a value the user never keyed to a time they
+            // never looked at.
+            if (hasPendingTransformEdit && !Mathf.Approximately(clampedTime, playheadTime))
+            {
+                DiscardPendingTransformEdit();
+                RebuildInspector();
+            }
+
+            playheadTime = clampedTime;
             if (playhead != null)
             {
                 playhead.NormalizedTime = playheadTime;
@@ -1557,7 +1909,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
                 AddTrackRow(
                     "T " + track.targetId.ToString() + "  " + track.channels.ToString(),
-                    TimelineTrackKind.Transform, trackIndex, times, rowIndex++);
+                    TimelineTrackKind.Transform, trackIndex, times, ref rowIndex);
             }
 
             List<SpriteTrack> spriteTracks = selectedClip.spriteTracks;
@@ -1575,7 +1927,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
                 AddTrackRow(
                     "S " + track.targetId.ToString() + "  " + track.mode.ToString(),
-                    TimelineTrackKind.Sprite, trackIndex, times, rowIndex++);
+                    TimelineTrackKind.Sprite, trackIndex, times, ref rowIndex);
             }
 
             // Bone rows sit between the part rows and the events, so a character's skeleton and its
@@ -1596,7 +1948,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
                 AddTrackRow(
                     "B " + (string.IsNullOrEmpty(track.boneName) ? "<unnamed bone>" : track.boneName),
-                    TimelineTrackKind.Bone, trackIndex, times, rowIndex++);
+                    TimelineTrackKind.Bone, trackIndex, times, ref rowIndex);
             }
 
             if (selectedClip.events != null)
@@ -1606,32 +1958,121 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     times.Add(selectedClip.events[eventIndex].normalizedTime);
                 }
-                AddTrackRow("Events", TimelineTrackKind.Event, 0, times, rowIndex++);
+                AddTrackRow("Events", TimelineTrackKind.Event, 0, times, ref rowIndex);
             }
 
             SetPlayheadTime(playheadTime);
             RebuildInspector();
         }
 
+        /// <summary>
+        /// Adds a track's row and, when it is expanded, one row per animated channel.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Channel rows show the same keys as their track, not keys of their own.</strong>
+        /// One <c>TransformKey</c> carries position, rotation and scale together, so the rows are a
+        /// reading of one set of keys rather than independent curves — dragging a key on any of them
+        /// retimes the one underlying key. Independent per-channel keying would mean splitting the
+        /// key struct into per-channel curves, which changes the blob, the sampler and every baked
+        /// clip; it is not something the dopesheet can decide on its own.
+        /// </remarks>
         private void AddTrackRow(
-            string headerText, TimelineTrackKind trackKind, int trackIndex, List<float> times, int rowIndex)
+            string headerText, TimelineTrackKind trackKind, int trackIndex, List<float> times,
+            ref int rowIndex)
         {
-            Label header = new Label(headerText);
-            header.AddToClassList(TrackHeaderUssClassName);
-            header.tooltip = headerText;
-            trackHeaderColumn.Add(header);
+            long trackKey = MakeTrackKey(trackKind, trackIndex);
+            string[] channelNames = GetChannelNames(trackKind);
+            bool canExpand = channelNames.Length > 0;
+            bool isExpanded = canExpand && expandedTrackKeys.Contains(trackKey);
 
+            VisualElement headerRow = new VisualElement();
+            headerRow.AddToClassList(TrackHeaderUssClassName);
+
+            if (canExpand)
+            {
+                Button foldoutButton = new Button(() => ToggleTrackExpanded(trackKey))
+                {
+                    text = isExpanded ? "▾" : "▸"
+                };
+                foldoutButton.AddToClassList(TrackFoldoutUssClassName);
+                headerRow.Add(foldoutButton);
+            }
+
+            Label headerLabel = new Label(headerText);
+            headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
+            headerLabel.tooltip = headerText;
+            headerRow.Add(headerLabel);
+            trackHeaderColumn.Add(headerRow);
+
+            AddLane(trackKind, trackIndex, times, rowIndex, false);
+            rowIndex++;
+
+            if (!isExpanded)
+            {
+                return;
+            }
+
+            for (int channelIndex = 0; channelIndex < channelNames.Length; channelIndex++)
+            {
+                Label channelHeader = new Label(channelNames[channelIndex]);
+                channelHeader.AddToClassList(TrackHeaderUssClassName);
+                channelHeader.AddToClassList(ChannelHeaderUssClassName);
+                trackHeaderColumn.Add(channelHeader);
+
+                AddLane(trackKind, trackIndex, times, rowIndex, true);
+                rowIndex++;
+            }
+        }
+
+        private void AddLane(
+            TimelineTrackKind trackKind, int trackIndex, List<float> times, int rowIndex,
+            bool isChannelRow)
+        {
             TrackLaneElement lane = new TrackLaneElement
             {
                 trackKind = trackKind,
                 trackIndex = trackIndex,
                 isAlternateRow = (rowIndex & 1) == 1,
+                isChannelRow = isChannelRow,
                 isKeySelected = selectedKeys.Contains
             };
             lane.SetKeyTimes(times);
             lane.keyPointerDown += OnKeyPointerDown;
             lane.lanePointerDown += OnLanePointerDown;
             laneColumn.Add(lane);
+        }
+
+        private static long MakeTrackKey(TimelineTrackKind trackKind, int trackIndex)
+        {
+            return ((long)trackKind << 32) | (uint)trackIndex;
+        }
+
+        private void ToggleTrackExpanded(long trackKey)
+        {
+            if (!expandedTrackKeys.Remove(trackKey))
+            {
+                expandedTrackKeys.Add(trackKey);
+            }
+            RebuildTimeline();
+        }
+
+        /// <summary>The channels a track kind animates, or an empty array when it has none to show.</summary>
+        private static string[] GetChannelNames(TimelineTrackKind trackKind)
+        {
+            switch (trackKind)
+            {
+                case TimelineTrackKind.Transform:
+                    return new string[]
+                    {
+                        "Position X", "Position Y", "Position Z", "Rotation Z", "Scale X", "Scale Y"
+                    };
+                case TimelineTrackKind.Bone:
+                    return new string[] { "Position", "Rotation", "Scale" };
+                case TimelineTrackKind.Sprite:
+                    return new string[] { "Index" };
+                default:
+                    return new string[0];
+            }
         }
 
         private void RepaintLanes()
@@ -1812,13 +2253,18 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             if (pointerEvent.clickCount < 2 || selectedClip == null)
             {
-                if (!pointerEvent.shiftKey && !pointerEvent.ctrlKey && !pointerEvent.commandKey)
+                bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
+                if (!additive)
                 {
                     selectedKeys.Clear();
                     RepaintLanes();
                     RebuildInspector();
                 }
                 SetPlayheadTime(normalizedTime);
+
+                // The same press can still become a box select. It only becomes one once the pointer
+                // has actually travelled, so a plain click keeps meaning "move the playhead here".
+                BeginBoxSelect(pointerEvent, additive);
                 return;
             }
 
@@ -1832,6 +2278,142 @@ namespace StitchPunk.AnimationToolkit.Editor
             SortTrackKeys(trackKind, trackIndex);
             SetPlayheadTime(insertTime);
             RebuildTimeline();
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Box selection
+        // -------------------------------------------------------------------------------------
+
+        private void BeginBoxSelect(PointerDownEvent pointerEvent, bool additive)
+        {
+            VisualElement lane = pointerEvent.currentTarget as VisualElement;
+            if (lane == null || laneStack == null || boxSelectElement == null)
+            {
+                return;
+            }
+
+            boxSelectOriginInStack = lane.ChangeCoordinatesTo(laneStack, pointerEvent.localPosition);
+            boxSelectLane = lane;
+            isBoxSelectArmed = true;
+            isBoxSelectActive = false;
+            isBoxSelectAdditive = additive;
+
+            lane.CapturePointer(pointerEvent.pointerId);
+            lane.RegisterCallback<PointerMoveEvent>(OnBoxSelectMove);
+            lane.RegisterCallback<PointerUpEvent>(OnBoxSelectEnd);
+        }
+
+        private void OnBoxSelectMove(PointerMoveEvent moveEvent)
+        {
+            if (!isBoxSelectArmed)
+            {
+                return;
+            }
+
+            VisualElement lane = moveEvent.currentTarget as VisualElement;
+            if (lane == null)
+            {
+                return;
+            }
+
+            Vector2 currentInStack = lane.ChangeCoordinatesTo(laneStack, moveEvent.localPosition);
+            Vector2 travel = currentInStack - boxSelectOriginInStack;
+            if (!isBoxSelectActive && travel.sqrMagnitude < BoxSelectStartToleranceSquared)
+            {
+                return;
+            }
+
+            isBoxSelectActive = true;
+            boxSelectElement.SetBand(Rect.MinMaxRect(
+                Mathf.Min(boxSelectOriginInStack.x, currentInStack.x),
+                Mathf.Min(boxSelectOriginInStack.y, currentInStack.y),
+                Mathf.Max(boxSelectOriginInStack.x, currentInStack.x),
+                Mathf.Max(boxSelectOriginInStack.y, currentInStack.y)));
+        }
+
+        private void OnBoxSelectEnd(PointerUpEvent upEvent)
+        {
+            VisualElement lane = upEvent.currentTarget as VisualElement;
+            if (lane != null)
+            {
+                lane.ReleasePointer(upEvent.pointerId);
+                lane.UnregisterCallback<PointerMoveEvent>(OnBoxSelectMove);
+                lane.UnregisterCallback<PointerUpEvent>(OnBoxSelectEnd);
+            }
+
+            if (!isBoxSelectArmed)
+            {
+                return;
+            }
+            isBoxSelectArmed = false;
+            boxSelectLane = null;
+
+            if (!isBoxSelectActive)
+            {
+                // It was a click after all; the playhead already moved on press.
+                return;
+            }
+            isBoxSelectActive = false;
+
+            Vector2 endInStack = lane != null
+                ? lane.ChangeCoordinatesTo(laneStack, upEvent.localPosition)
+                : boxSelectOriginInStack;
+            Rect bandRect = Rect.MinMaxRect(
+                Mathf.Min(boxSelectOriginInStack.x, endInStack.x),
+                Mathf.Min(boxSelectOriginInStack.y, endInStack.y),
+                Mathf.Max(boxSelectOriginInStack.x, endInStack.x),
+                Mathf.Max(boxSelectOriginInStack.y, endInStack.y));
+
+            SelectKeysInsideBand(bandRect);
+            boxSelectElement.Clear();
+
+            RepaintLanes();
+            RebuildInspector();
+        }
+
+        /// <summary>
+        /// Adds every key whose lane row and time fall inside the band.
+        /// </summary>
+        /// <remarks>
+        /// A channel row and its track row select the same key, so a band covering both simply
+        /// yields that key once — <see cref="selectedKeys"/> is a set, and the duplicate collapses
+        /// rather than needing a special case.
+        /// </remarks>
+        private void SelectKeysInsideBand(Rect bandRect)
+        {
+            if (!isBoxSelectAdditive)
+            {
+                selectedKeys.Clear();
+            }
+
+            for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
+            {
+                TrackLaneElement lane = laneColumn[childIndex] as TrackLaneElement;
+                if (lane == null)
+                {
+                    continue;
+                }
+
+                Rect laneRectInStack = lane.ChangeCoordinatesTo(laneStack, lane.contentRect);
+                if (laneRectInStack.yMax < bandRect.yMin || laneRectInStack.yMin > bandRect.yMax)
+                {
+                    continue;
+                }
+
+                TimelineGeometry geometry = TimelineGeometry.Create(lane.contentRect.width);
+                IReadOnlyList<float> keyTimes = lane.KeyTimes;
+                for (int keyIndex = 0; keyIndex < keyTimes.Count; keyIndex++)
+                {
+                    float keyXInLane = geometry.TimeToX(keyTimes[keyIndex]);
+                    float keyXInStack =
+                        lane.ChangeCoordinatesTo(laneStack, new Vector2(keyXInLane, 0f)).x;
+                    if (keyXInStack >= bandRect.xMin && keyXInStack <= bandRect.xMax)
+                    {
+                        selectedKeys.Add(
+                            new KeyAddress(lane.trackKind, lane.trackIndex, keyIndex));
+                    }
+                }
+            }
         }
 
         private void BeginUndoGesture(string actionName)
@@ -2154,6 +2736,14 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// Sorting once at the end of a gesture rather than per move keeps indices stable for its
         /// duration, which is what lets a multi-key selection survive a drag.
         /// </remarks>
+        /// <remarks>
+        /// <strong>Dragging a key past a neighbour reorders, it does not clamp.</strong> Keys move
+        /// freely for the whole gesture and the list is sorted here, on release, so a key dragged
+        /// over another ends up on the far side of it. Clamping was the alternative and would have
+        /// been easier to implement, but it makes the common retiming edit — pulling a pose earlier
+        /// than the one before it — impossible without first moving the other key out of the way.
+        /// The cost is that indices change, which is why the selection is cleared below.
+        /// </remarks>
         private void SortTrackKeys(TimelineTrackKind trackKind, int trackIndex)
         {
             switch (trackKind)
@@ -2289,7 +2879,151 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             inspectorPane.Add(new PropertyField(keyProperty));
             inspectorPane.Bind(clipSerializedObject);
+
+            AddInterpolationControls(shown);
             return true;
+        }
+
+        /// <summary>
+        /// The selected key's easing, plus handle editing when that easing is a curve.
+        /// </summary>
+        /// <remarks>
+        /// Only transform and bone keys have easing. A flipbook key is chosen by nearest neighbour
+        /// rather than blended — an index cannot be halfway between two frames — so offering it an
+        /// interpolation mode would be offering a setting with no effect.
+        /// </remarks>
+        private void AddInterpolationControls(KeyAddress address)
+        {
+            if (address.trackKind != TimelineTrackKind.Transform
+                && address.trackKind != TimelineTrackKind.Bone)
+            {
+                return;
+            }
+
+            Interpolation currentInterpolation = GetKeyInterpolation(address);
+            inspectorPane.Add(MakeHeading("Easing"));
+
+            EnumField interpolationField = new EnumField("Interpolation", currentInterpolation);
+            interpolationField.tooltip =
+                "How the curve leaves this key on its way to the next one.";
+            interpolationField.RegisterValueChangedCallback(changeEvent =>
+            {
+                SetKeyInterpolation(address, (Interpolation)changeEvent.newValue);
+                RebuildInspector();
+            });
+            inspectorPane.Add(interpolationField);
+
+            if (currentInterpolation != Interpolation.Bezier)
+            {
+                return;
+            }
+
+            float2 startHandle;
+            float2 endHandle;
+            GetKeyBezierHandles(address, out startHandle, out endHandle);
+
+            BezierCurveEditorElement curveEditor = new BezierCurveEditorElement();
+            curveEditor.SetHandlesWithoutNotify(startHandle, endHandle);
+            curveEditor.handlesChanged += (draggedStart, draggedEnd) =>
+            {
+                SetKeyBezierHandles(address, draggedStart, draggedEnd);
+            };
+            inspectorPane.Add(curveEditor);
+            inspectorPane.Add(MakeHint(
+                "Drag the handles. They stay inside the unit square: outside it the curve stops "
+                + "being a function of time, or overshoots further than the baked bounds allow."));
+        }
+
+        private Interpolation GetKeyInterpolation(KeyAddress address)
+        {
+            if (address.trackKind == TimelineTrackKind.Bone)
+            {
+                return selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex].interpolation;
+            }
+            return selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex].interpolation;
+        }
+
+        private void SetKeyInterpolation(KeyAddress address, Interpolation interpolation)
+        {
+            RecordClipEdit("Change Key Interpolation");
+            if (address.trackKind == TimelineTrackKind.Bone)
+            {
+                BoneTrack track = selectedClip.boneTracks[address.trackIndex];
+                BoneKey key = track.keys[address.keyIndex];
+                key.interpolation = interpolation;
+                EnsureUsableBezierHandles(ref key.bezierStartHandle, ref key.bezierEndHandle, interpolation);
+                track.keys[address.keyIndex] = key;
+            }
+            else
+            {
+                TransformTrack track = selectedClip.transformTracks[address.trackIndex];
+                TransformKey key = track.keys[address.keyIndex];
+                key.interpolation = interpolation;
+                EnsureUsableBezierHandles(ref key.bezierStartHandle, ref key.bezierEndHandle, interpolation);
+                track.keys[address.keyIndex] = key;
+            }
+            CommitClipEdit();
+        }
+
+        /// <summary>
+        /// Gives a key switched to Bézier the handles that describe a straight line.
+        /// </summary>
+        /// <remarks>
+        /// A key that has never carried handles holds two zeros, which the sampler reads as linear.
+        /// Writing the diagonal handles on the switch means the curve the editor draws and the curve
+        /// the sampler evaluates agree from the first frame, rather than the widget showing a
+        /// straight line because it substituted one while the asset held zeros.
+        /// </remarks>
+        private static void EnsureUsableBezierHandles(
+            ref float2 startHandle, ref float2 endHandle, Interpolation interpolation)
+        {
+            if (interpolation != Interpolation.Bezier)
+            {
+                return;
+            }
+            if (math.all(startHandle == float2.zero) && math.all(endHandle == float2.zero))
+            {
+                startHandle = new float2(1f / 3f, 1f / 3f);
+                endHandle = new float2(2f / 3f, 2f / 3f);
+            }
+        }
+
+        private void GetKeyBezierHandles(
+            KeyAddress address, out float2 startHandle, out float2 endHandle)
+        {
+            if (address.trackKind == TimelineTrackKind.Bone)
+            {
+                BoneKey key = selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex];
+                startHandle = key.bezierStartHandle;
+                endHandle = key.bezierEndHandle;
+                return;
+            }
+            TransformKey transformKey =
+                selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex];
+            startHandle = transformKey.bezierStartHandle;
+            endHandle = transformKey.bezierEndHandle;
+        }
+
+        private void SetKeyBezierHandles(KeyAddress address, float2 startHandle, float2 endHandle)
+        {
+            RecordClipEdit("Edit Key Tangents");
+            if (address.trackKind == TimelineTrackKind.Bone)
+            {
+                BoneTrack track = selectedClip.boneTracks[address.trackIndex];
+                BoneKey key = track.keys[address.keyIndex];
+                key.bezierStartHandle = startHandle;
+                key.bezierEndHandle = endHandle;
+                track.keys[address.keyIndex] = key;
+            }
+            else
+            {
+                TransformTrack track = selectedClip.transformTracks[address.trackIndex];
+                TransformKey key = track.keys[address.keyIndex];
+                key.bezierStartHandle = startHandle;
+                key.bezierEndHandle = endHandle;
+                track.keys[address.keyIndex] = key;
+            }
+            CommitClipEdit();
         }
 
         /// <summary>
@@ -2377,6 +3111,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
+            AddTransformFields();
+            RefreshGizmo();
             inspectorPane.Add(MakeHeading("Flipbook Tracks"));
 
             bool foundAnyTrack = false;
@@ -2652,6 +3388,246 @@ namespace StitchPunk.AnimationToolkit.Editor
             EditorUtility.SetDirty(selectedClip);
             RefreshSerializedClip();
             MarkPreviewDirty();
+        }
+
+        /// <summary>Whether edits are written straight into a key at the playhead.</summary>
+        private bool IsAutoKeyEnabled
+        {
+            get { return autoKeyToggle != null && autoKeyToggle.value; }
+        }
+
+        /// <summary>
+        /// The transform the selected part shows right now: the held edit if there is one, the
+        /// sampled track value otherwise.
+        /// </summary>
+        private TransformValueState ResolveDisplayedTransform(
+            out float3 position, out float rotationDegrees, out float2 scale)
+        {
+            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, selectedTargetId);
+            bool hasSample = ClipTransformEditing.TryEvaluate(
+                track, playheadTime, out position, out rotationDegrees, out scale);
+
+            if (hasPendingTransformEdit)
+            {
+                position = pendingPosition;
+                rotationDegrees = pendingRotationDegrees;
+                scale = pendingScale;
+                return TransformValueState.Modified;
+            }
+
+            if (!hasSample)
+            {
+                return TransformValueState.Unkeyed;
+            }
+            return ClipTransformEditing.FindKeyIndexAt(track, playheadTime) >= 0
+                ? TransformValueState.OnKey
+                : TransformValueState.Interpolated;
+        }
+
+        /// <summary>
+        /// <strong>The single path a transform value is written through.</strong>
+        /// </summary>
+        /// <remarks>
+        /// The numeric fields and the viewport gizmos both call this. With auto-key on it writes a
+        /// key at the playhead; with it off the value is held and drawn as modified, which is what
+        /// makes "change it and look at it" possible without littering the clip with keys. A gizmo
+        /// drag passes <paramref name="forceKey"/> on release so a completed drag is kept even
+        /// though the frames during it were not.
+        /// </remarks>
+        private void ApplyTransformEdit(
+            float3 position, float rotationDegrees, float2 scale, bool forceKey)
+        {
+            if (selectedClip == null || selectedTargetId == 0u)
+            {
+                return;
+            }
+
+            pendingPosition = position;
+            pendingRotationDegrees = rotationDegrees;
+            pendingScale = scale;
+            hasPendingTransformEdit = true;
+
+            if (IsAutoKeyEnabled || forceKey)
+            {
+                CommitPendingTransformEdit();
+            }
+
+            MarkPreviewDirty();
+        }
+
+        /// <summary>Writes the held edit into a key at the playhead, creating the track if needed.</summary>
+        private void CommitPendingTransformEdit()
+        {
+            if (!hasPendingTransformEdit || selectedClip == null || selectedTargetId == 0u)
+            {
+                return;
+            }
+
+            RecordClipEdit("Key Transform");
+
+            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, selectedTargetId);
+            if (track == null)
+            {
+                // Keying a part with no track yet creates one. Requiring the user to add a track
+                // first would be a step that only exists because of how the data is shaped.
+                if (selectedClip.transformTracks == null)
+                {
+                    selectedClip.transformTracks = new List<TransformTrack>();
+                }
+                track = new TransformTrack
+                {
+                    targetId = selectedTargetId,
+                    keys = new List<TransformKey>()
+                };
+                selectedClip.transformTracks.Add(track);
+            }
+
+            ClipTransformEditing.SetKeyValues(
+                track, playheadTime, pendingPosition, pendingRotationDegrees, pendingScale);
+
+            CommitClipEdit();
+            hasPendingTransformEdit = false;
+
+            selectedKeys.Clear();
+            RebuildTimeline();
+        }
+
+        /// <summary>Drops a held edit — used when the playhead or the selection moves off it.</summary>
+        private void DiscardPendingTransformEdit()
+        {
+            hasPendingTransformEdit = false;
+        }
+
+        /// <summary>
+        /// The always-visible transform block for the selected part.
+        /// </summary>
+        /// <remarks>
+        /// Shown whether or not a key exists at the playhead, because "what is this part doing right
+        /// now" is a question with an answer at every time, and an inspector that goes blank between
+        /// keys makes scrubbing useless for judging a pose. The state chip says which kind of value
+        /// is on screen so a sampled number is never mistaken for a stored one.
+        /// </remarks>
+        private void AddTransformFields()
+        {
+            float3 position;
+            float rotationDegrees;
+            float2 scale;
+            TransformValueState valueState =
+                ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
+
+            inspectorPane.Add(MakeHeading("Transform"));
+            inspectorPane.Add(MakeTransformStateChip(valueState));
+
+            VisualElement transformBlock = new VisualElement();
+            transformBlock.AddToClassList(TransformBlockUssClassName);
+            transformBlock.EnableInClassList(
+                TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
+            transformBlock.EnableInClassList(
+                TransformInterpolatedUssClassName, valueState == TransformValueState.Interpolated);
+            transformBlock.EnableInClassList(
+                TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+
+            Vector3Field positionField = new Vector3Field("Position");
+            positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
+            positionField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float3 edited = new float3(
+                    changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
+                ApplyTransformEdit(edited, pendingRotationOrCurrent(rotationDegrees), pendingScaleOrCurrent(scale), false);
+                RebuildInspector();
+            });
+            transformBlock.Add(positionField);
+
+            FloatField rotationField = new FloatField("Rotation Z");
+            rotationField.SetValueWithoutNotify(rotationDegrees);
+            rotationField.tooltip = "Degrees. The bake converts to radians once (section 4.5).";
+            rotationField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ApplyTransformEdit(position, changeEvent.newValue, scale, false);
+                RebuildInspector();
+            });
+            transformBlock.Add(rotationField);
+
+            Vector2Field scaleField = new Vector2Field("Scale");
+            scaleField.SetValueWithoutNotify(new Vector2(scale.x, scale.y));
+            scaleField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float2 edited = new float2(changeEvent.newValue.x, changeEvent.newValue.y);
+                ApplyTransformEdit(position, rotationDegrees, edited, false);
+                RebuildInspector();
+            });
+            transformBlock.Add(scaleField);
+
+            inspectorPane.Add(transformBlock);
+
+            VisualElement keyRow = new VisualElement();
+            keyRow.AddToClassList(FlipbookKeyUssClassName);
+            keyRow.Add(new Button(() =>
+            {
+                if (!hasPendingTransformEdit)
+                {
+                    // Nothing held: key the value currently on screen, which is how a pose reached
+                    // by scrubbing gets pinned down.
+                    pendingPosition = position;
+                    pendingRotationDegrees = rotationDegrees;
+                    pendingScale = scale;
+                    hasPendingTransformEdit = true;
+                }
+                CommitPendingTransformEdit();
+                RebuildInspector();
+            })
+            {
+                text = "Key"
+            });
+            if (hasPendingTransformEdit)
+            {
+                keyRow.Add(new Button(() =>
+                {
+                    DiscardPendingTransformEdit();
+                    RebuildInspector();
+                })
+                {
+                    text = "Revert"
+                });
+            }
+            inspectorPane.Add(keyRow);
+        }
+
+        private float pendingRotationOrCurrent(float currentRotation)
+        {
+            return hasPendingTransformEdit ? pendingRotationDegrees : currentRotation;
+        }
+
+        private float2 pendingScaleOrCurrent(float2 currentScale)
+        {
+            return hasPendingTransformEdit ? pendingScale : currentScale;
+        }
+
+        private static Label MakeTransformStateChip(TransformValueState valueState)
+        {
+            string chipText;
+            switch (valueState)
+            {
+                case TransformValueState.OnKey:
+                    chipText = "On a key — editing changes this key.";
+                    break;
+                case TransformValueState.Interpolated:
+                    chipText = "Between keys — this value is sampled, not stored.";
+                    break;
+                case TransformValueState.Modified:
+                    chipText = "Modified, not keyed — press Key to keep it.";
+                    break;
+                default:
+                    chipText = "No transform track yet — editing creates one.";
+                    break;
+            }
+
+            Label chip = new Label(chipText);
+            chip.AddToClassList(HintUssClassName);
+            chip.AddToClassList(TransformStateChipUssClassName);
+            chip.EnableInClassList(
+                TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+            return chip;
         }
 
         private void BuildClipInspector()

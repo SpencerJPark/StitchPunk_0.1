@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — keying, scrubbing, gizmos and a dopesheet
+
+- **The transform block is always visible for the selected part**, whether or not
+  a key sits at the playhead, and it updates as you scrub. It samples the
+  *authored* keys through `ClipSampler.Ease` — the runtime's own easing — so what
+  the fields show while scrubbing is the curve that will play.
+  - Three states, carried on the block's left edge as well as in words: **on a
+    key** (editing changes that key), **between keys** (the value is sampled, not
+    stored), and **modified, not keyed** (it will be lost if you do not key it).
+  - Rotation is shown in degrees, as the authored key stores it. The bake
+    converts once (§4.5); an editor showing radians would be the only surface in
+    the toolkit that did.
+- **Auto Key** in the toolbar. On, an edit writes a key at the playhead; off, the
+  change is held and drawn as modified until **Key** is pressed. A held edit is
+  dropped when the playhead or the selection moves, because it describes one part
+  at one instant and neither survives the other changing.
+- **Move / rotate / scale gizmos** on the selected part, with **W / E / R**.
+  Dragging writes through the *same* method the numeric fields call, so a drag
+  and a typed number produce the same key by construction rather than by
+  agreement. The key is written on release, so a drag is one key and one undo
+  step rather than one per pointer move.
+  - The rotate gizmo is a single Z ring and the scale gizmo is XY only, because a
+    cutout part's authored rotation is one angle about z and its scale is a
+    `float2`. Handles for axes the data does not have would write nowhere.
+  - The gizmo's pivot follows the authored value, not the mirrored quad — the
+    quad follows the built registry, which is rebuilt on a debounce, so a gizmo
+    anchored to it would lag its own drag.
+- **The timeline expands into per-channel rows.** A transform track opens into
+  Position X/Y/Z, Rotation Z and Scale X/Y; a bone track into position, rotation
+  and scale; a flipbook track into its index. **These rows read the same keys**,
+  because one `TransformKey` carries every channel — dragging a key on any row
+  retimes the one underlying key. Independent per-channel curves would mean
+  splitting the key struct, which changes the blob, the sampler and every baked
+  clip.
+- **Box select**: drag across empty lane space to band-select keys, with shift to
+  add. A press only becomes a band once the pointer has travelled, so a plain
+  click still just moves the playhead.
+- **Interpolation is editable per key**, including `Bezier` with **draggable
+  tangent handles**. The curve widget plots through `ClipSampler.EaseBezier`, the
+  function the runtime evaluates, so the shape drawn is the shape that plays.
+  Switching a key to Bézier writes the diagonal handles rather than leaving the
+  zeros the sampler reads as linear.
+- **Dragging a key past a neighbour reorders it; it does not clamp.** Keys move
+  freely for the gesture and the list is sorted on release. Clamping would have
+  been easier but makes the commonest retiming edit — pulling a pose earlier than
+  the one before it — impossible without first moving the other key aside.
+- Every one of these is an undo step: gizmo drags, keying, interpolation changes
+  and tangent edits each collapse to one entry.
+- Fixed, found by the new tests: the closest-point solve behind gizmo dragging had
+  its sign inverted, which put a drag the right distance on the *wrong side* of
+  the pivot and made handle picking miss entirely. It is the kind of error that
+  looks equally plausible either way on the page.
+
 ### Added — rig parts are selectable, and flipbook tracks are editable
 
 - **The hierarchy pane now lists the rig's parts** alongside the previewed

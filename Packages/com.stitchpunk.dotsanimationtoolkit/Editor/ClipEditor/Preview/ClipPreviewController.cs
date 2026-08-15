@@ -84,6 +84,13 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly PreviewBoneHandles boneHandles = new PreviewBoneHandles();
         private bool boneHandlesAdded;
 
+        private readonly PreviewTransformGizmo transformGizmo = new PreviewTransformGizmo();
+        private bool transformGizmoAdded;
+        private bool hasGizmo;
+        private GizmoMode gizmoMode = GizmoMode.Move;
+        private Vector3 gizmoPivot;
+        private GizmoHandle activeGizmoHandle;
+
         /// <summary>
         /// What is selected, as an index into the skeleton mirror's depth-first transform list.
         /// -1 is nothing. Not a <c>Transform</c> reference, because the instance is destroyed and
@@ -240,6 +247,53 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 sceneGizmos.HideSelection();
             }
+        }
+
+        /// <summary>
+        /// How long a gizmo handle is in world units — scaled by camera distance so it holds its
+        /// size on screen, and read by the drawing and the picking alike.
+        /// </summary>
+        public float GizmoHandleLength
+        {
+            get { return Mathf.Clamp(orbitDistance * 0.16f, 0.05f, 4f); }
+        }
+
+        /// <summary>Places the transform gizmo, or hides it.</summary>
+        public void SetGizmo(bool visible, GizmoMode mode, Vector3 pivot, GizmoHandle activeHandle)
+        {
+            hasGizmo = visible;
+            gizmoMode = mode;
+            gizmoPivot = pivot;
+            activeGizmoHandle = activeHandle;
+            if (!visible)
+            {
+                transformGizmo.Hide();
+            }
+        }
+
+        /// <summary>A world ray through a viewport point, for gizmo picking and dragging.</summary>
+        /// <remarks>
+        /// Poses the camera first for the same reason <see cref="CollectPickHits"/> does: a drag is
+        /// handled outside the render loop, and a stale camera turns a gizmo drag into a value that
+        /// tracks nothing the user can see.
+        /// </remarks>
+        public Ray BuildViewportRay(Vector2 viewportPoint, float aspect)
+        {
+            EnsureRenderUtility();
+            ApplyCameraPose();
+            return PreviewScenePicker.BuildRay(
+                renderUtility.camera.transform, renderUtility.camera.fieldOfView, aspect, viewportPoint);
+        }
+
+        /// <summary>The gizmo handle under a viewport point, or none.</summary>
+        public GizmoHandle PickGizmoHandle(Vector2 viewportPoint, float aspect)
+        {
+            if (!hasGizmo)
+            {
+                return GizmoHandle.None;
+            }
+            return PreviewGizmoMath.PickHandle(
+                BuildViewportRay(viewportPoint, aspect), gizmoMode, gizmoPivot, GizmoHandleLength);
         }
 
         /// <summary>The rig target a picked transform stands for, or false when it is not a part.</summary>
@@ -515,6 +569,16 @@ namespace StitchPunk.AnimationToolkit.Editor
             // handles and the hit tests disagree about where the skeleton is.
             boneHandles.UpdateGeometry(BoneHandleRadius);
             UpdateSelectionMarker();
+
+            if (hasGizmo)
+            {
+                transformGizmo.Rebuild(gizmoMode, gizmoPivot, GizmoHandleLength, activeGizmoHandle);
+            }
+            else
+            {
+                transformGizmo.Hide();
+            }
+
             ApplyCameraPose();
 
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
@@ -558,6 +622,13 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 renderUtility.AddSingleGO(boneHandles.HandlesObject);
                 boneHandlesAdded = true;
+            }
+
+            transformGizmo.EnsureBuilt();
+            if (transformGizmo.GizmoObject != null && !transformGizmoAdded)
+            {
+                renderUtility.AddSingleGO(transformGizmo.GizmoObject);
+                transformGizmoAdded = true;
             }
 
             if (rigMirror.RootObject != null && !mirrorRootAdded)
@@ -675,11 +746,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             // would leave the references pointing at objects Unity has already destroyed.
             sceneGizmos.Dispose();
             boneHandles.Dispose();
+            transformGizmo.Dispose();
 
             mirrorRootAdded = false;
             skeletonRootAdded = false;
             gizmosAdded = false;
             boneHandlesAdded = false;
+            transformGizmoAdded = false;
+            hasGizmo = false;
             selectedHierarchyIndex = -1;
             if (renderUtility != null)
             {

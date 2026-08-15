@@ -21,6 +21,8 @@ namespace StitchPunk.AnimationToolkit.Editor
     {
         private static readonly Color LaneBackground = new Color(0.18f, 0.18f, 0.19f);
         private static readonly Color LaneAlternate = new Color(0.21f, 0.21f, 0.22f);
+        private static readonly Color LaneChannel = new Color(0.155f, 0.155f, 0.165f);
+        private static readonly Color LaneChannelAlternate = new Color(0.175f, 0.175f, 0.185f);
         private static readonly Color KeyFill = new Color(0.78f, 0.78f, 0.80f);
         private static readonly Color KeySelectedFill = new Color(0.30f, 0.62f, 0.95f);
         private static readonly Color KeyOutline = new Color(0.08f, 0.08f, 0.09f);
@@ -31,6 +33,23 @@ namespace StitchPunk.AnimationToolkit.Editor
         public TimelineTrackKind trackKind;
         public int trackIndex;
         public bool isAlternateRow;
+
+        /// <summary>
+        /// Whether this row is one channel of an expanded track rather than the track itself.
+        /// </summary>
+        /// <remarks>
+        /// Drawn smaller and dimmer, because a channel row shows the <em>same</em> keys as its
+        /// track: one key carries position, rotation and scale together, so the channel rows are a
+        /// reading of one set of keys, not several sets. Making them look identical to track rows
+        /// would imply keys that can be moved independently, which they cannot.
+        /// </remarks>
+        public bool isChannelRow;
+
+        /// <summary>The times this lane currently draws, for box selection to test against.</summary>
+        public IReadOnlyList<float> KeyTimes
+        {
+            get { return keyTimes; }
+        }
 
         /// <summary>Selection lives on the window; the lane only asks whether an address is in it.</summary>
         public Func<KeyAddress, bool> isKeySelected;
@@ -119,7 +138,9 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             Painter2D painter = context.painter2D;
 
-            painter.fillColor = isAlternateRow ? LaneAlternate : LaneBackground;
+            painter.fillColor = isChannelRow
+                ? (isAlternateRow ? LaneChannelAlternate : LaneChannel)
+                : (isAlternateRow ? LaneAlternate : LaneBackground);
             painter.BeginPath();
             painter.MoveTo(new Vector2(0f, 0f));
             painter.LineTo(new Vector2(rect.width, 0f));
@@ -142,7 +163,9 @@ namespace StitchPunk.AnimationToolkit.Editor
                 painter.lineWidth = 1f;
 
                 float x = geometry.TimeToX(keyTimes[keyIndex]);
-                float radius = TimelineGeometry.KeyDrawRadius;
+                float radius = isChannelRow
+                    ? TimelineGeometry.KeyDrawRadius * 0.65f
+                    : TimelineGeometry.KeyDrawRadius;
 
                 // A diamond rather than a square: it reads as a keyframe at a glance and its widest
                 // point is exactly on the key's time, so the shape itself communicates the value.

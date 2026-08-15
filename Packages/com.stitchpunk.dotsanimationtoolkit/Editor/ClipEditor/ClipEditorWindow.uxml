@@ -26,6 +26,7 @@
             <uie:ToolbarButton name="rewind-button" text="|&lt;" />
             <ui:Label name="time-label" text="0.000s" class="clip-editor__toolbar-label clip-editor__time-label" />
             <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" />
+            <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key" />
             <ui:Label text="Frames" class="clip-editor__toolbar-label" />
             <ui:IntegerField name="frame-count-field" value="30" class="clip-editor__frame-field" />
             <ui:Label text="Rig" class="clip-editor__toolbar-label" />

@@ -184,6 +184,41 @@
 }
 
 /* ------------------------------------------------------------------------------------------- */
+/* Live transform block                                                                          */
+/* ------------------------------------------------------------------------------------------- */
+
+/*
+ * The left edge carries the state, so the three cases are told apart at a glance without reading
+ * the chip: a stored value, a sampled one, and one that will be lost if it is not keyed.
+ */
+.clip-editor__transform-block {
+    padding-left: 6px;
+    border-left-width: 3px;
+    border-left-color: rgba(128, 128, 128, 0.35);
+}
+
+.clip-editor__transform-block--on-key {
+    border-left-color: rgb(90, 170, 230);
+}
+
+.clip-editor__transform-block--interpolated {
+    border-left-color: rgba(140, 140, 145, 0.6);
+}
+
+.clip-editor__transform-block--modified {
+    border-left-color: rgb(235, 170, 60);
+}
+
+.clip-editor__transform-state {
+    margin-bottom: 2px;
+}
+
+.clip-editor__transform-state.clip-editor__transform-block--modified {
+    color: rgb(235, 170, 60);
+    opacity: 1;
+}
+
+/* ------------------------------------------------------------------------------------------- */
 /* Flipbook tracks                                                                               */
 /* ------------------------------------------------------------------------------------------- */
 
@@ -254,9 +289,46 @@
 
 .clip-editor__track-header {
     height: var(--clip-editor-lane-height);
+    flex-direction: row;
+    align-items: center;
     -unity-text-align: middle-left;
     margin-left: 6px;
     overflow: hidden;
+}
+
+.clip-editor__track-foldout {
+    width: 16px;
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: 0;
+    margin-right: 2px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.clip-editor__track-header-label {
+    overflow: hidden;
+    -unity-text-align: middle-left;
+}
+
+/* Indented and dimmed, because a channel row reads the same keys as the track above it. */
+.clip-editor__channel-header {
+    padding-left: 18px;
+    opacity: 0.75;
+}
+
+.clip-editor__box-select {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.clip-editor__bezier-curve {
+    height: 140px;
+    margin-top: 4px;
+    margin-bottom: 4px;
 }
 
 .clip-editor__lane-stack {
