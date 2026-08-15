@@ -40,6 +40,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         private const int GridHalfLineCount = 5;
         private const float GridCellSize = 1f;
 
+        /// <summary>Keeps a flat object's outline from collapsing to a zero-scale nothing.</summary>
+        private const float MinimumSelectionExtent = 0.002f;
+
         private static readonly Color GridLineColor = new Color(0.32f, 0.32f, 0.34f, 1f);
         private static readonly Color HorizontalAxisColor = new Color(0.68f, 0.32f, 0.30f, 1f);
         private static readonly Color VerticalAxisColor = new Color(0.36f, 0.62f, 0.36f, 1f);
@@ -90,25 +93,33 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Puts the selection marker on a transform, sized so it stays readable at any zoom.
+        /// Draws the selection outline as a box of the given world size, centre and orientation.
         /// </summary>
         /// <remarks>
-        /// <paramref name="cameraDistance"/> scales the marker because a fixed-size gizmo is either a
-        /// dot when zoomed out or a box that swallows the rig when zoomed in. This is the same trick
-        /// the scene view's handles use, for the same reason.
+        /// <para>
+        /// A box rather than a point marker so that selecting a mesh outlines <em>that mesh</em>:
+        /// callers pass a renderer's local bounds mapped to world space, which makes the highlight
+        /// an oriented bounding box that follows the object's rotation. A world-axis-aligned box
+        /// would swing about as the rig turns and stop reading as "this object".
+        /// </para>
+        /// <para>
+        /// Each axis is clamped to a minimum because a flat object — a cutout quad, a plane — has a
+        /// zero-thickness bound, and a zero scale collapses the outline to nothing at all.
+        /// </para>
         /// </remarks>
-        public void ShowSelection(Vector3 worldPosition, Quaternion worldRotation, float cameraDistance)
+        public void ShowSelection(Vector3 worldCenter, Quaternion worldRotation, Vector3 worldSize)
         {
             if (selectionObject == null)
             {
                 return;
             }
             selectionObject.SetActive(true);
-            selectionTransform.position = worldPosition;
+            selectionTransform.position = worldCenter;
             selectionTransform.rotation = worldRotation;
-
-            float markerSize = Mathf.Clamp(cameraDistance * 0.045f, 0.02f, 1f);
-            selectionTransform.localScale = new Vector3(markerSize, markerSize, markerSize);
+            selectionTransform.localScale = new Vector3(
+                Mathf.Max(Mathf.Abs(worldSize.x), MinimumSelectionExtent),
+                Mathf.Max(Mathf.Abs(worldSize.y), MinimumSelectionExtent),
+                Mathf.Max(Mathf.Abs(worldSize.z), MinimumSelectionExtent));
         }
 
         /// <summary>Hides the selection marker. Idempotent.</summary>
@@ -122,32 +133,10 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private void EnsureLineMaterial()
         {
-            if (lineMaterial != null)
+            if (lineMaterial == null)
             {
-                return;
+                lineMaterial = PreviewLineMaterial.Create("ClipPreviewLines");
             }
-
-            // Hidden/Internal-Colored is the editor's own line shader: it multiplies vertex colour by
-            // _Color and declares no LightMode pass tag, which URP renders as SRPDefaultUnlit. The
-            // fallbacks exist so a missing shader degrades to a flat-coloured grid rather than to a
-            // magenta one — a preview is not worth throwing over.
-            Shader lineShader = Shader.Find("Hidden/Internal-Colored");
-            if (lineShader == null)
-            {
-                lineShader = Shader.Find("Universal Render Pipeline/Unlit");
-            }
-            if (lineShader == null)
-            {
-                lineShader = Shader.Find("Sprites/Default");
-            }
-            if (lineShader == null)
-            {
-                return;
-            }
-
-            lineMaterial = new Material(lineShader);
-            lineMaterial.hideFlags = HideFlags.HideAndDontSave;
-            lineMaterial.name = "ClipPreviewLines";
         }
 
         private GameObject BuildLineObject(string objectName, Mesh mesh)

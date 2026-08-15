@@ -125,7 +125,10 @@ Send an `AnimationCommand` naming the clip id. `ClipSetAsset`'s inspector has **
 Beyond authoring bone tracks:
 
 - **The rig hierarchy is the bone picker.** Assign your rigged prefab to the toolbar's **Rig** field and its transforms appear as a tree in the left column. Select a bone there and the inspector offers **Add Bone Track** for exactly that bone — no typing, so the "name resolved to nothing and the bake froze it at rest" failure cannot happen. Bones the selected clip already animates are shown in bold. With no rig assigned you can still type a name, which is the only option a cutout set has.
-- **Selection is marked in the viewport.** The selected bone gets a wireframe marker that follows it as you scrub, so you can see which joint you are keying without reading the track header.
+- **Click the model to select it.** Clicking in the viewport picks the object under the cursor and selects it in the tree; selecting in the tree outlines it in the viewport. It picks the *child* under the cursor, not the prefab root, so a hand or a prop is one click away. Selection follows the pose as you scrub.
+  - **Alt- or shift-click cycles** through everything stacked under the cursor, nearest first. Repeat it to walk backwards through overlapping parts; an ordinary click returns to the nearest.
+  - **Bones are clickable even where there is no geometry.** Every joint of a `SkinnedMeshRenderer` gets an octahedral handle, linked to its parent so the skeleton reads as a skeleton, and the handle is the click target. Joints are offered *ahead* of the mesh around them — a bone sits inside the thing it deforms, so ordering strictly by depth would make it impossible to click. The mesh underneath is still reachable by cycling.
+  - Dragging orbits, as before. A click only selects if the pointer did not travel, so an orbit never changes the selection.
 - **Retiming.** Change `duration` and every key moves with it — times are normalized, so a re-time never moves a key relative to the clip.
 - **Events.** Place `EventMarker`s on the timeline — footfalls, hit frames, VFX triggers. These surface at runtime in the actor's `AnimEventOutput` buffer.
 - **Layer and blend defaults.** `defaultBlendIn`/`defaultBlendOut` set how the clip crossfades in and out.

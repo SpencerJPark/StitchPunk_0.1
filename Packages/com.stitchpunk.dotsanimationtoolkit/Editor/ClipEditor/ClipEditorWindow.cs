@@ -59,6 +59,15 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Below this a pane is a sliver with nothing readable in it, so it is never stored.</summary>
         private const float MinimumSplitDimension = 60f;
 
+        /// <summary>
+        /// How far the pointer may travel between press and release and still count as a click.
+        /// </summary>
+        /// <remarks>
+        /// A drag in the viewport orbits the camera. Without this, every orbit would also change the
+        /// selection, because an orbit begins with exactly the same press a selection does.
+        /// </remarks>
+        private const float ClickMovementToleranceSquared = 9f;
+
         private const string HiddenUssClassName = "clip-editor--hidden";
         private const string ClipRowUssClassName = "clip-editor__clip-row";
         private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
@@ -98,12 +107,33 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly HashSet<KeyAddress> selectedKeys = new HashSet<KeyAddress>();
 
         /// <summary>
-        /// The transform picked in the hierarchy, by name. Names rather than <c>Transform</c>
-        /// references because bone tracks bind by name too — and because the preview's skeleton is a
-        /// throwaway instance that is destroyed and rebuilt whenever the rig changes, so a held
-        /// reference would be a destroyed object more often than not.
+        /// What is selected in the hierarchy, as the tree item id — which is also the preview's
+        /// index for the same transform. -1 is nothing.
+        /// </summary>
+        /// <remarks>
+        /// An index rather than a name because names repeat: a rig with two bones called
+        /// <c>Hand</c> needs the tree, the outline and the inspector to agree on <em>which</em> one,
+        /// and a name cannot say. An index rather than a <c>Transform</c> because the preview
+        /// skeleton is a throwaway instance rebuilt whenever the rig changes, so a held reference
+        /// would be a destroyed object more often than not.
+        /// </remarks>
+        private int selectedHierarchyItemId = -1;
+
+        /// <summary>
+        /// The selected transform's name, which is the identity bone <em>tracks</em> bind by.
+        /// Carried alongside the index rather than derived from it so the bake's contract and the
+        /// window's selection stay separate things.
         /// </summary>
         private string selectedBoneName;
+
+        // Viewport picking. Hits are gathered on pointer-down, from the press position, and applied
+        // on release — see OnPreviewPointerUp for why that is not the same as selecting on press.
+        private readonly List<PreviewPickHit> pickCandidates = new List<PreviewPickHit>();
+        private readonly List<Transform> previousPickCandidates = new List<Transform>();
+        private Vector2 pickPressPosition;
+        private bool isPickPending;
+        private bool isPickCycleRequested;
+        private int pickCycleIndex;
 
         private readonly Dictionary<string, float> persistedSplitDimensions = new Dictionary<string, float>();
         private readonly HashSet<string> pendingProportionalSplitKeys = new HashSet<string>();
@@ -477,16 +507,53 @@ namespace StitchPunk.AnimationToolkit.Editor
         // Viewport gestures
         // -------------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Starts an orbit and casts the pick ray, from the exact position of the press.
+        /// </summary>
+        /// <remarks>
+        /// The ray is cast here, not on release, so it uses the position the user aimed at rather
+        /// than wherever the pointer drifted to before the button came up. What it finds is only
+        /// <em>applied</em> on release, and only if this turned out to be a click rather than an
+        /// orbit — see <see cref="OnPreviewPointerUp"/>.
+        /// </remarks>
         private void OnPreviewPointerDown(PointerDownEvent pointerEvent)
         {
-            // Double click reframes. With the camera now persisting across every selection change,
-            // an orbit that wandered off the rig would otherwise have no way back.
+            isPickPending = false;
+
+            // Double click reframes. With the camera persisting across every selection change, an
+            // orbit that wandered off the rig would otherwise have no way back.
             if (pointerEvent.clickCount >= 2 && previewController != null)
             {
                 previewController.ResetView();
                 return;
             }
             previewImage.CapturePointer(pointerEvent.pointerId);
+
+            if (previewController == null)
+            {
+                return;
+            }
+
+            pickPressPosition = pointerEvent.localPosition;
+            isPickCycleRequested = pointerEvent.altKey || pointerEvent.shiftKey;
+            isPickPending = true;
+
+            Rect viewportRect = previewImage.contentRect;
+            if (viewportRect.width < 1f || viewportRect.height < 1f)
+            {
+                pickCandidates.Clear();
+                return;
+            }
+
+            // UI Toolkit's y runs down from the top; a viewport's runs up from the bottom. The
+            // rendered texture is created at exactly this rect's size, so ScaleToFit neither crops
+            // nor letterboxes and no further mapping is needed.
+            Vector2 viewportPoint = new Vector2(
+                pickPressPosition.x / viewportRect.width,
+                1f - pickPressPosition.y / viewportRect.height);
+
+            previewController.CollectPickHits(
+                viewportPoint, viewportRect.width / viewportRect.height, pickCandidates);
         }
 
         private void OnPreviewPointerMove(PointerMoveEvent moveEvent)
@@ -498,9 +565,111 @@ namespace StitchPunk.AnimationToolkit.Editor
             previewController.Orbit(moveEvent.deltaPosition);
         }
 
+        /// <summary>
+        /// Ends the orbit and, if the pointer never really moved, applies the pick.
+        /// </summary>
+        /// <remarks>
+        /// Selecting on press would mean every orbit also reselected whatever the camera happened to
+        /// start over. Committing on release, only within a few pixels of the press, is what lets
+        /// one button both orbit and select without the two fighting.
+        /// </remarks>
         private void OnPreviewPointerUp(PointerUpEvent upEvent)
         {
             previewImage.ReleasePointer(upEvent.pointerId);
+
+            if (!isPickPending)
+            {
+                return;
+            }
+            isPickPending = false;
+
+            Vector2 travel = (Vector2)upEvent.localPosition - pickPressPosition;
+            if (travel.sqrMagnitude > ClickMovementToleranceSquared)
+            {
+                return;
+            }
+
+            ApplyViewportPick();
+        }
+
+        /// <summary>
+        /// Selects whichever of the press's hits is current, cycling on a modified click.
+        /// </summary>
+        /// <remarks>
+        /// The cycle advances only when the same click lands on the same set of candidates again;
+        /// anything else resets to the nearest. Otherwise a modified click somewhere new would open
+        /// on whatever ordinal the last one left behind, which reads as the viewport selecting at
+        /// random.
+        /// </remarks>
+        private void ApplyViewportPick()
+        {
+            if (pickCandidates.Count == 0)
+            {
+                previousPickCandidates.Clear();
+                ClearHierarchySelection();
+                return;
+            }
+
+            if (isPickCycleRequested && CandidatesMatchPreviousPick())
+            {
+                pickCycleIndex = (pickCycleIndex + 1) % pickCandidates.Count;
+            }
+            else
+            {
+                pickCycleIndex = 0;
+            }
+
+            previousPickCandidates.Clear();
+            for (int hitIndex = 0; hitIndex < pickCandidates.Count; hitIndex++)
+            {
+                previousPickCandidates.Add(pickCandidates[hitIndex].pickedTransform);
+            }
+
+            SelectHierarchyTransform(pickCandidates[pickCycleIndex].pickedTransform);
+        }
+
+        private bool CandidatesMatchPreviousPick()
+        {
+            if (previousPickCandidates.Count != pickCandidates.Count)
+            {
+                return false;
+            }
+            for (int hitIndex = 0; hitIndex < pickCandidates.Count; hitIndex++)
+            {
+                if (previousPickCandidates[hitIndex] != pickCandidates[hitIndex].pickedTransform)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Selects a transform of the previewed rig by driving the tree, not by bypassing it.
+        /// </summary>
+        /// <remarks>
+        /// Routing a viewport click through <c>SetSelectionById</c> makes it fire the tree's own
+        /// selection-changed handler, so clicking in the viewport and clicking in the tree run the
+        /// same code and cannot end up meaning different things. That is the whole of the
+        /// bidirectional sync: the tree is the one place selection is decided.
+        /// </remarks>
+        private void SelectHierarchyTransform(Transform pickedTransform)
+        {
+            if (hierarchyTreeView == null || previewController == null)
+            {
+                return;
+            }
+
+            int itemId = previewController.GetHierarchyIndex(pickedTransform);
+            if (itemId < 0)
+            {
+                return;
+            }
+
+            hierarchyTreeView.SetSelectionById(itemId);
+
+            // Every item is expanded when the tree is built, so the row exists to be scrolled to.
+            hierarchyTreeView.ScrollToItemById(itemId);
         }
 
         private void OnPreviewWheel(WheelEvent wheelEvent)
@@ -519,7 +688,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 previewController.SetSkinnedSource(changeEvent.newValue as GameObject);
             }
-            SelectBone(null);
+            // Cleared before the tree is rebuilt: the old instance's transforms are gone, so the
+            // held index now points into a hierarchy that no longer exists.
+            SelectHierarchyItem(-1, null);
+            previousPickCandidates.Clear();
+            pickCandidates.Clear();
             RebuildHierarchy();
             RebuildInspector();
         }
@@ -568,19 +741,22 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             List<TreeViewItemData<string>> rootItems = new List<TreeViewItemData<string>>();
 
-            GameObject sourcePrefab = skinnedSourceField != null
-                ? skinnedSourceField.value as GameObject
-                : null;
-            if (sourcePrefab != null)
+            // Built from the preview's live instance, not from the prefab asset. The viewport picks
+            // transforms out of that instance, so sourcing the tree from it means a picked object is
+            // literally a node of the tree's own source — no mapping between two hierarchies that
+            // have to be kept in agreement.
+            Transform hierarchyRoot = previewController != null ? previewController.HierarchyRoot : null;
+            if (hierarchyRoot != null)
             {
-                int nextItemId = 0;
-                rootItems.Add(BuildHierarchyItem(sourcePrefab.transform, ref nextItemId));
+                rootItems.Add(BuildHierarchyItem(hierarchyRoot));
             }
 
             hierarchyTreeView.SetRootItems(rootItems);
             hierarchyTreeView.Rebuild();
             if (rootItems.Count > 0)
             {
+                // Expanded up front so any id the viewport picks has a visible row to select and
+                // scroll to, without the window having to walk up and expand ancestors first.
                 hierarchyTreeView.ExpandAll();
             }
 
@@ -590,18 +766,23 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
         }
 
-        private TreeViewItemData<string> BuildHierarchyItem(Transform transformNode, ref int nextItemId)
+        /// <summary>
+        /// Builds one tree item, taking its id from the preview rather than from a counter here.
+        /// </summary>
+        /// <remarks>
+        /// The id <em>is</em> the preview's index for that transform. Numbering them here instead
+        /// would mean two independent walks that agree only as long as nobody changes one of them.
+        /// </remarks>
+        private TreeViewItemData<string> BuildHierarchyItem(Transform transformNode)
         {
-            int itemId = nextItemId;
-            nextItemId++;
-
             List<TreeViewItemData<string>> childItems = new List<TreeViewItemData<string>>();
             for (int childIndex = 0; childIndex < transformNode.childCount; childIndex++)
             {
-                childItems.Add(BuildHierarchyItem(transformNode.GetChild(childIndex), ref nextItemId));
+                childItems.Add(BuildHierarchyItem(transformNode.GetChild(childIndex)));
             }
 
-            return new TreeViewItemData<string>(itemId, transformNode.name, childItems);
+            return new TreeViewItemData<string>(
+                previewController.GetHierarchyIndex(transformNode), transformNode.name, childItems);
         }
 
         private static VisualElement MakeHierarchyRow()
@@ -626,6 +807,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             label.EnableInClassList(AnimatedBoneUssClassName, FindBoneTrackIndex(boneName) >= 0);
         }
 
+        /// <summary>
+        /// The single place a hierarchy selection takes effect, whichever surface caused it.
+        /// </summary>
+        /// <remarks>
+        /// A viewport click reaches this by setting the tree's selection rather than by doing its
+        /// own thing, so "clicked in the tree" and "clicked in the viewport" cannot drift into
+        /// meaning two different things.
+        /// </remarks>
         private void OnHierarchySelectionChanged(IEnumerable<object> selection)
         {
             string boneName = null;
@@ -635,23 +824,50 @@ namespace StitchPunk.AnimationToolkit.Editor
                 break;
             }
 
+            int itemId = -1;
+            foreach (int selectedIndex in hierarchyTreeView.selectedIndices)
+            {
+                itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
+                break;
+            }
+
             // Key selection and hierarchy selection are one selection with two sources: showing a
             // key's values under a heading naming a different bone would be a lie about what the
             // fields edit.
             selectedKeys.Clear();
-            SelectBone(boneName);
+            SelectHierarchyItem(itemId, boneName);
             RepaintLanes();
             RebuildInspector();
         }
 
-        /// <summary>Points the viewport marker and the inspector at a bone, or at nothing.</summary>
-        private void SelectBone(string boneName)
+        /// <summary>Points the viewport outline and the inspector at one transform, or at nothing.</summary>
+        private void SelectHierarchyItem(int itemId, string boneName)
         {
+            selectedHierarchyItemId = itemId;
             selectedBoneName = boneName;
             if (previewController != null)
             {
-                previewController.SetSelectedBone(boneName);
+                previewController.SetSelectedHierarchyIndex(itemId);
             }
+        }
+
+        /// <summary>Deselects everywhere at once — tree, viewport outline and inspector.</summary>
+        private void ClearHierarchySelection()
+        {
+            if (selectedHierarchyItemId < 0)
+            {
+                return;
+            }
+
+            // Without notifying, because the clearing this would trigger is exactly what the rest of
+            // this method does — and re-entering it would clear a key selection that a viewport
+            // click on empty space has no business touching.
+            if (hierarchyTreeView != null)
+            {
+                hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
+            }
+            SelectHierarchyItem(-1, null);
+            RebuildInspector();
         }
 
         private int FindBoneTrackIndex(string boneName)
@@ -1056,12 +1272,13 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Moves the viewport marker onto the bone whose key was grabbed, and off it otherwise.
+        /// Moves the viewport outline and the tree onto the bone whose key was grabbed.
         /// </summary>
         /// <remarks>
-        /// The tree's own selection is updated without notifying, because the notification would run
-        /// <see cref="OnHierarchySelectionChanged"/>, which clears the key selection — the click
-        /// would deselect the very key that caused it.
+        /// The third direction of the same sync: the timeline is as much a selection surface as the
+        /// tree and the viewport. The tree's selection is set <em>without</em> notifying here,
+        /// because the notification clears the key selection — the click would deselect the very key
+        /// that caused it.
         /// </remarks>
         private void SyncBoneSelectionToKey(KeyAddress address)
         {
@@ -1075,8 +1292,23 @@ namespace StitchPunk.AnimationToolkit.Editor
                 boneName = track != null ? track.boneName : null;
             }
 
-            SelectBone(boneName);
-            if (hierarchyTreeView != null && string.IsNullOrEmpty(boneName))
+            int itemId = -1;
+            if (!string.IsNullOrEmpty(boneName) && previewController != null)
+            {
+                itemId = previewController.FindHierarchyIndexByName(boneName);
+            }
+            SelectHierarchyItem(itemId, boneName);
+
+            if (hierarchyTreeView == null)
+            {
+                return;
+            }
+            if (itemId >= 0)
+            {
+                hierarchyTreeView.SetSelectionByIdWithoutNotify(new int[] { itemId });
+                hierarchyTreeView.ScrollToItemById(itemId);
+            }
+            else
             {
                 hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
             }
@@ -1638,11 +1870,23 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         private void BuildBoneInspector()
         {
-            inspectorPane.Add(MakeHeading("Bone — " + selectedBoneName));
+            inspectorPane.Add(MakeHeading(selectedBoneName));
+
+            // The hierarchy lists every transform, not only bones, so the inspector says which kind
+            // this one is. What you can usefully do with it depends on the answer: only a skinned
+            // bone moves the mesh when a bone track drives it.
+            if (previewController != null)
+            {
+                string description = previewController.DescribeHierarchyItem(selectedHierarchyItemId);
+                if (!string.IsNullOrEmpty(description))
+                {
+                    inspectorPane.Add(MakeHint(description));
+                }
+            }
 
             if (selectedClip == null)
             {
-                inspectorPane.Add(MakeHint("Select a clip to animate this bone."));
+                inspectorPane.Add(MakeHint("Select a clip to animate this object."));
                 return;
             }
 

@@ -45,6 +45,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duplicate-bone-track warnings now go to the timeline's status line instead of
   the viewport's, which the preview tick overwrote thirty times a second.
 
+### Added — click-to-select in the viewport
+
+- **Clicking the preview selects the object under the cursor**, and selection is
+  bidirectional: the viewport drives the hierarchy tree, the tree drives the
+  viewport outline, and grabbing a bone key on the timeline drives both. A
+  viewport click works by setting the tree's selection rather than by acting on
+  its own, so the three surfaces cannot drift into meaning different things.
+  - Picking resolves the **child** under the cursor, never the prefab root.
+  - **Alt- or shift-click cycles** through overlapping hits, nearest first. The
+    cycle only advances when the same click lands on the same candidates again;
+    anything else resets to the nearest, so a modified click somewhere new does
+    not open on whatever ordinal the last one left behind.
+  - Hits are cast on pointer **down**, from the press position, and applied on
+    release only if the pointer did not travel — a drag in the viewport orbits,
+    and selecting on press would make every orbit reselect whatever the camera
+    started over.
+- **Bone handles.** Every joint of a `SkinnedMeshRenderer` gets an octahedral
+  handle linked to its parent, drawn as one dynamic line mesh and rewritten each
+  frame so it tracks the pose. The drawn radius and the clickable radius are one
+  number, read from one place, because a click target that is not where the
+  marker is reads as broken picking rather than as two constants disagreeing.
+  Joints are ordered **ahead of** geometry rather than merged with it by
+  distance: a bone sits inside the mesh it deforms, so sorting purely by depth
+  would make it unclickable, which is the one thing handles exist to prevent.
+- **Physics queries do not work in a preview scene** — `PhysicsScene.Raycast`
+  against one returns nothing, verified rather than assumed, because the scene is
+  never simulated. `Collider.Raycast` does work, since it tests one collider's
+  shape instead of querying a broadphase, so colliders are walked individually.
+  Renderer hits are bounds-level; `PreviewPickHit.isExact` records which kind a
+  hit was, and per transform an exact hit always replaces an approximate one
+  regardless of distance, since the two describe the same object and only one of
+  them knows where its surface is.
+- The selection highlight is now an **oriented box around the selected object**,
+  built from the renderer's local bounds so it follows the object's rotation
+  instead of swinging about as a world-axis-aligned box would. Transforms with no
+  geometry — bones, empties — keep a fixed screen-relative box matching the joint
+  handle that was clicked.
+- The hierarchy tree is built from the preview's **live instance** rather than
+  from the prefab asset, and takes its item ids from the preview's own transform
+  index. A picked object is therefore literally a node of the tree's own source,
+  and selection is identified by index rather than by name — a rig with two bones
+  called `Hand` would otherwise have a tree row that selects the wrong one. Bone
+  *tracks* still bind by name; that is a separate contract with the bake.
+- The inspector names the selected object and says what it is (skinned bone,
+  renderer, or plain transform), since the hierarchy lists every transform and
+  only a skinned bone moves the mesh when a bone track drives it.
+
 ### Added
 
 - `ClipEditorLayoutTests`: the UXML element names are a contract `Q<T>(name)`

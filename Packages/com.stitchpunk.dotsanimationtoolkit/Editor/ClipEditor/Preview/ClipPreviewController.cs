@@ -77,7 +77,19 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
         private bool gizmosAdded;
 
-        private string selectedBoneName;
+        /// <summary>
+        /// Joint markers for the skinned source. Rebuilt with the skeleton, so it joins the preview
+        /// scene again each time — tracked by its own flag for the reason above.
+        /// </summary>
+        private readonly PreviewBoneHandles boneHandles = new PreviewBoneHandles();
+        private bool boneHandlesAdded;
+
+        /// <summary>
+        /// What is selected, as an index into the skeleton mirror's depth-first transform list.
+        /// -1 is nothing. Not a <c>Transform</c> reference, because the instance is destroyed and
+        /// rebuilt whenever the rig changes and a held reference would be a destroyed object.
+        /// </summary>
+        private int selectedHierarchyIndex = -1;
 
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
@@ -162,27 +174,155 @@ namespace StitchPunk.AnimationToolkit.Editor
             skeletonMirror.Rebuild(prefab);
             skeletonRootAdded = false;
 
-            // The old instance's bones are gone, so a marker still pointing at one would be placed
-            // from a destroyed transform. The name survives — it resolves again if the new source
-            // has a bone by that name, and simply stops drawing if it does not.
+            boneHandles.Rebuild(skeletonMirror.InstanceRoot);
+            boneHandlesAdded = false;
+
+            // The old instance's transforms are gone, so an index into them means nothing now.
+            selectedHierarchyIndex = -1;
             sceneGizmos.HideSelection();
         }
 
+        /// <summary>The previewed rig's root, which the hierarchy pane lists. Null when none.</summary>
+        /// <remarks>
+        /// The window builds its tree from this live instance rather than from the prefab asset, so
+        /// a picked transform is literally a node of the tree's own source. Two walks of two
+        /// hierarchies would have to agree about ordering forever; one hierarchy cannot disagree
+        /// with itself.
+        /// </remarks>
+        public Transform HierarchyRoot
+        {
+            get
+            {
+                return skeletonMirror.InstanceRoot != null
+                    ? skeletonMirror.InstanceRoot.transform
+                    : null;
+            }
+        }
+
         /// <summary>
-        /// Sets which bone the selection marker follows, or null for none.
+        /// Sets what the selection outline follows, by hierarchy index. -1 for nothing.
         /// </summary>
         /// <remarks>
         /// This is the whole of what selection does to the viewport. Nothing here affects whether
-        /// the preview renders, what is in the scene, or where the camera is — an unresolvable name
-        /// hides the marker and changes nothing else.
+        /// the preview renders, what is in the scene, or where the camera is — an index that no
+        /// longer resolves hides the outline and changes nothing else.
         /// </remarks>
-        public void SetSelectedBone(string boneName)
+        public void SetSelectedHierarchyIndex(int hierarchyIndex)
         {
-            selectedBoneName = boneName;
-            if (string.IsNullOrEmpty(boneName))
+            selectedHierarchyIndex = hierarchyIndex;
+            if (hierarchyIndex < 0)
             {
                 sceneGizmos.HideSelection();
             }
+        }
+
+        /// <summary>The hierarchy index of a transform, or -1 when it is not in the previewed rig.</summary>
+        public int GetHierarchyIndex(Transform node)
+        {
+            return skeletonMirror.GetIndex(node);
+        }
+
+        /// <summary>The hierarchy index of the first transform with this name, or -1.</summary>
+        public int FindHierarchyIndexByName(string boneName)
+        {
+            return skeletonMirror.FindIndexByName(boneName);
+        }
+
+        /// <summary>
+        /// Describes what a hierarchy item is, for the inspector's subtitle.
+        /// </summary>
+        /// <remarks>
+        /// Worth saying out loud because the hierarchy lists <em>every</em> transform, and what you
+        /// can usefully do with one depends on which kind it is: only a skinned bone moves the mesh
+        /// when a bone track drives it.
+        /// </remarks>
+        public string DescribeHierarchyItem(int hierarchyIndex)
+        {
+            Transform node = skeletonMirror.GetTransformByIndex(hierarchyIndex);
+            if (node == null)
+            {
+                return string.Empty;
+            }
+
+            if (IsSkinnedBone(node))
+            {
+                return "Skinned bone — a bone track on this name moves the mesh.";
+            }
+            if (node.GetComponent<SkinnedMeshRenderer>() != null)
+            {
+                return "Skinned mesh renderer.";
+            }
+            if (node.GetComponent<Renderer>() != null)
+            {
+                return "Renderer.";
+            }
+            return "Transform with no renderer of its own.";
+        }
+
+        private bool IsSkinnedBone(Transform node)
+        {
+            IReadOnlyList<Transform> bones = boneHandles.Bones;
+            for (int boneIndex = 0; boneIndex < bones.Count; boneIndex++)
+            {
+                if (bones[boneIndex] == node)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Hit-tests the previewed rig under a viewport point, nearest first.
+        /// </summary>
+        /// <param name="viewportPoint">Pointer position, (0,0) bottom-left to (1,1) top-right.</param>
+        /// <param name="aspect">Width over height of the rect the viewport is drawn into.</param>
+        /// <param name="hits">Filled with what is under the pointer. Cleared first.</param>
+        /// <remarks>
+        /// <para>
+        /// Only the previewed rig is pickable. The grid, the selection outline and the cutout
+        /// mirror's quads are deliberately not: the first two are furniture, and the quads have no
+        /// row in the hierarchy pane to select, so a click on one could only select something the
+        /// user cannot see selected.
+        /// </para>
+        /// <para>
+        /// The camera is posed here as well as in <see cref="Render"/>. A click is handled outside
+        /// the render loop, and picking against a camera left wherever the last frame put it is a
+        /// whole class of "it selected something that is not under my cursor" bug.
+        /// </para>
+        /// </remarks>
+        public void CollectPickHits(Vector2 viewportPoint, float aspect, List<PreviewPickHit> hits)
+        {
+            hits.Clear();
+            if (HierarchyRoot == null)
+            {
+                return;
+            }
+
+            EnsureRenderUtility();
+            ApplyCameraPose();
+
+            Ray pickRay = PreviewScenePicker.BuildRay(
+                renderUtility.camera.transform,
+                renderUtility.camera.fieldOfView,
+                aspect,
+                viewportPoint);
+
+            PreviewScenePicker.CollectHits(
+                HierarchyRoot, boneHandles.Bones, BoneHandleRadius, pickRay, hits);
+        }
+
+        /// <summary>
+        /// How big a joint marker is, in world units — drawn <em>and</em> clicked.
+        /// </summary>
+        /// <remarks>
+        /// Scaled by camera distance so it holds roughly the same size on screen at any zoom, and
+        /// read from this one property by both the drawing and the picking so the click target
+        /// cannot drift away from the marker the user is aiming at.
+        /// </remarks>
+        private float BoneHandleRadius
+        {
+            get { return Mathf.Clamp(orbitDistance * 0.018f, 0.005f, 0.6f); }
         }
 
         /// <summary>
@@ -319,15 +459,24 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             EnsureRenderUtility();
             PopulatePreviewScene();
-            UpdateSelectionMarker();
 
-            Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
-            renderUtility.camera.transform.position = orbitRotation * new Vector3(0f, 0f, -orbitDistance);
-            renderUtility.camera.transform.rotation = orbitRotation;
+            // Bone handles are rewritten every frame because the bones move as the clip scrubs, and
+            // the markers are also the click targets — stale markers would be a viewport where the
+            // handles and the hit tests disagree about where the skeleton is.
+            boneHandles.UpdateGeometry(BoneHandleRadius);
+            UpdateSelectionMarker();
+            ApplyCameraPose();
 
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
             return renderUtility.EndPreview();
+        }
+
+        private void ApplyCameraPose()
+        {
+            Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
+            renderUtility.camera.transform.position = orbitRotation * new Vector3(0f, 0f, -orbitDistance);
+            renderUtility.camera.transform.rotation = orbitRotation;
         }
 
         /// <summary>
@@ -355,6 +504,12 @@ namespace StitchPunk.AnimationToolkit.Editor
                 skeletonRootAdded = true;
             }
 
+            if (boneHandles.HandlesObject != null && !boneHandlesAdded)
+            {
+                renderUtility.AddSingleGO(boneHandles.HandlesObject);
+                boneHandlesAdded = true;
+            }
+
             if (rigMirror.RootObject != null && !mirrorRootAdded)
             {
                 renderUtility.AddSingleGO(rigMirror.RootObject);
@@ -363,24 +518,69 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Places the selection marker on the selected bone, or hides it when nothing resolves.
+        /// Outlines the selected transform, or hides the outline when nothing resolves.
         /// </summary>
         /// <remarks>
-        /// Resolved every frame rather than cached on selection, because the bone moves: the marker
-        /// has to follow the posed skeleton as the playhead scrubs, not sit where the bone was when
-        /// it was clicked.
+        /// Resolved every frame rather than cached on selection, because the transform moves: the
+        /// outline has to follow the posed skeleton as the playhead scrubs, not sit where the object
+        /// was when it was clicked.
         /// </remarks>
         private void UpdateSelectionMarker()
         {
-            Transform boneTransform;
-            if (string.IsNullOrEmpty(selectedBoneName)
-                || !skeletonMirror.TryGetBone(selectedBoneName, out boneTransform)
-                || boneTransform == null)
+            Transform selectedTransform = skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
+            if (selectedTransform == null)
             {
                 sceneGizmos.HideSelection();
                 return;
             }
-            sceneGizmos.ShowSelection(boneTransform.position, boneTransform.rotation, orbitDistance);
+
+            Bounds localBounds;
+            if (TryGetLocalBounds(selectedTransform, out localBounds))
+            {
+                sceneGizmos.ShowSelection(
+                    selectedTransform.TransformPoint(localBounds.center),
+                    selectedTransform.rotation,
+                    Vector3.Scale(selectedTransform.lossyScale, localBounds.size));
+                return;
+            }
+
+            // No geometry to outline — a bone, or an empty. A fixed screen-relative box is the only
+            // honest thing to draw, and it matches the joint marker the click targeted.
+            float markerSize = BoneHandleRadius * 2f;
+            sceneGizmos.ShowSelection(
+                selectedTransform.position,
+                selectedTransform.rotation,
+                new Vector3(markerSize, markerSize, markerSize));
+        }
+
+        /// <summary>
+        /// The object's own bounds in its local space, so the outline can be an oriented box.
+        /// </summary>
+        /// <remarks>
+        /// <c>Renderer.bounds</c> is deliberately not used: it is a world-axis-aligned box, so an
+        /// outline built from it would swell and swing as the rig turns instead of hugging the
+        /// object. <c>localBounds</c> and the mesh's own bounds are in the renderer's space, which
+        /// is what makes the highlight follow the object's rotation.
+        /// </remarks>
+        private static bool TryGetLocalBounds(Transform node, out Bounds localBounds)
+        {
+            localBounds = default(Bounds);
+
+            SkinnedMeshRenderer skinnedRenderer = node.GetComponent<SkinnedMeshRenderer>();
+            if (skinnedRenderer != null)
+            {
+                localBounds = skinnedRenderer.localBounds;
+                return true;
+            }
+
+            MeshFilter meshFilter = node.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                localBounds = meshFilter.sharedMesh.bounds;
+                return true;
+            }
+
+            return false;
         }
 
         private void EnsureRenderUtility()
@@ -419,13 +619,16 @@ namespace StitchPunk.AnimationToolkit.Editor
             rigMirror.Dispose();
             skeletonMirror.Dispose();
 
-            // Before Cleanup: the gizmos live in the render utility's scene, and cleaning that up
-            // first would leave these references pointing at objects Unity has already destroyed.
+            // Before Cleanup: these live in the render utility's scene, and cleaning that up first
+            // would leave the references pointing at objects Unity has already destroyed.
             sceneGizmos.Dispose();
+            boneHandles.Dispose();
 
             mirrorRootAdded = false;
             skeletonRootAdded = false;
             gizmosAdded = false;
+            boneHandlesAdded = false;
+            selectedHierarchyIndex = -1;
             if (renderUtility != null)
             {
                 renderUtility.Cleanup();

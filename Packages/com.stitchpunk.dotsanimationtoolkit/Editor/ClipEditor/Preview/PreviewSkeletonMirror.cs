@@ -35,12 +35,32 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly Dictionary<string, Transform> bonesByName = new Dictionary<string, Transform>();
         private readonly List<string> unresolvedBoneNames = new List<string>();
 
+        /// <summary>
+        /// Every transform of the instance in depth-first order, and the reverse lookup.
+        /// </summary>
+        /// <remarks>
+        /// This index is the identity the whole selection story runs on. The hierarchy tree, the
+        /// viewport picker and the selection marker all name a transform by its position in this
+        /// list rather than by its name, because names repeat — a rig with two bones called
+        /// <c>Hand</c> would otherwise have a tree row that selects the wrong one, and a marker that
+        /// draws on the wrong joint. Bone <em>tracks</em> still bind by name; that is a separate
+        /// contract with the bake, and not something selection gets to change.
+        /// </remarks>
+        private readonly List<Transform> transformsByIndex = new List<Transform>();
+        private readonly Dictionary<Transform, int> indexByTransform = new Dictionary<Transform, int>();
+
         private GameObject instanceRoot;
 
         /// <summary>The instantiated rig, or null when no skinned source is assigned.</summary>
         public GameObject InstanceRoot
         {
             get { return instanceRoot; }
+        }
+
+        /// <summary>Every transform of the instance, depth-first. Index is the selection identity.</summary>
+        public IReadOnlyList<Transform> TransformsByIndex
+        {
+            get { return transformsByIndex; }
         }
 
         /// <summary>Bone names on the clip that matched nothing in the instantiated hierarchy.</summary>
@@ -67,20 +87,83 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             instanceRoot = Object.Instantiate(skinnedSourcePrefab);
-            instanceRoot.name = "ClipPreviewSkeleton";
+
+            // Named after the prefab rather than after this class, because the hierarchy pane shows
+            // this instance directly and "ClipPreviewSkeleton" as a root row would be the window
+            // naming its own plumbing at the user.
+            instanceRoot.name = skinnedSourcePrefab.name;
 
             // Without HideAndDontSave the instance leaks into the user's open scene and, worse,
             // gets saved into it.
             instanceRoot.hideFlags = HideFlags.HideAndDontSave;
 
-            Transform[] hierarchy = instanceRoot.GetComponentsInChildren<Transform>(true);
-            for (int boneIndex = 0; boneIndex < hierarchy.Length; boneIndex++)
+            IndexHierarchy(instanceRoot.transform);
+
+            for (int boneIndex = 0; boneIndex < transformsByIndex.Count; boneIndex++)
             {
-                if (!bonesByName.ContainsKey(hierarchy[boneIndex].name))
+                Transform node = transformsByIndex[boneIndex];
+                if (!bonesByName.ContainsKey(node.name))
                 {
-                    bonesByName.Add(hierarchy[boneIndex].name, hierarchy[boneIndex]);
+                    bonesByName.Add(node.name, node);
                 }
             }
+        }
+
+        /// <summary>
+        /// Walks the instance depth-first, numbering every transform.
+        /// </summary>
+        /// <remarks>
+        /// Child order is <see cref="Transform.GetChild"/> order, which is the order the hierarchy
+        /// tree displays. The tree does not repeat this walk to derive its own ids — it asks for the
+        /// index of each transform as it builds — so there is no parallel ordering to keep in step.
+        /// </remarks>
+        private void IndexHierarchy(Transform node)
+        {
+            indexByTransform[node] = transformsByIndex.Count;
+            transformsByIndex.Add(node);
+            for (int childIndex = 0; childIndex < node.childCount; childIndex++)
+            {
+                IndexHierarchy(node.GetChild(childIndex));
+            }
+        }
+
+        /// <summary>The selection index of a transform, or -1 when it is not part of the instance.</summary>
+        public int GetIndex(Transform node)
+        {
+            int index;
+            if (node == null || !indexByTransform.TryGetValue(node, out index))
+            {
+                return -1;
+            }
+            return index;
+        }
+
+        /// <summary>Resolves a selection index back to its transform, or null when out of range.</summary>
+        public Transform GetTransformByIndex(int index)
+        {
+            if (index < 0 || index >= transformsByIndex.Count)
+            {
+                return null;
+            }
+            return transformsByIndex[index];
+        }
+
+        /// <summary>
+        /// The index of the first transform with this name, or -1.
+        /// </summary>
+        /// <remarks>
+        /// "First" is the honest answer to an ambiguous question: a bone track names a bone, and if
+        /// two transforms share that name the bake resolves it the same way. Selecting the same one
+        /// the bake would use beats selecting a different one.
+        /// </remarks>
+        public int FindIndexByName(string boneName)
+        {
+            Transform bone;
+            if (string.IsNullOrEmpty(boneName) || !bonesByName.TryGetValue(boneName, out bone))
+            {
+                return -1;
+            }
+            return GetIndex(bone);
         }
 
         /// <summary>Poses every bone track at <paramref name="normalizedTime"/>.</summary>
@@ -151,6 +234,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             bonesByName.Clear();
             unresolvedBoneNames.Clear();
+            transformsByIndex.Clear();
+            indexByTransform.Clear();
         }
     }
 }
