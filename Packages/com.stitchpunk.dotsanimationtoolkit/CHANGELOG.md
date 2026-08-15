@@ -45,6 +45,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duplicate-bone-track warnings now go to the timeline's status line instead of
   the viewport's, which the preview tick overwrote thirty times a second.
 
+### Added — create clips without leaving the editor
+
+- **New** in the Clips pane creates a `ClipAsset` beside the set on disk, gives
+  it the set's rig, appends it to the set as one undo step, and selects it. The
+  rig is inherited rather than left empty because validation rule V06 only lets a
+  clip join a set whose rig is the same asset — a clip created with a null rig is
+  born failing validation.
+  - The button is **disabled until a set is assigned**. A clip is only meaningful
+    inside a set, so "no set" is not a case to invent a home for.
+  - The creation itself moved into `ClipCreationUtility`, shared with
+    `ClipSetAssetEditor`'s existing "new clip in set" button, which now calls it.
+    A clip made from the window and one made from the inspector have to be
+    indistinguishable — same folder, same inherited rig, same id minting, same
+    undo entry — and two implementations would agree only until one was edited.
+  - The asset write is not undoable and deliberately is not made so: Ctrl+Z does
+    not delete a file. The append to the set's clip list is, under the name
+    "Create Clip In Set".
+- **A Name field in the clip inspector**, so a clip can be renamed where it was
+  created. A clip's name is not cosmetic — the set's id-constant generator turns
+  it into a C# identifier — and without this the flow was "create here, go to the
+  Project window to name it". The field is delayed, because committing per
+  keystroke would rename the asset on disk once per character typed. An illegal
+  or already-taken name is refused and the field snaps back to the asset's real
+  name rather than showing one it does not have.
+
 ### Added — click-to-select in the viewport
 
 - **Clicking the preview selects the object under the cursor**, and selection is

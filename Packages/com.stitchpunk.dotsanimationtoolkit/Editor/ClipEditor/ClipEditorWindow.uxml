@@ -49,7 +49,10 @@
                 <ui:TwoPaneSplitView name="dock-left"
                                      orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="150">
                     <ui:VisualElement name="clip-list-pane" class="clip-editor__pane">
-                        <ui:Label text="Clips" class="clip-editor__pane-title" />
+                        <ui:VisualElement class="clip-editor__pane-header">
+                            <ui:Label text="Clips" class="clip-editor__pane-title" />
+                            <ui:Button name="new-clip-button" text="New" class="clip-editor__pane-action" />
+                        </ui:VisualElement>
                         <ui:ListView name="clip-list" class="clip-editor__clip-list" />
                     </ui:VisualElement>
                     <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">

@@ -78,6 +78,7 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private ObjectField clipSetField;
         private ListView clipListView;
+        private Button newClipButton;
         private TreeView hierarchyTreeView;
         private Label hierarchyEmptyLabel;
         private ToolbarToggle playToggle;
@@ -232,6 +233,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 validationBadge.Refresh(clipSet);
             }
 
+            RefreshNewClipButton();
             RebuildHierarchy();
             RebuildTimeline();
         }
@@ -298,6 +300,15 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private void BindClipList()
         {
+            newClipButton = rootVisualElement.Q<Button>("new-clip-button");
+            if (newClipButton != null)
+            {
+                newClipButton.clicked += CreateClip;
+                newClipButton.tooltip =
+                    "Create a clip beside the clip set on disk, using the set's rig, and add it to "
+                    + "the set.";
+            }
+
             clipListView = rootVisualElement.Q<ListView>("clip-list");
             if (clipListView == null)
             {
@@ -309,6 +320,82 @@ namespace StitchPunk.AnimationToolkit.Editor
             clipListView.bindItem = BindClipRow;
             clipListView.selectionChanged += OnClipSelectionChanged;
             clipListView.itemsSource = new List<ClipAsset>();
+        }
+
+        /// <summary>
+        /// Creates a clip in the assigned set and selects it, ready to author.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The creation is <see cref="ClipCreationUtility"/>'s, shared with the clip set's own
+        /// inspector, so a clip made here is indistinguishable from one made there — same folder,
+        /// same inherited rig, same id minting, same undo entry.
+        /// </para>
+        /// <para>
+        /// Selecting the new clip immediately is the point of having the button here at all: the
+        /// alternative is creating it in the Project window and coming back to find it in the list.
+        /// It is pinged as well, because it is written to disk without asking where, and a file
+        /// appearing somewhere the user was not told about is worse than a moment's flicker in the
+        /// Project window.
+        /// </para>
+        /// </remarks>
+        private void CreateClip()
+        {
+            if (clipSet == null)
+            {
+                return;
+            }
+
+            ClipAsset newClip = ClipCreationUtility.CreateClipInSet(clipSet);
+            if (newClip == null)
+            {
+                return;
+            }
+
+            RefreshClipList();
+            EditorGUIUtility.PingObject(newClip);
+
+            int newClipIndex = clipSet.clips != null ? clipSet.clips.IndexOf(newClip) : -1;
+            if (newClipIndex >= 0)
+            {
+                // Through the list's own selection, so creating a clip lands in exactly the state
+                // clicking one would — SelectClip, the timeline rebuild and the inspector all follow
+                // from the one notification.
+                clipListView.SetSelection(newClipIndex);
+                clipListView.ScrollToItem(newClipIndex);
+            }
+
+            MarkPreviewDirty();
+        }
+
+        /// <summary>Re-points the list at the set's clips and repaints its rows.</summary>
+        private void RefreshClipList()
+        {
+            if (clipListView == null)
+            {
+                return;
+            }
+            clipListView.itemsSource = clipSet != null && clipSet.clips != null
+                ? (System.Collections.IList)clipSet.clips
+                : new List<ClipAsset>();
+            clipListView.Rebuild();
+        }
+
+        /// <summary>
+        /// Enables the New button only when there is a set for a clip to be created in.
+        /// </summary>
+        /// <remarks>
+        /// A clip is only meaningful inside a set — it inherits the set's rig, and validation rule
+        /// V06 refuses a clip whose rig is anything else. So "no set assigned" is not a case to
+        /// invent a home for; it is a case to disable, with the reason on the button.
+        /// </remarks>
+        private void RefreshNewClipButton()
+        {
+            if (newClipButton == null)
+            {
+                return;
+            }
+            newClipButton.SetEnabled(clipSet != null);
         }
 
         private void BindHierarchy()
@@ -896,10 +983,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             clipSet = changeEvent.newValue as ClipSetAsset;
             SelectClip(null);
 
-            clipListView.itemsSource = clipSet != null && clipSet.clips != null
-                ? (System.Collections.IList)clipSet.clips
-                : new List<ClipAsset>();
-            clipListView.Rebuild();
+            RefreshClipList();
+            RefreshNewClipButton();
 
             if (previewController != null)
             {
@@ -1928,6 +2013,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             clipSerializedObject.Update();
 
             inspectorPane.Add(MakeHeading("Clip"));
+            inspectorPane.Add(MakeClipNameField());
             AddBoundField("duration");
             AddBoundField("defaultLoop");
             AddBoundField("rig");
@@ -2001,6 +2087,42 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             EditorUtility.SetDirty(selectedClip);
             RebuildTimeline();
+        }
+
+        /// <summary>
+        /// The clip's asset name, editable in place.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Here rather than only in the Project window because a clip's name is not cosmetic: the
+        /// clip set's id-constant generator turns it into a C# identifier, so a set full of
+        /// "NewClip 3" produces constants nobody can read. Creating a clip from this window and
+        /// having to leave it to give the clip a name is the flow this closes.
+        /// </para>
+        /// <para>
+        /// <c>isDelayed</c> is load-bearing: without it the field commits on every keystroke, and
+        /// each commit is a file rename on disk. Typing "Walk" would rename the asset four times and
+        /// leave three stale <c>.meta</c> shuffles behind it.
+        /// </para>
+        /// </remarks>
+        private TextField MakeClipNameField()
+        {
+            TextField nameField = new TextField("Name");
+            nameField.isDelayed = true;
+            nameField.SetValueWithoutNotify(selectedClip.name);
+            nameField.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (!ClipCreationUtility.RenameClip(selectedClip, changeEvent.newValue))
+                {
+                    // Refused — an illegal or duplicate name. Put the field back to the truth rather
+                    // than leaving it showing a name the asset does not have.
+                    nameField.SetValueWithoutNotify(selectedClip != null ? selectedClip.name : string.Empty);
+                    return;
+                }
+                RefreshClipList();
+                RebuildTimeline();
+            });
+            return nameField;
         }
 
         private static Label MakeHeading(string text)

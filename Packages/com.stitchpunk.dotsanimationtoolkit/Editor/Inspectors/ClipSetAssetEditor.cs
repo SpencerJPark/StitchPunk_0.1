@@ -55,10 +55,6 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private const string LogPrefix = "[DOTS Animation Toolkit] ";
 
-        private const string NewClipAssetBaseName = "NewClip";
-        private const string AssetExtension = ".asset";
-        private const string NewClipUndoActionName = "Create Clip In Set";
-
         private const string GeneratedClassNameSuffix = "ClipIds";
         private const string FallbackSetNameBase = "ClipSet";
         private const string FallbackClipNamePrefix = "Clip";
@@ -543,30 +539,15 @@ namespace StitchPunk.AnimationToolkit.Editor
         // -----------------------------------------------------------------------------------
 
         /// <summary>
-        /// Creates a fresh <see cref="ClipAsset"/> beside the set on disk, assigns the set's rig, and
-        /// appends it to <see cref="ClipSetAsset.clips"/> as one undo step.
+        /// Creates a fresh <see cref="ClipAsset"/> in the set, then selects and pings it.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// The physical asset write (<see cref="AssetDatabase.CreateAsset"/>) is not itself something
-        /// Ctrl+Z reverses - <c>MirrorClipUtility.CreateMirroredCopy</c> makes the same choice and
-        /// does not attempt to wrap it in an undo group either. What genuinely is undoable, and what
-        /// this wraps in one named <see cref="Undo"/> group, is the append to
-        /// <see cref="ClipSetAsset.clips"/>: driven entirely through
-        /// <see cref="SerializedProperty"/> and <see cref="SerializedObject.ApplyModifiedProperties"/>,
-        /// which - per <c>RigAssetEditor.AddSocket</c>'s own precedent - already records one Undo
-        /// entry per <c>ApplyModifiedProperties</c> call with no explicit <c>Undo.RecordObject</c>
-        /// needed. The group name makes that one entry read as "Create Clip In Set" in the Undo
-        /// History window instead of a generic property-change label.
-        /// </para>
-        /// <para>
-        /// The new clip mints its own stable id via the internal
-        /// <see cref="ClipAsset.EnsureStableIds"/> (this assembly is granted access; see
-        /// <c>Authoring/AssemblyInfo.cs</c>) rather than relying solely on the asset's own
-        /// <c>Awake</c>/<c>OnValidate</c> callbacks, for the same reason
-        /// <c>MirrorClipUtility.CreateMirroredCopy</c> calls it explicitly: it is idempotent, costs
-        /// nothing, and makes the guarantee local to this method.
-        /// </para>
+        /// The creation itself lives in <see cref="ClipCreationUtility"/>, shared with the clip
+        /// editor's Clips pane. A clip made here and a clip made there have to be
+        /// indistinguishable — same folder, same inherited rig, same id minting, same undo entry —
+        /// and two implementations of that would agree only until one of them was edited. What stays
+        /// here is what is specific to being an inspector: revealing the result in the Project
+        /// window, and revalidating the roster this editor draws.
         /// </remarks>
         private void CreateNewClipInSet()
         {
@@ -576,74 +557,19 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            string setAssetPath = AssetDatabase.GetAssetPath(clipSetAsset);
-            if (string.IsNullOrEmpty(setAssetPath))
+            ClipAsset newClip = ClipCreationUtility.CreateClipInSet(clipSetAsset);
+            if (newClip == null)
             {
-                Debug.LogError(
-                    LogPrefix + "Clip set '" + clipSetAsset.name + "' is not saved as an asset yet, " +
-                    "so a new clip has nowhere to be written. Save the set first.",
-                    clipSetAsset);
                 return;
             }
 
-            string containingFolderPath = ExtractContainingFolderPath(setAssetPath);
-            if (string.IsNullOrEmpty(containingFolderPath))
-            {
-                Debug.LogError(
-                    LogPrefix + "Could not resolve the folder containing clip set '" +
-                    clipSetAsset.name + "' from its asset path '" + setAssetPath + "'.",
-                    clipSetAsset);
-                return;
-            }
-
-            string candidateAssetPath = containingFolderPath + "/" + NewClipAssetBaseName + AssetExtension;
-            string uniqueAssetPath = AssetDatabase.GenerateUniqueAssetPath(candidateAssetPath);
-
-            ClipAsset newClip = ScriptableObject.CreateInstance<ClipAsset>();
-            newClip.rig = clipSetAsset.rig;
-            newClip.EnsureStableIds();
-            newClip.name = ExtractAssetName(uniqueAssetPath);
-
-            AssetDatabase.CreateAsset(newClip, uniqueAssetPath);
-            AssetDatabase.SaveAssets();
-
-            // The minted id is on disk now, so the "not yet persisted" report is discharged - the
-            // same ordering CreateMirroredCopy uses and for the same reason.
-            newClip.MarkStableIdPersisted();
-
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName(NewClipUndoActionName);
-
+            // The utility appended through its own SerializedObject, so this one is a version behind.
             serializedObject.Update();
-            int newElementIndex = clipsProperty.arraySize;
-            clipsProperty.InsertArrayElementAtIndex(newElementIndex);
-            clipsProperty.GetArrayElementAtIndex(newElementIndex).objectReferenceValue = newClip;
-            serializedObject.ApplyModifiedProperties();
-
-            Undo.CollapseUndoOperations(undoGroup);
 
             Selection.activeObject = newClip;
             EditorGUIUtility.PingObject(newClip);
 
             RefreshValidation();
-        }
-
-        private static string ExtractContainingFolderPath(string assetPath)
-        {
-            int lastSeparatorIndex = assetPath.LastIndexOf('/');
-            return lastSeparatorIndex > 0 ? assetPath.Substring(0, lastSeparatorIndex) : string.Empty;
-        }
-
-        /// <summary>Returns the file name of <paramref name="assetPath"/> without its extension.</summary>
-        private static string ExtractAssetName(string assetPath)
-        {
-            int lastSeparatorIndex = assetPath.LastIndexOf('/');
-            string fileName = lastSeparatorIndex >= 0
-                ? assetPath.Substring(lastSeparatorIndex + 1)
-                : assetPath;
-            int extensionIndex = fileName.LastIndexOf('.');
-            return extensionIndex > 0 ? fileName.Substring(0, extensionIndex) : fileName;
         }
 
         // -----------------------------------------------------------------------------------

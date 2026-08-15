@@ -93,6 +93,23 @@
     padding-right: 6px;
 }
 
+/* A title with an action button pushed to the right edge of the pane. */
+.clip-editor__pane-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.clip-editor__pane-action {
+    margin-left: 4px;
+    margin-right: 4px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
 .clip-editor__hint {
     white-space: normal;
     margin-left: 6px;

@@ -32,7 +32,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             "clip-set-field", "play-toggle", "rewind-button", "time-label", "snap-toggle",
             "frame-count-field", "skinned-source-field", "validation-badge-slot",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
-            "clip-list-pane", "clip-list",
+            "clip-list-pane", "new-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",
             "viewport-pane", "viewport-status", "viewport-image",
             "inspector-pane", "inspector-content",

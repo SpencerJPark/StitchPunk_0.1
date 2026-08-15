@@ -51,12 +51,19 @@ but named targets and ordered layers.
    selected yet", not "something is broken".
 2. Assign a clip set to the editor's clip-set field — if you don't have one
    yet, jump to step 4 first and create the `ClipSetAsset`, then come back
-   here and select `DemoBob` from its clip list.
-3. Add a transform track for the `Body` target and place a couple of keys on
+   here.
+3. Pick a clip to work on. Select `DemoBob` in the Clips pane, or press **New**
+   to create one: it writes a clip beside the set on disk, gives it the set's
+   rig, adds it to the set and selects it, ready to key. (**New** is disabled
+   until a set is assigned — a clip inherits its set's rig, and one created
+   without a set would fail validation rule V06 immediately.) Rename it in the
+   inspector's **Name** field; the name becomes a C# identifier if you later
+   generate clip id constants, so a set full of `NewClip 3` is worth avoiding.
+4. Add a transform track for the `Body` target and place a couple of keys on
    the timeline with different `position`/`rotationZ` values — the timeline
    supports draggable keys, a zoomable ruler, and a live preview pane so you
    can see the motion as you key it.
-4. Scrub or press play in the editor's transport to confirm the clip moves
+5. Scrub or press play in the editor's transport to confirm the clip moves
    before wiring up an entity — the preview samples through the same runtime
    code that plays the clip at runtime, so what you see here is what you get
    in Play mode.
