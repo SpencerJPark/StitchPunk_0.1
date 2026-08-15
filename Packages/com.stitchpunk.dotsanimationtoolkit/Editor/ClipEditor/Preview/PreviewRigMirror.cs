@@ -55,6 +55,40 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
+        /// The rig target a mirrored quad stands for, so a click in the viewport can name a part.
+        /// </summary>
+        /// <remarks>
+        /// Searched linearly rather than through a reverse dictionary: a rig has tens of targets,
+        /// not thousands, and this runs once per click. A second map would be a second thing to keep
+        /// in step with <c>targetIdToMirrorIndex</c> for no measurable gain.
+        /// </remarks>
+        public bool TryGetTargetId(Transform partTransform, out uint targetId)
+        {
+            foreach (KeyValuePair<uint, int> pair in targetIdToMirrorIndex)
+            {
+                if (pair.Value < partTransforms.Count && partTransforms[pair.Value] == partTransform)
+                {
+                    targetId = pair.Key;
+                    return true;
+                }
+            }
+            targetId = 0u;
+            return false;
+        }
+
+        /// <summary>The quad standing for a rig target, or null when the target has none.</summary>
+        public Transform GetPartTransform(uint targetId)
+        {
+            int mirrorIndex;
+            if (!targetIdToMirrorIndex.TryGetValue(targetId, out mirrorIndex)
+                || mirrorIndex >= partTransforms.Count)
+            {
+                return null;
+            }
+            return partTransforms[mirrorIndex];
+        }
+
+        /// <summary>
         /// Rebuilds the mirror to match <paramref name="rig"/>. Safe to call repeatedly.
         /// </summary>
         public void Rebuild(RigAsset rig)

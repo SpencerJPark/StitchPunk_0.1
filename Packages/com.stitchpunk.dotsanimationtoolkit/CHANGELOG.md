@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — rig parts are selectable, and flipbook tracks are editable
+
+- **The hierarchy pane now lists the rig's parts** alongside the previewed
+  prefab's transforms, and the cutout part quads are pickable in the viewport.
+  Before this a flipbook track had no object in the UI to belong to: tracks bind
+  to rig targets, the pane showed only prefab bones, and the part quads were
+  deliberately excluded from picking because they had no row to select into.
+  Selecting a part outlines it in the viewport exactly as selecting a bone does.
+- **A flipbook section on the selected part**, listing every track that drives
+  it — several are expected, since that is how one texture array holds
+  independent feature sets — with **Add Flipbook Track** and per-track removal.
+- **`baseIndex` is editable per track**, and moving it retargets every relative
+  key at once. Verified: sliding a track's base from 0 to 32 moved the resolved
+  indices from 0/5 to 32/37 while the stored values stayed exactly `0,5,12`.
+- **Each key shows both numbers**: the stored value it holds and the index it
+  resolves to, in the `+5 → 12` form, with `no change` spelled out for the
+  absolute −1 sentinel. Showing one without the other is how "+5" and "12" become
+  the same confusing number in a bug report. A relative key that resolves below
+  zero is coloured as the error rule V18 reports.
+- **The mode toggle is lossless in the sense that matters** — the frame the key
+  shows does not move. Relative(5, base 32) → Absolute stores 37; back again
+  recovers the offset 5; Absolute(12) → Relative stores −20 and still resolves to
+  12. Both directions go through `SpriteIndexResolver`, so the conversion cannot
+  drift from the resolution the sampler performs.
+- Every one of these edits is one undo step, recorded explicitly because the rows
+  edit `SpriteTrack` objects directly rather than through `SerializedProperty` —
+  a key's stored number is only interpretable beside its mode and its track's
+  base, which no property drawer can relate.
+- Fixed: the hierarchy pane was rebuilt only when the previewed prefab changed,
+  which was enough while it listed nothing else. It now rebuilds when the clip set
+  changes too, since the rig targets come from the set.
+
 ### Added — flipbook base indices and Bézier easing (schema version 5)
 
 The data model behind the keying/dopesheet rework. The editing surface that

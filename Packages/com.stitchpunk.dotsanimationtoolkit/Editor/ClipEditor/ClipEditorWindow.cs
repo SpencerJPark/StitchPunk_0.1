@@ -75,6 +75,10 @@ namespace StitchPunk.AnimationToolkit.Editor
         private const string TrackHeaderUssClassName = "clip-editor__track-header";
         private const string HeadingUssClassName = "clip-editor__heading";
         private const string HintUssClassName = "clip-editor__hint";
+        private const string FlipbookTrackUssClassName = "clip-editor__flipbook-track";
+        private const string FlipbookKeyUssClassName = "clip-editor__flipbook-key";
+        private const string FlipbookResolvedUssClassName = "clip-editor__flipbook-resolved";
+        private const string FlipbookInvalidUssClassName = "clip-editor__flipbook-resolved--invalid";
 
         private ObjectField clipSetField;
         private ListView clipListView;
@@ -119,7 +123,45 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// skeleton is a throwaway instance rebuilt whenever the rig changes, so a held reference
         /// would be a destroyed object more often than not.
         /// </remarks>
-        private int selectedHierarchyItemId = -1;
+        private int selectedHierarchyItemId = NothingSelectedItemId;
+
+        /// <summary>
+        /// What the hierarchy pane lists: the rig's parts, and the previewed prefab's transforms.
+        /// </summary>
+        /// <remarks>
+        /// Two genuinely different things share the tree because they are the two kinds of thing a
+        /// clip animates — a rig target carries transform and flipbook tracks, a bone carries bone
+        /// tracks — and an author picking "what am I keying" should not have to know which pane each
+        /// lives in. The kind is carried on the item rather than inferred from the id, so adding a
+        /// third kind later does not mean re-encoding the id space.
+        /// </remarks>
+        private sealed class HierarchyItem
+        {
+            public bool isRigTarget;
+            public string displayName;
+
+            /// <summary>Set for a rig target.</summary>
+            public uint targetId;
+
+            /// <summary>Set for a previewed transform: its index in the preview's hierarchy.</summary>
+            public int previewIndex;
+        }
+
+        /// <summary>
+        /// Tree ids for rig targets, which must not collide with the preview hierarchy indices that
+        /// id the transform rows. Preview indices are always ≥ 0, so targets take the negatives —
+        /// no threshold constant to outgrow, unlike an offset scheme.
+        /// </summary>
+        private const int RigTargetItemIdBase = -2;
+
+        /// <summary>
+        /// Not −1: that is a legitimate tree id under <see cref="RigTargetItemIdBase"/>'s scheme,
+        /// and overloading it would make the first rig target indistinguishable from no selection.
+        /// </summary>
+        private const int NothingSelectedItemId = int.MinValue;
+
+        private readonly Dictionary<int, HierarchyItem> hierarchyItemsById =
+            new Dictionary<int, HierarchyItem>();
 
         /// <summary>
         /// The selected transform's name, which is the identity bone <em>tracks</em> bind by.
@@ -127,6 +169,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// window's selection stay separate things.
         /// </summary>
         private string selectedBoneName;
+
+        /// <summary>The selected rig target, or 0 when the selection is a bone or nothing.</summary>
+        private uint selectedTargetId;
 
         // Viewport picking. Hits are gathered on pointer-down, from the press position, and applied
         // on release — see OnPreviewPointerUp for why that is not the same as selecting on press.
@@ -897,10 +942,24 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            int itemId = previewController.GetHierarchyIndex(pickedTransform);
-            if (itemId < 0)
+            int itemId;
+            uint pickedTargetId;
+            if (previewController.TryGetTargetIdForTransform(pickedTransform, out pickedTargetId))
             {
-                return;
+                // A cutout part quad. Its row is a rig target, not a transform of the previewed
+                // prefab, so the id comes from the target table rather than the preview hierarchy.
+                if (!TryFindRigTargetItemId(pickedTargetId, out itemId))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                itemId = previewController.GetHierarchyIndex(pickedTransform);
+                if (itemId < 0)
+                {
+                    return;
+                }
             }
 
             hierarchyTreeView.SetSelectionById(itemId);
@@ -927,7 +986,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             // Cleared before the tree is rebuilt: the old instance's transforms are gone, so the
             // held index now points into a hierarchy that no longer exists.
-            SelectHierarchyItem(-1, null);
+            SelectHierarchyItem(NothingSelectedItemId);
             previousPickCandidates.Clear();
             pickCandidates.Clear();
             RebuildHierarchy();
@@ -976,7 +1035,13 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
-            List<TreeViewItemData<string>> rootItems = new List<TreeViewItemData<string>>();
+            hierarchyItemsById.Clear();
+            List<TreeViewItemData<HierarchyItem>> rootItems = new List<TreeViewItemData<HierarchyItem>>();
+
+            // The rig's parts come first: they are what a cutout clip animates, and they are what a
+            // flipbook track binds to. Before this they appeared nowhere in the window, so a
+            // flipbook track had no object to belong to.
+            rootItems.AddRange(BuildRigTargetItems());
 
             // Built from the preview's live instance, not from the prefab asset. The viewport picks
             // transforms out of that instance, so sourcing the tree from it means a picked object is
@@ -1010,16 +1075,59 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// The id <em>is</em> the preview's index for that transform. Numbering them here instead
         /// would mean two independent walks that agree only as long as nobody changes one of them.
         /// </remarks>
-        private TreeViewItemData<string> BuildHierarchyItem(Transform transformNode)
+        private TreeViewItemData<HierarchyItem> BuildHierarchyItem(Transform transformNode)
         {
-            List<TreeViewItemData<string>> childItems = new List<TreeViewItemData<string>>();
+            List<TreeViewItemData<HierarchyItem>> childItems =
+                new List<TreeViewItemData<HierarchyItem>>();
             for (int childIndex = 0; childIndex < transformNode.childCount; childIndex++)
             {
                 childItems.Add(BuildHierarchyItem(transformNode.GetChild(childIndex)));
             }
 
-            return new TreeViewItemData<string>(
-                previewController.GetHierarchyIndex(transformNode), transformNode.name, childItems);
+            int itemId = previewController.GetHierarchyIndex(transformNode);
+            HierarchyItem item = new HierarchyItem
+            {
+                isRigTarget = false,
+                displayName = transformNode.name,
+                previewIndex = itemId
+            };
+            hierarchyItemsById[itemId] = item;
+            return new TreeViewItemData<HierarchyItem>(itemId, item, childItems);
+        }
+
+        /// <summary>
+        /// One row per rig target, flat — a rig declares a list of parts, not a tree of them.
+        /// </summary>
+        private List<TreeViewItemData<HierarchyItem>> BuildRigTargetItems()
+        {
+            List<TreeViewItemData<HierarchyItem>> targetItems =
+                new List<TreeViewItemData<HierarchyItem>>();
+            if (clipSet == null || clipSet.rig == null || clipSet.rig.targets == null)
+            {
+                return targetItems;
+            }
+
+            for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = clipSet.rig.targets[targetIndex];
+                if (target == null)
+                {
+                    continue;
+                }
+
+                int itemId = RigTargetItemIdBase - targetIndex;
+                HierarchyItem item = new HierarchyItem
+                {
+                    isRigTarget = true,
+                    displayName = string.IsNullOrEmpty(target.displayName)
+                        ? "Target " + target.Id.Value.ToString()
+                        : target.displayName,
+                    targetId = target.Id.Value
+                };
+                hierarchyItemsById[itemId] = item;
+                targetItems.Add(new TreeViewItemData<HierarchyItem>(itemId, item));
+            }
+            return targetItems;
         }
 
         private static VisualElement MakeHierarchyRow()
@@ -1036,12 +1144,66 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 return;
             }
-            string boneName = hierarchyTreeView.GetItemDataForIndex<string>(index);
-            label.text = boneName;
+            HierarchyItem item = hierarchyTreeView.GetItemDataForIndex<HierarchyItem>(index);
+            if (item == null)
+            {
+                label.text = string.Empty;
+                return;
+            }
+            label.text = item.displayName;
 
-            // Bold marks a bone the selected clip already animates, so the tree doubles as the
+            // Bold marks something the selected clip already animates, so the tree doubles as the
             // answer to "what does this clip actually touch?".
-            label.EnableInClassList(AnimatedBoneUssClassName, FindBoneTrackIndex(boneName) >= 0);
+            bool isAnimated = item.isRigTarget
+                ? CountTracksForTarget(item.targetId) > 0
+                : FindBoneTrackIndex(item.displayName) >= 0;
+            label.EnableInClassList(AnimatedBoneUssClassName, isAnimated);
+        }
+
+        private bool TryFindRigTargetItemId(uint targetId, out int itemId)
+        {
+            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
+            {
+                if (pair.Value.isRigTarget && pair.Value.targetId == targetId)
+                {
+                    itemId = pair.Key;
+                    return true;
+                }
+            }
+            itemId = NothingSelectedItemId;
+            return false;
+        }
+
+        /// <summary>How many transform and flipbook tracks the selected clip aims at a target.</summary>
+        private int CountTracksForTarget(uint targetId)
+        {
+            if (selectedClip == null)
+            {
+                return 0;
+            }
+
+            int trackCount = 0;
+            for (int trackIndex = 0;
+                selectedClip.transformTracks != null && trackIndex < selectedClip.transformTracks.Count;
+                trackIndex++)
+            {
+                TransformTrack track = selectedClip.transformTracks[trackIndex];
+                if (track != null && track.targetId == targetId)
+                {
+                    trackCount++;
+                }
+            }
+            for (int trackIndex = 0;
+                selectedClip.spriteTracks != null && trackIndex < selectedClip.spriteTracks.Count;
+                trackIndex++)
+            {
+                SpriteTrack track = selectedClip.spriteTracks[trackIndex];
+                if (track != null && track.targetId == targetId)
+                {
+                    trackCount++;
+                }
+            }
+            return trackCount;
         }
 
         /// <summary>
@@ -1054,14 +1216,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         private void OnHierarchySelectionChanged(IEnumerable<object> selection)
         {
-            string boneName = null;
-            foreach (object item in selection)
-            {
-                boneName = item as string;
-                break;
-            }
-
-            int itemId = -1;
+            int itemId = NothingSelectedItemId;
             foreach (int selectedIndex in hierarchyTreeView.selectedIndices)
             {
                 itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
@@ -1069,29 +1224,56 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             // Key selection and hierarchy selection are one selection with two sources: showing a
-            // key's values under a heading naming a different bone would be a lie about what the
+            // key's values under a heading naming a different object would be a lie about what the
             // fields edit.
             selectedKeys.Clear();
-            SelectHierarchyItem(itemId, boneName);
+            SelectHierarchyItem(itemId);
             RepaintLanes();
             RebuildInspector();
         }
 
-        /// <summary>Points the viewport outline and the inspector at one transform, or at nothing.</summary>
-        private void SelectHierarchyItem(int itemId, string boneName)
+        /// <summary>Points the viewport outline and the inspector at one row, or at nothing.</summary>
+        private void SelectHierarchyItem(int itemId)
         {
             selectedHierarchyItemId = itemId;
-            selectedBoneName = boneName;
+
+            HierarchyItem item;
+            if (!hierarchyItemsById.TryGetValue(itemId, out item))
+            {
+                selectedBoneName = null;
+                selectedTargetId = 0u;
+                if (previewController != null)
+                {
+                    previewController.SetSelectedHierarchyIndex(-1);
+                }
+                return;
+            }
+
+            if (item.isRigTarget)
+            {
+                selectedBoneName = null;
+                selectedTargetId = item.targetId;
+                if (previewController != null)
+                {
+                    previewController.SetSelectedTargetId(item.targetId);
+                }
+                return;
+            }
+
+            selectedBoneName = item.displayName;
+            selectedTargetId = 0u;
             if (previewController != null)
             {
-                previewController.SetSelectedHierarchyIndex(itemId);
+                previewController.SetSelectedHierarchyIndex(item.previewIndex);
             }
         }
 
         /// <summary>Deselects everywhere at once — tree, viewport outline and inspector.</summary>
         private void ClearHierarchySelection()
         {
-            if (selectedHierarchyItemId < 0)
+            // Not "< 0": rig-target rows carry negative ids, so a less-than test would treat every
+            // selected part as nothing selected and refuse to clear it.
+            if (selectedHierarchyItemId == NothingSelectedItemId)
             {
                 return;
             }
@@ -1103,7 +1285,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
             }
-            SelectHierarchyItem(-1, null);
+            SelectHierarchyItem(NothingSelectedItemId);
             RebuildInspector();
         }
 
@@ -1135,6 +1317,12 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             RefreshClipList();
             RefreshClipActionButtons();
+
+            // The hierarchy lists the set's rig targets, so it is stale the moment the set changes.
+            // It used to be rebuilt only when the previewed prefab changed, which was enough while
+            // the pane showed nothing but that prefab's transforms.
+            SelectHierarchyItem(NothingSelectedItemId);
+            RebuildHierarchy();
 
             if (previewController != null)
             {
@@ -1528,18 +1716,22 @@ namespace StitchPunk.AnimationToolkit.Editor
                 boneName = track != null ? track.boneName : null;
             }
 
-            int itemId = -1;
+            int itemId = NothingSelectedItemId;
             if (!string.IsNullOrEmpty(boneName) && previewController != null)
             {
-                itemId = previewController.FindHierarchyIndexByName(boneName);
+                int previewIndex = previewController.FindHierarchyIndexByName(boneName);
+                if (previewIndex >= 0)
+                {
+                    itemId = previewIndex;
+                }
             }
-            SelectHierarchyItem(itemId, boneName);
+            SelectHierarchyItem(itemId);
 
             if (hierarchyTreeView == null)
             {
                 return;
             }
-            if (itemId >= 0)
+            if (itemId != NothingSelectedItemId)
             {
                 hierarchyTreeView.SetSelectionByIdWithoutNotify(new int[] { itemId });
                 hierarchyTreeView.ScrollToItemById(itemId);
@@ -2049,6 +2241,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 return;
             }
+            if (selectedTargetId != 0u)
+            {
+                BuildRigTargetInspector();
+                return;
+            }
             if (!string.IsNullOrEmpty(selectedBoneName))
             {
                 BuildBoneInspector();
@@ -2150,6 +2347,311 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             inspectorPane.Add(new PropertyField(tracksProperty.GetArrayElementAtIndex(boneTrackIndex)));
             inspectorPane.Bind(clipSerializedObject);
+        }
+
+        /// <summary>
+        /// The inspector for a rig target: the flipbook tracks driving it, each with its base index.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A target may carry several flipbook tracks, which is how one texture array holds
+        /// independent feature sets — a mouth track based at 0 and an eye track based at 32 animate
+        /// the same part without either knowing the other exists. They are listed rather than
+        /// merged for exactly that reason.
+        /// </para>
+        /// <para>
+        /// The base index is editable here because it is the retargeting handle: every relative key
+        /// on the track holds an offset against it, so moving this one number slides the whole track
+        /// onto a different span of the array without touching a key.
+        /// </para>
+        /// </remarks>
+        private void BuildRigTargetInspector()
+        {
+            string targetName = ResolveTargetDisplayName(selectedTargetId);
+            inspectorPane.Add(MakeHeading(targetName));
+            inspectorPane.Add(MakeHint("Rig target — animated by transform and flipbook tracks."));
+
+            if (selectedClip == null)
+            {
+                inspectorPane.Add(MakeHint("Select a clip to animate this part."));
+                return;
+            }
+
+            inspectorPane.Add(MakeHeading("Flipbook Tracks"));
+
+            bool foundAnyTrack = false;
+            for (int trackIndex = 0;
+                selectedClip.spriteTracks != null && trackIndex < selectedClip.spriteTracks.Count;
+                trackIndex++)
+            {
+                SpriteTrack track = selectedClip.spriteTracks[trackIndex];
+                if (track == null || track.targetId != selectedTargetId)
+                {
+                    continue;
+                }
+                foundAnyTrack = true;
+                inspectorPane.Add(BuildFlipbookTrackRow(track, trackIndex));
+            }
+
+            if (!foundAnyTrack)
+            {
+                inspectorPane.Add(MakeHint("No flipbook track on this clip drives this part."));
+            }
+
+            inspectorPane.Add(new Button(() => AddFlipbookTrack(selectedTargetId))
+            {
+                text = "Add Flipbook Track"
+            });
+        }
+
+        /// <summary>
+        /// One flipbook track's editable summary: its mode, its base index and its key count.
+        /// </summary>
+        private VisualElement BuildFlipbookTrackRow(SpriteTrack track, int trackIndex)
+        {
+            VisualElement trackRow = new VisualElement();
+            trackRow.AddToClassList(FlipbookTrackUssClassName);
+
+            int keyCount = track.keys != null ? track.keys.Count : 0;
+            trackRow.Add(MakeHeading("Track " + trackIndex + "  ·  " + keyCount + " key(s)"));
+
+            EnumField frameModeField = new EnumField("Frame Mode", track.mode);
+            frameModeField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Change Flipbook Frame Mode");
+                track.mode = (SpriteFrameMode)changeEvent.newValue;
+                CommitClipEdit();
+            });
+            trackRow.Add(frameModeField);
+
+            IntegerField baseIndexField = new IntegerField("Base Index");
+            baseIndexField.SetValueWithoutNotify(track.baseIndex);
+            baseIndexField.tooltip =
+                "Every RelativeToBase key on this track offsets from here. Changing it retargets "
+                + "the whole track onto a different span of the texture array; the keys keep their "
+                + "offsets untouched.";
+            baseIndexField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Change Flipbook Base Index");
+                track.baseIndex = changeEvent.newValue;
+                CommitClipEdit();
+
+                // Rebuilt because every relative key's resolved index just moved, and the resolved
+                // index is what the rows below show.
+                RebuildInspector();
+            });
+            trackRow.Add(baseIndexField);
+
+            EnumField sliceSpaceField = new EnumField("Slice Space", track.sliceSpace);
+            sliceSpaceField.tooltip =
+                "Whether this track's resolved value replaces the part's frame outright, or is "
+                + "added to the rest slice the character's variant chose.";
+            sliceSpaceField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Change Flipbook Slice Space");
+                track.sliceSpace = (SpriteSliceSpace)changeEvent.newValue;
+                CommitClipEdit();
+            });
+            trackRow.Add(sliceSpaceField);
+
+            for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
+            {
+                trackRow.Add(BuildFlipbookKeyRow(track, trackIndex, keyIndex));
+            }
+
+            trackRow.Add(new Button(() => RemoveFlipbookTrack(trackIndex))
+            {
+                text = "Remove Track"
+            });
+            return trackRow;
+        }
+
+        /// <summary>
+        /// One flipbook key: its stored number, what that resolves to, and a lossless mode toggle.
+        /// </summary>
+        /// <remarks>
+        /// Both numbers are shown because they answer different questions. The stored value is what
+        /// the asset holds and what an author edits; the resolved index is the frame that will
+        /// actually play. Showing only one of them is how "+5" and "12" become the same confusing
+        /// number in a bug report.
+        /// </remarks>
+        private VisualElement BuildFlipbookKeyRow(SpriteTrack track, int trackIndex, int keyIndex)
+        {
+            SpriteKey key = track.keys[keyIndex];
+
+            VisualElement keyRow = new VisualElement();
+            keyRow.AddToClassList(FlipbookKeyUssClassName);
+
+            IntegerField valueField = new IntegerField(
+                "@" + key.normalizedTime.ToString("0.###"));
+            valueField.SetValueWithoutNotify(key.sliceIndex);
+            valueField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordClipEdit("Edit Flipbook Key");
+                SpriteKey editedKey = track.keys[keyIndex];
+                editedKey.sliceIndex = changeEvent.newValue;
+                track.keys[keyIndex] = editedKey;
+                CommitClipEdit();
+                RebuildInspector();
+            });
+            keyRow.Add(valueField);
+
+            keyRow.Add(MakeFlipbookResolvedLabel(key, track.baseIndex));
+
+            EnumField indexModeField = new EnumField(key.indexMode);
+            indexModeField.tooltip =
+                "Absolute keys name a frame outright. Relative keys hold an offset from the "
+                + "track's base index. Switching between them keeps the frame the key shows.";
+            indexModeField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ToggleFlipbookKeyMode(track, keyIndex, (SpriteIndexMode)changeEvent.newValue);
+            });
+            keyRow.Add(indexModeField);
+
+            return keyRow;
+        }
+
+        /// <summary>Shows what a key resolves to, in the "+5 → 12" form.</summary>
+        private static Label MakeFlipbookResolvedLabel(SpriteKey key, int baseIndex)
+        {
+            int resolvedIndex = SpriteIndexResolver.Resolve(key.sliceIndex, key.indexMode, baseIndex);
+
+            string resolvedText;
+            if (key.indexMode == SpriteIndexMode.RelativeToBase)
+            {
+                string offsetText = key.sliceIndex >= 0
+                    ? "+" + key.sliceIndex.ToString()
+                    : key.sliceIndex.ToString();
+                resolvedText = offsetText + " → " + resolvedIndex.ToString();
+            }
+            else if (key.sliceIndex == SpriteIndexResolver.NoChangeSentinel)
+            {
+                resolvedText = "no change";
+            }
+            else
+            {
+                resolvedText = "→ " + resolvedIndex.ToString();
+            }
+
+            Label resolvedLabel = new Label(resolvedText);
+            resolvedLabel.AddToClassList(FlipbookResolvedUssClassName);
+            resolvedLabel.EnableInClassList(
+                FlipbookInvalidUssClassName,
+                key.indexMode == SpriteIndexMode.RelativeToBase && resolvedIndex < 0);
+            return resolvedLabel;
+        }
+
+        /// <summary>
+        /// Switches a key between absolute and relative without moving the frame it shows.
+        /// </summary>
+        /// <remarks>
+        /// Absolute→Relative subtracts the base to recover the offset; Relative→Absolute writes the
+        /// resolved value out. Both go through <c>SpriteIndexResolver</c>, so this conversion cannot
+        /// drift from the resolution the sampler performs.
+        /// </remarks>
+        private void ToggleFlipbookKeyMode(SpriteTrack track, int keyIndex, SpriteIndexMode newMode)
+        {
+            SpriteKey key = track.keys[keyIndex];
+            if (key.indexMode == newMode)
+            {
+                return;
+            }
+
+            int resolvedIndex = SpriteIndexResolver.Resolve(
+                key.sliceIndex, key.indexMode, track.baseIndex);
+
+            RecordClipEdit("Change Flipbook Key Mode");
+            key.indexMode = newMode;
+            key.sliceIndex = SpriteIndexResolver.StoredValueFor(
+                resolvedIndex, newMode, track.baseIndex);
+            track.keys[keyIndex] = key;
+            CommitClipEdit();
+
+            RebuildInspector();
+        }
+
+        private string ResolveTargetDisplayName(uint targetId)
+        {
+            if (clipSet == null || clipSet.rig == null || clipSet.rig.targets == null)
+            {
+                return "Target " + targetId.ToString();
+            }
+            for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = clipSet.rig.targets[targetIndex];
+                if (target != null && target.Id.Value == targetId
+                    && !string.IsNullOrEmpty(target.displayName))
+                {
+                    return target.displayName;
+                }
+            }
+            return "Target " + targetId.ToString();
+        }
+
+        private void AddFlipbookTrack(uint targetId)
+        {
+            if (selectedClip == null || targetId == 0u)
+            {
+                return;
+            }
+
+            if (selectedClip.spriteTracks == null)
+            {
+                selectedClip.spriteTracks = new List<SpriteTrack>();
+            }
+
+            RecordClipEdit("Add Flipbook Track");
+            selectedClip.spriteTracks.Add(new SpriteTrack
+            {
+                targetId = targetId,
+                mode = SpriteFrameMode.Slice,
+                keys = new List<SpriteKey>()
+            });
+            CommitClipEdit();
+
+            RebuildTimeline();
+        }
+
+        private void RemoveFlipbookTrack(int trackIndex)
+        {
+            if (selectedClip == null || selectedClip.spriteTracks == null
+                || trackIndex < 0 || trackIndex >= selectedClip.spriteTracks.Count)
+            {
+                return;
+            }
+
+            RecordClipEdit("Remove Flipbook Track");
+            selectedClip.spriteTracks.RemoveAt(trackIndex);
+            CommitClipEdit();
+
+            selectedKeys.Clear();
+            RebuildTimeline();
+        }
+
+        /// <summary>
+        /// Opens one undo step for a direct edit to the clip's own objects.
+        /// </summary>
+        /// <remarks>
+        /// The flipbook rows edit <c>SpriteTrack</c> instances directly rather than through
+        /// <c>SerializedProperty</c>, because a track's meaning spans two fields the property
+        /// drawers cannot relate — a key's stored number is only interpretable beside its mode and
+        /// its track's base. Direct edits get none of the binding machinery's undo for free, so the
+        /// gesture is recorded explicitly, exactly as the timeline's own gestures are.
+        /// </remarks>
+        private void RecordClipEdit(string actionName)
+        {
+            Undo.IncrementCurrentGroup();
+            gestureUndoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName(actionName);
+            Undo.RecordObject(selectedClip, actionName);
+        }
+
+        private void CommitClipEdit()
+        {
+            Undo.CollapseUndoOperations(gestureUndoGroup);
+            EditorUtility.SetDirty(selectedClip);
+            RefreshSerializedClip();
+            MarkPreviewDirty();
         }
 
         private void BuildClipInspector()

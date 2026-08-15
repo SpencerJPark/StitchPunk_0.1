@@ -91,6 +91,13 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         private int selectedHierarchyIndex = -1;
 
+        /// <summary>
+        /// The rig target the outline follows when a part is selected instead of a bone, or 0 for
+        /// none. Separate from <see cref="selectedHierarchyIndex"/> because the two name things in
+        /// different hierarchies — a target lives in the rig, a bone in the previewed prefab.
+        /// </summary>
+        private uint selectedTargetId;
+
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
         private string statusMessage = "No clip set assigned.";
@@ -210,10 +217,35 @@ namespace StitchPunk.AnimationToolkit.Editor
         public void SetSelectedHierarchyIndex(int hierarchyIndex)
         {
             selectedHierarchyIndex = hierarchyIndex;
+            selectedTargetId = 0u;
             if (hierarchyIndex < 0)
             {
                 sceneGizmos.HideSelection();
             }
+        }
+
+        /// <summary>
+        /// Sets the outline to follow a rig target's mirrored part instead of a prefab transform.
+        /// </summary>
+        /// <remarks>
+        /// The two selections are mutually exclusive because there is one outline and one inspector.
+        /// Clearing the other here is what stops a stale bone index outlining a joint while the
+        /// inspector talks about a part.
+        /// </remarks>
+        public void SetSelectedTargetId(uint targetId)
+        {
+            selectedTargetId = targetId;
+            selectedHierarchyIndex = -1;
+            if (targetId == 0u)
+            {
+                sceneGizmos.HideSelection();
+            }
+        }
+
+        /// <summary>The rig target a picked transform stands for, or false when it is not a part.</summary>
+        public bool TryGetTargetIdForTransform(Transform pickedTransform, out uint targetId)
+        {
+            return rigMirror.TryGetTargetId(pickedTransform, out targetId);
         }
 
         /// <summary>The hierarchy index of a transform, or -1 when it is not in the previewed rig.</summary>
@@ -294,10 +326,6 @@ namespace StitchPunk.AnimationToolkit.Editor
         public void CollectPickHits(Vector2 viewportPoint, float aspect, List<PreviewPickHit> hits)
         {
             hits.Clear();
-            if (HierarchyRoot == null)
-            {
-                return;
-            }
 
             EnsureRenderUtility();
             ApplyCameraPose();
@@ -308,8 +336,30 @@ namespace StitchPunk.AnimationToolkit.Editor
                 aspect,
                 viewportPoint);
 
-            PreviewScenePicker.CollectHits(
-                HierarchyRoot, boneHandles.Bones, BoneHandleRadius, pickRay, hits);
+            if (HierarchyRoot != null)
+            {
+                PreviewScenePicker.CollectHits(
+                    HierarchyRoot, boneHandles.Bones, BoneHandleRadius, pickRay, hits);
+            }
+
+            // The cutout parts are pickable too, now that rig targets have rows in the hierarchy
+            // pane to be selected into. They were excluded while they had none: a click that
+            // selected something the user could not see selected is worse than a click that does
+            // nothing.
+            if (rigMirror.RootObject != null)
+            {
+                List<PreviewPickHit> partHits = new List<PreviewPickHit>();
+                PreviewScenePicker.CollectHits(
+                    rigMirror.RootObject.transform, null, 0f, pickRay, partHits);
+                for (int hitIndex = 0; hitIndex < partHits.Count; hitIndex++)
+                {
+                    uint hitTargetId;
+                    if (rigMirror.TryGetTargetId(partHits[hitIndex].pickedTransform, out hitTargetId))
+                    {
+                        hits.Add(partHits[hitIndex]);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -527,7 +577,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         private void UpdateSelectionMarker()
         {
-            Transform selectedTransform = skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
+            Transform selectedTransform = selectedTargetId != 0u
+                ? rigMirror.GetPartTransform(selectedTargetId)
+                : skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
             if (selectedTransform == null)
             {
                 sceneGizmos.HideSelection();

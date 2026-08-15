@@ -183,6 +183,39 @@
     padding-top: 2px;
 }
 
+/* ------------------------------------------------------------------------------------------- */
+/* Flipbook tracks                                                                               */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__flipbook-track {
+    margin-top: 4px;
+    margin-bottom: 6px;
+    padding-left: 6px;
+    padding-bottom: 4px;
+    border-left-width: 2px;
+    border-left-color: rgba(120, 160, 200, 0.5);
+}
+
+/* A key reads left to right as one sentence: what is stored, what it resolves to, how to read it. */
+.clip-editor__flipbook-key {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 1px;
+}
+
+.clip-editor__flipbook-resolved {
+    min-width: 76px;
+    margin-left: 6px;
+    margin-right: 6px;
+    -unity-font-style: bold;
+    opacity: 0.85;
+}
+
+/* A relative key whose base and offset disagree — validation rule V18 reports the same thing. */
+.clip-editor__flipbook-resolved--invalid {
+    color: rgb(230, 90, 82);
+}
+
 .clip-editor__heading {
     -unity-font-style: bold;
     margin-top: 6px;
