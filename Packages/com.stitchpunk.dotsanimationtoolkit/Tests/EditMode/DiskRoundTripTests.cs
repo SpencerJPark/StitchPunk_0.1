@@ -345,9 +345,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack transformTrack = AuthoringTestAssets.AddTransformTrack(
                 clip, 0x0CCC0001u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                transformTrack, 0f, new float3(1f, 2f, 0f), 45f, new float2(1f, 1f), Interpolation.Linear);
+                transformTrack, 0f, new float3(1f, 2f, 0f), 45f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                transformTrack, 1f, new float3(-1f, -2f, 0f), -45f, new float2(1f, 1f), Interpolation.Linear);
+                transformTrack, 1f, new float3(-1f, -2f, 0f), -45f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
             clipSet.name = "Set";
@@ -408,13 +408,13 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             clip.duration = 1f;
 
             TransformTrack transformTrack = AuthoringTestAssets.AddTransformTrack(
-                clip, TransformTargetId, TrackBlendOp.Additive, AnimatedChannels.PositionXY | AnimatedChannels.RotationZ);
+                clip, TransformTargetId, TrackBlendOp.Additive, AnimatedChannels.PositionXY | AnimatedChannels.Rotation);
             AuthoringTestAssets.AddTransformKey(
-                transformTrack, 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                transformTrack, 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                transformTrack, 0.5f, new float3(1.5f, -2.5f, 3f), 90f, new float2(1.2f, 0.8f), Interpolation.EaseInOut);
+                transformTrack, 0.5f, new float3(1.5f, -2.5f, 3f), 90f, new float3(1.2f, 0.8f, 1f), Interpolation.EaseInOut);
             AuthoringTestAssets.AddTransformKey(
-                transformTrack, 1f, new float3(-1f, 2f, -3f), 180f, new float2(0.5f, 0.5f), Interpolation.Step);
+                transformTrack, 1f, new float3(-1f, 2f, -3f), 180f, new float3(0.5f, 0.5f, 1f), Interpolation.Step);
 
             SpriteTrack spriteTrack = AuthoringTestAssets.AddSpriteTrack(clip, SpriteTargetId, SpriteFrameMode.AtlasRect);
             AuthoringTestAssets.AddSpriteKey(spriteTrack, 0f, -1, new float4(1f, 1f, 0f, 0f));
@@ -433,12 +433,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack reloadedTransformTrack = reloadedClip.transformTracks[0];
             Assert.AreEqual(TransformTargetId, reloadedTransformTrack.targetId);
             Assert.AreEqual(TrackBlendOp.Additive, reloadedTransformTrack.blendOp);
-            Assert.AreEqual(AnimatedChannels.PositionXY | AnimatedChannels.RotationZ, reloadedTransformTrack.channels);
+            Assert.AreEqual(AnimatedChannels.PositionXY | AnimatedChannels.Rotation, reloadedTransformTrack.channels);
             Assert.AreEqual(3, reloadedTransformTrack.keys.Count, "All three transform keys must survive.");
 
-            AssertTransformKey(reloadedTransformTrack.keys[0], 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
-            AssertTransformKey(reloadedTransformTrack.keys[1], 0.5f, new float3(1.5f, -2.5f, 3f), 90f, new float2(1.2f, 0.8f), Interpolation.EaseInOut);
-            AssertTransformKey(reloadedTransformTrack.keys[2], 1f, new float3(-1f, 2f, -3f), 180f, new float2(0.5f, 0.5f), Interpolation.Step);
+            AssertTransformKey(reloadedTransformTrack.keys[0], 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            AssertTransformKey(reloadedTransformTrack.keys[1], 0.5f, new float3(1.5f, -2.5f, 3f), 90f, new float3(1.2f, 0.8f, 1f), Interpolation.EaseInOut);
+            AssertTransformKey(reloadedTransformTrack.keys[2], 1f, new float3(-1f, 2f, -3f), 180f, new float3(0.5f, 0.5f, 1f), Interpolation.Step);
 
             Assert.AreEqual(1, reloadedClip.spriteTracks.Count, "The sprite track must survive the round trip.");
             SpriteTrack reloadedSpriteTrack = reloadedClip.spriteTracks[0];
@@ -518,16 +518,17 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             float normalizedTime,
             float3 position,
             float rotationDegrees,
-            float2 scale,
+            float3 scale,
             Interpolation interpolation)
         {
             Assert.AreEqual(normalizedTime, key.normalizedTime, FloatTolerance);
             Assert.AreEqual(position.x, key.position.x, FloatTolerance);
             Assert.AreEqual(position.y, key.position.y, FloatTolerance);
             Assert.AreEqual(position.z, key.position.z, FloatTolerance);
-            Assert.AreEqual(rotationDegrees, key.rotationZ, FloatTolerance);
+            Assert.AreEqual(rotationDegrees, key.rotation.z, FloatTolerance);
             Assert.AreEqual(scale.x, key.scale.x, FloatTolerance);
             Assert.AreEqual(scale.y, key.scale.y, FloatTolerance);
+            Assert.AreEqual(scale.z, key.scale.z, FloatTolerance);
             Assert.AreEqual(interpolation, key.interpolation);
         }
 

@@ -145,7 +145,7 @@ namespace StitchPunk.AnimationToolkit.Samples
             {
                 targetId = targetId,
                 blendOp = TrackBlendOp.Override,
-                channels = AnimatedChannels.RotationZ,
+                channels = AnimatedChannels.Rotation,
                 keys = new List<TransformKey>
                 {
                     MakeKey(0f, 0f),

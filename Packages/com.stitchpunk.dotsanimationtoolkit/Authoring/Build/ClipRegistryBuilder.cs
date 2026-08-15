@@ -77,8 +77,15 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// base of zero and ease every Bézier key as linear, so the two are not interchangeable.
         /// This version also puts <c>sliceSpace</c> into the content hash for the first time.
         /// </para>
+        /// <para>
+        /// Version 6 makes transform data 3D: a key's rotation is three Euler angles rather than one
+        /// z angle, and its scale is a <c>float3</c> rather than a <c>float2</c>. A version-5 blob
+        /// read as version 6 would be reinterpreting a differently-shaped struct — rotation and
+        /// scale would both be read from the wrong offsets — so the two are not interchangeable at
+        /// all, which is exactly what the version gate exists to prevent.
+        /// </para>
         /// </remarks>
-        public const int SchemaVersion = 5;
+        public const int SchemaVersion = 6;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -652,7 +659,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         normalizedTime = authoredKey.normalizedTime,
                         position = authoredKey.position,
                         // Section 4.5 point 2: degrees in, radians out, converted once at bake.
-                        rotationZ = math.radians(authoredKey.rotationZ),
+                        rotation = math.radians(authoredKey.rotation),
                         scale = authoredKey.scale,
                         interpolation = authoredKey.interpolation,
                         bezierStartHandle = authoredKey.bezierStartHandle,
@@ -828,7 +835,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>
         /// Unions, per architecture section 4.6: every transform key's <c>position.xy</c> offset
         /// grown by its target's authored half-extents scaled by
-        /// <c>max(|scale.x|, |scale.y|, 1)</c>; the origin-centred rest box of every target no key
+        /// <c>max(|scale.x|, |scale.y|, |scale.z|, 1)</c>; the origin-centred rest box of every target no key
         /// moved; and the exact measured bounds of the clip's VAT range when it has one.
         /// Conservative by construction, because all five interpolation modes are monotonic between
         /// keys, so the keys bound the extremes of the sampled curve.
@@ -866,11 +873,14 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 for (int keyIndex = 0; keyIndex < entry.track.keys.Count; keyIndex++)
                 {
                     TransformKey authoredKey = entry.track.keys[keyIndex];
+                    // All three axes now, and the key's z offset is part of the box rather than
+                    // flattened to 0: a 3D rig moves in depth, and a bound that ignored z would cull
+                    // a vehicle the moment it drove away from the origin plane.
                     float scaleFactor = math.max(
-                        math.max(math.abs(authoredKey.scale.x), math.abs(authoredKey.scale.y)),
+                        math.cmax(math.abs(authoredKey.scale)),
                         1f);
                     float3 scaledExtents = targetExtents * scaleFactor;
-                    float3 keyCenter = new float3(authoredKey.position.x, authoredKey.position.y, 0f);
+                    float3 keyCenter = authoredKey.position;
                     unionBounds.Encapsulate(keyCenter - scaledExtents);
                     unionBounds.Encapsulate(keyCenter + scaledExtents);
                 }
@@ -1022,9 +1032,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     hashState.Update(math.asuint(keyBlob.position.x));
                     hashState.Update(math.asuint(keyBlob.position.y));
                     hashState.Update(math.asuint(keyBlob.position.z));
-                    hashState.Update(math.asuint(keyBlob.rotationZ));
+                    hashState.Update(math.asuint(keyBlob.rotation.x));
+                    hashState.Update(math.asuint(keyBlob.rotation.y));
+                    hashState.Update(math.asuint(keyBlob.rotation.z));
                     hashState.Update(math.asuint(keyBlob.scale.x));
                     hashState.Update(math.asuint(keyBlob.scale.y));
+                    hashState.Update(math.asuint(keyBlob.scale.z));
                     hashState.Update((byte)keyBlob.interpolation);
                     hashState.Update(math.asuint(keyBlob.bezierStartHandle.x));
                     hashState.Update(math.asuint(keyBlob.bezierStartHandle.y));

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — transform data is 3D (schema version 6)
+
+**Breaking, and the reason for a full re-bake.** A transform key's rotation is now
+three Euler angles rather than one z angle, and its scale is a `float3` rather
+than a `float2`. Everything animated in this system is treated as 3D data: a
+vehicle keyed here needs pitch and yaw as much as roll, and a 2.5D cutout simply
+leaves the axes it does not use at their identity and pays nothing for them.
+
+- `TransformKey`, `TransformKeyBlob`, `TargetPose` and `TargetRestPose` all carry
+  `float3 rotation` (degrees when authored, radians once baked) and `float3 scale`.
+- Euler rather than a quaternion, because these are the numbers an author types
+  and drags — three readable fields with a sign and a magnitude. Bone tracks keep
+  quaternions, because nobody types those; they arrive from a bake or a solver.
+  Angles are ZXY, matching `Transform.eulerAngles`, so a value typed here means
+  what it would mean anywhere else in Unity.
+- Sampling lerps the angles per component, which is how a keyed rotation curve
+  behaves everywhere an author has met one. Slerping a quaternion rebuilt from
+  them would take a different path between the same two keys and quietly disagree
+  with the curve editor.
+- `AnimatedChannels.RotationZ` → `Rotation` and `LayerZ` → `PositionZ`. The bit
+  values are unchanged, so existing masks keep their meaning — an enum serializes
+  as its number, not its name.
+- **Existing clips migrate on load, and the migration is verified rather than
+  assumed.** `ClipAsset.OnAfterDeserialize` moves a legacy `rotationZ` onto the z
+  component and completes a 2D scale's missing z to 1. Both triggers are "this
+  field was never written" rather than "this field is zero": a rotation is only
+  adopted when the 3D one is still all zeros, and a scale is only corrected when
+  its z is exactly 0, which no author chooses because it collapses the part to
+  nothing. The legacy field is retained solely to make that possible and can go
+  once no project in flight still has unmigrated assets.
+- The gizmos gained the axes to match: three rotation rings, coloured like the
+  axis each turns about, and a z arm on the scale gizmo.
+- **Baked bounds now include a key's z displacement.** They did not while z meant
+  draw-layer order; a box that ignored it would cull a vehicle the moment it drove
+  away from the origin plane. `ClipRegistryBuilderTests` asserted the old
+  behaviour and now asserts the new one, with the reason written down.
+- Mirroring reflects the y and z angles and leaves x alone: a roll about the
+  mirror axis survives a reflection, a yaw and a pitch reverse.
+- Schema 5 → 6 with the golden hash re-recorded in the same commit. A version-5
+  blob read as version 6 would be reading differently-shaped structs, so the gate
+  matters more here than for any previous bump.
+- Six new tests exercise the axes nothing else touches. Almost every existing
+  fixture leaves x and y at zero and would still pass if the new axes were dropped
+  on the way to the blob, which is exactly why they needed their own coverage.
+
 ### Added — keying, scrubbing, gizmos and a dopesheet
 
 - **The transform block is always visible for the selected part**, whether or not

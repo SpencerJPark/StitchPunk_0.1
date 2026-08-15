@@ -411,7 +411,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 BodyTargetIndex,
                 restPosition: BodyRestPosition,
                 restRotationZ: 0.25f,
-                restScale: new float2(1.5f, 0.8f));
+                restScale: new float3(1.5f, 0.8f, 1f));
 
             // Values the rest pose cannot produce, so "published the rest pose" is distinguishable
             // from "never wrote anything" — the baker seeds TargetPose from rest, so without this the
@@ -421,8 +421,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 new TargetPose
                 {
                     localPosition = new float3(ScribbledPoseX, ScribbledPoseX, ScribbledPoseX),
-                    rotationZ = ScribbledPoseX,
-                    scale = new float2(ScribbledPoseX, ScribbledPoseX),
+                    rotation = new float3(0f, 0f, ScribbledPoseX),
+                    scale = new float3(ScribbledPoseX, ScribbledPoseX, ScribbledPoseX),
                     sliceIndex = -9,
                     atlasRect = ClipSampler.IdentityAtlasRect
                 });
@@ -433,7 +433,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             TargetPose pose = testWorld.EntityManager.GetComponentData<TargetPose>(body);
             Assert.AreEqual(BodyRestPosition.x, pose.localPosition.x, Tolerance, "An empty clip keys nothing.");
             Assert.AreEqual(BodyRestPosition.y, pose.localPosition.y, Tolerance);
-            Assert.AreEqual(0.25f, pose.rotationZ, Tolerance);
+            Assert.AreEqual(0.25f, pose.rotation.z, Tolerance);
             Assert.AreEqual(1.5f, pose.scale.x, Tolerance);
             Assert.AreEqual(0.8f, pose.scale.y, Tolerance);
 

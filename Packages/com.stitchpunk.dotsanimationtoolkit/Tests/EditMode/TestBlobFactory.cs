@@ -42,7 +42,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             internal float normalizedTime;
             internal float3 position;
             internal float rotationZ;
-            internal float2 scale;
+            internal float3 scale;
             internal Interpolation interpolation;
         }
 
@@ -83,7 +83,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 normalizedTime = normalizedTime,
                 position = new float3(positionX, positionY, positionZ),
                 rotationZ = rotationZ,
-                scale = new float2(scaleX, scaleY),
+                scale = new float3(scaleX, scaleY, 1f),
                 interpolation = interpolation
             };
         }
@@ -210,7 +210,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     {
                         normalizedTime = keySpec.normalizedTime,
                         position = keySpec.position,
-                        rotationZ = keySpec.rotationZ,
+                        rotation = new float3(0f, 0f, keySpec.rotationZ),
                         scale = keySpec.scale,
                         interpolation = keySpec.interpolation
                     };

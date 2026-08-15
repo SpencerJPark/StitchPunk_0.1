@@ -158,7 +158,7 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
                 float sign = armSigns[armIndex];
                 float[] swingAngles = { SwingDegrees * sign, -SwingDegrees * sign, SwingDegrees * sign };
                 TransformTrack armTrack = NewTrack(
-                    rig.targets[armIndex + 1].Id.Value, AnimatedChannels.RotationZ);
+                    rig.targets[armIndex + 1].Id.Value, AnimatedChannels.Rotation);
                 for (int keyIndex = 0; keyIndex < swingTimes.Length; keyIndex++)
                 {
                     armTrack.keys.Add(NewKey(swingTimes[keyIndex], float3.zero, swingAngles[keyIndex]));
@@ -193,8 +193,8 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
             TransformKey key = new TransformKey();
             key.normalizedTime = normalizedTime;
             key.position = position;
-            key.rotationZ = rotationZ;
-            key.scale = new float2(1f, 1f);
+            key.rotation = new float3(0f, 0f, rotationZ);
+            key.scale = new float3(1f, 1f, 1f);
             key.interpolation = Interpolation.Linear;
             return key;
         }

@@ -168,16 +168,16 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             {
                 normalizedTime = 0f,
                 position = float3.zero,
-                rotationZ = 0f,
-                scale = new float2(1f, 1f),
+                rotation = float3.zero,
+                scale = new float3(1f, 1f, 1f),
                 interpolation = Interpolation.Linear
             });
             torsoTrack.keys.Add(new TransformKey
             {
                 normalizedTime = 1f,
                 position = new float3(0.25f, 0f, 0f),
-                rotationZ = 0f,
-                scale = new float2(1f, 1f),
+                rotation = float3.zero,
+                scale = new float3(1f, 1f, 1f),
                 interpolation = Interpolation.Linear
             });
             clip.transformTracks.Add(torsoTrack);

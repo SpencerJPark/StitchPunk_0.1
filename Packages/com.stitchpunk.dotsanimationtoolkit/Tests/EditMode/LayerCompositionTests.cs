@@ -70,7 +70,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                         new TestBlobFactory.TransformTrackSpec
                         {
                             targetIndex = 0,
-                            channels = AnimatedChannels.RotationZ,
+                            channels = AnimatedChannels.Rotation,
                             keys = new TestBlobFactory.TransformKeySpec[]
                             {
                                 TestBlobFactory.Key(0f, 99f, 99f, Interpolation.Linear, 1.5f, 9f, 9f, 99f)
@@ -213,8 +213,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             return new TargetRestPose
             {
                 localPosition = float3.zero,
-                rotationZ = 0f,
-                scale = new float2(1f, 1f),
+                rotation = new float3(0f, 0f, 0f),
+                scale = new float3(1f, 1f, 1f),
                 restSliceIndex = 0
             };
         }
@@ -361,8 +361,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             return new TargetRestPose
             {
                 localPosition = new float3(10f, 20f, 5f),
-                rotationZ = 0.25f,
-                scale = new float2(3f, 4f),
+                rotation = new float3(0f, 0f, 0.25f),
+                scale = new float3(3f, 4f, 1f),
                 restSliceIndex = 0
             };
         }
@@ -443,7 +443,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         {
             TargetPose pose = Composite(new PlaybackLayer[] { default, default });
             Assert.AreEqual(0f, pose.localPosition.x, Tolerance);
-            Assert.AreEqual(0f, pose.rotationZ, Tolerance);
+            Assert.AreEqual(0f, pose.rotation.z, Tolerance);
             Assert.AreEqual(1f, pose.scale.x, Tolerance);
             Assert.AreEqual(0, pose.sliceIndex);
         }
@@ -477,7 +477,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 ActiveLayer(WalkClipIndex),
                 ActiveLayer(SpinClipIndex)
             });
-            Assert.AreEqual(1.5f, pose.rotationZ, Tolerance, "The spin layer's masked rotation applies.");
+            Assert.AreEqual(1.5f, pose.rotation.z, Tolerance, "The spin layer's masked rotation applies.");
             Assert.AreEqual(1f, pose.localPosition.x, Tolerance, "The walk position survives the rotation-only upper layer.");
             Assert.AreEqual(2f, pose.localPosition.y, Tolerance);
             Assert.AreEqual(1f, pose.scale.x, Tolerance, "Unmasked scale is untouched despite the key's scale values.");

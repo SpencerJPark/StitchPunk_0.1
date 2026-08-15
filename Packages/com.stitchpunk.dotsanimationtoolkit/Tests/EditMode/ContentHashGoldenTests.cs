@@ -47,7 +47,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         // Re-recorded again for schema version 5, which added per-key Bezier handles to transform
         // keys, a per-track baseIndex and a per-key SpriteIndexMode to sprite tracks, and put
         // sliceSpace into the hash stream for the first time.
-        private const ulong ExpectedContentHash = 0xEC3FE19C545CA567UL;
+        // Re-recorded again for schema version 6, which made transform rotation three Euler angles
+        // and transform scale a float3.
+        private const ulong ExpectedContentHash = 0x7E388DC3CF0D371AUL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -149,7 +151,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack orphanedTrack = AuthoringTestAssets.AddTransformTrack(
                 invalidSet.clips[0], 0xDEADu, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                orphanedTrack, 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f),
+                orphanedTrack, 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
                 Interpolation.Linear);
 
             Unity.Entities.Hash128 invalidSetHash;
@@ -169,9 +171,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                5,
+                6,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 5. A bump must be paired " +
+                "The golden value above was recorded under schema version 6. A bump must be paired " +
                 "with a re-recorded constant, never landed on its own.");
         }
 
@@ -201,9 +203,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 walkClip, BodyTargetId, TrackBlendOp.Override,
                 AnimatedChannels.PositionXY | AnimatedChannels.Scale);
             AuthoringTestAssets.AddTransformKey(
-                bodyTrack, 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                bodyTrack, 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                bodyTrack, 1f, new float3(2f, -1f, 0.5f), 90f, new float2(-1.5f, 2f), Interpolation.EaseInOut);
+                bodyTrack, 1f, new float3(2f, -1f, 0.5f), 90f, new float3(-1.5f, 2f, 1f), Interpolation.EaseInOut);
             SpriteTrack headSliceTrack = AuthoringTestAssets.AddSpriteTrack(
                 walkClip, HeadTargetId, SpriteFrameMode.Slice);
             AuthoringTestAssets.AddSpriteKey(headSliceTrack, 0f, 2, float4.zero);

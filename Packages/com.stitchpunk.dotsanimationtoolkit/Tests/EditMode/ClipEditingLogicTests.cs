@@ -114,16 +114,16 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             {
                 normalizedTime = 0f,
                 position = float3.zero,
-                rotationZ = 0f,
-                scale = new float2(1f, 1f),
+                rotation = new float3(0f, 0f, 0f),
+                scale = new float3(1f, 1f, 1f),
                 interpolation = Interpolation.Linear
             });
             track.keys.Add(new TransformKey
             {
                 normalizedTime = 1f,
                 position = new float3(4f, 2f, 0f),
-                rotationZ = 90f,
-                scale = new float2(2f, 2f),
+                rotation = new float3(0f, 0f, 90f),
+                scale = new float3(2f, 2f, 1f),
                 interpolation = Interpolation.Linear
             });
             return track;
@@ -133,14 +133,14 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         public void Evaluate_InterpolatesBetweenKeys()
         {
             float3 position;
-            float rotationDegrees;
-            float2 scale;
+            float3 rotationDegrees;
+            float3 scale;
             Assert.IsTrue(ClipTransformEditing.TryEvaluate(
                 BuildTwoKeyTrack(), 0.5f, out position, out rotationDegrees, out scale));
 
             Assert.AreEqual(2f, position.x, Tolerance);
             Assert.AreEqual(1f, position.y, Tolerance);
-            Assert.AreEqual(45f, rotationDegrees, Tolerance);
+            Assert.AreEqual(45f, rotationDegrees.z, Tolerance);
             Assert.AreEqual(1.5f, scale.x, Tolerance);
         }
 
@@ -149,8 +149,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         {
             TransformTrack track = BuildTwoKeyTrack();
             float3 position;
-            float rotationDegrees;
-            float2 scale;
+            float3 rotationDegrees;
+            float3 scale;
 
             ClipTransformEditing.TryEvaluate(track, -1f, out position, out rotationDegrees, out scale);
             Assert.AreEqual(0f, position.x, Tolerance);
@@ -168,8 +168,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             track.keys[0] = steppedKey;
 
             float3 position;
-            float rotationDegrees;
-            float2 scale;
+            float3 rotationDegrees;
+            float3 scale;
             ClipTransformEditing.TryEvaluate(track, 0.9f, out position, out rotationDegrees, out scale);
             Assert.AreEqual(0f, position.x, Tolerance);
         }
@@ -179,7 +179,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         {
             TransformTrack track = BuildTwoKeyTrack();
             int keyIndex = ClipTransformEditing.SetKeyValues(
-                track, 1f, new float3(9f, 9f, 0f), 12f, new float2(3f, 3f));
+                track, 1f, new float3(9f, 9f, 0f), new float3(0f, 0f, 12f), new float3(3f, 3f, 1f));
 
             Assert.AreEqual(2, track.keys.Count, "Keying an existing time must not add a key.");
             Assert.AreEqual(9f, track.keys[keyIndex].position.x, Tolerance);
@@ -190,7 +190,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         {
             TransformTrack track = BuildTwoKeyTrack();
             ClipTransformEditing.SetKeyValues(
-                track, 0.5f, new float3(1f, 1f, 0f), 30f, new float2(1f, 1f));
+                track, 0.5f, new float3(1f, 1f, 0f), new float3(0f, 0f, 30f), new float3(1f, 1f, 1f));
 
             Assert.AreEqual(3, track.keys.Count);
             Assert.AreEqual(0f, track.keys[0].normalizedTime, Tolerance);
@@ -207,7 +207,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             track.keys[0] = steppedKey;
 
             int keyIndex = ClipTransformEditing.SetKeyValues(
-                track, 0.5f, new float3(1f, 1f, 0f), 30f, new float2(1f, 1f));
+                track, 0.5f, new float3(1f, 1f, 0f), new float3(0f, 0f, 30f), new float3(1f, 1f, 1f));
 
             Assert.AreEqual(
                 Interpolation.Step, track.keys[keyIndex].interpolation,

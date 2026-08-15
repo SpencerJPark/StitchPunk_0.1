@@ -32,8 +32,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             return new TargetRestPose
             {
                 localPosition = new float3(10f, 20f, 3f),
-                rotationZ = 0.5f,
-                scale = new float2(1f, 1f),
+                rotation = new float3(0f, 0f, 0.5f),
+                scale = new float3(1f, 1f, 1f),
                 restSliceIndex = 7
             };
         }
@@ -48,7 +48,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     new TestBlobFactory.TransformTrackSpec
                     {
                         targetIndex = 0,
-                        channels = AnimatedChannels.PositionXY | AnimatedChannels.RotationZ | AnimatedChannels.Scale,
+                        channels = AnimatedChannels.PositionXY | AnimatedChannels.Rotation | AnimatedChannels.Scale,
                         keys = new TestBlobFactory.TransformKeySpec[]
                         {
                             TestBlobFactory.Key(0.5f, 1f, 2f, Interpolation.Linear, 0.25f, 3f, 4f)
@@ -64,11 +64,11 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     ref clipReference.Value.transformTracks[0],
                     sampleTime,
                     out float3 sampledPosition,
-                    out float sampledRotationZ,
-                    out float2 sampledScale);
+                    out float3 sampledRotationZ,
+                    out float3 sampledScale);
                 Assert.AreEqual(1f, sampledPosition.x, Tolerance, "t = " + sampleTime);
                 Assert.AreEqual(2f, sampledPosition.y, Tolerance, "t = " + sampleTime);
-                Assert.AreEqual(0.25f, sampledRotationZ, Tolerance, "t = " + sampleTime);
+                Assert.AreEqual(0.25f, sampledRotationZ.z, Tolerance, "t = " + sampleTime);
                 Assert.AreEqual(3f, sampledScale.x, Tolerance, "t = " + sampleTime);
                 Assert.AreEqual(4f, sampledScale.y, Tolerance, "t = " + sampleTime);
             }
@@ -95,12 +95,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
             ClipSampler.SampleTransformTrack(
                 ref clipReference.Value.transformTracks[0], 0f,
-                out float3 beforePosition, out float beforeRotation, out float2 beforeScale);
+                out float3 beforePosition, out float3 beforeRotation, out float3 beforeScale);
             Assert.AreEqual(1f, beforePosition.x, Tolerance, "Before the first key: clamp to it.");
 
             ClipSampler.SampleTransformTrack(
                 ref clipReference.Value.transformTracks[0], 1f,
-                out float3 afterPosition, out float afterRotation, out float2 afterScale);
+                out float3 afterPosition, out float3 afterRotation, out float3 afterScale);
             Assert.AreEqual(5f, afterPosition.x, Tolerance, "After the last key: clamp to it.");
         }
 
@@ -125,7 +125,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
             ClipSampler.SampleTransformTrack(
                 ref clipReference.Value.transformTracks[0], 0.25f,
-                out float3 sampledPosition, out float sampledRotationZ, out float2 sampledScale);
+                out float3 sampledPosition, out float3 sampledRotationZ, out float3 sampledScale);
             Assert.AreEqual(1f, sampledPosition.x, Tolerance);
             Assert.AreEqual(2f, sampledPosition.y, Tolerance);
         }
@@ -151,12 +151,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
             ClipSampler.SampleTransformTrack(
                 ref clipReference.Value.transformTracks[0], 0.99f,
-                out float3 heldPosition, out float heldRotation, out float2 heldScale);
+                out float3 heldPosition, out float3 heldRotation, out float3 heldScale);
             Assert.AreEqual(1f, heldPosition.x, Tolerance, "Step must hold the left key across the segment.");
 
             ClipSampler.SampleTransformTrack(
                 ref clipReference.Value.transformTracks[0], 1f,
-                out float3 endPosition, out float endRotation, out float2 endScale);
+                out float3 endPosition, out float3 endRotation, out float3 endScale);
             Assert.AreEqual(9f, endPosition.x, Tolerance, "Exactly at the next key, its value applies.");
         }
 
@@ -181,7 +181,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
             ClipSampler.SampleTransformTrack(
                 ref clipReference.Value.transformTracks[0], 0.5f,
-                out float3 sampledPosition, out float sampledRotationZ, out float2 sampledScale);
+                out float3 sampledPosition, out float3 sampledRotationZ, out float3 sampledScale);
             Assert.AreEqual(1f, sampledPosition.x, Tolerance,
                 "EaseIn on the left key: weight = 0.5² = 0.25 → position.x = 4 × 0.25.");
         }
@@ -197,7 +197,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             Assert.AreEqual(10f, pose.localPosition.x, Tolerance);
             Assert.AreEqual(20f, pose.localPosition.y, Tolerance);
             Assert.AreEqual(3f, pose.localPosition.z, Tolerance);
-            Assert.AreEqual(0.5f, pose.rotationZ, Tolerance);
+            Assert.AreEqual(0.5f, pose.rotation.z, Tolerance);
             Assert.AreEqual(1f, pose.scale.x, Tolerance);
             Assert.AreEqual(7, pose.sliceIndex);
             Assert.AreEqual(1f, pose.atlasRect.x, Tolerance);
@@ -223,7 +223,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     new TestBlobFactory.TransformTrackSpec
                     {
                         targetIndex = 0,
-                        channels = AnimatedChannels.RotationZ,
+                        channels = AnimatedChannels.Rotation,
                         keys = new TestBlobFactory.TransformKeySpec[]
                         {
                             TestBlobFactory.Key(0f, 99f, 99f, Interpolation.Linear, 1.5f, 9f, 9f, 99f)
@@ -237,7 +237,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
             Assert.AreEqual(
                 2f,
-                pose.rotationZ,
+                pose.rotation.z,
                 Tolerance,
                 "An Override key is an offset from rest: 0.5 rest + 1.5 key. Reading 1.5 here means " +
                 "the key replaced the rest pose instead of offsetting from it (amendment A31).");
@@ -363,23 +363,23 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TargetPose fromPose = new TargetPose
             {
                 localPosition = new float3(0f, 0f, 0f),
-                rotationZ = 0f,
-                scale = new float2(1f, 1f),
+                rotation = new float3(0f, 0f, 0f),
+                scale = new float3(1f, 1f, 1f),
                 sliceIndex = 2,
                 atlasRect = ClipSampler.IdentityAtlasRect
             };
             TargetPose toPose = new TargetPose
             {
                 localPosition = new float3(4f, 2f, 1f),
-                rotationZ = 1f,
-                scale = new float2(3f, 5f),
+                rotation = new float3(0f, 0f, 1f),
+                scale = new float3(3f, 5f, 1f),
                 sliceIndex = 8,
                 atlasRect = new float4(0.5f, 0.5f, 0f, 0f)
             };
 
             ClipSampler.LerpPose(in fromPose, in toPose, 0.25f, out TargetPose earlyBlend);
             Assert.AreEqual(1f, earlyBlend.localPosition.x, Tolerance);
-            Assert.AreEqual(0.25f, earlyBlend.rotationZ, Tolerance);
+            Assert.AreEqual(0.25f, earlyBlend.rotation.z, Tolerance);
             Assert.AreEqual(1.5f, earlyBlend.scale.x, Tolerance);
             Assert.AreEqual(2, earlyBlend.sliceIndex, "Below the midpoint the from-pose frame wins (snap).");
 

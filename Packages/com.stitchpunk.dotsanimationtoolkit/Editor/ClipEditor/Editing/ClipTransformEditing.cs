@@ -100,11 +100,11 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <returns>False when there is nothing to sample, leaving the neutral pose in the outputs.</returns>
         public static bool TryEvaluate(
             TransformTrack track, float normalizedTime,
-            out float3 position, out float rotationDegrees, out float2 scale)
+            out float3 position, out float3 rotationDegrees, out float3 scale)
         {
             position = float3.zero;
-            rotationDegrees = 0f;
-            scale = new float2(1f, 1f);
+            rotationDegrees = float3.zero;
+            scale = new float3(1f, 1f, 1f);
 
             if (track == null || track.keys == null || track.keys.Count == 0)
             {
@@ -116,7 +116,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 TransformKey onlyKey = keys[0];
                 position = onlyKey.position;
-                rotationDegrees = onlyKey.rotationZ;
+                rotationDegrees = onlyKey.rotation;
                 scale = onlyKey.scale;
                 return true;
             }
@@ -125,7 +125,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             if (normalizedTime >= lastKey.normalizedTime)
             {
                 position = lastKey.position;
-                rotationDegrees = lastKey.rotationZ;
+                rotationDegrees = lastKey.rotation;
                 scale = lastKey.scale;
                 return true;
             }
@@ -146,7 +146,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             if (previousKey.interpolation == Interpolation.Step)
             {
                 position = previousKey.position;
-                rotationDegrees = previousKey.rotationZ;
+                rotationDegrees = previousKey.rotation;
                 scale = previousKey.scale;
                 return true;
             }
@@ -160,7 +160,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 in previousKey.bezierStartHandle, in previousKey.bezierEndHandle);
 
             position = math.lerp(previousKey.position, nextKey.position, easedWeight);
-            rotationDegrees = math.lerp(previousKey.rotationZ, nextKey.rotationZ, easedWeight);
+            rotationDegrees = math.lerp(previousKey.rotation, nextKey.rotation, easedWeight);
             scale = math.lerp(previousKey.scale, nextKey.scale, easedWeight);
             return true;
         }
@@ -177,7 +177,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         public static int SetKeyValues(
             TransformTrack track, float normalizedTime,
-            float3 position, float rotationDegrees, float2 scale)
+            float3 position, float3 rotationDegrees, float3 scale)
         {
             if (track == null)
             {
@@ -193,7 +193,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 TransformKey existingKey = track.keys[existingIndex];
                 existingKey.position = position;
-                existingKey.rotationZ = rotationDegrees;
+                existingKey.rotation = rotationDegrees;
                 existingKey.scale = scale;
                 track.keys[existingIndex] = existingKey;
                 return existingIndex;
@@ -203,7 +203,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 normalizedTime = normalizedTime,
                 position = position,
-                rotationZ = rotationDegrees,
+                rotation = rotationDegrees,
                 scale = scale,
                 interpolation = InheritInterpolationAt(track, normalizedTime)
             };

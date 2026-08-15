@@ -215,8 +215,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             {
                 Field("normalizedTime", typeof(float)),
                 Field("position", typeof(float3)),
-                Field("rotationZ", typeof(float)),
-                Field("scale", typeof(float2)),
+                Field("rotation", typeof(float3)),
+                Field("scale", typeof(float3)),
                 Field("interpolation", typeof(Interpolation)),
                 Field("bezierStartHandle", typeof(float2)),
                 Field("bezierEndHandle", typeof(float2))
@@ -431,8 +431,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             AssertFieldsMatch(typeof(TargetRestPose), new FieldContract[]
             {
                 Field("localPosition", typeof(float3)),
-                Field("rotationZ", typeof(float)),
-                Field("scale", typeof(float2)),
+                Field("rotation", typeof(float3)),
+                Field("scale", typeof(float3)),
                 Field("restSliceIndex", typeof(int))
             });
 
@@ -440,8 +440,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             AssertFieldsMatch(typeof(TargetPose), new FieldContract[]
             {
                 Field("localPosition", typeof(float3)),
-                Field("rotationZ", typeof(float)),
-                Field("scale", typeof(float2)),
+                Field("rotation", typeof(float3)),
+                Field("scale", typeof(float3)),
                 Field("sliceIndex", typeof(int)),
                 Field("atlasRect", typeof(float4))
             });

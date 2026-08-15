@@ -236,10 +236,10 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             ClipAsset runClip = assets.CreateClip("Run", rig, 0x4444UL, 2f);
             AuthoringTestAssets.AddTransformTrack(walkClip, 7u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                walkClip.transformTracks[0], 0f, new float3(1f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                walkClip.transformTracks[0], 0f, new float3(1f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformTrack(runClip, 3u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                runClip.transformTracks[0], 0f, new float3(2f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                runClip.transformTracks[0], 0f, new float3(2f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 0x3333UL, walkClip, runClip);
 
             rig.name = "RenamedRig";

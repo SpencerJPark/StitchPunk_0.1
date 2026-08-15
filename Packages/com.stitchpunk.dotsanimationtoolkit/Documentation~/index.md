@@ -55,11 +55,11 @@ An actor is built from **parts**, and each part picks its own technique — a
 VAT torso and a flipbook face can coexist on one actor. The two runtime
 techniques:
 
-| | Transform tracks (2D cutout) | VAT (vertex animation texture) |
+| | Transform tracks | VAT (vertex animation texture) |
 |---|---|---|
-| What's authored | Keyed position/rotation/scale per target, in the Clip Editor | A source `AnimationClip` on a skinned mesh, baked offline into a texture |
+| What's authored | Keyed 3D position/rotation/scale per target, in the Clip Editor | A source `AnimationClip` on a skinned mesh, baked offline into a texture |
 | What plays it | `TransformSampleSystem` / `TransformApplySystem` | `VatMaterialSystem` + a VAT-aware shader (`ToolkitVat.hlsl`) |
-| Best for | Paper-doll / cutout characters built from separately animated quads; cheap, precise, blends properly | Organic or skinned motion at crowd scale — hundreds to thousands of instances in one draw |
+| Best for | Anything keyed part-by-part — 2.5D paper-doll characters, and 3D props and vehicles alike, since position, rotation and scale are all three-axis; cheap, precise, blends properly | Organic or skinned motion at crowd scale — hundreds to thousands of instances in one draw |
 | Cost shape | Per-part transform writes, scales with part count | One texture read per bone/vertex influence in the vertex shader; instance count is nearly free once baked |
 | Blend quality | Proper keyframe interpolation and crossfade | Linear frame-to-frame lerp — correct within one clip, can look "rubbery" across very different poses in a long crossfade |
 

@@ -141,8 +141,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             byte[] channelBits =
             {
                 (byte)AnimatedChannels.PositionXY,
-                (byte)AnimatedChannels.LayerZ,
-                (byte)AnimatedChannels.RotationZ,
+                (byte)AnimatedChannels.PositionZ,
+                (byte)AnimatedChannels.Rotation,
                 (byte)AnimatedChannels.Scale
             };
             byte combinedBits = 0;

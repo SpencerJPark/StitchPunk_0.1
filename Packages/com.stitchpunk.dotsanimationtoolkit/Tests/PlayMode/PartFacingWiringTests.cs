@@ -248,7 +248,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.AreEqual(
                 0.9f, pose.localPosition.x, 1e-4f, "The plane belongs on the other side of the head.");
             Assert.AreEqual(
-                -0.4f, pose.rotationZ, 1e-4f, "Rotation is handed and reflects with the part.");
+                -0.4f, pose.rotation.z, 1e-4f, "Rotation is handed and reflects with the part.");
             Assert.AreEqual(
                 0.05f, pose.localPosition.y, 1e-4f, "Only x reflects — height is unchanged.");
         }
@@ -272,7 +272,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             Entity flippedPart = PlaybackTestActor.AddPart(
                 testWorld, actor, EarTargetIndex,
-                restScale: new Unity.Mathematics.float2(-1f, 1f),
+                restScale: new Unity.Mathematics.float3(-1f, 1f, 1f),
                 restSliceIndex: RoundFrontRestSlice,
                 asFlipbookPlane: true);
             testWorld.EntityManager.AddComponentData(

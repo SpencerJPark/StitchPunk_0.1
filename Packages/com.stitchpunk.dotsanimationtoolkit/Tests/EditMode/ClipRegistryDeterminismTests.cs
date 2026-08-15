@@ -417,17 +417,17 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 walkClip, BodyTargetId, TrackBlendOp.Override,
                 AnimatedChannels.PositionXY | AnimatedChannels.Scale);
             AuthoringTestAssets.AddTransformKey(
-                bodyTrack, 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                bodyTrack, 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                bodyTrack, 0.5f, new float3(1f, -2f, 0.5f), 45f, new float2(-1.5f, 2f), Interpolation.EaseIn);
+                bodyTrack, 0.5f, new float3(1f, -2f, 0.5f), 45f, new float3(-1.5f, 2f, 1f), Interpolation.EaseIn);
             AuthoringTestAssets.AddTransformKey(
-                bodyTrack, 1f, new float3(3f, 1f, 0f), -90f, new float2(1f, 1f), Interpolation.Step);
+                bodyTrack, 1f, new float3(3f, 1f, 0f), -90f, new float3(1f, 1f, 1f), Interpolation.Step);
             TransformTrack tailTrack = AuthoringTestAssets.AddTransformTrack(
-                walkClip, TailTargetId, TrackBlendOp.Additive, AnimatedChannels.RotationZ);
+                walkClip, TailTargetId, TrackBlendOp.Additive, AnimatedChannels.Rotation);
             AuthoringTestAssets.AddTransformKey(
-                tailTrack, 0f, float3.zero, 10f, new float2(1f, 1f), Interpolation.EaseOut);
+                tailTrack, 0f, float3.zero, 10f, new float3(1f, 1f, 1f), Interpolation.EaseOut);
             AuthoringTestAssets.AddTransformKey(
-                tailTrack, 1f, float3.zero, -10f, new float2(1f, 1f), Interpolation.EaseInOut);
+                tailTrack, 1f, float3.zero, -10f, new float3(1f, 1f, 1f), Interpolation.EaseInOut);
             SpriteTrack headSliceTrack = AuthoringTestAssets.AddSpriteTrack(
                 walkClip, HeadTargetId, SpriteFrameMode.Slice);
             AuthoringTestAssets.AddSpriteKey(headSliceTrack, 0f, 3, float4.zero);
@@ -454,7 +454,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack runHeadTrack = AuthoringTestAssets.AddTransformTrack(
                 runClip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                runHeadTrack, 0f, new float3(0.5f, 0.25f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                runHeadTrack, 0f, new float3(0.5f, 0.25f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             SpriteTrack bodyAtlasTrack = AuthoringTestAssets.AddSpriteTrack(
                 runClip, BodyTargetId, SpriteFrameMode.AtlasRect);
             AuthoringTestAssets.AddSpriteKey(

@@ -107,8 +107,8 @@ namespace StitchPunk.AnimationToolkit.Editor
         private GizmoMode gizmoMode = GizmoMode.Move;
         private GizmoHandle activeGizmoHandle = GizmoHandle.None;
         private float3 gizmoDragStartPosition;
-        private float gizmoDragStartRotation;
-        private float2 gizmoDragStartScale;
+        private float3 gizmoDragStartRotation;
+        private float3 gizmoDragStartScale;
         private float gizmoDragStartParameter;
 
         // Box selection. Armed on a press in empty lane space and only becomes a band once the
@@ -126,8 +126,8 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private bool hasPendingTransformEdit;
         private float3 pendingPosition;
-        private float pendingRotationDegrees;
-        private float2 pendingScale;
+        private float3 pendingRotationDegrees;
+        private float3 pendingScale;
         private IntegerField frameCountField;
         private Label timeLabel;
         private VisualElement trackHeaderColumn;
@@ -910,8 +910,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             float3 position;
-            float rotationDegrees;
-            float2 scale;
+            float3 rotationDegrees;
+            float3 scale;
             ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
 
             previewController.SetGizmo(
@@ -1004,8 +1004,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             float3 position;
-            float rotationDegrees;
-            float2 scale;
+            float3 rotationDegrees;
+            float3 scale;
             ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
 
             activeGizmoHandle = handle;
@@ -1019,12 +1019,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             if (gizmoMode == GizmoMode.Rotate)
             {
                 Vector3 planeHit;
-                if (!PreviewGizmoMath.TryIntersectPlane(pressRay, pivot, Vector3.forward, out planeHit))
+                if (!PreviewGizmoMath.TryIntersectPlane(
+                        pressRay, pivot, PreviewGizmoMath.GetRotationPlaneNormal(handle), out planeHit))
                 {
                     activeGizmoHandle = GizmoHandle.None;
                     return false;
                 }
-                gizmoDragStartParameter = PreviewGizmoMath.AngleAroundPivotDegrees(planeHit, pivot);
+                gizmoDragStartParameter =
+                    PreviewGizmoMath.AngleAroundPivotDegrees(planeHit, pivot, handle);
             }
             else
             {
@@ -1068,17 +1070,31 @@ namespace StitchPunk.AnimationToolkit.Editor
             if (gizmoMode == GizmoMode.Rotate)
             {
                 Vector3 planeHit;
-                if (!PreviewGizmoMath.TryIntersectPlane(dragRay, pivot, Vector3.forward, out planeHit))
+                if (!PreviewGizmoMath.TryIntersectPlane(
+                        dragRay, pivot,
+                        PreviewGizmoMath.GetRotationPlaneNormal(activeGizmoHandle), out planeHit))
                 {
                     return;
                 }
-                float currentAngle = PreviewGizmoMath.AngleAroundPivotDegrees(planeHit, pivot);
+                float currentAngle = PreviewGizmoMath.AngleAroundPivotDegrees(
+                    planeHit, pivot, activeGizmoHandle);
                 float angleDelta = Mathf.DeltaAngle(gizmoDragStartParameter, currentAngle);
+
+                float3 rotatedValue = gizmoDragStartRotation;
+                switch (activeGizmoHandle)
+                {
+                    case GizmoHandle.RotateX:
+                        rotatedValue.x += angleDelta;
+                        break;
+                    case GizmoHandle.RotateY:
+                        rotatedValue.y += angleDelta;
+                        break;
+                    default:
+                        rotatedValue.z += angleDelta;
+                        break;
+                }
                 ApplyTransformEdit(
-                    gizmoDragStartPosition,
-                    gizmoDragStartRotation + angleDelta,
-                    gizmoDragStartScale,
-                    false);
+                    gizmoDragStartPosition, rotatedValue, gizmoDragStartScale, false);
                 RebuildInspector();
                 RefreshGizmo();
                 return;
@@ -1115,7 +1131,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             else
             {
-                float2 scaledValue = gizmoDragStartScale;
+                float3 scaledValue = gizmoDragStartScale;
                 switch (activeGizmoHandle)
                 {
                     case GizmoHandle.AxisX:
@@ -1124,9 +1140,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                     case GizmoHandle.AxisY:
                         scaledValue.y += parameterDelta;
                         break;
+                    case GizmoHandle.AxisZ:
+                        scaledValue.z += parameterDelta;
+                        break;
                     default:
-                        scaledValue.x += parameterDelta;
-                        scaledValue.y += parameterDelta;
+                        scaledValue += parameterDelta;
                         break;
                 }
                 ApplyTransformEdit(
@@ -2664,7 +2682,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     TransformKey inserted = new TransformKey
                     {
                         position = float3.zero,
-                        scale = new float2(1f, 1f),
+                        scale = new float3(1f, 1f, 1f),
                         interpolation = Interpolation.Linear
                     };
                     for (int keyIndex = 0; keyIndex < keys.Count; keyIndex++)
@@ -3401,7 +3419,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// sampled track value otherwise.
         /// </summary>
         private TransformValueState ResolveDisplayedTransform(
-            out float3 position, out float rotationDegrees, out float2 scale)
+            out float3 position, out float3 rotationDegrees, out float3 scale)
         {
             TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, selectedTargetId);
             bool hasSample = ClipTransformEditing.TryEvaluate(
@@ -3435,7 +3453,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// though the frames during it were not.
         /// </remarks>
         private void ApplyTransformEdit(
-            float3 position, float rotationDegrees, float2 scale, bool forceKey)
+            float3 position, float3 rotationDegrees, float3 scale, bool forceKey)
         {
             if (selectedClip == null || selectedTargetId == 0u)
             {
@@ -3510,8 +3528,8 @@ namespace StitchPunk.AnimationToolkit.Editor
         private void AddTransformFields()
         {
             float3 position;
-            float rotationDegrees;
-            float2 scale;
+            float3 rotationDegrees;
+            float3 scale;
             TransformValueState valueState =
                 ResolveDisplayedTransform(out position, out rotationDegrees, out scale);
 
@@ -3533,26 +3551,32 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 float3 edited = new float3(
                     changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(edited, pendingRotationOrCurrent(rotationDegrees), pendingScaleOrCurrent(scale), false);
+                ApplyTransformEdit(edited, rotationDegrees, scale, false);
                 RebuildInspector();
             });
             transformBlock.Add(positionField);
 
-            FloatField rotationField = new FloatField("Rotation Z");
-            rotationField.SetValueWithoutNotify(rotationDegrees);
-            rotationField.tooltip = "Degrees. The bake converts to radians once (section 4.5).";
+            Vector3Field rotationField = new Vector3Field("Rotation");
+            rotationField.SetValueWithoutNotify(
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            rotationField.tooltip =
+                "Euler degrees in Unity's ZXY order. The bake converts to radians once (section 4.5). "
+                + "A flat rig leaves x and y at zero.";
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyTransformEdit(position, changeEvent.newValue, scale, false);
+                float3 edited = new float3(
+                    changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
+                ApplyTransformEdit(position, edited, scale, false);
                 RebuildInspector();
             });
             transformBlock.Add(rotationField);
 
-            Vector2Field scaleField = new Vector2Field("Scale");
-            scaleField.SetValueWithoutNotify(new Vector2(scale.x, scale.y));
+            Vector3Field scaleField = new Vector3Field("Scale");
+            scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
             scaleField.RegisterValueChangedCallback(changeEvent =>
             {
-                float2 edited = new float2(changeEvent.newValue.x, changeEvent.newValue.y);
+                float3 edited = new float3(
+                    changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
                 ApplyTransformEdit(position, rotationDegrees, edited, false);
                 RebuildInspector();
             });
@@ -3591,16 +3615,6 @@ namespace StitchPunk.AnimationToolkit.Editor
                 });
             }
             inspectorPane.Add(keyRow);
-        }
-
-        private float pendingRotationOrCurrent(float currentRotation)
-        {
-            return hasPendingTransformEdit ? pendingRotationDegrees : currentRotation;
-        }
-
-        private float2 pendingScaleOrCurrent(float2 currentScale)
-        {
-            return hasPendingTransformEdit ? pendingScale : currentScale;
         }
 
         private static Label MakeTransformStateChip(TransformValueState valueState)

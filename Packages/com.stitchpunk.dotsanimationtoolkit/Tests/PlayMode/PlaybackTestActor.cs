@@ -117,7 +117,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             internal float normalizedTime;
             internal float3 position;
             internal float rotationZ;
-            internal float2 scale;
+            internal float3 scale;
             internal Interpolation interpolation;
         }
 
@@ -136,7 +136,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 normalizedTime = normalizedTime,
                 position = new float3(positionX, positionY, positionZ),
                 rotationZ = rotationZ,
-                scale = new float2(scaleX, scaleY),
+                scale = new float3(scaleX, scaleY, 1f),
                 interpolation = Interpolation.Linear
             };
         }
@@ -223,7 +223,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                             {
                                 normalizedTime = keySpec.normalizedTime,
                                 position = keySpec.position,
-                                rotationZ = keySpec.rotationZ,
+                                rotation = new float3(0f, 0f, keySpec.rotationZ),
                                 scale = keySpec.scale,
                                 interpolation = keySpec.interpolation
                             };
@@ -388,18 +388,20 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             int targetIndex,
             float3 restPosition = default,
             float restRotationZ = 0f,
-            float2 restScale = default,
+            float3 restScale = default,
             int restSliceIndex = 0,
             bool asFlipbookPlane = false,
             int vatDrivingLayerIndex = -1)
         {
             EntityManager entityManager = world.EntityManager;
 
-            float2 resolvedRestScale = math.all(restScale == float2.zero) ? new float2(1f, 1f) : restScale;
+            float3 resolvedRestScale = math.all(restScale == float3.zero)
+                ? new float3(1f, 1f, 1f)
+                : restScale;
             TargetRestPose restPose = new TargetRestPose
             {
                 localPosition = restPosition,
-                rotationZ = restRotationZ,
+                rotation = new float3(0f, 0f, restRotationZ),
                 scale = resolvedRestScale,
                 restSliceIndex = restSliceIndex
             };
@@ -414,7 +416,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             entityManager.AddComponentData(partEntity, new TargetPose
             {
                 localPosition = restPose.localPosition,
-                rotationZ = restPose.rotationZ,
+                rotation = restPose.rotation,
                 scale = restPose.scale,
                 sliceIndex = restPose.restSliceIndex,
                 atlasRect = ClipSampler.IdentityAtlasRect

@@ -33,6 +33,12 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 0.5
       position:
         x: 0
@@ -43,6 +49,12 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 1
       position:
         x: 0
@@ -53,6 +65,12 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   - targetId: 4086129200
     blendOp: 1
     channels: 15
@@ -67,6 +85,12 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 0.5
       position:
         x: 0
@@ -77,6 +101,12 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 1
       position:
         x: 0
@@ -87,13 +117,21 @@ MonoBehaviour:
         x: 1
         y: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   spriteTracks:
   - targetId: 3686243058
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -101,6 +139,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.5
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -108,6 +147,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -116,9 +156,11 @@ MonoBehaviour:
   - targetId: 4086129200
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -126,6 +168,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.5
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -133,6 +176,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -141,9 +185,11 @@ MonoBehaviour:
   - targetId: 915970425
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: 53
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -151,6 +197,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.02
       sliceIndex: 35
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -158,6 +205,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.04
       sliceIndex: 33
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -165,6 +213,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.06
       sliceIndex: 31
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -172,6 +221,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.08
       sliceIndex: 29
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -179,6 +229,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.94
       sliceIndex: 31
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -186,6 +237,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.96
       sliceIndex: 33
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -193,6 +245,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.98
       sliceIndex: 35
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -200,6 +253,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: 53
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -208,9 +262,11 @@ MonoBehaviour:
   - targetId: 4216110445
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: 52
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -218,6 +274,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.02
       sliceIndex: 34
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -225,6 +282,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.04
       sliceIndex: 32
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -232,6 +290,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.06
       sliceIndex: 30
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -239,6 +298,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.08
       sliceIndex: 28
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -246,6 +306,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.94
       sliceIndex: 30
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -253,6 +314,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.96
       sliceIndex: 32
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -260,6 +322,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.98
       sliceIndex: 34
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -267,13 +330,40 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: 52
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
         z: 0
         w: 0
+  boneTracks:
+  - boneName: Hair
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0
+          w: 0
+      localScale:
+        x: 0
+        y: 0
+        z: 0
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   events: []
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30
     loopSafe: 0
+  vatTracks: []

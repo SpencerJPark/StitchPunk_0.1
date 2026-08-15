@@ -186,11 +186,11 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Local x/y offset; z is the 2.5D draw-layer order.</summary>
         public float3 position;
 
-        /// <summary>Rotation about z in radians.</summary>
-        public float rotationZ;
+        /// <summary>Local rotation in radians, as Euler angles in Unity's ZXY order.</summary>
+        public float3 rotation;
 
-        /// <summary>Non-uniform x/y scale; negative values flip (applied via <c>PostTransformMatrix</c>, section 5.6).</summary>
-        public float2 scale;
+        /// <summary>Non-uniform x/y/z scale; negative components flip (applied via <c>PostTransformMatrix</c>, section 5.6).</summary>
+        public float3 scale;
 
         /// <summary>Easing from this key to the next one.</summary>
         public Interpolation interpolation;

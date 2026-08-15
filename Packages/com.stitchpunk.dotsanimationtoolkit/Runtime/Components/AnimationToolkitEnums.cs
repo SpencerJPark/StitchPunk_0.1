@@ -121,13 +121,26 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Local x/y position offset.</summary>
         PositionXY = 1 << 0,
 
-        /// <summary>Local z position — the 2.5D draw-layer order channel.</summary>
-        LayerZ = 1 << 1,
+        /// <summary>
+        /// Local z position. Depth for a 3D rig; the draw-layer order channel for a 2.5D one.
+        /// </summary>
+        /// <remarks>
+        /// Named <c>LayerZ</c> until 3D rigs were supported. The bit value is unchanged, so existing
+        /// masks still mean what they meant — an enum serializes as its number, not its name.
+        /// </remarks>
+        PositionZ = 1 << 1,
 
-        /// <summary>Rotation about the z axis.</summary>
-        RotationZ = 1 << 2,
+        /// <summary>
+        /// Rotation on all three axes.
+        /// </summary>
+        /// <remarks>
+        /// Named <c>RotationZ</c> when a rotation was a single angle. Same bit, wider meaning: a
+        /// track that masks rotation in now carries x and y as well, and a clip authored before this
+        /// keeps working because its unused axes are zero.
+        /// </remarks>
+        Rotation = 1 << 2,
 
-        /// <summary>Non-uniform x/y scale (negative values flip).</summary>
+        /// <summary>Non-uniform x/y/z scale (negative components flip).</summary>
         Scale = 1 << 3
     }
 

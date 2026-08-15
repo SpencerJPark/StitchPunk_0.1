@@ -19,8 +19,10 @@ namespace StitchPunk.AnimationToolkit.Editor
         AxisX = 1,
         AxisY = 2,
         AxisZ = 3,
-        RotateZ = 4,
-        ScaleUniform = 5
+        RotateX = 4,
+        RotateY = 5,
+        RotateZ = 6,
+        ScaleUniform = 7
     }
 
     /// <summary>
@@ -33,10 +35,9 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// clip. It is the part most likely to be subtly wrong and least likely to look wrong.
     /// </para>
     /// <para>
-    /// <strong>The rotate gizmo is Z-only, and the scale gizmo is XY-only, on purpose.</strong> A
-    /// cutout part's authored rotation is a single angle about z and its scale is a
-    /// <c>float2</c> — the data has no other axes. Drawing rings for x and y would offer handles
-    /// that could not write anywhere.
+    /// All three axes are offered for move, rotate and scale, because the authored key carries all
+    /// three: nothing animated in this system is assumed to be flat. A 2.5D cutout simply leaves the
+    /// axes it does not use at their identity and pays nothing for them.
     /// </para>
     /// </remarks>
     public static class PreviewGizmoMath
@@ -127,17 +128,39 @@ namespace StitchPunk.AnimationToolkit.Editor
             return true;
         }
 
+        /// <summary>The plane a rotation ring lies in, as its normal.</summary>
+        public static Vector3 GetRotationPlaneNormal(GizmoHandle handle)
+        {
+            switch (handle)
+            {
+                case GizmoHandle.RotateX:
+                    return Vector3.right;
+                case GizmoHandle.RotateY:
+                    return Vector3.up;
+                default:
+                    return Vector3.forward;
+            }
+        }
+
         /// <summary>
-        /// The angle, in degrees, of a point around a pivot in the XY plane.
+        /// The angle, in degrees, of a point around a pivot within a ring's own plane.
         /// </summary>
         /// <remarks>
-        /// Measured the same way the authored <c>rotationZ</c> is, so a drag of 90° writes 90 rather
-        /// than something that merely looks like a right angle on screen.
+        /// Measured in the plane the ring lies in, so a drag of 90° on any axis writes 90 to that
+        /// axis rather than something that merely looks like a right angle from this camera.
         /// </remarks>
-        public static float AngleAroundPivotDegrees(Vector3 point, Vector3 pivot)
+        public static float AngleAroundPivotDegrees(Vector3 point, Vector3 pivot, GizmoHandle handle)
         {
             Vector3 offset = point - pivot;
-            return Mathf.Atan2(offset.y, offset.x) * Mathf.Rad2Deg;
+            switch (handle)
+            {
+                case GizmoHandle.RotateX:
+                    return Mathf.Atan2(offset.z, offset.y) * Mathf.Rad2Deg;
+                case GizmoHandle.RotateY:
+                    return Mathf.Atan2(offset.x, offset.z) * Mathf.Rad2Deg;
+                default:
+                    return Mathf.Atan2(offset.y, offset.x) * Mathf.Rad2Deg;
+            }
         }
 
         /// <summary>
@@ -155,15 +178,31 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             if (mode == GizmoMode.Rotate)
             {
-                Vector3 planeHit;
-                if (!TryIntersectPlane(ray, pivot, Vector3.forward, out planeHit))
+                // Three rings, best-fit first. Whichever ring the ray crosses closest to its own
+                // radius is the one under the cursor; testing z alone would leave a tilted rig with
+                // no way to be rotated into place.
+                GizmoHandle bestRing = GizmoHandle.None;
+                float bestRingError = pickRadius * 1.6f;
+                GizmoHandle[] ringHandles = new GizmoHandle[]
                 {
-                    return GizmoHandle.None;
+                    GizmoHandle.RotateX, GizmoHandle.RotateY, GizmoHandle.RotateZ
+                };
+                for (int ringIndex = 0; ringIndex < ringHandles.Length; ringIndex++)
+                {
+                    Vector3 planeHit;
+                    if (!TryIntersectPlane(
+                            ray, pivot, GetRotationPlaneNormal(ringHandles[ringIndex]), out planeHit))
+                    {
+                        continue;
+                    }
+                    float ringError = Mathf.Abs(Vector3.Distance(planeHit, pivot) - handleLength);
+                    if (ringError < bestRingError)
+                    {
+                        bestRingError = ringError;
+                        bestRing = ringHandles[ringIndex];
+                    }
                 }
-                float radius = Vector3.Distance(planeHit, pivot);
-                return Mathf.Abs(radius - handleLength) <= pickRadius * 1.6f
-                    ? GizmoHandle.RotateZ
-                    : GizmoHandle.None;
+                return bestRing;
             }
 
             if (mode == GizmoMode.Scale
@@ -191,16 +230,11 @@ namespace StitchPunk.AnimationToolkit.Editor
                 bestHandle = GizmoHandle.AxisY;
             }
 
-            // Move gets a z handle because a part's authored position carries z as its draw-layer
-            // order. Scale does not, because the authored scale is a float2.
-            if (mode == GizmoMode.Move)
+            float distanceZ = DistanceFromRayToSegment(
+                ray, pivot, pivot + Vector3.forward * handleLength);
+            if (distanceZ < bestDistance)
             {
-                float distanceZ = DistanceFromRayToSegment(
-                    ray, pivot, pivot + Vector3.forward * handleLength);
-                if (distanceZ < bestDistance)
-                {
-                    bestHandle = GizmoHandle.AxisZ;
-                }
+                bestHandle = GizmoHandle.AxisZ;
             }
 
             return bestHandle;

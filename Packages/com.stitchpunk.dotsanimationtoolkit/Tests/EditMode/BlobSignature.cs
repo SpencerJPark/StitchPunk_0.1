@@ -108,9 +108,11 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     signature.Append("    key t=").Append(BitsOf(key.normalizedTime))
                         .Append(" pos=");
                     AppendFloat3(signature, key.position);
-                    signature.Append(" rot=").Append(BitsOf(key.rotationZ))
-                        .Append(" scale=").Append(BitsOf(key.scale.x))
-                        .Append('|').Append(BitsOf(key.scale.y))
+                    signature.Append(" rot=");
+                    AppendFloat3(signature, key.rotation);
+                    signature.Append(" scale=");
+                    AppendFloat3(signature, key.scale);
+                    signature
                         .Append(" interp=").Append(key.interpolation).Append('\n');
                 }
             }

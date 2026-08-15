@@ -64,7 +64,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                             {
                                 targetIndex = ShoulderTargetIndex,
                                 channels = AnimatedChannels.PositionXY
-                                    | AnimatedChannels.RotationZ
+                                    | AnimatedChannels.Rotation
                                     | AnimatedChannels.Scale,
                                 keys = new[]
                                 {
@@ -128,7 +128,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             TargetPose pose = testWorld.EntityManager.GetComponentData<TargetPose>(shoulder);
             Assert.AreEqual(3.5f, pose.localPosition.x, Tolerance);
             Assert.AreEqual(5.25f, pose.localPosition.y, Tolerance);
-            Assert.AreEqual(1.5f, pose.rotationZ, Tolerance);
+            Assert.AreEqual(1.5f, pose.rotation.z, Tolerance);
             Assert.AreEqual(3f, pose.scale.x, Tolerance);
             Assert.AreEqual(0.4f, pose.scale.y, Tolerance);
         }
@@ -324,7 +324,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         [Test]
         public void Apply_PreservesNegativeScaleSoPartsCanFlip()
         {
-            Entity hand = AddPart(HandTargetIndex, restScale: new float2(-1f, 1f));
+            Entity hand = AddPart(HandTargetIndex, restScale: new float3(-1f, 1f, 1f));
             // No scale channel on the hand's track, so the rest scale survives composition.
             PlayArmClip();
 
@@ -372,7 +372,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 : new float3(-2f, 0.75f, 0.2f);
         }
 
-        private Entity AddPart(int targetIndex, float2 restScale = default)
+        private Entity AddPart(int targetIndex, float3 restScale = default)
         {
             return PlaybackTestActor.AddPart(
                 testWorld,
@@ -380,7 +380,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 targetIndex,
                 restPosition: RestPosition(targetIndex),
                 restRotationZ: 0.25f,
-                restScale: math.all(restScale == float2.zero) ? new float2(1.5f, 0.8f) : restScale);
+                restScale: math.all(restScale == float3.zero) ? new float3(1.5f, 0.8f, 1f) : restScale);
         }
 
         private void SetSampleRate(float rateHz)

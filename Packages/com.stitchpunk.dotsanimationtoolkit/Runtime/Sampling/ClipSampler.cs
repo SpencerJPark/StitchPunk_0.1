@@ -260,22 +260,22 @@ namespace StitchPunk.AnimationToolkit
         /// <param name="track">The track to sample.</param>
         /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
         /// <param name="position">Sampled local position (z = draw-layer order).</param>
-        /// <param name="rotationZ">Sampled rotation about z in radians.</param>
-        /// <param name="scale">Sampled non-uniform x/y scale.</param>
+        /// <param name="rotation">Sampled Euler rotation in radians.</param>
+        /// <param name="scale">Sampled non-uniform x/y/z scale.</param>
         [BurstCompile]
         public static void SampleTransformTrack(
             ref TransformTrackBlob track,
             float normalizedTime,
             out float3 position,
-            out float rotationZ,
-            out float2 scale)
+            out float3 rotation,
+            out float3 scale)
         {
             ref BlobArray<TransformKeyBlob> keys = ref track.keys;
             if (keys.Length == 0)
             {
                 position = float3.zero;
-                rotationZ = 0f;
-                scale = new float2(1f, 1f);
+                rotation = float3.zero;
+                scale = new float3(1f, 1f, 1f);
                 return;
             }
 
@@ -286,7 +286,7 @@ namespace StitchPunk.AnimationToolkit
             if (previousIndex == nextIndex || previousKey.interpolation == Interpolation.Step)
             {
                 position = previousKey.position;
-                rotationZ = previousKey.rotationZ;
+                rotation = previousKey.rotation;
                 scale = previousKey.scale;
                 return;
             }
@@ -298,7 +298,11 @@ namespace StitchPunk.AnimationToolkit
                 in previousKey.bezierStartHandle, in previousKey.bezierEndHandle);
 
             position = math.lerp(previousKey.position, nextKey.position, easedWeight);
-            rotationZ = math.lerp(previousKey.rotationZ, nextKey.rotationZ, easedWeight);
+
+            // Euler angles are lerped per component, which is how a keyed rotation curve behaves
+            // everywhere an author has met one. Slerping a quaternion built from them would take a
+            // different path between the same two keys and quietly disagree with the curve editor.
+            rotation = math.lerp(previousKey.rotation, nextKey.rotation, easedWeight);
             scale = math.lerp(previousKey.scale, nextKey.scale, easedWeight);
         }
 
@@ -433,7 +437,7 @@ namespace StitchPunk.AnimationToolkit
             pose = new TargetPose
             {
                 localPosition = restPose.localPosition,
-                rotationZ = restPose.rotationZ,
+                rotation = restPose.rotation,
                 scale = restPose.scale,
                 sliceIndex = restPose.restSliceIndex,
                 atlasRect = IdentityAtlasRect
@@ -497,8 +501,8 @@ namespace StitchPunk.AnimationToolkit
                     ref track,
                     normalizedTime,
                     out float3 sampledPosition,
-                    out float sampledRotationZ,
-                    out float2 sampledScale);
+                    out float3 sampledRotation,
+                    out float3 sampledScale);
 
                 // The only difference between the two ops is the frame the key is added to: the
                 // rest pose for Override, the composited-so-far pose for Additive. Both treat the
@@ -512,21 +516,21 @@ namespace StitchPunk.AnimationToolkit
                     pose.localPosition.x = positionAnchorXY.x + sampledPosition.x;
                     pose.localPosition.y = positionAnchorXY.y + sampledPosition.y;
                 }
-                if ((track.channels & AnimatedChannels.LayerZ) != 0)
+                if ((track.channels & AnimatedChannels.PositionZ) != 0)
                 {
                     float layerZAnchor = isAdditive ? pose.localPosition.z : restPose.localPosition.z;
                     pose.localPosition.z = layerZAnchor + sampledPosition.z;
                 }
-                if ((track.channels & AnimatedChannels.RotationZ) != 0)
+                if ((track.channels & AnimatedChannels.Rotation) != 0)
                 {
-                    float rotationAnchor = isAdditive ? pose.rotationZ : restPose.rotationZ;
-                    pose.rotationZ = rotationAnchor + sampledRotationZ;
+                    float3 rotationAnchor = isAdditive ? pose.rotation : restPose.rotation;
+                    pose.rotation = rotationAnchor + sampledRotation;
                 }
                 if ((track.channels & AnimatedChannels.Scale) != 0)
                 {
                     // Scale composes multiplicatively, so its identity is 1 and its "delta" is a
                     // factor — an unkeyed scale curve authored at 1 leaves the rest scale alone.
-                    float2 scaleAnchor = isAdditive ? pose.scale : restPose.scale;
+                    float3 scaleAnchor = isAdditive ? pose.scale : restPose.scale;
                     pose.scale = scaleAnchor * sampledScale;
                 }
             }
@@ -579,7 +583,7 @@ namespace StitchPunk.AnimationToolkit
             result = new TargetPose
             {
                 localPosition = math.lerp(fromPose.localPosition, toPose.localPosition, weight),
-                rotationZ = math.lerp(fromPose.rotationZ, toPose.rotationZ, weight),
+                rotation = math.lerp(fromPose.rotation, toPose.rotation, weight),
                 scale = math.lerp(fromPose.scale, toPose.scale, weight),
                 sliceIndex = weight < 0.5f ? fromPose.sliceIndex : toPose.sliceIndex,
                 atlasRect = weight < 0.5f ? fromPose.atlasRect : toPose.atlasRect

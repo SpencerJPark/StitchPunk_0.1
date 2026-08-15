@@ -104,11 +104,11 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Rest local position; z is the 2.5D draw-layer order.</summary>
         public float3 localPosition;
 
-        /// <summary>Rest rotation about z in radians.</summary>
-        public float rotationZ;
+        /// <summary>Rest rotation in radians, as Euler angles in Unity's ZXY order.</summary>
+        public float3 rotation;
 
-        /// <summary>Rest non-uniform x/y scale.</summary>
-        public float2 scale;
+        /// <summary>Rest non-uniform x/y/z scale.</summary>
+        public float3 scale;
 
         /// <summary>Rest sprite slice index used when no sprite track overrides it.</summary>
         public int restSliceIndex;
@@ -123,11 +123,11 @@ namespace StitchPunk.AnimationToolkit
         /// <summary>Sampled local position; z is the 2.5D draw-layer order.</summary>
         public float3 localPosition;
 
-        /// <summary>Sampled rotation about z in radians.</summary>
-        public float rotationZ;
+        /// <summary>Sampled rotation in radians, as Euler angles in Unity's ZXY order.</summary>
+        public float3 rotation;
 
-        /// <summary>Sampled non-uniform x/y scale; negative values flip.</summary>
-        public float2 scale;
+        /// <summary>Sampled non-uniform x/y/z scale; negative components flip.</summary>
+        public float3 scale;
 
         /// <summary>
         /// Sampled sprite slice index. Composition seeds it from

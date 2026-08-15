@@ -23,7 +23,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
         fileName = "NewClip",
         menuName = "DOTS Animation Toolkit/Clip Asset",
         order = 1)]
-    public sealed class ClipAsset : ScriptableObject, IStableIdMintReporter
+    public sealed class ClipAsset : ScriptableObject, IStableIdMintReporter, ISerializationCallbackReceiver
     {
         /// <summary>The shortest legal clip duration in seconds (validation rule V01).</summary>
         public const float MinimumDuration = 0.001f;
@@ -176,6 +176,69 @@ namespace StitchPunk.AnimationToolkit.Authoring
         // Unity raises Awake when an instance is created and OnEnable both after creation and
         // after an asset is deserialized, so between them no asset can reach an inspector, a bake,
         // or a test without an id. Both funnel into the same idempotent assignment.
+        /// <summary>Nothing to do — migration is a read-side concern.</summary>
+        public void OnBeforeSerialize()
+        {
+        }
+
+        /// <summary>
+        /// Brings clips authored against the 2.5D transform schema up to the 3D one.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Runs on every load and is idempotent, so it does not depend on the asset being re-saved
+        /// to stick — an unmigrated clip read a hundred times migrates the same way a hundred times.
+        /// Pure struct arithmetic, because Unity may raise this off the main thread and any engine
+        /// call here would be a race rather than an error anyone could read.
+        /// </para>
+        /// <para>
+        /// <strong>Both signals are "the field was never written", not "the field is zero".</strong>
+        /// A rotation is only adopted from the legacy angle when the new one is still all zeros, so
+        /// a genuine 3D rotation is never overwritten by a stale value. A scale is only corrected
+        /// when its z is exactly 0, which no author chooses — it collapses the part to nothing.
+        /// </para>
+        /// </remarks>
+        public void OnAfterDeserialize()
+        {
+            if (transformTracks == null)
+            {
+                return;
+            }
+
+            for (int trackIndex = 0; trackIndex < transformTracks.Count; trackIndex++)
+            {
+                TransformTrack track = transformTracks[trackIndex];
+                if (track == null || track.keys == null)
+                {
+                    continue;
+                }
+
+                for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
+                {
+                    TransformKey key = track.keys[keyIndex];
+                    bool changed = false;
+
+                    if (key.rotationZ != 0f && math.all(key.rotation == float3.zero))
+                    {
+                        key.rotation = new float3(0f, 0f, key.rotationZ);
+                        key.rotationZ = 0f;
+                        changed = true;
+                    }
+
+                    if (key.scale.z == 0f)
+                    {
+                        key.scale.z = 1f;
+                        changed = true;
+                    }
+
+                    if (changed)
+                    {
+                        track.keys[keyIndex] = key;
+                    }
+                }
+            }
+        }
+
         private void Awake()
         {
             EnsureStableIds();
@@ -228,14 +291,49 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Key time as a fraction of the clip's duration, in [0, 1] (validation rule V04).</summary>
         public float normalizedTime;
 
-        /// <summary>Local offset: x/y in the plane, z as the 2.5D draw-layer order.</summary>
+        /// <summary>
+        /// Local offset. For a 3D rig all three axes are position; for a 2.5D one z doubles as the
+        /// draw-layer order.
+        /// </summary>
         public float3 position;
 
-        /// <summary>Rotation about z in degrees.</summary>
+        /// <summary>
+        /// Local rotation in degrees, as Euler angles applied in Unity's ZXY order.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Three angles rather than one, because a rig is not necessarily flat — a vehicle animated
+        /// in this system needs pitch and yaw as much as roll. A 2.5D cutout simply leaves x and y
+        /// at zero and pays nothing for them.
+        /// </para>
+        /// <para>
+        /// Euler rather than a quaternion, because these are the numbers an author types and drags:
+        /// three readable fields with a sign and a magnitude. Bone tracks keep quaternions
+        /// (<see cref="BoneKey.localRotation"/>) because nobody types those — they arrive from a
+        /// bake or a solver.
+        /// </para>
+        /// </remarks>
+        public float3 rotation;
+
+        /// <summary>
+        /// Legacy single-axis rotation in degrees, migrated into <see cref="rotation"/> on load.
+        /// </summary>
+        /// <remarks>
+        /// Retained only so clips authored before rotation became 3D keep their motion. It is
+        /// consumed by <c>ClipAsset.OnAfterDeserialize</c> and can be deleted once no project in
+        /// flight still has unmigrated assets — but deleting it early would silently flatten every
+        /// existing clip's rotation to zero, which is the one outcome a migration exists to prevent.
+        /// </remarks>
         public float rotationZ;
 
-        /// <summary>Non-uniform x/y scale; negative components flip the part.</summary>
-        public float2 scale;
+        /// <summary>
+        /// Non-uniform x/y/z scale; negative components flip the part on that axis.
+        /// </summary>
+        /// <remarks>
+        /// A z component of exactly 0 is read as unmigrated 2D data and corrected to 1 on load: it
+        /// collapses geometry to nothing, so it is never a value anyone authored deliberately.
+        /// </remarks>
+        public float3 scale;
 
         /// <summary>Easing applied from this key to the next one.</summary>
         public Interpolation interpolation;

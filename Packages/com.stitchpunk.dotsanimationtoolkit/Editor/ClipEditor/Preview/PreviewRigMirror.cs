@@ -261,11 +261,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             Transform partTransform = partTransforms[mirrorIndex];
             partTransform.localPosition = new Vector3(
                 pose.localPosition.x, pose.localPosition.y, pose.localPosition.z);
-            partTransform.localRotation = Quaternion.Euler(0f, 0f, pose.rotationZ * Mathf.Rad2Deg);
+            partTransform.localRotation = Quaternion.Euler(
+                pose.rotation.x * Mathf.Rad2Deg,
+                pose.rotation.y * Mathf.Rad2Deg,
+                pose.rotation.z * Mathf.Rad2Deg);
 
             // z stays 1: the pose's 2D scale is the authored channel, and zeroing depth scale would
             // collapse the quad rather than leave it flat.
-            partTransform.localScale = new Vector3(pose.scale.x, pose.scale.y, 1f);
+            partTransform.localScale = new Vector3(pose.scale.x, pose.scale.y, pose.scale.z);
 
             MeshRenderer partRenderer = partRenderers[mirrorIndex];
             if (partRenderer == null || propertyBlock == null)

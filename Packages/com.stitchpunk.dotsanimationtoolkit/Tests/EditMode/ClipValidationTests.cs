@@ -56,9 +56,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, FirstTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                track, 0f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                track, 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                track, 1f, new float3(1f, 2f, 0f), 90f, new float2(2f, 1f), Interpolation.EaseInOut);
+                track, 1f, new float3(1f, 2f, 0f), 90f, new float3(2f, 1f, 1f), Interpolation.EaseInOut);
             AuthoringTestAssets.AddEvent(clip, 0.5f, 16u, 4, 0.25f);
             return clip;
         }
@@ -136,7 +136,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             // Keys become 0, 1, 0.5 - all inside [0, 1], so only the ordering rule can fire.
             AuthoringTestAssets.AddTransformKey(
-                clip.transformTracks[0], 0.5f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                clip.transformTracks[0], 0.5f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
             AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V03, ValidationSeverity.Error);
         }
@@ -149,7 +149,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             // Appended after 1, so the track stays strictly ascending and only the range rule fires.
             AuthoringTestAssets.AddTransformKey(
-                clip.transformTracks[0], 1.5f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                clip.transformTracks[0], 1.5f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
             AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V04, ValidationSeverity.Error);
         }
@@ -548,7 +548,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack negativeTimeTrack = AuthoringTestAssets.AddTransformTrack(
                 clip, SecondTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                negativeTimeTrack, -0.25f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f),
+                negativeTimeTrack, -0.25f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
                 Interpolation.Linear);
 
             AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V04, ValidationSeverity.Error);
@@ -566,10 +566,10 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack duplicateTimeTrack = AuthoringTestAssets.AddTransformTrack(
                 clip, SecondTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                duplicateTimeTrack, 0.5f, new float3(0f, 0f, 0f), 0f, new float2(1f, 1f),
+                duplicateTimeTrack, 0.5f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
                 Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                duplicateTimeTrack, 0.5f, new float3(1f, 0f, 0f), 0f, new float2(1f, 1f),
+                duplicateTimeTrack, 0.5f, new float3(1f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
                 Interpolation.Linear);
 
             AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V03, ValidationSeverity.Error);

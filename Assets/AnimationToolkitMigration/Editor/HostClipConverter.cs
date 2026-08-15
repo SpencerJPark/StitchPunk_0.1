@@ -292,8 +292,8 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
 
                 // Degrees on both sides: ClipRegistryBuilder converts to radians once at bake
                 // (§4.5 point 2), so the authored value passes through untouched.
-                key.rotationZ = hostKey.rotation;
-                key.scale = new float2(hostKey.scale.x, hostKey.scale.y);
+                key.rotation = new float3(0f, 0f, hostKey.rotation);
+                key.scale = new float3(hostKey.scale.x, hostKey.scale.y, 1f);
                 key.interpolation = ToInterpolation(
                     hostKey.overrideInterpolation ? hostKey.interpolationOverride : hostTrack.interpolation);
                 track.keys.Add(key);
@@ -381,11 +381,11 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             }
             if ((hostProperties & AnimatedProperties.PositionZ) != 0)
             {
-                channels |= AnimatedChannels.LayerZ;
+                channels |= AnimatedChannels.PositionZ;
             }
             if ((hostProperties & AnimatedProperties.Rotation) != 0)
             {
-                channels |= AnimatedChannels.RotationZ;
+                channels |= AnimatedChannels.Rotation;
             }
             if ((hostProperties & (AnimatedProperties.ScaleX | AnimatedProperties.ScaleY)) != 0)
             {

@@ -229,16 +229,20 @@ namespace StitchPunk.AnimationToolkit
                     //   position.x — the plane moves to the other side. An ear sits left of the
                     //                head at rest; mirrored, it belongs on the right. Flipping only
                     //                the art leaves it pinned to the wrong side of the skull.
-                    //   rotationZ  — rotation is handed. An arm swung +30° reflects to −30°;
+                    //   rotation   — rotation is handed. An arm swung +30° reflects to −30°;
                     //                leaving it alone makes a mirrored pose lean the wrong way.
+                    //                Reflecting about x negates the y and z angles and leaves the
+                    //                x angle alone: a roll about the mirror axis survives a
+                    //                reflection, a yaw and a pitch reverse.
                     //   scale.x    — the art itself, so the drawn shape faces the other way.
                     //
-                    // All three are negations rather than assignments, so a part authored already
+                    // All are negations rather than assignments, so a part authored already
                     // offset, rotated or flipped composes with facing instead of being overridden.
                     if (partFacing.mirrorX)
                     {
                         sampledPose.localPosition.x = -sampledPose.localPosition.x;
-                        sampledPose.rotationZ = -sampledPose.rotationZ;
+                        sampledPose.rotation.y = -sampledPose.rotation.y;
+                        sampledPose.rotation.z = -sampledPose.rotation.z;
                         sampledPose.scale.x = -sampledPose.scale.x;
                     }
                 }

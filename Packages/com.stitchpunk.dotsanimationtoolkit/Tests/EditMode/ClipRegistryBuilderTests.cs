@@ -114,7 +114,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u, 3u });
             ClipAsset clip = assets.CreateClip("Walk", rig, 0x10UL, 1f);
             AddSingleKeyTrack(clip, 7u, AnimatedChannels.PositionXY);
-            AddSingleKeyTrack(clip, 3u, AnimatedChannels.RotationZ);
+            AddSingleKeyTrack(clip, 3u, AnimatedChannels.Rotation);
             AddSingleKeyTrack(clip, 7u, AnimatedChannels.Scale);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
@@ -128,7 +128,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             Assert.AreEqual(1, clipBlob.transformTracks[1].targetIndex, "Tracks sort by dense target index.");
             Assert.AreEqual(1, clipBlob.transformTracks[2].targetIndex, "Tracks sort by dense target index.");
             Assert.AreEqual(
-                AnimatedChannels.RotationZ,
+                AnimatedChannels.Rotation,
                 clipBlob.transformTracks[0].channels,
                 "The track on the lower dense target index comes first.");
             Assert.AreEqual(
@@ -172,21 +172,21 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Walk", rig, 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
-                clip, 7u, TrackBlendOp.Override, AnimatedChannels.RotationZ);
+                clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
             AuthoringTestAssets.AddTransformKey(
-                track, 0f, float3.zero, 90f, new float2(1f, 1f), Interpolation.Linear);
+                track, 0f, float3.zero, 90f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                track, 1f, float3.zero, -180f, new float2(1f, 1f), Interpolation.Linear);
+                track, 1f, float3.zero, -180f, new float3(1f, 1f, 1f), Interpolation.Linear);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
             registryScope.Build(clipSet);
             ref TransformTrackBlob trackBlob = ref registryScope.Registry.Value.clips[0].transformTracks[0];
 
             Assert.AreEqual(
-                math.PI * 0.5f, trackBlob.keys[0].rotationZ, FloatTolerance,
+                math.PI * 0.5f, trackBlob.keys[0].rotation.z, FloatTolerance,
                 "90 degrees must bake to pi/2 radians.");
             Assert.AreEqual(
-                -math.PI, trackBlob.keys[1].rotationZ, FloatTolerance,
+                -math.PI, trackBlob.keys[1].rotation.z, FloatTolerance,
                 "-180 degrees must bake to -pi radians.");
         }
 
@@ -318,28 +318,31 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.PositionXY | AnimatedChannels.Scale);
             AuthoringTestAssets.AddTransformKey(
-                track, 0f, new float3(1f, 2f, 9f), 0f, new float2(1f, 1f), Interpolation.Linear);
+                track, 0f, new float3(1f, 2f, 9f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             AuthoringTestAssets.AddTransformKey(
-                track, 1f, new float3(-3f, 0f, 0f), 0f, new float2(2f, 1f), Interpolation.Linear);
+                track, 1f, new float3(-3f, 0f, 0f), 0f, new float3(2f, 1f, 1f), Interpolation.Linear);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
             registryScope.Build(clipSet);
             ref ClipBlob clipBlob = ref registryScope.Registry.Value.clips[0];
 
-            // Key 0: centre (1,2) with half-extents 0.5 (scale factor 1).
-            // Key 1: centre (-3,0) with half-extents 1.0 (scale factor max(|2|,|1|,1) = 2).
+            // Key 0: centre (1,2,9) with half-extents 0.5 (scale factor 1).
+            // Key 1: centre (-3,0,0) with half-extents 1.0 (scale factor max(|2|,|1|,|1|,1) = 2).
             // Untracked target 3 contributes its rest box, +/-0.5 around the origin.
+            // z spans [-1, 9.5] once the first key's z = 9 is included, so centre 4.25, extent 5.25.
             Assert.AreEqual(-1.25f, clipBlob.offsetBounds.Center.x, FloatTolerance, "Bounds centre x.");
             Assert.AreEqual(0.75f, clipBlob.offsetBounds.Center.y, FloatTolerance, "Bounds centre y.");
-            Assert.AreEqual(0f, clipBlob.offsetBounds.Center.z, FloatTolerance, "Bounds centre z.");
+            Assert.AreEqual(4.25f, clipBlob.offsetBounds.Center.z, FloatTolerance, "Bounds centre z.");
             Assert.AreEqual(2.75f, clipBlob.offsetBounds.Extents.x, FloatTolerance, "Bounds half-extent x.");
             Assert.AreEqual(1.75f, clipBlob.offsetBounds.Extents.y, FloatTolerance, "Bounds half-extent y.");
             Assert.AreEqual(
-                1f,
+                5.25f,
                 clipBlob.offsetBounds.Extents.z,
                 FloatTolerance,
-                "Section 4.6 grows bounds from the key's position.xy only, so the key's z = 9 " +
-                "draw-layer offset does not widen the box; z comes from the scaled half-extents.");
+                "A key's z displacement widens the box like any other axis. It did not while " +
+                "transform data was 2.5D and z meant draw-layer order; now that a rig can move in " +
+                "depth, a box that ignored z would cull a vehicle the moment it drove away from " +
+                "the origin plane.");
         }
 
         [Test]
@@ -528,7 +531,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, targetId, TrackBlendOp.Override, channels);
             AuthoringTestAssets.AddTransformKey(
-                track, 0f, float3.zero, 0f, new float2(1f, 1f), Interpolation.Linear);
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
         }
     }
 }

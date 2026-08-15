@@ -140,14 +140,14 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             float normalizedTime,
             float3 position,
             float rotationDegrees,
-            float2 scale,
+            float3 scale,
             Interpolation interpolation)
         {
             track.keys.Add(new TransformKey
             {
                 normalizedTime = normalizedTime,
                 position = position,
-                rotationZ = rotationDegrees,
+                rotation = new float3(0f, 0f, rotationDegrees),
                 scale = scale,
                 interpolation = interpolation
             });

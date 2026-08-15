@@ -490,8 +490,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             TargetRestPose identityRest = new TargetRestPose
             {
                 localPosition = Unity.Mathematics.float3.zero,
-                rotationZ = 0f,
-                scale = new Unity.Mathematics.float2(1f, 1f),
+                rotation = Unity.Mathematics.float3.zero,
+                scale = new Unity.Mathematics.float3(1f, 1f, 1f),
                 restSliceIndex = 0
             };
 

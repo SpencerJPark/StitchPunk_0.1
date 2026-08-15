@@ -69,9 +69,11 @@ namespace StitchPunk.AnimationToolkit
             ref PostTransformMatrix postTransformMatrix)
         {
             localTransform.Position = pose.localPosition;
-            localTransform.Rotation = quaternion.RotateZ(pose.rotationZ);
+            // Euler in ZXY, matching UnityEngine.Transform.eulerAngles, so an angle typed in this
+            // toolkit's inspector means the same thing it would in Unity's.
+            localTransform.Rotation = quaternion.Euler(pose.rotation);
             localTransform.Scale = 1f;
-            postTransformMatrix.Value = float4x4.Scale(pose.scale.x, pose.scale.y, 1f);
+            postTransformMatrix.Value = float4x4.Scale(pose.scale);
         }
     }
 }

@@ -13,7 +13,7 @@ You can **author bone animation directly in the Clip Editor**, or **import it fr
 
 **What bone tracks are not:** a rigging suite. There is no weight painting, no IK solver, no constraint graph. You are keyframing an existing skeleton — one imported and rigged elsewhere.
 
-> **A note on key types.** The cutout `TransformKey` carries `float3 position, float rotationZ, float2 scale` — one rotation axis, because a paper-doll part only needs one. Bones use a separate `BoneKey` with a full quaternion and 3D scale. They are deliberately different types: adding a quaternion to `TransformKey` would grow every cutout key in every clip to carry channels it never sets.
+> **A note on key types.** `TransformKey` carries `float3 position, float3 rotation, float3 scale` — three axes throughout, because nothing animated here is assumed to be flat. Rotation is Euler degrees in ZXY order, the numbers you type and drag. Bones use a separate `BoneKey` whose rotation is a full quaternion, because nobody types those: they arrive from a bake or a solver, and a quaternion has no gimbal order to agree on.
 
 ---
 
@@ -55,7 +55,7 @@ VAT trades flexibility for that. Be deliberate about it:
 |---|---|
 | **Bone VAT** | Rigged 3D characters, crowds, anything where you want hundreds on screen and don't need runtime pose control |
 | **Vertex VAT** | Cloth, blendshapes, anything a skeleton can't express. Reproduces *any* deformation, but memory scales with vertex count rather than bone count — much larger |
-| **Transform tracks (cutout)** | 2.5D paper-doll characters authored entirely in this toolkit |
+| **Transform tracks** | Anything keyed part-by-part in this toolkit — 2.5D paper-doll characters, and 3D props and vehicles, since rotation and scale carry all three axes |
 | **Flipbook sprite tracks** | Frame-by-frame art, per-part texture-array slices |
 
 These compose. A single actor can have VAT parts and flipbook parts at the same time — a VAT torso with a flipbook head is a supported setup, because VAT and sprite parts resolve per *part*, not per clip.

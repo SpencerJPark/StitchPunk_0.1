@@ -915,13 +915,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
 
             Assert.AreEqual(
                 -math.PI / 6f,
-                entityManager.GetComponentData<TargetRestPose>(partEntity).rotationZ,
+                entityManager.GetComponentData<TargetRestPose>(partEntity).rotation.z,
                 Tolerance,
                 "A −30° part must capture −π/6 radians. Reading localEulerAngles instead would " +
                 "give +330° (≈ +5.76 rad) — the same pose, but the wrong number to blend from.");
             Assert.AreEqual(
                 -math.PI / 6f,
-                entityManager.GetComponentData<TargetPose>(partEntity).rotationZ,
+                entityManager.GetComponentData<TargetPose>(partEntity).rotation.z,
                 Tolerance,
                 "The seeded output pose starts at the rest pose, so it carries the same sign.");
         }

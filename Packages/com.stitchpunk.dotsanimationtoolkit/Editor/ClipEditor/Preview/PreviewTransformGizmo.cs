@@ -105,14 +105,22 @@ namespace StitchPunk.AnimationToolkit.Editor
             switch (mode)
             {
                 case GizmoMode.Rotate:
-                    AppendRotateRing(pivot, handleLength,
-                        activeHandle == GizmoHandle.RotateZ ? HighlightColor : RotateColor);
+                    // One ring per axis, coloured like the axis it turns about, so which ring is
+                    // which is readable without dragging one to find out.
+                    AppendRotateRing(pivot, Vector3.right, handleLength,
+                        activeHandle == GizmoHandle.RotateX ? HighlightColor : AxisXColor);
+                    AppendRotateRing(pivot, Vector3.up, handleLength,
+                        activeHandle == GizmoHandle.RotateY ? HighlightColor : AxisYColor);
+                    AppendRotateRing(pivot, Vector3.forward, handleLength,
+                        activeHandle == GizmoHandle.RotateZ ? HighlightColor : AxisZColor);
                     break;
                 case GizmoMode.Scale:
                     AppendAxis(pivot, Vector3.right, handleLength,
                         activeHandle == GizmoHandle.AxisX ? HighlightColor : AxisXColor, true);
                     AppendAxis(pivot, Vector3.up, handleLength,
                         activeHandle == GizmoHandle.AxisY ? HighlightColor : AxisYColor, true);
+                    AppendAxis(pivot, Vector3.forward, handleLength,
+                        activeHandle == GizmoHandle.AxisZ ? HighlightColor : AxisZColor, true);
                     AppendBox(pivot, handleLength * 0.09f,
                         activeHandle == GizmoHandle.ScaleUniform ? HighlightColor : UniformColor);
                     break;
@@ -160,15 +168,36 @@ namespace StitchPunk.AnimationToolkit.Editor
             AppendLine(axisEnd, axisEnd - direction * headLength - perpendicular * headLength * 0.5f, color);
         }
 
-        private void AppendRotateRing(Vector3 pivot, float radius, Color color)
+        /// <summary>Draws a ring in the plane whose normal is <paramref name="planeNormal"/>.</summary>
+        private void AppendRotateRing(Vector3 pivot, Vector3 planeNormal, float radius, Color color)
         {
+            // The two in-plane axes are chosen to match PreviewGizmoMath.AngleAroundPivotDegrees, so
+            // the ring a user grabs is measured the same way it is drawn.
+            Vector3 firstAxis;
+            Vector3 secondAxis;
+            if (planeNormal == Vector3.right)
+            {
+                firstAxis = Vector3.up;
+                secondAxis = Vector3.forward;
+            }
+            else if (planeNormal == Vector3.up)
+            {
+                firstAxis = Vector3.forward;
+                secondAxis = Vector3.right;
+            }
+            else
+            {
+                firstAxis = Vector3.right;
+                secondAxis = Vector3.up;
+            }
+
             for (int segment = 0; segment < RotateRingSegments; segment++)
             {
                 float startAngle = segment / (float)RotateRingSegments * Mathf.PI * 2f;
                 float endAngle = (segment + 1) / (float)RotateRingSegments * Mathf.PI * 2f;
                 AppendLine(
-                    pivot + new Vector3(Mathf.Cos(startAngle), Mathf.Sin(startAngle), 0f) * radius,
-                    pivot + new Vector3(Mathf.Cos(endAngle), Mathf.Sin(endAngle), 0f) * radius,
+                    pivot + (firstAxis * Mathf.Cos(startAngle) + secondAxis * Mathf.Sin(startAngle)) * radius,
+                    pivot + (firstAxis * Mathf.Cos(endAngle) + secondAxis * Mathf.Sin(endAngle)) * radius,
                     color);
             }
         }
