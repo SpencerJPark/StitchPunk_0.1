@@ -43,7 +43,12 @@ but named targets and ordered layers.
 
 ## 3. Author the clip in the Clip Editor
 
-1. **Window ▸ DOTS Animation Toolkit ▸ Clip Editor.**
+1. **Window ▸ DOTS Animation Toolkit ▸ Clip Editor.** The window is a dock:
+   clips and the rig hierarchy down the left, the viewport in the middle, the
+   inspector on the right, the timeline along the bottom. Drag any boundary —
+   where you leave them is where they are next time. The viewport draws a
+   reference grid from the moment it opens, so an empty one means "nothing
+   selected yet", not "something is broken".
 2. Assign a clip set to the editor's clip-set field — if you don't have one
    yet, jump to step 4 first and create the `ClipSetAsset`, then come back
    here and select `DemoBob` from its clip list.

@@ -36,13 +36,15 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
         }
 
+        /// <summary>Absolute positioning and the full-stack inset come from ClipEditorWindow.uss.</summary>
+        public const string UssClassName = "clip-editor__playhead";
+
         public PlayheadElement()
         {
-            style.position = Position.Absolute;
-            style.left = 0f;
-            style.right = 0f;
-            style.top = 0f;
-            style.bottom = 0f;
+            AddToClassList(UssClassName);
+
+            // Not a style: this is behaviour. The playhead must never steal a click meant for a key
+            // underneath it, and a stylesheet has no say in that.
             pickingMode = PickingMode.Ignore;
             generateVisualContent += OnGenerateVisualContent;
         }

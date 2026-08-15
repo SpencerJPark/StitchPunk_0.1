@@ -35,9 +35,19 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// rest, so an identity rest shows the authored motion faithfully; it just shows it about the
     /// origin rather than about where the part sits on a built actor.
     /// </para>
+    /// <para>
+    /// <strong>Rendering does not depend on selection.</strong> <see cref="Render"/> draws whatever
+    /// the preview scene currently holds — at minimum the reference grid — and returns a texture
+    /// whether or not a clip is selected, a set is assigned, or a registry could be built. Selection
+    /// decides what is <em>in</em> the scene and where the selection marker sits; it never decides
+    /// whether there is a picture. The window relied on the opposite for a long time, and the result
+    /// was a viewport that looked broken until something was clicked.
+    /// </para>
     /// </remarks>
     public sealed class ClipPreviewController : IDisposable
     {
+        private const float DefaultOrbitDistance = 6f;
+
         private PreviewRenderUtility renderUtility;
         private readonly PreviewRigMirror rigMirror = new PreviewRigMirror();
 
@@ -60,13 +70,22 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         private bool skeletonRootAdded;
 
+        /// <summary>
+        /// The grid and the selection marker. Built once and never rebuilt, so unlike the mirrors
+        /// these join the preview scene a single time.
+        /// </summary>
+        private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
+        private bool gizmosAdded;
+
+        private string selectedBoneName;
+
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
-        private string statusMessage = string.Empty;
+        private string statusMessage = "No clip set assigned.";
 
         private float orbitYaw = 0f;
         private float orbitPitch = 0f;
-        private float orbitDistance = 6f;
+        private float orbitDistance = DefaultOrbitDistance;
 
         /// <summary>Why the preview is empty, or an empty string when it is fine.</summary>
         public string StatusMessage
@@ -99,7 +118,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             if (clipSet == null)
             {
                 rigMirror.Dispose();
-                statusMessage = "No clip set.";
+                mirrorRootAdded = false;
+                statusMessage = "No clip set assigned.";
                 return;
             }
 
@@ -141,6 +161,28 @@ namespace StitchPunk.AnimationToolkit.Editor
             skinnedSourcePrefab = prefab;
             skeletonMirror.Rebuild(prefab);
             skeletonRootAdded = false;
+
+            // The old instance's bones are gone, so a marker still pointing at one would be placed
+            // from a destroyed transform. The name survives — it resolves again if the new source
+            // has a bone by that name, and simply stops drawing if it does not.
+            sceneGizmos.HideSelection();
+        }
+
+        /// <summary>
+        /// Sets which bone the selection marker follows, or null for none.
+        /// </summary>
+        /// <remarks>
+        /// This is the whole of what selection does to the viewport. Nothing here affects whether
+        /// the preview renders, what is in the scene, or where the camera is — an unresolvable name
+        /// hides the marker and changes nothing else.
+        /// </remarks>
+        public void SetSelectedBone(string boneName)
+        {
+            selectedBoneName = boneName;
+            if (string.IsNullOrEmpty(boneName))
+            {
+                sceneGizmos.HideSelection();
+            }
         }
 
         /// <summary>
@@ -245,27 +287,39 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Renders the mirror and returns the resulting texture, or null when there is nothing to
-        /// show. The texture is owned by the render utility — never destroy it here.
+        /// Returns the camera to the pose the window opens with: head-on, framing the origin.
         /// </summary>
+        /// <remarks>
+        /// Needed precisely because the viewport now lives independently of selection. An orbit that
+        /// wandered off the rig used to be fixed by selecting something else and forcing a rebuild;
+        /// with the camera persisting across every selection change, there has to be a way back.
+        /// </remarks>
+        public void ResetView()
+        {
+            orbitYaw = 0f;
+            orbitPitch = 0f;
+            orbitDistance = DefaultOrbitDistance;
+        }
+
+        /// <summary>
+        /// Renders the preview scene and returns the resulting texture. The texture is owned by the
+        /// render utility — never destroy it here.
+        /// </summary>
+        /// <remarks>
+        /// Returns null only for a degenerate size or a render utility that could not be created.
+        /// An empty scene is not a failure: with no clip set, no rig and no selection, this still
+        /// renders the grid, which is what the window shows on open.
+        /// </remarks>
         public Texture Render(int pixelWidth, int pixelHeight)
         {
-            if (rigMirror.RootObject == null || pixelWidth <= 0 || pixelHeight <= 0)
+            if (pixelWidth <= 0 || pixelHeight <= 0)
             {
                 return null;
             }
 
             EnsureRenderUtility();
-            if (skeletonMirror.InstanceRoot != null && !skeletonRootAdded)
-            {
-                renderUtility.AddSingleGO(skeletonMirror.InstanceRoot);
-                skeletonRootAdded = true;
-            }
-            if (!mirrorRootAdded)
-            {
-                renderUtility.AddSingleGO(rigMirror.RootObject);
-                mirrorRootAdded = true;
-            }
+            PopulatePreviewScene();
+            UpdateSelectionMarker();
 
             Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
             renderUtility.camera.transform.position = orbitRotation * new Vector3(0f, 0f, -orbitDistance);
@@ -274,6 +328,59 @@ namespace StitchPunk.AnimationToolkit.Editor
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
             return renderUtility.EndPreview();
+        }
+
+        /// <summary>
+        /// Adds whatever exists but has not yet joined the preview scene.
+        /// </summary>
+        /// <remarks>
+        /// Each root is tracked by its own flag rather than by one "scene is populated" flag: the
+        /// mirrors are rebuilt whenever the set or the rig changes, and a shared flag would leave
+        /// every rebuilt root outside the scene — an empty preview that looks exactly like a broken
+        /// clip.
+        /// </remarks>
+        private void PopulatePreviewScene()
+        {
+            sceneGizmos.EnsureBuilt();
+            if (!gizmosAdded && sceneGizmos.GridObject != null && sceneGizmos.SelectionObject != null)
+            {
+                renderUtility.AddSingleGO(sceneGizmos.GridObject);
+                renderUtility.AddSingleGO(sceneGizmos.SelectionObject);
+                gizmosAdded = true;
+            }
+
+            if (skeletonMirror.InstanceRoot != null && !skeletonRootAdded)
+            {
+                renderUtility.AddSingleGO(skeletonMirror.InstanceRoot);
+                skeletonRootAdded = true;
+            }
+
+            if (rigMirror.RootObject != null && !mirrorRootAdded)
+            {
+                renderUtility.AddSingleGO(rigMirror.RootObject);
+                mirrorRootAdded = true;
+            }
+        }
+
+        /// <summary>
+        /// Places the selection marker on the selected bone, or hides it when nothing resolves.
+        /// </summary>
+        /// <remarks>
+        /// Resolved every frame rather than cached on selection, because the bone moves: the marker
+        /// has to follow the posed skeleton as the playhead scrubs, not sit where the bone was when
+        /// it was clicked.
+        /// </remarks>
+        private void UpdateSelectionMarker()
+        {
+            Transform boneTransform;
+            if (string.IsNullOrEmpty(selectedBoneName)
+                || !skeletonMirror.TryGetBone(selectedBoneName, out boneTransform)
+                || boneTransform == null)
+            {
+                sceneGizmos.HideSelection();
+                return;
+            }
+            sceneGizmos.ShowSelection(boneTransform.position, boneTransform.rotation, orbitDistance);
         }
 
         private void EnsureRenderUtility()
@@ -311,8 +418,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             ReleaseRegistry();
             rigMirror.Dispose();
             skeletonMirror.Dispose();
+
+            // Before Cleanup: the gizmos live in the render utility's scene, and cleaning that up
+            // first would leave these references pointing at objects Unity has already destroyed.
+            sceneGizmos.Dispose();
+
             mirrorRootAdded = false;
             skeletonRootAdded = false;
+            gizmosAdded = false;
             if (renderUtility != null)
             {
                 renderUtility.Cleanup();

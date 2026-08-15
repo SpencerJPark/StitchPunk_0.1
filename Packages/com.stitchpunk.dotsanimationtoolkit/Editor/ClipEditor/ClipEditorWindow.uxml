@@ -1,0 +1,102 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <!--
+        The clip editor's persistent dock (architecture section 7.1).
+
+        The three zones are declared here rather than assembled in CreateGUI so the layout survives
+        as a thing a person can open and read. Every split is a TwoPaneSplitView, so every boundary
+        in the window is draggable; ClipEditorWindow restores and stores each one's position in
+        EditorPrefs, which is why the dimensions below are only first-run defaults.
+
+        Named elements are contracts with ClipEditorWindow.cs — renaming one silently empties a
+        pane, because a Q<T>(name) miss is a null, not an error.
+
+        Custom elements (the ruler, the lanes, the playhead, the validation badge) are added from
+        C# into the slots below. They have no UXML factories, and giving them one would buy nothing:
+        nothing but this window ever instantiates them.
+    -->
+    <Style src="project://database/Packages/com.stitchpunk.dotsanimationtoolkit/Editor/ClipEditor/ClipEditorWindow.uss" />
+
+    <ui:VisualElement name="clip-editor-root" class="clip-editor__root">
+
+        <uie:Toolbar name="clip-editor-toolbar" class="clip-editor__toolbar">
+            <ui:Label text="Clip Set" class="clip-editor__toolbar-label" />
+            <uie:ObjectField name="clip-set-field" class="clip-editor__object-field" />
+            <uie:ToolbarToggle name="play-toggle" text="Play" />
+            <uie:ToolbarButton name="rewind-button" text="|&lt;" />
+            <ui:Label name="time-label" text="0.000s" class="clip-editor__toolbar-label clip-editor__time-label" />
+            <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" />
+            <ui:Label text="Frames" class="clip-editor__toolbar-label" />
+            <ui:IntegerField name="frame-count-field" value="30" class="clip-editor__frame-field" />
+            <ui:Label text="Rig" class="clip-editor__toolbar-label" />
+            <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field" />
+            <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot" />
+        </uie:Toolbar>
+
+        <!--
+            Outer zone split: editing area over timeline. The timeline is the fixed pane so that
+            growing the window grows the viewport, which is the pane that benefits from the pixels.
+            220px is roughly a quarter of the default window height; the window overrides it with
+            0.25 * height on a first run and with the stored position after that.
+        -->
+        <ui:TwoPaneSplitView name="dock-vertical" class="clip-editor__dock"
+                             orientation="Vertical" fixed-pane-index="1" fixed-pane-initial-dimension="220">
+
+            <!-- Editing area: hierarchy | viewport | inspector, as two nested horizontal splits. -->
+            <ui:TwoPaneSplitView name="dock-columns"
+                                 orientation="Horizontal" fixed-pane-index="0" fixed-pane-initial-dimension="240">
+
+                <!-- Left column. Clips over hierarchy, itself split so either can be given the room. -->
+                <ui:TwoPaneSplitView name="dock-left"
+                                     orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="150">
+                    <ui:VisualElement name="clip-list-pane" class="clip-editor__pane">
+                        <ui:Label text="Clips" class="clip-editor__pane-title" />
+                        <ui:ListView name="clip-list" class="clip-editor__clip-list" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
+                        <ui:Label text="Hierarchy" class="clip-editor__pane-title" />
+                        <ui:Label name="hierarchy-empty-label" class="clip-editor__hint"
+                                  text="Assign a rig in the toolbar to list its transforms." />
+                        <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy" />
+                    </ui:VisualElement>
+                </ui:TwoPaneSplitView>
+
+                <!-- Viewport | inspector. The inspector is fixed so the viewport takes the slack. -->
+                <ui:TwoPaneSplitView name="dock-right"
+                                     orientation="Horizontal" fixed-pane-index="1" fixed-pane-initial-dimension="280">
+                    <ui:VisualElement name="viewport-pane" class="clip-editor__pane clip-editor__viewport-pane">
+                        <ui:Label name="viewport-status" class="clip-editor__viewport-status" />
+                        <ui:Image name="viewport-image" class="clip-editor__viewport" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inspector-pane" class="clip-editor__pane">
+                        <ui:Label text="Inspector" class="clip-editor__pane-title" />
+                        <ui:ScrollView name="inspector-content" class="clip-editor__inspector" />
+                    </ui:VisualElement>
+                </ui:TwoPaneSplitView>
+
+            </ui:TwoPaneSplitView>
+
+            <!--
+                Timeline zone. The header column and the lane stack scroll together inside one
+                ScrollView: a quarter-height pane cannot show a deep clip's tracks otherwise, and
+                two independent scrollers would let the headers drift out of line with their lanes.
+            -->
+            <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
+                <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status" />
+                <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">
+                    <ui:VisualElement name="timeline-row" class="clip-editor__timeline-row">
+                        <ui:VisualElement name="track-header-stack" class="clip-editor__track-header-stack">
+                            <!-- Exactly the ruler's height, so header row N lines up with lane row N. -->
+                            <ui:VisualElement class="clip-editor__track-header-spacer" />
+                            <ui:VisualElement name="track-header-column" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="lane-stack" class="clip-editor__lane-stack" focusable="true">
+                            <ui:VisualElement name="lane-column" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+
+        </ui:TwoPaneSplitView>
+
+    </ui:VisualElement>
+</ui:UXML>

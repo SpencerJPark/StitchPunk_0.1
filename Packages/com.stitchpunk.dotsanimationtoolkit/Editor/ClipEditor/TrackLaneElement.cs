@@ -41,10 +41,15 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Raised when the pointer presses empty lane space, with the normalized time.</summary>
         public event Action<TimelineTrackKind, int, float, PointerDownEvent> lanePointerDown;
 
+        /// <summary>
+        /// Row height comes from ClipEditorWindow.uss, which pairs it with the track header's
+        /// height. Setting it inline here would beat that rule and let the two columns drift.
+        /// </summary>
+        public const string UssClassName = "clip-editor__lane";
+
         public TrackLaneElement()
         {
-            style.height = 22f;
-            style.flexGrow = 1f;
+            AddToClassList(UssClassName);
             generateVisualContent += OnGenerateVisualContent;
             RegisterCallback<PointerDownEvent>(OnPointerDown);
         }

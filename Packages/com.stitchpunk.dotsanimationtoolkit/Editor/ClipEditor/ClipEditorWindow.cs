@@ -21,6 +21,21 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// forbids immediate-mode drawing calls anywhere in package Editor code.
     /// </para>
     /// <para>
+    /// <strong>The layout is a persistent dock, declared in ClipEditorWindow.uxml.</strong> Three
+    /// zones: hierarchy, viewport and inspector across the top, timeline along the bottom, nested
+    /// <c>TwoPaneSplitView</c>s all the way down so every boundary is draggable. This file builds no
+    /// layout of its own — it resolves the named slots and fills them — and it sets no sizes: those
+    /// live in ClipEditorWindow.uss, because an inline style beats every rule in a stylesheet and so
+    /// one stray <c>style.height</c> is a value nobody can override.
+    /// </para>
+    /// <para>
+    /// <strong>The viewport is independent of selection.</strong> It initialises and renders from
+    /// the moment the window opens, showing the reference grid when there is nothing else to show.
+    /// Selection moves the marker and changes what the inspector displays; it decides nothing about
+    /// whether the viewport draws. It used to decide exactly that, and an empty viewport was
+    /// indistinguishable from a preview that had failed to start.
+    /// </para>
+    /// <para>
     /// <strong>Undo is per gesture, not per mutation</strong> (section 7.4). A key drag records the
     /// clip once on pointer-down and collapses everything up to pointer-up into one step, so one
     /// drag is one Ctrl+Z. The audit found the host's timeline was dirty-flag-only — drags and
@@ -31,8 +46,31 @@ namespace StitchPunk.AnimationToolkit.Editor
     {
         private const float PlaybackHertz = 30f;
 
+        private const string LayoutAssetPath =
+            "Packages/com.stitchpunk.dotsanimationtoolkit/Editor/ClipEditor/ClipEditorWindow.uxml";
+
+        /// <summary>
+        /// Prefix for the persisted split positions. Keyed by window rather than by project on
+        /// purpose: a dock layout is a habit of the person, and following them between projects is
+        /// the behaviour every other editor window has.
+        /// </summary>
+        private const string SplitPrefsPrefix = "StitchPunk.AnimationToolkit.ClipEditor.Split.";
+
+        /// <summary>Below this a pane is a sliver with nothing readable in it, so it is never stored.</summary>
+        private const float MinimumSplitDimension = 60f;
+
+        private const string HiddenUssClassName = "clip-editor--hidden";
+        private const string ClipRowUssClassName = "clip-editor__clip-row";
+        private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
+        private const string AnimatedBoneUssClassName = "clip-editor__hierarchy-row--animated";
+        private const string TrackHeaderUssClassName = "clip-editor__track-header";
+        private const string HeadingUssClassName = "clip-editor__heading";
+        private const string HintUssClassName = "clip-editor__hint";
+
         private ObjectField clipSetField;
         private ListView clipListView;
+        private TreeView hierarchyTreeView;
+        private Label hierarchyEmptyLabel;
         private ToolbarToggle playToggle;
         private ToolbarToggle snapToggle;
         private IntegerField frameCountField;
@@ -42,7 +80,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private VisualElement laneStack;
         private TimeRulerElement ruler;
         private PlayheadElement playhead;
-        private VisualElement inspectorPane;
+        private ScrollView inspectorPane;
         private Label statusLabel;
         private Image previewImage;
         private Label previewStatusLabel;
@@ -58,6 +96,17 @@ namespace StitchPunk.AnimationToolkit.Editor
         private SerializedObject clipSerializedObject;
 
         private readonly HashSet<KeyAddress> selectedKeys = new HashSet<KeyAddress>();
+
+        /// <summary>
+        /// The transform picked in the hierarchy, by name. Names rather than <c>Transform</c>
+        /// references because bone tracks bind by name too — and because the preview's skeleton is a
+        /// throwaway instance that is destroyed and rebuilt whenever the rig changes, so a held
+        /// reference would be a destroyed object more often than not.
+        /// </summary>
+        private string selectedBoneName;
+
+        private readonly Dictionary<string, float> persistedSplitDimensions = new Dictionary<string, float>();
+        private readonly HashSet<string> pendingProportionalSplitKeys = new HashSet<string>();
 
         private bool isPlaying;
         private double lastTickTime;
@@ -115,72 +164,328 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Layout
+        // Layout. The tree comes from UXML; everything below resolves slots and wires behaviour.
         // -------------------------------------------------------------------------------------
 
         private void CreateGUI()
         {
-            VisualElement root = rootVisualElement;
-            root.Add(BuildToolbar());
-
-            TwoPaneSplitView outerSplit = new TwoPaneSplitView(0, 200f, TwoPaneSplitViewOrientation.Horizontal);
-            outerSplit.style.flexGrow = 1f;
-            root.Add(outerSplit);
-
-            clipListView = new ListView
+            VisualTreeAsset layoutAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(LayoutAssetPath);
+            if (layoutAsset == null)
             {
-                fixedItemHeight = 20f,
-                selectionType = SelectionType.Single
-            };
-            clipListView.makeItem = MakeClipRow;
-            clipListView.bindItem = BindClipRow;
-            clipListView.selectionChanged += OnClipSelectionChanged;
-            outerSplit.Add(clipListView);
+                // Loud rather than blank: an empty window with no explanation reads as a crash, and
+                // the cause here is always the same — the .uxml was moved, renamed or not imported.
+                Label missingLayoutLabel = new Label(
+                    "The clip editor layout could not be loaded from " + LayoutAssetPath + ".");
+                missingLayoutLabel.AddToClassList(HintUssClassName);
+                rootVisualElement.Add(missingLayoutLabel);
+                return;
+            }
 
-            // Preview sits below the timeline rather than beside it: a pose is read horizontally,
-            // and stealing width from the timeline is what makes long clips unusable.
-            TwoPaneSplitView verticalSplit = new TwoPaneSplitView(1, 230f, TwoPaneSplitViewOrientation.Vertical);
-            outerSplit.Add(verticalSplit);
+            layoutAsset.CloneTree(rootVisualElement);
 
-            TwoPaneSplitView innerSplit = new TwoPaneSplitView(1, 260f, TwoPaneSplitViewOrientation.Horizontal);
-            verticalSplit.Add(innerSplit);
-            innerSplit.Add(BuildTimelinePane());
+            BindToolbar();
+            BindClipList();
+            BindHierarchy();
+            BindViewport();
+            BindInspector();
+            BindTimeline();
+            BindSplits();
 
-            inspectorPane = new ScrollView();
-            inspectorPane.style.paddingLeft = 6f;
-            inspectorPane.style.paddingTop = 6f;
-            innerSplit.Add(inspectorPane);
+            // Sync the preview with the state the window opened in, so the viewport reports "no clip
+            // set" from the first frame instead of an empty status line.
+            if (previewController != null)
+            {
+                previewController.SetClipSet(clipSet);
+            }
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(clipSet);
+            }
 
-            verticalSplit.Add(BuildPreviewPane());
-
+            RebuildHierarchy();
             RebuildTimeline();
         }
 
-        private VisualElement BuildPreviewPane()
+        private void BindToolbar()
         {
-            VisualElement pane = new VisualElement();
-            pane.style.flexDirection = FlexDirection.Column;
-            pane.style.flexGrow = 1f;
+            clipSetField = rootVisualElement.Q<ObjectField>("clip-set-field");
+            if (clipSetField != null)
+            {
+                clipSetField.objectType = typeof(ClipSetAsset);
+                clipSetField.allowSceneObjects = false;
+                clipSetField.RegisterValueChangedCallback(OnClipSetChanged);
+            }
 
-            previewStatusLabel = new Label(string.Empty);
-            previewStatusLabel.style.marginLeft = 6f;
-            previewStatusLabel.style.marginTop = 2f;
-            previewStatusLabel.style.whiteSpace = WhiteSpace.Normal;
-            pane.Add(previewStatusLabel);
+            playToggle = rootVisualElement.Q<ToolbarToggle>("play-toggle");
+            if (playToggle != null)
+            {
+                playToggle.RegisterValueChangedCallback(changeEvent => SetPlaying(changeEvent.newValue));
+            }
 
-            previewImage = new Image { scaleMode = ScaleMode.ScaleToFit };
-            previewImage.style.flexGrow = 1f;
+            ToolbarButton rewindButton = rootVisualElement.Q<ToolbarButton>("rewind-button");
+            if (rewindButton != null)
+            {
+                rewindButton.clicked += () => SetPlayheadTime(0f);
+            }
+
+            timeLabel = rootVisualElement.Q<Label>("time-label");
+            snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
+
+            frameCountField = rootVisualElement.Q<IntegerField>("frame-count-field");
+            if (frameCountField != null)
+            {
+                frameCountField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    if (ruler != null)
+                    {
+                        ruler.frameCount = Mathf.Max(1, changeEvent.newValue);
+                        ruler.MarkDirtyRepaint();
+                    }
+                });
+            }
+
+            // The rigged prefab authored bone tracks pose against (amendment A42, B4). Left empty
+            // for cutout clip sets, which then behave exactly as before — with an empty hierarchy
+            // pane rather than a missing one.
+            skinnedSourceField = rootVisualElement.Q<ObjectField>("skinned-source-field");
+            if (skinnedSourceField != null)
+            {
+                skinnedSourceField.objectType = typeof(GameObject);
+                skinnedSourceField.allowSceneObjects = false;
+                skinnedSourceField.tooltip =
+                    "Rigged prefab for bone tracks. Use the same one the VAT bake samples — "
+                    + "a different skeleton would preview motion the bake never sees.";
+                skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
+            }
+
+            VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
+            if (badgeSlot != null)
+            {
+                validationBadge = new ValidationBadgeElement();
+                badgeSlot.Add(validationBadge);
+            }
+        }
+
+        private void BindClipList()
+        {
+            clipListView = rootVisualElement.Q<ListView>("clip-list");
+            if (clipListView == null)
+            {
+                return;
+            }
+            clipListView.fixedItemHeight = 20f;
+            clipListView.selectionType = SelectionType.Single;
+            clipListView.makeItem = MakeClipRow;
+            clipListView.bindItem = BindClipRow;
+            clipListView.selectionChanged += OnClipSelectionChanged;
+            clipListView.itemsSource = new List<ClipAsset>();
+        }
+
+        private void BindHierarchy()
+        {
+            hierarchyEmptyLabel = rootVisualElement.Q<Label>("hierarchy-empty-label");
+
+            hierarchyTreeView = rootVisualElement.Q<TreeView>("hierarchy-tree");
+            if (hierarchyTreeView == null)
+            {
+                return;
+            }
+            hierarchyTreeView.fixedItemHeight = 20f;
+            hierarchyTreeView.selectionType = SelectionType.Single;
+            hierarchyTreeView.makeItem = MakeHierarchyRow;
+            hierarchyTreeView.bindItem = BindHierarchyRow;
+            hierarchyTreeView.selectionChanged += OnHierarchySelectionChanged;
+        }
+
+        private void BindViewport()
+        {
+            previewStatusLabel = rootVisualElement.Q<Label>("viewport-status");
+
+            previewImage = rootVisualElement.Q<Image>("viewport-image");
+            if (previewImage == null)
+            {
+                return;
+            }
+            previewImage.scaleMode = ScaleMode.ScaleToFit;
             previewImage.RegisterCallback<PointerDownEvent>(OnPreviewPointerDown);
             previewImage.RegisterCallback<PointerMoveEvent>(OnPreviewPointerMove);
             previewImage.RegisterCallback<PointerUpEvent>(OnPreviewPointerUp);
             previewImage.RegisterCallback<WheelEvent>(OnPreviewWheel);
-            pane.Add(previewImage);
-
-            return pane;
         }
+
+        private void BindInspector()
+        {
+            inspectorPane = rootVisualElement.Q<ScrollView>("inspector-content");
+        }
+
+        private void BindTimeline()
+        {
+            statusLabel = rootVisualElement.Q<Label>("timeline-status");
+            trackHeaderColumn = rootVisualElement.Q<VisualElement>("track-header-column");
+            laneColumn = rootVisualElement.Q<VisualElement>("lane-column");
+
+            // The lane stack owns keyboard focus: shortcuts registered here cannot swallow
+            // keystrokes meant for the inspector's own text fields.
+            laneStack = rootVisualElement.Q<VisualElement>("lane-stack");
+            if (laneStack == null)
+            {
+                return;
+            }
+            laneStack.RegisterCallback<KeyDownEvent>(OnTimelineKeyDown);
+
+            // Ruler above the lanes, playhead over both. Inserted rather than declared in UXML
+            // because neither has a UXML factory, and giving them one would buy nothing: this window
+            // is the only thing in the package that instantiates them.
+            ruler = new TimeRulerElement();
+            ruler.scrubbed += SetPlayheadTime;
+            laneStack.Insert(0, ruler);
+
+            playhead = new PlayheadElement();
+            laneStack.Add(playhead);
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Split persistence
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Restores each split's stored position and keeps storing it as the user drags.
+        /// </summary>
+        /// <remarks>
+        /// The fixed pane of each split is resolved by name rather than through
+        /// <c>TwoPaneSplitView.fixedPane</c>, which is only populated once the split has laid itself
+        /// out — and this runs before first layout, which is the only time the initial dimension can
+        /// still be set.
+        /// </remarks>
+        private void BindSplits()
+        {
+            // The timeline's default is a proportion, not a pixel count: "about a quarter" only
+            // lands on a quarter at one window height, and a window opened for the first time has
+            // not been laid out yet, so its height is not even knowable here.
+            BindSplit("Vertical", "dock-vertical", "timeline-pane", 220f, 0.25f);
+            BindSplit("Columns", "dock-columns", "dock-left", 240f, 0f);
+            BindSplit("LeftColumn", "dock-left", "clip-list-pane", 150f, 0f);
+            BindSplit("Inspector", "dock-right", "inspector-pane", 280f, 0f);
+        }
+
+        private void BindSplit(
+            string prefsKeySuffix, string splitName, string fixedPaneName,
+            float fallbackDimension, float firstRunProportion)
+        {
+            TwoPaneSplitView splitView = rootVisualElement.Q<TwoPaneSplitView>(splitName);
+            VisualElement fixedPane = rootVisualElement.Q<VisualElement>(fixedPaneName);
+            if (splitView == null || fixedPane == null)
+            {
+                return;
+            }
+
+            string prefsKey = SplitPrefsPrefix + prefsKeySuffix;
+            bool isHorizontal = splitView.orientation == TwoPaneSplitViewOrientation.Horizontal;
+            bool hasStoredDimension = EditorPrefs.HasKey(prefsKey);
+            float initialDimension = Mathf.Max(
+                MinimumSplitDimension, EditorPrefs.GetFloat(prefsKey, fallbackDimension));
+
+            // Set before first layout, which is when the split reads it. Restoring through the
+            // control's own property rather than by writing the pane's style is what keeps the two
+            // from fighting: the split re-applies its initial dimension during init, so a style
+            // written first is simply overwritten a frame later.
+            splitView.fixedPaneInitialDimension = initialDimension;
+            persistedSplitDimensions[prefsKey] = initialDimension;
+
+            if (!hasStoredDimension && firstRunProportion > 0f)
+            {
+                pendingProportionalSplitKeys.Add(prefsKey);
+                ScheduleFirstRunProportion(prefsKey, splitView, isHorizontal, firstRunProportion);
+            }
+
+            // On the fixed pane, not on the split: dragging the divider resizes the pane, and the
+            // split's own rect does not change at all.
+            fixedPane.RegisterCallback<GeometryChangedEvent>(
+                geometryEvent => OnSplitPaneGeometryChanged(prefsKey, fixedPane, isHorizontal));
+        }
+
+        /// <summary>
+        /// Sizes a never-before-opened split to a fraction of itself, once it knows how big it is.
+        /// </summary>
+        /// <remarks>
+        /// Deferred to the split's first layout because that is the earliest moment its dimension
+        /// exists — <c>position</c> in <see cref="CreateGUI"/> is whatever the window last was, which
+        /// for a first open is the default rect and not what the user ends up looking at. Applied
+        /// through <c>fixedPaneInitialDimension</c> for the reason above, and then stored, so the
+        /// proportion decides exactly once and every open after that restores a remembered position.
+        /// </remarks>
+        private void ScheduleFirstRunProportion(
+            string prefsKey, TwoPaneSplitView splitView, bool isHorizontal, float proportion)
+        {
+            EventCallback<GeometryChangedEvent> firstLayoutCallback = null;
+            firstLayoutCallback = geometryEvent =>
+            {
+                float splitDimension = isHorizontal
+                    ? splitView.resolvedStyle.width
+                    : splitView.resolvedStyle.height;
+                if (float.IsNaN(splitDimension) || splitDimension < 1f)
+                {
+                    // Not laid out yet. Staying registered is the point — giving up here is what
+                    // would leave the pane on the pixel fallback forever.
+                    return;
+                }
+
+                splitView.UnregisterCallback<GeometryChangedEvent>(firstLayoutCallback);
+
+                float proportionalDimension = Mathf.Max(
+                    MinimumSplitDimension, splitDimension * proportion);
+                splitView.fixedPaneInitialDimension = proportionalDimension;
+
+                persistedSplitDimensions[prefsKey] = proportionalDimension;
+                EditorPrefs.SetFloat(prefsKey, proportionalDimension);
+                pendingProportionalSplitKeys.Remove(prefsKey);
+            };
+            splitView.RegisterCallback<GeometryChangedEvent>(firstLayoutCallback);
+        }
+
+        private void OnSplitPaneGeometryChanged(string prefsKey, VisualElement fixedPane, bool isHorizontal)
+        {
+            // A split still waiting on its first-run proportion is laid out at the pixel fallback,
+            // which is not a position the user chose and must not be stored as one.
+            if (pendingProportionalSplitKeys.Contains(prefsKey))
+            {
+                return;
+            }
+
+            float currentDimension = isHorizontal
+                ? fixedPane.resolvedStyle.width
+                : fixedPane.resolvedStyle.height;
+            if (float.IsNaN(currentDimension) || currentDimension < MinimumSplitDimension)
+            {
+                return;
+            }
+
+            // Deduplicated because geometry events also fire on every window resize, and writing an
+            // unchanged value to EditorPrefs on each one is a registry write per frame of a drag.
+            float lastPersistedDimension;
+            if (persistedSplitDimensions.TryGetValue(prefsKey, out lastPersistedDimension)
+                && Mathf.Abs(lastPersistedDimension - currentDimension) < 0.5f)
+            {
+                return;
+            }
+
+            persistedSplitDimensions[prefsKey] = currentDimension;
+            EditorPrefs.SetFloat(prefsKey, currentDimension);
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Viewport gestures
+        // -------------------------------------------------------------------------------------
 
         private void OnPreviewPointerDown(PointerDownEvent pointerEvent)
         {
+            // Double click reframes. With the camera now persisting across every selection change,
+            // an orbit that wandered off the rig would otherwise have no way back.
+            if (pointerEvent.clickCount >= 2 && previewController != null)
+            {
+                previewController.ResetView();
+                return;
+            }
             previewImage.CapturePointer(pointerEvent.pointerId);
         }
 
@@ -208,162 +513,25 @@ namespace StitchPunk.AnimationToolkit.Editor
             wheelEvent.StopPropagation();
         }
 
-        private Toolbar BuildToolbar()
-        {
-            Toolbar toolbar = new Toolbar();
-
-            clipSetField = new ObjectField
-            {
-                objectType = typeof(ClipSetAsset),
-                allowSceneObjects = false
-            };
-            clipSetField.style.width = 240f;
-            clipSetField.RegisterValueChangedCallback(OnClipSetChanged);
-            toolbar.Add(MakeToolbarLabel("Clip Set"));
-            toolbar.Add(clipSetField);
-
-            playToggle = new ToolbarToggle { text = "Play" };
-            playToggle.RegisterValueChangedCallback(changeEvent => SetPlaying(changeEvent.newValue));
-            toolbar.Add(playToggle);
-
-            toolbar.Add(new ToolbarButton(() => SetPlayheadTime(0f)) { text = "|<" });
-
-            timeLabel = MakeToolbarLabel("0.000s");
-            timeLabel.style.width = 66f;
-            toolbar.Add(timeLabel);
-
-            snapToggle = new ToolbarToggle { text = "Snap", value = true };
-            toolbar.Add(snapToggle);
-
-            frameCountField = new IntegerField { value = 30 };
-            frameCountField.style.width = 44f;
-            frameCountField.RegisterValueChangedCallback(changeEvent =>
-            {
-                if (ruler != null)
-                {
-                    ruler.frameCount = Mathf.Max(1, changeEvent.newValue);
-                    ruler.MarkDirtyRepaint();
-                }
-            });
-            toolbar.Add(MakeToolbarLabel("Frames"));
-            toolbar.Add(frameCountField);
-
-            // The rigged prefab authored bone tracks pose against (amendment A42, B4). Left empty
-            // for cutout clip sets, which then behave exactly as before.
-            skinnedSourceField = new ObjectField
-            {
-                objectType = typeof(GameObject),
-                allowSceneObjects = false,
-                tooltip = "Rigged prefab for bone tracks. Use the same one the VAT bake samples — "
-                    + "a different skeleton would preview motion the bake never sees."
-            };
-            skinnedSourceField.style.width = 170f;
-            skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
-            toolbar.Add(MakeToolbarLabel("Rig"));
-            toolbar.Add(skinnedSourceField);
-
-            validationBadge = new ValidationBadgeElement();
-            toolbar.Add(validationBadge);
-
-            return toolbar;
-        }
-
         private void OnSkinnedSourceChanged(ChangeEvent<Object> changeEvent)
         {
             if (previewController != null)
             {
                 previewController.SetSkinnedSource(changeEvent.newValue as GameObject);
             }
+            SelectBone(null);
+            RebuildHierarchy();
             RebuildInspector();
         }
 
-        /// <summary>Bone names on the assigned rigged prefab, for the add-track picker.</summary>
-        private List<string> CollectSourceBoneNames()
-        {
-            List<string> boneNames = new List<string>();
-            GameObject source = skinnedSourceField != null
-                ? skinnedSourceField.value as GameObject
-                : null;
-            if (source == null)
-            {
-                return boneNames;
-            }
-            Transform[] hierarchy = source.GetComponentsInChildren<Transform>(true);
-            for (int boneIndex = 0; boneIndex < hierarchy.Length; boneIndex++)
-            {
-                if (!boneNames.Contains(hierarchy[boneIndex].name))
-                {
-                    boneNames.Add(hierarchy[boneIndex].name);
-                }
-            }
-            boneNames.Sort();
-            return boneNames;
-        }
-
-        private VisualElement BuildTimelinePane()
-        {
-            VisualElement pane = new VisualElement();
-            pane.style.flexDirection = FlexDirection.Column;
-            pane.style.flexGrow = 1f;
-
-            statusLabel = new Label("Assign a clip set.");
-            statusLabel.style.marginLeft = 6f;
-            statusLabel.style.marginTop = 4f;
-            statusLabel.style.marginBottom = 4f;
-            pane.Add(statusLabel);
-
-            VisualElement timelineRow = new VisualElement();
-            timelineRow.style.flexDirection = FlexDirection.Row;
-            timelineRow.style.flexGrow = 1f;
-
-            VisualElement headerStack = new VisualElement();
-            headerStack.style.width = 170f;
-            headerStack.style.flexShrink = 0f;
-            // A spacer exactly the ruler's height, so header row N lines up with lane row N.
-            VisualElement headerSpacer = new VisualElement();
-            headerSpacer.style.height = 20f;
-            headerSpacer.style.flexShrink = 0f;
-            headerStack.Add(headerSpacer);
-            trackHeaderColumn = new VisualElement();
-            headerStack.Add(trackHeaderColumn);
-            timelineRow.Add(headerStack);
-
-            // The lane stack owns keyboard focus: shortcuts registered here cannot swallow
-            // keystrokes meant for the inspector's own text fields.
-            laneStack = new VisualElement();
-            laneStack.style.flexGrow = 1f;
-            laneStack.focusable = true;
-            laneStack.RegisterCallback<KeyDownEvent>(OnTimelineKeyDown);
-
-            ruler = new TimeRulerElement();
-            ruler.scrubbed += SetPlayheadTime;
-            laneStack.Add(ruler);
-
-            laneColumn = new VisualElement();
-            laneStack.Add(laneColumn);
-
-            playhead = new PlayheadElement();
-            laneStack.Add(playhead);
-
-            timelineRow.Add(laneStack);
-            pane.Add(timelineRow);
-            return pane;
-        }
-
-        private static Label MakeToolbarLabel(string text)
-        {
-            Label label = new Label(text);
-            label.style.unityTextAlign = TextAnchor.MiddleLeft;
-            label.style.marginLeft = 4f;
-            label.style.marginRight = 4f;
-            return label;
-        }
+        // -------------------------------------------------------------------------------------
+        // Clip list
+        // -------------------------------------------------------------------------------------
 
         private static VisualElement MakeClipRow()
         {
             Label label = new Label();
-            label.style.unityTextAlign = TextAnchor.MiddleLeft;
-            label.style.marginLeft = 6f;
+            label.AddToClassList(ClipRowUssClassName);
             return label;
         }
 
@@ -376,6 +544,131 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             ClipAsset clip = clipSet.clips[index];
             label.text = clip != null ? clip.name : "<missing>";
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Prefab hierarchy. The rig's transforms, as the pick list for bone tracks.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Rebuilds the hierarchy from the assigned rigged prefab.
+        /// </summary>
+        /// <remarks>
+        /// A tree rather than the sorted name list this replaced, because a skeleton read as a flat
+        /// alphabetical list tells you nothing about which bone you are picking — two bones named
+        /// <c>Hand</c> and <c>Hand.001</c> are distinguishable only by where they sit. Tracks still
+        /// bind by name, so the tree is a picker, not a new binding model.
+        /// </remarks>
+        private void RebuildHierarchy()
+        {
+            if (hierarchyTreeView == null)
+            {
+                return;
+            }
+
+            List<TreeViewItemData<string>> rootItems = new List<TreeViewItemData<string>>();
+
+            GameObject sourcePrefab = skinnedSourceField != null
+                ? skinnedSourceField.value as GameObject
+                : null;
+            if (sourcePrefab != null)
+            {
+                int nextItemId = 0;
+                rootItems.Add(BuildHierarchyItem(sourcePrefab.transform, ref nextItemId));
+            }
+
+            hierarchyTreeView.SetRootItems(rootItems);
+            hierarchyTreeView.Rebuild();
+            if (rootItems.Count > 0)
+            {
+                hierarchyTreeView.ExpandAll();
+            }
+
+            if (hierarchyEmptyLabel != null)
+            {
+                hierarchyEmptyLabel.EnableInClassList(HiddenUssClassName, rootItems.Count > 0);
+            }
+        }
+
+        private TreeViewItemData<string> BuildHierarchyItem(Transform transformNode, ref int nextItemId)
+        {
+            int itemId = nextItemId;
+            nextItemId++;
+
+            List<TreeViewItemData<string>> childItems = new List<TreeViewItemData<string>>();
+            for (int childIndex = 0; childIndex < transformNode.childCount; childIndex++)
+            {
+                childItems.Add(BuildHierarchyItem(transformNode.GetChild(childIndex), ref nextItemId));
+            }
+
+            return new TreeViewItemData<string>(itemId, transformNode.name, childItems);
+        }
+
+        private static VisualElement MakeHierarchyRow()
+        {
+            Label label = new Label();
+            label.AddToClassList(HierarchyRowUssClassName);
+            return label;
+        }
+
+        private void BindHierarchyRow(VisualElement element, int index)
+        {
+            Label label = element as Label;
+            if (label == null)
+            {
+                return;
+            }
+            string boneName = hierarchyTreeView.GetItemDataForIndex<string>(index);
+            label.text = boneName;
+
+            // Bold marks a bone the selected clip already animates, so the tree doubles as the
+            // answer to "what does this clip actually touch?".
+            label.EnableInClassList(AnimatedBoneUssClassName, FindBoneTrackIndex(boneName) >= 0);
+        }
+
+        private void OnHierarchySelectionChanged(IEnumerable<object> selection)
+        {
+            string boneName = null;
+            foreach (object item in selection)
+            {
+                boneName = item as string;
+                break;
+            }
+
+            // Key selection and hierarchy selection are one selection with two sources: showing a
+            // key's values under a heading naming a different bone would be a lie about what the
+            // fields edit.
+            selectedKeys.Clear();
+            SelectBone(boneName);
+            RepaintLanes();
+            RebuildInspector();
+        }
+
+        /// <summary>Points the viewport marker and the inspector at a bone, or at nothing.</summary>
+        private void SelectBone(string boneName)
+        {
+            selectedBoneName = boneName;
+            if (previewController != null)
+            {
+                previewController.SetSelectedBone(boneName);
+            }
+        }
+
+        private int FindBoneTrackIndex(string boneName)
+        {
+            if (selectedClip == null || selectedClip.boneTracks == null || string.IsNullOrEmpty(boneName))
+            {
+                return -1;
+            }
+            for (int trackIndex = 0; trackIndex < selectedClip.boneTracks.Count; trackIndex++)
+            {
+                BoneTrack track = selectedClip.boneTracks[trackIndex];
+                if (track != null && track.boneName == boneName)
+                {
+                    return trackIndex;
+                }
+            }
+            return -1;
         }
 
         // -------------------------------------------------------------------------------------
@@ -478,6 +771,16 @@ namespace StitchPunk.AnimationToolkit.Editor
             previewDirtiedAt = EditorApplication.timeSinceStartup;
         }
 
+        /// <summary>
+        /// Advances the viewport one frame.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Every early exit here is about the pose, not about the picture.</strong> With no
+        /// clip, no registry or a clip the registry does not contain, the mirror simply is not
+        /// re-posed — the render still runs and still returns the scene, which at worst is the
+        /// reference grid. The old version returned early and blanked <c>previewImage.image</c> in
+        /// each of those cases, which is why the window looked dead until something was selected.
+        /// </remarks>
         private void UpdatePreview(double now)
         {
             if (previewController == null || previewImage == null)
@@ -499,19 +802,21 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
             }
 
-            previewStatusLabel.text = previewController.StatusMessage;
-
-            if (selectedClip == null || !previewController.HasRegistry)
+            string viewportStatus = previewController.StatusMessage;
+            if (selectedClip != null && previewController.HasRegistry
+                && !previewController.SamplePose(selectedClip.Id.Value, playheadTime))
             {
-                previewImage.image = null;
-                return;
+                viewportStatus = "Clip is not in the built registry — is it listed in the set?";
             }
-
-            if (!previewController.SamplePose(selectedClip.Id.Value, playheadTime))
+            else if (selectedClip == null && clipSet != null && string.IsNullOrEmpty(viewportStatus))
             {
-                previewStatusLabel.text = "Clip is not in the built registry — is it listed in the set?";
-                previewImage.image = null;
-                return;
+                // Only when the controller has nothing of its own to say: a rig with no targets or a
+                // set that failed to build is the more useful message, and this must not bury it.
+                viewportStatus = "Select a clip to pose the rig.";
+            }
+            if (previewStatusLabel != null)
+            {
+                previewStatusLabel.text = viewportStatus;
             }
 
             Rect previewRect = previewImage.contentRect;
@@ -570,6 +875,13 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             trackHeaderColumn.Clear();
             laneColumn.Clear();
+
+            // The hierarchy's bold marks track which clip is selected, so it is refreshed with the
+            // timeline rather than only when the rig changes.
+            if (hierarchyTreeView != null)
+            {
+                hierarchyTreeView.RefreshItems();
+            }
 
             if (selectedClip == null)
             {
@@ -665,9 +977,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             string headerText, TimelineTrackKind trackKind, int trackIndex, List<float> times, int rowIndex)
         {
             Label header = new Label(headerText);
-            header.style.height = 22f;
-            header.style.unityTextAlign = TextAnchor.MiddleLeft;
-            header.style.marginLeft = 6f;
+            header.AddToClassList(TrackHeaderUssClassName);
             header.tooltip = headerText;
             trackHeaderColumn.Add(header);
 
@@ -714,6 +1024,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                 selectedKeys.Add(address);
             }
 
+            SyncBoneSelectionToKey(address);
+
             if (selectedClip == null)
             {
                 RepaintLanes();
@@ -741,6 +1053,33 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             RepaintLanes();
             RebuildInspector();
+        }
+
+        /// <summary>
+        /// Moves the viewport marker onto the bone whose key was grabbed, and off it otherwise.
+        /// </summary>
+        /// <remarks>
+        /// The tree's own selection is updated without notifying, because the notification would run
+        /// <see cref="OnHierarchySelectionChanged"/>, which clears the key selection — the click
+        /// would deselect the very key that caused it.
+        /// </remarks>
+        private void SyncBoneSelectionToKey(KeyAddress address)
+        {
+            string boneName = null;
+            if (address.trackKind == TimelineTrackKind.Bone
+                && selectedClip != null
+                && selectedClip.boneTracks != null
+                && address.trackIndex < selectedClip.boneTracks.Count)
+            {
+                BoneTrack track = selectedClip.boneTracks[address.trackIndex];
+                boneName = track != null ? track.boneName : null;
+            }
+
+            SelectBone(boneName);
+            if (hierarchyTreeView != null && string.IsNullOrEmpty(boneName))
+            {
+                hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
+            }
         }
 
         private void OnDragMove(PointerMoveEvent moveEvent)
@@ -1218,10 +1557,18 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Context inspector. Bound fields get undo, dirtying and prefab overrides for free
-        // (section 7.4), so nothing here hand-rolls an edit path.
+        // Inspector. Bound fields get undo, dirtying and prefab overrides for free (section 7.4),
+        // so nothing here hand-rolls an edit path.
         // -------------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Fills the inspector for whatever is selected: a key, a bone, or the clip itself.
+        /// </summary>
+        /// <remarks>
+        /// The three cases are ordered by how specific they are, and the last of them is the
+        /// fallback — the pane is never empty, because "nothing here" and "the window is broken"
+        /// look identical to someone who has just opened it.
+        /// </remarks>
         private void RebuildInspector()
         {
             if (inspectorPane == null)
@@ -1230,22 +1577,26 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             inspectorPane.Clear();
 
+            if (selectedKeys.Count > 0 && BuildKeyInspector())
+            {
+                return;
+            }
+            if (!string.IsNullOrEmpty(selectedBoneName))
+            {
+                BuildBoneInspector();
+                return;
+            }
+            BuildClipInspector();
+        }
+
+        /// <summary>Returns false when the addressed key has gone, so the caller can fall through.</summary>
+        private bool BuildKeyInspector()
+        {
             if (selectedClip == null || clipSerializedObject == null)
             {
-                return;
+                return false;
             }
             clipSerializedObject.Update();
-
-            if (selectedKeys.Count == 0)
-            {
-                inspectorPane.Add(MakeHeading("Clip"));
-                AddBoundField("duration");
-                AddBoundField("defaultLoop");
-                AddBoundField("rig");
-                AddBoneTrackControls();
-                inspectorPane.Bind(clipSerializedObject);
-                return;
-            }
 
             // Multi-select edits the last address only. Driving N keys from one field needs a
             // mixed-value story the property system does not hand us, so rather than pretend, the
@@ -1259,7 +1610,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             SerializedProperty keyProperty = FindKeyProperty(shown);
             if (keyProperty == null)
             {
-                return;
+                return false;
             }
 
             inspectorPane.Add(MakeHeading(
@@ -1273,24 +1624,81 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             inspectorPane.Add(new PropertyField(keyProperty));
             inspectorPane.Bind(clipSerializedObject);
+            return true;
         }
 
         /// <summary>
-        /// Clip-level bone-track management: name a bone, add a track for it, remove empty ones.
+        /// The inspector for a transform picked in the hierarchy.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// Lives in the clip inspector rather than the toolbar because adding a track is a
-        /// structural edit to the clip, not a view action — and the toolbar is already the busiest
-        /// row in the window.
-        /// </para>
-        /// <para>
-        /// The bone name is typed rather than picked, for now. A dropdown sourced from the preview's
-        /// skinned prefab is the better answer and is what kills the typo class outright — it needs
-        /// the preview to expose its bone list, which is the last piece of amendment A42's phase B4.
-        /// A typed name that resolves to nothing is reported by the bake rather than baked as a
-        /// bone frozen at rest, so a mistake here is loud rather than silent.
-        /// </para>
+        /// Adding the track happens here rather than in the clip inspector because this is where the
+        /// bone is named. A name typed by hand that resolves to nothing bakes the bone at rest,
+        /// which reads as an animation that simply does not play; picking it from the rig's own
+        /// hierarchy removes that failure outright.
+        /// </remarks>
+        private void BuildBoneInspector()
+        {
+            inspectorPane.Add(MakeHeading("Bone — " + selectedBoneName));
+
+            if (selectedClip == null)
+            {
+                inspectorPane.Add(MakeHint("Select a clip to animate this bone."));
+                return;
+            }
+
+            int boneTrackIndex = FindBoneTrackIndex(selectedBoneName);
+            if (boneTrackIndex < 0)
+            {
+                inspectorPane.Add(MakeHint("No track on this clip animates this bone."));
+                inspectorPane.Add(new Button(() => AddBoneTrack(selectedBoneName))
+                {
+                    text = "Add Bone Track"
+                });
+                return;
+            }
+
+            if (clipSerializedObject == null)
+            {
+                return;
+            }
+            clipSerializedObject.Update();
+
+            SerializedProperty tracksProperty = clipSerializedObject.FindProperty("boneTracks");
+            if (tracksProperty == null || boneTrackIndex >= tracksProperty.arraySize)
+            {
+                return;
+            }
+            inspectorPane.Add(new PropertyField(tracksProperty.GetArrayElementAtIndex(boneTrackIndex)));
+            inspectorPane.Bind(clipSerializedObject);
+        }
+
+        private void BuildClipInspector()
+        {
+            if (selectedClip == null || clipSerializedObject == null)
+            {
+                inspectorPane.Add(MakeHint(clipSet == null
+                    ? "Assign a clip set in the toolbar."
+                    : "Select a clip to edit its properties."));
+                return;
+            }
+            clipSerializedObject.Update();
+
+            inspectorPane.Add(MakeHeading("Clip"));
+            AddBoundField("duration");
+            AddBoundField("defaultLoop");
+            AddBoundField("rig");
+            AddBoneTrackControls();
+            inspectorPane.Bind(clipSerializedObject);
+        }
+
+        /// <summary>
+        /// Clip-level bone-track summary, plus the by-name fallback for a set with no rig assigned.
+        /// </summary>
+        /// <remarks>
+        /// With a rig assigned, the hierarchy pane is the picker and this only points at it — a
+        /// second dropdown listing the same bones would be one more thing to keep in sync with the
+        /// tree for no gain. Without one there is nothing to pick from, so the typed field remains
+        /// the only way to author a bone track, exactly as before.
         /// </remarks>
         private void AddBoneTrackControls()
         {
@@ -1299,24 +1707,16 @@ namespace StitchPunk.AnimationToolkit.Editor
             int boneTrackCount = selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0;
             inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
 
-            // A dropdown when a rig is assigned, a text field when it is not. The dropdown is what
-            // removes the typo class outright: a typed name that resolves to nothing bakes the bone
-            // at rest, which reads as an animation that simply does not play.
-            List<string> sourceBoneNames = CollectSourceBoneNames();
-            if (sourceBoneNames.Count > 0)
+            bool hasHierarchy = skinnedSourceField != null && skinnedSourceField.value != null;
+            if (hasHierarchy)
             {
-                DropdownField boneNameDropdown = new DropdownField("Bone", sourceBoneNames, 0);
-                inspectorPane.Add(boneNameDropdown);
-                inspectorPane.Add(new Button(() => AddBoneTrack(boneNameDropdown.value))
-                {
-                    text = "Add Bone Track"
-                });
+                inspectorPane.Add(MakeHint("Pick a bone in the Hierarchy pane to add or edit its track."));
                 return;
             }
 
             TextField boneNameField = new TextField("Bone Name");
             boneNameField.tooltip =
-                "Assign a rigged prefab in the toolbar to pick from a list instead. "
+                "Assign a rigged prefab in the toolbar to pick from the hierarchy instead. "
                 + "Case sensitive — the bake reports a name it cannot resolve.";
             inspectorPane.Add(boneNameField);
             inspectorPane.Add(new Button(() => AddBoneTrack(boneNameField.value))
@@ -1339,15 +1739,12 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             // One track per bone. Two tracks naming the same bone is a validation error, and the
             // second one would silently lose to whichever the bake applied last — better to refuse
-            // it here, where the user can see why.
-            for (int trackIndex = 0; trackIndex < selectedClip.boneTracks.Count; trackIndex++)
+            // it here, where the user can see why. Reported on the timeline's status line rather
+            // than the viewport's, which the preview tick overwrites thirty times a second.
+            if (FindBoneTrackIndex(boneName) >= 0)
             {
-                BoneTrack existingTrack = selectedClip.boneTracks[trackIndex];
-                if (existingTrack != null && existingTrack.boneName == boneName)
-                {
-                    previewStatusLabel.text = "A bone track for '" + boneName + "' already exists.";
-                    return;
-                }
+                statusLabel.text = "A bone track for '" + boneName + "' already exists.";
+                return;
             }
 
             BeginUndoGesture("Add Bone Track");
@@ -1365,8 +1762,14 @@ namespace StitchPunk.AnimationToolkit.Editor
         private static Label MakeHeading(string text)
         {
             Label label = new Label(text);
-            label.style.unityFontStyleAndWeight = FontStyle.Bold;
-            label.style.marginBottom = 4f;
+            label.AddToClassList(HeadingUssClassName);
+            return label;
+        }
+
+        private static Label MakeHint(string text)
+        {
+            Label label = new Label(text);
+            label.AddToClassList(HintUssClassName);
             return label;
         }
 

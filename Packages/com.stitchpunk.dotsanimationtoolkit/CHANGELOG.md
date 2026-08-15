@@ -5,6 +5,53 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed — the clip editor is a persistent dock (§7.1)
+
+- **Three zones over a timeline**, declared in `ClipEditorWindow.uxml` as nested
+  `TwoPaneSplitView`s: a left column (clips over a hierarchy of the loaded rig's
+  transforms), the viewport, and an inspector, above the timeline at roughly
+  75/25. Every boundary is draggable and every position is stored in
+  `EditorPrefs`, so the layout follows the person rather than resetting each
+  time the window opens. The first open derives the timeline's height from a
+  proportion of the window — a pixel default only lands on a quarter at one
+  window size — and stores the result, after which it is an ordinary remembered
+  position.
+- **The viewport no longer depends on selection.** It initialises and renders
+  when the window opens and keeps rendering through every selection change,
+  showing a reference grid when there is no clip set, no rig, or nothing
+  selected. Previously `Render` bailed out when no rig mirror existed and the
+  window blanked the image whenever no clip was selected, which made an
+  unselected editor indistinguishable from a preview that had failed to start.
+  Selection now decides only two things: what the inspector shows, and where the
+  selection marker sits. Double-clicking the viewport reframes the camera, which
+  a camera that persists across selections needs and did not have.
+- **The rig hierarchy replaces the bone-name dropdown.** A `TreeView` of the
+  assigned prefab's transforms is the picker for bone tracks; bones the selected
+  clip animates are bold, and selecting one offers **Add Bone Track** for that
+  exact bone. A flat sorted name list could not distinguish two bones with
+  similar names, which is the case where a typo silently bakes a bone at rest.
+  The typed field remains for sets with no rig assigned.
+- **All sizing and spacing moved to `ClipEditorWindow.uss`.** The window, ruler,
+  lanes, playhead and validation badge no longer set inline layout styles —
+  an inline style beats every rule in a stylesheet, so a leftover `style.height`
+  is a value the sheet cannot override. Colours stay in C# where they encode
+  state. The ruler's height and the track-header spacer's height are one USS
+  custom property, because those two must agree for the header column and the
+  lane column to line up.
+- The timeline scrolls, since a quarter-height pane cannot show a deep clip's
+  tracks; headers and lanes share one scroller so they cannot drift apart.
+- Duplicate-bone-track warnings now go to the timeline's status line instead of
+  the viewport's, which the preview tick overwrote thirty times a second.
+
+### Added
+
+- `ClipEditorLayoutTests`: the UXML element names are a contract `Q<T>(name)`
+  cannot check — a rename returns null and silently empties a pane — so the
+  suite asserts every slot the window resolves, and that each split's fixed pane
+  is the one the window stores and restores.
+
 ## [0.8.0]
 
 ### Added — attachment, authoring surface and packaging

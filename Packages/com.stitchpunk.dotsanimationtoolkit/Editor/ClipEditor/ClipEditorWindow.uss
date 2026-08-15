@@ -1,0 +1,251 @@
+/* Copyright (c) 2026 Stitch Punk. All rights reserved. */
+
+/*
+ * Every size and space in the clip editor lives here (architecture section 7.1).
+ *
+ * The window and its timeline elements set no inline layout styles of their own. That is not
+ * tidiness: an inline style beats every rule in this file, so a single leftover `style.height`
+ * is a value nobody can override and nobody can find. Colours stay in C# where they encode state
+ * (selected, error, warning) and are chosen per draw call by Painter2D rather than by USS.
+ *
+ * TimeRulerElement, TrackLaneElement, PlayheadElement and ValidationBadgeElement take their sizes
+ * from the classes below, so they are only fully styled inside a tree carrying this stylesheet.
+ * ClipEditorWindow.uxml is the only place that does; nothing else in the package instantiates them.
+ */
+
+/* ------------------------------------------------------------------------------------------- */
+/* Root and shared tokens                                                                        */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__root {
+    flex-grow: 1;
+
+    /*
+     * The header column and the lane column are two separate stacks that must agree row for row.
+     * These are the numbers that make them agree: the spacer above the headers is exactly the
+     * ruler's height, and a header is exactly a lane's height. Declared once so the alignment
+     * cannot be broken by editing one of a pair.
+     */
+    --clip-editor-ruler-height: 20px;
+    --clip-editor-lane-height: 22px;
+    --clip-editor-track-header-width: 170px;
+}
+
+.clip-editor--hidden {
+    display: none;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Toolbar                                                                                       */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__toolbar {
+    flex-shrink: 0;
+}
+
+.clip-editor__toolbar-label {
+    -unity-text-align: middle-left;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.clip-editor__time-label {
+    width: 66px;
+}
+
+.clip-editor__object-field {
+    width: 200px;
+}
+
+.clip-editor__frame-field {
+    width: 44px;
+}
+
+.clip-editor__badge-slot {
+    flex-direction: column;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Dock and panes                                                                                */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__dock {
+    flex-grow: 1;
+}
+
+/*
+ * Minimums, not sizes. TwoPaneSplitView clamps a drag against the panes' min-width / min-height,
+ * so these are what stop a boundary being dragged over a pane and leaving it at zero pixels with
+ * no visible handle to drag it back out.
+ */
+.clip-editor__pane {
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 80px;
+    min-height: 48px;
+}
+
+.clip-editor__pane-title {
+    -unity-font-style: bold;
+    padding-top: 4px;
+    padding-bottom: 2px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.clip-editor__hint {
+    white-space: normal;
+    margin-left: 6px;
+    margin-right: 6px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    opacity: 0.7;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Clip list and prefab hierarchy                                                                */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__clip-list {
+    flex-grow: 1;
+}
+
+.clip-editor__clip-row {
+    -unity-text-align: middle-left;
+    margin-left: 6px;
+}
+
+.clip-editor__hierarchy {
+    flex-grow: 1;
+}
+
+.clip-editor__hierarchy-row {
+    -unity-text-align: middle-left;
+    flex-grow: 1;
+}
+
+/* A bone the selected clip already animates. Weight rather than colour, so it still reads in the
+ * light theme and against the row's own selection highlight. */
+.clip-editor__hierarchy-row--animated {
+    -unity-font-style: bold;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Viewport                                                                                      */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__viewport-pane {
+    min-width: 120px;
+}
+
+.clip-editor__viewport-status {
+    white-space: normal;
+    margin-left: 6px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+}
+
+.clip-editor__viewport {
+    flex-grow: 1;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Inspector                                                                                     */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__inspector {
+    flex-grow: 1;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 2px;
+}
+
+.clip-editor__heading {
+    -unity-font-style: bold;
+    margin-top: 6px;
+    margin-bottom: 4px;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Timeline                                                                                      */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__status {
+    margin-left: 6px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+
+.clip-editor__timeline-scroll {
+    flex-grow: 1;
+}
+
+.clip-editor__timeline-row {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.clip-editor__track-header-stack {
+    width: var(--clip-editor-track-header-width);
+    flex-shrink: 0;
+}
+
+.clip-editor__track-header-spacer {
+    height: var(--clip-editor-ruler-height);
+    flex-shrink: 0;
+}
+
+.clip-editor__track-header {
+    height: var(--clip-editor-lane-height);
+    -unity-text-align: middle-left;
+    margin-left: 6px;
+    overflow: hidden;
+}
+
+.clip-editor__lane-stack {
+    flex-grow: 1;
+}
+
+.clip-editor__ruler {
+    height: var(--clip-editor-ruler-height);
+    flex-shrink: 0;
+}
+
+.clip-editor__lane {
+    height: var(--clip-editor-lane-height);
+    flex-grow: 1;
+}
+
+/* Spans the whole lane stack so the current-time line is continuous across every track. */
+.clip-editor__playhead {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Validation badge                                                                              */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__validation-badge {
+    flex-direction: column;
+}
+
+.clip-editor__validation-summary {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.clip-editor__validation-messages {
+    margin-left: 8px;
+    max-height: 220px;
+}
+
+.clip-editor__validation-message {
+    -unity-text-align: middle-left;
+    white-space: normal;
+}

@@ -28,10 +28,16 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Raised when the pointer scrubs the ruler, with the normalized time.</summary>
         public event System.Action<float> scrubbed;
 
+        /// <summary>
+        /// Height and shrink come from ClipEditorWindow.uss, which pairs this element's height with
+        /// the spacer above the track headers. Inline styles would win over that rule and put the
+        /// two stacks one row out of step with no way to correct it from the stylesheet.
+        /// </summary>
+        public const string UssClassName = "clip-editor__ruler";
+
         public TimeRulerElement()
         {
-            style.height = 20f;
-            style.flexShrink = 0f;
+            AddToClassList(UssClassName);
             generateVisualContent += OnGenerateVisualContent;
             RegisterCallback<PointerDownEvent>(OnPointerDown);
             RegisterCallback<PointerMoveEvent>(OnPointerMove);

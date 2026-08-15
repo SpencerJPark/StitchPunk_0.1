@@ -40,19 +40,28 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private bool isExpanded;
 
+        /// <summary>
+        /// Layout comes from ClipEditorWindow.uss; only the severity colours stay in C#, because
+        /// they are chosen per message from validation output rather than authored per element.
+        /// </summary>
+        public const string UssClassName = "clip-editor__validation-badge";
+
+        private const string SummaryUssClassName = "clip-editor__validation-summary";
+        private const string MessageListUssClassName = "clip-editor__validation-messages";
+        private const string MessageUssClassName = "clip-editor__validation-message";
+        private const string HiddenUssClassName = "clip-editor--hidden";
+
         public ValidationBadgeElement()
         {
-            style.flexDirection = FlexDirection.Column;
+            AddToClassList(UssClassName);
 
             summaryButton = new Button(ToggleExpanded) { text = "—" };
-            summaryButton.style.marginLeft = 4f;
-            summaryButton.style.marginRight = 4f;
+            summaryButton.AddToClassList(SummaryUssClassName);
             Add(summaryButton);
 
             messageList = new VisualElement();
-            messageList.style.display = DisplayStyle.None;
-            messageList.style.marginLeft = 8f;
-            messageList.style.maxHeight = 220f;
+            messageList.AddToClassList(MessageListUssClassName);
+            messageList.AddToClassList(HiddenUssClassName);
             Add(messageList);
         }
 
@@ -118,7 +127,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private void ToggleExpanded()
         {
             isExpanded = !isExpanded;
-            messageList.style.display = isExpanded ? DisplayStyle.Flex : DisplayStyle.None;
+            messageList.EnableInClassList(HiddenUssClassName, !isExpanded);
         }
 
         private void RebuildMessageList()
@@ -142,10 +151,9 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     text = message.code.ToString() + "  " + message.text
                 };
+                messageButton.AddToClassList(MessageUssClassName);
                 messageButton.style.color =
                     message.severity == ValidationSeverity.Error ? ErrorColor : WarningColor;
-                messageButton.style.unityTextAlign = TextAnchor.MiddleLeft;
-                messageButton.style.whiteSpace = WhiteSpace.Normal;
                 messageList.Add(messageButton);
             }
         }

@@ -124,6 +124,8 @@ Send an `AnimationCommand` naming the clip id. `ClipSetAsset`'s inspector has **
 
 Beyond authoring bone tracks:
 
+- **The rig hierarchy is the bone picker.** Assign your rigged prefab to the toolbar's **Rig** field and its transforms appear as a tree in the left column. Select a bone there and the inspector offers **Add Bone Track** for exactly that bone — no typing, so the "name resolved to nothing and the bake froze it at rest" failure cannot happen. Bones the selected clip already animates are shown in bold. With no rig assigned you can still type a name, which is the only option a cutout set has.
+- **Selection is marked in the viewport.** The selected bone gets a wireframe marker that follows it as you scrub, so you can see which joint you are keying without reading the track header.
 - **Retiming.** Change `duration` and every key moves with it — times are normalized, so a re-time never moves a key relative to the clip.
 - **Events.** Place `EventMarker`s on the timeline — footfalls, hit frames, VFX triggers. These surface at runtime in the actor's `AnimEventOutput` buffer.
 - **Layer and blend defaults.** `defaultBlendIn`/`defaultBlendOut` set how the clip crossfades in and out.
