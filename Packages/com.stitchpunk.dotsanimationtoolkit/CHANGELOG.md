@@ -61,6 +61,48 @@ questions:
   validation rule V09 — the clip broke at bake purely for having been authored.
   New markers take the clip set's first registered event, or key 16.
 
+### Fixed — the shipped sample did not compile, and produced invalid assets
+
+Both defects were invisible for the same reason: **`Samples~` is excluded from
+compilation**, so nothing in the project ever built the sample and no test could
+have caught either. Found by copying it into a temporary assembly under the
+project's asset root and compiling it, then running it and validating what it
+produced.
+
+- `QuickStartActorBuilder` still wrote `scale = new float2(1f, 1f)`. Schema 6
+  made `TransformKey.scale` a `float3`, so the only sample the package ships had
+  been a compile error since that change landed.
+- Its asmdef was missing a `Unity.Collections` reference, which any assembly
+  referencing `Unity.Entities` needs — a second compile error behind the first.
+- The generated rig's **target ids were all 0**, so the sample produced a clip
+  set failing validation rules V02 and V05. `CreateInstance` runs the asset's
+  lifecycle hooks while `targets` is still empty and `AssetDatabase.CreateAsset`
+  fires none of them, so nothing ever minted them.
+
+### Changed — `RigAsset.EnsureStableIds()` is public
+
+The id-minting gap above could not be closed from a sample, and cannot be closed
+by a user's build script either: the method was `internal`, and the package's
+`InternalsVisibleTo` list is contracted to the Editor and test assemblies only.
+Any script that builds a rig from code — `CreateInstance`, assign `targets`,
+save — needs to mint the row ids itself. It is idempotent and safe to call twice.
+
+Rig targets and sockets are the only identities in the package that live inside a
+list a caller populates after construction, so this is the one authoring asset
+that needs a public entry point.
+
+### Added — a `Composite Actor` sample
+
+Generates an actor using **two techniques at once**: cutout limbs on transform
+tracks and a flipbook face on sprite tracks, from one clip on one timeline, plus
+a socket and an event marker carrying a window. Quick Start shows how to get
+something on screen; this shows the claim the package's design is actually built
+around and that a reader is most likely to disbelieve.
+
+The flipbook's `Texture2DArray` is generated too, so the sample ships no binary
+fixtures. Verified by running it: the generated clip set validates clean and
+bakes to a schema-7 registry carrying both a transform track and a sprite track.
+
 ### Added — the VAT baker has tests
 
 `VatTextureBaker` shipped with **no coverage at all**, despite being the piece

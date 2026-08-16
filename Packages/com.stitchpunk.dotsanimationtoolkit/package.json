@@ -33,6 +33,11 @@
       "displayName": "Quick Start Actor",
       "description": "Generates a complete working actor - rig, clip set, an animated clip, and a prefab wired to bake - through the same public API you would use yourself.",
       "path": "Samples~/QuickStartActor"
+    },
+    {
+      "displayName": "Composite Actor",
+      "description": "Generates an actor using two techniques at once - cutout limbs on transform tracks and a flipbook face on sprite tracks - from one clip on one timeline, with a socket and an event marker. Includes a generated Texture2DArray, so it ships no binary fixtures.",
+      "path": "Samples~/CompositeActor"
     }
   ]
 }

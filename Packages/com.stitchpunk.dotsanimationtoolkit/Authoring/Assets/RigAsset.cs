@@ -63,12 +63,35 @@ namespace StitchPunk.AnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Assigns a fresh stable id to this rig and to every target row that still carries the
-        /// reserved 0 value. Idempotent: an already-identified rig or row is left untouched, which
-        /// is what makes duplicate-then-edit copy the id rather than mint a new one (the duplicate
-        /// is separated later by the editor's id-collision postprocessor, architecture section 3.4).
+        /// Assigns a fresh stable id to this rig and to every target and socket row that still
+        /// carries the reserved 0 value. Idempotent: an already-identified rig or row is left
+        /// untouched, which is what makes duplicate-then-edit copy the id rather than mint a new one
+        /// (the duplicate is separated later by the editor's id-collision postprocessor,
+        /// architecture section 3.4).
         /// </summary>
-        internal void EnsureStableIds()
+        /// <remarks>
+        /// <para>
+        /// <strong>Public because building a rig from code cannot do without it.</strong> The
+        /// lifecycle hooks below cover every rig a human authors: a rig edited in the inspector gets
+        /// <c>OnValidate</c>, and one loaded from disk gets <c>OnEnable</c>. Neither covers the
+        /// script that does <c>CreateInstance</c>, assigns <see cref="targets"/>, and saves — the
+        /// hooks all fired while the list was still empty, and <c>AssetDatabase.CreateAsset</c>
+        /// fires none of them. Such a rig saves with every target id still 0, which fails validation
+        /// rules V02 and V05 the moment a clip references it.
+        /// </para>
+        /// <para>
+        /// The rig's own id is not the problem — it is minted in <c>Awake</c>, before any list
+        /// exists. It is specifically the id-bearing <em>rows</em>, which is why this is the one
+        /// authoring asset that needs a public entry point: no other one carries identities inside a
+        /// list that a caller populates after construction.
+        /// </para>
+        /// <para>
+        /// Call it after populating <see cref="targets"/> and <see cref="sockets"/> and before
+        /// reading any <c>Id</c>. Both shipped samples do, and both produced invalid rigs before
+        /// they did.
+        /// </para>
+        /// </remarks>
+        public void EnsureStableIds()
         {
             if (stableId == 0UL)
             {

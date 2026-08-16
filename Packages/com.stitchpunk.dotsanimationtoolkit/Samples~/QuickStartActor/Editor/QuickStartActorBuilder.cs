@@ -96,10 +96,13 @@ namespace StitchPunk.AnimationToolkit.Samples
                 new LayerDefinition { displayName = "Base", defaultActive = true }
             };
 
-            AssetDatabase.CreateAsset(rig, outputFolder + "/QuickStartRig.asset");
+            // Mint the target ids before anything reads them. The asset's own lifecycle hooks all
+            // fired while `targets` was still empty — CreateInstance runs Awake and OnEnable on a
+            // bare object, and CreateAsset fires neither — so without this every target keeps the
+            // reserved id 0 and the rig fails validation rules V02 and V05.
+            rig.EnsureStableIds();
 
-            // Ids are minted by the asset's own lifecycle hooks, which have now run. Reading them
-            // before CreateAsset would hand back zeros.
+            AssetDatabase.CreateAsset(rig, outputFolder + "/QuickStartRig.asset");
             return rig;
         }
 
@@ -162,7 +165,10 @@ namespace StitchPunk.AnimationToolkit.Samples
                 normalizedTime = normalizedTime,
                 position = float3.zero,
                 rotationZ = rotationDegrees,
-                scale = new float2(1f, 1f),
+
+                // Three components since schema 6 made scale 3D. A default float3 is all zeros,
+                // which collapses the part rather than leaving it alone.
+                scale = new float3(1f, 1f, 1f),
                 interpolation = Interpolation.EaseInOut
             };
         }

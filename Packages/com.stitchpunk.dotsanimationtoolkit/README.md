@@ -108,11 +108,10 @@ than for assertions.
 
 ## Not shipped yet
 
-- **One sample ships**, `Quick Start Actor`, which *generates* a rig, clip set,
-  animated clip and a bake-ready prefab rather than shipping `.asset` files —
-  committed assets carry baked-in stable ids that could collide with a project
-  already using this package. The `VatCrowd` and `CompositeActor` samples the
-  design doc calls for are not packaged yet.
+- **Two samples ship**, `Quick Start Actor` and `Composite Actor`, both of which
+  *generate* their assets rather than shipping `.asset` files — committed assets
+  carry baked-in stable ids that could collide with a project already using this
+  package. The `VatCrowd` sample the design doc calls for is not packaged yet.
 - No package-shipped sample drives a **bone socket** end to end; bone sockets
   need a VAT rebake to populate their sample tracks.
 
