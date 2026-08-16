@@ -79,10 +79,10 @@ entity.
   Toolkit ▸ Clip Editor**) — track lanes, transport, a live preview pane
   driven by the runtime's own sampling code (not a divergent editor copy), and
   per-gesture undo.
-- A large automated test suite backs the above: 250+ EditMode tests
+- A large automated test suite backs the above: 340+ EditMode tests
   (validation, identity stability, bake determinism, sampling/event math,
-  shader-source conformance) and 175+ PlayMode tests (entity baking, system
-  behaviour, VAT playback).
+  VAT baking, shader-source conformance) and 200+ PlayMode tests (entity
+  baking, system behaviour, socket resolution, VAT playback).
 
 ## Not battle-tested yet
 
@@ -95,11 +95,16 @@ What they have not had is *use*. The suites cover their logic, not their
 ergonomics. Expect rough edges in the authoring flow rather than incorrect
 maths.
 
-Sockets are the exception and are no longer only unit-covered: two PlayMode
-fixtures now drive one through a real frame — a `Play` command, the clip
-sampled, `TransformApplySystem` writing the part, and the socket resolved from
-that same frame's transform. A **VAT bake** still has no end-to-end integration
-test.
+Two of these are no longer only unit-covered. Sockets: two PlayMode fixtures
+drive one through a real frame — a `Play` command, the clip sampled,
+`TransformApplySystem` writing the part, and the socket resolved from that same
+frame's transform. The VAT bake: sixteen EditMode fixtures bake procedural
+skinned meshes, covering the texture-layout contract, the soft-failure paths,
+and that an animated clip actually produces differing frames.
+
+What remains genuinely unexercised is the bake's **output rendering** — no test
+puts a baked texture on a mesh and looks at it, which is a job for eyes rather
+than for assertions.
 
 ## Not shipped yet
 

@@ -61,6 +61,32 @@ questions:
   validation rule V09 — the clip broke at bake purely for having been authored.
   New markers take the clip set's first registered event, or key 16.
 
+### Added — the VAT baker has tests
+
+`VatTextureBaker` shipped with **no coverage at all**, despite being the piece
+that turns a skinned mesh into the texture the whole VAT path reads. Sixteen
+EditMode fixtures now build procedural skinned meshes — the approach §9's C6 row
+asks for, and the only one available, since an imported FBX cannot be committed
+as a package fixture anyone can diff or regenerate.
+
+They pin the two things that are checkable exactly and had nothing holding them:
+
+- **The layout contract with `ToolkitVat.hlsl`** — three rows per bone frame, one
+  per vertex frame, a power-of-two width covering the element count, clips laid
+  end to end without overlap, the loop-safe duplicate frame, and a targeted C10
+  range occupying its own block rather than aliasing the untargeted one.
+- **The failure contract** (§8 M2, "never throws past the API") — a boneless
+  mesh, a null renderer, a zero sample rate and an empty clip list each report a
+  message instead of throwing, because a baker that throws cannot be driven over
+  a content library.
+
+Plus the one that matters most: **a bake of an animated clip writes different
+matrices on different frames.** The baker's own source warns that sampling
+through the wrong API poses nothing and yields "a texture full of identical,
+entirely valid-looking matrices" — and every other fixture here passes against
+exactly that bug. Mutation-checked by disabling the sampling call: one failure,
+that fixture, out of 345.
+
 ### Added — coverage for two paths nothing exercised
 
 - **A socket driven through a real playback frame.** Every socket fixture until
