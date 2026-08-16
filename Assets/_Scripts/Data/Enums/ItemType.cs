@@ -1,16 +1,25 @@
 public enum ItemType
 {
     None,
-    Broom,
-    Rock,
-    Gun,
-    Bomb,
     Reviver,
-    // Consumables — appended; do not reorder existing values.
-    Bandage,
     MedKit,
-    Bread,
-    Water,
+    Weapon,
+    Ammo,
+    Hat,
+    FaceWare,
+    Elixir,
+    Wood,
+    MetalScrap,
+    Coins,
+}
+
+public enum WeaponType
+{
+    None,
+    Sword,
+    Stone,
+    Pistol,
+    Rifle,
 }
 
 public enum GalvanicOrgans

@@ -352,3 +352,13 @@ MonoBehaviour:
   - displayName: Override
     defaultActive: 0
   mirrorPairs: []
+  sockets:
+  - displayName: ItemRightHand Socket
+    stableId: 3275277067
+    mode: 0
+    targetId: 2623282063
+    boneName: 
+    layerIndex: 0
+    localPosition: {x: 0, y: 0, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    previewAttachment: {fileID: 0}

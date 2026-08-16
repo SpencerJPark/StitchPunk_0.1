@@ -32,6 +32,23 @@ public class ItemAuthoring : MonoBehaviour
                 Entity gripEntity = GetEntity(authoring.gripPoint, TransformUsageFlags.Dynamic);
                 AddComponent(entity, new ItemGripPoint { entity = gripEntity });
             }
+
+            if (authoring.itemType == ItemType.MedKit)
+            {
+                AddComponent(entity, new MedKit());
+            }
+            if (authoring.itemType == ItemType.Weapon)
+            {
+                AddComponent(entity, new Weapon());
+            }
+            if (authoring.itemType == ItemType.Ammo)
+            {
+                AddComponent(entity, new Ammo());
+            }
+            if (authoring.itemType == ItemType.Hat)
+            {
+                AddComponent(entity, new Hat());
+            }
         }
     }
 }

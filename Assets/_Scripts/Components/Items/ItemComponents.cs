@@ -1,5 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.VisualScripting.YamlDotNet.Core.Tokens;
 
 public struct UnitEquip : IComponentData // goes on parent entity
 {
@@ -10,7 +11,6 @@ public struct EquipSocket : IComponentData // goes on Socket
 {
     public Entity attachedItem;
 }
-
 public struct ItemGripPoint : IComponentData
 {
     public Entity entity;
@@ -19,8 +19,54 @@ public struct ItemGripPoint : IComponentData
 
 public struct Item : IComponentData
 {
-    public ItemType itemType;
+    public ItemType itemType; // will remove
 }
+
+public struct ItemTag : IComponentData { }
+public struct ItemAvailable: IComponentData, IEnableableComponent { }
+
+public struct Weapon : IComponentData
+{
+    public WeaponType weaponType;
+}
+
+public struct Hat : IComponentData
+{
+    // Type
+}
+
+public struct Ammo : IComponentData
+{
+    // Type
+    public int value;
+}
+
+public struct MedKit : IComponentData
+{
+    public int value;
+}
+
+public struct Elixir : IComponentData
+{
+    
+}
+
+public struct Wood : IComponentData
+{
+    public int value;
+}
+
+public struct MetalScrap : IComponentData
+{
+    public int value;
+}
+
+public struct Coins : IComponentData
+{
+    public int value;
+}
+
+
 public struct EquipBy : IComponentData // goes on item
 {
     public Entity owner;
