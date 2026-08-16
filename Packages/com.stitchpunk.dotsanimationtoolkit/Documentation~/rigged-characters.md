@@ -157,6 +157,10 @@ The Clip Editor animates a rig. It does not restructure one — parenting, addin
 - **Right-click any row** for *Open Prefab Here* (opens with that object selected and framed), *Ping in Project*, and *Select in Scene*.
 - **Double-click a row** does the same as *Open Prefab Here*.
 
+It is a mode switch, not a window arrangement. The Clip Editor docks beside the Scene view, so entering prefab mode brings the Scene view and Hierarchy forward and the Clip Editor steps behind on its own; leaving prefab mode brings it back with the playhead and selection where you left them. You never have to move a window.
+
+> If your Clip Editor is currently floating, the first **Edit Prefab** docks it for you, carrying its clip set, playhead and selection across. That happens once.
+
 ### Coming back
 
 Saving or closing the stage reloads the preview, rebuilds the tree, and puts the playhead and selection back where they were — selection by name, since the tree's ids are indices into a hierarchy your edit just changed.

@@ -173,8 +173,8 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return null;
             }
 
-            GameObject[] sceneObjects = Object.FindObjectsByType<GameObject>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            GameObject[] sceneObjects =
+                Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
             for (int objectIndex = 0; objectIndex < sceneObjects.Length; objectIndex++)
             {
                 GameObject candidate = sceneObjects[objectIndex];

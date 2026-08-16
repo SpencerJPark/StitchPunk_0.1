@@ -277,12 +277,115 @@ namespace StitchPunk.AnimationToolkit.Editor
         private TimelineTrackKind dragTrackKind;
         private int dragTrackIndex;
 
+        /// <summary>
+        /// Opens the Clip Editor, docked beside the Scene view when it is being created.
+        /// </summary>
+        /// <remarks>
+        /// The dock neighbour is a request, not a command — Unity honours it only when the window
+        /// is created, and an existing window keeps wherever the user put it. That is the right
+        /// division: this decides the default, the user decides thereafter.
+        /// </remarks>
         [MenuItem("Window/DOTS Animation Toolkit/Clip Editor")]
         public static void ShowWindow()
         {
-            ClipEditorWindow window = GetWindow<ClipEditorWindow>();
+            ClipEditorWindow window = GetWindow<ClipEditorWindow>(
+                "Clip Editor", ClipEditorDocking.PreferredDockNeighbours());
             window.titleContent = new GUIContent("Clip Editor");
             window.minSize = new Vector2(820f, 460f);
+        }
+
+        /// <summary>
+        /// Re-creates a floating window as a docked one, carrying what makes it the same window.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Unity has no API to dock a window that already exists, so the only route is to close it
+        /// and reopen it asking for a dock neighbour. The close is deferred: this is called from
+        /// inside the window's own event handling, and destroying the instance mid-callback is how
+        /// a null reference gets thrown at a stack frame nobody will recognise.
+        /// </para>
+        /// <para>
+        /// One-time, in practice. Once docked the window stays docked, so the cost is paid on the
+        /// first trip into prefab mode and never again.
+        /// </para>
+        /// </remarks>
+        private void RedockBesideSceneView(System.Action afterDocked)
+        {
+            ClipEditorDocking.CarriedState state = new ClipEditorDocking.CarriedState
+            {
+                clipSet = clipSet,
+                selectedClip = selectedClip,
+                skinnedSource = LoadedPrefab,
+                playheadTime = playheadTime,
+                rigEditMode = IsRigEditMode
+            };
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                state.selectedNames.Add(selectedHierarchyItems[itemIndex].displayName);
+            }
+            ClipEditorDocking.SetPendingState(state);
+
+            // Close and reopen in one deferred step, never across two. Deferred so the instance is
+            // not destroyed inside its own event handling; together so there is never a tick in
+            // which the window is closed and its replacement merely queued — an editor that stopped
+            // ticking in between would leave the user with no window at all.
+            EditorApplication.delayCall += () =>
+            {
+                CloseExistingWindow();
+                ShowWindow();
+                if (afterDocked != null)
+                {
+                    afterDocked();
+                }
+            };
+        }
+
+        private static void CloseExistingWindow()
+        {
+            ClipEditorWindow[] openWindows = Resources.FindObjectsOfTypeAll<ClipEditorWindow>();
+            for (int windowIndex = 0; windowIndex < openWindows.Length; windowIndex++)
+            {
+                if (openWindows[windowIndex] != null)
+                {
+                    openWindows[windowIndex].Close();
+                }
+            }
+        }
+
+        /// <summary>Adopts the state carried across a re-dock, if there is any waiting.</summary>
+        private void AdoptCarriedState()
+        {
+            ClipEditorDocking.CarriedState state = ClipEditorDocking.ConsumePendingState();
+            if (state == null)
+            {
+                return;
+            }
+
+            if (clipSetField != null)
+            {
+                clipSetField.value = state.clipSet;
+            }
+            if (skinnedSourceField != null)
+            {
+                skinnedSourceField.value = state.skinnedSource;
+            }
+            if (state.selectedClip is ClipAsset carriedClip)
+            {
+                SelectClip(carriedClip);
+            }
+            if (rigEditToggle != null)
+            {
+                rigEditToggle.SetValueWithoutNotify(state.rigEditMode);
+                ApplyRigEditChrome();
+            }
+
+            // Reuses the round-trip restore, because it is the same problem: put the playhead and
+            // the selection back on a tree that has just been rebuilt from scratch.
+            roundTripPlayheadTime = state.playheadTime;
+            roundTripSelectedNames.Clear();
+            roundTripSelectedNames.AddRange(state.selectedNames);
+            hasRoundTripState = true;
+            RestoreRoundTripState();
         }
 
         private void OnEnable()
@@ -371,6 +474,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             RefreshClipActionButtons();
             RebuildHierarchy();
             RebuildTimeline();
+
+            // Last, because it drives the fields and the tree this method has only just finished
+            // building. Does nothing unless the window was reopened to be docked.
+            AdoptCarriedState();
         }
 
         private void BindToolbar()
@@ -845,6 +952,26 @@ namespace StitchPunk.AnimationToolkit.Editor
             // Deferred, because the stage is still open at this moment: reinstantiating the prefab
             // now would copy the contents the stage is about to tear down.
             EditorApplication.delayCall += ReloadAfterPrefabEdit;
+
+            // The other half of the swap. Exiting prefab mode is the user saying they are done
+            // authoring structure, so the window they were animating in comes back on its own —
+            // that is the "one click out" half of the requirement.
+            EditorApplication.delayCall += FocusSelf;
+        }
+
+        /// <summary>Brings this window forward, guarding against the instance having gone.</summary>
+        /// <remarks>
+        /// Called from a deferred callback, which can outlive the window if the user closed it while
+        /// prefab mode was open. <c>this == null</c> is the Unity-object null check that catches a
+        /// destroyed window a plain reference comparison would miss.
+        /// </remarks>
+        private void FocusSelf()
+        {
+            if (this == null)
+            {
+                return;
+            }
+            Focus();
         }
 
         /// <summary>Whether a stage is editing the prefab this window has loaded.</summary>
@@ -1276,7 +1403,30 @@ namespace StitchPunk.AnimationToolkit.Editor
             // Remembered before the stage opens, so returning can put the window back where it was
             // rather than at the top of a rebuilt tree at time zero.
             RememberRoundTripState();
+
+            // A floating window cannot be sent behind anything — it sits above the main window
+            // whatever has focus, which is what turns this into a drag-the-window-aside chore. So
+            // the first trip into prefab mode docks it, and the swap works from then on.
+            if (!docked)
+            {
+                // Docking first, opening second. Reopening the window is itself a focus grab, so
+                // doing it after the stage had opened would snatch focus straight back off the
+                // Scene view the user just asked to look at.
+                string pathToOpen = ResolveHierarchyPath(item);
+                GameObject prefabToOpen = prefab;
+                RedockBesideSceneView(() =>
+                {
+                    PrefabAuthoringBridge.OpenPrefab(prefabToOpen, pathToOpen);
+                    EditorApplication.delayCall += ClipEditorDocking.FocusPrefabAuthoring;
+                });
+                return;
+            }
+
             PrefabAuthoringBridge.OpenPrefab(prefab, ResolveHierarchyPath(item));
+
+            // Deferred by one tick: the stage's own scene view is still being brought up by the
+            // call above, and focusing into the middle of that lands on the outgoing view.
+            EditorApplication.delayCall += ClipEditorDocking.FocusPrefabAuthoring;
         }
 
         /// <summary>

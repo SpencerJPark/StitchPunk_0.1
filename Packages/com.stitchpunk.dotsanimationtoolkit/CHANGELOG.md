@@ -10,6 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — moving between animating and authoring is a mode switch, not a window juggle
+
+Opening prefab mode put the Scene view behind a floating Clip Editor, leaving the
+user to drag the window aside and drag it back. The window was always dockable —
+it was simply never docked, and a floating window sits above the main window
+whatever has focus, so no amount of focusing the Scene view could get it out of
+the way.
+
+- **New windows dock beside the Scene view.** The two are alternatives, never
+  wanted at the same instant: animating uses the Clip Editor's own viewport,
+  authoring structure uses the Scene view. Sharing a tab group makes the switch a
+  tab change that Unity's layout system performs by itself.
+- **An existing floating window docks itself** on the first trip into prefab
+  mode, carrying its clip set, clip, playhead, selection and mode across the one
+  re-creation that requires. One-time: it stays docked afterwards.
+- **Entering** focuses the hierarchy and then the Scene view, in that order —
+  each brings its window to the front of its tab group, and the last also takes
+  keyboard focus, which belongs to the Scene view because that is where the user
+  is about to click.
+- **Exiting** brings the Clip Editor back on its own, with the playhead and
+  selection already restored by the round-trip reload.
+
+**Not a layout swap.** `EditorUtility.LoadWindowLayout` destroys and recreates
+every editor window including this one, which would take the preview's render
+utility and its `Persistent`-allocator registry blob with it, along with the very
+playhead and selection the round trip exists to preserve — and it would
+rearrange windows this feature was never asked to touch. Sending one window
+behind another has a smaller blast radius and fails gracefully: the worst case is
+a window that did not come forward, not a rebuilt editor.
+
 ### Added — prefab authoring is reachable from the Clip Editor, and the round trip is handled
 
 Structural edits — parenting, adding parts, moving meshes — belong in Unity's
