@@ -12,7 +12,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
     /// (build step C4.6).
     /// </summary>
     /// <remarks>
-    /// Frame <em>selection</em> (nearest-key, the "−1 = no change" convention) belongs to
+    /// Frame <em>selection</em> (hold the last key, the "−1 = no change" convention) belongs to
     /// <c>ClipSampler.SampleSpriteTrack</c> and is covered in EditMode. These fixtures are about the
     /// publish step: that the sampled frame reaches the per-instance shader properties at all, that
     /// both modes are carried, and that the value published is never one the shader cannot use.

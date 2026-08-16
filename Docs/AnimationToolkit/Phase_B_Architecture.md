@@ -861,7 +861,7 @@ No new state was needed. `ClipSampler.CompositeLayers` already reads a blending 
 
 ### 5.7 Flipbook technique (`SpriteMaterialSystem`)
 
-Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (nearest-key, `-1` = keep current — audit convention absorbed) in `TransformSampleSystem` (same job — sprite keys are just another track kind). `SpriteMaterialSystem` copies pose → material-property components **directly**: `SpriteSliceProperty.Value = pose.sliceIndex` and `AtlasFrameProperty.Value = pose.atlasRect`. The audit's two-hop `ImageIndex → ImageIndexOverride` staging with its rotted dirty flag is **replaced** (audit §8 verdict honored) by this single write. Design/skin systems in a host change the base look by writing `TargetRestPose.restSliceIndex` (same contract the host's DesignSystem relies on today, §13).
+Sprite tracks sample to `TargetPose.sliceIndex` / `atlasRect` (the key at or before the time holds until the next key — see amendment A43, which corrects this from nearest-key; `-1` = keep current, audit convention absorbed) in `TransformSampleSystem` (same job — sprite keys are just another track kind). `SpriteMaterialSystem` copies pose → material-property components **directly**: `SpriteSliceProperty.Value = pose.sliceIndex` and `AtlasFrameProperty.Value = pose.atlasRect`. The audit's two-hop `ImageIndex → ImageIndexOverride` staging with its rotted dirty flag is **replaced** (audit §8 verdict honored) by this single write. Design/skin systems in a host change the base look by writing `TargetRestPose.restSliceIndex` (same contract the host's DesignSystem relies on today, §13).
 
 **The `-1` "no change" convention lives on the authored key, never on the pose.** Composition seeds every pose from the rest pose (`ClipSampler.RestToPose` writes `pose.sliceIndex = restPose.restSliceIndex`) before any track is applied, and a slice-mode sprite key only overwrites it when its own `sliceIndex >= 0`. A negative pose slice is therefore unreachable, and a `sliceIndex >= 0 ? sliceIndex : restSliceIndex` guard in `SpriteMaterialSystem` would be dead code. Every path — no sprite track at all, a `-1` key, one side of a blend, or a host that rewrote `restSliceIndex` — already resolves to the rest slice through the seed. `LerpPose` picks whole slice values (never interpolates them), so it cannot introduce a negative either.
 
@@ -1436,6 +1436,27 @@ So authored bone tracks are **editor-time bake input**, in the same category as 
 The tell was there in A42's own framing — *"a second source for the existing VAT bake, not a second output format"*. A source does not need a runtime representation. Writing the phase table before following that sentence through is what added a schema bump nobody needed.
 
 B4 is what closes the loop the owner asked for: **one timeline, scrubbed once, showing every technique at the same instant.** Until it lands, bone rows are authorable and bakeable but only previewable through a bake.
+
+---
+
+## Amendment A43 (2026-08-15 — product-owner correction): a flipbook index changes on its key, not between keys
+
+§5.7 specified sprite-track sampling as **nearest-key**: of the two keys surrounding the playhead, whichever is closer wins. `ClipSampler.SampleSpriteTrack` implemented exactly that, switching at `linearWeight < 0.5f`.
+
+**That is wrong, and the owner named the reason: index changes are hard updates that do not blend.**
+
+Nearest-key is the right rule for a value being *approximated* — pick whichever sample is closer to the truth. But a frame index is not an approximation of anything. It is a discrete instruction that fires at a moment. Under nearest-key that moment was **the midpoint of the segment**, half a key-gap away from the key the author placed. On an evenly spaced flipbook every change lands half a step late, which reads as the whole animation running out of time with its own timeline — and worse, out of time with the transform and event rows on the same clip, which do land on their keys.
+
+The rule is now: **the key at or before the time holds until the next key's own time is reached.** Before the first key, the first key holds. This is the same shape as `Interpolation.Step` on a transform key, which §5.7 already specified and which `SampleTransformTrack` already implemented — the two were inconsistent with each other, and the flipbook was the one that was wrong.
+
+**Consequences:**
+
+- `FindSpriteKeySegment` is replaced by `FindHoldingSpriteKey`, returning one index. A flipbook has no segment to interpolate across, so returning a surrounding pair was itself the shape of the mistake.
+- `ClipSpriteEditing.FindEffectiveKeyIndex` carries the identical rule, so the Clip Editor's live index while scrubbing is the frame the runtime plays.
+- **No data, blob, schema or hash change.** The authored keys are untouched; only their interpretation in time moves. No re-bake, no migration.
+- **Existing clips play differently.** A frame that appeared at the midpoint between two keys now appears at the later key. A clip whose timing was tuned against the old behaviour will read as half a segment slower on each change.
+
+**Cross-clip blending is deliberately untouched.** `LerpPose` still snaps the frame at the blend midpoint (§10 answer 2). That is a different situation: a crossfade between two clips has no key to land on, the two poses come from different timelines, and the midpoint is the only defensible boundary between them.
 
 ---
 

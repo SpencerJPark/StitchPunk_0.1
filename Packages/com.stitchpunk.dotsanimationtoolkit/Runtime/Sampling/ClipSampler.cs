@@ -307,14 +307,14 @@ namespace StitchPunk.AnimationToolkit
         }
 
         /// <summary>
-        /// Samples one sprite track at a normalized time (architecture section 5.7): nearest-key
-        /// selection, with slice index −1 meaning "no change" (host convention absorbed). Slice
-        /// mode writes <paramref name="sliceIndex"/>; atlas mode writes
-        /// <paramref name="atlasRect"/>; an empty track writes nothing.
+        /// Samples one sprite track at a normalized time (architecture section 5.7): the key at or
+        /// before the time holds until the next key's time is reached, with slice index −1 meaning
+        /// "no change" (host convention absorbed). Slice mode writes <paramref name="sliceIndex"/>;
+        /// atlas mode writes <paramref name="atlasRect"/>; an empty track writes nothing.
         /// </summary>
         /// <param name="track">The track to sample.</param>
         /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
-        /// <param name="sliceIndex">Current slice value; overwritten when the nearest key selects a frame ≥ 0.</param>
+        /// <param name="sliceIndex">Current slice value; overwritten when the holding key selects a frame ≥ 0.</param>
         /// <param name="atlasRect">Current atlas rect; overwritten in atlas mode.</param>
         /// <summary>
         /// Applies the facing term to an already-composed slice and keeps the result inside the
@@ -378,16 +378,12 @@ namespace StitchPunk.AnimationToolkit
                 return;
             }
 
-            FindSpriteKeySegment(ref keys, normalizedTime, out int previousIndex, out int nextIndex);
-            int chosenIndex = previousIndex;
-            if (previousIndex != nextIndex)
-            {
-                float keySpan = keys[nextIndex].normalizedTime - keys[previousIndex].normalizedTime;
-                float linearWeight = keySpan > 0f
-                    ? (normalizedTime - keys[previousIndex].normalizedTime) / keySpan
-                    : 0f;
-                chosenIndex = linearWeight < 0.5f ? previousIndex : nextIndex;
-            }
+            // The key at or before the time wins outright, and holds until the next key's own time
+            // is reached. A frame index is not a quantity that can be part-way between two values,
+            // so the change has to land on the key the author placed — a midpoint crossover put it
+            // half a segment early or late, and on an evenly spaced flipbook that reads as the whole
+            // animation running offset from its own timeline.
+            int chosenIndex = FindHoldingSpriteKey(ref keys, normalizedTime);
 
             if (track.mode == SpriteFrameMode.Slice)
             {
@@ -740,27 +736,27 @@ namespace StitchPunk.AnimationToolkit
             }
         }
 
-        private static void FindSpriteKeySegment(
-            ref BlobArray<SpriteKeyBlob> keys,
-            float normalizedTime,
-            out int previousIndex,
-            out int nextIndex)
+        /// <summary>
+        /// The key holding a sprite track at a time: the last one at or before it.
+        /// </summary>
+        /// <remarks>
+        /// A single index rather than a surrounding pair, because a flipbook has nothing to
+        /// interpolate — the key that has most recently fired is the whole answer. Before the first
+        /// key that is the first key, which holds frame 0's value rather than showing nothing.
+        /// </remarks>
+        private static int FindHoldingSpriteKey(
+            ref BlobArray<SpriteKeyBlob> keys, float normalizedTime)
         {
-            previousIndex = 0;
-            nextIndex = 0;
+            int holdingIndex = 0;
             for (int keyIndex = 0; keyIndex < keys.Length; keyIndex++)
             {
-                if (keys[keyIndex].normalizedTime <= normalizedTime)
+                if (keys[keyIndex].normalizedTime > normalizedTime)
                 {
-                    previousIndex = keyIndex;
+                    break;
                 }
-                if (keys[keyIndex].normalizedTime >= normalizedTime)
-                {
-                    nextIndex = keyIndex;
-                    return;
-                }
-                nextIndex = keyIndex;
+                holdingIndex = keyIndex;
             }
+            return holdingIndex;
         }
     }
 }

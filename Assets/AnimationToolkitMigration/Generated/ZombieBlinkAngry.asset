@@ -28,31 +28,64 @@ MonoBehaviour:
         x: 0
         y: -0.005
         z: 0
-      rotationZ: 24.45
+      rotation:
+        x: 0
+        y: 0
+        z: 24.45
+      rotationZ: 0
       scale:
         x: 1
         y: 1
+        z: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 0.5
       position:
         x: 0
         y: 0.01
         z: 0
-      rotationZ: 24.45
+      rotation:
+        x: 0
+        y: 0
+        z: 24.45
+      rotationZ: 0
       scale:
         x: 1
         y: 1
+        z: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 1
       position:
         x: 0
         y: -0.005
         z: 0
-      rotationZ: 24.45
+      rotation:
+        x: 0
+        y: 0
+        z: 24.45
+      rotationZ: 0
       scale:
         x: 1
         y: 1
+        z: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   - targetId: 4086129200
     blendOp: 1
     channels: 15
@@ -62,38 +95,73 @@ MonoBehaviour:
         x: 0
         y: -0.01
         z: 0
-      rotationZ: -22.23
+      rotation:
+        x: 0
+        y: 0
+        z: -22.23
+      rotationZ: 0
       scale:
         x: 1
         y: 1
+        z: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 0.5
       position:
         x: 0
         y: 0.004
         z: 0
-      rotationZ: -22.23
+      rotation:
+        x: 0
+        y: 0
+        z: -22.23
+      rotationZ: 0
       scale:
         x: 1
         y: 1
+        z: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
     - normalizedTime: 1
       position:
         x: 0
         y: -0.01
         z: 0
-      rotationZ: -22.23
+      rotation:
+        x: 0
+        y: 0
+        z: -22.23
+      rotationZ: 0
       scale:
         x: 1
         y: 1
+        z: 1
       interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   spriteTracks:
   - targetId: 3686243058
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -101,6 +169,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.5
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -108,6 +177,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -116,9 +186,11 @@ MonoBehaviour:
   - targetId: 4086129200
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -126,6 +198,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.5
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -133,6 +206,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: -1
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -141,9 +215,11 @@ MonoBehaviour:
   - targetId: 915970425
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: 47
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -151,6 +227,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.02
       sliceIndex: 47
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -158,6 +235,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.04
       sliceIndex: 45
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -165,6 +243,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.06
       sliceIndex: 43
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -172,6 +251,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.08
       sliceIndex: 41
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -179,6 +259,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.94
       sliceIndex: 43
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -186,6 +267,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.96
       sliceIndex: 45
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -193,6 +275,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.98
       sliceIndex: 47
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -200,6 +283,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: 47
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -208,9 +292,11 @@ MonoBehaviour:
   - targetId: 4216110445
     mode: 0
     sliceSpace: 0
+    baseIndex: 0
     keys:
     - normalizedTime: 0
       sliceIndex: 46
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -218,6 +304,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.02
       sliceIndex: 46
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -225,6 +312,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.04
       sliceIndex: 44
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -232,6 +320,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.06
       sliceIndex: 42
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -239,6 +328,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.08
       sliceIndex: 40
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -246,6 +336,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.94
       sliceIndex: 42
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -253,6 +344,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.96
       sliceIndex: 44
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -260,6 +352,7 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 0.98
       sliceIndex: 46
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
@@ -267,13 +360,37 @@ MonoBehaviour:
         w: 0
     - normalizedTime: 1
       sliceIndex: 46
+      indexMode: 0
       atlasRect:
         x: 1
         y: 1
         z: 0
         w: 0
+  - targetId: 1147359481
+    mode: 0
+    sliceSpace: 0
+    baseIndex: 0
+    keys:
+    - normalizedTime: 0
+      sliceIndex: 2
+      indexMode: 1
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.2822934
+      sliceIndex: 3
+      indexMode: 1
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+  boneTracks: []
   events: []
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30
     loopSafe: 0
+  vatTracks: []

@@ -221,6 +221,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         private readonly HashSet<int> previouslySelectedItemIds = new HashSet<int>();
 
+        /// <summary>Set while a selection change is being applied, to stop it re-entering itself.</summary>
+        private bool isHandlingHierarchySelection;
+
         /// <summary>
         /// The selected transform's name, which is the identity bone <em>tracks</em> bind by.
         /// Carried alongside the index rather than derived from it so the bake's contract and the
@@ -1618,6 +1621,27 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </para>
         /// </remarks>
         private void OnHierarchySelectionChanged(IEnumerable<object> selection)
+        {
+            // Re-entry guard, and not an optional one. A selection change rebuilds the timeline,
+            // which calls RefreshItems to redraw the tree's "animated" marks, and RefreshItems
+            // re-resolves the tree's own selection — which can notify again. Without this the two
+            // call each other until the stack runs out.
+            if (isHandlingHierarchySelection)
+            {
+                return;
+            }
+            isHandlingHierarchySelection = true;
+            try
+            {
+                ApplyHierarchySelectionChange();
+            }
+            finally
+            {
+                isHandlingHierarchySelection = false;
+            }
+        }
+
+        private void ApplyHierarchySelectionChange()
         {
             int previousActiveItemId = selectedHierarchyItemId;
 

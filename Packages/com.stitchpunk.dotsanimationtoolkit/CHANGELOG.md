@@ -10,6 +10,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a flipbook index now changes *on* its key
+
+`ClipSampler.SampleSpriteTrack` chose between the two keys surrounding the
+playhead by which was nearer, so a frame change landed at the **midpoint of the
+segment** rather than on the key that caused it. On an evenly spaced flipbook
+that is the entire animation playing half a frame-step out of time with the
+timeline it was authored on, and it made the last key before a gap appear to
+change early.
+
+The key at or before the time now holds until the next key's own time is
+reached — a hard step, which is the only thing a frame index can do. The editor's
+`ClipSpriteEditing.FindEffectiveKeyIndex` carries the same rule, so what the
+inspector shows while scrubbing is still what the runtime plays.
+
+This changes playback of existing clips: a flipbook frame that used to appear at
+the midpoint between two keys now appears at the later key. Nothing about the
+authored data changes, so no re-bake or migration is needed — but a clip tuned
+against the old timing will read as half a segment slower on each change, and is
+worth a look.
+
+Cross-clip blending is untouched: `LerpPose` still snaps the frame at the blend
+midpoint, because a crossfade has no key to land on.
+
+### Added — timeline focus and multi-select
+
+Selecting a part now filters the timeline to that part's tracks. A busy clip is
+readable again, and it works as a focus rather than a mode — the status line
+names what is being shown and how many rows are hidden, and deselecting brings
+them all back. Event rows stay visible throughout: they belong to the clip rather
+than to any one part, and hiding them would make event authoring impossible the
+moment anything was selected.
+
+Selecting several parts (ctrl- or shift-click in the hierarchy) shows all of
+their tracks together, and gives each one its own labelled block in the
+inspector — its own live transform, its own flipbook indices — so with two parts
+on screen there is never a question of whose numbers are whose. One block is
+marked **(active)**: the one the viewport gizmo and outline are on, which can
+only be in one place. The active row is the one most recently added to the
+selection, found by diffing against the previous selection rather than by taking
+the last of the tree's `selectedIndices` — that enumerable is ordered by row, not
+by when each row was clicked.
+
+A held (unkeyed) transform edit now belongs to the part it was made on, so the
+other blocks keep showing their own sampled values. Starting an edit on a second
+part keys the first rather than dropping it.
+
+### Fixed — selection could recurse until the stack ran out
+
+Rebuilding the timeline refreshes the hierarchy tree to redraw its "animated"
+marks, and that refresh re-resolves the tree's selection, which can notify that
+the selection changed, which rebuilds the timeline. With the timeline now
+rebuilding on selection change, the two called each other until the stack
+overflowed. Guarded against re-entry.
+
 ### Changed — the inspector shows one value, and it is live
 
 The right-hand pane was a snapshot wearing a live panel's clothes, and in places
@@ -377,6 +431,7 @@ renders it lands in later phases; this is what it renders.
   is the one the window stores and restores.
 
 ## [0.8.0]
+
 
 ### Added — attachment, authoring surface and packaging
 

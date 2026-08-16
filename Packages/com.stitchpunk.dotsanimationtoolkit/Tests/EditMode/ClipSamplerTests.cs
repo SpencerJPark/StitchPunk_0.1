@@ -9,7 +9,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
     /// <summary>
     /// EditMode coverage of single-clip sampling (architecture sections 5.6, 5.7, 8 M3, 11):
     /// key-segment selection, easing application, the single-frame and empty-clip edge cases,
-    /// channel masking, and nearest-key sprite sampling with the −1 keep-current convention.
+    /// channel masking, and hold-the-last-key sprite sampling with the −1 keep-current convention.
     /// </summary>
     public sealed class ClipSamplerTests
     {
@@ -271,8 +271,17 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             Assert.AreEqual(20f, pose.localPosition.y, Tolerance);
         }
 
+        /// <summary>
+        /// A flipbook index changes on its key, not between keys.
+        /// </summary>
+        /// <remarks>
+        /// The rule this pins down used to be a midpoint crossover, which moved every frame change
+        /// half a segment away from the key that caused it — on an evenly spaced flipbook that is
+        /// the whole animation playing offset from the timeline it was authored on. A frame index
+        /// has no meaningful in-between value, so the key that last fired holds until the next one.
+        /// </remarks>
         [Test]
-        public void SampleSpriteTrack_NearestKey_WinsAcrossTheSegment()
+        public void SampleSpriteTrack_HoldsTheLastKey_UntilTheNextKeysTime()
         {
             clipReference = TestBlobFactory.BuildClip(new TestBlobFactory.ClipSpec
             {
@@ -285,7 +294,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                         keys = new TestBlobFactory.SpriteKeySpec[]
                         {
                             new TestBlobFactory.SpriteKeySpec { normalizedTime = 0f, sliceIndex = 1 },
-                            new TestBlobFactory.SpriteKeySpec { normalizedTime = 1f, sliceIndex = 9 }
+                            new TestBlobFactory.SpriteKeySpec { normalizedTime = 0.5f, sliceIndex = 9 }
                         }
                     }
                 }
@@ -293,10 +302,20 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
 
             int sliceIndex = -1;
             float4 atlasRect = ClipSampler.IdentityAtlasRect;
+
             ClipSampler.SampleSpriteTrack(ref clipReference.Value.spriteTracks[0], 0.4f, ref sliceIndex, ref atlasRect);
-            Assert.AreEqual(1, sliceIndex, "Below the segment midpoint the earlier key is nearest.");
-            ClipSampler.SampleSpriteTrack(ref clipReference.Value.spriteTracks[0], 0.6f, ref sliceIndex, ref atlasRect);
-            Assert.AreEqual(9, sliceIndex, "Above the segment midpoint the later key is nearest.");
+            Assert.AreEqual(1, sliceIndex, "Before the second key the first one still holds.");
+
+            // The midpoint of the segment, which the old rule switched on. It is not a key, so
+            // nothing changes here.
+            ClipSampler.SampleSpriteTrack(ref clipReference.Value.spriteTracks[0], 0.25f, ref sliceIndex, ref atlasRect);
+            Assert.AreEqual(1, sliceIndex, "The segment midpoint is not a key and changes nothing.");
+
+            ClipSampler.SampleSpriteTrack(ref clipReference.Value.spriteTracks[0], 0.5f, ref sliceIndex, ref atlasRect);
+            Assert.AreEqual(9, sliceIndex, "The change lands exactly on the second key's time.");
+
+            ClipSampler.SampleSpriteTrack(ref clipReference.Value.spriteTracks[0], 1f, ref sliceIndex, ref atlasRect);
+            Assert.AreEqual(9, sliceIndex, "The last key holds to the end of the clip.");
         }
 
         [Test]

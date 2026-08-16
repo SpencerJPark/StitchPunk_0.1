@@ -16,10 +16,11 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// implementation of "what is this track showing right now" rather than two that drift.
     /// </para>
     /// <para>
-    /// <strong>Evaluation is nearest-key, matching <c>ClipSampler.SampleSpriteTrack</c>.</strong>
-    /// An index cannot be halfway between two frames, so a flipbook does not interpolate — it snaps
-    /// at the midpoint between keys. An editor that interpolated here would show a frame the runtime
-    /// never displays.
+    /// <strong>Evaluation holds the last key, matching <c>ClipSampler.SampleSpriteTrack</c>.</strong>
+    /// An index cannot be halfway between two frames, so a flipbook does not interpolate — the key
+    /// at or before the playhead is shown until the next key's own time is reached. An editor that
+    /// interpolated here, or that switched at the midpoint, would show a frame at a time the runtime
+    /// does not.
     /// </para>
     /// </remarks>
     public static class ClipSpriteEditing
@@ -68,45 +69,30 @@ namespace StitchPunk.AnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The index of the key a time resolves to under nearest-key selection, or −1 for an empty
-        /// track.
+        /// The index of the key holding the track at a time, or −1 for an empty track.
         /// </summary>
+        /// <remarks>
+        /// The last key at or before the time, which is the rule <c>ClipSampler</c> applies — the
+        /// index changes on the key, not between keys. Before the first key the first key holds, so
+        /// scrubbing to the head of a clip shows the frame it starts on.
+        /// </remarks>
         public static int FindEffectiveKeyIndex(SpriteTrack track, float normalizedTime)
         {
             if (track == null || track.keys == null || track.keys.Count == 0)
             {
                 return -1;
             }
-            if (track.keys.Count == 1)
-            {
-                return 0;
-            }
 
-            int previousIndex = 0;
+            int holdingIndex = 0;
             for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
             {
-                if (track.keys[keyIndex].normalizedTime <= normalizedTime)
+                if (track.keys[keyIndex].normalizedTime > normalizedTime)
                 {
-                    previousIndex = keyIndex;
+                    break;
                 }
+                holdingIndex = keyIndex;
             }
-            if (previousIndex >= track.keys.Count - 1)
-            {
-                return track.keys.Count - 1;
-            }
-
-            int nextIndex = previousIndex + 1;
-            float previousTime = track.keys[previousIndex].normalizedTime;
-            float span = track.keys[nextIndex].normalizedTime - previousTime;
-            if (span <= 0f)
-            {
-                return previousIndex;
-            }
-
-            // The midpoint rule the runtime uses: below it the left key wins, at or above it the
-            // right one does.
-            float weight = (normalizedTime - previousTime) / span;
-            return weight < 0.5f ? previousIndex : nextIndex;
+            return holdingIndex;
         }
 
         /// <summary>
