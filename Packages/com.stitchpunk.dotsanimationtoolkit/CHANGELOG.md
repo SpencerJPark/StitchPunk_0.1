@@ -10,6 +10,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — prefab authoring is reachable from the Clip Editor, and the round trip is handled
+
+Structural edits — parenting, adding parts, moving meshes — belong in Unity's
+prefab mode, which already does them correctly. The Clip Editor's job is to make
+that one click away and to stay honest when the user comes back.
+
+**Getting there.** An **Edit Prefab** button in the hierarchy header, a
+right-click menu on every row with **Open Prefab Here** / **Ping in Project** /
+**Select in Scene**, and double-click on a row. All of them open prefab mode with
+the object selected and framed. Objects are addressed by hierarchy path, because
+the preview holds one instance of the prefab and prefab mode opens another —
+there is no reference that spans the two.
+
+**Coming back.** The window subscribes to `PrefabStage.prefabSaved` and
+`prefabStageClosing`, filtered to the prefab it actually has loaded so an
+unrelated save elsewhere in the project does not disturb it. On return the
+preview is reinstantiated, the hierarchy tree is rebuilt, and the playhead and
+selection are restored — selection by *name*, since the tree ids are indices into
+a hierarchy the edit just invalidated.
+
+**Reconciliation, scoped to what actually breaks.** A restructure cannot break a
+transform or sprite track: those bind to a rig target's stable id, which is never
+derived from a name and which no prefab edit touches. Reporting them would be
+noise that teaches the user to dismiss the panel unread. Three bindings *are*
+name-based and do break, and those are surfaced:
+
+| Binding | What breaking costs |
+|---|---|
+| `BoneTrack.boneName` | The track stays authored but bakes nothing |
+| A socket with `mode = Bone` | The attachment bakes at the origin |
+| A rig target's `displayName` | Tracks still play; the preview has no rest pose for that part |
+
+Each row offers a dropdown of names that exist — not a text field, since a typo
+is how you get this problem — plus **Remap**, and **Delete** for the two
+track-like kinds. A rig target is deliberately not deletable from the panel: it
+carries the id every track in every clip binds to. Deleting a track is confirmed
+and states the key count, because "delete this track" and "delete these forty
+keys" are different decisions. **Dismiss** hides the panel without changing
+anything, and the next save reports the same findings again.
+
+### Added — Rig Edit mode
+
+An explicit toggle for editing the rig's base setup rather than the clip. The two
+must never be confusable: the same gizmo drag writes a keyframe in one mode and
+the prefab asset in the other, neither is recoverable by doing the other, and a
+user who mistook one would find out much later.
+
+So the mode is stated three times — the toolbar toggle is tinted, the viewport
+frame is bordered in the same colour, and a banner across the viewport says in
+words what a drag will do. Keying is also switched off in behaviour and not only
+in signage: **Auto Key** is visibly disabled, and every route into keying is
+refused at the single function they all pass through.
+
+In Rig Edit, gizmo drags write the prefab's base pose on release, and hierarchy
+rows accept drag-to-reparent. Both go through Unity's prefab APIs. If a prefab
+stage for that asset is open the edit lands there — undoable, visible, saved by
+the stage. If not, `LoadPrefabContents` / `SaveAsPrefabAsset` writes the asset
+directly, which is **not undoable**; that is a real limitation of editing an
+asset with no open instance, and the reason the stage route is preferred whenever
+one exists.
+
 ### Changed — the camera frames the rig instead of staring at the origin
 
 Placing the rig and aiming the camera are separate questions, and conflating

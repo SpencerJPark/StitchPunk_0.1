@@ -326,6 +326,35 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
         }
 
+        /// <summary>The transform at a hierarchy index, or null when the index names nothing.</summary>
+        public Transform GetTransformByIndex(int hierarchyIndex)
+        {
+            return skeletonMirror.GetTransformByIndex(hierarchyIndex);
+        }
+
+        /// <summary>
+        /// Every transform name in the loaded prefab, for checking which bindings still resolve.
+        /// </summary>
+        /// <remarks>
+        /// Names rather than transforms because that is the shape every name-based binding in the
+        /// toolkit is checked against — a bone track's <c>boneName</c>, a bone socket's, and a rig
+        /// target's <c>displayName</c>. An empty set means no prefab is loaded, which callers must
+        /// read as "cannot tell" rather than "everything is broken".
+        /// </remarks>
+        public void CollectHierarchyNames(HashSet<string> names)
+        {
+            names.Clear();
+            IReadOnlyList<Transform> transforms = skeletonMirror.TransformsByIndex;
+            for (int index = 0; index < transforms.Count; index++)
+            {
+                Transform node = transforms[index];
+                if (node != null)
+                {
+                    names.Add(node.name);
+                }
+            }
+        }
+
         /// <summary>
         /// Sets what the selection outline follows, by hierarchy index. -1 for nothing.
         /// </summary>

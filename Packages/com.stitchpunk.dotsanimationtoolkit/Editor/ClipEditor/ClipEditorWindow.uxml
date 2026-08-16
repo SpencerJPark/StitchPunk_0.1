@@ -27,6 +27,11 @@
             <ui:Label name="time-label" text="0.000s" class="clip-editor__toolbar-label clip-editor__time-label" />
             <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" />
             <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key" />
+            <!-- Mode switch. Off = animate (gizmos key), on = rig edit (gizmos write the base
+                 pose). Deliberately adjacent to Auto Key, the other control that decides what a
+                 drag writes. -->
+            <uie:ToolbarToggle name="rig-edit-toggle" text="Rig Edit"
+                               class="clip-editor__rig-edit-toggle" />
             <ui:Label text="Frames" class="clip-editor__toolbar-label" />
             <ui:IntegerField name="frame-count-field" value="30" class="clip-editor__frame-field" />
             <ui:Label text="Rig" class="clip-editor__toolbar-label" />
@@ -61,7 +66,13 @@
                         <ui:ListView name="clip-list" class="clip-editor__clip-list" />
                     </ui:VisualElement>
                     <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
-                        <ui:Label text="Hierarchy" class="clip-editor__pane-title" />
+                        <ui:VisualElement class="clip-editor__pane-header">
+                            <ui:Label text="Hierarchy" class="clip-editor__pane-title" />
+                            <ui:VisualElement class="clip-editor__pane-actions">
+                                <ui:Button name="edit-prefab-button" text="Edit Prefab"
+                                           class="clip-editor__pane-action" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
                         <ui:Label name="hierarchy-empty-label" class="clip-editor__hint"
                                   text="Assign a rig in the toolbar to list its transforms." />
                         <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy" />
@@ -72,8 +83,23 @@
                 <ui:TwoPaneSplitView name="dock-right"
                                      orientation="Horizontal" fixed-pane-index="1" fixed-pane-initial-dimension="280">
                     <ui:VisualElement name="viewport-pane" class="clip-editor__pane clip-editor__viewport-pane">
+                        <!-- Mode banner. Hidden in Animate mode; in Rig Edit it tints the viewport
+                             frame so a gizmo drag is never ambiguous about what it writes. -->
+                        <ui:Label name="rig-edit-banner" class="clip-editor__mode-banner clip-editor--hidden" />
                         <ui:Label name="viewport-status" class="clip-editor__viewport-status" />
-                        <ui:Image name="viewport-image" class="clip-editor__viewport" />
+                        <ui:VisualElement name="viewport-frame" class="clip-editor__viewport-frame">
+                            <ui:Image name="viewport-image" class="clip-editor__viewport" />
+                        </ui:VisualElement>
+                        <!-- Reconciliation. Appears only after a prefab edit broke a binding. -->
+                        <ui:VisualElement name="reconcile-panel"
+                                          class="clip-editor__reconcile clip-editor--hidden">
+                            <ui:VisualElement class="clip-editor__reconcile-header">
+                                <ui:Label name="reconcile-title" class="clip-editor__reconcile-title" />
+                                <ui:Button name="reconcile-dismiss-button" text="Dismiss"
+                                           class="clip-editor__pane-action" />
+                            </ui:VisualElement>
+                            <ui:ScrollView name="reconcile-list" class="clip-editor__reconcile-list" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="inspector-pane" class="clip-editor__pane">
                         <ui:Label text="Inspector" class="clip-editor__pane-title" />

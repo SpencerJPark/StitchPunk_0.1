@@ -168,8 +168,104 @@
     flex-shrink: 0;
 }
 
+.clip-editor__viewport-frame {
+    flex-grow: 1;
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-right-color: rgba(0, 0, 0, 0);
+    border-top-color: rgba(0, 0, 0, 0);
+    border-bottom-color: rgba(0, 0, 0, 0);
+}
+
+/* Rig Edit mode. The border is always present and merely transparent in Animate mode, so
+   switching modes never reflows the viewport — a layout jump on every toggle would be its own
+   kind of ambiguity about what just happened. */
+.clip-editor__viewport-frame--rig-edit {
+    border-left-color: rgb(226, 138, 44);
+    border-right-color: rgb(226, 138, 44);
+    border-top-color: rgb(226, 138, 44);
+    border-bottom-color: rgb(226, 138, 44);
+}
+
 .clip-editor__viewport {
     flex-grow: 1;
+}
+
+/* The toggle itself is tinted when on, so the mode is legible from the toolbar as well as from
+   the viewport. Three signals for one mode is deliberate: the cost of misreading it is a gizmo
+   drag that edits the rig when you meant to key a pose. */
+.clip-editor__rig-edit-toggle:checked {
+    background-color: rgb(226, 138, 44);
+    color: rgb(24, 20, 14);
+    -unity-font-style: bold;
+}
+
+.clip-editor__mode-banner {
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    color: rgb(24, 20, 14);
+    background-color: rgb(226, 138, 44);
+    padding-top: 3px;
+    padding-bottom: 3px;
+    flex-shrink: 0;
+    white-space: normal;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Reconciliation                                                                                */
+/* ------------------------------------------------------------------------------------------- */
+
+.clip-editor__reconcile {
+    flex-shrink: 0;
+    max-height: 220px;
+    border-top-width: 2px;
+    border-top-color: rgb(214, 122, 60);
+    background-color: rgba(96, 54, 26, 0.35);
+    padding-bottom: 4px;
+}
+
+.clip-editor__reconcile-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-left: 6px;
+    padding-right: 4px;
+    padding-top: 3px;
+}
+
+.clip-editor__reconcile-title {
+    -unity-font-style: bold;
+    color: rgb(240, 186, 138);
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+.clip-editor__reconcile-list {
+    max-height: 170px;
+}
+
+.clip-editor__reconcile-row {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 6px;
+    padding-right: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.clip-editor__reconcile-row-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+}
+
+.clip-editor__reconcile-remap {
+    width: 130px;
+    flex-shrink: 0;
+    margin-right: 4px;
 }
 
 /* ------------------------------------------------------------------------------------------- */

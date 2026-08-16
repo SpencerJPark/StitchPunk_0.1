@@ -145,6 +145,49 @@ Beyond authoring bone tracks:
 - **Validation.** The toolbar badge runs the same `ClipValidation` the bake runs, so an error you see here is the error a bake would throw, with the same rule code.
 - **Scrubbing the composite.** The preview poses through `ClipSampler` — the runtime's own functions — so what you scrub is what plays.
 
+---
+
+## Editing the rig itself
+
+The Clip Editor animates a rig. It does not restructure one — parenting, adding parts and moving meshes happen in Unity's prefab mode, which already handles them correctly. What the window provides is a short path there and an honest account of what changed when you come back.
+
+### Getting into prefab mode
+
+- **Edit Prefab** in the hierarchy header opens the loaded prefab.
+- **Right-click any row** for *Open Prefab Here* (opens with that object selected and framed), *Ping in Project*, and *Select in Scene*.
+- **Double-click a row** does the same as *Open Prefab Here*.
+
+### Coming back
+
+Saving or closing the stage reloads the preview, rebuilds the tree, and puts the playhead and selection back where they were — selection by name, since the tree's ids are indices into a hierarchy your edit just changed.
+
+Then it tells you what no longer binds. **It will not silently drop a track.**
+
+> **What a restructure can and cannot break.** Transform and sprite tracks bind to a rig target's **stable id**, minted once and never derived from a name. Rename a part, reparent it, move it across the hierarchy — none of that touches what those tracks point at. That is what the ids are for.
+>
+> Three bindings *are* name-based and do break:
+>
+> | Binding | What breaking costs |
+> |---|---|
+> | `BoneTrack.boneName` | The track stays authored but bakes nothing |
+> | A socket with `mode = Bone` | The attachment bakes at the origin |
+> | A rig target's `displayName` | Tracks still play; the preview has no rest pose for that part |
+
+The reconciliation panel lists each one with a dropdown of names that exist, a **Remap** button, and **Delete** for the two track-like kinds. Deleting is confirmed and tells you how many keys go with it. A rig target cannot be deleted here — it carries the id every track binds to, so renaming is the fix and deleting is a rig-asset decision. **Dismiss** hides the panel without changing anything; the next save reports the same findings again.
+
+### Rig Edit mode
+
+If you want to nudge the base setup without leaving the window, toggle **Rig Edit** in the toolbar. It is a mode, not a modifier, and it is impossible to be in it by accident: the toggle is tinted, the viewport gets an orange border, and a banner across the top says what a drag will do. **Auto Key** greys out, and keying is refused outright rather than merely discouraged.
+
+In Rig Edit:
+
+- **Gizmo drags write the prefab's base pose** on release. No keyframes are created.
+- **Drag a hierarchy row onto another** to reparent it in the prefab. World position is preserved — you are changing what drives the part, not where it sits.
+
+Both go through Unity's prefab APIs. With a prefab stage open for that asset, edits land in the stage: undoable, visible, saved when you save the stage. With no stage open, the asset is written immediately via `LoadPrefabContents`/`SaveAsPrefabAsset`, which **cannot be undone** — there is no open instance for the undo system to restore. Open the prefab first if you want an undo stack.
+
+---
+
 > **Preview limitation, stated plainly:** the preview renders untextured quads driven by transform tracks. It does **not** play VAT. A bone socket has no marker there, because the bone it follows exists only inside a texture and the preview has nothing to follow. For a rigged character, the preview shows you timing and events, not the mesh.
 
 ---

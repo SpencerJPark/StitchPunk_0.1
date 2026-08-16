@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -87,6 +88,11 @@ namespace StitchPunk.AnimationToolkit.Editor
         private const string TransformInterpolatedUssClassName = "clip-editor__transform-block--interpolated";
         private const string TransformModifiedUssClassName = "clip-editor__transform-block--modified";
         private const string TransformStateChipUssClassName = "clip-editor__transform-state";
+        private const string ReconcileRowUssClassName = "clip-editor__reconcile-row";
+        private const string ReconcileRowLabelUssClassName = "clip-editor__reconcile-row-label";
+        private const string ReconcileRemapUssClassName = "clip-editor__reconcile-remap";
+        private const string ViewportFrameRigEditUssClassName =
+            "clip-editor__viewport-frame--rig-edit";
         private const string SelectionHeadingUssClassName = "clip-editor__selection-heading";
         private const string SelectionHeadingActiveUssClassName =
             "clip-editor__selection-heading--active";
@@ -224,6 +230,14 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Set while a selection change is being applied, to stop it re-entering itself.</summary>
         private bool isHandlingHierarchySelection;
 
+        private Button editPrefabButton;
+        private ToolbarToggle rigEditToggle;
+        private VisualElement reconcilePanel;
+        private ScrollView reconcileList;
+        private Label reconcileTitle;
+        private VisualElement viewportFrame;
+        private Label rigEditBanner;
+
         /// <summary>
         /// The selected transform's name, which is the identity bone <em>tracks</em> bind by.
         /// Carried alongside the index rather than derived from it so the bake's contract and the
@@ -275,6 +289,13 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             Undo.undoRedoPerformed += OnUndoRedo;
             EditorApplication.update += OnEditorTick;
+
+            // Both ends of the round trip. Saving is the interesting one -- a user can save several
+            // times without leaving prefab mode, and each save is a structure this window may now
+            // disagree with. Closing catches the case where they never saved but Unity reverted.
+            PrefabStage.prefabSaved += OnPrefabStageSaved;
+            PrefabStage.prefabStageClosing += OnPrefabStageClosing;
+
             previewController = new ClipPreviewController();
         }
 
@@ -282,6 +303,8 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             Undo.undoRedoPerformed -= OnUndoRedo;
             EditorApplication.update -= OnEditorTick;
+            PrefabStage.prefabSaved -= OnPrefabStageSaved;
+            PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
 
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
@@ -381,6 +404,17 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             timeLabel = rootVisualElement.Q<Label>("time-label");
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
+
+            rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
+            if (rigEditToggle != null)
+            {
+                rigEditToggle.tooltip =
+                    "Off: gizmos and fields key the selected clip. "
+                    + "On: gizmos write the prefab's base pose and the hierarchy accepts drag-to-"
+                    + "reparent. No keyframes are created in Rig Edit.";
+                rigEditToggle.RegisterValueChangedCallback(OnRigEditModeChanged);
+            }
+            ApplyRigEditChrome();
 
             autoKeyToggle = rootVisualElement.Q<ToolbarToggle>("auto-key-toggle");
             if (autoKeyToggle != null)
@@ -694,11 +728,616 @@ namespace StitchPunk.AnimationToolkit.Editor
             hierarchyTreeView.makeItem = MakeHierarchyRow;
             hierarchyTreeView.bindItem = BindHierarchyRow;
             hierarchyTreeView.selectionChanged += OnHierarchySelectionChanged;
+
+            editPrefabButton = rootVisualElement.Q<Button>("edit-prefab-button");
+            if (editPrefabButton != null)
+            {
+                editPrefabButton.clicked += OpenPrefabForSelection;
+            }
+            RefreshPrefabActionState();
+        }
+
+        /// <summary>
+        /// Enables the prefab entry points only when there is a prefab asset behind the rig field.
+        /// </summary>
+        /// <remarks>
+        /// A scene object dropped into that field has no asset to open, and a button that reports
+        /// its own failure after being pressed is worse than one that shows it cannot be pressed.
+        /// </remarks>
+        private void RefreshPrefabActionState()
+        {
+            if (editPrefabButton == null)
+            {
+                return;
+            }
+            bool canOpen = PrefabAuthoringBridge.CanOpen(LoadedPrefab);
+            editPrefabButton.SetEnabled(canOpen);
+            editPrefabButton.tooltip = canOpen
+                ? "Open this prefab in Unity's prefab mode. Structural edits — parenting, adding "
+                    + "parts, moving meshes — belong there, not here."
+                : "Assign a prefab in the toolbar's rig field to edit it.";
+        }
+
+        /// <summary>The prefab assigned in the toolbar, which the preview instantiates.</summary>
+        private GameObject LoadedPrefab
+        {
+            get
+            {
+                return skinnedSourceField != null ? skinnedSourceField.value as GameObject : null;
+            }
+        }
+
+        /// <summary>
+        /// The path of a hierarchy row's object below the prefab root, for addressing it in a stage.
+        /// </summary>
+        /// <remarks>
+        /// A rig-target row has no transform of its own — it stands for an entry in the rig asset —
+        /// so it resolves through the name it binds by. That is the same lookup the rest pose uses,
+        /// which means "Open Prefab Here" lands on exactly the object the preview took its rest pose
+        /// from, or on the root when there is none to land on.
+        /// </remarks>
+        private string ResolveHierarchyPath(HierarchyItem item)
+        {
+            if (item == null || previewController == null)
+            {
+                return string.Empty;
+            }
+
+            Transform root = previewController.HierarchyRoot;
+            if (root == null)
+            {
+                return string.Empty;
+            }
+
+            Transform node = item.isRigTarget
+                ? PrefabAuthoringBridge.FindByName(root, item.displayName)
+                : previewController.GetTransformByIndex(item.previewIndex);
+            return node != null ? PrefabAuthoringBridge.GetHierarchyPath(node, root) : string.Empty;
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Round trip. Prefab mode owns the structure; this window owns the animation bound to it,
+        // and has to be told when the first changes under the second.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>The playhead and selection to restore once the rebuilt tree is standing.</summary>
+        private float roundTripPlayheadTime;
+        private readonly List<string> roundTripSelectedNames = new List<string>();
+        private bool hasRoundTripState;
+
+        /// <summary>
+        /// Captures what should survive a trip through prefab mode.
+        /// </summary>
+        /// <remarks>
+        /// Selection is remembered <em>by name</em> rather than by tree id, because the ids are
+        /// indices into a hierarchy walk that the prefab edit is about to invalidate. A name is the
+        /// only handle that can still mean something on the other side — and when it cannot, that is
+        /// itself the signal that the object was renamed or deleted, which is what the reconciler
+        /// reports.
+        /// </remarks>
+        private void RememberRoundTripState()
+        {
+            roundTripPlayheadTime = playheadTime;
+            roundTripSelectedNames.Clear();
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                roundTripSelectedNames.Add(selectedHierarchyItems[itemIndex].displayName);
+            }
+            hasRoundTripState = true;
+        }
+
+        private void OnPrefabStageSaved(GameObject savedRoot)
+        {
+            if (!IsStageOurPrefab(PrefabStageUtility.GetCurrentPrefabStage()))
+            {
+                return;
+            }
+            ReloadAfterPrefabEdit();
+        }
+
+        private void OnPrefabStageClosing(PrefabStage closingStage)
+        {
+            if (!IsStageOurPrefab(closingStage))
+            {
+                return;
+            }
+
+            // Deferred, because the stage is still open at this moment: reinstantiating the prefab
+            // now would copy the contents the stage is about to tear down.
+            EditorApplication.delayCall += ReloadAfterPrefabEdit;
+        }
+
+        /// <summary>Whether a stage is editing the prefab this window has loaded.</summary>
+        /// <remarks>
+        /// Without this the window would rebuild itself every time anyone in the project saved any
+        /// prefab, which is both wasteful and confusing — a reconciliation panel that appeared
+        /// because of an unrelated edit would be noise of the worst kind.
+        /// </remarks>
+        private bool IsStageOurPrefab(PrefabStage stage)
+        {
+            if (stage == null)
+            {
+                return false;
+            }
+            string loadedPath = PrefabAuthoringBridge.ResolveAssetPath(LoadedPrefab);
+            return !string.IsNullOrEmpty(loadedPath) && stage.assetPath == loadedPath;
+        }
+
+        /// <summary>
+        /// Rebuilds everything downstream of the prefab, then reports what no longer binds.
+        /// </summary>
+        /// <remarks>
+        /// The order matters. The preview is reinstantiated first so the hierarchy is the new one;
+        /// the tree is rebuilt from it; selection and playhead are restored against that tree; and
+        /// only then is reconciliation run, because it asks "which names are missing from the
+        /// hierarchy" and needs the new hierarchy to ask it of.
+        /// </remarks>
+        private void ReloadAfterPrefabEdit()
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+
+            GameObject prefab = LoadedPrefab;
+
+            // Forced through null: SetSkinnedSource early-outs when handed the same reference, and
+            // after a prefab save it is the same reference with different contents.
+            previewController.SetSkinnedSource(null);
+            previewController.SetSkinnedSource(prefab);
+
+            RebuildHierarchy();
+            RestoreRoundTripState();
+            RebuildTimeline();
+            RefreshPrefabActionState();
+            MarkPreviewDirty();
+
+            RunReconciliation();
+        }
+
+        private void RestoreRoundTripState()
+        {
+            if (!hasRoundTripState)
+            {
+                return;
+            }
+            hasRoundTripState = false;
+
+            SetPlayheadTime(roundTripPlayheadTime);
+
+            List<int> restoredIds = new List<int>();
+            for (int nameIndex = 0; nameIndex < roundTripSelectedNames.Count; nameIndex++)
+            {
+                int itemId = FindItemIdByName(roundTripSelectedNames[nameIndex]);
+                if (itemId != NothingSelectedItemId)
+                {
+                    restoredIds.Add(itemId);
+                }
+            }
+
+            if (hierarchyTreeView == null || restoredIds.Count == 0)
+            {
+                return;
+            }
+            hierarchyTreeView.SetSelectionById(restoredIds);
+        }
+
+        private int FindItemIdByName(string displayName)
+        {
+            if (string.IsNullOrEmpty(displayName))
+            {
+                return NothingSelectedItemId;
+            }
+            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
+            {
+                if (pair.Value != null && pair.Value.displayName == displayName)
+                {
+                    return pair.Key;
+                }
+            }
+            return NothingSelectedItemId;
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Rig Edit mode.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Whether a gizmo drag edits the rig's base setup instead of keying the clip.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The two modes must never be confusable, because their outputs are not
+        /// interchangeable.</strong> A drag in Animate mode writes a key into a clip; the same drag
+        /// in Rig Edit mode writes the prefab asset. Neither is recoverable by doing the other, and a
+        /// user who mistook one for the other would find out only later — a pose silently baked into
+        /// every clip, or a key nobody meant to create.
+        /// </para>
+        /// <para>
+        /// So the mode is stated three times over: the toolbar toggle is tinted, the viewport frame
+        /// is bordered in the same colour, and a banner across the top of the viewport says in words
+        /// what a drag will do. Keying is also switched off outright rather than merely discouraged —
+        /// Auto Key is disabled and the edit path refuses — so the ambiguity is removed in behaviour
+        /// and not only in signage.
+        /// </para>
+        /// </remarks>
+        private bool IsRigEditMode
+        {
+            get { return rigEditToggle != null && rigEditToggle.value; }
+        }
+
+        private void OnRigEditModeChanged(ChangeEvent<bool> changeEvent)
+        {
+            // A held, unkeyed pose belongs to the clip. Carrying it into a mode that writes the
+            // prefab would make its eventual destination a coin toss.
+            DiscardPendingTransformEdit();
+            ApplyRigEditChrome();
+            RebuildInspector();
+            MarkPreviewDirty();
+        }
+
+        private void ApplyRigEditChrome()
+        {
+            bool isRigEdit = IsRigEditMode;
+
+            if (viewportFrame != null)
+            {
+                viewportFrame.EnableInClassList(ViewportFrameRigEditUssClassName, isRigEdit);
+            }
+
+            if (rigEditBanner != null)
+            {
+                rigEditBanner.EnableInClassList(HiddenUssClassName, !isRigEdit);
+                rigEditBanner.text = isRigEdit
+                    ? "RIG EDIT — gizmo drags write the prefab's base pose. No keyframes are created."
+                    : string.Empty;
+            }
+
+            // Auto Key is not merely ignored in Rig Edit, it is visibly unavailable: leaving a lit
+            // "Auto Key" beside a mode that cannot key is the exact ambiguity this mode exists to
+            // remove.
+            if (autoKeyToggle != null)
+            {
+                autoKeyToggle.SetEnabled(!isRigEdit);
+            }
+        }
+
+        /// <summary>
+        /// Writes a gizmo drag into the prefab's base pose.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The values arriving here are the same ones the animate path would have keyed, but they
+        /// mean something different: in a clip they are an offset from rest, and here they
+        /// <em>are</em> the rest. So the composition is undone before writing — the drag's delta is
+        /// added to the transform the prefab currently has, rather than replacing it with a number
+        /// that was only ever meaningful relative to it.
+        /// </para>
+        /// <para>
+        /// Nothing is written until the drag is released. A per-frame write would mean one asset
+        /// save per pointer move.
+        /// </para>
+        /// </remarks>
+        private void CommitRigBaseEdit(uint targetId, float3 position, float3 rotationDegrees, float3 scale)
+        {
+            HierarchyItem item = ActiveHierarchyItem;
+            if (item == null)
+            {
+                ShowNotification(new GUIContent("Select a part to edit its base pose."));
+                return;
+            }
+
+            string path = ResolveHierarchyPath(item);
+            GameObject prefab = LoadedPrefab;
+            if (prefab == null)
+            {
+                ShowNotification(new GUIContent("Assign a prefab in the rig field to edit its rig."));
+                return;
+            }
+
+            string error;
+            bool written = RigStructureEditor.TrySetLocalPose(
+                prefab, path,
+                new Vector3(position.x, position.y, position.z),
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z),
+                new Vector3(scale.x, scale.y, scale.z),
+                out error);
+
+            if (!written)
+            {
+                ShowNotification(new GUIContent(error));
+                return;
+            }
+
+            ReloadAfterPrefabEdit();
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Reconciliation.
+        // -------------------------------------------------------------------------------------
+
+        private readonly List<BrokenBinding> brokenBindings = new List<BrokenBinding>();
+        private readonly HashSet<string> hierarchyNameCache = new HashSet<string>();
+
+        /// <summary>
+        /// Re-checks every name-based binding and shows the panel when any has broken.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Nothing is dropped, and nothing is guessed.</strong> A binding whose name has
+        /// gone could be a rename, a reparent that also renamed, or a deliberate deletion, and the
+        /// difference is not recoverable from the data — only the person who made the edit knows.
+        /// So the panel states the fact and offers the two honest answers: point it at a name that
+        /// exists, or remove it.
+        /// </para>
+        /// <para>
+        /// Transform and sprite tracks are absent from this panel on purpose. They bind to a rig
+        /// target's stable id, which no prefab edit can touch, so listing them would be inventing a
+        /// problem to make the panel look thorough.
+        /// </para>
+        /// </remarks>
+        private void RunReconciliation()
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+            previewController.CollectHierarchyNames(hierarchyNameCache);
+            BindingReconciler.Collect(clipSet, hierarchyNameCache, brokenBindings);
+            RebuildReconcilePanel();
+        }
+
+        private void RebuildReconcilePanel()
+        {
+            if (reconcilePanel == null || reconcileList == null)
+            {
+                return;
+            }
+
+            reconcileList.Clear();
+            bool hasFindings = brokenBindings.Count > 0;
+            reconcilePanel.EnableInClassList(HiddenUssClassName, !hasFindings);
+            if (!hasFindings)
+            {
+                return;
+            }
+
+            if (reconcileTitle != null)
+            {
+                reconcileTitle.text = brokenBindings.Count.ToString()
+                    + " binding(s) no longer match the prefab. Nothing has been changed — pick a "
+                    + "new name or remove each one.";
+            }
+
+            // A snapshot, because remapping mutates the lists the findings index into. Rebuilding
+            // from a stale index would edit the wrong track.
+            List<string> availableNames = new List<string>(hierarchyNameCache);
+            availableNames.Sort();
+
+            for (int findingIndex = 0; findingIndex < brokenBindings.Count; findingIndex++)
+            {
+                reconcileList.Add(BuildReconcileRow(brokenBindings[findingIndex], availableNames));
+            }
+        }
+
+        private VisualElement BuildReconcileRow(BrokenBinding binding, List<string> availableNames)
+        {
+            VisualElement row = new VisualElement();
+            row.AddToClassList(ReconcileRowUssClassName);
+
+            Label label = new Label(DescribeBrokenBinding(binding));
+            label.AddToClassList(ReconcileRowLabelUssClassName);
+            row.Add(label);
+
+            // A dropdown of names that exist rather than a free text field: the failure this panel
+            // exists to fix is a name that resolves to nothing, and typing is how you get one.
+            PopupField<string> remapField = new PopupField<string>(
+                availableNames, 0, FormatRemapChoice, FormatRemapChoice);
+            remapField.AddToClassList(ReconcileRemapUssClassName);
+            row.Add(remapField);
+
+            row.Add(new Button(() => ApplyRemap(binding, remapField.value))
+            {
+                text = "Remap"
+            });
+
+            if (BindingReconciler.IsDeletable(binding.kind))
+            {
+                row.Add(new Button(() => ConfirmDeleteBinding(binding))
+                {
+                    text = "Delete"
+                });
+            }
+            return row;
+        }
+
+        private static string FormatRemapChoice(string choice)
+        {
+            return string.IsNullOrEmpty(choice) ? "<none>" : choice;
+        }
+
+        private static string DescribeBrokenBinding(BrokenBinding binding)
+        {
+            switch (binding.kind)
+            {
+                case BrokenBindingKind.BoneTrack:
+                    return binding.description + "  ·  \"" + binding.missingName
+                        + "\" is not in the prefab. " + binding.keyCount.ToString()
+                        + " key(s) will not bake.";
+                case BrokenBindingKind.BoneSocket:
+                    return binding.description + "  ·  \"" + binding.missingName
+                        + "\" is not in the prefab. The attachment will bake at the origin.";
+                default:
+                    return binding.description + "  ·  \"" + binding.missingName
+                        + "\" is not in the prefab. Tracks still play; the preview has no rest pose "
+                        + "for this part.";
+            }
+        }
+
+        private void ApplyRemap(BrokenBinding binding, string newName)
+        {
+            if (string.IsNullOrEmpty(newName))
+            {
+                return;
+            }
+
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            Object undoTarget = binding.kind == BrokenBindingKind.BoneTrack
+                ? (Object)binding.clip
+                : rig;
+            if (undoTarget == null)
+            {
+                return;
+            }
+
+            Undo.RecordObject(undoTarget, "Remap Animation Binding");
+            if (!BindingReconciler.Remap(binding, rig, newName))
+            {
+                return;
+            }
+            EditorUtility.SetDirty(undoTarget);
+            AssetDatabase.SaveAssetIfDirty(undoTarget);
+
+            AfterReconcileEdit();
+        }
+
+        /// <summary>
+        /// Deletes a broken track, behind a confirmation naming what is lost.
+        /// </summary>
+        /// <remarks>
+        /// Confirmed because this is the one action in the panel that destroys authored work, and
+        /// the count of keys is in the prompt because "delete this track" and "delete these forty
+        /// keys" are different decisions.
+        /// </remarks>
+        private void ConfirmDeleteBinding(BrokenBinding binding)
+        {
+            string question = binding.kind == BrokenBindingKind.BoneTrack
+                ? "Delete the bone track for \"" + binding.missingName + "\"?\n\n"
+                    + binding.keyCount.ToString() + " key(s) will be lost."
+                : "Delete the socket bound to \"" + binding.missingName + "\"?";
+
+            if (!EditorUtility.DisplayDialog("Delete Broken Binding", question, "Delete", "Cancel"))
+            {
+                return;
+            }
+
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            Object undoTarget = binding.kind == BrokenBindingKind.BoneTrack
+                ? (Object)binding.clip
+                : rig;
+            if (undoTarget == null)
+            {
+                return;
+            }
+
+            Undo.RecordObject(undoTarget, "Delete Broken Binding");
+            if (!BindingReconciler.Delete(binding, rig))
+            {
+                return;
+            }
+            EditorUtility.SetDirty(undoTarget);
+            AssetDatabase.SaveAssetIfDirty(undoTarget);
+
+            AfterReconcileEdit();
+        }
+
+        /// <summary>
+        /// Re-runs the whole check after one fix.
+        /// </summary>
+        /// <remarks>
+        /// Recollected rather than removing the fixed row, because a delete shifts every later index
+        /// into the same list. Patching the remaining findings by hand is exactly the bookkeeping
+        /// that goes wrong; asking the question again cannot.
+        /// </remarks>
+        private void AfterReconcileEdit()
+        {
+            RefreshSerializedClip();
+            RunReconciliation();
+            RebuildTimeline();
+            MarkPreviewDirty();
+        }
+
+        /// <summary>Opens prefab mode on the active row, or on the prefab root when none is picked.</summary>
+        private void OpenPrefabForSelection()
+        {
+            OpenPrefabAt(ActiveHierarchyItem);
+        }
+
+        private void OpenPrefabAt(HierarchyItem item)
+        {
+            GameObject prefab = LoadedPrefab;
+            if (!PrefabAuthoringBridge.CanOpen(prefab))
+            {
+                ShowNotification(new GUIContent(
+                    "Assign a prefab in the rig field before editing it."));
+                return;
+            }
+
+            // Remembered before the stage opens, so returning can put the window back where it was
+            // rather than at the top of a rebuilt tree at time zero.
+            RememberRoundTripState();
+            PrefabAuthoringBridge.OpenPrefab(prefab, ResolveHierarchyPath(item));
+        }
+
+        /// <summary>
+        /// Builds the right-click menu for one hierarchy row.
+        /// </summary>
+        /// <remarks>
+        /// Three entries, and the split between them is deliberate: "Open Prefab Here" is the one
+        /// that changes what you are editing, while "Ping" and "Select" only move the cursor. Making
+        /// a select silently open a stage would leave the user in prefab mode without having asked
+        /// to be.
+        /// </remarks>
+        private void BuildHierarchyContextMenu(ContextualMenuPopulateEvent menuEvent, HierarchyItem item)
+        {
+            bool canOpen = PrefabAuthoringBridge.CanOpen(LoadedPrefab);
+
+            menuEvent.menu.AppendAction(
+                "Open Prefab Here",
+                action => OpenPrefabAt(item),
+                canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            menuEvent.menu.AppendAction(
+                "Ping in Project",
+                action => PrefabAuthoringBridge.PingInProject(LoadedPrefab),
+                canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            menuEvent.menu.AppendAction(
+                "Select in Scene",
+                action =>
+                {
+                    if (!PrefabAuthoringBridge.SelectInOpenStageOrScene(
+                            LoadedPrefab, ResolveHierarchyPath(item)))
+                    {
+                        ShowNotification(new GUIContent(
+                            "No open prefab stage or scene instance holds that object."));
+                    }
+                },
+                canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
         }
 
         private void BindViewport()
         {
             previewStatusLabel = rootVisualElement.Q<Label>("viewport-status");
+            viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
+            rigEditBanner = rootVisualElement.Q<Label>("rig-edit-banner");
+
+            reconcilePanel = rootVisualElement.Q<VisualElement>("reconcile-panel");
+            reconcileList = rootVisualElement.Q<ScrollView>("reconcile-list");
+            reconcileTitle = rootVisualElement.Q<Label>("reconcile-title");
+
+            Button dismissButton = rootVisualElement.Q<Button>("reconcile-dismiss-button");
+            if (dismissButton != null)
+            {
+                // Dismiss hides the panel without touching anything. The bindings stay broken and
+                // the next prefab save reports them again, which is the honest behaviour: this is a
+                // "not now" button, not a "resolved" one.
+                dismissButton.clicked += () =>
+                {
+                    brokenBindings.Clear();
+                    RebuildReconcilePanel();
+                };
+            }
 
             previewImage = rootVisualElement.Q<Image>("viewport-image");
             if (previewImage == null)
@@ -1201,7 +1840,18 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             activeGizmoHandle = GizmoHandle.None;
 
-            if (IsAutoKeyEnabled && hasPendingTransformEdit)
+            // The fork the whole mode exists for. One drag, two entirely different destinations,
+            // decided here and nowhere else so there is a single place to read the rule from.
+            if (IsRigEditMode)
+            {
+                if (hasPendingTransformEdit)
+                {
+                    CommitRigBaseEdit(
+                        pendingTransformTargetId, pendingPosition, pendingRotationDegrees, pendingScale);
+                    DiscardPendingTransformEdit();
+                }
+            }
+            else if (IsAutoKeyEnabled && hasPendingTransformEdit)
             {
                 CommitPendingTransformEdit();
             }
@@ -1519,21 +2169,152 @@ namespace StitchPunk.AnimationToolkit.Editor
             return targetItems;
         }
 
-        private static VisualElement MakeHierarchyRow()
+        /// <summary>
+        /// One hierarchy row, wired for the two gestures that reach prefab mode.
+        /// </summary>
+        /// <remarks>
+        /// The manipulator and the double-click callback are attached once, at construction, and
+        /// read the row's <em>current</em> item through a field the bind step refreshes. Rows are
+        /// recycled as the tree scrolls, so registering per bind would stack a new handler on the
+        /// same element every time it came back into view.
+        /// </remarks>
+        private VisualElement MakeHierarchyRow()
         {
-            Label label = new Label();
+            HierarchyRowLabel label = new HierarchyRowLabel();
             label.AddToClassList(HierarchyRowUssClassName);
+
+            label.AddManipulator(new ContextualMenuManipulator(
+                menuEvent => BuildHierarchyContextMenu(menuEvent, label.item)));
+
+            label.RegisterCallback<PointerDownEvent>(pointerEvent =>
+            {
+                if (pointerEvent.clickCount >= 2 && pointerEvent.button == 0)
+                {
+                    OpenPrefabAt(label.item);
+                }
+            });
+
+            RegisterReparentDrag(label);
             return label;
+        }
+
+        /// <summary>
+        /// Wires one row for drag-to-reparent, which only does anything in Rig Edit mode.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Gated on the mode for the same reason gizmos are: dragging a row is a natural way to
+        /// scroll or to rearrange a selection, and a drag that silently rewrote the prefab asset
+        /// would be the worst kind of surprise. Outside Rig Edit the drag never starts, so the
+        /// gesture is simply not available rather than available and dangerous.
+        /// </para>
+        /// <para>
+        /// Built on <c>DragAndDrop</c> and UI Toolkit's drag events rather than the TreeView's own
+        /// drag hooks, which are not public in this Unity version. The alternative — the built-in
+        /// <c>reorderable</c> flag — would reorder the <em>view</em> and leave the prefab untouched,
+        /// which is precisely the parallel hierarchy this must not become.
+        /// </para>
+        /// </remarks>
+        private void RegisterReparentDrag(HierarchyRowLabel label)
+        {
+            label.RegisterCallback<PointerMoveEvent>(pointerEvent =>
+            {
+                if (!IsRigEditMode
+                    || pointerEvent.pressedButtons != 1
+                    || label.item == null
+                    || label.item.isRigTarget)
+                {
+                    return;
+                }
+
+                DragAndDrop.PrepareStartDrag();
+                DragAndDrop.SetGenericData(ReparentDragKey, label.item);
+                DragAndDrop.objectReferences = new Object[0];
+                DragAndDrop.StartDrag("Reparent " + label.item.displayName);
+                pointerEvent.StopPropagation();
+            });
+
+            label.RegisterCallback<DragUpdatedEvent>(dragEvent =>
+            {
+                DragAndDrop.visualMode = CanDropOn(label.item)
+                    ? DragAndDropVisualMode.Move
+                    : DragAndDropVisualMode.Rejected;
+                dragEvent.StopPropagation();
+            });
+
+            label.RegisterCallback<DragPerformEvent>(dragEvent =>
+            {
+                HierarchyItem dragged = DragAndDrop.GetGenericData(ReparentDragKey) as HierarchyItem;
+                if (CanDropOn(label.item) && dragged != null)
+                {
+                    DragAndDrop.AcceptDrag();
+                    ReparentInPrefab(dragged, label.item);
+                }
+                dragEvent.StopPropagation();
+            });
+        }
+
+        private const string ReparentDragKey = "StitchPunk.AnimationToolkit.ReparentItem";
+
+        /// <summary>Whether the row under the cursor is a legal drop target for the current drag.</summary>
+        private bool CanDropOn(HierarchyItem dropTarget)
+        {
+            if (!IsRigEditMode || dropTarget == null || dropTarget.isRigTarget)
+            {
+                return false;
+            }
+
+            HierarchyItem dragged = DragAndDrop.GetGenericData(ReparentDragKey) as HierarchyItem;
+            return dragged != null && dragged != dropTarget && !dragged.isRigTarget;
+        }
+
+        /// <summary>
+        /// Moves a dragged object under the row it was dropped on, in the prefab asset.
+        /// </summary>
+        /// <remarks>
+        /// The deep checks — parenting into your own subtree, already-a-child — live in
+        /// <see cref="RigStructureEditor"/> rather than here, because they need the prefab's
+        /// hierarchy and this one has only the preview's. Failure is reported rather than swallowed:
+        /// a drag that appears to work and changes nothing is a bug report waiting to happen.
+        /// </remarks>
+        private void ReparentInPrefab(HierarchyItem dragged, HierarchyItem newParent)
+        {
+            GameObject prefab = LoadedPrefab;
+            if (prefab == null)
+            {
+                ShowNotification(new GUIContent("Assign a prefab in the rig field to edit its rig."));
+                return;
+            }
+
+            string childPath = ResolveHierarchyPath(dragged);
+            string parentPath = ResolveHierarchyPath(newParent);
+
+            string error;
+            if (!RigStructureEditor.TryReparent(prefab, childPath, parentPath, out error))
+            {
+                ShowNotification(new GUIContent(error));
+                return;
+            }
+
+            RememberRoundTripState();
+            ReloadAfterPrefabEdit();
+        }
+
+        /// <summary>A row label that remembers which item it is currently showing.</summary>
+        private sealed class HierarchyRowLabel : Label
+        {
+            public HierarchyItem item;
         }
 
         private void BindHierarchyRow(VisualElement element, int index)
         {
-            Label label = element as Label;
+            HierarchyRowLabel label = element as HierarchyRowLabel;
             if (label == null)
             {
                 return;
             }
             HierarchyItem item = hierarchyTreeView.GetItemDataForIndex<HierarchyItem>(index);
+            label.item = item;
             if (item == null)
             {
                 label.text = string.Empty;
@@ -4138,7 +4919,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Whether edits are written straight into a key at the playhead.</summary>
         private bool IsAutoKeyEnabled
         {
-            get { return autoKeyToggle != null && autoKeyToggle.value; }
+            get { return !IsRigEditMode && autoKeyToggle != null && autoKeyToggle.value; }
         }
 
         /// <summary>
@@ -4214,6 +4995,13 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Writes the held edit into a key at the playhead, creating the track if needed.</summary>
         private void CommitPendingTransformEdit()
         {
+            // Refused rather than merely unreachable. Every route into keying passes through here,
+            // so one guard covers the numeric fields, the Key button and the gizmo alike -- and a
+            // mode that only *looked* like it could not key would be the ambiguity back again.
+            if (IsRigEditMode)
+            {
+                return;
+            }
             if (!hasPendingTransformEdit || selectedClip == null || pendingTransformTargetId == 0u)
             {
                 return;
