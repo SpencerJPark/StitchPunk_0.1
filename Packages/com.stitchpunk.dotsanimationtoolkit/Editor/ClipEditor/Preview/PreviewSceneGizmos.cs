@@ -46,6 +46,15 @@ namespace StitchPunk.AnimationToolkit.Editor
     public sealed class PreviewSceneGizmos
     {
         private const int GridHalfLineCount = 5;
+
+        /// <summary>
+        /// One world unit per square — the height of Unity's default cube.
+        /// </summary>
+        /// <remarks>
+        /// The point of a grid is to be a ruler, and it can only be one if a square means something
+        /// you already know the size of. A character runs about two units tall, so a one-unit square
+        /// reads directly as "half this character" without anyone having to work out a scale factor.
+        /// </remarks>
         private const float GridCellSize = 1f;
 
         /// <summary>Keeps a flat object's outline from collapsing to a zero-scale nothing.</summary>

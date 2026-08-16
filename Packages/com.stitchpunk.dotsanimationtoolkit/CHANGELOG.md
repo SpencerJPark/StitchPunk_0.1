@@ -10,6 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the camera frames the rig instead of staring at the origin
+
+Placing the rig and aiming the camera are separate questions, and conflating
+them is why the view opened looking at the ground between a character's feet.
+The origin is where the rig is *placed* — it is what the floor grid is drawn
+for — but a character stands on the floor, so none of it is near 0,0,0.
+
+The camera now orbits the middle of the rig's bounds and backs off a distance
+derived from its bounding sphere and the vertical field of view, so a
+two-metre character and a twenty-metre vehicle are both framed without either
+being guesswork. Framing happens once, on the first render after the rig or the
+loaded prefab changes; after that the camera is yours and no later render will
+fight an orbit. Double-clicking the viewport reframes, as it always did.
+
+Both mirrors count towards the bounds: the cutout parts are the rig for a
+paper-doll set, and the instantiated prefab is the rig for a skinned one, whose
+targets are a handful of quads at rest that would otherwise frame nothing. An
+extra in the prefab that is not really part of the character — a health bar
+above its head — widens the frame slightly; guessing which children "count" by
+name would be wrong in ways nobody could predict.
+
 ### Added — a floor, a visible origin, and the rig standing on it
 
 The viewport had one grid, in the XY plane at z = 0, which works as graph paper

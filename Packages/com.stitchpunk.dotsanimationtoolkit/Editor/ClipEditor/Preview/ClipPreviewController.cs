@@ -29,11 +29,19 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// first.
     /// </para>
     /// <para>
-    /// <strong>Rest poses are identity here.</strong> <c>ClipRegistryBuilder</c> sees only a
-    /// <c>ClipSetAsset</c> graph and never the actor prefab that carries the real rest poses — the
-    /// same reason section 4.6's offset bounds are origin-centred. Authored keys are offsets *from*
-    /// rest, so an identity rest shows the authored motion faithfully; it just shows it about the
-    /// origin rather than about where the part sits on a built actor.
+    /// <strong>Rest poses come from the prefab in the toolbar's rig field.</strong> Each target
+    /// binds by name to a transform of that prefab and takes its root-relative position, rotation
+    /// and scale; authored keys are offsets *from* that, which is exactly how the runtime composes.
+    /// They used to be identity, which showed the authored motion faithfully but showed it about
+    /// the origin rather than about where the part sits on a built actor — every part a unit quad
+    /// in a heap. A target with no matching transform still falls back to identity, which is what a
+    /// set with no prefab loaded gets.
+    /// </para>
+    /// <para>
+    /// <strong>The rig is built at the origin and the camera is aimed at the rig.</strong> Those are
+    /// separate questions and conflating them is why the view used to look at the ground between a
+    /// character's feet: the origin is where the rig is *placed* — it is what the floor grid is
+    /// drawn for — but a character stands on the floor, so none of it is near 0,0,0.
     /// </para>
     /// <para>
     /// <strong>Rendering does not depend on selection.</strong> <see cref="Render"/> draws whatever
@@ -46,7 +54,20 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// </remarks>
     public sealed class ClipPreviewController : IDisposable
     {
+        /// <summary>Used only when there is no geometry to frame, so nothing tells us how far back to be.</summary>
         private const float DefaultOrbitDistance = 6f;
+
+        private const float MinimumOrbitDistance = 1f;
+        private const float MaximumOrbitDistance = 60f;
+
+        /// <summary>Must match the camera's own field of view, or framing overshoots or crops.</summary>
+        private const float FrameFieldOfViewDegrees = 45f;
+
+        /// <summary>Margin around the framed rig, so it is not flush against the viewport edge.</summary>
+        private const float FramePadding = 1.25f;
+
+        /// <summary>Keeps a degenerate rig — one flat quad, or nothing but a socket marker — framable.</summary>
+        private const float MinimumFrameRadius = 0.25f;
 
         private PreviewRenderUtility renderUtility;
         private readonly PreviewRigMirror rigMirror = new PreviewRigMirror();
@@ -116,6 +137,20 @@ namespace StitchPunk.AnimationToolkit.Editor
         private float orbitPitch = 0f;
         private float orbitDistance = DefaultOrbitDistance;
 
+        /// <summary>The point the camera orbits and looks at — the middle of the rig, not the origin.</summary>
+        private Vector3 orbitFocus = Vector3.zero;
+
+        /// <summary>
+        /// Whether the camera should reframe on the next render.
+        /// </summary>
+        /// <remarks>
+        /// Deferred rather than framed at the moment the rig changes, because the two halves of a
+        /// rig arrive separately: the clip set brings the part quads and the toolbar's prefab field
+        /// brings the mesh. Framing on whichever landed first would aim the camera at half a
+        /// character. A render is the first moment both are known to be in place.
+        /// </remarks>
+        private bool framePending = true;
+
         /// <summary>Why the preview is empty, or an empty string when it is fine.</summary>
         public string StatusMessage
         {
@@ -184,6 +219,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             rigMirror.Rebuild(rig);
             mirrorRootAdded = false;
             restPosesDirty = true;
+            framePending = true;
             ApplyRestPoses();
         }
 
@@ -262,6 +298,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             // and re-applied here rather than waiting for the next clip sample — with no clip
             // selected there may not be one.
             restPosesDirty = true;
+            framePending = true;
             ApplyRestPoses();
 
             boneHandles.Rebuild(skeletonMirror.InstanceRoot);
@@ -741,11 +778,12 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Zooms the preview camera. Positive zooms out.</summary>
         public void Zoom(float amount)
         {
-            orbitDistance = Mathf.Clamp(orbitDistance + amount, 1f, 60f);
+            orbitDistance = Mathf.Clamp(
+                orbitDistance + amount, MinimumOrbitDistance, MaximumOrbitDistance);
         }
 
         /// <summary>
-        /// Returns the camera to the pose the window opens with: head-on, framing the origin.
+        /// Returns the camera to the pose the window opens with: head-on, framing the rig.
         /// </summary>
         /// <remarks>
         /// Needed precisely because the viewport now lives independently of selection. An orbit that
@@ -756,7 +794,97 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             orbitYaw = 0f;
             orbitPitch = 0f;
-            orbitDistance = DefaultOrbitDistance;
+            FrameRig();
+        }
+
+        /// <summary>
+        /// Points the camera at the rig and backs off far enough to hold all of it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Placement and framing are separate questions.</strong> The rig is built at the
+        /// origin — that is where it belongs in the space, and the floor grid is drawn for it there.
+        /// But a character stands <em>on</em> the floor, so none of it is near 0,0,0; a camera aimed
+        /// at the origin looks at the ground between its feet. This aims at the middle of what is
+        /// actually there.
+        /// </para>
+        /// <para>
+        /// Distance comes from the bounding sphere and the vertical field of view, so it fits a
+        /// two-metre character and a twenty-metre vehicle without either being guesswork. The
+        /// padding leaves a margin so the rig is not flush against the viewport edge, and the clamp
+        /// is the same one <see cref="Zoom"/> uses — framing must not put the camera somewhere the
+        /// user cannot zoom back out of.
+        /// </para>
+        /// </remarks>
+        public void FrameRig()
+        {
+            framePending = false;
+
+            Bounds rigBounds;
+            if (!TryComputeRigBounds(out rigBounds))
+            {
+                orbitFocus = Vector3.zero;
+                orbitDistance = DefaultOrbitDistance;
+                return;
+            }
+
+            orbitFocus = rigBounds.center;
+
+            float radius = Mathf.Max(rigBounds.extents.magnitude, MinimumFrameRadius);
+            float halfFieldOfViewRadians = FrameFieldOfViewDegrees * 0.5f * Mathf.Deg2Rad;
+            orbitDistance = Mathf.Clamp(
+                radius / Mathf.Tan(halfFieldOfViewRadians) * FramePadding,
+                MinimumOrbitDistance,
+                MaximumOrbitDistance);
+        }
+
+        /// <summary>
+        /// The world bounds of everything the preview draws as the rig.
+        /// </summary>
+        /// <remarks>
+        /// Both mirrors count. The cutout parts are the rig for a paper-doll set, and the
+        /// instantiated prefab is the rig for a skinned one — a rigged character's targets are a
+        /// handful of quads at rest, so framing those alone would zoom in on nothing. Renderers are
+        /// taken as they are, which means an extra in the prefab that is not really part of the
+        /// character (a health bar above its head, say) widens the frame a little. That is the right
+        /// trade: guessing which children "count" by name would be wrong in ways nobody could
+        /// predict.
+        /// </remarks>
+        private bool TryComputeRigBounds(out Bounds rigBounds)
+        {
+            rigBounds = new Bounds(Vector3.zero, Vector3.zero);
+            bool hasAny = false;
+
+            EncapsulateRenderers(rigMirror.RootObject, ref rigBounds, ref hasAny);
+            EncapsulateRenderers(skeletonMirror.InstanceRoot, ref rigBounds, ref hasAny);
+            return hasAny;
+        }
+
+        private static void EncapsulateRenderers(
+            GameObject root, ref Bounds rigBounds, ref bool hasAny)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(false);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer == null || !renderer.enabled)
+                {
+                    continue;
+                }
+
+                if (!hasAny)
+                {
+                    rigBounds = renderer.bounds;
+                    hasAny = true;
+                    continue;
+                }
+                rigBounds.Encapsulate(renderer.bounds);
+            }
         }
 
         /// <summary>
@@ -777,6 +905,15 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             EnsureRenderUtility();
             PopulatePreviewScene();
+
+            // Framed here rather than when the rig changed, because a rig arrives in two pieces —
+            // the clip set's part quads and the toolbar prefab's mesh — and only at a render are
+            // both known to be standing. Once only: after this the camera is the user's, and
+            // reframing on any later render would fight every orbit they make.
+            if (framePending)
+            {
+                FrameRig();
+            }
 
             // Bone handles are rewritten every frame because the bones move as the clip scrubs, and
             // the markers are also the click targets — stale markers would be a viewport where the
@@ -800,10 +937,20 @@ namespace StitchPunk.AnimationToolkit.Editor
             return renderUtility.EndPreview();
         }
 
+        /// <summary>
+        /// Poses the camera on its orbit around <see cref="orbitFocus"/>.
+        /// </summary>
+        /// <remarks>
+        /// The focus is a field rather than the origin because the rig is <em>placed</em> at the
+        /// origin but does not sit centred on it — a character stands on the floor, so its mass is
+        /// entirely above y = 0. Orbiting the origin put it in the top half of the frame and
+        /// swung it around a point below its feet.
+        /// </remarks>
         private void ApplyCameraPose()
         {
             Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
-            renderUtility.camera.transform.position = orbitRotation * new Vector3(0f, 0f, -orbitDistance);
+            renderUtility.camera.transform.position =
+                orbitFocus + orbitRotation * new Vector3(0f, 0f, -orbitDistance);
             renderUtility.camera.transform.rotation = orbitRotation;
         }
 
@@ -928,7 +1075,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             renderUtility = new PreviewRenderUtility();
-            renderUtility.camera.fieldOfView = 45f;
+            renderUtility.camera.fieldOfView = FrameFieldOfViewDegrees;
             renderUtility.camera.nearClipPlane = 0.1f;
             renderUtility.camera.farClipPlane = 200f;
             renderUtility.camera.clearFlags = CameraClearFlags.SolidColor;
