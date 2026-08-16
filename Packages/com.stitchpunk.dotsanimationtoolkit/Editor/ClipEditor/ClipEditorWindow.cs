@@ -2165,28 +2165,32 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
             activeGizmoHandle = GizmoHandle.None;
 
-            // The fork the whole mode exists for. One drag, two entirely different destinations,
-            // decided here and nowhere else so there is a single place to read the rule from.
-            if (selectedSocketId != 0u)
-            {
-                CommitSocketDrag();
-                RefreshGizmo();
-                return;
-            }
+            // The fork the whole mode exists for. The rule itself lives in GizmoDragRouting so it
+            // can be read — and tested — as a table, rather than reconstructed from these branches.
+            GizmoDragDestination destination = GizmoDragRouting.Resolve(
+                selectedSocketId != 0u, IsRigEditMode, IsAutoKeyEnabled, hasPendingTransformEdit);
 
-            if (IsRigEditMode)
+            switch (destination)
             {
-                if (hasPendingTransformEdit)
-                {
+                case GizmoDragDestination.SocketOffset:
+                    CommitSocketDrag();
+                    RefreshGizmo();
+                    return;
+
+                case GizmoDragDestination.RigBasePose:
                     CommitRigBaseEdit(
                         pendingTransformTargetId, pendingPosition, pendingRotationDegrees, pendingScale);
                     DiscardPendingTransformEdit();
-                }
+                    break;
+
+                case GizmoDragDestination.ClipKey:
+                    CommitPendingTransformEdit();
+                    break;
+
+                // HeldClipEdit and Nothing both leave the value where ApplyTransformEdit put it:
+                // held and drawn as modified, or absent. Neither writes anything on release.
             }
-            else if (IsAutoKeyEnabled && hasPendingTransformEdit)
-            {
-                CommitPendingTransformEdit();
-            }
+
             RebuildInspector();
             RefreshGizmo();
         }
@@ -2722,8 +2726,23 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             HierarchyItem dragged = DragAndDrop.GetGenericData(ReparentDragKey) as HierarchyItem;
-            return dragged != null && dragged != dropTarget
-                && dragged.kind == HierarchyItemKind.PrefabTransform;
+            if (dragged == null || dragged == dropTarget
+                || dragged.kind != HierarchyItemKind.PrefabTransform)
+            {
+                return false;
+            }
+
+            // The deep check, asked of the preview's copy of the hierarchy. It answers the same
+            // question the write would ask of the asset, so an illegal drop is a rejected cursor
+            // rather than a notification after the fact.
+            if (previewController == null)
+            {
+                return false;
+            }
+            Transform draggedNode = previewController.GetTransformByIndex(dragged.previewIndex);
+            Transform targetNode = previewController.GetTransformByIndex(dropTarget.previewIndex);
+            string ignoredError;
+            return RigStructureEditor.ValidateReparent(draggedNode, targetNode, out ignoredError);
         }
 
         /// <summary>

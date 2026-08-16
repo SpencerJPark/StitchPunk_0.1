@@ -336,7 +336,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                     // rather than an error, so silence here would be the worst option.
                     Debug.LogWarning(
                         "VAT bake produced no runtime mesh: " + meshFailureMessage +
-                        " The shader needs bone influences in UV1 — see Docs/AnimationToolkit/shader-contract.md.");
+                        " The shader needs bone influences in UV1 — see the package's Documentation~/shader-contract.md.");
                 }
             }
 

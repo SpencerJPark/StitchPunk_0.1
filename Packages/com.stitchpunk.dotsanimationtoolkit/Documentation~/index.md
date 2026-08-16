@@ -123,7 +123,19 @@ shipping project.
 ## Further reading
 
 - [`getting-started.md`](getting-started.md) — create a rig, author a clip,
-  wire up an actor, play it.
+  wire up an actor, play it. Start here.
+
+Then the guide for the kind of character you are building:
+
+- [`cutout-characters.md`](cutout-characters.md) — paper-doll parts driven by
+  transform tracks and flipbook indices. No skeleton, no bake.
+- [`rigged-characters.md`](rigged-characters.md) — imported skeletons baked to
+  VAT, and when bone tracks are worth authoring here instead of in Blender.
+
+And the two references both of them lean on:
+
+- [`clip-editor.md`](clip-editor.md) — the authoring window itself: selection,
+  keying, the dopesheet, sockets, and the route into Unity's prefab mode.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.

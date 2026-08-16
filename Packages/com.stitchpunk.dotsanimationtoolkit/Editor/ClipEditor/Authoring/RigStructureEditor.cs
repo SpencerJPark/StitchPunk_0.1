@@ -218,11 +218,19 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// Rejects the reparents that would corrupt the hierarchy rather than change it.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Parenting something under itself or under one of its own descendants detaches that whole
         /// subtree from the prefab into a cycle. Unity does guard this, but it guards it with an
         /// error after the fact; refusing here means the asset is never written at all.
+        /// </para>
+        /// <para>
+        /// Public so a drag can ask before it drops. The preview hierarchy is a copy of the
+        /// prefab's, so the same question answered against the copy predicts the answer against the
+        /// asset — which turns an illegal drop into a rejected cursor rather than a notification
+        /// after the fact.
+        /// </para>
         /// </remarks>
-        private static bool ValidateReparent(Transform child, Transform parent, out string error)
+        public static bool ValidateReparent(Transform child, Transform parent, out string error)
         {
             error = string.Empty;
             if (child == null)

@@ -10,6 +10,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.9.0] - 2026-08-15
+
+The editor release. Everything below is authoring surface: the runtime, the blob
+layout and the bake are unchanged from 0.8.0 except where a fix says otherwise,
+and the one behaviour change affecting content already authored — flipbook step
+timing — has its own entry saying what it means for existing clips.
+
+### Added — the editor logic that had no coverage now has some
+
+Six fixtures, each pinning something whose failure is silent and expensive.
+The routing one is the important one: **Rig Edit must never produce a keyframe**,
+whatever Auto Key is set to. That rule was previously spread across the branches
+of an event handler, so it was true but not readable; it now lives in
+`GizmoDragRouting` as a table, and the fixture asserts it for both Auto Key
+states rather than the one that happens to be set.
+
+The others cover hierarchy path round-tripping (a wrong path reparents the wrong
+object in a prefab asset), the reparent guards that refuse cycles before anything
+is written, and the claim that a socket marker sits where `SocketResolveSystem`
+will put it — asserted with the followed part *rotated*, since an offset added
+without rotating into its space is correct while everything is unrotated, which
+is exactly the state a rig is authored in.
+
+Both load-bearing fixtures were mutation-checked: inverting the Rig Edit rule and
+dropping the rotation from the socket composition each produced exactly one
+failure, in the fixture aimed at it.
+
+### Fixed — the shader contract was linked but never shipped
+
+`README.md`, `Documentation~/index.md` and `Documentation~/getting-started.md`
+all linked `Documentation~/shader-contract.md`, and the 0.8.0 changelog claimed
+it had been mirrored there. It had not: the file existed only outside the
+package, so every one of those links was dead for anyone who installed it, and
+`rigged-characters.md` reached it through a `../../../` path that only resolves
+inside this repository. The document is now actually in `Documentation~`, and the
+VAT Bake window's own "see the shader contract" message points at the copy a user
+has rather than one they do not.
+
+### Changed — documentation is split by what you are building
+
+`rigged-characters.md` had become the home for material that has nothing to do
+with rigs: the Clip Editor's selection model, keying, dopesheet, socket placement
+and prefab-authoring round trip all apply just as much to a cutout character, and
+a cutout author had no reason to open a page about bone VAT to find them.
+
+- **`clip-editor.md`** is new: the window's own reference, split out whole.
+- **`cutout-characters.md`** is new, and fills the obvious gap — there was an
+  end-to-end guide for rigged characters and none for the paper-doll workflow
+  the toolkit is equally built for, including how a flipbook's two independent
+  retargeting bases differ and what each is for.
+- `rigged-characters.md` keeps what is genuinely about bones and VAT, and points
+  at the editor reference for the rest.
+- `index.md` now routes by what you are building rather than listing files.
+
 ### Added — sockets are placed, tracked and previewed in the Clip Editor
 
 Sockets existed end to end — runtime resolve, blob, and a VAT bake that captures
@@ -731,7 +787,12 @@ renders it lands in later phases; this is what it renders.
 - Sockets, the clip preview and the VAT runtime-mesh step have not been
   exercised by PlayMode integration tests.
 
-## [Unreleased]
+## Build history — C4 through C7, shipped in 0.8.0
+
+Kept below the release entries rather than folded into them: this is the
+step-by-step record of how 0.8.0 was built, not a separate release. It was
+previously headed "Unreleased", which had stopped being true the moment 0.8.0
+went out above it.
 
 Phase C build steps C4 through C7 (core), reconstructed from
 `Docs/AnimationToolkit/` and the package's own shipped tree rather than from
