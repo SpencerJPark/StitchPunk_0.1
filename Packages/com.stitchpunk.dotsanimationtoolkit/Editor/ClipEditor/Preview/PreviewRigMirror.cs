@@ -104,6 +104,11 @@ namespace StitchPunk.AnimationToolkit.Editor
             rootObject = new GameObject("ClipPreviewMirror");
             rootObject.hideFlags = HideFlags.HideAndDontSave;
 
+            // The whole collection of parts hangs off this one transform, and it sits on the origin
+            // deliberately: every part's pose is expressed relative to it, so moving it would move
+            // the rig off the point the camera orbits and the floor grid centres on.
+            rootObject.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+
             Material previewMaterial = UnityEditor.AssetDatabase
                 .GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
 

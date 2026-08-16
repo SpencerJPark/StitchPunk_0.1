@@ -93,6 +93,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             // naming its own plumbing at the user.
             instanceRoot.name = skinnedSourcePrefab.name;
 
+            // Planted on the origin explicitly rather than left wherever the prefab's own root
+            // transform happens to sit. 0,0,0 is the point the camera orbits, the point the floor
+            // grid centres on, and the point every part's rest pose is measured from — a prefab
+            // authored ten metres off would put the whole preview somewhere the camera never looks.
+            instanceRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+
             // Without HideAndDontSave the instance leaks into the user's open scene and, worse,
             // gets saved into it.
             instanceRoot.hideFlags = HideFlags.HideAndDontSave;

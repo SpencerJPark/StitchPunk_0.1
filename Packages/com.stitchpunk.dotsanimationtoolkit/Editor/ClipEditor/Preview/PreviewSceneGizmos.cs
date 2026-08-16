@@ -24,10 +24,18 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// with none of that.
     /// </para>
     /// <para>
-    /// The grid lies in the XY plane at z = 0 rather than being a ground plane. That is the plane
-    /// cutout parts live in and the plane the default camera faces head-on, so it reads as graph
-    /// paper behind the rig at the camera the window opens with. A floor grid would be edge-on and
-    /// invisible until the user thought to orbit.
+    /// <strong>There are two grids, and they answer different questions.</strong> The backdrop lies
+    /// in the XY plane at z = 0 — the plane cutout parts live in and the one the default camera
+    /// faces head-on, so it reads as graph paper behind the rig without the user having to orbit.
+    /// The floor lies in the XZ plane at y = 0 and is what makes the space a space: it says which
+    /// way is down, gives a 3D prop or vehicle something to stand on, and shows at a glance whether
+    /// a character's feet are on the ground or sunk through it. Neither alone does both jobs, which
+    /// is why the floor sits beside the backdrop rather than replacing it.
+    /// </para>
+    /// <para>
+    /// The origin is drawn as three short axis stubs, so 0,0,0 is a place you can see rather than
+    /// one you infer from where lines happen to cross. Everything the preview composes is measured
+    /// from it: the camera orbits it, and the rig's parts are laid out around it.
     /// </para>
     /// <para>
     /// Everything here carries <see cref="HideFlags.HideAndDontSave"/> and is destroyed by
@@ -43,9 +51,24 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Keeps a flat object's outline from collapsing to a zero-scale nothing.</summary>
         private const float MinimumSelectionExtent = 0.002f;
 
+        /// <summary>How far the origin's axis stubs reach, in world units.</summary>
+        private const float OriginMarkerLength = 0.35f;
+
         private static readonly Color GridLineColor = new Color(0.32f, 0.32f, 0.34f, 1f);
+
+        /// <summary>
+        /// Dimmer than the backdrop's.
+        /// </summary>
+        /// <remarks>
+        /// The two grids meet along the X axis and cross at the origin, so drawing them in one
+        /// colour makes a thicket at exactly the place the eye needs to read. The floor recedes and
+        /// the backdrop stays the one being measured against.
+        /// </remarks>
+        private static readonly Color FloorLineColor = new Color(0.24f, 0.24f, 0.26f, 1f);
+
         private static readonly Color HorizontalAxisColor = new Color(0.68f, 0.32f, 0.30f, 1f);
         private static readonly Color VerticalAxisColor = new Color(0.36f, 0.62f, 0.36f, 1f);
+        private static readonly Color DepthAxisColor = new Color(0.30f, 0.48f, 0.76f, 1f);
         private static readonly Color SelectionColor = new Color(0.98f, 0.72f, 0.24f, 1f);
 
         private GameObject gridObject;
@@ -169,6 +192,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 float offset = lineIndex * GridCellSize;
                 bool isCentreLine = lineIndex == 0;
 
+                // Backdrop, in the XY plane at z = 0.
                 AddLine(
                     vertices, colors, indices,
                     new Vector3(offset, -extent, 0f), new Vector3(offset, extent, 0f),
@@ -178,9 +202,45 @@ namespace StitchPunk.AnimationToolkit.Editor
                     vertices, colors, indices,
                     new Vector3(-extent, offset, 0f), new Vector3(extent, offset, 0f),
                     isCentreLine ? HorizontalAxisColor : GridLineColor);
+
+                // Floor, in the XZ plane at y = 0. The centre lines are left in the plain grid
+                // colour: the axes through the origin are drawn once, by the origin marker, and
+                // colouring them here as well would double them up in two different reds.
+                AddLine(
+                    vertices, colors, indices,
+                    new Vector3(offset, 0f, -extent), new Vector3(offset, 0f, extent),
+                    FloorLineColor);
+
+                AddLine(
+                    vertices, colors, indices,
+                    new Vector3(-extent, 0f, offset), new Vector3(extent, 0f, offset),
+                    FloorLineColor);
             }
 
+            AddOriginMarker(vertices, colors, indices);
             return BuildLineMesh("ClipPreviewGridMesh", vertices, colors, indices);
+        }
+
+        /// <summary>
+        /// Three short axis stubs at 0,0,0, in the usual X-red, Y-green, Z-blue convention.
+        /// </summary>
+        /// <remarks>
+        /// Drawn out of the origin in the positive direction only, so the stubs say which way each
+        /// axis runs rather than only where the centre is — the negative half would be a mirror that
+        /// carries no extra information and makes the crossing busier.
+        /// </remarks>
+        private static void AddOriginMarker(
+            List<Vector3> vertices, List<Color> colors, List<int> indices)
+        {
+            AddLine(
+                vertices, colors, indices,
+                Vector3.zero, new Vector3(OriginMarkerLength, 0f, 0f), HorizontalAxisColor);
+            AddLine(
+                vertices, colors, indices,
+                Vector3.zero, new Vector3(0f, OriginMarkerLength, 0f), VerticalAxisColor);
+            AddLine(
+                vertices, colors, indices,
+                Vector3.zero, new Vector3(0f, 0f, OriginMarkerLength), DepthAxisColor);
         }
 
         /// <summary>A unit cube's twelve edges, centred on the origin.</summary>

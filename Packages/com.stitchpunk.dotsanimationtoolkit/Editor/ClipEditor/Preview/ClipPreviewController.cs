@@ -638,6 +638,14 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// of. An unmatched target falls back to identity, which is what a cutout set with no prefab
         /// loaded gets, and is the old behaviour exactly.
         /// </para>
+        /// <para>
+        /// <strong>Measured relative to the prefab root, not to the transform's own parent.</strong>
+        /// The mirror parents every part under one flat root, so a part's <c>localPosition</c> is
+        /// meaningless here — a cutout prefab nests deeply (pelvis → torso → neck → head → eyes),
+        /// and taking the local offset of each would pile the whole character back onto the origin
+        /// one link at a time. The root-relative transform is what "where this part sits in the
+        /// character" actually means once the hierarchy is flattened.
+        /// </para>
         /// </remarks>
         private readonly Dictionary<uint, TargetRestPose> targetRestPoses =
             new Dictionary<uint, TargetRestPose>();
@@ -673,6 +681,14 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
+            Transform instanceRoot = skeletonMirror.InstanceRoot != null
+                ? skeletonMirror.InstanceRoot.transform
+                : null;
+            if (instanceRoot == null)
+            {
+                return;
+            }
+
             List<RigTargetDefinition> targets = boundClipSet.rig.targets;
             for (int targetIndex = 0; targets != null && targetIndex < targets.Count; targetIndex++)
             {
@@ -689,24 +705,27 @@ namespace StitchPunk.AnimationToolkit.Editor
                     continue;
                 }
 
-                // Local, not world: the mirror parents every part under one root, and the runtime
-                // composes a local pose too. Degrees to radians because the blob's rotations are
-                // radians (§4.5) and this value is added to them before ApplyPose converts back.
-                Vector3 localEuler = sourceTransform.localEulerAngles;
+                // The part's transform expressed in the prefab root's space, which is the space the
+                // flat mirror root stands in. Composing the two matrices is the only way to get it
+                // that survives an arbitrary nesting depth.
+                Matrix4x4 rootRelative =
+                    instanceRoot.worldToLocalMatrix * sourceTransform.localToWorldMatrix;
+                Vector3 relativePosition = rootRelative.GetPosition();
+                Vector3 relativeEuler = rootRelative.rotation.eulerAngles;
+                Vector3 relativeScale = rootRelative.lossyScale;
+
+                // Degrees to radians because the blob's rotations are radians (§4.5) and this value
+                // is added to them before ApplyPose converts the sum back for the Transform.
                 targetRestPoses[target.Id.Value] = new TargetRestPose
                 {
                     localPosition = new Unity.Mathematics.float3(
-                        sourceTransform.localPosition.x,
-                        sourceTransform.localPosition.y,
-                        sourceTransform.localPosition.z),
+                        relativePosition.x, relativePosition.y, relativePosition.z),
                     rotation = new Unity.Mathematics.float3(
-                        localEuler.x * Mathf.Deg2Rad,
-                        localEuler.y * Mathf.Deg2Rad,
-                        localEuler.z * Mathf.Deg2Rad),
+                        relativeEuler.x * Mathf.Deg2Rad,
+                        relativeEuler.y * Mathf.Deg2Rad,
+                        relativeEuler.z * Mathf.Deg2Rad),
                     scale = new Unity.Mathematics.float3(
-                        sourceTransform.localScale.x,
-                        sourceTransform.localScale.y,
-                        sourceTransform.localScale.z),
+                        relativeScale.x, relativeScale.y, relativeScale.z),
                     restSliceIndex = 0
                 };
             }

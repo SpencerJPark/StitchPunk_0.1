@@ -10,6 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a floor, a visible origin, and the rig standing on it
+
+The viewport had one grid, in the XY plane at z = 0, which works as graph paper
+behind a cutout rig and does nothing at all for a 3D prop or vehicle.
+
+- **A floor grid in the XZ plane at y = 0**, beside the backdrop rather than
+  replacing it. The two answer different questions: the backdrop is what you
+  measure a flat rig against without orbiting, the floor is what says which way
+  is down and whether a character's feet are on the ground or sunk through it.
+  It is drawn a shade darker so the place where the two planes cross stays
+  readable.
+- **The origin is drawn**, as three short axis stubs in the usual X-red,
+  Y-green, Z-blue convention. 0,0,0 is now a place you can see rather than one
+  you infer from where lines happen to cross — and it is the point everything
+  else is measured from: the camera orbits it, the grids centre on it, and the
+  rig is laid out around it.
+- **Both preview roots are planted on the origin explicitly** — the part
+  collection and the instantiated prefab. A prefab whose own root transform sat
+  ten metres out used to put the whole preview somewhere the camera never looks.
+
+### Fixed — a part's rest pose is measured from the prefab root, not its parent
+
+Rest poses were read from each transform's `localPosition`/`localRotation`/
+`localScale`, which is wrong the moment a prefab nests — and a cutout character
+nests deeply (pelvis → torso → neck → head → eyes). The mirror parents every
+part under one flat root, so taking each part's offset from its own parent piled
+the character back onto the origin one link at a time: a head at "y = 0.11 above
+the neck" landed at y = 0.11 instead of y = 1.85.
+
+Parts are now placed by the transform composed into the prefab root's space,
+which is the space the flat mirror root actually stands in, and survives any
+nesting depth. On `BaseUnit` that is the difference between every part inside
+half a metre of the floor and a figure standing from feet at y ≈ 0.18 to hair at
+y ≈ 2.33.
+
 ### Fixed — the preview starts from the prefab's transforms, and stops rebuilding itself
 
 Two faults with one visible symptom: parts in the preview were the wrong size
