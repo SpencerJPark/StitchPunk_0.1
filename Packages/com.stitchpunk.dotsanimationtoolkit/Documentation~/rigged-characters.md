@@ -141,9 +141,45 @@ Beyond authoring bone tracks:
 - **Retiming.** Change `duration` and every key moves with it — times are normalized, so a re-time never moves a key relative to the clip.
 - **Events.** Place `EventMarker`s on the timeline — footfalls, hit frames, VFX triggers. These surface at runtime in the actor's `AnimEventOutput` buffer.
 - **Layer and blend defaults.** `defaultBlendIn`/`defaultBlendOut` set how the clip crossfades in and out.
-- **Socket offsets.** The preview draws rig-target socket markers so you can tune an offset visually instead of guessing and entering Play mode.
+- **Sockets.** Placed, tracked and previewed here — see [Sockets](#sockets) below.
 - **Validation.** The toolbar badge runs the same `ClipValidation` the bake runs, so an error you see here is the error a bake would throw, with the same rule code.
 - **Scrubbing the composite.** The preview poses through `ClipSampler` — the runtime's own functions — so what you scrub is what plays.
+
+---
+
+## Sockets
+
+A socket is an attachment point: a pose the rig exposes so a game can hang something off it — a weapon in a hand, an effect at a fingertip. They live on the **rig**, so every clip in the set sees the same ones, and they are placed in the Clip Editor where you can scrub the animation while you tune them.
+
+### Placing one
+
+**+ Socket** in the hierarchy header creates a socket bound to whatever is selected — pick the hand first and it comes out already following the hand. Socket rows are listed after the rig's parts and labelled with what they follow:
+
+```
+RightHand Socket  →  RightHand
+Blade Tip         →  Bone_Weapon_02   (unresolved)
+```
+
+That `(unresolved)` mark is the point. A binding that matches nothing does not error — it resolves to the actor's origin, and you find out in play mode with a sword lying at the character's feet.
+
+Select a socket to get its inspector: what it follows (a **dropdown**, not a text field — typing is how you get an unresolved binding), the playback layer for a bone socket, and the offset. **W** and **E** give you move and rotate gizmos in the viewport; the result is stored as an offset in the followed part's space, so it stays put as the rig moves.
+
+### Two kinds, and why the difference matters
+
+| Mode | Follows | Motion comes from |
+|---|---|---|
+| **Rig Target** | A part this rig declares | The part's own transform, resolved live every frame — **nothing to bake** |
+| **Bone** | A bone of the imported skeleton | The **VAT bake**, which samples the bone and stores its motion |
+
+That asymmetry is the thing to remember. A bone socket follows a bone that exists at run time only as texels in a texture, so its motion has to be captured at bake time. Until it has been, it resolves to the actor's origin — and the socket inspector says so rather than leaving you to discover it. Re-run **Window ▸ DOTS Animation Toolkit ▸ VAT Bake**, and check the Console for unresolved bone names while you're there.
+
+Both kinds are drawn in the preview and both track as you scrub.
+
+### Seeing it work
+
+Give a socket a **Preview Attachment** — any prefab — and the preview hangs it off the socket. Now "does the sword sit in the hand through the whole swing" is a question you answer by dragging the playhead rather than by entering play mode. Click the attachment to select its socket.
+
+This is an authoring aid and nothing more: it is editor-only, it cannot pull the prefab into a player build, and nothing reads it at run time. What a game actually attaches is the game's decision, made with `SocketAttachmentAuthoring` on a real entity.
 
 ---
 
@@ -192,7 +228,7 @@ Both go through Unity's prefab APIs. With a prefab stage open for that asset, ed
 
 ---
 
-> **Preview limitation, stated plainly:** the preview renders untextured quads driven by transform tracks. It does **not** play VAT. A bone socket has no marker there, because the bone it follows exists only inside a texture and the preview has nothing to follow. For a rigged character, the preview shows you timing and events, not the mesh.
+> **Preview limitation, stated plainly:** the preview renders untextured quads driven by transform tracks. It does **not** play VAT. For a rigged character, the preview shows you timing, events and socket placement — not the deformed mesh.
 
 ---
 

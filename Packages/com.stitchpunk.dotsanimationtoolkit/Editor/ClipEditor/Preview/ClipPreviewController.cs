@@ -72,6 +72,17 @@ namespace StitchPunk.AnimationToolkit.Editor
         private PreviewRenderUtility renderUtility;
         private readonly PreviewRigMirror rigMirror = new PreviewRigMirror();
 
+        /// <summary>
+        /// Socket markers and their preview attachments.
+        /// </summary>
+        /// <remarks>
+        /// Its own object rather than part of either mirror, because a socket may follow either
+        /// one -- a rig-target part or a posed skeleton bone -- and living inside one of them would
+        /// have made the other kind the awkward case forever.
+        /// </remarks>
+        private readonly PreviewSocketMarkers socketMarkers = new PreviewSocketMarkers();
+        private bool socketRootAdded;
+
         /// <summary>The rig the part quads were built from, so an edit does not rebuild them.</summary>
         private RigAsset mirrorRig;
 
@@ -129,6 +140,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </summary>
         private uint selectedTargetId;
 
+        /// <summary>The socket the outline follows, or 0. A third selectable kind, hence a third field.</summary>
+        private uint selectedSocketId;
+
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
         private string statusMessage = "No clip set assigned.";
@@ -183,6 +197,8 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 rigMirror.Dispose();
                 mirrorRootAdded = false;
+                socketMarkers.Dispose();
+                socketRootAdded = false;
                 mirrorRig = null;
                 statusMessage = "No clip set assigned.";
                 return;
@@ -218,6 +234,9 @@ namespace StitchPunk.AnimationToolkit.Editor
             mirrorRig = rig;
             rigMirror.Rebuild(rig);
             mirrorRootAdded = false;
+            socketMarkers.Rebuild(rig, UnityEditor.AssetDatabase
+                .GetBuiltinExtraResource<Material>("Default-Diffuse.mat"));
+            socketRootAdded = false;
             restPosesDirty = true;
             framePending = true;
             ApplyRestPoses();
@@ -258,7 +277,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 };
                 rigMirror.ApplyPose(targetId, in pose);
             }
-            rigMirror.UpdateSocketMarkers();
+            socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
         }
 
         private void RebuildRegistry(ClipSetAsset clipSet)
@@ -332,6 +351,57 @@ namespace StitchPunk.AnimationToolkit.Editor
             return skeletonMirror.GetTransformByIndex(hierarchyIndex);
         }
 
+        /// <summary>The socket a picked transform stands for, or false when it is not a socket.</summary>
+        public bool TryGetSocketIdForTransform(Transform picked, out uint socketId)
+        {
+            return socketMarkers.TryGetSocketId(picked, out socketId);
+        }
+
+        /// <summary>The marker transform for a socket, or null when it has none.</summary>
+        public Transform GetSocketMarker(uint socketId)
+        {
+            return socketMarkers.GetMarker(socketId);
+        }
+
+        /// <summary>
+        /// The transform a socket currently follows, or null when its binding resolves to nothing.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so the window can invert the marker's composition when a gizmo drag ends —
+        /// turning a dragged world-ish pose back into the local offset a socket actually stores.
+        /// </remarks>
+        public Transform GetSocketFollowedTransform(SocketDefinition socket)
+        {
+            return socketMarkers.GetFollowedTransform(socket, rigMirror, skeletonMirror);
+        }
+
+        /// <summary>Whether a socket's binding resolves to something the preview is showing.</summary>
+        public bool IsSocketResolved(SocketDefinition socket)
+        {
+            return socketMarkers.IsResolved(socket, rigMirror, skeletonMirror);
+        }
+
+        /// <summary>Re-instantiates socket preview attachments after one has been reassigned.</summary>
+        public void RefreshSocketAttachments()
+        {
+            socketMarkers.RebuildAttachments();
+        }
+
+        /// <summary>
+        /// Rebuilds socket markers after the rig's socket list itself has changed.
+        /// </summary>
+        /// <remarks>
+        /// Separate from the rig-mirror rebuild, which is guarded on the rig <em>asset</em> changing
+        /// and so would not notice a socket being added to the rig it already holds.
+        /// </remarks>
+        public void RebuildSockets()
+        {
+            socketMarkers.Rebuild(mirrorRig, AssetDatabase
+                .GetBuiltinExtraResource<Material>("Default-Diffuse.mat"));
+            socketRootAdded = false;
+            socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
+        }
+
         /// <summary>
         /// Every transform name in the loaded prefab, for checking which bindings still resolve.
         /// </summary>
@@ -367,6 +437,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             selectedHierarchyIndex = hierarchyIndex;
             selectedTargetId = 0u;
+            selectedSocketId = 0u;
             if (hierarchyIndex < 0)
             {
                 sceneGizmos.HideSelection();
@@ -385,7 +456,20 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             selectedTargetId = targetId;
             selectedHierarchyIndex = -1;
+            selectedSocketId = 0u;
             if (targetId == 0u)
+            {
+                sceneGizmos.HideSelection();
+            }
+        }
+
+        /// <summary>Points the selection outline at a socket marker. 0 for nothing.</summary>
+        public void SetSelectedSocketId(uint socketId)
+        {
+            selectedSocketId = socketId;
+            selectedTargetId = 0u;
+            selectedHierarchyIndex = -1;
+            if (socketId == 0u)
             {
                 sceneGizmos.HideSelection();
             }
@@ -556,6 +640,15 @@ namespace StitchPunk.AnimationToolkit.Editor
                     }
                 }
             }
+
+            // Sockets last, which puts them first among equals: hits are ordered nearest-first
+            // afterwards, and a socket sits *inside* the hand it is attached to. Adding them at all
+            // is what makes a socket clickable rather than reachable only through the tree.
+            if (socketMarkers.RootObject != null)
+            {
+                PreviewScenePicker.CollectHits(
+                    socketMarkers.RootObject.transform, null, 0f, pickRay, hits);
+            }
         }
 
         /// <summary>
@@ -666,7 +759,7 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             // After the whole pose, never inside the loop: a marker placed before its part is posed
             // shows the previous frame and reads as the socket lagging the rig.
-            rigMirror.UpdateSocketMarkers();
+            socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
 
             // Posed after the parts so one scrub shows both at the same instant, which is the
             // entire point of authoring bone and cutout rows on one timeline.
@@ -1026,6 +1119,12 @@ namespace StitchPunk.AnimationToolkit.Editor
                 renderUtility.AddSingleGO(rigMirror.RootObject);
                 mirrorRootAdded = true;
             }
+
+            if (socketMarkers.RootObject != null && !socketRootAdded)
+            {
+                renderUtility.AddSingleGO(socketMarkers.RootObject);
+                socketRootAdded = true;
+            }
         }
 
         /// <summary>
@@ -1038,9 +1137,19 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// </remarks>
         private void UpdateSelectionMarker()
         {
-            Transform selectedTransform = selectedTargetId != 0u
-                ? rigMirror.GetPartTransform(selectedTargetId)
-                : skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
+            Transform selectedTransform;
+            if (selectedSocketId != 0u)
+            {
+                selectedTransform = socketMarkers.GetMarker(selectedSocketId);
+            }
+            else if (selectedTargetId != 0u)
+            {
+                selectedTransform = rigMirror.GetPartTransform(selectedTargetId);
+            }
+            else
+            {
+                selectedTransform = skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
+            }
             if (selectedTransform == null)
             {
                 sceneGizmos.HideSelection();
@@ -1130,6 +1239,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         {
             ReleaseRegistry();
             rigMirror.Dispose();
+            socketMarkers.Dispose();
             skeletonMirror.Dispose();
 
             // Before Cleanup: these live in the render utility's scene, and cleaning that up first

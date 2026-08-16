@@ -295,6 +295,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// <summary>Rotation offset from the followed target or bone, in degrees.</summary>
         public Vector3 localEulerAngles = Vector3.zero;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// A prefab the Clip Editor hangs off this socket so its placement can be judged.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Authoring aid only — nothing reads this at run time.</strong> A socket's job is
+        /// to expose a pose; what a game attaches to it is the game's decision, made through
+        /// <c>SocketAttachmentAuthoring</c> on a real entity. This field exists because tuning an
+        /// offset against a bare marker cube is guesswork, and "does the sword sit in the hand"
+        /// is the only question that actually matters when placing one.
+        /// </para>
+        /// <para>
+        /// Inside <c>UNITY_EDITOR</c> so the reference does not drag the prefab into a player
+        /// build. A preview asset pulling a weapon mesh into every build that ships the rig would
+        /// be a real cost for a purely editor-side convenience.
+        /// </para>
+        /// </remarks>
+        public GameObject previewAttachment;
+#endif
+
         /// <summary>This socket's stable 32-bit identity. Unique within the owning rig.</summary>
         public SocketId Id
         {

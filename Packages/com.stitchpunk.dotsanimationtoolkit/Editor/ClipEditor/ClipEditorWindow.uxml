@@ -69,6 +69,8 @@
                         <ui:VisualElement class="clip-editor__pane-header">
                             <ui:Label text="Hierarchy" class="clip-editor__pane-title" />
                             <ui:VisualElement class="clip-editor__pane-actions">
+                                <ui:Button name="add-socket-button" text="+ Socket"
+                                           class="clip-editor__pane-action" />
                                 <ui:Button name="edit-prefab-button" text="Edit Prefab"
                                            class="clip-editor__pane-action" />
                             </ui:VisualElement>

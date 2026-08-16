@@ -10,6 +10,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — sockets are placed, tracked and previewed in the Clip Editor
+
+Sockets existed end to end — runtime resolve, blob, and a VAT bake that captures
+bone-socket motion — but they could only be *authored* by typing numbers into the
+rig asset's inspector, against a character you could not see and a pose you could
+not scrub. The numbers are the same numbers; they are now next to the thing they
+move.
+
+- **Socket rows in the hierarchy**, listed after the rig's parts, labelled with
+  what each one follows and marked `(unresolved)` when that matches nothing. An
+  unresolved binding is otherwise a play-mode discovery: an attachment pinned to
+  the actor's feet with no obvious cause.
+- **An inspector** for name, what it follows (a dropdown of the rig's parts, or
+  of the prefab's bone names — a typed name that resolves to nothing is the
+  failure this whole feature exists to make visible), playback layer, and offset.
+  **+ Socket** creates one pre-bound to whatever is selected; delete is confirmed.
+- **Click a socket in the viewport** to select it, including clicking its
+  attachment — a hit walks up to the socket it belongs to, so a sword is not an
+  unselectable object sitting on an unreachable marker.
+- **Gizmos place sockets.** With one selected, W/E move and rotate it and the
+  result is written back as an offset in the followed part's space — the inverse
+  of the composition the runtime performs. Writing the dragged numbers raw would
+  look correct until the rig rotated.
+
+**Bone sockets are previewed now, which they were not.** They used to draw
+nothing, on the stated grounds that the bone they follow "exists only inside a
+VAT texture". That stopped being true when the preview began instantiating the
+rigged prefab and posing its skeleton (A42/B4) — the bone is right there, posed,
+every frame.
+
+**Preview attachments.** Each socket takes an optional prefab that the preview
+hangs off it, so "does the sword sit in the hand through the whole swing" is a
+question you answer by scrubbing. Editor-only and inside `UNITY_EDITOR`, so the
+reference cannot drag a weapon mesh into a player build; nothing reads it at run
+time, where what to attach is the game's decision via `SocketAttachmentAuthoring`.
+
+**Baking is unchanged and already covered this**, which is worth stating plainly:
+the VAT bake captures bone-socket motion into `VatTextureSetAsset.socketTracks`,
+`SocketRegistryBuilder` folds it into the blob, and `SocketResolveSystem` reads
+it. Rig-target sockets are deliberately never baked — their motion *is* their
+part's transform, resolved live. A socket authored in the window is an ordinary
+rig socket and flows through untouched. What is new is that the socket inspector
+now *reports* bake state, so an unbaked bone socket is visible before play rather
+than after.
+
+### Fixed — a socket added from the window had no stable id
+
+`RigAsset` mints ids in `OnValidate`, which does not run in time for code that
+adds a socket and then addresses it. The socket came back with id 0 — and 0 is
+the sentinel for "no socket selected", so the thing you had just created was
+unselectable and its marker unfindable. Minted explicitly on add.
+
 ### Changed — moving between animating and authoring is a mode switch, not a window juggle
 
 Opening prefab mode put the Scene view behind a floating Clip Editor, leaving the

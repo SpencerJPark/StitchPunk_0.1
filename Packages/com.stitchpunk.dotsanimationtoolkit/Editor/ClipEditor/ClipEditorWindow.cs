@@ -185,13 +185,35 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// lives in. The kind is carried on the item rather than inferred from the id, so adding a
         /// third kind later does not mean re-encoding the id space.
         /// </remarks>
+        /// <summary>What a hierarchy row stands for.</summary>
+        /// <remarks>
+        /// An enum rather than a pair of booleans, because most of the code that cares asks "is this
+        /// a prefab transform" by writing <c>!isRigTarget</c>. Adding sockets as a second flag would
+        /// have made every one of those sites quietly wrong about the new kind, and wrong in the
+        /// direction that offers bone-track buttons for a socket.
+        /// </remarks>
+        private enum HierarchyItemKind
+        {
+            /// <summary>A transform of the previewed prefab.</summary>
+            PrefabTransform,
+
+            /// <summary>A part the rig declares, which transform and flipbook tracks bind to.</summary>
+            RigTarget,
+
+            /// <summary>An attachment point the rig declares.</summary>
+            Socket
+        }
+
         private sealed class HierarchyItem
         {
-            public bool isRigTarget;
+            public HierarchyItemKind kind;
             public string displayName;
 
             /// <summary>Set for a rig target.</summary>
             public uint targetId;
+
+            /// <summary>Set for a socket.</summary>
+            public uint socketId;
 
             /// <summary>Set for a previewed transform: its index in the preview's hierarchy.</summary>
             public int previewIndex;
@@ -203,6 +225,17 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// no threshold constant to outgrow, unlike an offset scheme.
         /// </summary>
         private const int RigTargetItemIdBase = -2;
+
+        /// <summary>
+        /// Tree ids for socket rows, far enough below the rig-target range never to meet it.
+        /// </summary>
+        /// <remarks>
+        /// A million targets below zero is not a rig anyone will author, so the two negative ranges
+        /// are disjoint in practice without either needing to know the other's size. The alternative
+        /// — packing a kind into the high bits — would make every id unreadable in a debugger for
+        /// the sake of a collision that cannot happen.
+        /// </remarks>
+        private const int SocketItemIdBase = -1000000;
 
         /// <summary>
         /// Not −1: that is a legitimate tree id under <see cref="RigTargetItemIdBase"/>'s scheme,
@@ -247,6 +280,9 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         /// <summary>The selected rig target, or 0 when the selection is a bone or nothing.</summary>
         private uint selectedTargetId;
+
+        /// <summary>The selected socket, or 0 when the selection is anything else.</summary>
+        private uint selectedSocketId;
 
         // Reused per inspector rebuild rather than allocated, since a rebuild happens on every
         // scrub tick that changes the displayed value.
@@ -836,6 +872,14 @@ namespace StitchPunk.AnimationToolkit.Editor
             hierarchyTreeView.bindItem = BindHierarchyRow;
             hierarchyTreeView.selectionChanged += OnHierarchySelectionChanged;
 
+            Button addSocketButton = rootVisualElement.Q<Button>("add-socket-button");
+            if (addSocketButton != null)
+            {
+                addSocketButton.tooltip =
+                    "Add an attachment point, bound to whatever is selected in this tree.";
+                addSocketButton.clicked += AddSocket;
+            }
+
             editPrefabButton = rootVisualElement.Q<Button>("edit-prefab-button");
             if (editPrefabButton != null)
             {
@@ -896,9 +940,22 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return string.Empty;
             }
 
-            Transform node = item.isRigTarget
-                ? PrefabAuthoringBridge.FindByName(root, item.displayName)
-                : previewController.GetTransformByIndex(item.previewIndex);
+            // A socket has no transform of its own in the prefab, so it resolves through whatever
+            // it follows — opening prefab mode on the hand is the useful answer to "edit this
+            // socket's object", since the socket itself lives in the rig asset.
+            Transform node;
+            switch (item.kind)
+            {
+                case HierarchyItemKind.RigTarget:
+                    node = PrefabAuthoringBridge.FindByName(root, item.displayName);
+                    break;
+                case HierarchyItemKind.Socket:
+                    node = PrefabAuthoringBridge.FindByName(root, ResolveSocketFollowName(item.socketId));
+                    break;
+                default:
+                    node = previewController.GetTransformByIndex(item.previewIndex);
+                    break;
+            }
             return node != null ? PrefabAuthoringBridge.GetHierarchyPath(node, root) : string.Empty;
         }
 
@@ -1721,6 +1778,18 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return;
             }
 
+            // A socket takes the gizmo wherever its marker currently sits, clip or no clip: its
+            // offset is rig data, so it is placeable without a clip selected at all.
+            if (selectedSocketId != 0u)
+            {
+                Transform marker = previewController.GetSocketMarker(selectedSocketId);
+                previewController.SetGizmo(
+                    marker != null, gizmoMode,
+                    marker != null ? marker.localPosition : Vector3.zero,
+                    activeGizmoHandle);
+                return;
+            }
+
             if (selectedTargetId == 0u || selectedClip == null)
             {
                 previewController.SetGizmo(false, gizmoMode, Vector3.zero, GizmoHandle.None);
@@ -1804,7 +1873,8 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Whether the press landed on a gizmo handle, and if so, starts the drag.</summary>
         private bool TryBeginGizmoDrag(Vector2 localPosition)
         {
-            if (selectedTargetId == 0u || selectedClip == null)
+            bool draggingSocket = selectedSocketId != 0u;
+            if (!draggingSocket && (selectedTargetId == 0u || selectedClip == null))
             {
                 return false;
             }
@@ -1825,8 +1895,27 @@ namespace StitchPunk.AnimationToolkit.Editor
             float3 position;
             float3 rotationDegrees;
             float3 scale;
-            ResolveDisplayedTransform(
-                selectedTargetId, out position, out rotationDegrees, out scale);
+            if (draggingSocket)
+            {
+                // The drag works in the marker's own space, which is where the gizmo is drawn.
+                // The offset it writes back is in the followed part's space, and the conversion
+                // between the two happens once, on release.
+                Transform marker = previewController.GetSocketMarker(selectedSocketId);
+                if (marker == null)
+                {
+                    return false;
+                }
+                Vector3 markerEuler = marker.localRotation.eulerAngles;
+                position = new float3(
+                    marker.localPosition.x, marker.localPosition.y, marker.localPosition.z);
+                rotationDegrees = new float3(markerEuler.x, markerEuler.y, markerEuler.z);
+                scale = new float3(1f, 1f, 1f);
+            }
+            else
+            {
+                ResolveDisplayedTransform(
+                    selectedTargetId, out position, out rotationDegrees, out scale);
+            }
 
             activeGizmoHandle = handle;
             gizmoDragStartPosition = position;
@@ -1913,8 +2002,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                         rotatedValue.z += angleDelta;
                         break;
                 }
-                ApplyTransformEdit(
-                    selectedTargetId, gizmoDragStartPosition, rotatedValue, gizmoDragStartScale, false);
+                ApplyGizmoDragValue(gizmoDragStartPosition, rotatedValue, gizmoDragStartScale);
                 RebuildInspector();
                 RefreshGizmo();
                 return;
@@ -1946,8 +2034,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                         movedPosition.z += parameterDelta;
                         break;
                 }
-                ApplyTransformEdit(
-                    selectedTargetId, movedPosition, gizmoDragStartRotation, gizmoDragStartScale, false);
+                ApplyGizmoDragValue(movedPosition, gizmoDragStartRotation, gizmoDragStartScale);
             }
             else
             {
@@ -1967,12 +2054,100 @@ namespace StitchPunk.AnimationToolkit.Editor
                         scaledValue += parameterDelta;
                         break;
                 }
-                ApplyTransformEdit(
-                    selectedTargetId, gizmoDragStartPosition, gizmoDragStartRotation, scaledValue, false);
+                ApplyGizmoDragValue(gizmoDragStartPosition, gizmoDragStartRotation, scaledValue);
             }
 
             RebuildInspector();
             RefreshGizmo();
+        }
+
+        /// <summary>
+        /// Sends a drag's value wherever the current selection says it belongs.
+        /// </summary>
+        /// <remarks>
+        /// One dispatcher rather than a test at each of the three drag branches, so "what does a
+        /// gizmo drag write" has a single answer in a single place. A socket is held live rather
+        /// than written per frame for the same reason a clip edit is: one asset write per pointer
+        /// move would be absurd, and the marker already shows the result.
+        /// </remarks>
+        private void ApplyGizmoDragValue(float3 position, float3 rotationDegrees, float3 scale)
+        {
+            if (selectedSocketId != 0u)
+            {
+                pendingSocketPosition = position;
+                pendingSocketRotation = rotationDegrees;
+                hasPendingSocketEdit = true;
+                PreviewSocketDrag(position, rotationDegrees);
+                return;
+            }
+            ApplyTransformEdit(selectedTargetId, position, rotationDegrees, scale, false);
+        }
+
+        private bool hasPendingSocketEdit;
+        private float3 pendingSocketPosition;
+        private float3 pendingSocketRotation;
+
+        /// <summary>Moves the marker during the drag, without touching the asset.</summary>
+        private void PreviewSocketDrag(float3 position, float3 rotationDegrees)
+        {
+            Transform marker = previewController.GetSocketMarker(selectedSocketId);
+            if (marker == null)
+            {
+                return;
+            }
+            marker.localPosition = new Vector3(position.x, position.y, position.z);
+            marker.localRotation = Quaternion.Euler(
+                rotationDegrees.x, rotationDegrees.y, rotationDegrees.z);
+        }
+
+        /// <summary>
+        /// Writes a finished socket drag back as an offset in the followed thing's space.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The gizmo works in the mirror root's space, because that is where it is drawn; a socket
+        /// stores its offset in the space of the part or bone it follows. So the followed pose is
+        /// divided back out here — the inverse of the composition
+        /// <see cref="PreviewSocketMarkers"/> and <c>SocketResolveSystem</c> both perform. Writing
+        /// the drag's raw numbers instead would look right until the rig rotated, and then put the
+        /// sword somewhere else entirely.
+        /// </para>
+        /// <para>
+        /// Undo goes on the rig, matching every other socket edit: the offset is rig structure that
+        /// all clips share.
+        /// </para>
+        /// </remarks>
+        private void CommitSocketDrag()
+        {
+            SocketDefinition socket = FindSocket(selectedSocketId);
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (socket == null || rig == null || !hasPendingSocketEdit)
+            {
+                hasPendingSocketEdit = false;
+                return;
+            }
+            hasPendingSocketEdit = false;
+
+            Transform followed = previewController.GetSocketFollowedTransform(socket);
+            Vector3 draggedPosition = new Vector3(
+                pendingSocketPosition.x, pendingSocketPosition.y, pendingSocketPosition.z);
+            Quaternion draggedRotation = Quaternion.Euler(
+                pendingSocketRotation.x, pendingSocketRotation.y, pendingSocketRotation.z);
+
+            Vector3 basePosition = Vector3.zero;
+            Quaternion baseRotation = Quaternion.identity;
+            if (followed != null)
+            {
+                basePosition = followed.localPosition;
+                baseRotation = followed.localRotation;
+            }
+
+            Quaternion inverseBase = Quaternion.Inverse(baseRotation);
+            Undo.RecordObject(rig, "Place Socket");
+            socket.localPosition = inverseBase * (draggedPosition - basePosition);
+            socket.localEulerAngles = (inverseBase * draggedRotation).eulerAngles;
+            CommitSocketEdit(true);
+            RebuildInspector();
         }
 
         /// <summary>
@@ -1992,6 +2167,13 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             // The fork the whole mode exists for. One drag, two entirely different destinations,
             // decided here and nowhere else so there is a single place to read the rule from.
+            if (selectedSocketId != 0u)
+            {
+                CommitSocketDrag();
+                RefreshGizmo();
+                return;
+            }
+
             if (IsRigEditMode)
             {
                 if (hasPendingTransformEdit)
@@ -2131,8 +2313,19 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             int itemId;
+            uint pickedSocketId;
             uint pickedTargetId;
-            if (previewController.TryGetTargetIdForTransform(pickedTransform, out pickedTargetId))
+
+            // Sockets are tested first because a click on one usually lands on its attachment — a
+            // sword, not a cube — whose transform belongs to neither of the other two hierarchies.
+            if (previewController.TryGetSocketIdForTransform(pickedTransform, out pickedSocketId))
+            {
+                if (!TryFindSocketItemId(pickedSocketId, out itemId))
+                {
+                    return;
+                }
+            }
+            else if (previewController.TryGetTargetIdForTransform(pickedTransform, out pickedTargetId))
             {
                 // A cutout part quad. Its row is a rig target, not a transform of the previewed
                 // prefab, so the id comes from the target table rather than the preview hierarchy.
@@ -2232,6 +2425,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             // flipbook track had no object to belong to.
             rootItems.AddRange(BuildRigTargetItems());
 
+            // After the parts, before the prefab's transforms: a socket belongs to the rig, so it
+            // reads with the rig's own rows rather than buried in the imported hierarchy.
+            rootItems.AddRange(BuildSocketItems());
+
             // Built from the preview's live instance, not from the prefab asset. The viewport picks
             // transforms out of that instance, so sourcing the tree from it means a picked object is
             // literally a node of the tree's own source — no mapping between two hierarchies that
@@ -2276,7 +2473,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             int itemId = previewController.GetHierarchyIndex(transformNode);
             HierarchyItem item = new HierarchyItem
             {
-                isRigTarget = false,
+                kind = HierarchyItemKind.PrefabTransform,
                 displayName = transformNode.name,
                 previewIndex = itemId
             };
@@ -2307,7 +2504,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 int itemId = RigTargetItemIdBase - targetIndex;
                 HierarchyItem item = new HierarchyItem
                 {
-                    isRigTarget = true,
+                    kind = HierarchyItemKind.RigTarget,
                     displayName = string.IsNullOrEmpty(target.displayName)
                         ? "Target " + target.Id.Value.ToString()
                         : target.displayName,
@@ -2317,6 +2514,115 @@ namespace StitchPunk.AnimationToolkit.Editor
                 targetItems.Add(new TreeViewItemData<HierarchyItem>(itemId, item));
             }
             return targetItems;
+        }
+
+        /// <summary>
+        /// One row per socket, flat, listed after the parts.
+        /// </summary>
+        /// <remarks>
+        /// Their own rows rather than children of whatever they follow. A socket may follow a rig
+        /// target or an imported bone, which live in two different trees, so nesting them would put
+        /// half the sockets in one place and half in another — and a socket whose binding is broken
+        /// would have nowhere at all to appear, which is exactly when the author needs to find it.
+        /// </remarks>
+        private List<TreeViewItemData<HierarchyItem>> BuildSocketItems()
+        {
+            List<TreeViewItemData<HierarchyItem>> socketItems =
+                new List<TreeViewItemData<HierarchyItem>>();
+            if (clipSet == null || clipSet.rig == null || clipSet.rig.sockets == null)
+            {
+                return socketItems;
+            }
+
+            for (int socketIndex = 0; socketIndex < clipSet.rig.sockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = clipSet.rig.sockets[socketIndex];
+                if (socket == null)
+                {
+                    continue;
+                }
+
+                int itemId = SocketItemIdBase - socketIndex;
+                HierarchyItem item = new HierarchyItem
+                {
+                    kind = HierarchyItemKind.Socket,
+                    displayName = DescribeSocketRow(socket),
+                    socketId = socket.Id.Value
+                };
+                hierarchyItemsById[itemId] = item;
+                socketItems.Add(new TreeViewItemData<HierarchyItem>(itemId, item));
+            }
+            return socketItems;
+        }
+
+        /// <summary>
+        /// A socket's row label: its name, what it follows, and a mark when that resolves to nothing.
+        /// </summary>
+        /// <remarks>
+        /// The binding is on the row rather than only in the inspector because an unresolved socket
+        /// is the failure that otherwise surfaces at run time as a weapon pinned to the actor's
+        /// feet. Seeing it in the list costs nothing and catches it before a bake.
+        /// </remarks>
+        private string DescribeSocketRow(SocketDefinition socket)
+        {
+            string name = string.IsNullOrEmpty(socket.displayName)
+                ? "Socket " + socket.Id.Value.ToString()
+                : socket.displayName;
+
+            string follows = socket.mode == SocketAttachMode.RigTarget
+                ? ResolveTargetDisplayName(socket.targetId)
+                : (string.IsNullOrEmpty(socket.boneName) ? "<no bone>" : socket.boneName);
+
+            bool resolved = previewController != null && previewController.IsSocketResolved(socket);
+            return name + "  →  " + follows + (resolved ? string.Empty : "   (unresolved)");
+        }
+
+        /// <summary>The socket with this id on the loaded rig, or null.</summary>
+        private SocketDefinition FindSocket(uint socketId)
+        {
+            if (clipSet == null || clipSet.rig == null || clipSet.rig.sockets == null)
+            {
+                return null;
+            }
+            for (int socketIndex = 0; socketIndex < clipSet.rig.sockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = clipSet.rig.sockets[socketIndex];
+                if (socket != null && socket.Id.Value == socketId)
+                {
+                    return socket;
+                }
+            }
+            return null;
+        }
+
+        private int FindSocketIndex(uint socketId)
+        {
+            if (clipSet == null || clipSet.rig == null || clipSet.rig.sockets == null)
+            {
+                return -1;
+            }
+            for (int socketIndex = 0; socketIndex < clipSet.rig.sockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = clipSet.rig.sockets[socketIndex];
+                if (socket != null && socket.Id.Value == socketId)
+                {
+                    return socketIndex;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>The name of whatever a socket follows, for path resolution.</summary>
+        private string ResolveSocketFollowName(uint socketId)
+        {
+            SocketDefinition socket = FindSocket(socketId);
+            if (socket == null)
+            {
+                return string.Empty;
+            }
+            return socket.mode == SocketAttachMode.RigTarget
+                ? ResolveTargetDisplayName(socket.targetId)
+                : socket.boneName;
         }
 
         /// <summary>
@@ -2372,7 +2678,7 @@ namespace StitchPunk.AnimationToolkit.Editor
                 if (!IsRigEditMode
                     || pointerEvent.pressedButtons != 1
                     || label.item == null
-                    || label.item.isRigTarget)
+                    || label.item.kind != HierarchyItemKind.PrefabTransform)
                 {
                     return;
                 }
@@ -2409,13 +2715,15 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// <summary>Whether the row under the cursor is a legal drop target for the current drag.</summary>
         private bool CanDropOn(HierarchyItem dropTarget)
         {
-            if (!IsRigEditMode || dropTarget == null || dropTarget.isRigTarget)
+            if (!IsRigEditMode || dropTarget == null
+                || dropTarget.kind != HierarchyItemKind.PrefabTransform)
             {
                 return false;
             }
 
             HierarchyItem dragged = DragAndDrop.GetGenericData(ReparentDragKey) as HierarchyItem;
-            return dragged != null && dragged != dropTarget && !dragged.isRigTarget;
+            return dragged != null && dragged != dropTarget
+                && dragged.kind == HierarchyItemKind.PrefabTransform;
         }
 
         /// <summary>
@@ -2474,17 +2782,44 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             // Bold marks something the selected clip already animates, so the tree doubles as the
             // answer to "what does this clip actually touch?".
-            bool isAnimated = item.isRigTarget
-                ? CountTracksForTarget(item.targetId) > 0
-                : FindBoneTrackIndex(item.displayName) >= 0;
+            bool isAnimated;
+            switch (item.kind)
+            {
+                case HierarchyItemKind.RigTarget:
+                    isAnimated = CountTracksForTarget(item.targetId) > 0;
+                    break;
+                case HierarchyItemKind.Socket:
+                    // A socket carries no keys, so bold means "this one has something pinned to it"
+                    // — the reading that matters when scanning a rig for what will show up.
+                    isAnimated = FindSocket(item.socketId) != null
+                        && FindSocket(item.socketId).previewAttachment != null;
+                    break;
+                default:
+                    isAnimated = FindBoneTrackIndex(item.displayName) >= 0;
+                    break;
+            }
             label.EnableInClassList(AnimatedBoneUssClassName, isAnimated);
+        }
+
+        private bool TryFindSocketItemId(uint socketId, out int itemId)
+        {
+            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
+            {
+                if (pair.Value.kind == HierarchyItemKind.Socket && pair.Value.socketId == socketId)
+                {
+                    itemId = pair.Key;
+                    return true;
+                }
+            }
+            itemId = NothingSelectedItemId;
+            return false;
         }
 
         private bool TryFindRigTargetItemId(uint targetId, out int itemId)
         {
             foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
             {
-                if (pair.Value.isRigTarget && pair.Value.targetId == targetId)
+                if (pair.Value.kind == HierarchyItemKind.RigTarget && pair.Value.targetId == targetId)
                 {
                     itemId = pair.Key;
                     return true;
@@ -2668,7 +3003,19 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             selectedHierarchyItemId = FindItemIdOf(activeItem);
-            if (activeItem.isRigTarget)
+            if (activeItem.kind == HierarchyItemKind.Socket)
+            {
+                selectedBoneName = null;
+                selectedTargetId = 0u;
+                selectedSocketId = activeItem.socketId;
+                if (previewController != null)
+                {
+                    previewController.SetSelectedSocketId(activeItem.socketId);
+                }
+                return;
+            }
+            selectedSocketId = 0u;
+            if (activeItem.kind == HierarchyItemKind.RigTarget)
             {
                 selectedBoneName = null;
                 selectedTargetId = activeItem.targetId;
@@ -2721,7 +3068,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
             {
                 HierarchyItem item = selectedHierarchyItems[itemIndex];
-                if (item.isRigTarget && item.targetId == targetId)
+                if (item.kind == HierarchyItemKind.RigTarget && item.targetId == targetId)
                 {
                     return true;
                 }
@@ -2739,7 +3086,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
             {
                 HierarchyItem item = selectedHierarchyItems[itemIndex];
-                if (!item.isRigTarget && item.displayName == boneName)
+                if (item.kind == HierarchyItemKind.PrefabTransform && item.displayName == boneName)
                 {
                     return true;
                 }
@@ -2780,7 +3127,9 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private string DescribeHierarchyItemName(HierarchyItem item)
         {
-            return item.isRigTarget ? ResolveTargetDisplayName(item.targetId) : item.displayName;
+            return item.kind == HierarchyItemKind.RigTarget
+                ? ResolveTargetDisplayName(item.targetId)
+                : item.displayName;
         }
 
         /// <summary>Deselects everywhere at once — tree, viewport outline and inspector.</summary>
@@ -4257,13 +4606,17 @@ namespace StitchPunk.AnimationToolkit.Editor
                 {
                     HierarchyItem item = selectedHierarchyItems[itemIndex];
                     bool isActive = item == activeItem;
-                    if (item.isRigTarget)
+                    switch (item.kind)
                     {
-                        BuildRigTargetInspector(item, isActive);
-                    }
-                    else
-                    {
-                        BuildBoneInspector(item, isActive);
+                        case HierarchyItemKind.RigTarget:
+                            BuildRigTargetInspector(item, isActive);
+                            break;
+                        case HierarchyItemKind.Socket:
+                            BuildSocketInspector(item, isActive);
+                            break;
+                        default:
+                            BuildBoneInspector(item, isActive);
+                            break;
                     }
                 }
                 return;
@@ -4716,6 +5069,403 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             AddFlipbookFields(targetId);
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Sockets.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The inspector for a socket: what it follows, where it sits, and what to hang off it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Sockets were previously authored only in the rig asset's own inspector, which meant
+        /// tuning an offset against a character you could not see and a pose you could not scrub.
+        /// The numbers are the same numbers; the difference is that here they are next to the thing
+        /// they move.
+        /// </para>
+        /// <para>
+        /// Every edit records undo on the <em>rig</em>, not the clip. A socket is rig structure —
+        /// every clip in the set sees the same one — and putting it on the clip's undo stack would
+        /// make an undo in one clip silently move an attachment in all the others.
+        /// </para>
+        /// </remarks>
+        private void BuildSocketInspector(HierarchyItem item, bool isActive)
+        {
+            SocketDefinition socket = FindSocket(item.socketId);
+            if (socket == null)
+            {
+                inspectorPane.Add(MakeHint("This socket is no longer on the rig."));
+                return;
+            }
+
+            RigAsset rig = clipSet.rig;
+            inspectorPane.Add(MakeSelectionHeading(
+                string.IsNullOrEmpty(socket.displayName)
+                    ? "Socket " + socket.Id.Value.ToString()
+                    : socket.displayName,
+                isActive));
+
+            bool resolved = previewController != null && previewController.IsSocketResolved(socket);
+            inspectorPane.Add(MakeHint(resolved
+                ? "Attachment point — follows its target every frame."
+                : "Follows nothing: the binding below matches no part or bone, so this socket "
+                    + "will sit at the actor's origin."));
+
+            TextField nameField = new TextField("Name");
+            nameField.SetValueWithoutNotify(socket.displayName);
+            nameField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordSocketEdit(rig, "Rename Socket");
+                socket.displayName = changeEvent.newValue;
+                CommitSocketEdit(false);
+            });
+            inspectorPane.Add(nameField);
+
+            EnumField modeField = new EnumField("Follows", socket.mode);
+            modeField.tooltip =
+                "Rig Target follows a part this rig declares, live. Bone follows a bone of the "
+                + "imported skeleton, whose motion is baked into the VAT.";
+            modeField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordSocketEdit(rig, "Change Socket Mode");
+                socket.mode = (SocketAttachMode)changeEvent.newValue;
+                CommitSocketEdit(true);
+                RebuildInspector();
+            });
+            inspectorPane.Add(modeField);
+
+            if (socket.mode == SocketAttachMode.RigTarget)
+            {
+                inspectorPane.Add(BuildSocketTargetField(rig, socket));
+            }
+            else
+            {
+                inspectorPane.Add(BuildSocketBoneField(rig, socket));
+                inspectorPane.Add(MakeSocketBakeHint(socket));
+
+                IntegerField layerField = new IntegerField("Layer");
+                layerField.SetValueWithoutNotify(socket.layerIndex);
+                layerField.tooltip =
+                    "Which playback layer drives this socket's time. Only meaningful for a bone "
+                    + "socket, whose pose comes from the baked track rather than from a live part.";
+                layerField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    RecordSocketEdit(rig, "Change Socket Layer");
+                    socket.layerIndex = Mathf.Max(0, changeEvent.newValue);
+                    CommitSocketEdit(true);
+                });
+                inspectorPane.Add(layerField);
+            }
+
+            inspectorPane.Add(MakeHeading("Offset"));
+
+            Vector3Field offsetPositionField = new Vector3Field("Position");
+            offsetPositionField.SetValueWithoutNotify(socket.localPosition);
+            offsetPositionField.tooltip =
+                "In the followed part or bone's local space, so it stays put as the rig moves.";
+            offsetPositionField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordSocketEdit(rig, "Move Socket");
+                socket.localPosition = changeEvent.newValue;
+                CommitSocketEdit(true);
+            });
+            inspectorPane.Add(offsetPositionField);
+
+            Vector3Field offsetRotationField = new Vector3Field("Rotation");
+            offsetRotationField.SetValueWithoutNotify(socket.localEulerAngles);
+            offsetRotationField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordSocketEdit(rig, "Rotate Socket");
+                socket.localEulerAngles = changeEvent.newValue;
+                CommitSocketEdit(true);
+            });
+            inspectorPane.Add(offsetRotationField);
+
+            inspectorPane.Add(MakeHeading("Preview Attachment"));
+            inspectorPane.Add(MakeHint(
+                "Editor only. Hangs a prefab off this socket so the placement can be judged "
+                + "against the animation; nothing reads it at run time or ships in a build."));
+
+            ObjectField attachmentField = new ObjectField("Prefab");
+            attachmentField.objectType = typeof(GameObject);
+            attachmentField.allowSceneObjects = false;
+            attachmentField.SetValueWithoutNotify(socket.previewAttachment);
+            attachmentField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordSocketEdit(rig, "Set Socket Preview Attachment");
+                socket.previewAttachment = changeEvent.newValue as GameObject;
+                CommitSocketEdit(false);
+
+                if (previewController != null)
+                {
+                    previewController.RefreshSocketAttachments();
+                }
+                MarkPreviewDirty();
+            });
+            inspectorPane.Add(attachmentField);
+
+            inspectorPane.Add(new Button(() => ConfirmDeleteSocket(socket))
+            {
+                text = "Delete Socket"
+            });
+        }
+
+        /// <summary>
+        /// Says whether a bone socket has baked motion yet, and for how many clips.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Only a bone socket needs baking, and the asymmetry is the thing worth stating.
+        /// </strong> A rig-target socket's motion <em>is</em> its part's transform, resolved live
+        /// every frame, so there is nothing to capture. A bone socket follows a bone that exists at
+        /// run time only as texels in a VAT texture, so its motion has to be sampled at bake time
+        /// and stored — and until that has happened it resolves to the actor's origin.
+        /// </para>
+        /// <para>
+        /// Reported here because "attachment sits at the actor's feet" is otherwise a play-mode
+        /// discovery with no obvious cause. The preview marker itself is honest either way: it
+        /// follows the posed skeleton, which is where the socket <em>will</em> be once baked.
+        /// </para>
+        /// </remarks>
+        private Label MakeSocketBakeHint(SocketDefinition socket)
+        {
+            VatTextureSetAsset textures = clipSet != null ? clipSet.vatTextures : null;
+            if (textures == null)
+            {
+                return MakeHint(
+                    "Not baked: this clip set has no VAT texture set. A bone socket's motion is "
+                    + "captured by the VAT bake — until then it resolves to the actor's origin at "
+                    + "run time. Window ▸ DOTS Animation Toolkit ▸ VAT Bake.");
+            }
+
+            int bakedClipCount = 0;
+            for (int trackIndex = 0;
+                textures.socketTracks != null && trackIndex < textures.socketTracks.Count;
+                trackIndex++)
+            {
+                VatSocketTrack track = textures.socketTracks[trackIndex];
+                if (track != null && track.socketId == socket.Id.Value)
+                {
+                    bakedClipCount++;
+                }
+            }
+
+            if (bakedClipCount == 0)
+            {
+                return MakeHint(
+                    "Not baked: no captured motion for this socket. Re-run the VAT bake, and check "
+                    + "the Console for unresolved bone names while you are there.");
+            }
+            return MakeHint("Baked across " + bakedClipCount.ToString() + " clip(s).");
+        }
+
+        /// <summary>A dropdown of the rig's parts, so a target binding cannot be mistyped.</summary>
+        private VisualElement BuildSocketTargetField(RigAsset rig, SocketDefinition socket)
+        {
+            List<string> targetNames = new List<string>();
+            List<uint> targetIds = new List<uint>();
+            for (int targetIndex = 0; rig.targets != null && targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = rig.targets[targetIndex];
+                if (target == null)
+                {
+                    continue;
+                }
+                targetNames.Add(string.IsNullOrEmpty(target.displayName)
+                    ? "Target " + target.Id.Value.ToString()
+                    : target.displayName);
+                targetIds.Add(target.Id.Value);
+            }
+
+            if (targetNames.Count == 0)
+            {
+                return MakeHint("The rig declares no parts for a socket to follow.");
+            }
+
+            int currentIndex = Mathf.Max(0, targetIds.IndexOf(socket.targetId));
+            PopupField<string> targetField =
+                new PopupField<string>("Target", targetNames, currentIndex);
+            targetField.RegisterValueChangedCallback(changeEvent =>
+            {
+                int chosen = targetNames.IndexOf(changeEvent.newValue);
+                if (chosen < 0)
+                {
+                    return;
+                }
+                RecordSocketEdit(rig, "Rebind Socket");
+                socket.targetId = targetIds[chosen];
+                CommitSocketEdit(true);
+            });
+            return targetField;
+        }
+
+        /// <summary>
+        /// A dropdown of the loaded prefab's transform names, falling back to typing.
+        /// </summary>
+        /// <remarks>
+        /// The dropdown is the point — a bone binding that resolves to nothing bakes an attachment
+        /// at the origin, and typing is how you get one. The text field remains for a set with no
+        /// prefab loaded, which is the only case where there are no names to offer.
+        /// </remarks>
+        private VisualElement BuildSocketBoneField(RigAsset rig, SocketDefinition socket)
+        {
+            previewController.CollectHierarchyNames(hierarchyNameCache);
+            if (hierarchyNameCache.Count == 0)
+            {
+                TextField boneField = new TextField("Bone");
+                boneField.SetValueWithoutNotify(socket.boneName);
+                boneField.tooltip =
+                    "Assign a prefab in the toolbar's rig field to pick from its bones instead.";
+                boneField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    RecordSocketEdit(rig, "Rebind Socket");
+                    socket.boneName = changeEvent.newValue;
+                    CommitSocketEdit(true);
+                });
+                return boneField;
+            }
+
+            List<string> boneNames = new List<string>(hierarchyNameCache);
+            boneNames.Sort();
+            int currentIndex = Mathf.Max(0, boneNames.IndexOf(socket.boneName));
+
+            PopupField<string> bonePopup = new PopupField<string>("Bone", boneNames, currentIndex);
+            bonePopup.RegisterValueChangedCallback(changeEvent =>
+            {
+                RecordSocketEdit(rig, "Rebind Socket");
+                socket.boneName = changeEvent.newValue;
+                CommitSocketEdit(true);
+            });
+            return bonePopup;
+        }
+
+        private void RecordSocketEdit(RigAsset rig, string undoLabel)
+        {
+            Undo.RecordObject(rig, undoLabel);
+        }
+
+        /// <summary>
+        /// Persists a socket edit and refreshes whatever it invalidated.
+        /// </summary>
+        /// <param name="rebuildMarkers">
+        /// Whether the change moves or rebinds a marker, as opposed to only relabelling it.
+        /// </param>
+        private void CommitSocketEdit(bool rebuildMarkers)
+        {
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (rig == null)
+            {
+                return;
+            }
+            EditorUtility.SetDirty(rig);
+
+            if (rebuildMarkers && previewController != null)
+            {
+                previewController.RebuildSockets();
+            }
+
+            // The row label carries the binding and the unresolved mark, so it is stale the moment
+            // either changes.
+            RebuildHierarchy();
+            MarkPreviewDirty();
+        }
+
+        /// <summary>Adds a socket bound to whatever is selected, or to the first part.</summary>
+        /// <remarks>
+        /// Pre-bound rather than left blank: a socket that follows nothing is the state this whole
+        /// feature exists to make visible, and creating one in that state as a matter of course
+        /// would train the author to ignore the warning.
+        /// </remarks>
+        private void AddSocket()
+        {
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (rig == null)
+            {
+                ShowNotification(new GUIContent("Assign a clip set with a rig first."));
+                return;
+            }
+            if (rig.sockets == null)
+            {
+                rig.sockets = new List<SocketDefinition>();
+            }
+
+            SocketDefinition socket = new SocketDefinition();
+            HierarchyItem activeItem = ActiveHierarchyItem;
+            if (activeItem != null && activeItem.kind == HierarchyItemKind.RigTarget)
+            {
+                socket.mode = SocketAttachMode.RigTarget;
+                socket.targetId = activeItem.targetId;
+                socket.displayName = activeItem.displayName + " Socket";
+            }
+            else if (activeItem != null && activeItem.kind == HierarchyItemKind.PrefabTransform)
+            {
+                socket.mode = SocketAttachMode.Bone;
+                socket.boneName = activeItem.displayName;
+                socket.displayName = activeItem.displayName + " Socket";
+            }
+            else if (rig.targets != null && rig.targets.Count > 0 && rig.targets[0] != null)
+            {
+                socket.mode = SocketAttachMode.RigTarget;
+                socket.targetId = rig.targets[0].Id.Value;
+                socket.displayName = "New Socket";
+            }
+            else
+            {
+                socket.displayName = "New Socket";
+            }
+
+            Undo.RecordObject(rig, "Add Socket");
+            rig.sockets.Add(socket);
+
+            // Minted here rather than left to OnValidate, which does not run in time. A socket whose
+            // id is still 0 is not merely unidentified: 0 is the sentinel for "no socket selected",
+            // so the new socket would be unselectable and its marker unfindable.
+            rig.EnsureStableIds();
+
+            EditorUtility.SetDirty(rig);
+            AssetDatabase.SaveAssetIfDirty(rig);
+
+            if (previewController != null)
+            {
+                previewController.RebuildSockets();
+            }
+            RebuildHierarchy();
+            MarkPreviewDirty();
+        }
+
+        private void ConfirmDeleteSocket(SocketDefinition socket)
+        {
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            int socketIndex = FindSocketIndex(socket.Id.Value);
+            if (rig == null || socketIndex < 0)
+            {
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog(
+                    "Delete Socket",
+                    "Delete \"" + socket.displayName + "\"?\n\n"
+                        + "Anything attached to it at run time will have nothing to follow.",
+                    "Delete",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            Undo.RecordObject(rig, "Delete Socket");
+            rig.sockets.RemoveAt(socketIndex);
+            EditorUtility.SetDirty(rig);
+            AssetDatabase.SaveAssetIfDirty(rig);
+
+            ClearHierarchySelection();
+            if (previewController != null)
+            {
+                previewController.RebuildSockets();
+            }
+            RebuildHierarchy();
+            MarkPreviewDirty();
         }
 
         /// <summary>
