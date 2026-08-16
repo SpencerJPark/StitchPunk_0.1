@@ -51,6 +51,9 @@ namespace StitchPunk.AnimationToolkit.Editor
         private PreviewRenderUtility renderUtility;
         private readonly PreviewRigMirror rigMirror = new PreviewRigMirror();
 
+        /// <summary>The rig the part quads were built from, so an edit does not rebuild them.</summary>
+        private RigAsset mirrorRig;
+
         /// <summary>
         /// Whether the mirror's <em>current</em> root has joined the preview scene. Tracked
         /// separately from the utility's own lifetime because the mirror is rebuilt whenever the rig
@@ -145,18 +148,85 @@ namespace StitchPunk.AnimationToolkit.Editor
             {
                 rigMirror.Dispose();
                 mirrorRootAdded = false;
+                mirrorRig = null;
                 statusMessage = "No clip set assigned.";
                 return;
             }
 
-            rigMirror.Rebuild(clipSet.rig);
-            mirrorRootAdded = false;
+            RebuildMirrorIfRigChanged(clipSet.rig);
             if (rigMirror.PartCount == 0)
             {
                 statusMessage = "Clip set's rig declares no targets.";
                 return;
             }
 
+            RebuildRegistry(clipSet);
+        }
+
+        /// <summary>
+        /// Rebuilds the part quads, but only when the rig they were built from has actually changed.
+        /// </summary>
+        /// <remarks>
+        /// <strong>The guard is the point.</strong> Every clip edit refreshes the preview, and this
+        /// used to destroy and recreate all 30-odd part objects each time. A fresh quad is a unit
+        /// quad at the origin until the next pose lands on it, so an edit that had nothing to do
+        /// with transforms — keying a flipbook index, say — made the whole rig visibly jump. Parts
+        /// are a function of the rig, not of the clip being edited, so they should survive an edit
+        /// to the clip.
+        /// </remarks>
+        private void RebuildMirrorIfRigChanged(RigAsset rig)
+        {
+            if (mirrorRig == rig && rigMirror.PartCount > 0)
+            {
+                return;
+            }
+            mirrorRig = rig;
+            rigMirror.Rebuild(rig);
+            mirrorRootAdded = false;
+            restPosesDirty = true;
+            ApplyRestPoses();
+        }
+
+        /// <summary>
+        /// Puts every part at its rest pose, with no clip applied.
+        /// </summary>
+        /// <remarks>
+        /// What a freshly built mirror should look like: the character standing as the prefab has
+        /// it. Without this a new mirror is a heap of unit quads on the origin until a clip is
+        /// selected and sampled, which reads as a broken rig rather than as an unposed one.
+        /// </remarks>
+        private void ApplyRestPoses()
+        {
+            if (mirrorRig == null || mirrorRig.targets == null)
+            {
+                return;
+            }
+            RebuildRestPosesIfNeeded();
+
+            for (int targetIndex = 0; targetIndex < mirrorRig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = mirrorRig.targets[targetIndex];
+                if (target == null)
+                {
+                    continue;
+                }
+                uint targetId = target.Id.Value;
+                TargetRestPose rest = ResolveRestPose(targetId);
+                TargetPose pose = new TargetPose
+                {
+                    localPosition = rest.localPosition,
+                    rotation = rest.rotation,
+                    scale = rest.scale,
+                    sliceIndex = rest.restSliceIndex,
+                    atlasRect = ClipSampler.IdentityAtlasRect
+                };
+                rigMirror.ApplyPose(targetId, in pose);
+            }
+            rigMirror.UpdateSocketMarkers();
+        }
+
+        private void RebuildRegistry(ClipSetAsset clipSet)
+        {
             try
             {
                 Unity.Entities.Hash128 contentHash;
@@ -187,6 +257,12 @@ namespace StitchPunk.AnimationToolkit.Editor
             skinnedSourcePrefab = prefab;
             skeletonMirror.Rebuild(prefab);
             skeletonRootAdded = false;
+
+            // The names the rest poses were bound to belong to the old instance, so they are rebound
+            // and re-applied here rather than waiting for the next clip sample — with no clip
+            // selected there may not be one.
+            restPosesDirty = true;
+            ApplyRestPoses();
 
             boneHandles.Rebuild(skeletonMirror.InstanceRoot);
             boneHandlesAdded = false;
@@ -454,10 +530,33 @@ namespace StitchPunk.AnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>Rebuilds against the currently bound set — call after an edit.</summary>
+        /// <summary>
+        /// Rebuilds the registry against the currently bound set — call after an edit.
+        /// </summary>
+        /// <remarks>
+        /// An edit changes the clip's <em>data</em>, so only the registry built from it is stale.
+        /// The part quads are built from the rig and are left standing, which is what stops an edit
+        /// to one track from making every part blink through the origin on its way back.
+        /// </remarks>
         public void Refresh()
         {
-            SetClipSet(boundClipSet);
+            if (boundClipSet == null)
+            {
+                SetClipSet(null);
+                return;
+            }
+
+            ReleaseRegistry();
+            statusMessage = string.Empty;
+
+            RebuildMirrorIfRigChanged(boundClipSet.rig);
+            if (rigMirror.PartCount == 0)
+            {
+                statusMessage = "Clip set's rig declares no targets.";
+                return;
+            }
+
+            RebuildRegistry(boundClipSet);
         }
 
         /// <summary>
@@ -487,19 +586,16 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             ref ClipBlob clipBlob = ref registryBlob.clips[clipIndex];
-            TargetRestPose identityRest = new TargetRestPose
-            {
-                localPosition = Unity.Mathematics.float3.zero,
-                rotation = Unity.Mathematics.float3.zero,
-                scale = new Unity.Mathematics.float3(1f, 1f, 1f),
-                restSliceIndex = 0
-            };
+            RebuildRestPosesIfNeeded();
 
             for (int targetIndex = 0; targetIndex < registryBlob.sortedTargetIds.Length; targetIndex++)
             {
+                uint targetId = registryBlob.sortedTargetIds[targetIndex];
+                TargetRestPose rest = ResolveRestPose(targetId);
+
                 TargetPose pose;
-                ClipSampler.SamplePose(ref clipBlob, targetIndex, normalizedTime, in identityRest, out pose);
-                rigMirror.ApplyPose(registryBlob.sortedTargetIds[targetIndex], in pose);
+                ClipSampler.SamplePose(ref clipBlob, targetIndex, normalizedTime, in rest, out pose);
+                rigMirror.ApplyPose(targetId, in pose);
             }
 
             // After the whole pose, never inside the loop: a marker placed before its part is posed
@@ -515,6 +611,105 @@ namespace StitchPunk.AnimationToolkit.Editor
                     + string.Join(", ", skeletonMirror.UnresolvedBoneNames);
             }
             return true;
+        }
+
+        /// <summary>
+        /// The rest pose every part is animated <em>from</em>, taken from the loaded prefab.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A part's rest pose is where the prefab puts it, not the origin.</strong> This
+        /// used to be a hard-coded identity, which made every part a unit quad stacked on the origin
+        /// and meant the preview showed the authored offsets rather than the character. Worse, it
+        /// made the preview disagree with the runtime for no reason: <c>TransformApplySystem</c>
+        /// composes against the entity's real rest pose, so a clip that looked right here would not
+        /// look right in play.
+        /// </para>
+        /// <para>
+        /// The composition rules are what make this the correct fix rather than a cosmetic one.
+        /// Position and rotation are <em>additive</em> against the rest pose and scale is
+        /// <em>multiplicative</em> (§5.11), so a part with no track, or a track authored at zero
+        /// offset and unit scale, now sits exactly where the prefab has it. Nothing about the
+        /// authored data changes; a key of "no offset" finally means no offset.
+        /// </para>
+        /// <para>
+        /// Matched by name, because a rig target's <c>displayName</c> is the only thing it and a
+        /// prefab transform have in common — a target carries a stable id the prefab has never heard
+        /// of. An unmatched target falls back to identity, which is what a cutout set with no prefab
+        /// loaded gets, and is the old behaviour exactly.
+        /// </para>
+        /// </remarks>
+        private readonly Dictionary<uint, TargetRestPose> targetRestPoses =
+            new Dictionary<uint, TargetRestPose>();
+
+        /// <summary>Set whenever the rig or the loaded prefab changes, either of which rebinds names.</summary>
+        private bool restPosesDirty = true;
+
+        private static readonly TargetRestPose IdentityRestPose = new TargetRestPose
+        {
+            localPosition = Unity.Mathematics.float3.zero,
+            rotation = Unity.Mathematics.float3.zero,
+            scale = new Unity.Mathematics.float3(1f, 1f, 1f),
+            restSliceIndex = 0
+        };
+
+        private TargetRestPose ResolveRestPose(uint targetId)
+        {
+            TargetRestPose rest;
+            return targetRestPoses.TryGetValue(targetId, out rest) ? rest : IdentityRestPose;
+        }
+
+        private void RebuildRestPosesIfNeeded()
+        {
+            if (!restPosesDirty)
+            {
+                return;
+            }
+            restPosesDirty = false;
+            targetRestPoses.Clear();
+
+            if (boundClipSet == null || boundClipSet.rig == null)
+            {
+                return;
+            }
+
+            List<RigTargetDefinition> targets = boundClipSet.rig.targets;
+            for (int targetIndex = 0; targets != null && targetIndex < targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = targets[targetIndex];
+                if (target == null || string.IsNullOrEmpty(target.displayName))
+                {
+                    continue;
+                }
+
+                Transform sourceTransform;
+                if (!skeletonMirror.TryGetBone(target.displayName, out sourceTransform)
+                    || sourceTransform == null)
+                {
+                    continue;
+                }
+
+                // Local, not world: the mirror parents every part under one root, and the runtime
+                // composes a local pose too. Degrees to radians because the blob's rotations are
+                // radians (§4.5) and this value is added to them before ApplyPose converts back.
+                Vector3 localEuler = sourceTransform.localEulerAngles;
+                targetRestPoses[target.Id.Value] = new TargetRestPose
+                {
+                    localPosition = new Unity.Mathematics.float3(
+                        sourceTransform.localPosition.x,
+                        sourceTransform.localPosition.y,
+                        sourceTransform.localPosition.z),
+                    rotation = new Unity.Mathematics.float3(
+                        localEuler.x * Mathf.Deg2Rad,
+                        localEuler.y * Mathf.Deg2Rad,
+                        localEuler.z * Mathf.Deg2Rad),
+                    scale = new Unity.Mathematics.float3(
+                        sourceTransform.localScale.x,
+                        sourceTransform.localScale.y,
+                        sourceTransform.localScale.z),
+                    restSliceIndex = 0
+                };
+            }
         }
 
         /// <summary>Orbits the preview camera by a pointer delta, in pixels.</summary>

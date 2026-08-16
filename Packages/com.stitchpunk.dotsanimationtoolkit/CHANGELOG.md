@@ -10,6 +10,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the preview starts from the prefab's transforms, and stops rebuilding itself
+
+Two faults with one visible symptom: parts in the preview were the wrong size
+and in the wrong place, and they moved when you edited something unrelated.
+
+- **A part's rest pose is now the loaded prefab's transform, not the origin.**
+  The preview sampled every clip against a hard-coded identity rest pose, so
+  every part was a unit quad stacked on the origin and what you saw was the
+  authored *offsets* rather than the character. It also made the preview
+  disagree with the runtime for no reason — `TransformApplySystem` composes
+  against the entity's real rest pose, so a clip that looked right in the editor
+  would not look right in play. Targets bind to prefab transforms by name (a rig
+  target's `displayName` is the only thing it and a prefab transform share); an
+  unmatched target falls back to identity, which is the old behaviour and what a
+  cutout set with no prefab loaded still gets.
+
+  The composition rules are what make this correct rather than cosmetic:
+  position and rotation are additive against the rest pose and scale is
+  multiplicative, so a part with no track — or a track authored at zero offset
+  and unit scale — now sits exactly where the prefab has it. **No authored data
+  changes.** A key of "no offset" finally means no offset.
+
+- **Editing a clip no longer rebuilds the part objects.** Every edit refreshed
+  the preview, and the refresh destroyed and recreated all thirty-odd part
+  quads. A fresh quad is a unit quad at the origin until the next pose lands on
+  it, so an edit with nothing to do with transforms — keying a flipbook index,
+  say — made the whole rig visibly jump and resize. Parts are a function of the
+  rig, not of the clip being edited, so they now survive an edit to the clip;
+  only the registry built from the clip is rebuilt.
+
+A freshly built mirror is also posed to rest immediately, so a rig with no clip
+selected shows the character standing as the prefab has it rather than a heap of
+unit quads.
+
 ### Fixed — a flipbook index now changes *on* its key
 
 `ClipSampler.SampleSpriteTrack` chose between the two keys surrounding the
