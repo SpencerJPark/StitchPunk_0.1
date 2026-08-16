@@ -36,6 +36,18 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public VatTextureSetAsset vatTextures;
 
         /// <summary>
+        /// Optional names for this project's event keys, used by the Clip Editor to show
+        /// <c>ApplyDamage</c> instead of <c>17</c> on the Events lane.
+        /// </summary>
+        /// <remarks>
+        /// Authoring only and entirely optional — it is never baked, and a set without one edits
+        /// event keys as raw numbers rather than losing any capability. It hangs off the clip set
+        /// rather than off a project-wide setting so that a package of clips shipped between
+        /// projects carries its own event vocabulary with it.
+        /// </remarks>
+        public AnimEventKeyRegistry eventKeys;
+
+        /// <summary>
         /// This set's stable 64-bit identity (architecture section 3.4), stamped into the baked
         /// registry as <see cref="ClipRegistryBlob.setKey"/>.
         /// </summary>

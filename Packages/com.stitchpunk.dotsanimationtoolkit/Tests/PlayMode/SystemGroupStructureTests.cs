@@ -179,6 +179,30 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Catches: moving <c>EventWindowSystem</c> out of the logic group, or dropping its
+        /// <c>UpdateAfter</c> edge on event emission. Placed in the presentation group it would be
+        /// gated on visibility, so an actor swinging behind the camera would hold no damage window;
+        /// ordered before emission, a marker's window and the pulse it belongs to would land in
+        /// different frames, and a consumer reading both would see the state open before the event
+        /// that opened it.
+        /// </summary>
+        [Test]
+        public void EventWindow_RunsAfterEventEmission_InTheLogicGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(EventWindowSystem));
+            Assert.AreEqual(typeof(AnimationToolkitLogicSystemGroup), updateInGroup.GroupType);
+            Assert.IsFalse(updateInGroup.OrderFirst, "Only CommandApplySystem opens the logic group.");
+
+            object[] afterAttributes =
+                typeof(EventWindowSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on EventWindowSystem.");
+            Assert.AreEqual(
+                typeof(EventEmissionSystem),
+                ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+        }
+
+        /// <summary>
         /// Catches: dropping <c>OrderFirst</c> from <c>AnimLodDistanceSystem</c>, or moving it out
         /// of the presentation group. The level it writes is an input to every system that follows
         /// it in that group, so a late placement makes each frame's sampling obey the *previous*

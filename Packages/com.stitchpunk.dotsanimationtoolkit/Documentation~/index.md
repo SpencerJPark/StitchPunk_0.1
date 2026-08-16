@@ -93,6 +93,10 @@ would fail the bake.
   call this instead of writing buffer elements by hand.
 - **`PlaybackQuery`** (Runtime/Api) — the read side: query a layer's current
   clip, normalized time, and finished state.
+- **`AnimEventOutput` buffer / `AnimEventMask` component** — the two event
+  channels: a one-frame pulse carrying a payload, and a sustained "window" bit
+  you can test on any frame. `AnimEventMaskKeys.IsOpen(mask, key)` is the
+  window query. See [`animation-events.md`](animation-events.md).
 - **`ToolkitWorldControl.SetEnabled(world, enabled)`** — the supported way to
   turn the whole toolkit on or off in a world (stops every system, timers
   included). To hide actors while keeping timers running, disable the
@@ -136,6 +140,9 @@ And the two references both of them lean on:
 
 - [`clip-editor.md`](clip-editor.md) — the authoring window itself: selection,
   keying, the dopesheet, sockets, and the route into Unity's prefab mode.
+- [`animation-events.md`](animation-events.md) — authoring event markers, the
+  pulse-vs-window split, naming keys with a registry, and reading both channels
+  from a Burst job.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.

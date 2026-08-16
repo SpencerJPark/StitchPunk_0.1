@@ -27,8 +27,22 @@ namespace StitchPunk.AnimationToolkit.Editor
         private static readonly Color KeySelectedFill = new Color(0.30f, 0.62f, 0.95f);
         private static readonly Color KeyOutline = new Color(0.08f, 0.08f, 0.09f);
         private static readonly Color EventKeyFill = new Color(0.92f, 0.72f, 0.32f);
+        private static readonly Color EventWindowFill = new Color(0.92f, 0.72f, 0.32f, 0.30f);
+
+        /// <summary>
+        /// Event keys draw larger than pose keys. They are sparser, they are the rows a person
+        /// scans for when lining a hit up against a pose, and unlike a pose key their exact
+        /// sub-frame position matters less than being able to find them at all.
+        /// </summary>
+        private const float EventKeyRadiusScale = 1.35f;
 
         private readonly List<float> keyTimes = new List<float>();
+
+        /// <summary>
+        /// Window length per key as a fraction of the clip, parallel to <see cref="keyTimes"/>;
+        /// empty on non-event lanes and 0 for a pulse-only marker.
+        /// </summary>
+        private readonly List<float> keyWindows = new List<float>();
 
         public TimelineTrackKind trackKind;
         public int trackIndex;
@@ -80,6 +94,26 @@ namespace StitchPunk.AnimationToolkit.Editor
             for (int keyIndex = 0; keyIndex < times.Count; keyIndex++)
             {
                 keyTimes.Add(times[keyIndex]);
+            }
+            keyWindows.Clear();
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>
+        /// Supplies the window length behind each event key, as a fraction of the clip.
+        /// </summary>
+        /// <remarks>
+        /// Call after <see cref="SetKeyTimes"/>, which clears these — a lane that has been given new
+        /// key times but no new windows would otherwise draw the old bars under the new keys. A
+        /// shorter list than the key list simply leaves the remaining keys unbarred.
+        /// </remarks>
+        /// <param name="windows">Window length per key, parallel to the key times.</param>
+        public void SetKeyWindows(IReadOnlyList<float> windows)
+        {
+            keyWindows.Clear();
+            for (int keyIndex = 0; keyIndex < windows.Count; keyIndex++)
+            {
+                keyWindows.Add(windows[keyIndex]);
             }
             MarkDirtyRepaint();
         }
@@ -152,6 +186,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             TimelineGeometry geometry = Geometry;
             float centreY = rect.height * 0.5f;
 
+            // Bars first, so every key sits on top of its own window rather than being half-hidden
+            // by the translucent bar of the marker before it.
+            DrawEventWindows(painter, geometry, rect, centreY);
+
             for (int keyIndex = 0; keyIndex < keyTimes.Count; keyIndex++)
             {
                 bool selected = isKeySelected != null
@@ -166,6 +204,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 float radius = isChannelRow
                     ? TimelineGeometry.KeyDrawRadius * 0.65f
                     : TimelineGeometry.KeyDrawRadius;
+                if (trackKind == TimelineTrackKind.Event)
+                {
+                    radius *= EventKeyRadiusScale;
+                }
 
                 // A diamond rather than a square: it reads as a keyframe at a glance and its widest
                 // point is exactly on the key's time, so the shape itself communicates the value.
@@ -177,6 +219,63 @@ namespace StitchPunk.AnimationToolkit.Editor
                 painter.ClosePath();
                 painter.Fill();
                 painter.Stroke();
+            }
+        }
+
+        /// <summary>
+        /// Draws the translucent bar spanning each event marker's window, so a hit frame's duration
+        /// is visible against the poses it has to line up with.
+        /// </summary>
+        /// <remarks>
+        /// A window that runs past the end of the clip is clipped at the lane's right edge rather
+        /// than wrapped around to the left. On a looping clip the runtime does wrap it, so this
+        /// under-draws — but a bar that reappeared at the start of the lane reads as a second,
+        /// earlier window, and inventing an event the author never placed is the worse of the two
+        /// errors.
+        /// </remarks>
+        private void DrawEventWindows(
+            Painter2D painter,
+            TimelineGeometry geometry,
+            Rect rect,
+            float centreY)
+        {
+            if (trackKind != TimelineTrackKind.Event || keyWindows.Count == 0)
+            {
+                return;
+            }
+
+            float barHalfHeight = Mathf.Min(rect.height * 0.5f - 1f, TimelineGeometry.KeyDrawRadius);
+            if (barHalfHeight <= 0f)
+            {
+                return;
+            }
+
+            painter.fillColor = EventWindowFill;
+
+            int barCount = Mathf.Min(keyWindows.Count, keyTimes.Count);
+            for (int keyIndex = 0; keyIndex < barCount; keyIndex++)
+            {
+                float windowLength = keyWindows[keyIndex];
+                if (windowLength <= 0f)
+                {
+                    continue;
+                }
+
+                float startX = geometry.TimeToX(keyTimes[keyIndex]);
+                float endX = Mathf.Min(
+                    geometry.TimeToX(keyTimes[keyIndex] + windowLength), rect.width);
+                if (endX <= startX)
+                {
+                    continue;
+                }
+
+                painter.BeginPath();
+                painter.MoveTo(new Vector2(startX, centreY - barHalfHeight));
+                painter.LineTo(new Vector2(endX, centreY - barHalfHeight));
+                painter.LineTo(new Vector2(endX, centreY + barHalfHeight));
+                painter.LineTo(new Vector2(startX, centreY + barHalfHeight));
+                painter.ClosePath();
+                painter.Fill();
             }
         }
     }

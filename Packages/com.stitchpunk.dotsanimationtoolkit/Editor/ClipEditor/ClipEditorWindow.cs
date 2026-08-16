@@ -289,6 +289,10 @@ namespace StitchPunk.AnimationToolkit.Editor
         private readonly List<SpriteTrack> flipbookTracks = new List<SpriteTrack>();
         private readonly List<int> flipbookTrackIndices = new List<int>();
 
+        // Reused per timeline rebuild for the same reason: the Events lane is rebuilt whenever any
+        // track is, which is on every structural edit.
+        private readonly List<float> eventWindowLengths = new List<float>();
+
         // Viewport picking. Hits are gathered on pointer-down, from the press position, and applied
         // on release — see OnPreviewPointerUp for why that is not the same as selecting on press.
         private readonly List<PreviewPickHit> pickCandidates = new List<PreviewPickHit>();
@@ -3606,6 +3610,30 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Each event marker's window length as a fraction of the clip, for the lane to bar.
+        /// </summary>
+        /// <remarks>
+        /// Normalized here rather than in the lane because the lane draws in normalized time and
+        /// has no idea what the clip's duration is — and the window is authored in seconds, so
+        /// something has to divide.
+        /// </remarks>
+        private List<float> CollectEventWindowLengths()
+        {
+            eventWindowLengths.Clear();
+            if (selectedClip == null || selectedClip.events == null)
+            {
+                return eventWindowLengths;
+            }
+
+            float duration = Mathf.Max(selectedClip.duration, ClipAsset.MinimumDuration);
+            for (int eventIndex = 0; eventIndex < selectedClip.events.Count; eventIndex++)
+            {
+                eventWindowLengths.Add(selectedClip.events[eventIndex].windowSeconds / duration);
+            }
+            return eventWindowLengths;
+        }
+
         private void AddLane(
             TimelineTrackKind trackKind, int trackIndex, List<float> times, int rowIndex,
             bool isChannelRow)
@@ -3619,6 +3647,10 @@ namespace StitchPunk.AnimationToolkit.Editor
                 isKeySelected = selectedKeys.Contains
             };
             lane.SetKeyTimes(times);
+            if (trackKind == TimelineTrackKind.Event)
+            {
+                lane.SetKeyWindows(CollectEventWindowLengths());
+            }
             lane.keyPointerDown += OnKeyPointerDown;
             lane.lanePointerDown += OnLanePointerDown;
             laneColumn.Add(lane);
@@ -4303,10 +4335,57 @@ namespace StitchPunk.AnimationToolkit.Editor
                 }
                 default:
                 {
-                    selectedClip.events.Add(new EventMarker { normalizedTime = normalizedTime });
+                    // Never key 0. The struct's default is the reserved "invalid" key, so a marker
+                    // placed and left alone used to fail validation rule V09 — the clip broke at
+                    // bake for having been authored, which is the worst possible default. A new
+                    // marker takes the clip set's first registered event when there is one, and the
+                    // first legal user key when there is not.
+                    selectedClip.events.Add(new EventMarker
+                    {
+                        normalizedTime = normalizedTime,
+                        eventKey = ResolveNewEventKey(),
+                        windowSeconds = ResolveNewEventWindowSeconds()
+                    });
                     break;
                 }
             }
+        }
+
+        /// <summary>The event a newly placed marker fires before anyone has chosen one.</summary>
+        private uint ResolveNewEventKey()
+        {
+            AnimEventKeyEntry firstEntry = FindFirstRegistryEntry();
+            return firstEntry != null ? firstEntry.eventKey : AnimEventMaskKeys.FirstMaskKey;
+        }
+
+        /// <summary>That event's default window, if it has one.</summary>
+        private float ResolveNewEventWindowSeconds()
+        {
+            AnimEventKeyEntry firstEntry = FindFirstRegistryEntry();
+            if (firstEntry == null || firstEntry.defaultWindowFrames <= 0)
+            {
+                return 0f;
+            }
+            return firstEntry.defaultWindowFrames
+                / ResolveReferenceFrameRate(clipSet != null ? clipSet.eventKeys : null);
+        }
+
+        /// <summary>The clip set's first named event, or null when it names none.</summary>
+        private AnimEventKeyEntry FindFirstRegistryEntry()
+        {
+            AnimEventKeyRegistry registry = clipSet != null ? clipSet.eventKeys : null;
+            if (registry == null || registry.entries == null)
+            {
+                return null;
+            }
+            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
+            {
+                if (registry.entries[entryIndex] != null)
+                {
+                    return registry.entries[entryIndex];
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -4686,11 +4765,264 @@ namespace StitchPunk.AnimationToolkit.Editor
                 return true;
             }
 
+            // An event marker gets purpose-built fields for the same reason a flipbook key does: the
+            // generic drawer renders its key as a bare uint the author has to know the meaning of,
+            // and its window as a number of seconds nobody times animation in.
+            if (shown.trackKind == TimelineTrackKind.Event)
+            {
+                AddSelectedEventMarkerFields(shown);
+                return true;
+            }
+
             inspectorPane.Add(new PropertyField(keyProperty));
             inspectorPane.Bind(clipSerializedObject);
 
             AddInterpolationControls(shown);
             return true;
+        }
+
+        /// <summary>
+        /// The selected event marker: which event it is, how long its window runs, and its payload.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The window edits in frames and stores seconds.</strong> Animation is timed in
+        /// frames and gameplay has to be framerate-independent, so the conversion happens here, at
+        /// the one point where a person is looking at the number. The resolved seconds are shown
+        /// beside the field so the stored value is never hidden.
+        /// </para>
+        /// <para>
+        /// <strong>The key is a dropdown only when the clip set names its events.</strong> Without a
+        /// registry the field falls back to a raw number rather than disabling itself — a project
+        /// that has not made a registry yet can still author events, and the toolkit ships without
+        /// requiring one.
+        /// </para>
+        /// </remarks>
+        private void AddSelectedEventMarkerFields(KeyAddress address)
+        {
+            if (selectedClip.events == null || address.keyIndex >= selectedClip.events.Count)
+            {
+                return;
+            }
+
+            EventMarker marker = selectedClip.events[address.keyIndex];
+            AnimEventKeyRegistry registry = clipSet != null ? clipSet.eventKeys : null;
+
+            AddEventKeyField(address, marker, registry);
+            AddEventWindowField(address, marker, registry);
+
+            IntegerField intParamField = new IntegerField("Int Param");
+            intParamField.tooltip =
+                "Delivered on the AnimEventOutput pulse. Not carried by the window mask.";
+            intParamField.SetValueWithoutNotify(marker.intParam);
+            intParamField.RegisterValueChangedCallback(changeEvent =>
+            {
+                EditEventMarker(address, "Edit Event Payload", editedMarker =>
+                {
+                    editedMarker.intParam = changeEvent.newValue;
+                    return editedMarker;
+                });
+            });
+            inspectorPane.Add(intParamField);
+
+            FloatField floatParamField = new FloatField("Float Param");
+            floatParamField.tooltip =
+                "Delivered on the AnimEventOutput pulse. Not carried by the window mask.";
+            floatParamField.SetValueWithoutNotify(marker.floatParam);
+            floatParamField.RegisterValueChangedCallback(changeEvent =>
+            {
+                EditEventMarker(address, "Edit Event Payload", editedMarker =>
+                {
+                    editedMarker.floatParam = changeEvent.newValue;
+                    return editedMarker;
+                });
+            });
+            inspectorPane.Add(floatParamField);
+        }
+
+        /// <summary>Which event this marker fires — a named dropdown, or a raw key without a registry.</summary>
+        private void AddEventKeyField(
+            KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
+        {
+            if (registry == null || registry.entries == null || registry.entries.Count == 0)
+            {
+                IntegerField rawKeyField = new IntegerField("Event Key");
+                rawKeyField.tooltip =
+                    "Raw event key. Assign an Anim Event Key Registry to the clip set to pick "
+                    + "events by name instead.";
+                rawKeyField.SetValueWithoutNotify((int)marker.eventKey);
+                rawKeyField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    EditEventMarker(address, "Edit Event Key", editedMarker =>
+                    {
+                        editedMarker.eventKey = (uint)Mathf.Max(0, changeEvent.newValue);
+                        return editedMarker;
+                    });
+                });
+                inspectorPane.Add(rawKeyField);
+                inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, null)));
+                return;
+            }
+
+            List<string> choices = new List<string>();
+            int selectedChoice = -1;
+            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
+            {
+                AnimEventKeyEntry entry = registry.entries[entryIndex];
+                if (entry == null)
+                {
+                    continue;
+                }
+                if (entry.eventKey == marker.eventKey)
+                {
+                    selectedChoice = choices.Count;
+                }
+                choices.Add(string.IsNullOrEmpty(entry.name)
+                    ? "<unnamed> (" + entry.eventKey + ")"
+                    : entry.name);
+            }
+
+            // A marker whose key the registry does not list keeps its number and says so, rather
+            // than being silently snapped onto whichever event happens to be first. Repointing an
+            // authored hit frame at a different event is not something a repaint should do.
+            if (selectedChoice < 0)
+            {
+                choices.Add("Unlisted key " + marker.eventKey);
+                selectedChoice = choices.Count - 1;
+            }
+
+            PopupField<string> keyField =
+                new PopupField<string>("Event", choices, selectedChoice);
+            keyField.RegisterValueChangedCallback(changeEvent =>
+            {
+                int choiceIndex = choices.IndexOf(changeEvent.newValue);
+                AnimEventKeyEntry chosen = FindRegistryEntry(registry, choiceIndex);
+                if (chosen == null)
+                {
+                    return;
+                }
+                EditEventMarker(address, "Change Event Key", editedMarker =>
+                {
+                    editedMarker.eventKey = chosen.eventKey;
+
+                    // The registry's default window applies only when the marker has none of its
+                    // own, so re-pointing a hand-tuned six-frame window at another event does not
+                    // quietly reset it to that event's default.
+                    if (editedMarker.windowSeconds <= 0f && chosen.defaultWindowFrames > 0)
+                    {
+                        editedMarker.windowSeconds =
+                            chosen.defaultWindowFrames / ResolveReferenceFrameRate(registry);
+                    }
+                    return editedMarker;
+                });
+            });
+            inspectorPane.Add(keyField);
+            inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, registry)));
+        }
+
+        /// <summary>How long the marker holds its mask bit, edited in frames.</summary>
+        private void AddEventWindowField(
+            KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
+        {
+            float frameRate = ResolveReferenceFrameRate(registry);
+
+            IntegerField windowField = new IntegerField("Window (frames)");
+            windowField.tooltip =
+                "How many frames the event's AnimEventMask bit stays open. 0 makes it pulse-only: "
+                + "it still fires with its payload, it just holds no state.";
+            windowField.SetValueWithoutNotify(Mathf.RoundToInt(marker.windowSeconds * frameRate));
+            windowField.RegisterValueChangedCallback(changeEvent =>
+            {
+                EditEventMarker(address, "Edit Event Window", editedMarker =>
+                {
+                    editedMarker.windowSeconds = Mathf.Max(0, changeEvent.newValue) / frameRate;
+                    return editedMarker;
+                });
+            });
+            inspectorPane.Add(windowField);
+
+            if (marker.windowSeconds > 0f)
+            {
+                inspectorPane.Add(MakeHint(
+                    marker.windowSeconds.ToString("0.###") + "s at "
+                    + frameRate.ToString("0.##") + " fps"));
+            }
+        }
+
+        /// <summary>The entry at a dropdown position, skipping the nulls the choice list skipped.</summary>
+        private static AnimEventKeyEntry FindRegistryEntry(
+            AnimEventKeyRegistry registry, int choiceIndex)
+        {
+            if (choiceIndex < 0)
+            {
+                return null;
+            }
+            int position = 0;
+            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
+            {
+                AnimEventKeyEntry entry = registry.entries[entryIndex];
+                if (entry == null)
+                {
+                    continue;
+                }
+                if (position == choiceIndex)
+                {
+                    return entry;
+                }
+                position++;
+            }
+            return null;
+        }
+
+        /// <summary>The one-line status under the key field: its number, and whether it can hold a window.</summary>
+        private static string DescribeEventKey(uint eventKey, AnimEventKeyRegistry registry)
+        {
+            if (eventKey < (uint)ReservedEventKeys.FirstUserKey)
+            {
+                return "Key " + eventKey + " is reserved by the package — this clip will fail "
+                    + "validation (V09).";
+            }
+            if (!AnimEventMaskKeys.IsMaskable(eventKey))
+            {
+                return "Key " + eventKey + " · pulse-only (outside the maskable range "
+                    + AnimEventMaskKeys.FirstMaskKey + "–" + AnimEventMaskKeys.LastMaskKey
+                    + ", so a window here would never open).";
+            }
+            string registeredName = registry != null ? registry.FindName(eventKey) : null;
+            string namePrefix = registeredName != null ? registeredName + " · " : string.Empty;
+            return namePrefix + "key " + eventKey + " · mask bit "
+                + (eventKey - AnimEventMaskKeys.FirstMaskKey) + ".";
+        }
+
+        /// <summary>The registry's display rate, or the package default when there is no registry.</summary>
+        private static float ResolveReferenceFrameRate(AnimEventKeyRegistry registry)
+        {
+            if (registry == null || registry.referenceFrameRate < 1f)
+            {
+                return AnimEventKeyRegistry.DefaultReferenceFrameRate;
+            }
+            return registry.referenceFrameRate;
+        }
+
+        /// <summary>
+        /// Applies one undoable edit to an event marker and refreshes what shows it.
+        /// </summary>
+        /// <remarks>
+        /// The timeline is rebuilt as well as the inspector because an event marker's window is
+        /// drawn on the lane — editing the number without redrawing the bar would leave the two
+        /// disagreeing until something else happened to trigger a rebuild.
+        /// </remarks>
+        private void EditEventMarker(
+            KeyAddress address, string undoLabel, System.Func<EventMarker, EventMarker> edit)
+        {
+            if (selectedClip.events == null || address.keyIndex >= selectedClip.events.Count)
+            {
+                return;
+            }
+            RecordClipEdit(undoLabel);
+            selectedClip.events[address.keyIndex] = edit(selectedClip.events[address.keyIndex]);
+            CommitClipEdit();
+            RebuildTimeline();
         }
 
         /// <summary>The selected flipbook key: stored value, mode, and what it resolves to.</summary>

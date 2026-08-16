@@ -66,6 +66,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             internal uint eventKey;
             internal int intParam;
             internal float floatParam;
+
+            /// <summary>Window length in seconds; 0 (the default) makes the marker pulse-only.</summary>
+            internal float windowSeconds;
         }
 
         internal static TransformKeySpec Key(
@@ -248,7 +251,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     normalizedTime = eventSpec.normalizedTime,
                     eventKey = eventSpec.eventKey,
                     intParam = eventSpec.intParam,
-                    floatParam = eventSpec.floatParam
+                    floatParam = eventSpec.floatParam,
+                    windowSeconds = eventSpec.windowSeconds
                 };
             }
         }

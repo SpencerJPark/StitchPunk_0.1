@@ -81,6 +81,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
             AddBuffer<AnimEventOutput>(actorEntity);
             AddComponent<AnimEventsPending>(actorEntity);
             SetComponentEnabled<AnimEventsPending>(actorEntity, false);
+
+            // Baked disabled for the same reason AnimEventsPending is: an actor standing still holds
+            // no windows, and EventWindowSystem enables it the first frame one opens.
+            AddComponent(actorEntity, new AnimEventMask { bits = 0UL });
+            SetComponentEnabled<AnimEventMask>(actorEntity, false);
+
             AddBuffer<RigPartRef>(actorEntity);
 
             // Baked enabled: an ECB-instantiated copy starts enabled so that RigBindingSystem will

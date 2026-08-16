@@ -49,7 +49,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         // sliceSpace into the hash stream for the first time.
         // Re-recorded again for schema version 6, which made transform rotation three Euler angles
         // and transform scale a float3.
-        private const ulong ExpectedContentHash = 0x7E388DC3CF0D371AUL;
+        // Re-recorded again for schema version 7 (A45, event windows), which appended
+        // EventMarkerBlob.windowSeconds to the struct and to the canonical hash stream.
+        private const ulong ExpectedContentHash = 0xF696A3C9556F9916UL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -171,9 +173,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                6,
+                7,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 6. A bump must be paired " +
+                "The golden value above was recorded under schema version 7. A bump must be paired " +
                 "with a re-recorded constant, never landed on its own.");
         }
 

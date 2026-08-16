@@ -269,6 +269,15 @@ namespace StitchPunk.AnimationToolkit
 
         /// <summary>User float payload passed through to <see cref="AnimEventOutput.floatParam"/>.</summary>
         public float floatParam;
+
+        /// <summary>
+        /// How long this marker holds its <see cref="AnimEventMask"/> bit open, in seconds; 0 makes
+        /// the marker pulse-only (amendment A45). Stored in seconds rather than in frames so the
+        /// window lasts the same wall-clock time on every machine — the Clip Editor edits it as a
+        /// frame count at the project's reference rate, which is an authoring convenience over this
+        /// value and not a second source of truth.
+        /// </summary>
+        public float windowSeconds;
     }
 
     /// <summary>

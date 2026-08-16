@@ -84,8 +84,16 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// scale would both be read from the wrong offsets — so the two are not interchangeable at
         /// all, which is exactly what the version gate exists to prevent.
         /// </para>
+        /// <para>
+        /// Version 7 (A45, event windows) gives <see cref="EventMarkerBlob"/> a
+        /// <c>windowSeconds</c> field, widening the struct. Unlike versions 5 and 6 the new field is
+        /// appended rather than reshaping existing ones, so a version-6 blob misread as version 7
+        /// would keep its marker times, keys and payloads intact and only read garbage for the
+        /// window — which is worse than an obvious break, not better: the failure would be actors
+        /// holding damage windows open for a duration nobody authored. The version still gates it.
+        /// </para>
         /// </remarks>
-        public const int SchemaVersion = 6;
+        public const int SchemaVersion = 7;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -728,7 +736,13 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     normalizedTime = authoredMarker.normalizedTime,
                     eventKey = authoredMarker.eventKey,
                     intParam = authoredMarker.intParam,
-                    floatParam = authoredMarker.floatParam
+                    floatParam = authoredMarker.floatParam,
+
+                    // Clamped rather than trusted: a negative window is a validation error (V19),
+                    // but the bake must still produce a blob a job can read without checking, and
+                    // a negative duration would make every window test answer false in a way that
+                    // looks like the marker was never authored at all.
+                    windowSeconds = math.max(0f, authoredMarker.windowSeconds)
                 };
             }
         }
@@ -1081,6 +1095,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 hashState.Update(eventBlob.eventKey);
                 hashState.Update(eventBlob.intParam);
                 hashState.Update(math.asuint(eventBlob.floatParam));
+                hashState.Update(math.asuint(eventBlob.windowSeconds));
             }
 
             hashState.Update(clipBlob.vatFrameStart);

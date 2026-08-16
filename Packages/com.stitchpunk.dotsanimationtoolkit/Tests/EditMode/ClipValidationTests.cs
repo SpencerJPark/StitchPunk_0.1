@@ -333,6 +333,67 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void V19_FiresWhenAnEventWindowIsNegative()
+        {
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            EventMarker negativeWindowMarker = clip.events[0];
+            negativeWindowMarker.windowSeconds = -0.25f;
+            clip.events[0] = negativeWindowMarker;
+
+            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V19, ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V20_FiresAsAWarningWhenAWindowIsAuthoredOnAPulseOnlyKey()
+        {
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            EventMarker unmaskableMarker = clip.events[0];
+            unmaskableMarker.eventKey = AnimEventMaskKeys.LastMaskKey + 1u;
+            unmaskableMarker.windowSeconds = 0.25f;
+            clip.events[0] = unmaskableMarker;
+
+            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V20, ValidationSeverity.Warning);
+        }
+
+        [Test]
+        public void AWindowOnAMaskableKey_IsClean()
+        {
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            EventMarker windowedMarker = clip.events[0];
+            windowedMarker.eventKey = AnimEventMaskKeys.FirstMaskKey;
+            windowedMarker.windowSeconds = 0.25f;
+            clip.events[0] = windowedMarker;
+
+            Assert.IsEmpty(
+                ClipValidation.ValidateSet(clipSet),
+                "A window on a key that owns a mask bit is the ordinary case and must not warn.");
+        }
+
+        [Test]
+        public void APulseOnlyKeyWithoutAWindow_IsClean()
+        {
+            // The key is outside the maskable range but authors no window, so there is nothing
+            // inert about it — V20 must not fire merely for using a high key.
+            RigAsset rig;
+            ClipAsset clip;
+            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
+            EventMarker highKeyMarker = clip.events[0];
+            highKeyMarker.eventKey = AnimEventMaskKeys.LastMaskKey + 1u;
+            highKeyMarker.windowSeconds = 0f;
+            clip.events[0] = highKeyMarker;
+
+            Assert.IsEmpty(
+                ClipValidation.ValidateSet(clipSet),
+                "A pulse-only key with no window is legal: " + Describe(ClipValidation.ValidateSet(clipSet)));
+        }
+
+        [Test]
         public void V10_FiresAsAWarningForAClipWithNoTracksAndNoEvents()
         {
             RigAsset rig = CreateValidRig();

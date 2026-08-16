@@ -448,6 +448,21 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
         /// <summary>User float payload delivered with the emitted event.</summary>
         public float floatParam;
+
+        /// <summary>
+        /// How long this marker holds its <see cref="AnimEventMask"/> bit open, in seconds
+        /// (validation rules V19, V20). 0 — the default, and what every marker authored before this
+        /// field existed carries — makes the marker pulse-only: it still emits into the actor's
+        /// event buffer with its payload, it just never opens a window.
+        /// </summary>
+        /// <remarks>
+        /// Seconds, not frames, even though the Clip Editor presents it as a frame count. A frame
+        /// count would make the window's real length depend on the machine's frame rate, so the same
+        /// authored attack would connect on a fast machine and miss on a slow one. The frame count
+        /// in the inspector is this value divided by the project's reference rate, computed for
+        /// display only.
+        /// </remarks>
+        [Min(0f)] public float windowSeconds;
     }
 
     /// <summary>

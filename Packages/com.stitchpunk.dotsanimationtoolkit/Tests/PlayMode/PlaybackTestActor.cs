@@ -148,17 +148,24 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             internal uint eventKey;
             internal int intParam;
             internal float floatParam;
+            internal float windowSeconds;
         }
 
         /// <summary>Builds a marker at <paramref name="normalizedTime"/> carrying a user event key.</summary>
-        internal static EventSpec Marker(float normalizedTime, uint eventKey, int intParam = 0, float floatParam = 0f)
+        internal static EventSpec Marker(
+            float normalizedTime,
+            uint eventKey,
+            int intParam = 0,
+            float floatParam = 0f,
+            float windowSeconds = 0f)
         {
             return new EventSpec
             {
                 normalizedTime = normalizedTime,
                 eventKey = eventKey,
                 intParam = intParam,
-                floatParam = floatParam
+                floatParam = floatParam,
+                windowSeconds = windowSeconds
             };
         }
 
@@ -263,7 +270,8 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                             normalizedTime = eventSpec.normalizedTime,
                             eventKey = eventSpec.eventKey,
                             intParam = eventSpec.intParam,
-                            floatParam = eventSpec.floatParam
+                            floatParam = eventSpec.floatParam,
+                            windowSeconds = eventSpec.windowSeconds
                         };
                     }
 
@@ -334,6 +342,9 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             entityManager.AddBuffer<AnimEventOutput>(actorEntity);
             entityManager.AddComponent<AnimEventsPending>(actorEntity);
             entityManager.SetComponentEnabled<AnimEventsPending>(actorEntity, false);
+
+            entityManager.AddComponentData(actorEntity, new AnimEventMask { bits = 0UL });
+            entityManager.SetComponentEnabled<AnimEventMask>(actorEntity, false);
 
             entityManager.AddComponent<BoundsDirty>(actorEntity);
             entityManager.SetComponentEnabled<BoundsDirty>(actorEntity, false);

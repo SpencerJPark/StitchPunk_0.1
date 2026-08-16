@@ -180,6 +180,13 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
             Assert.IsFalse(
                 entityManager.IsComponentEnabled<AnimEventsPending>(actorEntity),
                 "AnimEventsPending must be baked DISABLED — no events have been emitted yet.");
+            Assert.IsFalse(
+                entityManager.IsComponentEnabled<AnimEventMask>(actorEntity),
+                "AnimEventMask must be baked DISABLED — an actor at rest holds no event window.");
+            Assert.AreEqual(
+                0UL,
+                entityManager.GetComponentData<AnimEventMask>(actorEntity).bits,
+                "A baked actor's event mask must start empty.");
 
             // The assertions above catch a MISSING component but not an EXTRA one, which is half a
             // check for something called "exactly". Unity adds its own transform and baking
@@ -192,6 +199,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 {
                     typeof(ClipRegistry), typeof(PlaybackLayer), typeof(AnimationCommand),
                     typeof(AnimationCommandPending), typeof(AnimEventOutput), typeof(AnimEventsPending),
+                    typeof(AnimEventMask),
                     typeof(RigPartRef), typeof(RigBindingUninitialized), typeof(AnimVisible),
                     typeof(BoundsDirty), typeof(ActorRestBounds), typeof(SampleSettings),
                     typeof(VatTextureBinding), typeof(AnimSampleState)

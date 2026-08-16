@@ -579,6 +579,51 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         eventMarker.eventKey + "; keys below " +
                         (uint)ReservedEventKeys.FirstUserKey + " are reserved by the package."));
                 }
+
+                ValidateEventWindowInto(clip, eventMarker, eventIndex, messages);
+            }
+        }
+
+        /// <summary>
+        /// Checks one marker's window duration: negative is an error (V19), and a window on a key
+        /// that owns no mask bit is a warning (V20).
+        /// </summary>
+        /// <remarks>
+        /// A window longer than the clip is deliberately <em>not</em> reported. On a looping clip it
+        /// is the ordinary way to say "open for the whole loop", and on a Once clip it simply means
+        /// the window outlives the clip, which the layer going inactive already resolves. Flagging
+        /// it would be flagging a legitimate authoring choice.
+        /// </remarks>
+        private static void ValidateEventWindowInto(
+            ClipAsset clip,
+            EventMarker eventMarker,
+            int eventIndex,
+            List<ValidationMessage> messages)
+        {
+            if (eventMarker.windowSeconds < 0f)
+            {
+                messages.Add(new ValidationMessage(
+                    ValidationSeverity.Error,
+                    ValidationCode.V19,
+                    clip,
+                    "Event " + eventIndex + " of clip '" + clip.name + "' has a window of " +
+                    eventMarker.windowSeconds + " seconds; a window cannot be negative. The bake " +
+                    "clamps it to 0, which makes the event pulse-only."));
+                return;
+            }
+
+            if (eventMarker.windowSeconds > 0f
+                && !AnimEventMaskKeys.IsMaskable(eventMarker.eventKey))
+            {
+                messages.Add(new ValidationMessage(
+                    ValidationSeverity.Warning,
+                    ValidationCode.V20,
+                    clip,
+                    "Event " + eventIndex + " of clip '" + clip.name + "' authors a " +
+                    eventMarker.windowSeconds + "s window on key " + eventMarker.eventKey +
+                    ", which is outside the maskable range " + AnimEventMaskKeys.FirstMaskKey +
+                    "–" + AnimEventMaskKeys.LastMaskKey + ". The event still fires, but no " +
+                    "AnimEventMask bit exists for it, so the window can never be observed."));
             }
         }
 

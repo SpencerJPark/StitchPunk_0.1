@@ -10,7 +10,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Added — event windows: events that are a *state*, not just a pulse
+
+An event marker can now hold a window open for a duration, so gameplay can ask
+"is this actor inside its damage frames right now?" on any frame, not only on the
+one frame the marker fired.
+
+The two channels come off the same authored marker and answer different
+questions:
+
+| Channel | Component | Answers | Use for |
+|---|---|---|---|
+| Pulse (existing) | `AnimEventOutput` buffer | "it just happened", with `intParam` / `floatParam` | Footstep and impact **sounds**, spawning a projectile, VFX one-shots |
+| Window (new) | `AnimEventMask` component | "it is happening now" | Damage/hit frames, invulnerability, "is committed", parry windows |
+
+- **`EventMarker.windowSeconds`** — 0 (the default, and what every existing clip
+  carries) keeps a marker pulse-only. Above 0 it opens the event's bit in
+  `AnimEventMask` for that long.
+- **`AnimEventMask`** — an enableable component holding one bit per event key.
+  The key/bit mapping is arithmetic (`bit n` is key `16 + n`), so keys 16–79 can
+  hold windows and keys above 79 stay pulse-only. Test it with
+  `AnimEventMaskKeys.IsOpen(mask, key)`; the component is disabled whenever
+  nothing is open, so consumers chunk-skip idle actors for free.
+- **`EventWindowSystem`** rebuilds the mask from scratch every frame from each
+  layer's current time. Nothing is accumulated or counted down, which is what
+  makes an interrupt close its windows with no cancel path: a Play command swaps
+  the clip, the next rebuild reads the new clip's markers, and the interrupted
+  swing's damage window is simply not set again. Scrubbing, reverse playback and
+  PingPong reflection stay correct for the same reason.
+- **`AnimEventKeyRegistry`** — an optional, authoring-only asset naming a
+  project's event keys, assigned on the clip set. With one, the Clip Editor picks
+  events by name (`ApplyDamage`) instead of by number; without one it edits raw
+  keys exactly as before. It is never baked, so renaming or reordering events
+  cannot invalidate a baked clip.
+
+### Added — the Clip Editor authors all of it
+
+- Event keys draw larger than pose keys, and a translucent bar behind each one
+  shows how long its window runs, so a hit frame's duration lines up visibly
+  against the poses around it.
+- Selecting an event marker now gets purpose-built fields — event name/key,
+  window **in frames**, and the two payload params — instead of the generic
+  struct drawer. The window edits in frames at the registry's reference rate and
+  stores seconds, so a window lasts the same wall-clock time on every machine.
+
+### Fixed
+
+- Placing an event marker on the timeline no longer creates it with `eventKey`
+  0. That is the reserved "invalid" key, so a marker placed and left alone failed
+  validation rule V09 — the clip broke at bake purely for having been authored.
+  New markers take the clip set's first registered event, or key 16.
+
+### Changed
+
+- **Blob schema version 6 → 7.** `EventMarkerBlob` gained `windowSeconds`.
+  Existing subscenes must be re-baked.
+- Two new validation rules: **V19** (error) a negative window; **V20** (warning)
+  a window authored on a key outside the maskable range, where it can never be
+  observed.
 
 ## [0.9.0] - 2026-08-15
 

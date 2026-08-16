@@ -109,7 +109,21 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// "no change" sentinel belongs to absolute keys only, so there is nothing else this could
         /// mean.
         /// </remarks>
-        V18 = 18
+        V18 = 18,
+
+        /// <summary>
+        /// Error: an event marker's <c>windowSeconds</c> is negative. A window cannot run backwards,
+        /// and the bake clamps it to 0 — which silently turns an event the author believed held a
+        /// state into a bare pulse.
+        /// </summary>
+        V19 = 19,
+
+        /// <summary>
+        /// Warning: an event marker authors a window on a key outside the maskable range 16–79, so
+        /// it owns no <see cref="AnimEventMask"/> bit and the window can never be observed. The
+        /// marker still emits its pulse normally; only the duration is inert.
+        /// </summary>
+        V20 = 20
     }
 
     /// <summary>

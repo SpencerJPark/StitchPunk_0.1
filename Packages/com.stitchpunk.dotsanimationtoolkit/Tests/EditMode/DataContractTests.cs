@@ -244,7 +244,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("normalizedTime", typeof(float)),
                 Field("eventKey", typeof(uint)),
                 Field("intParam", typeof(int)),
-                Field("floatParam", typeof(float))
+                Field("floatParam", typeof(float)),
+                Field("windowSeconds", typeof(float))
             });
         }
 
@@ -369,6 +370,16 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("clip", typeof(ClipId)),
                 Field("intParam", typeof(int)),
                 Field("floatParam", typeof(float))
+            });
+
+            // The one enableable component in the package that carries data rather than being a
+            // bare tag: the bit set is the payload, and the enabled flag is the "any bit at all"
+            // fast path in front of it.
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(AnimEventMask)));
+            Assert.IsTrue(typeof(IEnableableComponent).IsAssignableFrom(typeof(AnimEventMask)));
+            AssertFieldsMatch(typeof(AnimEventMask), new FieldContract[]
+            {
+                Field("bits", typeof(ulong))
             });
 
             Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(RigPartRef)));

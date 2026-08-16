@@ -143,7 +143,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                     .Append(BitsOf(marker.normalizedTime))
                     .Append(" key=").Append(marker.eventKey)
                     .Append(" int=").Append(marker.intParam)
-                    .Append(" float=").Append(BitsOf(marker.floatParam)).Append('\n');
+                    .Append(" float=").Append(BitsOf(marker.floatParam))
+                    .Append(" window=").Append(BitsOf(marker.windowSeconds)).Append('\n');
             }
         }
 
