@@ -6,6 +6,7 @@ using NUnit.Framework;
 using StitchPunk.AnimationToolkit;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Collections;
+using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -48,8 +49,10 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         private const uint UnknownSocketId = 999;
         private const uint BoneSocketId = 200;
         private const ulong BoneClipId = 700;
+        private const ulong SwingClipId = 800;
 
         private World testWorld;
+        private double elapsedFrameTime;
         private readonly List<BlobAssetReference<ClipRegistryBlob>> clipRegistriesToDispose =
             new List<BlobAssetReference<ClipRegistryBlob>>();
         private readonly List<BlobAssetReference<SocketRegistryBlob>> socketRegistriesToDispose =
@@ -59,6 +62,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         public void SetUp()
         {
             testWorld = new World("SocketResolveSystemTests");
+            elapsedFrameTime = 0d;
         }
 
         [TearDown]
@@ -366,8 +370,201 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         // -------------------------------------------------------------------------------------
+        // Full-pipeline integration
+        //
+        // Every fixture above runs SocketResolveSystem alone against a hand-seeded part, which is
+        // what lets them isolate its composition maths — and is also why none of them can say
+        // whether the pose it composes from is the one the rest of the toolkit actually produces.
+        // The two fixtures below drive a socket through a real frame instead: a Play command, the
+        // clip sampled, TransformApplySystem writing the part's LocalTransform, and only then the
+        // socket resolved from it.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// <strong>The chain the package exists to keep aligned</strong>: clip → sampled pose →
+        /// applied transform → socket. Catches any break between them, and specifically a
+        /// <c>SocketResolveSystem</c> that reads a part's <em>rest</em> pose rather than its
+        /// animated one.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The clip animates <strong>rotation only</strong>, and the part rests at the origin. That
+        /// makes the part's rotation the sole thing that can move the attachment: a socket one unit
+        /// out along +X swings to +Y as the part turns 90°, while a resolve that used the rest
+        /// rotation — or ran before <c>TransformApplySystem</c> wrote the animated one — would leave
+        /// the attachment sitting at (1, 0, 0) for the whole clip. Animating position instead would
+        /// have moved the attachment under either behaviour and proved nothing.
+        /// </para>
+        /// <para>
+        /// The expected positions are computed from the clip's authored angles rather than read back
+        /// from the part, so the assertion is not satisfied by the two systems agreeing on a wrong
+        /// value.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void ASocketOnAnAnimatedPart_FollowsThePoseTheFrameActuallyApplied()
+        {
+            Entity actor = BuildActorWithSwingClip();
+            Entity part = PlaybackTestActor.AddPart(testWorld, actor, targetIndex: 0);
+
+            SocketSpec[] socketSpecs =
+            {
+                RigTargetSocket(RigTargetSocketId, targetIndex: 0, localPosition: new float3(1f, 0f, 0f))
+            };
+            BlobAssetReference<SocketRegistryBlob> socketRegistry = BuildSocketRegistry(socketSpecs);
+            socketRegistriesToDispose.Add(socketRegistry);
+            AttachSocketRegistry(actor, socketRegistry);
+
+            Entity attachment =
+                CreateAttachment(actor, RigTargetSocketId, float3.zero, SentinelTransform());
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld, actor, PlaybackTestActor.PlayCommand(0, SwingClipId));
+
+            // Half the clip: the part has turned 45 degrees, so the socket sits on the diagonal.
+            RunAnimationFrame(0.5f);
+
+            float halfway = math.sqrt(0.5f);
+            LocalTransform atHalfway =
+                testWorld.EntityManager.GetComponentData<LocalTransform>(attachment);
+
+            Assert.AreEqual(halfway, atHalfway.Position.x, Tolerance,
+                "The socket did not follow the part's animated rotation. At x=1 it never rotated at "
+                + "all; SocketResolveSystem is reading a pose the frame did not apply.");
+            Assert.AreEqual(halfway, atHalfway.Position.y, Tolerance);
+            Assert.AreEqual(math.radians(45f), ExtractRotationZ(atHalfway.Rotation), Tolerance,
+                "The attachment must inherit the part's animated rotation, not its rest rotation.");
+
+            // Three quarters through: 67.5 degrees, and still mid-clip.
+            //
+            // Deliberately not the clip's final frame. A Once clip goes inactive the instant it
+            // completes, so TransformSampleSystem stops compositing it and the part returns to its
+            // rest pose — which would put this socket back at exactly (1, 0, 0), the same reading a
+            // socket that never tracked anything gives. Sampling the end would therefore assert the
+            // one value that cannot tell the two apart.
+            RunAnimationFrame(0.25f);
+
+            float threeQuarterAngle = math.radians(67.5f);
+            LocalTransform laterInTheClip =
+                testWorld.EntityManager.GetComponentData<LocalTransform>(attachment);
+
+            Assert.AreEqual(math.cos(threeQuarterAngle), laterInTheClip.Position.x, Tolerance,
+                "The socket must keep tracking the part across frames, not resolve once and stick.");
+            Assert.AreEqual(math.sin(threeQuarterAngle), laterInTheClip.Position.y, Tolerance);
+        }
+
+        /// <summary>
+        /// Catches: <c>SocketResolveSystem</c> ordered before <c>TransformApplySystem</c> in the
+        /// presentation group. The socket would then compose from the transform the *previous* frame
+        /// applied, which is invisible on a still actor and a permanent one-frame lag on a moving
+        /// one — precisely the class of drift a weapon held in a swinging hand shows as separation.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Asserting the lag directly rather than the ordering attribute: an attribute test says the
+        /// edge is declared, this one says the edge produces same-frame data.
+        /// </para>
+        /// <para>
+        /// <strong>The position assertion is the discriminating one, not the sentinel assertion.</strong>
+        /// Verified by running the socket resolve ahead of the apply: the attachment does not keep
+        /// its seed value, because the part still holds its <em>rest</em> transform at that point and
+        /// the resolve composes perfectly well from it — landing at an unrotated (1, 0, 0). So a
+        /// one-frame lag looks like a successful write of a plausible pose, and only the value says
+        /// otherwise. The sentinel check is kept to separate "wrote the wrong pose" from "wrote
+        /// nothing", which are different bugs with the same symptom on a still actor.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void TheSocketResolvesFromThisFramesTransform_NotThePreviousFrames()
+        {
+            Entity actor = BuildActorWithSwingClip();
+            PlaybackTestActor.AddPart(testWorld, actor, targetIndex: 0);
+
+            SocketSpec[] socketSpecs =
+            {
+                RigTargetSocket(RigTargetSocketId, targetIndex: 0, localPosition: new float3(1f, 0f, 0f))
+            };
+            BlobAssetReference<SocketRegistryBlob> socketRegistry = BuildSocketRegistry(socketSpecs);
+            socketRegistriesToDispose.Add(socketRegistry);
+            AttachSocketRegistry(actor, socketRegistry);
+
+            LocalTransform sentinel = SentinelTransform();
+            Entity attachment = CreateAttachment(actor, RigTargetSocketId, float3.zero, sentinel);
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld, actor, PlaybackTestActor.PlayCommand(0, SwingClipId));
+            RunAnimationFrame(0.5f);
+
+            LocalTransform result = testWorld.EntityManager.GetComponentData<LocalTransform>(attachment);
+
+            Assert.AreNotEqual(sentinel.Position.x, result.Position.x,
+                "The attachment still holds its seed value, so nothing resolved on the frame the "
+                + "part was first animated.");
+            Assert.AreEqual(math.sqrt(0.5f), result.Position.x, Tolerance,
+                "The socket composed from a stale transform: this is the pose applied this frame.");
+        }
+
+        // -------------------------------------------------------------------------------------
         // Fixture helpers
         // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// An actor whose registry holds one 1-second clip turning target 0 through 90° about Z.
+        /// </summary>
+        private Entity BuildActorWithSwingClip()
+        {
+            BlobAssetReference<ClipRegistryBlob> clipRegistry = PlaybackTestActor.BuildRegistry(
+                new[]
+                {
+                    new PlaybackTestActor.ClipSpec
+                    {
+                        clipId = SwingClipId,
+                        duration = 1f,
+                        defaultLoop = LoopMode.Once,
+                        transformTracks = new[]
+                        {
+                            new PlaybackTestActor.TransformTrackSpec
+                            {
+                                targetIndex = 0,
+                                blendOp = TrackBlendOp.Override,
+                                channels = AnimatedChannels.Rotation,
+                                keys = new[]
+                                {
+                                    PlaybackTestActor.Key(0f, rotationZ: 0f),
+                                    PlaybackTestActor.Key(1f, rotationZ: math.radians(90f))
+                                }
+                            }
+                        }
+                    }
+                },
+                targetCount: 1);
+            clipRegistriesToDispose.Add(clipRegistry);
+            return PlaybackTestActor.CreateActor(testWorld, clipRegistry);
+        }
+
+        /// <summary>
+        /// Runs one whole frame in the group order <c>AnimationToolkitSystemGroup</c> declares, so a
+        /// fixture reads what a real frame produced rather than what one system did in isolation.
+        /// </summary>
+        private void RunAnimationFrame(float deltaTime)
+        {
+            elapsedFrameTime += deltaTime;
+            testWorld.SetTime(new TimeData(elapsedFrameTime, deltaTime));
+
+            UpdateSystem<CommandApplySystem>();
+            UpdateSystem<PlaybackTimeSystem>();
+            UpdateSystem<TransformSampleSystem>();
+            UpdateSystem<TransformApplySystem>();
+            UpdateSystem<SocketResolveSystem>();
+
+            testWorld.EntityManager.CompleteAllTrackedJobs();
+        }
+
+        private void UpdateSystem<TSystem>() where TSystem : unmanaged, ISystem
+        {
+            SystemHandle systemHandle = testWorld.GetOrCreateSystem<TSystem>();
+            systemHandle.Update(testWorld.Unmanaged);
+        }
 
         /// <summary>Values no resolve path would produce, so a matching assertion proves a write happened.</summary>
         private static LocalTransform SentinelTransform()

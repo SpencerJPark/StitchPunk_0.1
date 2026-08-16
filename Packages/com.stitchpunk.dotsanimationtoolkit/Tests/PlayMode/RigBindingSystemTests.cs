@@ -173,6 +173,79 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// <strong>The production path.</strong> Catches: deleting the <c>partRefs.Clear()</c> — on
+        /// the <em>first</em> bind, which is the only bind a real spawn performs.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Every other fixture in this file starts from an empty <see cref="RigPartRef"/> buffer, a
+        /// state production never presents: <c>ActorBaker</c> fills the buffer with the prefab's own
+        /// parts, so a freshly spawned actor reaches this system holding a <em>full</em> one. That is
+        /// the gap §5.3 recorded as owed after C4.9, and this fixture closes it.
+        /// </para>
+        /// <para>
+        /// <strong>What arrives in that buffer is already correct, per amendment A35.</strong>
+        /// <c>Instantiate</c> remaps entity references inside dynamic buffers as well as inside
+        /// components whenever the target is a member of the instantiated <c>LinkedEntityGroup</c>,
+        /// so the instance's copied refs name the instance's own parts before this system runs. This
+        /// fixture therefore does <em>not</em> claim to catch mis-binding — nothing on this path can,
+        /// and an earlier fixture that asserted mis-binding as a guard is what produced A35.
+        /// </para>
+        /// <para>
+        /// What it does catch is <strong>duplication on the first bind</strong>: without the clear,
+        /// the walk appends a second copy of every part onto the baked ones, so a real spawn starts
+        /// life with double-length part list and silently double all per-part work.
+        /// <see cref="ReBindingAnActorTwice_DoesNotDuplicateItsParts"/> also fails without the clear,
+        /// but only on a second bind that a host has to opt into by re-enabling the tag; this one
+        /// fails on the path every spawn takes.
+        /// </para>
+        /// <para>
+        /// The prefab-reference assertions below are kept as a cheap guard rather than as the point:
+        /// if a future Entities release stops remapping buffers, they are what says so.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void AnInstantiatedActor_WhoseBakedBufferIsAlreadyPopulated_RebuildsItRatherThanAppending()
+        {
+            Entity prefabActor = CreateActorWithParts(
+                3, out Entity firstPrefabPart, out Entity secondPrefabPart, seedPartRefs: true);
+
+            Assert.AreEqual(
+                3,
+                testWorld.EntityManager.GetBuffer<RigPartRef>(prefabActor).Length,
+                "Guard: the prefab must arrive populated, or this fixture tests the empty-buffer "
+                + "path every other fixture already covers.");
+
+            Entity instancedActor = testWorld.EntityManager.Instantiate(prefabActor);
+            RunBindingSystem();
+
+            DynamicBuffer<RigPartRef> instancedRefs =
+                testWorld.EntityManager.GetBuffer<RigPartRef>(instancedActor);
+
+            Assert.AreEqual(
+                3,
+                instancedRefs.Length,
+                "The copied prefab references must be replaced, not appended to.");
+
+            for (int refIndex = 0; refIndex < instancedRefs.Length; refIndex++)
+            {
+                Entity boundPart = instancedRefs[refIndex].part;
+                Assert.AreNotEqual(
+                    firstPrefabPart,
+                    boundPart,
+                    "Guard (A35): Entities no longer remaps buffer entity references on Instantiate.");
+                Assert.AreNotEqual(
+                    secondPrefabPart,
+                    boundPart,
+                    "Guard (A35): Entities no longer remaps buffer entity references on Instantiate.");
+                Assert.AreEqual(
+                    instancedActor,
+                    testWorld.EntityManager.GetComponentData<RigPartBinding>(boundPart).actorRoot,
+                    "A part in the instance's list does not belong to the instance.");
+            }
+        }
+
+        /// <summary>
         /// Catches: deleting the per-instance <c>phase01</c> re-derivation. Every copy of one prefab
         /// carries the same baked phase, so a crowd would sample in lockstep — reintroducing exactly
         /// the same-tick spike the phase exists to spread.
@@ -236,7 +309,17 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         /// touches, plus <paramref name="partCount"/> parts, all listed in a
         /// <c>LinkedEntityGroup</c> with the root at element 0 (Entities' contract).
         /// </summary>
-        private Entity CreateActorWithParts(int partCount, out Entity firstPart, out Entity secondPart)
+        /// <param name="partCount">How many parts to create and link.</param>
+        /// <param name="firstPart">The part at target index 0, or <c>Entity.Null</c>.</param>
+        /// <param name="secondPart">The part at target index 1, or <c>Entity.Null</c>.</param>
+        /// <param name="seedPartRefs">
+        /// When true the root's <see cref="RigPartRef"/> buffer is filled with its own parts, the
+        /// way <c>ActorBaker</c> leaves a baked prefab. Defaults to false only because the fixtures
+        /// written before the production path was covered rely on the empty shape; new fixtures
+        /// should prefer true.
+        /// </param>
+        private Entity CreateActorWithParts(
+            int partCount, out Entity firstPart, out Entity secondPart, bool seedPartRefs = false)
         {
             EntityManager entityManager = testWorld.EntityManager;
 
@@ -268,6 +351,17 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                 else if (partIndex == 1)
                 {
                     secondPart = partEntity;
+                }
+
+                if (seedPartRefs)
+                {
+                    // Re-fetched per iteration for the same reason the LinkedEntityGroup above is:
+                    // creating the next part is a structural change that invalidates this buffer.
+                    entityManager.GetBuffer<RigPartRef>(actorEntity).Add(new RigPartRef
+                    {
+                        part = partEntity,
+                        targetIndex = partIndex
+                    });
                 }
             }
 

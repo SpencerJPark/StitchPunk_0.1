@@ -60,7 +60,15 @@ entity.
 - **VAT (vertex animation textures):** `VatTextureBaker` bakes a skinned mesh's
   clips into a bone-matrix or vertex-position texture (Editor ▸ **Window ▸
   DOTS Animation Toolkit ▸ VAT Bake**); `VatMaterialSystem` drives playback
-  per-instance at runtime, including a two-frame crossfade.
+  per-instance at runtime, including a two-frame crossfade. A clip may carry
+  **per-target VAT sources** (`vatTracks`), so a torso and a cape can come from
+  different source animations inside one clip, each resolving its own baked
+  frame range.
+- **Animation events, two channels from one marker:** a one-frame pulse
+  carrying an int/float payload (`AnimEventOutput`) for sounds and spawns, and
+  a sustained window bit (`AnimEventMask`) testable on any frame for damage or
+  invulnerability. See
+  [`Documentation~/animation-events.md`](Documentation~/animation-events.md).
 - **Shaders:** four standalone HLSL includes
   (`ToolkitBillboard`/`Flipbook`/`Vat`/`Instancing.hlsl`) meant to be dropped
   individually into your own shaders, plus three hand-written reference
@@ -84,9 +92,14 @@ Mirror Clip editor utility, the clip-editor preview, and the custom inspectors
 clean and pass the EditMode and PlayMode suites.**
 
 What they have not had is *use*. The suites cover their logic, not their
-ergonomics, and nothing here has been exercised by PlayMode integration tests
-that drive a socket through a real playback frame or a VAT bake end to end.
-Expect rough edges in the authoring flow rather than incorrect maths.
+ergonomics. Expect rough edges in the authoring flow rather than incorrect
+maths.
+
+Sockets are the exception and are no longer only unit-covered: two PlayMode
+fixtures now drive one through a real frame — a `Play` command, the clip
+sampled, `TransformApplySystem` writing the part, and the socket resolved from
+that same frame's transform. A **VAT bake** still has no end-to-end integration
+test.
 
 ## Not shipped yet
 
@@ -95,9 +108,6 @@ Expect rough edges in the authoring flow rather than incorrect maths.
   committed assets carry baked-in stable ids that could collide with a project
   already using this package. The `VatCrowd` and `CompositeActor` samples the
   design doc calls for are not packaged yet.
-- **A clip may carry only one VAT source**, so a torso and a cape cannot come
-  from different source animations in the same clip. Hybrid flipbook + VAT on
-  one actor *does* work — VAT and sprite parts compose per part.
 - No package-shipped sample drives a **bone socket** end to end; bone sockets
   need a VAT rebake to populate their sample tracks.
 

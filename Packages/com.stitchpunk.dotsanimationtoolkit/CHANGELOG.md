@@ -61,6 +61,30 @@ questions:
   validation rule V09 — the clip broke at bake purely for having been authored.
   New markers take the clip set's first registered event, or key 16.
 
+### Added — coverage for two paths nothing exercised
+
+- **A socket driven through a real playback frame.** Every socket fixture until
+  now ran `SocketResolveSystem` alone against a hand-seeded part, so none could
+  say whether the pose it composes from is the one the rest of the toolkit
+  produces. Two PlayMode fixtures now run the whole chain — `Play` command,
+  clip sampled, `TransformApplySystem` writing the part, socket resolved from
+  that same frame's transform. Mutation-checked by resolving ahead of the
+  apply: both fail with the unrotated reading, nothing else does.
+- **`RigBindingSystem` bound from a populated buffer**, the shape `ActorBaker`
+  actually leaves behind. The existing fixtures all started from an empty one —
+  a state production never presents — which §5.3 recorded as owed after C4.9.
+  Mutation-checked by deleting `partRefs.Clear()`: the new fixture fails on the
+  *first* bind, the path every spawn takes.
+
+### Fixed — documentation that had drifted from the code
+
+- The README claimed a clip may carry only one VAT source, so a torso and a
+  cape could not come from different source animations. Per-target VAT sources
+  (`ClipAsset.vatTracks` → `ClipBlob.vatTargetRanges`) have in fact shipped,
+  with five PlayMode fixtures covering them, and never had a changelog entry.
+- The README's "not battle-tested" note said no integration test drives a
+  socket through a real playback frame. That is now true only of the VAT bake.
+
 ### Changed
 
 - **Blob schema version 6 → 7.** `EventMarkerBlob` gained `windowSeconds`.
