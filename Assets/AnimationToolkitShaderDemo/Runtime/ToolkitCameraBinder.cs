@@ -25,8 +25,10 @@ namespace StitchPunk.AnimationToolkitShaderDemo
     /// <list type="number">
     /// <item><description>
     /// <c>AnimationToolkitCameraData</c> — the ECS singleton. <c>AnimLodDistanceSystem</c> measures
-    /// distance from <c>position</c>; nothing reads <c>forward</c> on the CPU side yet, but it is
-    /// carried there so a host has one place to describe its camera.
+    /// distance from <c>position</c>, and since amendment A44 <c>BillboardResolveSystem</c> reads
+    /// both fields: <c>forward</c> for screen-aligned roots and <c>position</c> for spherical ones.
+    /// <strong>Without this component nothing billboards at all</strong> — the package never reads a
+    /// <c>Camera</c>, because it cannot know which of a host's cameras matters.
     /// </description></item>
     /// <item><description>
     /// <c>_ToolkitCameraForward</c> — the shader global that screen-aligned billboarding reads
