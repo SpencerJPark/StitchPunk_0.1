@@ -10,6 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — billboard orientation maths (amendment A44, phase D2)
+
+`BillboardMath` is the whole of billboard orientation as pure functions, and the
+single implementation the runtime job, the Clip Editor preview and the billboard
+frame query all share. Nothing calls it yet; D4 wires it to a system.
+
+- **`BillboardSettings`** — one parameter block carrying a root's configuration
+  and the two channels a clip can key. A default-constructed value is inert, so
+  a block nobody filled in leaves the pose alone.
+- **`BillboardMath.TryResolve`** — facing, axis constraint, angle offset, snap
+  wheel, arc clamp and blend, in that fixed order. Returns false when there is
+  nothing to apply, and the caller then leaves the transform alone.
+- **Snapping and clamping are measured from the node's rest orientation**, not
+  from the world, so both travel with an animation that turns the node — which is
+  what eight-direction sprite art means. Only the rotation *about the reference
+  axis* is quantised or limited; a tilted rest pose survives untouched.
+- **The clamp outranks the wheel.** At the arc boundary the result may sit off a
+  snap step: the clamp is a constraint, the snap is a look.
+
+**The facing sign is corrected here**, per A44: the facing vector is the
+direction the node's local +Z must point — *away* from the viewer, matching the
+host game and Unity's `PrimitiveType.Quad`, whose visible normal is on −Z. The
+package previously used the negation. `ScreenAligned` now reproduces
+`quaternion.LookRotation(cameraForward, up)` exactly, and there is a test that
+says so. **This changes how existing `Full` / `ScreenAligned` content looks**;
+the shader path still carries the old sign until D4.
+
 ### Added — billboarding becomes a rig property (amendment A44, phase D1)
 
 Billboarding is being generalised from one flag on an actor into an authorable,

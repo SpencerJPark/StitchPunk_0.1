@@ -1675,6 +1675,12 @@ D1–D4 alone unblock the ragdoll work: the frame is queryable at the end of D4.
 | Path-addressed roots break when a grouping transform is renamed | The bake reports the unresolved address; same contract as an unresolved bone name (A42) |
 | Deep nesting costs a rotation write per root per frame | Roots are declared, not implicit — a rig pays for the roots it declares and nothing for the nodes that merely inherit |
 
+### D2 note (2026-08-17): two decisions the build forced
+
+**Snapping and clamping share one reference and one axis, and that was not obvious.** The arc is measured from the rest orientation because A44 said so; making the snap wheel share that reference was a choice. It is the right one — a character keyed to turn on the spot should click through its eight facings relative to *its own* forward, not relative to where it happens to stand — and it collapses two features into one swing-twist decomposition. Only the twist about the reference axis is quantised or limited; the swing carries every other component of the pose through untouched, so a rig whose rest pose is tilted keeps its tilt instead of being flattened onto the wheel.
+
+**`BillboardSettings.enabled` needs `[MarshalAs(UnmanagedType.U1)]`.** A plain C# `bool` has no fixed width, so a struct containing one is not blittable, and this struct crosses a `[BurstCompile]` external entry point. Without the attribute the *entire* Runtime assembly fails Burst compilation with BC1063 — the same blast radius, and the same misleading error list, that a by-value vector parameter produced in `FacingResolver` before A38's fix. By-ref is necessary but not sufficient; blittable is the other half of the rule.
+
 ---
 
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*
