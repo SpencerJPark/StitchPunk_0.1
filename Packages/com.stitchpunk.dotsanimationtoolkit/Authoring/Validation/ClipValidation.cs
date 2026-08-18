@@ -2,26 +2,28 @@
 
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 
 namespace StitchPunk.AnimationToolkit.Authoring
 {
     /// <summary>
     /// The single authoritative implementation of the architecture section 3.5 rule table
-    /// (V01–V16), shared by the inspectors, the clip editor, and the bake so that all three agree on
+    /// (V01–V23), shared by the inspectors, the clip editor, and the bake so that all three agree on
     /// what is legal. Pure static managed code — no editor-assembly dependency, no ECS world, and
     /// no side effects on the assets it inspects.
     /// </summary>
     public static class ClipValidation
     {
         /// <summary>
-        /// Validates a rig against the rules that concern it: V13 (layer count) and V05 (target id
-        /// uniqueness).
+        /// Validates a rig against the rules that concern it: V13 (layer count), V05 (target id
+        /// uniqueness) and the billboard-root rules V21, V22 and V23 (amendment A44).
         /// </summary>
         /// <param name="rig">The rig to validate. A null rig reports V13, since a set without a rig
         /// has no layers.</param>
         /// <returns>
         /// The findings in discovery order — layer checks (V13) first, then per-target id
-        /// uniqueness (V05) in target-list order. Deliberately not sorted by rule number: the
+        /// uniqueness (V05) in target-list order, then the billboard roots (V21, V23, V22) in
+        /// billboard-root order. Deliberately not sorted by rule number: the
         /// inspector and the clip editor list findings in the order the asset reads, so a reader
         /// can walk the asset top to bottom. Empty when the rig is fully valid.
         /// </returns>
@@ -218,12 +220,12 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     "between 1 and " + RigAsset.MaxLayerCount + "."));
             }
 
-            if (rig.targets == null)
-            {
-                return;
-            }
+            // Guarded rather than returned on: a rig with no target list still has billboard roots
+            // worth checking, and an early return here would make V21–V23 depend on a list they do
+            // not concern. A null target list simply resolves no target addresses.
             Dictionary<uint, string> targetNamesById = new Dictionary<uint, string>();
-            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            int targetCount = rig.targets == null ? 0 : rig.targets.Count;
+            for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
             {
                 RigTargetDefinition targetDefinition = rig.targets[targetIndex];
                 if (targetDefinition == null)
@@ -246,6 +248,121 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     targetNamesById.Add(targetDefinition.stableId, targetDefinition.displayName);
                 }
             }
+
+            ValidateBillboardRootsInto(rig, targetNamesById, messages);
+        }
+
+        /// <summary>
+        /// Validates the rig's billboard roots (amendment A44): V21, V22 and V23.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>V21 is only half-reachable here, and the reachable half is the target one.</strong>
+        /// A <see cref="BillboardAddressKind.RigTarget"/> address names a row of this very asset, so
+        /// it can be resolved against <paramref name="targetNamesById"/> and reported now, while the
+        /// author is looking at the rig. A <see cref="BillboardAddressKind.HierarchyPath"/> address
+        /// names a transform of the authoring prefab, which a <see cref="RigAsset"/> does not
+        /// reference and cannot see — the rig asset carries no hierarchy of its own. Path addresses
+        /// are therefore resolved by the entity bake, which does hold the prefab, and which reports
+        /// an unresolved one rather than silently dropping the root.
+        /// </para>
+        /// <para>
+        /// This is the same shape as V08's split (amendment A12): a rule whose evidence lives in an
+        /// assembly the validator cannot legally reach is checked where the evidence is, and saying
+        /// so here is what stops a later reader assuming the silence means "valid".
+        /// </para>
+        /// </remarks>
+        private static void ValidateBillboardRootsInto(
+            RigAsset rig,
+            Dictionary<uint, string> targetNamesById,
+            List<ValidationMessage> messages)
+        {
+            if (rig.billboardRoots == null)
+            {
+                return;
+            }
+
+            Dictionary<string, string> rootNamesByAddress = new Dictionary<string, string>();
+            for (int rootIndex = 0; rootIndex < rig.billboardRoots.Count; rootIndex++)
+            {
+                BillboardRootDefinition rootDefinition = rig.billboardRoots[rootIndex];
+                if (rootDefinition == null)
+                {
+                    continue;
+                }
+
+                bool addressResolves = true;
+                if (rootDefinition.address.kind == BillboardAddressKind.RigTarget
+                    && !targetNamesById.ContainsKey(rootDefinition.address.targetId))
+                {
+                    addressResolves = false;
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V21,
+                        rig,
+                        "Billboard root '" + rootDefinition.displayName + "' addresses target id " +
+                        rootDefinition.address.targetId.ToString() + ", which rig '" + rig.name +
+                        "' does not define."));
+                }
+
+                if (rootDefinition.mode == BillboardMode.AxisConstrained
+                    && math.lengthsq(rootDefinition.constraintAxis) <= 0f)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V23,
+                        rig,
+                        "Billboard root '" + rootDefinition.displayName + "' in rig '" + rig.name +
+                        "' is axis-constrained but its constraint axis is zero-length, so there is " +
+                        "no axis to turn about."));
+                }
+
+                // An address that does not resolve cannot duplicate another one in any meaningful
+                // sense — two roots both pointing at a target that is not there is one fault, not
+                // two, and reporting it twice buries the fix under its own symptom.
+                if (!addressResolves)
+                {
+                    continue;
+                }
+
+                string addressKey = DescribeBillboardAddress(rootDefinition.address);
+                string previousRootName;
+                if (rootNamesByAddress.TryGetValue(addressKey, out previousRootName))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V22,
+                        rig,
+                        "Billboard roots '" + previousRootName + "' and '" +
+                        rootDefinition.displayName + "' both address " + addressKey + " in rig '" +
+                        rig.name + "'; a node may declare at most one billboard root."));
+                }
+                else
+                {
+                    rootNamesByAddress.Add(addressKey, rootDefinition.displayName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Renders a billboard address as the key V22 compares on, and as the text it reports.
+        /// </summary>
+        /// <remarks>
+        /// The kind is part of the key because the two kinds address disjoint things: target id 7
+        /// and the path "7" are not the same node, and a key that could not tell them apart would
+        /// report a duplicate that is not one.
+        /// </remarks>
+        private static string DescribeBillboardAddress(BillboardNodeAddress address)
+        {
+            if (address.kind == BillboardAddressKind.RigTarget)
+            {
+                return "target " + address.targetId.ToString();
+            }
+            // An empty path addresses the prefab root, which is a real node and a legal thing to
+            // billboard — so it is named rather than treated as a missing value.
+            return string.IsNullOrEmpty(address.hierarchyPath)
+                ? "the prefab root"
+                : "path '" + address.hierarchyPath + "'";
         }
 
         /// <summary>

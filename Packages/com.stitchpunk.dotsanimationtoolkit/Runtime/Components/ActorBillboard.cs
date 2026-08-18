@@ -69,6 +69,24 @@ namespace StitchPunk.AnimationToolkit
         /// Align to the camera's forward vector rather than to its position, so every actor takes
         /// the same rotation (amendment A39). The classic 2.5D look.
         /// </summary>
-        ScreenAligned = 4
+        ScreenAligned = 4,
+
+        /// <summary>
+        /// Turn about an arbitrary authored axis (amendment A44), the way
+        /// <see cref="Upright"/> turns about world Y.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="Upright"/> is exactly this mode with the axis <c>(0, 1, 0)</c>. It keeps its
+        /// own value because it shipped with one, because upright is the common 2.5D case, and
+        /// because a named mode reads better in an inspector than an axis a reader has to recognise.
+        /// </para>
+        /// <para>
+        /// The axis is authored per billboard root and lives on the rig asset, so a windmill sail
+        /// turning about its hub and a book cover turning about its spine are configuration rather
+        /// than two more enum values.
+        /// </para>
+        /// </remarks>
+        AxisConstrained = 5
     }
 }

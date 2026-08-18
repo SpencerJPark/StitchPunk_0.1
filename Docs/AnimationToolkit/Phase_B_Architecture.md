@@ -1521,6 +1521,20 @@ BillboardNodeAddress {
 
 The root's own `stableId` is separate from the addressed node's. A clip track binds to the root, and a root must survive being re-pointed at a different node without every clip that keys it going stale.
 
+**Validation rules** (§3.5's table, continued — a new rule is recorded in the amendment that introduces it):
+
+| Code | Severity | Rule |
+|---|---|---|
+| V21 | Error | A billboard root addresses a node that does not exist — a `RigTarget` id that is not a target of this rig, or an unresolvable `HierarchyPath` |
+| V22 | Error | Two billboard roots address the same node |
+| V23 | Error | An `AxisConstrained` root's `constraintAxis` is zero-length |
+
+**V21 is only half-reachable at rig scope, and the reachable half is the target one.** A target address names a row of the rig asset itself and is resolved by `ClipValidation.ValidateRig`. A path address names a transform of the *authoring prefab*, which a `RigAsset` neither references nor can see — so path resolution belongs to the entity bake (D3), which does hold the prefab. This is the same split A12 recorded for V08: a rule whose evidence lives where the validator cannot legally reach is checked where the evidence is, and saying so is what stops a later reader mistaking the silence for "valid".
+
+V22 says nothing when the shared address is itself unresolved. Two roots pointing at one absent target is a single missing target, and reporting it twice buries the fix under its own symptom.
+
+V23 is reported rather than defaulted to world Y, on A34's precedent — a silent default is how half the callers stop honouring a mode they opted into, and an author who chose `AxisConstrained` and left the axis empty wanted an axis, not upright.
+
 ### Modes
 
 `BillboardMode` gains one value. **Existing values are not renumbered** — they are shared with `_BillboardParams.x` (§6.2), so the CPU and shader paths cannot drift.

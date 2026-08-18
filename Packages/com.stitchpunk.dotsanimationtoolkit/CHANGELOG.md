@@ -10,6 +10,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — billboarding becomes a rig property (amendment A44, phase D1)
+
+Billboarding is being generalised from one flag on an actor into an authorable,
+inheritable property of the rig hierarchy, so a character can billboard as a
+whole while a held item billboards independently. This entry covers the
+authoring data model only; resolution, the runtime system and the keyable clip
+tracks land in later phases.
+
+- **`RigAsset.billboardRoots`** — the nodes of a rig that turn to face the
+  viewer, and how. Billboard configuration lives on the rig so it travels with
+  it and is shared by every actor instanced from it. Empty for a rig that never
+  billboards, which bakes nothing and costs nothing.
+- **`BillboardRootDefinition`** — mode, constraint axis, angle offset, optional
+  snapping (`snapSteps`, `snapOffsetDegrees`) and optional arc clamping
+  (`clampArcDegrees`), plus its own `BillboardRootId`. Clip billboard tracks
+  will bind to that id rather than to the addressed node, so re-pointing a root
+  at a different node keeps the animation authored against it intact.
+- **`BillboardNodeAddress`** — addresses a node either by a rig target's stable
+  id or by hierarchy path. Two kinds because the rig has two kinds of node and
+  only one has an id: `RigAsset.targets` is flat, and the hierarchy a billboard
+  inherits down is the authoring prefab's transforms. A grouping node that is
+  nobody's animatable part has no id to offer.
+- **`BillboardMode.AxisConstrained`** — turn about an arbitrary authored axis.
+  `Upright` is exactly this mode with the axis `(0, 1, 0)` and keeps its own
+  value. Existing mode numbers are unchanged; they are shared with
+  `_BillboardParams.x` so the CPU and shader paths cannot drift.
+- **Validation V21, V22, V23** — an address that names nothing, two roots on one
+  node, and an axis-constrained root with no axis. Path addresses are resolved by
+  the entity bake, which holds the prefab; rig-scope validation cannot judge them
+  and does not pretend to.
+
+`RigAsset.EnsureStableIds` now identifies each of its id-bearing lists
+independently. It previously returned early on the first null list, which would
+have let a rig with no sockets ship billboard roots that no clip could bind to.
+
+
 ### Added — event windows: events that are a *state*, not just a pulse
 
 An event marker can now hold a window open for a duration, so gameplay can ask

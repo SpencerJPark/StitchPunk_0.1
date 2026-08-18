@@ -54,6 +54,24 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public List<SocketDefinition> sockets = new List<SocketDefinition>();
 
         /// <summary>
+        /// The nodes of this rig that turn to face the viewer, and how (amendment A44). Empty for a
+        /// rig that never billboards, which bakes no billboard components at all.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Billboarding lives on the rig rather than on an actor component so it travels
+        /// with the rig and is shared by every actor instanced from it.</strong> It is the first
+        /// such block — the rig carries no constraints and no collision shapes yet — and the
+        /// ragdoll work will add its rows beside these.
+        /// </para>
+        /// <para>
+        /// A node not named here, and with no ancestor named here, is not billboarded and transforms
+        /// normally in its parent's space.
+        /// </para>
+        /// </remarks>
+        public List<BillboardRootDefinition> billboardRoots = new List<BillboardRootDefinition>();
+
+        /// <summary>
         /// This rig's stable 64-bit identity (architecture section 3.4). Assigned once when the
         /// asset is created and never changed except through the editor's explicit remap tooling.
         /// </summary>
@@ -86,9 +104,9 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// list that a caller populates after construction.
         /// </para>
         /// <para>
-        /// Call it after populating <see cref="targets"/> and <see cref="sockets"/> and before
-        /// reading any <c>Id</c>. Both shipped samples do, and both produced invalid rigs before
-        /// they did.
+        /// Call it after populating <see cref="targets"/>, <see cref="sockets"/> and
+        /// <see cref="billboardRoots"/>, and before reading any <c>Id</c>. Both shipped samples do,
+        /// and both produced invalid rigs before they did.
         /// </para>
         /// </remarks>
         public void EnsureStableIds()
@@ -98,42 +116,63 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 stableId = StableIdUtility.NewAssetStableId();
                 hasUnpersistedStableId = true;
             }
-            if (targets == null)
+            // Each list is guarded independently rather than returning early on the first null one.
+            // An early return would make whichever list came last depend on the ones before it
+            // being non-null — a rig with no sockets would silently leave its billboard roots
+            // unidentified, which is the failure this whole method exists to prevent.
+            if (targets != null)
             {
-                return;
-            }
-            for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
-            {
-                RigTargetDefinition targetDefinition = targets[targetIndex];
-                if (targetDefinition == null)
+                for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
                 {
-                    continue;
-                }
-                if (targetDefinition.stableId == 0u)
-                {
-                    targetDefinition.stableId = StableIdUtility.NewTargetStableId();
-                    hasUnpersistedStableId = true;
+                    RigTargetDefinition targetDefinition = targets[targetIndex];
+                    if (targetDefinition == null)
+                    {
+                        continue;
+                    }
+                    if (targetDefinition.stableId == 0u)
+                    {
+                        targetDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        hasUnpersistedStableId = true;
+                    }
                 }
             }
 
-            if (sockets == null)
+            if (sockets != null)
             {
-                return;
-            }
-            for (int socketIndex = 0; socketIndex < sockets.Count; socketIndex++)
-            {
-                SocketDefinition socketDefinition = sockets[socketIndex];
-                if (socketDefinition == null)
+                for (int socketIndex = 0; socketIndex < sockets.Count; socketIndex++)
                 {
-                    continue;
+                    SocketDefinition socketDefinition = sockets[socketIndex];
+                    if (socketDefinition == null)
+                    {
+                        continue;
+                    }
+                    // Sockets draw from the same 32-bit id space as targets. They are looked up in
+                    // separate arrays, so a collision across the two kinds is harmless, and one
+                    // generator is one fewer thing to keep in step.
+                    if (socketDefinition.stableId == 0u)
+                    {
+                        socketDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        hasUnpersistedStableId = true;
+                    }
                 }
-                // Sockets draw from the same 32-bit id space as targets. They are looked up in
-                // separate arrays, so a collision across the two kinds is harmless, and one
-                // generator is one fewer thing to keep in step.
-                if (socketDefinition.stableId == 0u)
+            }
+
+            if (billboardRoots != null)
+            {
+                for (int rootIndex = 0; rootIndex < billboardRoots.Count; rootIndex++)
                 {
-                    socketDefinition.stableId = StableIdUtility.NewTargetStableId();
-                    hasUnpersistedStableId = true;
+                    BillboardRootDefinition rootDefinition = billboardRoots[rootIndex];
+                    if (rootDefinition == null)
+                    {
+                        continue;
+                    }
+                    // Same 32-bit space again, for the same reason. A billboard root's id is what
+                    // clip billboard tracks bind to, so it must exist before any clip can key one.
+                    if (rootDefinition.stableId == 0u)
+                    {
+                        rootDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        hasUnpersistedStableId = true;
+                    }
                 }
             }
         }
@@ -343,6 +382,132 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public SocketId Id
         {
             get { return new SocketId(stableId); }
+        }
+    }
+
+    /// <summary>
+    /// How a <see cref="BillboardRootDefinition"/> names the node it turns (amendment A44).
+    /// </summary>
+    /// <remarks>
+    /// Two kinds because the rig has two kinds of node and only one of them has an id.
+    /// <see cref="RigAsset.targets"/> is a flat list — the rig asset carries no hierarchy at all,
+    /// and the hierarchy a billboard inherits down is the authoring prefab's transforms. A rig
+    /// target can therefore be addressed by a stable id that survives renames; a bare grouping
+    /// transform that is nobody's animatable part has no id to offer.
+    /// </remarks>
+    public enum BillboardAddressKind : byte
+    {
+        /// <summary>Addresses a <see cref="RigTargetDefinition"/> by its stable id.</summary>
+        RigTarget = 0,
+
+        /// <summary>
+        /// Addresses a transform of the authoring prefab by its path below the prefab root.
+        /// </summary>
+        /// <remarks>
+        /// Carries the same rename fragility a bone name does (amendment A42), and for the same
+        /// reason: the node is not a row this package owns, so there is no id to assign it. The
+        /// bake reports an address it cannot resolve rather than silently dropping the root.
+        /// </remarks>
+        HierarchyPath = 1
+    }
+
+    /// <summary>
+    /// Which node a billboard root turns (amendment A44).
+    /// </summary>
+    [Serializable]
+    public struct BillboardNodeAddress
+    {
+        /// <summary>Whether this address names a rig target or a prefab transform.</summary>
+        public BillboardAddressKind kind;
+
+        /// <summary>Stable id of the addressed target, for <see cref="BillboardAddressKind.RigTarget"/>.</summary>
+        public uint targetId;
+
+        /// <summary>
+        /// Path below the prefab root, for <see cref="BillboardAddressKind.HierarchyPath"/>. Empty
+        /// addresses the prefab root itself.
+        /// </summary>
+        public string hierarchyPath;
+    }
+
+    /// <summary>
+    /// One billboard root on a rig (amendment A44): a node that turns to face the viewer, and the
+    /// pivot every node beneath it inherits unless one of them declares a root of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Inheritance is nearly free; an override is what costs something.</strong> Nodes below
+    /// a root are transform children, so the root's rotation already reaches them through the usual
+    /// parent composition and an inheriting node needs no rotation of its own. A <em>nested</em>
+    /// root is the real work: its ancestor's rotation is already in its parent chain, so it must
+    /// cancel that before applying its own or the two compose and it turns twice.
+    /// </para>
+    /// <para>
+    /// That is what lets a character billboard as a whole while the item in its hand billboards
+    /// independently — the case this feature exists for.
+    /// </para>
+    /// </remarks>
+    [Serializable]
+    public sealed class BillboardRootDefinition
+    {
+        /// <summary>Cosmetic label; root identity is <see cref="Id"/>, never this name.</summary>
+        public string displayName = string.Empty;
+
+        [SerializeField] internal uint stableId;
+
+        /// <summary>Which node this root turns.</summary>
+        public BillboardNodeAddress address;
+
+        /// <summary>
+        /// Which billboard rule to apply. Defaults to <see cref="BillboardMode.ScreenAligned"/>,
+        /// which is what the host game's original system does — every root taking the same rotation
+        /// from the camera's forward vector.
+        /// </summary>
+        public BillboardMode mode = BillboardMode.ScreenAligned;
+
+        /// <summary>
+        /// The axis the node turns about, for <see cref="BillboardMode.AxisConstrained"/>. Ignored
+        /// by every other mode. Normalised at bake; a zero axis is reported rather than assumed.
+        /// </summary>
+        public float3 constraintAxis = new float3(0f, 1f, 0f);
+
+        /// <summary>
+        /// A fixed yaw added to the billboard result, about the resolved frame's own up axis. Clip
+        /// billboard tracks key on top of this rather than replacing it, so a rig can sit
+        /// permanently three-quarters-on and still be animated off that rest.
+        /// </summary>
+        public float angleOffsetDegrees;
+
+        /// <summary>Whether the resolved angle is quantised to <see cref="snapSteps"/> increments.</summary>
+        public bool snapEnabled;
+
+        /// <summary>
+        /// How many discrete facings a full turn is divided into — 8 and 16 being the usual sprite
+        /// counts. Minimum 2, because a one-step wheel is not a snap but a fixed direction, which
+        /// <see cref="BillboardMode.Off"/> already expresses.
+        /// </summary>
+        [Min(2)] public int snapSteps = 8;
+
+        /// <summary>
+        /// Phase of the snap wheel in degrees, so the steps can straddle the cardinal directions
+        /// rather than land on them.
+        /// </summary>
+        public float snapOffsetDegrees;
+
+        /// <summary>Whether the node is limited to an arc around its rest orientation.</summary>
+        public bool clampEnabled;
+
+        /// <summary>
+        /// The full width of the arc the node may turn within, centred on its rest orientation, in
+        /// degrees. The rest orientation is the node's <em>animated</em> pose, so a clip that turns
+        /// the node carries the arc with it.
+        /// </summary>
+        [Range(0f, 360f)] public float clampArcDegrees = 180f;
+
+        /// <summary>This root's stable 32-bit identity. Unique within the owning rig.</summary>
+        public BillboardRootId Id
+        {
+            get { return new BillboardRootId(stableId); }
         }
     }
 

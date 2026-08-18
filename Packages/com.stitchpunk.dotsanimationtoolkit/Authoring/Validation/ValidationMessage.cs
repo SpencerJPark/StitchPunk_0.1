@@ -123,7 +123,44 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// it owns no <see cref="AnimEventMask"/> bit and the window can never be observed. The
         /// marker still emits its pulse normally; only the duration is inert.
         /// </summary>
-        V20 = 20
+        V20 = 20,
+
+        /// <summary>
+        /// Error: a <see cref="BillboardRootDefinition"/> addresses a node that does not exist
+        /// (amendment A44) — a <see cref="BillboardAddressKind.RigTarget"/> id that is not a target
+        /// of this rig, or a <see cref="BillboardAddressKind.HierarchyPath"/> with no path.
+        /// </summary>
+        /// <remarks>
+        /// An unresolved root is silent damage: it bakes nothing, so the node it was meant to turn
+        /// simply does not billboard, and a rig that looks configured behaves as though it were not.
+        /// Reported at authoring time, where the address can still be fixed against the rig in front
+        /// of the author, rather than left for the entity bake to discover.
+        /// </remarks>
+        V21 = 21,
+
+        /// <summary>
+        /// Error: two <see cref="BillboardRootDefinition"/> rows address the same node
+        /// (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// Two roots on one node have no defined resolution — each would cancel the other's rotation
+        /// as though it were an ancestor's, and which won would depend on list order, which is not
+        /// identity for anything else on this rig. The duplicate-identity shape mirrors V05, scoped
+        /// to the addressed node rather than to the row's own id.
+        /// </remarks>
+        V22 = 22,
+
+        /// <summary>
+        /// Error: a <see cref="BillboardMode.AxisConstrained"/> root's <c>constraintAxis</c> is
+        /// zero-length (amendment A44), so there is no axis to turn about.
+        /// </summary>
+        /// <remarks>
+        /// Reported rather than defaulted to world Y. A silent default is how half the callers stop
+        /// honouring a mode they opted into — the <c>ClipSampler.CompositeLayers</c> precedent,
+        /// amendment A34 — and an author who chose <c>AxisConstrained</c> and left the axis empty
+        /// wanted an axis, not upright.
+        /// </remarks>
+        V23 = 23
     }
 
     /// <summary>
