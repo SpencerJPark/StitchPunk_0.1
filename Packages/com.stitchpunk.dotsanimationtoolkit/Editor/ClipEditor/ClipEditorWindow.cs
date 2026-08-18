@@ -73,6 +73,19 @@ namespace StitchPunk.AnimationToolkit.Editor
         private const string ClipRowUssClassName = "clip-editor__clip-row";
         private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
         private const string AnimatedBoneUssClassName = "clip-editor__hierarchy-row--animated";
+        private const string BillboardRootUssClassName = "clip-editor__hierarchy-row--billboard-root";
+        private const string BillboardInheritedUssClassName =
+            "clip-editor__hierarchy-row--billboard-inherited";
+
+        /// <summary>
+        /// Marks a declared billboard root in the tree. A glyph rather than a texture: the row is a
+        /// <c>Label</c>, so a prefix costs no layout change, survives every theme, and cannot go
+        /// missing the way a packaged icon can.
+        /// </summary>
+        private const string BillboardRootGlyph = "◈ ";
+
+        /// <summary>Marks a node inheriting a billboard from an ancestor. Deliberately fainter.</summary>
+        private const string BillboardInheritedGlyph = "· ";
         private const string TrackHeaderUssClassName = "clip-editor__track-header";
         private const string TrackHeaderLabelUssClassName = "clip-editor__track-header-label";
         private const string TrackFoldoutUssClassName = "clip-editor__track-foldout";
@@ -551,6 +564,28 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             timeLabel = rootVisualElement.Q<Label>("time-label");
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
+
+            ToolbarToggle billboardPreviewToggle =
+                rootVisualElement.Q<ToolbarToggle>("billboard-preview-toggle");
+            if (billboardPreviewToggle != null)
+            {
+                billboardPreviewToggle.tooltip =
+                    "Show billboarding in the viewport, exactly as the game resolves it. "
+                    + "Turn it off to inspect the authored pose from an angle a billboarded rig "
+                    + "would never show you.";
+                billboardPreviewToggle.RegisterValueChangedCallback(changeEvent =>
+                {
+                    if (previewController != null)
+                    {
+                        previewController.BillboardPreviewEnabled = changeEvent.newValue;
+                    }
+                    if (previewImage != null)
+                    {
+                        previewImage.MarkDirtyRepaint();
+                    }
+                    Repaint();
+                });
+            }
 
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
             if (rigEditToggle != null)
@@ -1525,6 +1560,141 @@ namespace StitchPunk.AnimationToolkit.Editor
                     }
                 },
                 canOpen ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            AppendBillboardMenuActions(menuEvent, item);
+        }
+
+        /// <summary>
+        /// Adds the make/clear billboard-root entries for one row (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The entry writes the <em>rig asset</em>, not the prefab, because that is where billboard
+        /// configuration lives — it has to travel with the rig and be shared by every actor
+        /// instanced from it. So unlike the reparent drag, this is not gated on Rig Edit mode: it
+        /// edits an asset the window already owns rather than restructuring a prefab.
+        /// </para>
+        /// <para>
+        /// A rig-target row is addressed by stable id and anything else by path, which is the same
+        /// split <c>BillboardNodeAddress</c> makes and for the same reason: only a target has an id
+        /// to be addressed by.
+        /// </para>
+        /// </remarks>
+        private void AppendBillboardMenuActions(
+            ContextualMenuPopulateEvent menuEvent, HierarchyItem item)
+        {
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (rig == null || item == null)
+            {
+                return;
+            }
+
+            int existingIndex = FindBillboardRootIndexFor(rig, item);
+            if (existingIndex >= 0)
+            {
+                menuEvent.menu.AppendAction(
+                    "Billboard/Clear Billboard Root",
+                    action => ClearBillboardRoot(rig, existingIndex));
+                return;
+            }
+
+            menuEvent.menu.AppendAction(
+                "Billboard/Make Billboard Root",
+                action => MakeBillboardRoot(rig, item));
+        }
+
+        /// <summary>The rig's billboard root addressing this row, or −1.</summary>
+        private int FindBillboardRootIndexFor(RigAsset rig, HierarchyItem item)
+        {
+            if (rig.billboardRoots == null)
+            {
+                return -1;
+            }
+            BillboardNodeAddress address = BuildBillboardAddressFor(item);
+            for (int rootIndex = 0; rootIndex < rig.billboardRoots.Count; rootIndex++)
+            {
+                BillboardRootDefinition definition = rig.billboardRoots[rootIndex];
+                if (definition == null || definition.address.kind != address.kind)
+                {
+                    continue;
+                }
+                if (address.kind == BillboardAddressKind.RigTarget)
+                {
+                    if (definition.address.targetId == address.targetId)
+                    {
+                        return rootIndex;
+                    }
+                    continue;
+                }
+                if (string.Equals(
+                        definition.address.hierarchyPath,
+                        address.hierarchyPath,
+                        System.StringComparison.Ordinal))
+                {
+                    return rootIndex;
+                }
+            }
+            return -1;
+        }
+
+        private BillboardNodeAddress BuildBillboardAddressFor(HierarchyItem item)
+        {
+            if (item.kind == HierarchyItemKind.RigTarget)
+            {
+                return new BillboardNodeAddress
+                {
+                    kind = BillboardAddressKind.RigTarget,
+                    targetId = item.targetId
+                };
+            }
+            return new BillboardNodeAddress
+            {
+                kind = BillboardAddressKind.HierarchyPath,
+                hierarchyPath = ResolveHierarchyPath(item)
+            };
+        }
+
+        private void MakeBillboardRoot(RigAsset rig, HierarchyItem item)
+        {
+            Undo.RecordObject(rig, "Make Billboard Root");
+            if (rig.billboardRoots == null)
+            {
+                rig.billboardRoots = new List<BillboardRootDefinition>();
+            }
+            rig.billboardRoots.Add(new BillboardRootDefinition
+            {
+                displayName = item.displayName,
+                address = BuildBillboardAddressFor(item)
+            });
+            // Mints the row's stable id, which clip billboard tracks bind to. Without this the row
+            // saves with id 0 and no track could ever address it.
+            rig.EnsureStableIds();
+            EditorUtility.SetDirty(rig);
+            RefreshAfterBillboardEdit();
+        }
+
+        private void ClearBillboardRoot(RigAsset rig, int rootIndex)
+        {
+            Undo.RecordObject(rig, "Clear Billboard Root");
+            rig.billboardRoots.RemoveAt(rootIndex);
+            EditorUtility.SetDirty(rig);
+            RefreshAfterBillboardEdit();
+        }
+
+        /// <summary>
+        /// Repaints the tree and the viewport after a billboard edit, so both agree with the rig.
+        /// </summary>
+        private void RefreshAfterBillboardEdit()
+        {
+            if (hierarchyTreeView != null)
+            {
+                hierarchyTreeView.RefreshItems();
+            }
+            if (previewImage != null)
+            {
+                previewImage.MarkDirtyRepaint();
+            }
+            Repaint();
         }
 
         private void BindViewport()
@@ -2822,6 +2992,101 @@ namespace StitchPunk.AnimationToolkit.Editor
                     break;
             }
             label.EnableInClassList(AnimatedBoneUssClassName, isAnimated);
+            ApplyBillboardIndicator(label, item);
+        }
+
+        /// <summary>
+        /// Marks a row as a billboard root, as inheriting one, or as neither (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Three states rather than two, because "this node billboards" and "this node <em>decides</em>
+        /// how it billboards" are different facts and an author acting on the wrong one edits the
+        /// wrong rig row. The inherited marker names its source on hover for the same reason: knowing
+        /// a node billboards is useless without knowing which root to go and change.
+        /// </para>
+        /// <para>
+        /// This matters more than decoration. A fully billboarded node's animated rotation is
+        /// replaced outright at resolve time, so keying rotation on one changes nothing visible —
+        /// and without a marker in the tree that is discovered only after an afternoon of keying.
+        /// </para>
+        /// </remarks>
+        private void ApplyBillboardIndicator(HierarchyRowLabel label, HierarchyItem item)
+        {
+            label.EnableInClassList(BillboardRootUssClassName, false);
+            label.EnableInClassList(BillboardInheritedUssClassName, false);
+            label.tooltip = string.Empty;
+
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (rig == null || rig.billboardRoots == null || rig.billboardRoots.Count == 0)
+            {
+                return;
+            }
+
+            Transform node = ResolveHierarchyTransform(item);
+            if (node == null)
+            {
+                return;
+            }
+
+            Transform previewRoot = previewController != null ? previewController.HierarchyRoot : null;
+            List<ResolvedBillboardRoot> resolvedRoots =
+                BillboardRootResolver.Resolve(rig, previewRoot, null);
+            int rootIndex =
+                BillboardRootResolver.FindNearestRootIndex(resolvedRoots, node, previewRoot);
+            if (rootIndex < 0)
+            {
+                return;
+            }
+
+            BillboardRootDefinition definition = resolvedRoots[rootIndex].definition;
+            string rootName = string.IsNullOrEmpty(definition.displayName)
+                ? "(unnamed root)"
+                : definition.displayName;
+
+            if (resolvedRoots[rootIndex].node == node)
+            {
+                label.EnableInClassList(BillboardRootUssClassName, true);
+                label.text = BillboardRootGlyph + label.text;
+                label.tooltip = "Billboard root - " + ObjectNames.NicifyVariableName(
+                    definition.mode.ToString());
+                return;
+            }
+
+            label.EnableInClassList(BillboardInheritedUssClassName, true);
+            label.text = BillboardInheritedGlyph + label.text;
+            label.tooltip = "Billboards with «" + rootName + "»";
+        }
+
+        /// <summary>
+        /// The preview transform a hierarchy row stands for, or null when it stands for none.
+        /// </summary>
+        /// <remarks>
+        /// A rig-target row has no transform of its own — it stands for a row of the rig asset — so
+        /// it resolves through the name it binds by, exactly as <see cref="ResolveHierarchyPath"/>
+        /// does. A socket row resolves to whatever it follows.
+        /// </remarks>
+        private Transform ResolveHierarchyTransform(HierarchyItem item)
+        {
+            if (item == null || previewController == null)
+            {
+                return null;
+            }
+            Transform root = previewController.HierarchyRoot;
+            if (root == null)
+            {
+                return null;
+            }
+
+            switch (item.kind)
+            {
+                case HierarchyItemKind.RigTarget:
+                    return PrefabAuthoringBridge.FindByName(root, item.displayName);
+                case HierarchyItemKind.Socket:
+                    return PrefabAuthoringBridge.FindByName(root, ResolveSocketFollowName(item.socketId));
+                default:
+                    return previewController.GetTransformByIndex(item.previewIndex);
+            }
         }
 
         private bool TryFindSocketItemId(uint socketId, out int itemId)

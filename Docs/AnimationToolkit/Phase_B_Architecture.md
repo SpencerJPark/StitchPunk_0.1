@@ -1681,6 +1681,21 @@ D1–D4 alone unblock the ragdoll work: the frame is queryable at the end of D4.
 
 **`BillboardSettings.enabled` needs `[MarshalAs(UnmanagedType.U1)]`.** A plain C# `bool` has no fixed width, so a struct containing one is not blittable, and this struct crosses a `[BurstCompile]` external entry point. Without the attribute the *entire* Runtime assembly fails Burst compilation with BC1063 — the same blast radius, and the same misleading error list, that a by-value vector parameter produced in `FacingResolver` before A38's fix. By-ref is necessary but not sufficient; blittable is the other half of the rule.
 
+### D3–D6 note (2026-08-17): what the build changed about the plan
+
+**A baker rule decided the data layout, not preference.** A baker may only write components on the entity it is baking, and a billboard root can be any node of the prefab — including a bare grouping transform that carries no authoring component and therefore has no baker at all. Scattering `BillboardRoot`/`BillboardFrame` across node entities, as this amendment originally specified, would have required either a structural change from a baking system or an authoring component on every node that might ever be a root. Neither is acceptable. So **the whole of an actor's billboard state is one buffer on the actor root**, `ActorBaker` resolves the hierarchy once to fill it, and `BillboardMember` on parts names the inherited root by *id* — not by buffer index, because two bakers resolve this tree independently and an index would require them to agree on an ordering neither can watch the other compute.
+
+**`parentRootIndex` and the per-root `depth` field were dropped as dead data.** The amendment specified both so a nested root could find its ancestor's resolved frame. Neither is needed: the resolve system reads each node's rest orientation by walking live `LocalTransform` values up the parent chain, and an ancestor root that has already been processed has *already written its result there*. Depth ordering of the buffer is the entire mechanism, and it is enforced by the resolver's sort and asserted by a bake test rather than carried as a field nothing reads.
+
+**Snapping and clamping share one reference and one decomposition.** The arc had to measure from rest; making the wheel share that reference collapses both into one swing-twist split, and means a character keyed to turn on the spot clicks through its facings relative to its own forward. Only the twist about the reference axis is quantised or limited — the swing carries every other component of the pose through untouched, so a rig tilted at rest keeps its tilt rather than being flattened onto the wheel.
+
+**The preview repeats three conversions rather than calling them.** `ClipPreviewController.BuildPreviewSettings` duplicates `ActorBaker.BuildBillboardSettings` — degrees to radians, the opt-in booleans to sentinels, the arc halved — because the preview has neither a bake nor playback layers to go through. Everything downstream of that block is the shared `BillboardMath`, so the two paths cannot disagree about behaviour, only about plumbing; `BillboardPreviewParityTests` pins the plumbing. If a third caller ever needs those conversions they belong on `BillboardRootDefinition` itself.
+
+**What D5 cost, as predicted.** Schema 7 → 8, golden content hash re-recorded, `ClipBlob`'s contract widened, and `DataContractTests` grew two new blob contracts. All four failures fired on cue and were closed in the same commit, which is the machinery working rather than a surprise.
+
+**Still owed.** Billboard tracks are authorable through the API and bake, sample and resolve correctly, but the Clip Editor has no timeline row for them yet — a billboard track must currently be created in code or through the clip asset's own inspector. That is the one line of A44 that is specified and not built.
+
+
 ---
 
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using StitchPunk.AnimationToolkit.Authoring;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 
@@ -145,6 +146,25 @@ namespace StitchPunk.AnimationToolkit.Editor
 
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
+
+        /// <summary>
+        /// What the last <see cref="SamplePose"/> was for, so the billboard pass can read the same
+        /// clip's keyed channels at the same instant the pose came from.
+        /// </summary>
+        private ulong lastSampledClipId;
+        private float lastSampledNormalizedTime;
+        private bool hasSampledClip;
+
+        /// <summary>
+        /// Whether the viewport shows billboarding (amendment A44). On by default, because a preview
+        /// that silently differs from the game is worse than no preview.
+        /// </summary>
+        /// <remarks>
+        /// Switchable because a billboarded rig always faces the camera, which makes the authored
+        /// pose impossible to inspect from any other angle - orbiting shows you the same view. An
+        /// author placing parts needs to be able to turn it off and see what they actually authored.
+        /// </remarks>
+        public bool BillboardPreviewEnabled { get; set; } = true;
         private string statusMessage = "No clip set assigned.";
 
         private float orbitYaw = 0f;
@@ -747,6 +767,10 @@ namespace StitchPunk.AnimationToolkit.Editor
             ref ClipBlob clipBlob = ref registryBlob.clips[clipIndex];
             RebuildRestPosesIfNeeded();
 
+            lastSampledClipId = clipId;
+            lastSampledNormalizedTime = normalizedTime;
+            hasSampledClip = true;
+
             for (int targetIndex = 0; targetIndex < registryBlob.sortedTargetIds.Length; targetIndex++)
             {
                 uint targetId = registryBlob.sortedTargetIds[targetIndex];
@@ -1054,6 +1078,12 @@ namespace StitchPunk.AnimationToolkit.Editor
 
             ApplyCameraPose();
 
+            // After the camera, because billboarding is defined against it; after the pose, because
+            // the pose is the billboard's rest orientation. That is the runtime's order exactly
+            // (TransformSampleSystem, TransformApplySystem, BillboardResolveSystem), and it has to
+            // be, or the viewport would answer a different question from the game.
+            ApplyBillboards();
+
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
             return renderUtility.EndPreview();
@@ -1068,6 +1098,147 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// entirely above y = 0. Orbiting the origin put it in the top half of the frame and
         /// swung it around a point below its feet.
         /// </remarks>
+        /// <summary>
+        /// Turns the preview's billboard roots to face the preview camera (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Every number here comes from <c>BillboardMath</c>, and none of it is
+        /// re-derived.</strong> The viewport's only job is to feed that function the same inputs the
+        /// runtime job feeds it - this camera instead of the game's, these transforms instead of
+        /// those entities - so the two cannot disagree about facing, snapping, clamping or blending.
+        /// A preview with its own copy of the arithmetic would agree until either gained a feature
+        /// and then diverge silently, which is the failure <c>SocketPreviewParityTests</c> exists to
+        /// prevent for sockets.
+        /// </para>
+        /// <para>
+        /// <strong>Shallowest first, writing world rotations.</strong> Unity's <c>Transform</c>
+        /// converts a world rotation into the parent's space for us, so setting
+        /// <c>node.rotation</c> does what the runtime's inverse-parent multiply does by hand - and
+        /// because the hierarchy updates immediately, a nested root reading its own world rotation
+        /// after its ancestor was written already sees the ancestor's billboard. Same mechanism,
+        /// reached more cheaply, and it is why a held item does not turn twice here either.
+        /// </para>
+        /// </remarks>
+        private void ApplyBillboards()
+        {
+            if (!BillboardPreviewEnabled || mirrorRig == null || renderUtility == null)
+            {
+                return;
+            }
+
+            Transform previewRoot = HierarchyRoot;
+            if (previewRoot == null)
+            {
+                return;
+            }
+
+            List<ResolvedBillboardRoot> resolvedRoots =
+                BillboardRootResolver.Resolve(mirrorRig, previewRoot, null);
+            if (resolvedRoots.Count == 0)
+            {
+                return;
+            }
+
+            Transform cameraTransform = renderUtility.camera.transform;
+            float3 cameraPosition = cameraTransform.position;
+            float3 cameraForward = cameraTransform.forward;
+
+            for (int rootIndex = 0; rootIndex < resolvedRoots.Count; rootIndex++)
+            {
+                ResolvedBillboardRoot resolvedRoot = resolvedRoots[rootIndex];
+                Transform node = resolvedRoot.node;
+                if (node == null)
+                {
+                    continue;
+                }
+
+                BillboardSettings settings = BuildPreviewSettings(resolvedRoot.definition);
+
+                quaternion resolvedRotation;
+                if (BillboardMath.TryResolve(
+                        settings,
+                        node.position,
+                        cameraPosition,
+                        cameraForward,
+                        node.rotation,
+                        out resolvedRotation))
+                {
+                    node.rotation = resolvedRotation;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The runtime parameter block for one authored root, with the selected clip's keyed
+        /// channels folded in at the playhead.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors <c>ActorBaker.BuildBillboardSettings</c> and
+        /// <c>BillboardResolveSystem.ApplyKeyedChannels</c> together, because the preview has neither
+        /// a bake nor playback layers to go through. The conversions - degrees to radians, the two
+        /// opt-in booleans to sentinels, the arc halved - are the one thing this pass repeats rather
+        /// than calls. If a third caller ever needs them they belong on
+        /// <c>BillboardRootDefinition</c> itself.
+        /// </remarks>
+        private BillboardSettings BuildPreviewSettings(BillboardRootDefinition definition)
+        {
+            BillboardSettings settings = new BillboardSettings
+            {
+                mode = definition.mode,
+                constraintAxis = math.normalizesafe(definition.constraintAxis),
+                frozenYaw = 0f,
+                angleOffsetRadians = math.radians(definition.angleOffsetDegrees),
+                blendWeight = 1f,
+                enabled = true,
+                snapSteps = definition.snapEnabled ? Mathf.Max(2, definition.snapSteps) : 0,
+                snapPhaseRadians = math.radians(definition.snapOffsetDegrees),
+                clampHalfArcRadians = definition.clampEnabled
+                    ? math.radians(definition.clampArcDegrees) * 0.5f
+                    : -1f
+            };
+
+            if (!hasSampledClip || !registry.IsCreated)
+            {
+                return settings;
+            }
+
+            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            for (int clipIndex = 0; clipIndex < registryBlob.sortedClipIds.Length; clipIndex++)
+            {
+                if (registryBlob.sortedClipIds[clipIndex] != lastSampledClipId)
+                {
+                    continue;
+                }
+
+                ref ClipBlob clipBlob = ref registryBlob.clips[clipIndex];
+                for (int trackIndex = 0; trackIndex < clipBlob.billboardTracks.Length; trackIndex++)
+                {
+                    if (clipBlob.billboardTracks[trackIndex].rootId != definition.stableId)
+                    {
+                        continue;
+                    }
+
+                    float keyedAngleOffset;
+                    float keyedBlendWeight;
+                    bool keyedEnabled;
+                    ClipSampler.SampleBillboardTrack(
+                        ref clipBlob.billboardTracks[trackIndex],
+                        lastSampledNormalizedTime,
+                        out keyedAngleOffset,
+                        out keyedBlendWeight,
+                        out keyedEnabled);
+
+                    settings.angleOffsetRadians += keyedAngleOffset;
+                    settings.blendWeight = keyedBlendWeight;
+                    settings.enabled = keyedEnabled;
+                    return settings;
+                }
+                break;
+            }
+            return settings;
+        }
+
         private void ApplyCameraPose()
         {
             Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);

@@ -32,6 +32,10 @@
                  drag writes. -->
             <uie:ToolbarToggle name="rig-edit-toggle" text="Rig Edit"
                                class="clip-editor__rig-edit-toggle" />
+            <!-- Billboarding is on by default because a preview that silently differs from the
+                 game is worse than no preview. It is switchable because a billboarded rig faces
+                 the camera from every angle, which makes the authored pose impossible to see. -->
+            <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" />
             <ui:Label text="Frames" class="clip-editor__toolbar-label" />
             <ui:IntegerField name="frame-count-field" value="30" class="clip-editor__frame-field" />
             <ui:Label text="Rig" class="clip-editor__toolbar-label" />

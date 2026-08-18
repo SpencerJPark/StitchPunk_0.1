@@ -10,6 +10,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — billboarding is a hierarchical rig feature (amendment A44, phases D3-D6)
+
+Billboarding is now an authorable, inheritable property of the rig hierarchy.
+Any node can be a billboard root; everything beneath it inherits that root
+unless it declares one of its own — so a character can billboard as a whole
+while the item in its hand billboards independently. See
+`Documentation~/billboarding.md`.
+
+- **Roots reach entities.** `ActorBaker` resolves the rig's roots against the
+  prefab hierarchy into a `BillboardRootElement` buffer on the actor, ordered
+  shallowest first. Parts get a `BillboardMember` naming their nearest ancestor
+  root by id. A rig that declares no roots bakes nothing.
+- **`BillboardResolveSystem`** turns each root after the pose is applied, reading
+  rest orientations through live transforms so a nested root sees its ancestor's
+  freshly written rotation and cancels it rather than composing on top of it.
+- **`BillboardQuery`** exposes the resolved world-space frame in one hop, and
+  `ToBillboardSpace` maps world gravity into it. This is what the ragdoll work
+  consumes instead of recomputing facing.
+- **Keyable on the timeline** — angle offset, blend weight, and enable/disable,
+  as a fifth track kind. The highest active layer carrying a track for a root
+  wins.
+- **Clip Editor** — right-click a hierarchy row to make or clear a billboard
+  root. Roots are marked in the tree and inheriting nodes are marked more
+  faintly, with the source root named on hover. The viewport shows billboarding
+  live against its orbitable camera, calling the same function the runtime does;
+  a toolbar toggle turns it off so the authored pose can still be inspected.
+- **Rig asset** — a Billboarding section for tuning roots once they exist.
+
+**Breaking:** `ActorBillboardSystem` and the `ActorBillboard` component are
+removed. The whole-actor billboard is now a root at depth 0, and
+`ActorAuthoring`'s billboard checkbox still bakes one — unless the rig already
+declares a root for the actor root, in which case the rig wins.
+
+**Behaviour change:** the billboard facing sign is corrected in both the CPU and
+shader paths. The facing vector is now the direction a node's local +Z must
+point — *away* from the viewer — matching the host game and Unity's
+`PrimitiveType.Quad`, whose visible normal is on -Z. Content already using
+`Full` or `ScreenAligned` will render the other way round from before. This is
+the one item in A44 no test can settle, because whether a quad shows its face or
+its back depends on a mesh the package cannot see.
+
+**Evaluation order, stated because it decides what animated rotation means:**
+pose is composited, pose is applied, billboarding applies on top. At full blend
+weight the billboard replaces a node's animated rotation outright.
+
 ### Added — billboard orientation maths (amendment A44, phase D2)
 
 `BillboardMath` is the whole of billboard orientation as pure functions, and the

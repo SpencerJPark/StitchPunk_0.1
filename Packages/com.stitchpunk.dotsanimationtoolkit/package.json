@@ -1,7 +1,7 @@
 {
   "name": "com.stitchpunk.dotsanimationtoolkit",
   "displayName": "DOTS Animation Toolkit",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "unity": "6000.5",
   "description": "DOTS-native animation toolkit for Unity Entities: 2.5D cutout transform tracks, flipbook sprite animation, and bone/vertex animation textures (VAT), with blob-baked clip registries, Burst-compiled sampling, and a full editor clip pipeline. Playback, layer compositing and crossfades, animation events, bounds and LOD, VAT texture baking with multi-source tracks, standalone HLSL shader components, and asset inspectors are all in place. The Clip Editor authors transform, flipbook and bone tracks against a live preview, places socket attachment points with preview attachments, and hands structural editing to Unity's prefab mode with binding reconciliation on return. Pre-release: 0.9.0's editor surface — socket placement, prefab-authoring round trip and Rig Edit mode — is new and has had automated but not extensive hands-on use. Remaining before 1.0: a clean-project import check, a player build, and a compile pass over Samples~ (which Unity excludes from compilation, so the project's own test suite cannot see it).",
   "keywords": [

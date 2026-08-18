@@ -66,9 +66,11 @@ techniques:
 Flipbook sprite frames (`Texture2DArray` slice or atlas rect) are a third,
 lighter option for parts that are just swapping a 2D image — a face, an icon,
 a simple creature — and compose with either technique on other parts of the
-same actor. Billboarding (`ActorBillboard`, `ToolkitBillboard.hlsl`) is an
-orthogonal per-target render modifier, not a technique of its own — it can sit
-on top of any of the above.
+same actor. Billboarding is an orthogonal render modifier rather than a
+technique of its own — it can sit on top of any of the above — and it is a
+property of the rig hierarchy: any node can be a billboard root, and everything
+beneath it inherits that root unless it declares one of its own. See
+[`billboarding.md`](billboarding.md).
 
 ## Windows and inspectors
 
@@ -143,6 +145,9 @@ And the two references both of them lean on:
 - [`animation-events.md`](animation-events.md) — authoring event markers, the
   pulse-vs-window split, naming keys with a registry, and reading both channels
   from a Burst job.
+- [`billboarding.md`](billboarding.md) — billboard roots and inheritance, the
+  six modes, snapping and clamping, what an animated rotation means on a
+  billboarded node, and reading the resolved frame at runtime.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.

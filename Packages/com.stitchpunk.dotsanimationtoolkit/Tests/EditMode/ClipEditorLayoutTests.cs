@@ -31,6 +31,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             "clip-editor-root", "clip-editor-toolbar",
             "clip-set-field", "new-clip-set-button",
             "play-toggle", "rewind-button", "time-label", "snap-toggle",
+            "rig-edit-toggle", "billboard-preview-toggle",
             "frame-count-field", "skinned-source-field", "validation-badge-slot",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
             "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",

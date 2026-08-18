@@ -152,6 +152,20 @@
     -unity-font-style: bold;
 }
 
+/* A node the rig declares as a billboard root (amendment A44). Tinted rather than weighted, so it
+ * reads as a different KIND of fact from "this clip animates it" and the two can coexist on one
+ * row — a billboarded part that is also keyed is common and must not lose either signal. */
+.clip-editor__hierarchy-row--billboard-root {
+    color: rgb(120, 200, 255);
+}
+
+/* A node that inherits a billboard from an ancestor. Deliberately fainter: inheritance is the
+ * default state of everything under a root, so marking it as loudly as the root itself would make
+ * a whole rig look configured when only one node is. */
+.clip-editor__hierarchy-row--billboard-inherited {
+    color: rgb(110, 140, 160);
+}
+
 /* ------------------------------------------------------------------------------------------- */
 /* Viewport                                                                                      */
 /* ------------------------------------------------------------------------------------------- */

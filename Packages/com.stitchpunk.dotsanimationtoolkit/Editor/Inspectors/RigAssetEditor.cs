@@ -64,6 +64,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         private SerializedProperty layersProperty;
         private SerializedProperty mirrorPairsProperty;
         private SerializedProperty socketsProperty;
+        private SerializedProperty billboardRootsProperty;
 
         private VisualElement inspectorRoot;
         private VisualElement socketRowContainer;
@@ -105,6 +106,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             layersProperty = serializedObject.FindProperty("layers");
             mirrorPairsProperty = serializedObject.FindProperty("mirrorPairs");
             socketsProperty = serializedObject.FindProperty("sockets");
+            billboardRootsProperty = serializedObject.FindProperty("billboardRoots");
 
             inspectorRoot = new VisualElement();
             inspectorRoot.style.paddingTop = 4f;
@@ -126,6 +128,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             }
 
             inspectorRoot.Add(BuildSocketSection());
+            inspectorRoot.Add(BuildBillboardSection());
 
             // One tracked callback for the whole asset rather than one per field: warnings are
             // cross-row (a duplicate display name involves two sockets) and cross-list (a rig-target
@@ -168,6 +171,52 @@ namespace StitchPunk.AnimationToolkit.Editor
             badge.style.marginBottom = 4f;
             badge.style.opacity = 0.7f;
             return badge;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Billboard section (amendment A44).
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The rig's billboard roots, drawn as a plain list with the explanation a reader needs to
+        /// know what marking one actually does.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Deliberately a <see cref="PropertyField"/> over the list rather than the hand-built rows
+        /// the socket section uses. Sockets earn that treatment because they carry cross-row
+        /// warnings and a mode-dependent target picker; a billboard root is a flat block of values
+        /// whose one cross-cutting rule - two roots on one node - is already reported by validation
+        /// rule V22 wherever the rig is validated. Hand-drawing it would add a second place for that
+        /// rule to be stated slightly differently.
+        /// </para>
+        /// <para>
+        /// The most useful place to <em>create</em> one is the Clip Editor's hierarchy, where the
+        /// node being marked is in front of the author and the address is filled in for them. This
+        /// section is for tuning what a root does once it exists.
+        /// </para>
+        /// </remarks>
+        private VisualElement BuildBillboardSection()
+        {
+            VisualElement section = new VisualElement();
+            section.Add(BuildSectionHeading("Billboarding"));
+
+            Label explanation = new Label(
+                "A billboard root turns to face the viewer, and every node beneath it inherits that "
+                + "turn unless it declares a root of its own. Marking a node is usually easier from "
+                + "the Clip Editor's hierarchy, which fills in the address for you.\n\n"
+                + "Billboarding is applied after the animation pose, so at full blend weight it "
+                + "replaces a node's animated rotation outright.");
+            explanation.style.whiteSpace = WhiteSpace.Normal;
+            explanation.style.opacity = 0.7f;
+            explanation.style.marginBottom = 4f;
+            section.Add(explanation);
+
+            if (billboardRootsProperty != null)
+            {
+                section.Add(new PropertyField(billboardRootsProperty, "Billboard Roots"));
+            }
+            return section;
         }
 
         // -----------------------------------------------------------------------------------
