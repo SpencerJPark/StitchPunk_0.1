@@ -117,15 +117,142 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 AddComponent(actorEntity, new AnimLod { level = 0 });
             }
 
-            // Amendment A41. Off adds nothing, so an actor that never billboards pays nothing.
-            if (authoring.billboardMode != BillboardMode.Off)
+            AddBillboardRoots(actorEntity, authoring, rig);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Billboarding (amendment A44).
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Resolves the rig's billboard roots against this actor's hierarchy and bakes them into the
+        /// actor's <see cref="BillboardRootElement"/> buffer, shallowest first.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>All of an actor's billboard state is baked here, on this one entity.</strong> A
+        /// billboard root may be any node of the prefab, including a bare grouping transform that
+        /// carries no authoring component and so has no baker of its own. A baker may only write the
+        /// entity it is baking, so collecting the roots into a buffer on the actor is what lets one
+        /// baker resolve the whole hierarchy without a cross-entity structural change.
+        /// </para>
+        /// <para>
+        /// <c>GetEntity</c> with <see cref="TransformUsageFlags.Dynamic"/> on each root node is not
+        /// incidental: it is what guarantees a bare grouping node survives baking as a real
+        /// transform entity rather than being stripped for having nothing to render.
+        /// </para>
+        /// <para>
+        /// <strong><c>ActorAuthoring.billboardMode</c> is sugar for one root on the actor
+        /// itself</strong> (A41's whole-actor billboard, kept working). It is folded in only when the
+        /// rig does not already declare a root for the actor root, so an explicit rig row always
+        /// wins over the checkbox — the rig is the shared, authoritative place and the component is
+        /// the convenience.
+        /// </para>
+        /// </remarks>
+        private void AddBillboardRoots(Entity actorEntity, ActorAuthoring authoring, RigAsset rig)
+        {
+            List<string> unresolvedRoots = new List<string>();
+            List<ResolvedBillboardRoot> resolvedRoots =
+                BillboardRootResolver.Resolve(rig, authoring.transform, unresolvedRoots);
+
+            for (int messageIndex = 0; messageIndex < unresolvedRoots.Count; messageIndex++)
             {
-                AddComponent(actorEntity, new ActorBillboard
+                // Validation rule V21's path half. ClipValidation resolves target addresses against
+                // the rig; only here is the prefab in hand, and only managed code can hand the user
+                // a clickable object.
+                Debug.LogError(
+                    MessagePrefix + "Billboard root " + unresolvedRoots[messageIndex] +
+                    " on rig '" + rig.name + "' matches no node under actor '" + authoring.name +
+                    "'. That node will not billboard. Fix the address on the rig, or rename the " +
+                    "object back.",
+                    authoring);
+            }
+
+            bool actorRootAlreadyDeclared = false;
+            for (int rootIndex = 0; rootIndex < resolvedRoots.Count; rootIndex++)
+            {
+                if (resolvedRoots[rootIndex].node == authoring.transform)
                 {
-                    mode = authoring.billboardMode,
-                    frozenYaw = math.radians(authoring.frozenYawDegrees)
+                    actorRootAlreadyDeclared = true;
+                    break;
+                }
+            }
+
+            bool hasImplicitActorRoot =
+                authoring.billboardMode != BillboardMode.Off && !actorRootAlreadyDeclared;
+
+            if (resolvedRoots.Count == 0 && !hasImplicitActorRoot)
+            {
+                // Opt-in, like AnimLod and PartFacing: a rig that never billboards bakes no buffer
+                // and its actors pay nothing.
+                return;
+            }
+
+            DynamicBuffer<BillboardRootElement> rootElements =
+                AddBuffer<BillboardRootElement>(actorEntity);
+
+            if (hasImplicitActorRoot)
+            {
+                // Depth 0, so it belongs first — and it is added first for exactly that reason.
+                rootElements.Add(new BillboardRootElement
+                {
+                    rootId = 0u,
+                    node = actorEntity,
+                    settings = new BillboardSettings
+                    {
+                        mode = authoring.billboardMode,
+                        constraintAxis = new float3(0f, 1f, 0f),
+                        frozenYaw = math.radians(authoring.frozenYawDegrees),
+                        angleOffsetRadians = 0f,
+                        blendWeight = 1f,
+                        enabled = true,
+                        snapSteps = 0,
+                        snapPhaseRadians = 0f,
+                        clampHalfArcRadians = -1f
+                    },
+                    resolvedRotation = quaternion.identity
                 });
             }
+
+            for (int rootIndex = 0; rootIndex < resolvedRoots.Count; rootIndex++)
+            {
+                ResolvedBillboardRoot resolvedRoot = resolvedRoots[rootIndex];
+                rootElements.Add(new BillboardRootElement
+                {
+                    rootId = resolvedRoot.definition.stableId,
+                    node = GetEntity(resolvedRoot.node.gameObject, TransformUsageFlags.Dynamic),
+                    settings = BuildBillboardSettings(resolvedRoot.definition),
+                    resolvedRotation = quaternion.identity
+                });
+            }
+        }
+
+        /// <summary>
+        /// Converts one authored billboard root into the runtime parameter block.
+        /// </summary>
+        /// <remarks>
+        /// Degrees become radians and the two opt-in booleans become sentinels, both once at bake:
+        /// degrees are what an author types and radians are what trigonometry consumes, and a
+        /// sentinel is one field rather than two to carry per actor per frame. The clamp arc is
+        /// halved here for the same reason — every use of it is symmetric about the rest
+        /// orientation.
+        /// </remarks>
+        private static BillboardSettings BuildBillboardSettings(BillboardRootDefinition definition)
+        {
+            return new BillboardSettings
+            {
+                mode = definition.mode,
+                constraintAxis = math.normalizesafe(definition.constraintAxis),
+                frozenYaw = 0f,
+                angleOffsetRadians = math.radians(definition.angleOffsetDegrees),
+                blendWeight = 1f,
+                enabled = true,
+                snapSteps = definition.snapEnabled ? math.max(2, definition.snapSteps) : 0,
+                snapPhaseRadians = math.radians(definition.snapOffsetDegrees),
+                clampHalfArcRadians = definition.clampEnabled
+                    ? math.radians(definition.clampArcDegrees) * 0.5f
+                    : -1f
+            };
         }
 
         /// <summary>

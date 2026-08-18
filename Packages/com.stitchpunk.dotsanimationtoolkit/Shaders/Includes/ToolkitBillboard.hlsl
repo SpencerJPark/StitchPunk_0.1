@@ -2,7 +2,7 @@
 #define STITCHPUNK_TOOLKIT_BILLBOARD_INCLUDED
 
 // =====================================================================================
-// DOTS Animation Toolkit — billboarding (architecture section 6.1, 6.3; amendment A39)
+// DOTS Animation Toolkit — billboarding (architecture section 6.1, 6.3; amendments A39, A44)
 //
 // Turns a quad to face the viewer in the vertex stage.
 //
@@ -33,6 +33,12 @@
 #define TOOLKIT_BILLBOARD_FROZEN_YAW    3.0
 #define TOOLKIT_BILLBOARD_SCREEN_ALIGNED 4.0
 
+// Amendment A44. Present for numbering parity with BillboardMode on the CPU, where the axis
+// is authored per billboard root. _BillboardParams has no channel wide enough for an
+// arbitrary 3D axis, so this path treats it as UPRIGHT. A host that needs a non-vertical
+// axis uses the CPU path, which is the right path for a layered cutout rig anyway (A41).
+#define TOOLKIT_BILLBOARD_AXIS_CONSTRAINED 5.0
+
 // Below this, a direction vector is treated as degenerate and the quad is left unrotated.
 // Rotating by a near-zero vector is how billboards produce single-frame flips when the
 // camera passes directly through a pivot.
@@ -59,8 +65,14 @@ float3x3 ToolkitBillboardBasis(float3 forward, float3 up)
 }
 
 // -------------------------------------------------------------------------------------
-// The facing direction a mode wants, in world space, pointing FROM the pivot TOWARD the
-// viewer.
+// The facing direction a mode wants, in world space: the direction the quad's local +Z must
+// point, which is AWAY FROM the viewer.
+//
+// AMENDMENT A44 CORRECTED THE SIGN HERE. This file previously returned the direction toward
+// the viewer, which points a quad's +Z at the camera. Unity's PrimitiveType.Quad carries its
+// visible normal on -Z, so that presented the quad's back. The host game's own billboard
+// system used the opposite sign and was right; A44 adopts it as normative and BillboardMath
+// on the CPU matches it exactly.
 //
 //   cameraPositionWS — the rendering camera's world position (pass-invariant).
 //   cameraForwardWS  — the rendering camera's world forward (pass-invariant, host-written).
@@ -69,9 +81,10 @@ float3x3 ToolkitBillboardBasis(float3 forward, float3 up)
 float3 ToolkitBillboardFacing(float mode, float3 pivotWS, float3 cameraPositionWS, float3 cameraForwardWS)
 {
     // Screen-aligned: every quad takes the SAME orientation, so the facing direction is the
-    // camera's forward negated — pointing back at the viewer. This is the classic 2.5D look
-    // and it is what the Stitch Punk host shipped before migrating (A39); it is a different
-    // look from spherical, not a worse one, and quads far from screen centre show it most.
+    // camera's forward itself — the direction the viewer is looking, i.e. away from them.
+    // This is the classic 2.5D look and what the Stitch Punk host shipped (A39); it is a
+    // different look from spherical, not a worse one, and quads far from screen centre show
+    // it most.
     if (mode == TOOLKIT_BILLBOARD_SCREEN_ALIGNED)
     {
         float forwardLength = length(cameraForwardWS);
@@ -79,12 +92,12 @@ float3 ToolkitBillboardFacing(float mode, float3 pivotWS, float3 cameraPositionW
         // A host that never writes the forward gets spherical rather than a degenerate quad.
         // Degrading to a different-but-correct look beats degrading to a collapsed one.
         return forwardLength < TOOLKIT_BILLBOARD_EPSILON
-            ? cameraPositionWS - pivotWS
-            : -cameraForwardWS;
+            ? pivotWS - cameraPositionWS
+            : cameraForwardWS;
     }
 
     // Every other mode is spherical: each quad turns to face the camera POINT.
-    return cameraPositionWS - pivotWS;
+    return pivotWS - cameraPositionWS;
 }
 
 // -------------------------------------------------------------------------------------
@@ -127,7 +140,7 @@ float3 BillboardTransform(
 
     // Upright: the quad spins about world Y only, so a tree or a standing character never
     // leans. Flattening the facing vector is what restricts the rotation to one axis.
-    if (mode == TOOLKIT_BILLBOARD_UPRIGHT)
+    if (mode == TOOLKIT_BILLBOARD_UPRIGHT || mode == TOOLKIT_BILLBOARD_AXIS_CONSTRAINED)
     {
         facingWS.y = 0.0;
         if (length(facingWS) < TOOLKIT_BILLBOARD_EPSILON)

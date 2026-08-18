@@ -134,12 +134,70 @@ namespace StitchPunk.AnimationToolkit.Authoring
                 });
             }
 
+            AddBillboardMember(authoring, actorAuthoring, effectiveRig, partEntity);
+
             AddTechniqueComponents(authoring, partEntity, targetKind, restPose);
 
             if (targetKind == TargetKind.VatMesh)
             {
                 ValidateVatMaterial(authoring, actorAuthoring, clipSet);
             }
+        }
+
+        /// <summary>
+        /// Records which billboard root this part inherits, when it inherits one (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Only the nearest ancestor root is stored, and only when there is one.</strong>
+        /// The walk is inclusive of the part itself, so a part that <em>is</em> a billboard root
+        /// names itself — which is the override rule, and what lets a held item billboard
+        /// independently of the character holding it.
+        /// </para>
+        /// <para>
+        /// A part under no root gets no component, keeping billboarding as opt-in as
+        /// <c>AnimLod</c> and <c>PartFacing</c> (amendment A23's precedent).
+        /// </para>
+        /// <para>
+        /// The root is named by <em>id</em> rather than by its position in the actor's baked buffer.
+        /// Two bakers resolve this hierarchy independently — this one and <c>ActorBaker</c> — and an
+        /// index would require them to agree on an ordering neither can see the other compute. An
+        /// id is authored data both simply read.
+        /// </para>
+        /// </remarks>
+        private void AddBillboardMember(
+            RigTargetAuthoring authoring,
+            ActorAuthoring actorAuthoring,
+            RigAsset effectiveRig,
+            Entity partEntity)
+        {
+            List<ResolvedBillboardRoot> resolvedRoots =
+                BillboardRootResolver.Resolve(effectiveRig, actorAuthoring.transform, null);
+
+            int nearestRootIndex = BillboardRootResolver.FindNearestRootIndex(
+                resolvedRoots, authoring.transform, actorAuthoring.transform);
+
+            uint rootId;
+            if (nearestRootIndex >= 0)
+            {
+                rootId = resolvedRoots[nearestRootIndex].definition.stableId;
+            }
+            else if (actorAuthoring.billboardMode != BillboardMode.Off)
+            {
+                // The whole-actor billboard A41 shipped, expressed as the implicit root ActorBaker
+                // bakes with id 0. Every part inherits it, because it sits on the actor root.
+                rootId = 0u;
+            }
+            else
+            {
+                return;
+            }
+
+            AddComponent(partEntity, new BillboardMember
+            {
+                actorRoot = GetEntity(actorAuthoring, TransformUsageFlags.Dynamic),
+                rootId = rootId
+            });
         }
 
         // -----------------------------------------------------------------------------------
