@@ -1460,4 +1460,207 @@ The rule is now: **the key at or before the time holds until the next key's own 
 
 ---
 
+## Amendment A44 (2026-08-17 — product-owner directive): billboarding is a hierarchical, authorable rig feature
+
+**The directive:** *"Before implementing billboard-space ragdoll physics, build billboarding into the animation system itself as an authorable, inheritable property of the rig hierarchy."* The ragdoll work (`_Vault/Tasks/Claude/AnimationRagdoll.md`) then consumes the resolved billboard frame as its gravity reference rather than recomputing facing — *"do not recompute facing or camera-relative orientation independently."*
+
+A41 absorbed the host's `BillboardSystem` and generalised it to **one rotation on the actor root**. That was the right call for a layered cutout character and it stays right. A44 goes one step further: the actor root stops being the only place a billboard can live.
+
+### What the host system actually does, and what carries forward
+
+Recorded here because A44's whole obligation is to preserve it, and because §13.1 and A39 each described it only partially.
+
+| Behaviour | Host `BillboardSystem` | Carried into A44 |
+|---|---|---|
+| Facing source | `Camera.main.transform.forward` — **screen-aligned**, every quad takes the same rotation | Yes; `ScreenAligned` is the default mode for a new billboard root |
+| Target rotation | `quaternion.LookRotation(cameraForward, math.up())` | Yes, sign included — see the correction below |
+| Space of the write | Converted into the parent's space via `parentTransform.InverseTransformRotation(...)`, then written to the **child's** `LocalTransform.Rotation` | Yes — and this is precisely the mechanism a nested root needs |
+| Dead units | Freeze yaw, keep camera pitch, by decomposing the target into yaw and pitch and substituting the entity's *current* yaw | Yes; already `BillboardMode.FrozenYaw`, math lifted verbatim in A41 |
+| Degenerate camera | Camera pointing straight up or down leaves the transform untouched rather than snapping | Yes |
+| Visibility | Skips while the owning rig's `CameraVisible` is disabled | Yes, as `AnimVisible` |
+
+**The host's system was already per-node, not per-actor.** Its `Billboard` component carries a `parentEntity` and it rotates a *child* into that parent's space. A44 is not inventing hierarchical billboarding — it is generalising the one level the host already had into arbitrary depth, with declared roots and inheritance.
+
+### Correction: the shipped facing sign is inverted
+
+`FaceCameraJob.ResolveFacing` returns `-cameraForward` for `ScreenAligned` and `cameraPosition - actorPosition` for the spherical modes, and `ToolkitBillboardFacing` in `ToolkitBillboard.hlsl` does the same. The host returns `+cameraForward`. Both then feed `LookRotation`, which maps **+Z** onto that vector — so the two are 180° apart.
+
+Unity's `PrimitiveType.Quad`, which `CompositeActorBuilder` builds every sample part from, has its visible normal on **−Z**. For that mesh the host's sign is the one that presents the drawn face to the viewer and the package's is the one that presents its back. A44 adopts the host convention in both the CPU and HLSL paths, and states it once, normatively:
+
+> **The facing vector handed to the basis builder is the direction the node's local +Z must point — *away* from the viewer.** `ScreenAligned` → `+cameraForward`. Spherical → `nodePositionWS − cameraPositionWS`.
+
+This is a **visible change to any content already using `Full` or `ScreenAligned`**, which is why it is called out rather than folded in silently. It is also the one item in this amendment that cannot be settled by a test: whether a quad shows its face or its back depends on the mesh, and the package cannot see the host's meshes. `ShaderConformanceTests` and the CPU tests can only assert that the three paths **agree with each other**; the human-verified checklist (§11.4) gains "a billboarded part faces the camera rather than showing its back, on a `PrimitiveType.Quad`".
+
+### The data model — on the rig asset, addressed two ways
+
+Billboard configuration lives on `RigAsset`, alongside targets, layers, sockets and mirror pairs, so it travels with the rig and is shared by every actor instanced from it. It is the **first** such block — there are as yet no constraints and no collision shapes on the rig for it to sit beside (`rigged-characters.md`: no IK, no constraint graph, no ragdoll blending). The ragdoll work will add its own rows to the same asset later.
+
+```
+RigAsset
+  billboardRoots: List<BillboardRootDefinition>
+
+BillboardRootDefinition {
+    string displayName;                  // cosmetic
+    uint   stableId;                     // identity of the ROOT (what a clip track binds to)
+    BillboardNodeAddress address;
+    BillboardMode mode = ScreenAligned;
+    float3 constraintAxis = (0,1,0);     // AxisConstrained only
+    float  angleOffsetDegrees;           // authored rest offset; clips key on top of it
+    bool   snapEnabled;  int snapSteps = 8;  float snapOffsetDegrees;
+    bool   clampEnabled; float clampArcDegrees = 180f;
+}
+
+BillboardNodeAddress {
+    BillboardAddressKind kind;   // RigTarget | HierarchyPath
+    uint   targetId;             // kind == RigTarget
+    string hierarchyPath;        // kind == HierarchyPath
+}
+```
+
+**Two address kinds, because the rig has two kinds of node and only one of them has an id.** `RigAsset.targets` is a *flat* list — the rig asset carries no hierarchy at all. The hierarchy is the authoring prefab's transforms, which targets already bind to *by name* (`PrefabAuthoringBridge.FindByName`) and which `RigStructureEditor` reparents. A rig target therefore addresses by its stable id, which survives renames; a bare grouping transform that is nobody's animatable part — an `ItemPivot` under a hand — has no id to offer and addresses by path, with the same rename fragility a bone name already carries (A42). The bake **reports** an unresolved address rather than silently dropping the root.
+
+The root's own `stableId` is separate from the addressed node's. A clip track binds to the root, and a root must survive being re-pointed at a different node without every clip that keys it going stale.
+
+### Modes
+
+`BillboardMode` gains one value. **Existing values are not renumbered** — they are shared with `_BillboardParams.x` (§6.2), so the CPU and shader paths cannot drift.
+
+| Value | Mode | Meaning |
+|---|---|---|
+| 0 | `Off` | No billboard; the node keeps its animated orientation |
+| 1 | `Full` | Spherical — faces the camera *point* on every axis |
+| 2 | `Upright` | Turns about world Y only |
+| 3 | `FrozenYaw` | Holds an authored yaw, pitch still follows the camera (the corpse case) |
+| 4 | `ScreenAligned` | Faces the camera's *forward* — every root takes the same rotation. **Default.** |
+| 5 | `AxisConstrained` | **New.** Turns about an arbitrary authored axis |
+
+`Upright` is exactly `AxisConstrained` with axis `(0,1,0)`. It keeps its own value because it is shipped, because it is the common 2.5D case, and because naming the common case is worth one enum entry.
+
+**The shader path does not gain hierarchy.** `ToolkitBillboard.hlsl` rotates each quad about its own pivot; it has no way to know what a node's ancestor is. It gains `AxisConstrained` for mode parity and nothing else. Hierarchical billboarding is CPU-only, and the existing rule stands: an actor uses the CPU path or the shader path, never both.
+
+### Resolution — nearest ancestor, and what an override actually costs
+
+At bake, `ActorBaker` walks the prefab hierarchy once and, for each node, finds the nearest ancestor **inclusive of itself** that is a declared root. That produces three runtime components:
+
+```
+BillboardRoot   : IComponentData   // on a declared root node — the resolved config
+BillboardFrame  : IComponentData   // on a declared root node — the resolved WORLD rotation
+BillboardMember : IComponentData   // on every node under a root: { Entity root; }
+```
+
+A node with no billboarded ancestor gets none of the three and transforms normally in its parent's space, paying nothing — the opt-in precedent `AnimLod` and `PartFacing` already set (A23).
+
+**Inheritance is nearly free; override is the part that costs something.** Descendants are Transform children, so a root's rotation already propagates down through `LocalToWorld` composition — an inheriting node needs no rotation write of its own. What inheritance buys is the *query* (`BillboardMember.root`) that the hierarchy panel and the ragdoll read.
+
+A **nested** root is the real work. Its ancestor's rotation is already in its parent chain, so writing a second billboard rotation on top would compose the two and double-rotate. It must therefore compute its target in world space and then cancel its parent's world rotation before writing local — which is exactly `parentTransform.InverseTransformRotation(...)`, the host's own line, applied at arbitrary depth. This is the mechanism that lets a character billboard as a whole while a held item billboards independently.
+
+To make that cancellation cheap and correct, the bake stores each root's **hierarchy depth**, and `BillboardResolveSystem` processes roots in ascending depth. An inner root then reads its ancestor's already-resolved `BillboardFrame` instead of re-walking the chain — O(n), with no `LocalToWorld` dependency and so no frame of staleness from `TransformSystemGroup`.
+
+### Evaluation order (normative)
+
+The directive asks for this to be explicit, because it decides what animated rotation on a billboarded node *means*.
+
+1. `TransformSampleSystem` — composites the clip layers into `TargetPose`.
+2. `TransformApplySystem` — writes `LocalTransform` + `PostTransformMatrix` from `TargetPose`.
+3. **`BillboardResolveSystem`** *(new)* — resolves and applies billboard orientation on top.
+
+Steps 1–2 are unchanged and already in this order; step 3 replaces `ActorBillboardSystem` at the same slot in `AnimationToolkitPresentationSystemGroup`, `[UpdateAfter(TransformApplySystem)]`, gated on `AnimVisible`.
+
+> **So: the animated pose is the billboard's *rest orientation*, not a rotation the billboard adds to.** At `blendWeight` 1 the billboard **replaces** the node's animated rotation outright. Keying rotation on a fully-billboarded node changes nothing visible — which is why the blend weight and the angle offset exist, and why the hierarchy panel must show at a glance that a row is billboarded, before someone spends an afternoon keying a rotation the billboard is about to discard.
+
+Position, scale and every other channel are untouched. A billboard is an orientation, and only an orientation.
+
+Within step 3, per root, in this order:
+
+```
+target = LookRotation(facing(mode), up)          // world space
+target = constrain to the mode's axis            // Upright, AxisConstrained, FrozenYaw
+target = target * angleOffset                    // about the frame's own up axis
+target = snap(target, steps, phase)              // if snapping enabled
+target = clamp(target, restRotation, arc)        // if clamping enabled
+result = slerp(animatedRotation, target, blend)  // blendWeight, then the enable flag
+BillboardFrame.rotation  = result                // world space, published
+LocalTransform.Rotation  = inverse(parentWorld) * result
+```
+
+**Offset before snap, snap before clamp.** A keyed offset is authored facing intent and should land on a snap step with everything else, rather than parking the rig between two steps of an 8-way wheel. The clamp is last because it is a hard guarantee: at the arc boundary the result may sit *off* a snap step, and that is the intended precedence — the clamp is a constraint, the snap is a look, and a constraint a look can violate is not a constraint.
+
+**Clamp reference.** "Rest orientation" is the node's orientation before billboarding — the animated pose composed into its parent — so a clamped billboard turns within an arc *of the animation*, and an animation that turns the node carries the arc with it.
+
+**`angleOffset` is a yaw within the billboard frame**, about the frame's own up axis. For `Upright`, `ScreenAligned` and `AxisConstrained` that is the constraint axis; for `Full` it is the frame's up, i.e. a roll about the view direction.
+
+### Runtime query surface
+
+```
+BillboardFrame { quaternion rotation; }                 // world space; right/up/forward derived
+BillboardQuery.TryGetFrame(node, out BillboardFrame)    // Runtime/Api, beside PlaybackQuery
+```
+
+`TryGetFrame` resolves `node → BillboardMember.root → BillboardFrame` in one hop. The ragdoll spec describes *"walking up the rig hierarchy, exactly as the animation system does"*; it will not need to — the bake already flattened that walk, and a per-body hierarchy climb every physics step is exactly the cost this component exists to remove.
+
+A frozen ragdoll keeps billboarding for free: its bodies go kinematic under a root whose `BillboardFrame` is still resolved every frame, so the frozen pose rotates as a unit with no further work. That is the failure the ragdoll doc flags as easy to miss, and the hierarchy is what prevents it rather than a special case.
+
+### Clip format — a new track kind, and this one *does* reach the blob
+
+Billboard angle offset, blend weight, and enable/disable are keyable on the timeline like any other property. A new track kind parallel to the existing four, for A42's reason exactly: extending `TransformKey` would grow **every cutout key** — the format most clips use — with channels they never set.
+
+```
+BillboardTrack { uint rootStableId; List<BillboardKey> keys; }
+BillboardKey   { float normalizedTime; float angleOffsetDegrees; float blendWeight;
+                 bool enabled; Interpolation interpolation;
+                 float2 bezierStartHandle; float2 bezierEndHandle; }
+```
+
+**Unlike bone tracks, these are runtime data.** A42's correction established that authored bone tracks never enter the blob because nothing samples a bone at runtime — they are bake input, like `vatSource`. Billboard tracks are the opposite: `BillboardResolveSystem` samples them every frame. So this is a genuine format change, and it is the expensive part of this amendment:
+
+- `ClipBlob` gains a `BillboardTrackBlob` array.
+- **`SchemaVersion` bumps.**
+- The golden content hash is **re-recorded** (`ContentHashGoldenTests`).
+- `DataContractTests`' `ClipBlob` contract, `ClipRegistryDeterminismTests` and `DiskRoundTripTests` all move with it.
+
+`enabled` is **always step-interpolated**, never eased, on A43's reasoning: an enable flag is a discrete instruction that fires at a moment, not an approximation of anything between two moments. `angleOffsetDegrees` and `blendWeight` interpolate normally.
+
+### Editor surface
+
+**Hierarchy panel** (`ClipEditorWindow`, `MakeHierarchyRow` / `BindHierarchyRow`). Three states, visually distinct, on every row kind — rig target, socket, and bare prefab transform alike:
+
+| State | Indicator | Tooltip |
+|---|---|---|
+| Declared root | Billboard icon, full strength; `clip-editor__hierarchy-row--billboard-root` | The mode, e.g. "Billboard root — Screen Aligned" |
+| Inheriting | Subtler dimmed glyph; `--billboard-inherited` | **Names the source root** — "Billboards with «Torso»" |
+| Not billboarded | Nothing | — |
+
+Right-click gains *Make Billboard Root* / *Clear Billboard Root*, writing `RigAsset.billboardRoots` with the correct address kind for the row. `RigAssetEditor` gains a Billboard Roots section for direct editing, with mode-dependent fields shown conditionally the way `ActorAuthoringEditor` already hides Frozen Yaw.
+
+**Preview.** `ClipPreviewController` already orbits — yaw, pitch clamped to ±85°, distance, focused on the rig bounds. It does no billboarding today. It gains live billboarding driven by the **same static math helper the Burst job calls**, so preview and runtime cannot drift, plus a viewport toggle to suppress it while inspecting an authored pose. `SocketPreviewParityTests` is the precedent; `BillboardPreviewParityTests` is the obligation.
+
+### Build order
+
+| Phase | Delivers |
+|---|---|
+| **D1** | `BillboardRootDefinition` / `BillboardNodeAddress` on `RigAsset`; `AxisConstrained`; validation rules for unresolved and duplicate addresses |
+| **D2** | `BillboardMath` — one static, Burst-compatible helper: facing, axis constraint, offset, snap, clamp, blend. Pure logic, fully unit-testable, no World |
+| **D3** | Bake — nearest-ancestor resolution, depth assignment, `BillboardRoot` / `BillboardFrame` / `BillboardMember`; `ActorBillboard` reinterpreted as sugar for "the actor root is a billboard root"; `ActorBillboardSystem` deleted, one code path |
+| **D4** | `BillboardResolveSystem` + `BillboardQuery`; the facing-sign correction in both CPU and HLSL |
+| **D5** | `BillboardTrack` / `BillboardKey`, blob, schema bump, golden re-record; timeline rows and key editing |
+| **D6** | Hierarchy panel indicators, rig asset section, live preview billboarding, parity test, `Documentation~/billboarding.md` |
+
+D1–D4 alone unblock the ragdoll work: the frame is queryable at the end of D4.
+
+### Not in scope
+
+**The host game is not migrated.** `Assets/_Scripts/.../BillboardSystem.cs`, `Billboard` and `BillboardAuthoring` stay exactly as they are and keep running. Stitch Punk's look does not change in this pass. Migration is a separate, verifiable cutover with a side-by-side comparison, and folding a visible in-play-mode change into new feature work is how a regression gets attributed to the wrong thing.
+
+### Risks
+
+| Risk | Mitigation |
+|---|---|
+| The facing-sign correction changes the look of existing `Full` / `ScreenAligned` content | Called out normatively above; on the §11.4 human-verified checklist, which is the only place it can actually be settled |
+| Schema bump + golden hash re-record | Confined to D5; D1–D4 touch no blob |
+| A blob layout change makes the first EditMode run after it fail spuriously in untouched fixtures | Known behaviour — recompile and re-run before debugging anything |
+| Path-addressed roots break when a grouping transform is renamed | The bake reports the unresolved address; same contract as an unresolved bone name (A42) |
+| Deep nesting costs a rotation write per root per frame | Roots are declared, not implicit — a rig pays for the roots it declares and nothing for the nodes that merely inherit |
+
+---
+
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*
