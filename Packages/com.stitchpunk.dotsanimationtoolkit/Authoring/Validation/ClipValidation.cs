@@ -455,6 +455,85 @@ namespace StitchPunk.AnimationToolkit.Authoring
             }
         }
 
+        /// <summary>
+        /// Validates the clip's billboard tracks (amendment A44): V24, V03 and V04.
+        /// </summary>
+        /// <remarks>
+        /// V24 is V02's shape against a different id space — a billboard root rather than a rig
+        /// target — so it is checked here rather than folded into the transform-track loop, which
+        /// resolves ids against <c>rig.targets</c> and would report the wrong list.
+        /// </remarks>
+        private static void ValidateBillboardTracksInto(
+            ClipAsset clip, List<ValidationMessage> messages)
+        {
+            if (clip.billboardTracks == null)
+            {
+                return;
+            }
+
+            for (int trackIndex = 0; trackIndex < clip.billboardTracks.Count; trackIndex++)
+            {
+                BillboardTrack track = clip.billboardTracks[trackIndex];
+                if (track == null)
+                {
+                    continue;
+                }
+
+                if (!RigDeclaresBillboardRoot(clip.rig, track.rootStableId))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V24,
+                        clip,
+                        "Billboard track " + trackIndex + " in clip '" + clip.name +
+                        "' animates billboard root id " + track.rootStableId.ToString() +
+                        ", which its rig does not declare."));
+                    continue;
+                }
+
+                int keyCount = track.keys == null ? 0 : track.keys.Count;
+                float previousTime = float.NegativeInfinity;
+                for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
+                {
+                    BillboardKey key = track.keys[keyIndex];
+                    ValidateNormalizedTimeInto(
+                        clip,
+                        key.normalizedTime,
+                        "Billboard track " + trackIndex + " key " + keyIndex,
+                        messages);
+
+                    if (key.normalizedTime <= previousTime)
+                    {
+                        messages.Add(new ValidationMessage(
+                            ValidationSeverity.Error,
+                            ValidationCode.V03,
+                            clip,
+                            "Billboard track " + trackIndex + " in clip '" + clip.name +
+                            "' has keys out of order at index " + keyIndex +
+                            "; keys must ascend strictly in normalized time."));
+                    }
+                    previousTime = key.normalizedTime;
+                }
+            }
+        }
+
+        private static bool RigDeclaresBillboardRoot(RigAsset rig, uint rootStableId)
+        {
+            if (rig == null || rig.billboardRoots == null || rootStableId == 0u)
+            {
+                return false;
+            }
+            for (int rootIndex = 0; rootIndex < rig.billboardRoots.Count; rootIndex++)
+            {
+                BillboardRootDefinition definition = rig.billboardRoots[rootIndex];
+                if (definition != null && definition.stableId == rootStableId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static void ValidateBoneTracksInto(ClipAsset clip, List<ValidationMessage> messages)
         {
             int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
@@ -681,6 +760,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
 
             ValidateBoneTracksInto(clip, messages);
             ValidateBoneBezierHandlesInto(clip, messages);
+            ValidateBillboardTracksInto(clip, messages);
 
             for (int eventIndex = 0; eventIndex < eventCount; eventIndex++)
             {

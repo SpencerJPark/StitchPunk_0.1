@@ -160,7 +160,19 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// amendment A34 — and an author who chose <c>AxisConstrained</c> and left the axis empty
         /// wanted an axis, not upright.
         /// </remarks>
-        V23 = 23
+        V23 = 23,
+
+        /// <summary>
+        /// Error: a <see cref="BillboardTrack"/>'s <c>rootStableId</c> is not a billboard root of
+        /// the clip's rig (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// V02's shape, scoped to billboard roots instead of rig targets. It is a separate code
+        /// rather than a second case of V02 because the two address different id spaces, and a
+        /// reader chasing "V02: unknown target" against a track that names no target at all would be
+        /// looking in the wrong list.
+        /// </remarks>
+        V24 = 24
     }
 
     /// <summary>

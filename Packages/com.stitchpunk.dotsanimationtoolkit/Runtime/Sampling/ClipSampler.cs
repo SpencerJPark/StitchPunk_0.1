@@ -744,6 +744,100 @@ namespace StitchPunk.AnimationToolkit
         /// interpolate — the key that has most recently fired is the whole answer. Before the first
         /// key that is the first key, which holds frame 0's value rather than showing nothing.
         /// </remarks>
+        /// <summary>
+        /// Samples one billboard track's three channels at a time (amendment A44).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Two channels interpolate and one does not.</strong> The angle offset and the
+        /// blend weight are continuous values being approximated between keys, so they ease. The
+        /// enable flag is a discrete instruction that fires at a moment, so it is <em>held</em> from
+        /// the last key at or before the time — amendment A43's rule for flipbook indices, applied
+        /// to the other channel in this package that is an instruction rather than an approximation.
+        /// </para>
+        /// <para>
+        /// An empty track resolves to the neutral values a root with no track has: no extra offset,
+        /// full blend, enabled. That is what makes adding an empty track a no-op rather than a
+        /// silent disabling.
+        /// </para>
+        /// </remarks>
+        /// <param name="track">The track to sample.</param>
+        /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
+        /// <param name="angleOffsetRadians">Sampled rotation off the resolved facing.</param>
+        /// <param name="blendWeight">Sampled blend against the animated pose.</param>
+        /// <param name="enabled">Whether the root billboards at this time.</param>
+        [BurstCompile]
+        public static void SampleBillboardTrack(
+            ref BillboardTrackBlob track,
+            float normalizedTime,
+            out float angleOffsetRadians,
+            out float blendWeight,
+            out bool enabled)
+        {
+            ref BlobArray<BillboardKeyBlob> keys = ref track.keys;
+            if (keys.Length == 0)
+            {
+                angleOffsetRadians = 0f;
+                blendWeight = 1f;
+                enabled = true;
+                return;
+            }
+
+            FindBillboardKeySegment(ref keys, normalizedTime, out int previousIndex, out int nextIndex);
+            ref BillboardKeyBlob previousKey = ref keys[previousIndex];
+            ref BillboardKeyBlob nextKey = ref keys[nextIndex];
+
+            // Held from its own key in every case, easing or not — the flag never blends.
+            enabled = previousKey.enabled;
+
+            if (previousIndex == nextIndex || previousKey.interpolation == Interpolation.Step)
+            {
+                angleOffsetRadians = previousKey.angleOffsetRadians;
+                blendWeight = previousKey.blendWeight;
+                return;
+            }
+
+            float keySpan = nextKey.normalizedTime - previousKey.normalizedTime;
+            float linearWeight = keySpan > 0f
+                ? (normalizedTime - previousKey.normalizedTime) / keySpan
+                : 0f;
+            float easedWeight = Ease(
+                linearWeight, previousKey.interpolation,
+                in previousKey.bezierStartHandle, in previousKey.bezierEndHandle);
+
+            angleOffsetRadians =
+                math.lerp(previousKey.angleOffsetRadians, nextKey.angleOffsetRadians, easedWeight);
+            blendWeight = math.lerp(previousKey.blendWeight, nextKey.blendWeight, easedWeight);
+        }
+
+        /// <summary>
+        /// The keys surrounding a time on a billboard track. Mirrors <c>FindKeySegment</c>; the two
+        /// cannot share code because a <c>BlobArray</c> of one key type is a different type from a
+        /// <c>BlobArray</c> of another and neither is generic.
+        /// </summary>
+        private static void FindBillboardKeySegment(
+            ref BlobArray<BillboardKeyBlob> keys,
+            float normalizedTime,
+            out int previousIndex,
+            out int nextIndex)
+        {
+            previousIndex = 0;
+            nextIndex = 0;
+            for (int keyIndex = 0; keyIndex < keys.Length; keyIndex++)
+            {
+                if (keys[keyIndex].normalizedTime <= normalizedTime)
+                {
+                    previousIndex = keyIndex;
+                }
+                if (keys[keyIndex].normalizedTime >= normalizedTime)
+                {
+                    nextIndex = keyIndex;
+                    return;
+                }
+                nextIndex = keyIndex;
+            }
+        }
+
         private static int FindHoldingSpriteKey(
             ref BlobArray<SpriteKeyBlob> keys, float normalizedTime)
         {

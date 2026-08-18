@@ -196,6 +196,7 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("vatFrameCount", typeof(int)),
                 Field("vatFps", typeof(float)),
                 Field("vatTargetRanges", typeof(BlobArray<VatTrackRangeBlob>)),
+                Field("billboardTracks", typeof(BlobArray<BillboardTrackBlob>)),
                 Field("offsetBounds", typeof(AABB))
             });
         }
@@ -209,6 +210,23 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 Field("blendOp", typeof(TrackBlendOp)),
                 Field("channels", typeof(AnimatedChannels)),
                 Field("keys", typeof(BlobArray<TransformKeyBlob>))
+            });
+
+            AssertFieldsMatch(typeof(BillboardTrackBlob), new FieldContract[]
+            {
+                Field("rootId", typeof(uint)),
+                Field("keys", typeof(BlobArray<BillboardKeyBlob>))
+            });
+
+            AssertFieldsMatch(typeof(BillboardKeyBlob), new FieldContract[]
+            {
+                Field("normalizedTime", typeof(float)),
+                Field("angleOffsetRadians", typeof(float)),
+                Field("blendWeight", typeof(float)),
+                Field("enabled", typeof(bool)),
+                Field("interpolation", typeof(Interpolation)),
+                Field("bezierStartHandle", typeof(float2)),
+                Field("bezierEndHandle", typeof(float2))
             });
 
             AssertFieldsMatch(typeof(TransformKeyBlob), new FieldContract[]

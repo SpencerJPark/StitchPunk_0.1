@@ -92,8 +92,16 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// window — which is worse than an obvious break, not better: the failure would be actors
         /// holding damage windows open for a duration nobody authored. The version still gates it.
         /// </para>
+        /// <para>
+        /// Version 8 (A44, hierarchical billboarding) gives <see cref="ClipBlob"/> a
+        /// <c>billboardTracks</c> array. Like version 7's field it is appended rather than
+        /// reshaping anything, and like version 7 the gate still matters: a version-7 blob misread
+        /// as version 8 would read a garbage <c>BlobArray</c> header for the new array, and a
+        /// <c>BlobArray</c> whose length and offset are arbitrary bytes is not a survivable misread
+        /// the way a stray float is.
+        /// </para>
         /// </remarks>
-        public const int SchemaVersion = 7;
+        public const int SchemaVersion = 8;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -531,6 +539,7 @@ namespace StitchPunk.AnimationToolkit.Authoring
             clipBlob.vatFps = hasVatRange ? bakedRange.fps : 0f;
 
             FillVatTargetRanges(ref builder, ref clipBlob, clip, vatTextures, denseTargetIndexById);
+            FillBillboardTracks(ref builder, ref clipBlob, clip);
 
             clipBlob.offsetBounds = ComputeOffsetBounds(
                 transformTrackEntries,
@@ -555,6 +564,13 @@ namespace StitchPunk.AnimationToolkit.Authoring
             public int denseTargetIndex;
             public int authoringIndex;
             public SpriteTrack track;
+        }
+
+        private struct BillboardTrackEntry
+        {
+            public uint rootId;
+            public int authoringIndex;
+            public BillboardTrack track;
         }
 
         private struct EventEntry
@@ -628,6 +644,21 @@ namespace StitchPunk.AnimationToolkit.Authoring
         {
             int targetOrder = left.denseTargetIndex.CompareTo(right.denseTargetIndex);
             return targetOrder != 0 ? targetOrder : left.authoringIndex.CompareTo(right.authoringIndex);
+        }
+
+        /// <summary>
+        /// Canonical order for billboard tracks: ascending root id, ties broken by authoring order.
+        /// </summary>
+        /// <remarks>
+        /// Sorted by <em>id</em> rather than by a dense index, because billboard roots have no dense
+        /// array to index into. An id is a stable, machine-independent number, which is all
+        /// architecture section 4.5's determinism requirement actually needs.
+        /// </remarks>
+        private static int CompareBillboardTrackEntries(
+            BillboardTrackEntry left, BillboardTrackEntry right)
+        {
+            int rootOrder = left.rootId.CompareTo(right.rootId);
+            return rootOrder != 0 ? rootOrder : left.authoringIndex.CompareTo(right.authoringIndex);
         }
 
         private static int CompareEventEntries(EventEntry left, EventEntry right)
@@ -704,6 +735,62 @@ namespace StitchPunk.AnimationToolkit.Authoring
                         sliceIndex = authoredKey.sliceIndex,
                         indexMode = authoredKey.indexMode,
                         atlasRect = authoredKey.atlasRect
+                    };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Bakes the clip's billboard tracks, in canonical root-id order (amendment A44).
+        /// </summary>
+        private static void FillBillboardTracks(
+            ref BlobBuilder builder, ref ClipBlob clipBlob, ClipAsset clip)
+        {
+            List<BillboardTrackEntry> entries = new List<BillboardTrackEntry>();
+            if (clip.billboardTracks != null)
+            {
+                for (int authoringIndex = 0;
+                     authoringIndex < clip.billboardTracks.Count;
+                     authoringIndex++)
+                {
+                    BillboardTrack track = clip.billboardTracks[authoringIndex];
+                    if (track == null)
+                    {
+                        continue;
+                    }
+                    entries.Add(new BillboardTrackEntry
+                    {
+                        rootId = track.rootStableId,
+                        authoringIndex = authoringIndex,
+                        track = track
+                    });
+                }
+            }
+            entries.Sort(CompareBillboardTrackEntries);
+
+            BlobBuilderArray<BillboardTrackBlob> trackArray =
+                builder.Allocate(ref clipBlob.billboardTracks, entries.Count);
+            for (int trackIndex = 0; trackIndex < entries.Count; trackIndex++)
+            {
+                BillboardTrackEntry entry = entries[trackIndex];
+                trackArray[trackIndex].rootId = entry.rootId;
+
+                int keyCount = entry.track.keys == null ? 0 : entry.track.keys.Count;
+                BlobBuilderArray<BillboardKeyBlob> keyArray =
+                    builder.Allocate(ref trackArray[trackIndex].keys, keyCount);
+                for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
+                {
+                    BillboardKey authoredKey = entry.track.keys[keyIndex];
+                    keyArray[keyIndex] = new BillboardKeyBlob
+                    {
+                        normalizedTime = authoredKey.normalizedTime,
+                        // Degrees are what an author types; radians are what trigonometry consumes.
+                        angleOffsetRadians = math.radians(authoredKey.angleOffsetDegrees),
+                        blendWeight = math.saturate(authoredKey.blendWeight),
+                        enabled = authoredKey.enabled,
+                        interpolation = authoredKey.interpolation,
+                        bezierStartHandle = authoredKey.bezierStartHandle,
+                        bezierEndHandle = authoredKey.bezierEndHandle
                     };
                 }
             }
@@ -1084,6 +1171,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
                     hashState.Update(math.asuint(keyBlob.atlasRect.y));
                     hashState.Update(math.asuint(keyBlob.atlasRect.z));
                     hashState.Update(math.asuint(keyBlob.atlasRect.w));
+                }
+            }
+
+            hashState.Update(clipBlob.billboardTracks.Length);
+            for (int trackIndex = 0; trackIndex < clipBlob.billboardTracks.Length; trackIndex++)
+            {
+                ref BillboardTrackBlob trackBlob = ref clipBlob.billboardTracks[trackIndex];
+                hashState.Update(trackBlob.rootId);
+                hashState.Update(trackBlob.keys.Length);
+                for (int keyIndex = 0; keyIndex < trackBlob.keys.Length; keyIndex++)
+                {
+                    ref BillboardKeyBlob keyBlob = ref trackBlob.keys[keyIndex];
+                    hashState.Update(math.asuint(keyBlob.normalizedTime));
+                    hashState.Update(math.asuint(keyBlob.angleOffsetRadians));
+                    hashState.Update(math.asuint(keyBlob.blendWeight));
+                    hashState.Update((byte)(keyBlob.enabled ? 1 : 0));
+                    hashState.Update((byte)keyBlob.interpolation);
+                    hashState.Update(math.asuint(keyBlob.bezierStartHandle.x));
+                    hashState.Update(math.asuint(keyBlob.bezierStartHandle.y));
+                    hashState.Update(math.asuint(keyBlob.bezierEndHandle.x));
+                    hashState.Update(math.asuint(keyBlob.bezierEndHandle.y));
                 }
             }
 

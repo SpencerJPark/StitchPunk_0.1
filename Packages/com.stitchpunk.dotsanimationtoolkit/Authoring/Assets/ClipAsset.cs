@@ -135,6 +135,27 @@ namespace StitchPunk.AnimationToolkit.Authoring
         public List<VatTrack> vatTracks = new List<VatTrack>();
 
         /// <summary>
+        /// Keyed billboard channels, each bound to one billboard root of the clip's rig
+        /// (amendment A44). Empty for every clip that does not animate billboarding.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A fifth track kind rather than three more channels on <see cref="TransformTrack"/>, for
+        /// A42's reason exactly: extending <see cref="TransformKey"/> would grow <em>every cutout
+        /// key</em> — the format most clips use — with fields they never set, and blob size is the
+        /// one cost a crowd pays per clip.
+        /// </para>
+        /// <para>
+        /// <strong>Unlike bone tracks, these are runtime data.</strong> A42's correction established
+        /// that authored bone tracks never enter the blob, because nothing samples a bone at
+        /// runtime — they are bake input, like <see cref="vatSource"/>. These are the opposite:
+        /// <c>BillboardResolveSystem</c> samples them every frame, so they are baked, hashed, and
+        /// carried in <c>ClipBlob</c>.
+        /// </para>
+        /// </remarks>
+        public List<BillboardTrack> billboardTracks = new List<BillboardTrack>();
+
+        /// <summary>
         /// This clip's stable 64-bit identity (architecture section 3.4) — the value games pass in
         /// <c>AnimationCommand</c> and the key the baked registry binary-searches.
         /// </summary>
@@ -607,5 +628,68 @@ namespace StitchPunk.AnimationToolkit.Authoring
         /// two-row lerp never reads across the clip boundary at the loop seam.
         /// </summary>
         public bool loopSafe;
+    }
+
+    /// <summary>
+    /// Keyed billboard channels for one billboard root (amendment A44): how far the root turns off
+    /// the camera, how much of the billboard applies at all, and whether it applies this frame.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Bound to the root's own id, not to the node it turns.</strong> A billboard root's
+    /// address is editable — the same root may be re-pointed from the hips to the torso — and a
+    /// track bound to the addressed node would silently orphan itself the moment that happened.
+    /// </remarks>
+    [Serializable]
+    public sealed class BillboardTrack
+    {
+        /// <summary>
+        /// Stable id of the <c>BillboardRootDefinition</c> this track animates (validation rule
+        /// V24). Must name a billboard root the clip's rig declares.
+        /// </summary>
+        public uint rootStableId;
+
+        /// <summary>Keys in strictly ascending <c>normalizedTime</c> order (validation rule V03).</summary>
+        public List<BillboardKey> keys = new List<BillboardKey>();
+    }
+
+    /// <summary>One billboard key (amendment A44).</summary>
+    [Serializable]
+    public struct BillboardKey
+    {
+        /// <summary>Key time as a fraction of the clip's duration, in [0, 1] (validation rule V04).</summary>
+        public float normalizedTime;
+
+        /// <summary>
+        /// Rotation off the resolved facing, about the billboard frame's own up axis, in degrees.
+        /// Added to the root's authored rest offset rather than replacing it, so a rig that sits
+        /// permanently three-quarters-on can still be animated off that rest.
+        /// </summary>
+        public float angleOffsetDegrees;
+
+        /// <summary>
+        /// How much of the billboard orientation applies, against the node's animated pose. 1 is
+        /// fully billboarded; 0 hands the node back to its animation.
+        /// </summary>
+        [Range(0f, 1f)] public float blendWeight;
+
+        /// <summary>
+        /// Whether the root billboards at all from this key onward.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Always held from its key, never eased</strong> — the rule amendment A43
+        /// established for flipbook indices, and for the same reason: an enable flag is a discrete
+        /// instruction that fires at a moment, not an approximation of anything between two moments.
+        /// <see cref="interpolation"/> governs the two continuous channels only.
+        /// </remarks>
+        public bool enabled;
+
+        /// <summary>Easing applied from this key to the next one, for the continuous channels.</summary>
+        public Interpolation interpolation;
+
+        /// <summary>First Bézier handle (time, weight); read only for <c>Interpolation.Bezier</c>.</summary>
+        public float2 bezierStartHandle;
+
+        /// <summary>Second Bézier handle (time, weight); read only for <c>Interpolation.Bezier</c>.</summary>
+        public float2 bezierEndHandle;
     }
 }

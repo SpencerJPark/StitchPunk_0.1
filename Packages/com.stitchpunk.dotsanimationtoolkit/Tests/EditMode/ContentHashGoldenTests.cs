@@ -51,7 +51,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         // and transform scale a float3.
         // Re-recorded again for schema version 7 (A45, event windows), which appended
         // EventMarkerBlob.windowSeconds to the struct and to the canonical hash stream.
-        private const ulong ExpectedContentHash = 0xF696A3C9556F9916UL;
+        // Re-recorded again for schema version 8 (A44, hierarchical billboarding), which appended
+        // ClipBlob.billboardTracks to the struct and to the canonical hash stream. The frozen set
+        // authors no billboard track, so the stream gains only the array's zero length — which is
+        // the point: an empty array still has to be in the stream, or a clip that gained its first
+        // billboard track would hash identically to the clip that had none.
+        private const ulong ExpectedContentHash = 0x12D592565545DA14UL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -173,9 +178,9 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                7,
+                8,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 7. A bump must be paired " +
+                "The golden value above was recorded under schema version 8. A bump must be paired " +
                 "with a re-recorded constant, never landed on its own.");
         }
 

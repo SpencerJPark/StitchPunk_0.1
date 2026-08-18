@@ -105,7 +105,10 @@ namespace StitchPunk.AnimationToolkit
 
         [ReadOnly] public ComponentLookup<Parent> parentLookup;
 
-        private void Execute(ref DynamicBuffer<BillboardRootElement> rootElements)
+        private void Execute(
+            ref DynamicBuffer<BillboardRootElement> rootElements,
+            in DynamicBuffer<PlaybackLayer> layers,
+            in ClipRegistry clipRegistry)
         {
             for (int rootIndex = 0; rootIndex < rootElements.Length; rootIndex++)
             {
@@ -115,11 +118,17 @@ namespace StitchPunk.AnimationToolkit
                     continue;
                 }
 
+                // The authored settings are the rest state; a clip's billboard track keys on top of
+                // them rather than replacing them, so a rig that sits permanently three-quarters-on
+                // can still be animated off that rest.
+                BillboardSettings settings = rootElement.settings;
+                ApplyKeyedChannels(ref settings, rootElement.rootId, in layers, in clipRegistry);
+
                 LocalTransform nodeWorld = ComputeWorldTransform(rootElement.node);
 
                 quaternion resolvedRotation;
                 bool resolved = BillboardMath.TryResolve(
-                    rootElement.settings,
+                    settings,
                     nodeWorld.Position,
                     cameraPosition,
                     cameraForward,
@@ -144,6 +153,101 @@ namespace StitchPunk.AnimationToolkit
                 nodeTransform.ValueRW.Rotation =
                     math.mul(math.inverse(parentWorldRotation), resolvedRotation);
             }
+        }
+
+        /// <summary>
+        /// Folds a clip's keyed billboard channels into a root's authored settings.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Highest active layer that carries a track for this root wins.</strong> Layer
+        /// index is priority — higher composites later and therefore wins (architecture
+        /// section 3.1) — so the search runs downward and stops at the first match. A layer with no
+        /// track for this root is not an override of anything and is skipped rather than treated as
+        /// a neutral value that would blank a lower layer's key.
+        /// </para>
+        /// <para>
+        /// <strong>Nothing here interprets clip data itself.</strong> Every read goes through
+        /// <c>ClipSampler</c>, which keeps the single-sampler guarantee of section 5.11 intact — a
+        /// second place that decoded keys would be a second sampler, whatever it was called.
+        /// </para>
+        /// <para>
+        /// The angle offset <em>adds</em> to the authored one while the blend weight and the enable
+        /// flag <em>replace</em> theirs. That asymmetry is deliberate and matches what each channel
+        /// means: an offset is a displacement from a rest orientation, so displacements accumulate;
+        /// a weight and a flag are absolute statements about how much billboard applies, and two
+        /// absolute statements cannot be added.
+        /// </para>
+        /// </remarks>
+        private void ApplyKeyedChannels(
+            ref BillboardSettings settings,
+            uint rootId,
+            in DynamicBuffer<PlaybackLayer> layers,
+            in ClipRegistry clipRegistry)
+        {
+            if (!clipRegistry.Value.IsCreated)
+            {
+                return;
+            }
+            ref ClipRegistryBlob registry = ref clipRegistry.Value.Value;
+
+            for (int layerIndex = layers.Length - 1; layerIndex >= 0; layerIndex--)
+            {
+                PlaybackLayer layer = layers[layerIndex];
+                if ((layer.flags & PlaybackFlags.Active) == 0)
+                {
+                    continue;
+                }
+                if (layer.clipIndex < 0 || layer.clipIndex >= registry.clips.Length)
+                {
+                    continue;
+                }
+
+                ref ClipBlob clip = ref registry.clips[layer.clipIndex];
+                int trackIndex = FindBillboardTrack(ref clip, rootId);
+                if (trackIndex < 0)
+                {
+                    continue;
+                }
+
+                LoopMode resolvedLoop =
+                    layer.loop == LoopMode.UseClipDefault ? clip.defaultLoop : layer.loop;
+                float normalizedTime =
+                    ClipSampler.MapTimeNormalized(layer.time, clip.duration, resolvedLoop);
+
+                float keyedAngleOffset;
+                float keyedBlendWeight;
+                bool keyedEnabled;
+                ClipSampler.SampleBillboardTrack(
+                    ref clip.billboardTracks[trackIndex],
+                    normalizedTime,
+                    out keyedAngleOffset,
+                    out keyedBlendWeight,
+                    out keyedEnabled);
+
+                settings.angleOffsetRadians += keyedAngleOffset;
+                settings.blendWeight = keyedBlendWeight;
+                settings.enabled = settings.enabled && keyedEnabled;
+                return;
+            }
+        }
+
+        /// <summary>The clip's billboard track for a root, or −1 when it has none.</summary>
+        /// <remarks>
+        /// Linear over an array a clip almost always leaves empty, and which holds a handful of
+        /// entries when it does not. A binary search over the canonical root-id order would be
+        /// correct and slower to read for no measurable gain at these sizes.
+        /// </remarks>
+        private static int FindBillboardTrack(ref ClipBlob clip, uint rootId)
+        {
+            for (int trackIndex = 0; trackIndex < clip.billboardTracks.Length; trackIndex++)
+            {
+                if (clip.billboardTracks[trackIndex].rootId == rootId)
+                {
+                    return trackIndex;
+                }
+            }
+            return -1;
         }
 
         /// <summary>

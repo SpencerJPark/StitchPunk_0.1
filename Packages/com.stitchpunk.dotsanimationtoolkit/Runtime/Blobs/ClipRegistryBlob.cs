@@ -129,6 +129,13 @@ namespace StitchPunk.AnimationToolkit
         public BlobArray<VatTrackRangeBlob> vatTargetRanges;
 
         /// <summary>
+        /// Keyed billboard channels, sorted by ascending <c>rootId</c> (canonical order,
+        /// architecture section 4.5); empty for every clip that does not animate billboarding
+        /// (amendment A44).
+        /// </summary>
+        public BlobArray<BillboardTrackBlob> billboardTracks;
+
+        /// <summary>
         /// Conservative bounds for this clip in <em>offset space</em> (section 4.6), as an
         /// <see cref="AABB"/> — <c>Center</c> plus half-extents in <c>Extents</c>.
         /// </summary>
@@ -253,6 +260,57 @@ namespace StitchPunk.AnimationToolkit
 
         /// <summary>Atlas-mode rect: scale.xy, offset.zw.</summary>
         public float4 atlasRect;
+    }
+
+    /// <summary>
+    /// One baked billboard track: keyed billboard channels bound to a single billboard root
+    /// (amendment A44).
+    /// </summary>
+    /// <remarks>
+    /// Bound by the root's stable id rather than by a dense index, unlike every other track kind.
+    /// The other kinds address rig <em>targets</em>, which the registry already sorts into a dense
+    /// array every part carries an index into; billboard roots have no such array, and inventing one
+    /// to save a handful of comparisons per frame would add a second identity scheme to keep in step
+    /// with the first.
+    /// </remarks>
+    public struct BillboardTrackBlob
+    {
+        /// <summary>Stable id of the billboard root this track animates.</summary>
+        public uint rootId;
+
+        /// <summary>Keys sorted by time; interpolation resolved per key at bake.</summary>
+        public BlobArray<BillboardKeyBlob> keys;
+    }
+
+    /// <summary>
+    /// One baked billboard key (amendment A44). The angle is stored in radians (converted at bake;
+    /// authoring is degrees).
+    /// </summary>
+    public struct BillboardKeyBlob
+    {
+        /// <summary>Key time normalized to the clip's duration, in [0, 1].</summary>
+        public float normalizedTime;
+
+        /// <summary>Rotation off the resolved facing, about the frame's up axis, in radians.</summary>
+        public float angleOffsetRadians;
+
+        /// <summary>How much of the billboard orientation applies, in [0, 1].</summary>
+        public float blendWeight;
+
+        /// <summary>
+        /// Whether the root billboards from this key onward. Held from its key and never eased
+        /// (amendment A43's rule for discrete channels).
+        /// </summary>
+        public bool enabled;
+
+        /// <summary>Easing from this key to the next one, for the continuous channels.</summary>
+        public Interpolation interpolation;
+
+        /// <summary>First Bézier handle (time, weight); read only for <see cref="Interpolation.Bezier"/>.</summary>
+        public float2 bezierStartHandle;
+
+        /// <summary>Second Bézier handle (time, weight); read only for <see cref="Interpolation.Bezier"/>.</summary>
+        public float2 bezierEndHandle;
     }
 
     /// <summary>One baked event marker (architecture section 4.2).</summary>
