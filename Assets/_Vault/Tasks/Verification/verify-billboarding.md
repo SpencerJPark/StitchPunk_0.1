@@ -37,7 +37,10 @@ agree with a *mesh*, because the package cannot see one. Hence this.
 
 1. Open Unity.
 2. **Tools ▸ DOTS Animation Toolkit ▸ Build Billboard Sign Check Scene**
-3. Press **Play**. The camera orbits automatically.
+3. Watch the **Game view**. The camera orbits on its own — no Play mode needed.
+
+The camera moves and the quads billboard to it. If the camera sits still, that is a bug in
+`ToolkitOrbitCamera`, not a billboard failure — tell me rather than reading the result.
 
 Three quads, all wearing the same asymmetric glyph — a white **F**, a **green** bar down its left
 edge, a **red** bar down its right:

@@ -63,9 +63,52 @@ namespace StitchPunk.AnimationToolkitShaderDemo
         {
             restRotation = transform.rotation;
             hasRestRotation = true;
+
+#if UNITY_EDITOR
+            // Same reason ToolkitOrbitCamera does this: outside play mode Unity ticks an
+            // [ExecuteAlways] component only when something dirties the scene, and "face the camera"
+            // never does. Driving off the editor loop is what makes the probe follow the orbiting
+            // camera instead of holding whatever rotation it had when the scene opened.
+            //
+            // Both components share that loop and the subscription order decides which runs first,
+            // so the probe may face where the camera was one tick ago. At orbit speeds that is far
+            // below perception, and the alternative — an explicit ordering contract between two
+            // pieces of scratch scaffolding — would cost more than the frame it saves.
+            if (!Application.isPlaying)
+            {
+                UnityEditor.EditorApplication.update += EditorTick;
+            }
+#endif
         }
 
+        private void OnDisable()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.update -= EditorTick;
+#endif
+        }
+
+#if UNITY_EDITOR
+        private void EditorTick()
+        {
+            if (this == null)
+            {
+                UnityEditor.EditorApplication.update -= EditorTick;
+                return;
+            }
+            if (!Application.isPlaying)
+            {
+                Billboard();
+            }
+        }
+#endif
+
         private void LateUpdate()
+        {
+            Billboard();
+        }
+
+        private void Billboard()
         {
             Camera camera = targetCamera != null ? targetCamera : Camera.main;
             if (camera == null)

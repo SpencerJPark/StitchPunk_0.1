@@ -71,7 +71,7 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
 
             Debug.Log(
                 "[BillboardSignCheck] Built " + ScenePath + ".\n"
-                + "Press Play. The camera orbits.\n"
+                + "The camera orbits on its own - no Play mode needed. Watch the Game view.\n"
                 + "PASS: all three quads stay visible, and the F reads the same way on all three "
                 + "from every angle.\n"
                 + "The LEFT quad does not billboard - it is the reference, and it will turn away "
@@ -259,6 +259,9 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
             orbit.radius = 6f;
             orbit.height = 1.2f;
             orbit.degreesPerSecond = 25f;
+            // So the scene turns the moment it opens, without anyone having to press Play and
+            // wonder whether they are looking at the Game view.
+            orbit.orbitInEditMode = true;
         }
 
         // -----------------------------------------------------------------------------------
