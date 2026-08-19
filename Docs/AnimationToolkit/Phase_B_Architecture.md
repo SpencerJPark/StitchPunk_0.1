@@ -1698,4 +1698,18 @@ D1–D4 alone unblock the ragdoll work: the frame is queryable at the end of D4.
 
 ---
 
+## Amendment A45 (2026-08-19 — measured, not decided): the package can ship reflection nodes
+
+§6.1 specified that the toolkit's Shader Graph surface would be **standard Custom Function nodes, not the host's reflection-API node system**, with the stated reason: *"the package must work in any Unity 6.5 project; the host may wrap the same includes in its reflection nodes locally."*
+
+**The premise is false, and it was never tested.** Shader Graph's function-reflection scanner reads any `.hlsl` in the project, including inside a UPM package — verified by moving one node into `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Nodes/` and confirming it still appears in the Create Node menu, with four nodes left in `Assets/` as the control. A buyer who installs the package gets the nodes; nothing about them depends on this host.
+
+So the package's Shader Graph surface **is** reflection nodes, living in the package, and the host wraps nothing. That is strictly better than the planned split: one definition instead of two, no duplicate `ProviderKey` to collide, and the package's own reference graphs can use its own nodes.
+
+**What stays true:** the includes under `Shaders/Includes/` remain standalone — no reflection support, no globals, no dependencies — because a consumer may want the maths in a hand-written shader or another package's graph. The node files are shells over them. That layering is what makes both audiences reachable, and it is the part §6.1 got right.
+
+**Worth generalising:** the constraint was recorded as a fact and carried for months without anyone checking it. It cost the package its graph surface for that whole time. A portability claim about a tool's file scanning is a thirty-second experiment; this one was never run.
+
+---
+
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*
