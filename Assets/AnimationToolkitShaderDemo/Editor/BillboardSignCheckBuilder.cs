@@ -34,7 +34,7 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
         private const string GeneratedFolder = "Assets/AnimationToolkitShaderDemo/Generated";
         private const string TexturePath = GeneratedFolder + "/BillboardSignGlyph.png";
         private const string ShaderPath =
-            "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/HandWritten/ToolkitSpriteUnlit.shader";
+            "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/ToolkitSpriteUnlit.shadergraph";
 
         private const int GlyphSize = 128;
 
