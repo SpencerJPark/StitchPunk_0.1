@@ -33,21 +33,15 @@ float4 _ToolkitCameraForward;
 ///     <sg:DisplayName>Pivot (Object)</sg:DisplayName>
 ///     <sg:Default>0, 0, 0</sg:Default>
 ///</paramhints>
-///<paramhints name = "billboardMode">
-///     <sg:DisplayName>Mode</sg:DisplayName>
-///     <sg:Range>0, 5</sg:Range>
-///     <sg:Default>4</sg:Default>
-///</paramhints>
-///<paramhints name = "frozenYawRadians">
-///     <sg:DisplayName>Frozen Yaw</sg:DisplayName>
-///     <sg:Default>0</sg:Default>
+///<paramhints name = "billboardParams">
+///     <sg:DisplayName>Billboard Params</sg:DisplayName>
+///     <sg:Default>4, 0, 0, 0</sg:Default>
 ///</paramhints>
 UNITY_EXPORT_REFLECTION
 void ToolkitBillboardVertex(
     float3 positionOS,
     float3 pivotOS,
-    float billboardMode,
-    float frozenYawRadians,
+    float4 billboardParams,
     out float3 displacedPositionOS)
 {
 #if defined(SHADERGRAPH_PREVIEW)
@@ -58,7 +52,7 @@ void ToolkitBillboardVertex(
     displacedPositionOS = BillboardTransform(
         positionOS,
         pivotOS,
-        float4(billboardMode, frozenYawRadians, 0.0, 0.0),
+        billboardParams,
         _WorldSpaceCameraPos,
         _ToolkitCameraForward.xyz,
         UNITY_MATRIX_M,

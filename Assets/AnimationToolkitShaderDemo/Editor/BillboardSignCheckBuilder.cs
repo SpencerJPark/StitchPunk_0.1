@@ -249,7 +249,7 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
 
         private static void ConfigureCamera()
         {
-            Camera camera = Object.FindFirstObjectByType<Camera>();
+            Camera camera = Object.FindAnyObjectByType<Camera>();
             if (camera == null)
             {
                 GameObject cameraObject = new GameObject("Main Camera");
