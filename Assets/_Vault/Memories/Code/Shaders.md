@@ -49,6 +49,29 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   shader-graph outline rebuild (the old shader-graph outline chain was dead and
   was deleted).
 - **`Nodes/Utility/`** — `IfAnyNonZero`.
+- **`Nodes/Animation/`** (2026-08-19) — Shader Graph nodes over the DOTS
+  Animation Toolkit package's standalone HLSL includes, so the toolkit's vertex
+  and UV maths can be wired into an ordinary graph instead of a hand-written
+  `.shader`. `ToolkitBillboardVertex` (billboard displacement, **vertex stage**),
+  `ToolkitVatBoneSkin` / `ToolkitVatVertexFetch` (VAT, **vertex stage**,
+  point/clamp sampler or limbs melt), `ToolkitFlipbookSliceUV` /
+  `ToolkitFlipbookAtlasUV` (fragment).
+
+  **These are thin wrappers and deliberately so.** The package ships portable
+  HLSL that any Unity 6.5 project can `#include`; it must not depend on this
+  host's reflection-node convention, or it stops being sellable. Architecture
+  §6.1 planned exactly this split — "the host may wrap the same includes in its
+  reflection nodes locally" — and this is that wrap. Change the maths in the
+  package include, never in the node.
+
+  Two traps worth knowing. `ToolkitBillboardVertex` reads the
+  `_ToolkitCameraForward` global (written by `ToolkitCameraBinder`) rather than
+  exposing a port: screen-aligned billboarding silently degrades to spherical
+  when that forward is zero, and a port someone forgot to wire looks exactly
+  like a working billboard that curves at the screen edges. And the wrapper
+  unwraps `UnityTexture2D.tex` / `UnitySamplerState.samplerstate` before calling
+  the include, because the include takes raw `Texture2D`/`SamplerState` to stay
+  usable outside Shader Graph.
 - **`Nodes/Sprite/`** — outline-safe multiply-tint for baked vector sprites
   (from `_Vault/Tasks/Materials/info.md`). `SpriteTint` (single zone:
   `baseColor.rgb * tint.rgb`; black outline `0*tint=0` stays black) and
