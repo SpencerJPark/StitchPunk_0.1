@@ -72,8 +72,9 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
             Debug.Log(
                 "[BillboardSignCheck] Built " + ScenePath + ".\n"
                 + "The camera orbits on its own - no Play mode needed. Watch the Game view.\n"
-                + "PASS: all three quads stay visible, and the F reads the same way on all three "
-                + "from every angle.\n"
+                + "PASS: the MIDDLE and RIGHT quads stay FLAT and parallel to the screen the whole "
+                + "way round - not curving or turning toward the camera point - and read F with the "
+                + "GREEN bar on the left.\n"
                 + "The LEFT quad does not billboard - it is the reference, and it will turn away "
                 + "and become edge-on. That is correct.\n"
                 + "FAIL (middle missing): the shader facing sign is inverted.\n"
@@ -195,18 +196,27 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
                 CreateQuadMaterial(spriteShader, glyph, "SignCheckReference", 0f);
         }
 
-        /// <summary>The per-vertex path: <c>ToolkitBillboard.hlsl</c>, spherical mode.</summary>
+        /// <summary>The per-vertex path: <c>ToolkitBillboard.hlsl</c>, screen-aligned.</summary>
         /// <remarks>
-        /// Spherical rather than screen-aligned so the check needs only
-        /// <c>_WorldSpaceCameraPos</c>, which Unity always provides. Screen-aligned would also need
-        /// the host-written <c>_ToolkitCameraForward</c> global, and a missing global would look
-        /// exactly like a wrong sign — one unknown at a time.
+        /// <para>
+        /// <strong>Screen-aligned, not spherical.</strong> An earlier cut used spherical because it
+        /// needs only <c>_WorldSpaceCameraPos</c> and so avoided depending on the host-written
+        /// <c>_ToolkitCameraForward</c> global — one unknown at a time. That was the wrong trade: it
+        /// produced a demo that curves quads toward the screen edges, which is not what this project
+        /// ships and reads as a defect to anyone who knows the target look. Screen-aligned is the
+        /// host's behaviour, A44's default, and therefore what a verification scene must show.
+        /// </para>
+        /// <para>
+        /// The global is supplied by the <c>ToolkitCameraBinder</c> this builder puts on the camera.
+        /// If that binder is missing the mode silently degrades to spherical, which is exactly the
+        /// curve this scene exists to rule out — so its absence would be misread as a failure.
+        /// </para>
         /// </remarks>
         private static void BuildShaderPathQuad(Shader spriteShader, Texture2D glyph, Vector3 position)
         {
-            GameObject quad = CreateQuad("B_ShaderPath_Full", position);
+            GameObject quad = CreateQuad("B_ShaderPath_ScreenAligned", position);
             quad.GetComponent<MeshRenderer>().sharedMaterial =
-                CreateQuadMaterial(spriteShader, glyph, "SignCheckShaderPath", 1f);
+                CreateQuadMaterial(spriteShader, glyph, "SignCheckShaderPath", 4f);
         }
 
         /// <summary>The CPU path: <c>BillboardMath.TryResolve</c>, driven by the probe.</summary>
@@ -217,12 +227,12 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
         /// </remarks>
         private static void BuildCpuPathQuad(Shader spriteShader, Texture2D glyph, Vector3 position)
         {
-            GameObject quad = CreateQuad("C_CpuPath_Full", position);
+            GameObject quad = CreateQuad("C_CpuPath_ScreenAligned", position);
             quad.GetComponent<MeshRenderer>().sharedMaterial =
                 CreateQuadMaterial(spriteShader, glyph, "SignCheckCpuPath", 0f);
 
             BillboardSignProbe probe = quad.AddComponent<BillboardSignProbe>();
-            probe.mode = StitchPunk.AnimationToolkit.BillboardMode.Full;
+            probe.mode = StitchPunk.AnimationToolkit.BillboardMode.ScreenAligned;
         }
 
         // -----------------------------------------------------------------------------------
@@ -255,6 +265,14 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
             {
                 orbit = camera.gameObject.AddComponent<ToolkitOrbitCamera>();
             }
+            // Screen-aligned billboarding in the SHADER reads a global the host is responsible for
+            // writing; the package never touches a Camera. Without this the shader quad falls back
+            // to spherical and curves at the screen edges, which is the very thing being ruled out.
+            if (camera.gameObject.GetComponent<ToolkitCameraBinder>() == null)
+            {
+                camera.gameObject.AddComponent<ToolkitCameraBinder>();
+            }
+
             orbit.target = new Vector3(0f, 1.2f, 0f);
             orbit.radius = 6f;
             orbit.height = 1.2f;

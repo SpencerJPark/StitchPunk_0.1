@@ -61,7 +61,20 @@ float3x3 ToolkitBillboardBasis(float3 forward, float3 up)
         : xAxis / xAxisLength;
 
     float3 yAxis = cross(zAxis, xAxis);
-    return float3x3(xAxis, yAxis, zAxis);
+
+    // TRANSPOSED DELIBERATELY, AND THIS LINE IS THE WHOLE CONTRACT.
+    //
+    // HLSL's float3x3(a, b, c) builds a, b, c as ROWS, and mul(M, v) computes
+    // (dot(row0,v), dot(row1,v), dot(row2,v)) - which projects v ONTO the axes. That is the
+    // INVERSE of "map +Z onto forward": it maps forward onto +Z. This function returned the
+    // untransposed form for a long time while its own comment claimed the opposite, and the
+    // error was invisible because it was paired with a facing vector that pointed the wrong
+    // way too. Two inversions cancel, right up until someone corrects one of them (A44).
+    //
+    // Transposing puts the axes in the COLUMNS, so mul(M, v) is the local-to-world rotation
+    // the comment describes and the CPU BillboardMath.TryBuildBasis produces. Every caller
+    // below composes with mul(A, B) meaning "apply B then A", which stays valid.
+    return transpose(float3x3(xAxis, yAxis, zAxis));
 }
 
 // -------------------------------------------------------------------------------------

@@ -160,6 +160,76 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
+        /// Catches the exact defect A44 shipped and then had to chase on screen: the billboard basis
+        /// being applied as its own transpose.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// HLSL's <c>float3x3(a, b, c)</c> builds a, b and c as <strong>rows</strong>, and
+        /// <c>mul(M, v)</c> computes <c>(dot(row0,v), dot(row1,v), dot(row2,v))</c> — which projects
+        /// v onto the axes. That is the <em>inverse</em> of "map +Z onto forward". The function
+        /// returned the untransposed form for a long time while its own comment claimed the
+        /// opposite, and nothing caught it because it was paired with a facing vector that pointed
+        /// the wrong way as well. Two inversions cancel — right up until A44 corrected one of them,
+        /// at which point billboarded quads span incoherently as the camera moved.
+        /// </para>
+        /// <para>
+        /// A string check rather than a numeric one, because the arithmetic lives in HLSL and cannot
+        /// be executed from an EditMode test. It is coarse, and it is still the only automated thing
+        /// standing between this line and a defect that took a human eye and a purpose-built scene to
+        /// find.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void TheBillboardBasis_IsTransposed_SoItMatchesTheCpuPath()
+        {
+            string billboardCode = StripComments(ReadPackageFile(BillboardIncludePath));
+
+            Assert.IsTrue(
+                billboardCode.Contains("transpose(float3x3(xAxis, yAxis, zAxis))"),
+                "ToolkitBillboardBasis must return the TRANSPOSE of its row-built matrix, so the "
+                + "axes end up in the columns and mul(M, v) is the local-to-world rotation the CPU "
+                + "BillboardMath produces. Without the transpose the shader applies the inverse "
+                + "rotation and billboarded quads spin incoherently.");
+        }
+
+        /// <summary>
+        /// Catches: the billboard facing sign drifting back to pointing at the viewer.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A44 fixed the sign so the facing vector is the direction a quad's local +Z must point —
+        /// <em>away</em> from the viewer — because Unity's <c>PrimitiveType.Quad</c> carries its
+        /// visible normal on −Z. The CPU path is pinned to the same convention by
+        /// <c>BillboardMathTests.ScreenAligned_ReproducesTheHostGamesLookRotation</c>; this is the
+        /// shader half of that pair.
+        /// </para>
+        /// <para>
+        /// The two halves cannot be checked against each other by running them, so they are each
+        /// pinned to the same stated rule instead. That is weaker than an execution test and is what
+        /// is available.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void TheBillboardFacing_PointsAwayFromTheViewer()
+        {
+            string billboardCode = StripComments(ReadPackageFile(BillboardIncludePath));
+
+            Assert.IsTrue(
+                billboardCode.Contains("pivotWS - cameraPositionWS"),
+                "Spherical facing must run from the camera TOWARD the pivot, so local +Z points "
+                + "away from the viewer and a Unity Quad presents its front face.");
+            Assert.IsFalse(
+                billboardCode.Contains("cameraPositionWS - pivotWS"),
+                "That is the pre-A44 sign, which points a quad's +Z at the camera and therefore "
+                + "presents its back.");
+            Assert.IsFalse(
+                billboardCode.Contains("-cameraForwardWS"),
+                "Screen-aligned facing takes the camera's forward as-is; negating it is the pre-A44 "
+                + "sign.");
+        }
+
+        /// <summary>
         /// Catches: an include quietly acquiring a dependency. These three are documented as
         /// standalone so a user can lift one into their own project — the moment one includes
         /// another package file or reads a global it does not declare, that promise is broken and
