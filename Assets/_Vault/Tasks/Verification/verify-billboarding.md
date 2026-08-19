@@ -23,23 +23,56 @@ changed. If it has, that is a bug and not the plan.
 
 ---
 
-## ⚠ Test this first — the one thing no test can settle
+## ⚠ Check 1 — the facing sign (do this first, it gates everything else)
 
-**The billboard facing sign was corrected, and it flips existing content.**
+**A44 corrected the billboard facing sign, and it flips existing content.** The package shipped
+`-cameraForward`; the host game uses `+cameraForward`. A44 adopted the host's, on the grounds that
+Unity's `PrimitiveType.Quad` carries its visible normal on **−Z**, so a quad whose local +Z points at
+the camera is presenting its back.
 
-The package shipped `-cameraForward`; the host game uses `+cameraForward`, and the host is right for
-Unity's `PrimitiveType.Quad`, whose visible normal sits on **−Z**. A44 adopted the host's sign in
-both the CPU path (`BillboardMath`) and the shader (`ToolkitBillboard.hlsl`).
+Every test in the suite proves the three code paths agree with **each other**. None can prove they
+agree with a *mesh*, because the package cannot see one. Hence this.
 
-Whether a quad shows its face or its back depends on a mesh the package cannot see, so the tests can
-only prove the three paths agree with each other — not that they agree with your art.
+### Run it
 
-- [ ] Open `Assets/Scenes/AnimationToolkitBillboardDemo.unity`, enter Play mode, orbit the camera.
-      **A billboarded quad must show its front face, not its back.** If everything is inside-out,
-      the sign needs flipping back and A44's claim about `PrimitiveType.Quad` is wrong — say so and
-      it gets reverted in one line each in `BillboardMath.TryResolveFacing` and
-      `ToolkitBillboardFacing`.
-- [ ] Same check on any actor already using `Full` or `ScreenAligned` from before today.
+1. Open Unity.
+2. **Tools ▸ DOTS Animation Toolkit ▸ Build Billboard Sign Check Scene**
+3. Press **Play**. The camera orbits automatically.
+
+Three quads, all wearing the same asymmetric glyph — a white **F**, a **green** bar down its left
+edge, a **red** bar down its right:
+
+| Quad | What it is |
+|---|---|
+| **A_Reference_NoBillboard** (left) | No billboarding at all. Ground truth. |
+| **B_ShaderPath_Full** (middle) | Per-vertex billboard, `ToolkitBillboard.hlsl`. |
+| **C_CpuPath_Full** (right) | `BillboardMath.TryResolve`, the same function the runtime job calls. |
+
+### Read it
+
+`ToolkitSpriteUnlit` declares no `Cull`, so it culls back faces. **A wrong sign makes a quad vanish,
+not merely look odd** — you don't have to judge a subtle rotation, only notice whether something is
+there.
+
+- [ ] **PASS** — B and C stay visible from every angle, and the F reads the same way on both as it
+      does on A in the first frame (green bar on the *left*).
+- [ ] **FAIL, middle gone** → the shader sign is inverted. One line in `ToolkitBillboardFacing`.
+- [ ] **FAIL, right gone** → the CPU sign is inverted. One line in `BillboardMath.TryResolveFacing`.
+- [ ] **FAIL, F mirrored** (red bar on the left) → sign inverted *and* something is rendering
+      double-sided.
+
+The **left** quad turning away and going edge-on as the camera orbits is **correct** — that is what
+"not billboarding" looks like, and it is there to prove the other two really are billboarding rather
+than the camera not really moving.
+
+### One question I'd like answered from memory
+
+**Did you ever run `AnimationToolkitBillboardDemo.unity` and actually see the quads?**
+
+That scene was built during C5 with the **old** sign. If quads were visible there, the old sign was
+rendering front faces and my reasoning above is wrong somewhere — which would be the single most
+useful thing you could tell me. If you never ran it, or don't remember, that's fine and the sign
+check above settles it either way.
 
 ---
 
