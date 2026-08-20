@@ -230,6 +230,12 @@
     margin-left: 6px;
 }
 
+.clip-editor__h-scroller {
+    flex-shrink: 0;
+    margin-left: 6px;
+    margin-right: 6px;
+}
+
 .clip-editor__transport-dropdown {
     width: 118px;
     margin-right: 4px;
