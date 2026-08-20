@@ -15,7 +15,7 @@
 #include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.ToolkitVatVertexFetch</sg:ProviderKey>
+///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitVatVertexFetch</sg:ProviderKey>
 ///     <sg:DisplayName>VAT Vertex Fetch</sg:DisplayName>
 ///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
 ///</funchints>

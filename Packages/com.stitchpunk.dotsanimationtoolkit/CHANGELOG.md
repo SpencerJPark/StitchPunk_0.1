@@ -10,6 +10,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — every shader is a Shader Graph now (amendment A46)
+
+The package shipped three hand-written `.shader` files and no graphs. It now
+ships three graphs and no `.shader` files, plus the reflection-node library
+they are built from.
+
+- **`Shaders/Nodes/`** — six Shader Graph nodes over the package's own
+  standalone includes: `ToolkitBillboardVertex`, `ToolkitVatBoneSkin`,
+  `ToolkitVatVertexFetch`, `ToolkitFlipbookSliceUV`,
+  `ToolkitFlipbookSliceIndex`, `ToolkitFlipbookAtlasUV`. They search under
+  **StitchPunk/Animation**.
+- **`ToolkitSpriteUnlit.shadergraph`** — atlas flipbook + billboard, alpha
+  clipped. Replaces the hand-written sprite shader.
+- **`ToolkitSpriteUnlitArray.shadergraph`** — the `Texture2DArray` slice-mode
+  variant. A separate graph rather than a keyword branch, which is how the host
+  keeps `2DShader` and `2DArrayShader` apart.
+- **`ToolkitVatCrowdUnlit.shadergraph`** — bone-matrix VAT skinning.
+- **Removed:** `ToolkitSpriteUnlit.shader`, `ToolkitVatCrowdUnlit.shader`,
+  `ToolkitCompositeExample.shader`.
+
+**Section 6.3's displacement rule is now satisfied by construction.** Shader
+Graph emits one vertex description and every pass calls it, so a pass cannot
+silently skip the displacement the way a hand-written one could. The sprite
+graph displaces in all eight passes — including GBuffer, MotionVectors and the
+two picking passes, which the hand-written shader never declared at all.
+
+`ShaderConformanceTests` was rewritten rather than repointed. It used to count a
+helper's name in the shader *source*, which proved the author had typed the call.
+It now reads each pass's real generated code through the public
+`ShaderUtil.GetShaderData` and asserts the displacement is present in every one —
+what actually ships, not what was written.
+
+**Migration:** materials keep working. Reference names are unchanged
+(`_MainTex`, `_BaseColor`, `_AtlasFrame`, `_BillboardParams`, `_Cutoff`,
+`_ImageIndex`, `_MainTexArray`, `_VatBoneTex`, `_VatTexelParams`, `_VatFrameA`,
+`_VatFrameB`, `_VatBlend`) and the per-instance ones are still per-instance, now
+via Shader Graph's hybrid declaration rather than a hand-written
+`UNITY_DOTS_INSTANCING_START` block. A material bound to a deleted `.shader`
+must be rebound to the corresponding graph.
+
+**`ToolkitCompositeExample` is gone without a replacement, deliberately.** Its
+purpose was to demonstrate the hand-written DOTS instancing block and
+displacement-in-every-pass. Shader Graph does both automatically, so the example
+had nothing left to teach; the contract it documented lives in
+`shader-contract.md`.
+
+
 ### Added — billboarding is a hierarchical rig feature (amendment A44, phases D3-D6)
 
 Billboarding is now an authorable, inheritable property of the rig hierarchy.

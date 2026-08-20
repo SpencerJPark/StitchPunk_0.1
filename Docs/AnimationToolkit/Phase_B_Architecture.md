@@ -1712,4 +1712,36 @@ So the package's Shader Graph surface **is** reflection nodes, living in the pac
 
 ---
 
+## Amendment A46 (2026-08-19 — product-owner directive): the shaders are Shader Graphs
+
+*"I want all shaders to be shader graphs, not shader files."*
+
+§6.1 planned reference graphs (`ToolkitVatLit`, `ToolkitVatUnlit`) and five subgraphs. Neither was ever built; what shipped was three hand-written `.shader` files. Those are now three `.shadergraph` assets, and the hand-written files are deleted.
+
+### What the conversion actually bought
+
+**§6.3's displacement rule stopped needing enforcement.** Its whole content is that a billboarded quad must present the same geometry in every pass — a shader that displaces in the colour pass but not in ShadowCaster casts the shadow of a shape the camera never sees. A hand-written shader satisfies that only by the author remembering, in every pass, forever; `ShaderConformanceTests` existed because remembering is not a mechanism. Shader Graph emits **one** vertex description and every pass calls it. The rule is now structural.
+
+It also widened: the graph displaces in eight passes, including GBuffer, MotionVectors, SceneSelection and ScenePicking — four the hand-written shader never declared, and which would have rendered the undisplaced pose.
+
+### What was kept apart
+
+The `Shaders/Includes/*.hlsl` stay standalone — no reflection support, no globals, no dependencies — and the node files are shells over them. A consumer wanting the maths in a hand-written shader or another package's graph still can. That layering is what lets one implementation serve both audiences, and it is why the conversion changed no arithmetic.
+
+### Slice mode is a second graph, not a keyword
+
+The hand-written shader branched between `Texture2DArray` and atlas via `_TOOLKIT_SLICE_MODE`. The replacement is two graphs, following the host's own precedent (`2DShader` / `2DArrayShader`) rather than reproducing a keyword branch in node form.
+
+### `ToolkitCompositeExample` is deleted without replacement
+
+It existed to demonstrate the `UNITY_DOTS_INSTANCING_START` block and displacement in every pass, for someone writing their own shader. Shader Graph does both without being asked, so the example had nothing left to teach. The contract it illustrated is still normative and still written down in §6.2 and `shader-contract.md`.
+
+### Two things the build caught
+
+**The packaging conformance test earned its keep.** `Conformance_D` forbids a package file matching `StitchPunk\.` unless followed by `AnimationToolkit`, because a sellable package must not carry the host's namespace. The first cut of the node library used `ProviderKey` values like `StitchPunk.ToolkitBillboardVertex` and failed on all nine files at once. Fully qualifying to `StitchPunk.AnimationToolkit.*` satisfies both the rule and §1.1's deliberate namespace choice. Nothing else in the process would have noticed.
+
+**Slot ids must be read off a live node, never inferred.** `SampleTexture2DArrayNode` puts Index on slot **8**; slot 3 is Sampler. Guessing 3 wired the frame number into the sampler port, and the graph imported "successfully" as a one-pass error shader with no properties — a failure that looks like success until something renders. The array graph now carries that mapping in a comment beside the constant.
+
+---
+
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*

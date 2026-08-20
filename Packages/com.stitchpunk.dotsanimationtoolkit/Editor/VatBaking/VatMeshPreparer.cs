@@ -16,7 +16,7 @@ namespace StitchPunk.AnimationToolkit.Editor
     /// those semantics are bound by the GPU skinning path for a <see cref="SkinnedMeshRenderer"/>.
     /// Not needing a <see cref="SkinnedMeshRenderer"/> is the entire value of VAT, so the bone data
     /// has to travel as ordinary per-vertex data, and <c>TEXCOORD1</c> is where
-    /// <c>ToolkitVatCrowdUnlit.shader</c> reads it from.
+    /// <c>ToolkitVatCrowdUnlit.shadergraph</c> reads it from.
     /// </para>
     /// <para>
     /// <strong>This shipped in the package because leaving it out was a real hole.</strong> The

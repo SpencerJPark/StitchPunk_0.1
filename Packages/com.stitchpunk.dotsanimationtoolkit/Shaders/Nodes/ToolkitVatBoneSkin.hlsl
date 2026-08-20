@@ -16,7 +16,7 @@
 #include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.ToolkitVatBoneSkin</sg:ProviderKey>
+///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitVatBoneSkin</sg:ProviderKey>
 ///     <sg:DisplayName>VAT Bone Skin</sg:DisplayName>
 ///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
 ///</funchints>

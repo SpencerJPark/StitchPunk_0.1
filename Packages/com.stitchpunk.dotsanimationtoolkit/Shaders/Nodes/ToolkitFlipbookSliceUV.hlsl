@@ -10,7 +10,7 @@
 #include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.ToolkitFlipbookSliceUV</sg:ProviderKey>
+///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitFlipbookSliceUV</sg:ProviderKey>
 ///     <sg:DisplayName>Flipbook Slice UV</sg:DisplayName>
 ///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
 ///</funchints>

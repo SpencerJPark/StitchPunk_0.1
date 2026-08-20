@@ -62,8 +62,15 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   **`Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Nodes/`**, not under
   `Assets/Shaders/Nodes/`: `ToolkitBillboardVertex` (billboard displacement,
   **vertex stage**), `ToolkitVatBoneSkin` / `ToolkitVatVertexFetch` (VAT,
-  **vertex stage**, point/clamp sampler or limbs melt), `ToolkitFlipbookSliceUV`
-  / `ToolkitFlipbookAtlasUV` (fragment). They search under
+  **vertex stage**, point/clamp sampler or limbs melt), `ToolkitFlipbookSliceUV` /
+  `ToolkitFlipbookSliceIndex` / `ToolkitFlipbookAtlasUV` (fragment). ProviderKeys
+  are `StitchPunk.AnimationToolkit.*`, fully qualified: the package's own
+  `Conformance_D` test forbids a bare `StitchPunk.` prefix inside the package,
+  because a sellable package must not carry the host's namespace.
+
+  The package's three graphs (`ToolkitSpriteUnlit`, `ToolkitSpriteUnlitArray`,
+  `ToolkitVatCrowdUnlit`) are built from these, and the hand-written `.shader`
+  files are gone (2026-08-19, amendment A46). They search under
   **StitchPunk/Animation** alongside the rest of the library, so the split
   location is invisible in the Create Node menu.
 

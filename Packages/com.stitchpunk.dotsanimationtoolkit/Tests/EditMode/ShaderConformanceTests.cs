@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.IO;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -28,7 +29,22 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
     public sealed class ShaderConformanceTests
     {
         private const string ShaderRoot = "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/";
-        private const string SpriteShaderPath = ShaderRoot + "HandWritten/ToolkitSpriteUnlit.shader";
+        private const string SpriteGraphPath = ShaderRoot + "ToolkitSpriteUnlit.shadergraph";
+        private const string SpriteArrayGraphPath = ShaderRoot + "ToolkitSpriteUnlitArray.shadergraph";
+        private const string VatGraphPath = ShaderRoot + "ToolkitVatCrowdUnlit.shadergraph";
+
+        /// <summary>Every graph the package ships. All must compile; none may ship warnings.</summary>
+        private static readonly string[] ShippedGraphPaths =
+        {
+            SpriteGraphPath,
+            SpriteArrayGraphPath,
+            VatGraphPath
+        };
+
+        /// <summary>
+        /// The reflected node whose presence in a pass proves that pass displaces.
+        /// </summary>
+        private const string BillboardNodeCall = "ToolkitBillboardVertex";
         private const string InstancingIncludePath = ShaderRoot + "Includes/ToolkitInstancing.hlsl";
         private const string BillboardIncludePath = ShaderRoot + "Includes/ToolkitBillboard.hlsl";
         private const string FlipbookIncludePath = ShaderRoot + "Includes/ToolkitFlipbook.hlsl";
@@ -39,10 +55,10 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         /// </summary>
         private static readonly string[] RequiredPassNames =
         {
-            "UniversalForward",
+            "Unlit",
             "ShadowCaster",
             "DepthOnly",
-            "DepthNormals"
+            "DepthNormalsOnly"
         };
 
         /// <summary>
@@ -61,73 +77,105 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         };
 
         /// <summary>
-        /// Catches: shipping a shader that does not compile. Unity compiles variants lazily, so a
+        /// Catches: shipping a graph that does not compile. Unity compiles variants lazily, so a
         /// broken shader can sit in a package looking fine until something renders it — and the
         /// Console stays clean the whole time.
         /// </summary>
         [Test]
-        public void TheSpriteShader_CompilesWithoutErrors()
+        public void TheShippedGraphs_CompileWithoutErrors()
         {
-            Shader spriteShader = AssetDatabase.LoadAssetAtPath<Shader>(SpriteShaderPath);
-
-            Assert.IsNotNull(spriteShader, "The sprite reference shader is missing from the package.");
-            Assert.IsFalse(
-                ShaderUtil.ShaderHasError(spriteShader),
-                "The sprite reference shader has compile errors.");
-            Assert.AreEqual(
-                0,
-                ShaderUtil.GetShaderMessageCount(spriteShader),
-                "The sprite reference shader must ship without warnings or errors.");
-            Assert.IsTrue(spriteShader.isSupported, "The sprite reference shader is unsupported on this target.");
-        }
-
-        /// <summary>
-        /// Catches: dropping a pass, or adding vertex displacement to the colour pass only. §6.3's
-        /// whole contract is that a billboarded quad presents the same geometry everywhere — a
-        /// shader missing ShadowCaster casts the shadow of its undisplaced pose, which looks like a
-        /// lighting bug and is a geometry bug.
-        /// </summary>
-        [Test]
-        public void TheSpriteShader_DeclaresEveryPassThatMustDisplace()
-        {
-            Shader spriteShader = AssetDatabase.LoadAssetAtPath<Shader>(SpriteShaderPath);
-            Assert.IsNotNull(spriteShader);
-
-            Assert.AreEqual(
-                RequiredPassNames.Length,
-                spriteShader.passCount,
-                "The shader must declare exactly the passes §6.3 requires, no more and no fewer.");
-
-            string source = ReadPackageFile(SpriteShaderPath);
-            for (int passIndex = 0; passIndex < RequiredPassNames.Length; passIndex++)
+            for (int graphIndex = 0; graphIndex < ShippedGraphPaths.Length; graphIndex++)
             {
-                string passName = RequiredPassNames[passIndex];
-                StringAssert.Contains(
-                    "\"LightMode\" = \"" + passName + "\"",
-                    source,
-                    "Pass '" + passName + "' is missing, so it cannot displace.");
+                string graphPath = ShippedGraphPaths[graphIndex];
+                Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(graphPath);
+
+                Assert.IsNotNull(shader, graphPath + " is missing from the package.");
+                Assert.IsFalse(
+                    ShaderUtil.ShaderHasError(shader), graphPath + " has compile errors.");
+                Assert.AreEqual(
+                    0,
+                    ShaderUtil.GetShaderMessageCount(shader),
+                    graphPath + " must ship without warnings or errors.");
+                Assert.IsTrue(shader.isSupported, graphPath + " is unsupported on this target.");
             }
         }
 
         /// <summary>
-        /// Catches: a pass whose vertex function forgets the shared displacement. Declaring the pass
-        /// is not the same as displacing in it, and the difference is a shadow cast by the wrong
-        /// shape.
+        /// <strong>Section 6.3's contract, checked against the generated code rather than the
+        /// source.</strong> Catches: a pass that does not displace.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A billboarded quad must present the <em>same</em> geometry in every pass. One that
+        /// displaces in the colour pass and not in ShadowCaster casts the shadow of its undisplaced
+        /// pose — which looks like a lighting bug and is a geometry bug, in the one pass nobody
+        /// screenshots.
+        /// </para>
+        /// <para>
+        /// <strong>This is stronger than the test it replaces, not weaker.</strong> The hand-written
+        /// shader was checked by counting occurrences of a helper name in its <em>source</em>, which
+        /// proved the author had typed the call, not that the compiler emitted it. Shader Graph
+        /// exposes each pass's real generated code through the public <c>ShaderUtil.GetShaderData</c>,
+        /// so this asserts on what actually ships. It also covers the four passes the old test never
+        /// knew about — GBuffer, MotionVectors and the two picking passes.
+        /// </para>
+        /// <para>
+        /// The graph earns this by construction: Shader Graph emits one vertex description and every
+        /// pass calls it, so a pass cannot silently opt out the way a hand-written one could. The
+        /// test remains because "by construction" is a property of today's generator.
+        /// </para>
+        /// </remarks>
+        [Test]
+        public void TheSpriteGraph_DisplacesInEveryPass()
+        {
+            Shader spriteShader = AssetDatabase.LoadAssetAtPath<Shader>(SpriteGraphPath);
+            Assert.IsNotNull(spriteShader);
+
+            ShaderData shaderData = ShaderUtil.GetShaderData(spriteShader);
+            ShaderData.Subshader subshader = shaderData.GetSubshader(0);
+
+            List<string> seenPassNames = new List<string>();
+            for (int passIndex = 0; passIndex < subshader.PassCount; passIndex++)
+            {
+                ShaderData.Pass pass = subshader.GetPass(passIndex);
+                seenPassNames.Add(pass.Name);
+
+                StringAssert.Contains(
+                    BillboardNodeCall,
+                    pass.SourceCode,
+                    "Pass '" + pass.Name + "' does not call the billboard displacement, so it "
+                    + "renders the undisplaced pose while the colour pass renders the billboard.");
+            }
+
+            for (int requiredIndex = 0; requiredIndex < RequiredPassNames.Length; requiredIndex++)
+            {
+                CollectionAssert.Contains(
+                    seenPassNames,
+                    RequiredPassNames[requiredIndex],
+                    "Pass '" + RequiredPassNames[requiredIndex] + "' is missing, so it cannot displace.");
+            }
+        }
+
+        /// <summary>
+        /// Catches: the VAT graph losing its vertex skinning in some passes — the same hazard as the
+        /// billboard, for the other technique that moves vertices.
         /// </summary>
         [Test]
-        public void EveryPass_CallsTheSharedDisplacement()
+        public void TheVatGraph_SkinsInEveryPass()
         {
-            string source = ReadPackageFile(SpriteShaderPath);
+            Shader vatShader = AssetDatabase.LoadAssetAtPath<Shader>(VatGraphPath);
+            Assert.IsNotNull(vatShader);
 
-            int displaceCallCount = CountOccurrences(source, "ToolkitSpriteDisplace(");
-
-            // One definition, one call per pass, plus DepthNormals displacing its normal with two
-            // further calls. Fewer means a pass silently skipped it.
-            Assert.GreaterOrEqual(
-                displaceCallCount,
-                1 + RequiredPassNames.Length,
-                "Every declared pass must call the shared displacement; found only "
-                + displaceCallCount.ToString() + " references including the definition.");
+            ShaderData.Subshader subshader = ShaderUtil.GetShaderData(vatShader).GetSubshader(0);
+            for (int passIndex = 0; passIndex < subshader.PassCount; passIndex++)
+            {
+                ShaderData.Pass pass = subshader.GetPass(passIndex);
+                StringAssert.Contains(
+                    "ToolkitVatBoneSkin",
+                    pass.SourceCode,
+                    "Pass '" + pass.Name + "' does not skin, so it renders the bind pose while the "
+                    + "colour pass renders the animation.");
+            }
         }
 
         /// <summary>
