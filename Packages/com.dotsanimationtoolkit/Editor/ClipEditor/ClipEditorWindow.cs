@@ -4145,6 +4145,52 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Re-reads every lane key time from the clip, then repaints.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Use this, not <see cref="RepaintLanes"/>, whenever key times have changed.</strong>
+        /// A lane holds the times it was built with, so a plain repaint faithfully redraws the
+        /// positions the keys had when the row was created. That is invisible for a selection
+        /// change and catastrophic for a drag: the underlying times moved with the cursor while
+        /// every diamond stayed exactly where it was, so the gesture felt like dragging nothing.
+        /// </para>
+        /// <para>
+        /// The alternative — rebuilding the timeline on every move, as the drag used to — destroys
+        /// the element holding the pointer capture and kills the gesture after one event. Updating
+        /// the rows in place is the only option that both moves the keys and keeps the drag alive.
+        /// </para>
+        /// </remarks>
+        private void RefreshLaneKeys()
+        {
+            if (laneColumn == null || selectedClip == null)
+            {
+                RepaintLanes();
+                return;
+            }
+
+            List<float> times = new List<float>();
+            for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
+            {
+                TrackLaneElement lane = laneColumn[childIndex] as TrackLaneElement;
+                if (lane == null)
+                {
+                    laneColumn[childIndex].MarkDirtyRepaint();
+                    continue;
+                }
+
+                times.Clear();
+                int keyCount = CountKeysOnTrack(lane.trackKind, lane.trackIndex);
+                for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
+                {
+                    times.Add(GetKeyTime(new KeyAddress(lane.trackKind, lane.trackIndex, keyIndex)));
+                }
+                lane.SetKeyTimes(times);
+                lane.MarkDirtyRepaint();
+            }
+        }
+
         // -------------------------------------------------------------------------------------
         // Gestures. One undo step per gesture (section 7.4).
         // -------------------------------------------------------------------------------------
@@ -4335,7 +4381,29 @@ namespace DotsAnimationToolkit.Editor
             EditorUtility.SetDirty(selectedClip);
             SetPlayheadTime(pointerTime);
             MarkPreviewDirty();
-            RepaintLanes();
+            RefreshLaneKeys();
+            ShowDragReadout(pointerTime);
+        }
+
+        /// <summary>
+        /// Says which frame the drag is landing on, in the status line.
+        /// </summary>
+        /// <remarks>
+        /// The playhead already follows the drag, so the position is visible; this is the number.
+        /// Between the two there is no part of "where is this key going" left to guess at.
+        /// </remarks>
+        private void ShowDragReadout(float normalizedTime)
+        {
+            if (statusLabel == null)
+            {
+                return;
+            }
+            int frameCount = Mathf.Max(1, TransportFrameCount);
+            float frame = normalizedTime * frameCount;
+            string range = normalizedTime < 0f || normalizedTime > 1f ? "   (outside clip)" : string.Empty;
+            statusLabel.text = "Frame " + frame.ToString("0.##")
+                + "   " + (normalizedTime * selectedClip.duration).ToString("0.###") + "s"
+                + "   " + selectedKeys.Count.ToString() + " key(s)" + range;
         }
 
         /// <summary>

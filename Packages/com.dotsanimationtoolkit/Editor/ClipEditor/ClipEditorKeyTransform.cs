@@ -384,7 +384,9 @@ namespace DotsAnimationToolkit.Editor
 
             EditorUtility.SetDirty(selectedClip);
             MarkPreviewDirty();
-            RepaintLanes();
+            // RefreshLaneKeys, not RepaintLanes: a lane draws the times it was built with, so a
+            // plain repaint would leave every diamond where it started while the data moved.
+            RefreshLaneKeys();
             ShowTransformReadout(grabDelta, scaleFactor, snapping);
         }
 
