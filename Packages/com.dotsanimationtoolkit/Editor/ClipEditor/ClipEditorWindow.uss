@@ -254,7 +254,19 @@
 }
 
 .clip-editor__transport-toggle {
+    margin-left: 6px;
     margin-right: 4px;
+}
+
+/* Unity gives every BaseField label a 120px min-width so that stacked inspector rows line their
+   labels up in a column. In a horizontal transport bar there is no column to line up with, so all
+   it produces is a long gap between the word and the box it belongs to. */
+.clip-editor__transport-toggle > .unity-base-field__label {
+    min-width: 0;
+    width: auto;
+    margin-right: 3px;
+    padding-right: 0;
+    flex-shrink: 0;
 }
 
 /* Appears only when some key does not land on a frame of the current grid. */

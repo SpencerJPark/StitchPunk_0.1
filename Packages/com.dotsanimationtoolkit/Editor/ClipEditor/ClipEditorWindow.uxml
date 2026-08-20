@@ -73,6 +73,7 @@
                         <ui:Button name="play-toggle" text="Play" class="clip-editor__transport-button clip-editor__transport-play"/>
                         <ui:Button name="step-forward-button" text="&gt;" class="clip-editor__transport-button"/>
                         <ui:Button name="jump-end-button" text="&gt;|" class="clip-editor__transport-button"/>
+                        <ui:Toggle name="loop-toggle" label="Loop" class="clip-editor__transport-toggle"/>
                     </ui:VisualElement>
                     <ui:VisualElement class="clip-editor__transport-group">
                         <ui:Label text="Frame" class="clip-editor__transport-label"/>
@@ -88,7 +89,6 @@
                         <ui:Label name="frame-count-label" text="0 frames" class="clip-editor__transport-label clip-editor__transport-derived"/>
                     </ui:VisualElement>
                     <ui:VisualElement class="clip-editor__transport-group">
-                        <ui:Toggle name="loop-toggle" label="Loop" class="clip-editor__transport-toggle" style="margin-right: 3px; margin-left: 3px;"/>
                         <ui:Label text="Speed" class="clip-editor__transport-label"/>
                         <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field"/>
                     </ui:VisualElement>
