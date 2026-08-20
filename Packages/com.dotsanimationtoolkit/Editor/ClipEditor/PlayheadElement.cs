@@ -49,6 +49,14 @@ namespace DotsAnimationToolkit.Editor
             generateVisualContent += OnGenerateVisualContent;
         }
 
+
+        /// <summary>
+        /// The timeline view, pushed in by the window. Never derived here: a lane that computed its
+        /// own zoom would drift from the ruler's, which is the bug TimelineGeometry exists to stop.
+        /// </summary>
+        public float viewZoom = 1f;
+        public float viewPan;
+
         private void OnGenerateVisualContent(MeshGenerationContext context)
         {
             Rect rect = contentRect;
@@ -59,7 +67,8 @@ namespace DotsAnimationToolkit.Editor
 
             // Rounded to a pixel centre so the 1px line renders crisp rather than as two half-lit
             // columns.
-            float x = Mathf.Round(TimelineGeometry.Create(rect.width).TimeToX(currentTime)) + 0.5f;
+            float x = Mathf.Round(
+                TimelineGeometry.Create(rect.width, viewZoom, viewPan).TimeToX(currentTime)) + 0.5f;
 
             Painter2D painter = context.painter2D;
             painter.strokeColor = PlayheadColor;

@@ -167,6 +167,18 @@
                         <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field" />
                     </ui:VisualElement>
 
+                    <!-- Zoom is a slider AND two framing buttons on purpose: the slider says at a
+                         glance how far in you are, which a scroll-wheel-only zoom never does. -->
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Label text="Zoom" class="clip-editor__transport-label" />
+                        <ui:Slider name="zoom-slider" low-value="0.25" high-value="20"
+                                   class="clip-editor__transport-slider" />
+                        <ui:Button name="frame-all-button" text="Frame All"
+                                   class="clip-editor__transport-button" />
+                        <ui:Button name="frame-selection-button" text="Frame Sel"
+                                   class="clip-editor__transport-button" />
+                    </ui:VisualElement>
+
                     <ui:Button name="quantize-keys-button" text="Quantize Keys"
                                class="clip-editor__transport-button clip-editor__transport-action" />
                 </ui:VisualElement>

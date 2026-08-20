@@ -39,6 +39,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "current-frame-field", "current-seconds-field",
             "clip-length-field", "frame-rate-field", "frame-count-label",
             "loop-toggle", "playback-speed-field", "quantize-keys-button",
+            "zoom-slider", "frame-all-button", "frame-selection-button",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
             "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",

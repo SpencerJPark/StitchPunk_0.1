@@ -230,6 +230,11 @@
     margin-left: 6px;
 }
 
+.clip-editor__transport-slider {
+    width: 110px;
+    margin-right: 4px;
+}
+
 .clip-editor__transport-toggle {
     margin-right: 4px;
 }

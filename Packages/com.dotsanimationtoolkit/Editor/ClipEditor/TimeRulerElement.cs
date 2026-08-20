@@ -25,6 +25,14 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Number of frames spanning the clip; also the minor tick count.</summary>
         public int frameCount = 30;
 
+        /// <summary>
+        /// The timeline view, pushed in by the window. Never derived here: a lane that computed its
+        /// own zoom would drift from the ruler's, which is the bug TimelineGeometry exists to stop.
+        /// </summary>
+        public float viewZoom = 1f;
+        public float viewPan;
+
+
         /// <summary>Raised when the pointer scrubs the ruler, with the normalized time.</summary>
         public event System.Action<float> scrubbed;
 
@@ -88,7 +96,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            float normalizedTime = TimelineGeometry.Create(contentRect.width).XToTime(localX);
+            float normalizedTime = TimelineGeometry.Create(contentRect.width, viewZoom, viewPan).XToTime(localX);
             if (!freeScrub)
             {
                 int frames = Mathf.Max(1, frameCount);
@@ -129,7 +137,7 @@ namespace DotsAnimationToolkit.Editor
 
             const float MinimumLabelSpacingPixels = 44f;
             int secondStride = 1;
-            TimelineGeometry geometry = TimelineGeometry.Create(width);
+            TimelineGeometry geometry = TimelineGeometry.Create(width, viewZoom, viewPan);
             while (geometry.TrackPixelWidth / (durationSeconds / secondStride) < MinimumLabelSpacingPixels)
             {
                 secondStride = secondStride == 1 ? 2 : secondStride + (secondStride == 2 ? 3 : 5);
@@ -172,7 +180,7 @@ namespace DotsAnimationToolkit.Editor
             painter.ClosePath();
             painter.Fill();
 
-            TimelineGeometry geometry = TimelineGeometry.Create(rect.width);
+            TimelineGeometry geometry = TimelineGeometry.Create(rect.width, viewZoom, viewPan);
             int ticks = Mathf.Clamp(frameCount, 1, 240);
 
             // Thin out the minor ticks when frames would fall closer together than they can be

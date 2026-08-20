@@ -118,9 +118,17 @@ namespace DotsAnimationToolkit.Editor
             MarkDirtyRepaint();
         }
 
+
+        /// <summary>
+        /// The timeline view, pushed in by the window. Never derived here: a lane that computed its
+        /// own zoom would drift from the ruler's, which is the bug TimelineGeometry exists to stop.
+        /// </summary>
+        public float viewZoom = 1f;
+        public float viewPan;
+
         private TimelineGeometry Geometry
         {
-            get { return TimelineGeometry.Create(contentRect.width); }
+            get { return TimelineGeometry.Create(contentRect.width, viewZoom, viewPan); }
         }
 
         private void OnPointerDown(PointerDownEvent pointerEvent)

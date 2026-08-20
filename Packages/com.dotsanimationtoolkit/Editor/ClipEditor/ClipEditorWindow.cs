@@ -552,6 +552,7 @@ namespace DotsAnimationToolkit.Editor
             // the timeline. Snap stays here: it governs what a DRAG writes, not when anything is.
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
             BindTransportBar();
+            BindTimelineView();
 
             ToolbarToggle billboardPreviewToggle =
                 rootVisualElement.Q<ToolbarToggle>("billboard-preview-toggle");
