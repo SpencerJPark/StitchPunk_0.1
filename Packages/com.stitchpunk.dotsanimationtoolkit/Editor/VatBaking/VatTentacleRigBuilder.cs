@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Builds a procedural tentacle — a tall strip with a bone chain down its length — as the

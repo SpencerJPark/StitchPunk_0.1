@@ -1,10 +1,10 @@
 {
-    "name": "StitchPunk.AnimationToolkit.Tests.EditMode",
-    "rootNamespace": "StitchPunk.AnimationToolkit.Tests.EditMode",
+    "name": "DotsAnimationToolkit.Tests.EditMode",
+    "rootNamespace": "DotsAnimationToolkit.Tests.EditMode",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
-        "StitchPunk.AnimationToolkit.Authoring",
-        "StitchPunk.AnimationToolkit.Editor",
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Unity.Entities",

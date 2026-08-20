@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>PlaybackQuery</c> — the read side of the section 5.4 API, including amendment

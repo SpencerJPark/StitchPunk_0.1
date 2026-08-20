@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Unity.Core;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>EventEmissionSystem</c> — architecture section 5.5 as amended by A27 and A28

@@ -102,7 +102,7 @@ The recurring defect is one claim, stated in three places, contradicted by amend
 
 10. **The PlayMode suite does not exist. All 27 "PlayMode" tests run in EditMode, and a project-wide PlayMode run discovers zero tests.**
 
-    `aacde42` ("close the gate defects and the advisory backlog") changed `StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef:16` from `"includePlatforms": []` to `"includePlatforms": ["Editor"]`. That makes it an editor-only assembly, and the Test Framework classifies editor-only test assemblies as **EditMode**. Observed via `mcp__UnityMCP__run_tests`:
+    `aacde42` ("close the gate defects and the advisory backlog") changed `DotsAnimationToolkit.Tests.PlayMode.asmdef:16` from `"includePlatforms": []` to `"includePlatforms": ["Editor"]`. That makes it an editor-only assembly, and the Test Framework classifies editor-only test assemblies as **EditMode**. Observed via `mcp__UnityMCP__run_tests`:
 
     | Run | Discovered | Result |
     |---|---|---|
@@ -114,7 +114,7 @@ The recurring defect is one claim, stated in three places, contradicted by amend
     The 27 tests pass, and baking is editor-side so they still exercise real behaviour. What is gone is the mode itself. Consequences:
 
     - **Every doc claiming "27 PlayMode" is false** — §1.3's platform table, the CHANGELOG, `index.md`, and the handoff. This is the same defect class as items 1–7, but load-bearing on the package's advertised test matrix rather than on prose.
-    - **The guard that existed for exactly this failed vacuously.** `PlayModeAssemblySmokeTest.PlayModeTestAssembly_HasContractedName` (`PlayModeAssemblySmokeTest.cs:16-20`) asserts only `Assembly.GetName().Name == "StitchPunk.AnimationToolkit.Tests.PlayMode"` — a string comparison that is equally true in EditMode. A test named for the assembly's mode does not check its mode. **This is a third instance of Reviewer B's F1 failure mode**, in a file whose entire purpose is to prevent it.
+    - **The guard that existed for exactly this failed vacuously.** `PlayModeAssemblySmokeTest.PlayModeTestAssembly_HasContractedName` (`PlayModeAssemblySmokeTest.cs:16-20`) asserts only `Assembly.GetName().Name == "DotsAnimationToolkit.Tests.PlayMode"` — a string comparison that is equally true in EditMode. A test named for the assembly's mode does not check its mode. **This is a third instance of Reviewer B's F1 failure mode**, in a file whose entire purpose is to prevent it.
     - **C4 is the systems slice.** Playback systems need a real player-loop tick. Written against this asmdef, those tests would silently run in EditMode too, and pass or fail for the wrong reasons.
 
     Likely cause: the same one-line fix the handoff prescribes for the *host* game's `StitchPunk.Editor.asmdef` (`"includePlatforms": []` → `["Editor"]`, correct there, because editor code must not ship in player builds) applied reflexively to a PlayMode **test** assembly, where `[]` was correct — PlayMode tests must be able to run in a player.

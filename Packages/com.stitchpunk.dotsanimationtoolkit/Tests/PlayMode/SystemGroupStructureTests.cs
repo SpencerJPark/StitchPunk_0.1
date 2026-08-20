@@ -2,10 +2,10 @@
 
 using System;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit;
+using DotsAnimationToolkit;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Pins the system-group skeleton of architecture section 5.1 — the toolkit's insertion contract

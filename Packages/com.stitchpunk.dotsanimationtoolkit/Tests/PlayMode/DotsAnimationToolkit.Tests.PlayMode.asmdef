@@ -1,9 +1,9 @@
 {
-    "name": "StitchPunk.AnimationToolkit.Tests.PlayMode",
-    "rootNamespace": "StitchPunk.AnimationToolkit.Tests.PlayMode",
+    "name": "DotsAnimationToolkit.Tests.PlayMode",
+    "rootNamespace": "DotsAnimationToolkit.Tests.PlayMode",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
-        "StitchPunk.AnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
         "UnityEngine.TestRunner",
         "Unity.Entities",
         "Unity.Entities.Hybrid",

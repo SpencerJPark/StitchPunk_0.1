@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Marks a GameObject as an animated actor root (architecture sections 4.1, 5.2). Bake produces

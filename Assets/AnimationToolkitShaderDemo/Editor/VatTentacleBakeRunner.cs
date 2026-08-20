@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit;
-using StitchPunk.AnimationToolkit.Authoring;
-using StitchPunk.AnimationToolkit.Editor;
+using DotsAnimationToolkit;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
 using UnityEditor;
 using UnityEngine;
 

@@ -1,9 +1,9 @@
 {
-    "name": "StitchPunk.AnimationToolkitMigration.Runtime",
-    "rootNamespace": "StitchPunk.AnimationToolkitMigration",
+    "name": "DotsAnimationToolkitMigration.Runtime",
+    "rootNamespace": "DotsAnimationToolkitMigration",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
-        "StitchPunk.AnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.Collections",

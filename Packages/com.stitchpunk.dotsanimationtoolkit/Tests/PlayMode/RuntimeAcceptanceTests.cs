@@ -8,7 +8,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// The clauses of the M3 PlayMode acceptance list (architecture section 8, restated by section

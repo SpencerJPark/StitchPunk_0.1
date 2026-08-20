@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// One row of the timeline: the keys of a single track, drawn and grabbed through

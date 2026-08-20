@@ -2,7 +2,7 @@
 
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// The toolkit's single insertion point into a host frame (architecture section 5.1). Everything

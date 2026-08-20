@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Editor;
+using DotsAnimationToolkit.Editor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of the Clip Editor's authoring-side logic.

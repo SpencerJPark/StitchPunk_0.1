@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Unity.Core;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>PlaybackTimeSystem</c> — the advance half of the playback state machine of

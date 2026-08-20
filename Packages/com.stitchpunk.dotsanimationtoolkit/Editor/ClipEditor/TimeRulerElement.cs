@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The tick strip above the lanes (architecture section 7.2).

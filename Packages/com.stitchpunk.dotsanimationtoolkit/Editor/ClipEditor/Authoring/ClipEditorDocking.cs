@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Brings the right window forward when the user moves between animating and authoring.

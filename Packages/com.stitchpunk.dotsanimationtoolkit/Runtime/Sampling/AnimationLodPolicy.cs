@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// The whole of architecture section 5.10's LOD table as pure functions: what a level does, and

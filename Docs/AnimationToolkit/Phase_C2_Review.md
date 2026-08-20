@@ -157,7 +157,7 @@ This one is genuinely the spec's fault: within M1 there is no other implementati
 
 `UnsafeAppendBuffer` can be *declared* and *filled* from safe code: `Add<T>(T value) where T : unmanaged` and the `(int, int, AllocatorHandle)` constructor have no pointers in their signatures. The contradiction is one step later. The only way to hash the buffer's **contents** is `xxHash3.Hash64(void* input, long length)` (`Unity.Collections/xxHash3.cs:42`) — a pointer parameter, so the call site needs an `unsafe` context, so the assembly needs `allowUnsafeCode: true`. The alternative overload `Hash64<T>(in T input)` would hash the `UnsafeAppendBuffer` **struct's own bytes** — a `byte* Ptr` plus lengths — which is a different value on every run and would silently destroy the determinism §4.5 exists to guarantee. There is no safe path.
 
-`Authoring/StitchPunk.AnimationToolkit.Authoring.asmdef` has `"allowUnsafeCode": false`, §1.3 grants the flag only to Runtime ("blob building helpers"), and `PackagingConformanceTests.Supplementary_UnsafeCodeFlags_MatchSection13` asserts the whole five-assembly set. So §4.5-as-written cannot be implemented in the assembly §8 M1 assigns `ClipRegistryBuilder` to. **Confirmed self-contradictory.**
+`Authoring/DotsAnimationToolkit.Authoring.asmdef` has `"allowUnsafeCode": false`, §1.3 grants the flag only to Runtime ("blob building helpers"), and `PackagingConformanceTests.Supplementary_UnsafeCodeFlags_MatchSection13` asserts the whole five-assembly set. So §4.5-as-written cannot be implemented in the assembly §8 M1 assigns `ClipRegistryBuilder` to. **Confirmed self-contradictory.**
 
 **2. Is the substitution therefore *required*? No — it is one of two options, both needing an amendment.**
 

@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// One clip to bake into a VAT texture.

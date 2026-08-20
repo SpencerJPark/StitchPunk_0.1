@@ -19,7 +19,7 @@
 // it; a built-in-pipeline shader inside a URP-only package is a support ticket waiting to happen.
 // The two texture properties are the only thing the tests read, and they are pipeline-agnostic.
 
-Shader "Hidden/StitchPunk/AnimationToolkit/Tests/VatMaterialProbe"
+Shader "Hidden/DotsAnimationToolkit/Tests/VatMaterialProbe"
 {
     Properties
     {

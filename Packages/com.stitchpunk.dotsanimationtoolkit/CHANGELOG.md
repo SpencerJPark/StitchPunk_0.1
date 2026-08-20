@@ -20,7 +20,7 @@ they are built from.
   standalone includes: `ToolkitBillboardVertex`, `ToolkitVatBoneSkin`,
   `ToolkitVatVertexFetch`, `ToolkitFlipbookSliceUV`,
   `ToolkitFlipbookSliceIndex`, `ToolkitFlipbookAtlasUV`. They search under
-  **StitchPunk/Animation**.
+  **DOTS Animation Toolkit**.
 - **`ToolkitSpriteUnlit.shadergraph`** — atlas flipbook + billboard, alpha
   clipped. Replaces the hand-written sprite shader.
 - **`ToolkitSpriteUnlitArray.shadergraph`** — the `Texture2DArray` slice-mode
@@ -1462,11 +1462,11 @@ shader features ship in this step; those land in build steps C1 through C8.
   Entities Graphics 6.5.0, Burst 1.8.29, Collections 6.5.0, Mathematics 1.4.0,
   URP 17.5.0). The samples list is empty until build step C8.
 - The five assembly definitions from architecture section 1.3:
-  `StitchPunk.AnimationToolkit.Runtime` (unsafe code enabled for blob-building
-  helpers), `StitchPunk.AnimationToolkit.Authoring`,
-  `StitchPunk.AnimationToolkit.Editor` (Editor platform only),
-  `StitchPunk.AnimationToolkit.Tests.EditMode` (Editor platform only), and
-  `StitchPunk.AnimationToolkit.Tests.PlayMode`.
+  `DotsAnimationToolkit.Runtime` (unsafe code enabled for blob-building
+  helpers), `DotsAnimationToolkit.Authoring`,
+  `DotsAnimationToolkit.Editor` (Editor platform only),
+  `DotsAnimationToolkit.Tests.EditMode` (Editor platform only), and
+  `DotsAnimationToolkit.Tests.PlayMode`.
 - `InternalsVisibleTo` grants from the Authoring assembly to the Editor assembly
   and both test assemblies (architecture section 8 M1: internal `stableId`
   fields are read by editor tooling and tests).

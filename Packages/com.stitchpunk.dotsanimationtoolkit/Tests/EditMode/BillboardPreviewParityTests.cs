@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// The Clip Editor's viewport and the runtime job must resolve a billboard identically

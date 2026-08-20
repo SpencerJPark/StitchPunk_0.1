@@ -5,7 +5,7 @@ using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>SpriteMaterialSystem</c> — the flipbook technique of architecture section 5.7

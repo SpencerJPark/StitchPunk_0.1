@@ -1,18 +1,18 @@
 {
-    "name": "StitchPunk.AnimationToolkit.Authoring",
-    "rootNamespace": "StitchPunk.AnimationToolkit.Authoring",
+    "name": "DotsAnimationToolkit.Runtime",
+    "rootNamespace": "DotsAnimationToolkit",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
         "Unity.Entities",
-        "Unity.Entities.Hybrid",
+        "Unity.Entities.Graphics",
         "Unity.Burst",
         "Unity.Collections",
         "Unity.Mathematics",
-        "Unity.Mathematics.Extensions"
+        "Unity.Mathematics.Extensions",
+        "Unity.Transforms"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,

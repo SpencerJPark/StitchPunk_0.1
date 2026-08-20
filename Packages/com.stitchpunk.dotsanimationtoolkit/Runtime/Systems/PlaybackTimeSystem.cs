@@ -4,7 +4,7 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Advances playback time, blends and queues for every actor, every frame

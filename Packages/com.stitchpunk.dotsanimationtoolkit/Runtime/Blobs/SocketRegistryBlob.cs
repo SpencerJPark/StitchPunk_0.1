@@ -3,7 +3,7 @@
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>How a socket finds the thing it follows.</summary>
     public enum SocketAttachMode : byte

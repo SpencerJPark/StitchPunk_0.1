@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-using StitchPunk.AnimationToolkit;
+using DotsAnimationToolkit;
 using Unity.Entities;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkitMigration
+namespace DotsAnimationToolkitMigration
 {
     /// <summary>
     /// Drives the pilot actor so that the three things a static scene cannot show — crossfading,
@@ -77,10 +77,10 @@ namespace StitchPunk.AnimationToolkitMigration
         public int layerIndex = 3;
 
         [Tooltip("The two clips to alternate between.")]
-        public StitchPunk.AnimationToolkit.Authoring.ClipAsset firstClip;
+        public DotsAnimationToolkit.Authoring.ClipAsset firstClip;
 
         /// <summary>The second alternating clip.</summary>
-        public StitchPunk.AnimationToolkit.Authoring.ClipAsset secondClip;
+        public DotsAnimationToolkit.Authoring.ClipAsset secondClip;
 
         private sealed class PilotDriverBaker : Baker<PilotDriverAuthoring>
         {

@@ -2,7 +2,7 @@
 
 using System;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Stable 32-bit identity of a rig target (architecture section 3.4). Per-rig scope makes

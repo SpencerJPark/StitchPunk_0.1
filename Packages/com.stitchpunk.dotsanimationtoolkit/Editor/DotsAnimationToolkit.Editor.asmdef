@@ -1,9 +1,9 @@
 {
-    "name": "StitchPunk.AnimationToolkit.Editor",
-    "rootNamespace": "StitchPunk.AnimationToolkit.Editor",
+    "name": "DotsAnimationToolkit.Editor",
+    "rootNamespace": "DotsAnimationToolkit.Editor",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
-        "StitchPunk.AnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.Burst",

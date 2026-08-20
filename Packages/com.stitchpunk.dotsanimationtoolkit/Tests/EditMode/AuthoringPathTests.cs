@@ -3,10 +3,10 @@
 using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Collections;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Covers <c>AuthoringPathText.RenderPath</c> — the half of the diagnostic path builder that

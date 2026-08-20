@@ -1,6 +1,6 @@
 # Phase C0 Review — Package Skeleton (Packaging agent)
 
-**Reviewer:** Reviewer agent · **Date:** 2026-07-27 · **Deliverable:** `Packages/com.stitchpunk.dotsanimationtoolkit/` (13 files) · **Normative refs:** Phase_B_Architecture.md §1 (with the §1.1 naming decision: id `com.stitchpunk.dotsanimationtoolkit`, display name "DOTS Animation Toolkit", asmdef/namespace prefix `StitchPunk.AnimationToolkit`), §8 M6, §9 C0. · **Method:** every file read and diffed field-for-field against the contract; conformance-test logic audited for vacuous-pass/hardcoded-pass routes; test (d)'s scans independently re-run by the reviewer against the shipped files; working tree checked for out-of-scope modifications.
+**Reviewer:** Reviewer agent · **Date:** 2026-07-27 · **Deliverable:** `Packages/com.stitchpunk.dotsanimationtoolkit/` (13 files) · **Normative refs:** Phase_B_Architecture.md §1 (with the §1.1 naming decision: id `com.stitchpunk.dotsanimationtoolkit`, display name "DOTS Animation Toolkit", asmdef/namespace prefix `DotsAnimationToolkit`), §8 M6, §9 C0. · **Method:** every file read and diffed field-for-field against the contract; conformance-test logic audited for vacuous-pass/hardcoded-pass routes; test (d)'s scans independently re-run by the reviewer against the shipped files; working tree checked for out-of-scope modifications.
 
 ---
 
@@ -9,7 +9,7 @@
 | # | Criterion | Verdict | Justification |
 |---|---|---|---|
 | 1 | `package.json` matches §1.1 (id, display name, version, unity min, dependency pins) | **PASS** | `com.stitchpunk.dotsanimationtoolkit` / "DOTS Animation Toolkit" / `0.1.0` / `"unity": "6000.5"`; all six pins exact (`entities` 6.5.0, `entities.graphics` 6.5.0, `burst` 1.8.29, `collections` 6.5.0, `mathematics` 1.4.0, `render-pipelines.universal` 17.5.0); empty `samples` correct until C8; description truthfully states skeleton-only status. |
-| 2 | Runtime asmdef vs §1.3 | **PASS** | Name, rootNamespace `StitchPunk.AnimationToolkit`, all six references exact and in order, no platform restriction, `allowUnsafeCode: true`. |
+| 2 | Runtime asmdef vs §1.3 | **PASS** | Name, rootNamespace `DotsAnimationToolkit`, all six references exact and in order, no platform restriction, `allowUnsafeCode: true`. |
 | 3 | Authoring asmdef vs §1.3 | **PASS** | Six references exact (Runtime + Entities/Hybrid/Burst/Collections/Mathematics), no platform restriction, no UnityEditor, unsafe false, `.Authoring` sub-namespace per §1.1. |
 | 4 | Editor asmdef vs §1.3 | **PASS** | Seven references exact; `"includePlatforms": ["Editor"]` — the host-repo failure mode (audit §1) is structurally prevented. |
 | 5 | Tests.EditMode asmdef vs §1.3 | **PASS** | Nine references exact incl. both TestRunner assemblies; Editor-only; standard test plumbing (`overrideReferences` + `nunit.framework.dll` + `UNITY_INCLUDE_TESTS` + `autoReferenced: false`) — adjudicated in-contract, see A4. |

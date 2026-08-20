@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Unity.Core;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers the wiring of amendment A37's slice sum through a running world — that the facing

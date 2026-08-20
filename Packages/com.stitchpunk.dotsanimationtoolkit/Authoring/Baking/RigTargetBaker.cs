@@ -5,7 +5,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Bakes a <see cref="RigTargetAuthoring"/> into the part archetype of architecture section 5.2:

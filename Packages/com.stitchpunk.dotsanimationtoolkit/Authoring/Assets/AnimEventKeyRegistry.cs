@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Names for a project's event keys (amendment A45): the asset that turns

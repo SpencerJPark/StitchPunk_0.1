@@ -22,9 +22,9 @@
 float4 _ToolkitCameraForward;
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitBillboardVertex</sg:ProviderKey>
+///     <sg:ProviderKey>DotsAnimationToolkit.ToolkitBillboardVertex</sg:ProviderKey>
 ///     <sg:DisplayName>Billboard Vertex</sg:DisplayName>
-///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
+///     <sg:SearchCategory>DOTS Animation Toolkit</sg:SearchCategory>
 ///</funchints>
 ///<paramhints name = "positionOS">
 ///     <sg:DisplayName>Position (Object)</sg:DisplayName>

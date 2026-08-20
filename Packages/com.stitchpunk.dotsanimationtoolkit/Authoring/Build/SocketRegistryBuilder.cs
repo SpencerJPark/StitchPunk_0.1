@@ -6,7 +6,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Builds a <see cref="SocketRegistryBlob"/> from a rig's socket rows and the motion the VAT

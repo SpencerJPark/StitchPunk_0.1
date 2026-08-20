@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Samples
+namespace DotsAnimationToolkit.Samples
 {
     /// <summary>
     /// Builds a complete, working actor from nothing — rig, clip set, one animated clip, and a

@@ -1,9 +1,9 @@
 {
-    "name": "StitchPunk.AnimationToolkitSmoke.Editor",
-    "rootNamespace": "StitchPunk.AnimationToolkitSmoke.Editor",
+    "name": "DotsAnimationToolkitSmoke.Editor",
+    "rootNamespace": "DotsAnimationToolkitSmoke.Editor",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
-        "StitchPunk.AnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.Scenes",

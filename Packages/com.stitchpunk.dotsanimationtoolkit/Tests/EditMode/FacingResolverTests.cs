@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Covers <c>FacingResolver</c> against amendment A38's direction tables.

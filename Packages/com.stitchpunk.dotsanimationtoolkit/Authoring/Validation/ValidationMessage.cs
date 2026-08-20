@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// How serious a validation finding is (architecture section 3.5). Errors fail the bake;

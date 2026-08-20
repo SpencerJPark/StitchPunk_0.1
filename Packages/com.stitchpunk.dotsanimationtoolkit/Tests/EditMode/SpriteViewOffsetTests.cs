@@ -2,7 +2,7 @@
 
 using NUnit.Framework;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Covers <c>ClipSampler.ResolveViewSlice</c> — the facing term of the slice sum

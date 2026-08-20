@@ -46,7 +46,7 @@ Alongside those, the module resolved at least four spec/reality conflicts silent
 | 16 | §4.1's "errors reported with **entity + asset context**" | §4.1 | **FAIL** | See **B3**. Shipped errors carry an entity index:version and a 32-bit hash the user cannot invert into a GameObject. No `UnityEngine.Object` context, no name, no path. |
 | 17 | Blob built in the **Baker**, not a baking system | §4.1 decision | **PASS** | `ClipRegistryBuilder.Build` is called from `ActorBaker.TryAcquireRegistry`. `RigBindingBakingSystem` builds nothing and only reads `ClipRegistry` through a `ComponentLookup`. The §4.1 division of labour is respected exactly, including the reason it exists (a baker may write only its own entity, so `RigPartRef`/`actorRoot`/dense index go to the system). |
 | 18 | `RigBindingBakingSystem` will not fight §5.3's `RigBindingSystem` | §5.3 | **PASS** | Baked `RigBindingUninitialized` is enabled, so an ECB-instantiated copy starts enabled and C4's rebind runs. `RigPartBinding.targetIndex` is plain data and survives instantiation, which is what §5.3's `LinkedEntityGroup` match keys on. Contract is met; see C4 note 3 for the `−1` hazard. |
-| 19 | Placement and asmdefs per §1.2/§1.3 | §1.2, §1.3 | **PASS** | All seven new sources under `Authoring/Baking/`, namespace `StitchPunk.AnimationToolkit.Authoring`, no `UnityEditor` reference anywhere in them. Test files under `Tests/PlayMode/`. No asmdef was edited. |
+| 19 | Placement and asmdefs per §1.2/§1.3 | §1.2, §1.3 | **PASS** | All seven new sources under `Authoring/Baking/`, namespace `DotsAnimationToolkit.Authoring`, no `UnityEditor` reference anywhere in them. Test files under `Tests/PlayMode/`. No asmdef was edited. |
 | 20 | PlayMode asmdef platform declaration matches reality | §1.3, §11.2 | **FAIL** | See **B5** / adjudication (d). `includePlatforms: []` (all platforms) for a suite whose harness reflects into `Unity.Entities.Hybrid` baking, which does not exist as a runnable path in a player. |
 | 21 | §9's C3 row DoD: "M2 baking acceptance green (archetype assertions, blob sharing, dense-index resolution)" | §9 | **PARTIAL** | Blob sharing and dense-index resolution are green and meaningful. "Archetype assertions" are root-only and presence-only. |
 | 22 | §9's rule: contract changes are stop-the-line doc amendments, never silent divergence | §9 | **FAIL** | See **B4**. Four unescalated divergences. |
@@ -150,7 +150,7 @@ None of these blocks the gate on its own; (1) and (3) fold naturally into the **
 
 The coordinator declined to decide this. It is correctly escalated and it is a live gate question, so I decide it.
 
-**The facts.** `StitchPunk.AnimationToolkit.Tests.PlayMode` has `includePlatforms: []` — all platforms — per §1.3's "All (test framework standard)". Every test in it routes through `BakingTestWorld`, which reflects into `Unity.Entities.Hybrid`'s baking pipeline. Baking has no player-side equivalent; a player test run either fails to resolve the members or produces no bake. A licensee clicking "Run all tests (Player)" gets a wall of red that says nothing about the package's health.
+**The facts.** `DotsAnimationToolkit.Tests.PlayMode` has `includePlatforms: []` — all platforms — per §1.3's "All (test framework standard)". Every test in it routes through `BakingTestWorld`, which reflects into `Unity.Entities.Hybrid`'s baking pipeline. Baking has no player-side equivalent; a player test run either fails to resolve the members or produces no bake. A licensee clicking "Run all tests (Player)" gets a wall of red that says nothing about the package's health.
 
 **The three options, weighed:**
 
@@ -225,7 +225,7 @@ A fifth, lower-grade item belongs here too: **§4.6's final paragraph says the e
 
 ### B5 — The PlayMode asmdef declares all platforms for an editor-only suite
 
-Adjudication (d). **Remedy:** `includePlatforms: ["Editor"]` on `StitchPunk.AnimationToolkit.Tests.PlayMode`; amend §1.3's row for that assembly; update C0's `PackagingConformanceTests` platform/reference assertion in the same commit; one Documentation~/CHANGELOG line stating the baking suite runs from the Test Runner's PlayMode tab in-editor and cannot run in a player.
+Adjudication (d). **Remedy:** `includePlatforms: ["Editor"]` on `DotsAnimationToolkit.Tests.PlayMode`; amend §1.3's row for that assembly; update C0's `PackagingConformanceTests` platform/reference assertion in the same commit; one Documentation~/CHANGELOG line stating the baking suite runs from the Test Runner's PlayMode tab in-editor and cannot run in a player.
 
 ### B6 — Shipped package metadata now misdescribes the shipped package
 

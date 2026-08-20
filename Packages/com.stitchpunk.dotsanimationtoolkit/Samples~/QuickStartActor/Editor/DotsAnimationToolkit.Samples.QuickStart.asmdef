@@ -1,9 +1,9 @@
 {
-    "name": "StitchPunk.AnimationToolkit.Samples.CompositeActor",
-    "rootNamespace": "StitchPunk.AnimationToolkit.Samples",
+    "name": "DotsAnimationToolkit.Samples.QuickStart",
+    "rootNamespace": "DotsAnimationToolkit.Samples",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
-        "StitchPunk.AnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
         "Unity.Entities",
         "Unity.Collections",
         "Unity.Mathematics"

@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The Mirror Clip utility (architecture section 7.1, module M5): turns a clip authored for one

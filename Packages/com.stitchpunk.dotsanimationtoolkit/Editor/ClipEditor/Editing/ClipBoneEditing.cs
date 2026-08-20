@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Reads and writes authored bone tracks at a point in time.

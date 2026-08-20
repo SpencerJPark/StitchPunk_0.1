@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Binds one GameObject under an <see cref="ActorAuthoring"/> to one rig target

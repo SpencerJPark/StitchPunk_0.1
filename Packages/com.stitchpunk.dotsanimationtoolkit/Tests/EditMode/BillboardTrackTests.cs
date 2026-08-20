@@ -2,10 +2,10 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// The clip half of amendment A44: billboard tracks through the bake and out of the sampler,

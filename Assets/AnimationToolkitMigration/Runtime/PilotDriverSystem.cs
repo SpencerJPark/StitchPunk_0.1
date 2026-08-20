@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-using StitchPunk.AnimationToolkit;
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkitMigration
+namespace DotsAnimationToolkitMigration
 {
     /// <summary>
     /// Ticks every <see cref="PilotDriver"/>, issuing crossfades and toggling facing so the §13.2

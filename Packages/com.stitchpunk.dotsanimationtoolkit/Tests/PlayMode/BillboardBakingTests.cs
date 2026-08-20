@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// What amendment A44 actually bakes: the actor's billboard-root buffer, its depth ordering, and

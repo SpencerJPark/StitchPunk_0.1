@@ -16,9 +16,9 @@
 #include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitVatBoneSkin</sg:ProviderKey>
+///     <sg:ProviderKey>DotsAnimationToolkit.ToolkitVatBoneSkin</sg:ProviderKey>
 ///     <sg:DisplayName>VAT Bone Skin</sg:DisplayName>
-///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
+///     <sg:SearchCategory>DOTS Animation Toolkit</sg:SearchCategory>
 ///</funchints>
 ///<paramhints name = "vatTexture">
 ///     <sg:DisplayName>VAT Texture</sg:DisplayName>

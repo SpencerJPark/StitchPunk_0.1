@@ -3,7 +3,7 @@
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Everything <see cref="BillboardMath"/> needs to resolve one billboard root's orientation

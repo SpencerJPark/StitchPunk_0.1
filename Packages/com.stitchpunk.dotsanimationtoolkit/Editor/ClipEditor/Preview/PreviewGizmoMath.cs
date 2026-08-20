@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>Which transform channel a gizmo drag edits.</summary>
     public enum GizmoMode : byte

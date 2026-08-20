@@ -21,13 +21,13 @@ This document is self-contained: a build agent implements any module from its co
 | Package id | `com.stitchpunk.dotsanimationtoolkit` (final, same decision) |
 | Version | `0.1.0` during Phase C; `1.0.0` at first publish |
 | Unity | `6000.5` minimum (`"unity": "6000.5"` in package.json) |
-| Root namespace | `StitchPunk.AnimationToolkit` (+ `.Authoring`, `.Editor` sub-namespaces) |
+| Root namespace | `DotsAnimationToolkit` (+ `.Authoring`, `.Editor` sub-namespaces) |
 | Dependencies (package.json) | `com.unity.entities: 6.5.0`, `com.unity.entities.graphics: 6.5.0`, `com.unity.burst: 1.8.29`, `com.unity.collections: 6.5.0`, `com.unity.mathematics: 1.4.0`, `com.unity.render-pipelines.universal: 17.5.0` |
 | Forbidden dependencies | Anything under `Assets/` of the host project; `com.unity.physics`; UniTask; Reflex; Rive. Zero references to Stitch Punk game code — enforced by asmdef reference lists and by the packaging conformance test (§8 M6). |
 
 Development happens as an **embedded package** at `Packages/com.stitchpunk.dotsanimationtoolkit/` inside this repo (standard UPM embedded-dev workflow). The host project may reference it, never the reverse.
 
-**Naming note (product-owner decision, 2026-07-27):** the product name is **DOTS Animation Toolkit** / `com.stitchpunk.dotsanimationtoolkit`. The C# root namespace and asmdef prefix deliberately remain `StitchPunk.AnimationToolkit` — inside code the DOTS qualifier is redundant (everything in the package is DOTS), and shorter type-qualified names read better in user projects. This is an intentional id↔namespace divergence, not an incomplete rename.
+**Naming note (product-owner decision, 2026-07-27):** the product name is **DOTS Animation Toolkit** / `com.stitchpunk.dotsanimationtoolkit`. The C# root namespace and asmdef prefix deliberately remain `DotsAnimationToolkit` — inside code the DOTS qualifier is redundant (everything in the package is DOTS), and shorter type-qualified names read better in user projects. This is an intentional id↔namespace divergence, not an incomplete rename.
 
 ### 1.2 Folder tree
 
@@ -38,7 +38,7 @@ Packages/com.stitchpunk.dotsanimationtoolkit/
 ├── LICENSE.md
 ├── README.md
 ├── Runtime/
-│   ├── StitchPunk.AnimationToolkit.Runtime.asmdef
+│   ├── DotsAnimationToolkit.Runtime.asmdef
 │   ├── Identity/            (ClipId, TargetId, StableIdUtility-runtime half)
 │   ├── Components/          (all IComponentData / IBufferElementData / enableables)
 │   ├── Blobs/               (ClipRegistryBlob + child structs)
@@ -47,13 +47,13 @@ Packages/com.stitchpunk.dotsanimationtoolkit/
 │   └── Api/                 (AnimationCommandUtil, ClipRegistryUtil, PlaybackQuery,
 │                             ToolkitWorldControl)
 ├── Authoring/
-│   ├── StitchPunk.AnimationToolkit.Authoring.asmdef
+│   ├── DotsAnimationToolkit.Authoring.asmdef
 │   ├── Assets/              (RigAsset, ClipAsset, ClipSetAsset, VatTextureSetAsset)
 │   ├── Build/               (ClipRegistryBuilder — SO → BlobBuilder, shared by Baker & editor preview)
 │   ├── Validation/          (ClipValidation rule set, ValidationMessage)
 │   └── Baking/              (ActorAuthoring, RigTargetAuthoring, all Bakers, RigBindingBakingSystem)
 ├── Editor/
-│   ├── StitchPunk.AnimationToolkit.Editor.asmdef        (Editor-only)
+│   ├── DotsAnimationToolkit.Editor.asmdef        (Editor-only)
 │   ├── ClipEditor/          (ClipEditorWindow + UXML/USS + timeline elements)
 │   ├── Preview/             (PreviewPlaybackDriver, PreviewRigMirror, thumbnail renderers)
 │   ├── VatBaking/           (VatTextureBaker core + VatBakeWindow)
@@ -68,9 +68,9 @@ Packages/com.stitchpunk.dotsanimationtoolkit/
 │   └── HandWritten/         (ToolkitVatCrowdUnlit.shader — explicit DOTS-instancing macro reference)
 ├── Tests/
 │   ├── EditMode/
-│   │   └── StitchPunk.AnimationToolkit.Tests.EditMode.asmdef
+│   │   └── DotsAnimationToolkit.Tests.EditMode.asmdef
 │   └── PlayMode/
-│       └── StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef
+│       └── DotsAnimationToolkit.Tests.PlayMode.asmdef
 ├── Samples~/
 │   ├── CutoutCharacter/     (2D paper-doll rig, transform+flipbook clips, billboard, events)
 │   ├── VatCrowd/            (bone-VAT: source skinned mesh + prebaked textures + 1000-instance scene)
@@ -87,11 +87,11 @@ Packages/com.stitchpunk.dotsanimationtoolkit/
 
 | asmdef | References | Platforms | Notes |
 |---|---|---|---|
-| `StitchPunk.AnimationToolkit.Runtime` | Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Transforms | All | No UnityEditor usage anywhere. `allowUnsafeCode: true` (blob building helpers). |
-| `StitchPunk.AnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. |
-| `StitchPunk.AnimationToolkit.Editor` | Runtime, Authoring, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | **["Editor"] only** | Windows, preview, VAT texture baker, inspectors, id tooling. This is the fix for the audit §1/§4 finding (host `StitchPunk.Editor.asmdef` ships in builds — the package must never repeat it; enforced by test, §8 M6). |
-| `StitchPunk.AnimationToolkit.Tests.EditMode` | Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst | ["Editor"] | Pure math/data/determinism/validation tests (§11). |
-| `StitchPunk.AnimationToolkit.Tests.PlayMode` | Runtime, Authoring, UnityEngine.TestRunner, Unity.Entities, Unity.Entities.Hybrid, Unity.Entities.Graphics (amendment A33), Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst, Unity.Transforms | **[]** (amendment A25, superseding A17) | World/system integration tests (§11). |
+| `DotsAnimationToolkit.Runtime` | Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Transforms | All | No UnityEditor usage anywhere. `allowUnsafeCode: true` (blob building helpers). |
+| `DotsAnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. |
+| `DotsAnimationToolkit.Editor` | Runtime, Authoring, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | **["Editor"] only** | Windows, preview, VAT texture baker, inspectors, id tooling. This is the fix for the audit §1/§4 finding (host `StitchPunk.Editor.asmdef` ships in builds — the package must never repeat it; enforced by test, §8 M6). |
+| `DotsAnimationToolkit.Tests.EditMode` | Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst | ["Editor"] | Pure math/data/determinism/validation tests (§11). |
+| `DotsAnimationToolkit.Tests.PlayMode` | Runtime, Authoring, UnityEngine.TestRunner, Unity.Entities, Unity.Entities.Hybrid, Unity.Entities.Graphics (amendment A33), Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst, Unity.Transforms | **[]** (amendment A25, superseding A17) | World/system integration tests (§11). |
 
 **Amendment A17 (C3 gate, 2026-07-30 — product-owner approved): the PlayMode test assembly is Editor-only.** Its `includePlatforms` is `["Editor"]`, not all platforms. The suite bakes prefabs, and Unity's baking pipeline has no player-side equivalent: `BakingUtility` lives in editor code, so a player build of these tests cannot run whatever its platform list claims. Shipping an assembly whose declared platforms are false is exactly the defect this package's §1.3 exists to prevent — and the one the host project it was extracted from actually has. "Document it and move on" was rejected for that reason; moving the suite to EditMode was rejected because it costs more normative surgery (§8 M2 and §11.2 both place these tests in PlayMode, and §1.3's EditMode reference list lacks `Unity.Entities.Hybrid` and `Unity.Transforms`). Consequence to accept knowingly: this restricts C4's M3 PlayMode suite too, and no §8 bullet requires a player test run — M6's player evidence is a `VatCrowd` build, not a test pass.
 
@@ -160,7 +160,7 @@ Naming rules: assets end in `Asset`; runtime components are nouns (`PlaybackLaye
 <a name="s3"></a>
 ## 3. Authoring data model
 
-All authoring types live in `StitchPunk.AnimationToolkit.Authoring`. All are plain `ScriptableObject`s; tracks/keys/markers are `[Serializable]` classes **inline in the ClipAsset** (audit §8 absorbs the inline-track shape — sub-asset-per-keyframe was the orphaned `KeyframeSO` design and stays dead). The one sub-asset relationship: **ClipAssets may optionally be created as sub-assets of their ClipSetAsset** via the editor's "New Clip in Set" action, keeping a set self-contained for distribution; free-standing clip assets are equally valid — the builder only follows references.
+All authoring types live in `DotsAnimationToolkit.Authoring`. All are plain `ScriptableObject`s; tracks/keys/markers are `[Serializable]` classes **inline in the ClipAsset** (audit §8 absorbs the inline-track shape — sub-asset-per-keyframe was the orphaned `KeyframeSO` design and stays dead). The one sub-asset relationship: **ClipAssets may optionally be created as sub-assets of their ClipSetAsset** via the editor's "New Clip in Set" action, keeping a set self-contained for distribution; free-standing clip assets are equally valid — the builder only follows references.
 
 ### 3.1 `RigAsset`
 
@@ -577,7 +577,7 @@ All generated textures: sRGB **off** (carrying forward the audit's verified line
 ### 5.1 System groups & host insertion
 
 ```csharp
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial class AnimationToolkitSystemGroup : ComponentSystemGroup { }
@@ -1738,9 +1738,34 @@ It existed to demonstrate the `UNITY_DOTS_INSTANCING_START` block and displaceme
 
 ### Two things the build caught
 
-**The packaging conformance test earned its keep.** `Conformance_D` forbids a package file matching `StitchPunk\.` unless followed by `AnimationToolkit`, because a sellable package must not carry the host's namespace. The first cut of the node library used `ProviderKey` values like `StitchPunk.ToolkitBillboardVertex` and failed on all nine files at once. Fully qualifying to `StitchPunk.AnimationToolkit.*` satisfies both the rule and §1.1's deliberate namespace choice. Nothing else in the process would have noticed.
+**The packaging conformance test earned its keep.** `Conformance_D` forbids a package file matching `StitchPunk\.` unless followed by `AnimationToolkit`, because a sellable package must not carry the host's namespace. The first cut of the node library used `ProviderKey` values like `StitchPunk.ToolkitBillboardVertex` and failed on all nine files at once. Fully qualifying to `DotsAnimationToolkit.*` satisfies both the rule and §1.1's deliberate namespace choice. Nothing else in the process would have noticed.
 
 **Slot ids must be read off a live node, never inferred.** `SampleTexture2DArrayNode` puts Index on slot **8**; slot 3 is Sampler. Guessing 3 wired the frame number into the sampler port, and the graph imported "successfully" as a one-pass error shader with no properties — a failure that looks like success until something renders. The array graph now carries that mapping in a comment beside the constant.
+
+---
+
+## Amendment A47 (2026-08-19 — product-owner directive): the package namespace drops the host's name
+
+*"I want stitchpunk removed from the namespace of the package, the package should be DotsAnimationToolkit."*
+
+§1.1 recorded the C# namespace and asmdef prefix as `StitchPunk.AnimationToolkit`, calling it an "intentional divergence". The reasoning was never written down, and it does not survive contact with the package's purpose: a toolkit sold to strangers should not carry the vendor's game name in every `using` a buyer writes. `DotsAnimationToolkit` says what the thing is.
+
+| Was | Now |
+|---|---|
+| `StitchPunk.AnimationToolkit` | `DotsAnimationToolkit` |
+| `StitchPunk.AnimationToolkit.Authoring` | `DotsAnimationToolkit.Authoring` |
+| `StitchPunk.AnimationToolkit.Editor` | `DotsAnimationToolkit.Editor` |
+| `StitchPunk.AnimationToolkit.Tests.*` | `DotsAnimationToolkit.Tests.*` |
+| Node search category `StitchPunk/Animation` | `DOTS Animation Toolkit` |
+| `ProviderKey` `StitchPunk.AnimationToolkit.*` | `DotsAnimationToolkit.*` |
+
+**`Conformance_D` got stricter, and that is the point.** It previously forbade `StitchPunk\.` *unless* followed by `AnimationToolkit`, an exception that existed solely to permit the package's own namespace. With the namespace gone the exception is gone: the host's name may not appear anywhere in a shipped package. The rule that flagged the node ProviderKeys in A46 now covers the whole surface.
+
+### Two traps worth recording
+
+**A prefix collision that a naive rename would have silently broken.** The host owns an assembly called `StitchPunk.AnimationToolkitShaderDemo` — a *host* assembly whose name begins with the exact string being replaced. A plain substitution renames it too, and every scene referencing it (`m_EditorClassIdentifier: Assembly::Namespace.Type`) points at a type that no longer exists. Every replacement was guarded by a negative lookahead, and 40 such references were verified untouched.
+
+**A skip-list that ate real source.** The rename script skipped directories named `Build` on the assumption they were build output. The package has an `Authoring/Build/` folder holding `ClipRegistryBuilder` and `SocketRegistryBuilder` — two of the most important files in it. They were silently passed over, and the script's own "0 leftovers" check used the same skip list, so it confirmed its own blind spot. Caught only by grepping the package afterwards with a different tool. **A verification pass that shares the traversal logic of the thing it verifies is not a verification pass.**
 
 ---
 

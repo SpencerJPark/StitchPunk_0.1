@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The clip editor's validation indicator: error and warning counts, expanding to the messages

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// The single authoritative implementation of the architecture section 3.5 rule table

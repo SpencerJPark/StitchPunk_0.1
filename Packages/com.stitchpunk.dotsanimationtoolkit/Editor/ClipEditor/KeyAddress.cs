@@ -2,7 +2,7 @@
 
 using System;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>Which kind of track a key belongs to.</summary>
     public enum TimelineTrackKind : byte

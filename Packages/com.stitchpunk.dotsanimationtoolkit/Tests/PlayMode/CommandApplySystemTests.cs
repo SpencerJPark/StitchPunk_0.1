@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>CommandApplySystem</c> — the request half of the playback state machine of

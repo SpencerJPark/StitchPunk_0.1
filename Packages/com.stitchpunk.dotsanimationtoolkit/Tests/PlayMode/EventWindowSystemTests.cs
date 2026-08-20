@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>EventWindowSystem</c> — architecture section 5.5 as amended by A45.

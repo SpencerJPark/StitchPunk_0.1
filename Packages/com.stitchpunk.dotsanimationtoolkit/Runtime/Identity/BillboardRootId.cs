@@ -2,7 +2,7 @@
 
 using System;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Stable 32-bit identity of a billboard root — a rig node that turns to face the viewer, and

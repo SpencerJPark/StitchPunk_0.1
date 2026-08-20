@@ -303,7 +303,7 @@ messages by their emitting text.
 ## FINDING 10 — B5 closed in code; §1.3's table cell still contradicts its own amendment
 
 Code side verified:
-- `Tests/PlayMode/StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef` — `"includePlatforms": ["Editor"]` ✓
+- `Tests/PlayMode/DotsAnimationToolkit.Tests.PlayMode.asmdef` — `"includePlatforms": ["Editor"]` ✓
 - `Tests/EditMode/PackagingConformanceTests.cs:156` — `expectedIncludePlatforms = new string[] { "Editor" }` ✓, comment corrected ✓
 - `CHANGELOG.md:30` and `Documentation~/index.md:86` disclose it ✓
 
@@ -886,7 +886,7 @@ diagnostic, which is worse than throwing. At the stated "no placeholders" bar, d
   current bug.
 - **The doc's runtime claim is wrong.** The `<remarks>` says "it is internal, so nothing outside the package â€” and
   nothing at runtime â€” can see or depend on it." The Authoring assembly has `"includePlatforms": []`
-  (`Authoring/StitchPunk.AnimationToolkit.Authoring.asmdef`), i.e. it **is compiled into player builds**, and
+  (`Authoring/DotsAnimationToolkit.Authoring.asmdef`), i.e. it **is compiled into player builds**, and
   `Authoring/AssemblyInfo.cs:8-10` grants `InternalsVisibleTo` to the Editor and both test assemblies. The counter
   therefore exists at runtime in a shipped player and the public `Build` mutates it there on every call. What is true is
   only that no shipping code *reads* it.

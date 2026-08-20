@@ -4,7 +4,7 @@ A DOTS-native animation toolkit for Unity Entities projects: 2.5D cutout
 transform-track animation, flipbook sprite animation, and vertex/bone
 animation textures (VAT) for crowd-scale instancing. Clips are authored as
 ScriptableObjects, baked into blob-asset registries, and sampled by
-Burst-compiled systems. Root C# namespace: `StitchPunk.AnimationToolkit`
+Burst-compiled systems. Root C# namespace: `DotsAnimationToolkit`
 (`.Authoring` and `.Editor` sub-namespaces).
 
 New here? Start with [`getting-started.md`](getting-started.md) for an

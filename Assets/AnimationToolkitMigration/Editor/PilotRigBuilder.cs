@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit;
-using StitchPunk.AnimationToolkit.Authoring;
-using StitchPunk.AnimationToolkitMigration;
+using DotsAnimationToolkit;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkitMigration;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace StitchPunk.AnimationToolkitMigration.Editor
+namespace DotsAnimationToolkitMigration.Editor
 {
     /// <summary>
     /// Stands up one actor on the <em>converted</em> host content — step 2 of the §13.2 cutover

@@ -2,7 +2,7 @@
 
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// The supported way for a host to turn the whole toolkit on or off in a world

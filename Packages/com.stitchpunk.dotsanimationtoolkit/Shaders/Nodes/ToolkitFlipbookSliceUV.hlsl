@@ -10,9 +10,9 @@
 #include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitFlipbookSliceUV</sg:ProviderKey>
+///     <sg:ProviderKey>DotsAnimationToolkit.ToolkitFlipbookSliceUV</sg:ProviderKey>
 ///     <sg:DisplayName>Flipbook Slice UV</sg:DisplayName>
-///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
+///     <sg:SearchCategory>DOTS Animation Toolkit</sg:SearchCategory>
 ///</funchints>
 ///<paramhints name = "uv">
 ///     <sg:DisplayName>UV</sg:DisplayName>

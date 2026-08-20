@@ -2,7 +2,7 @@
 
 using NUnit.Framework;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of event-window containment (architecture section 5.5, amendment A45):

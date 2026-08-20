@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// The write side of the playback API (architecture section 5.4): how a game asks an actor to

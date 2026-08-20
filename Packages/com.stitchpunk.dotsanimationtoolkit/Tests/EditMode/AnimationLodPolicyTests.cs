@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Pins architecture section 5.10's LOD table, which <see cref="AnimationLodPolicy"/> is the

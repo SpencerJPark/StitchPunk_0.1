@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Publishes each visible flipbook part's sampled frame to its per-instance shader properties

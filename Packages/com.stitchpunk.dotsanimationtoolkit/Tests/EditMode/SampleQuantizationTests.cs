@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of sample-rate quantization with per-entity phase

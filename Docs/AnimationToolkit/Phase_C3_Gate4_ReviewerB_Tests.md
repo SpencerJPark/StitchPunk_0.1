@@ -340,7 +340,7 @@ Two toolkit types with the same short name in different sub-namespaces (e.g. a
 to harden by comparing `FullName`. Noted because this is the assertion carrying the word
 "exactly" for both archetypes.
 
-Credit where due: the namespace filter is `StartsWith("StitchPunk.AnimationToolkit")`,
+Credit where due: the namespace filter is `StartsWith("DotsAnimationToolkit")`,
 which includes `…​.Authoring`, so the exact-archetype assertion *does* catch a stray
 `ActorBakeFailed` or `RigPartBakeLink` landing on the root — that is real discrimination.
 

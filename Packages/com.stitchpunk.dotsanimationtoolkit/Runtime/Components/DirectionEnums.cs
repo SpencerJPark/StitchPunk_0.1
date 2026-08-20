@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Which of eight ways an actor faces (architecture section 10 answer 7, amendment A38).

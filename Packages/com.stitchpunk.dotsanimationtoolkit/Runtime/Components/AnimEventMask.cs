@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// The set of event windows currently open on this actor, one bit per event key

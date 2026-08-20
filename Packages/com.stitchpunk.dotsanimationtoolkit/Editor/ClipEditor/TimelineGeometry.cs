@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The one place that converts between clip time and timeline pixels.

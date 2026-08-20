@@ -2,7 +2,7 @@
 
 using NUnit.Framework;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of the five easing curves (architecture sections 3.2, 8 M3): shapes

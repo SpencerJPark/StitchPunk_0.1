@@ -2,11 +2,11 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Builds the authoring assets and GameObject hierarchies the M2 baking acceptance tests bake,
@@ -46,7 +46,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         internal const uint HeadTargetId = 300u;
 
         /// <summary>The test-only shader that declares the VAT texture slots.</summary>
-        internal const string VatProbeShaderName = "Hidden/StitchPunk/AnimationToolkit/Tests/VatMaterialProbe";
+        internal const string VatProbeShaderName = "Hidden/DotsAnimationToolkit/Tests/VatMaterialProbe";
 
         /// <summary>A target id the fixture rig deliberately does not declare.</summary>
         internal const uint UnknownTargetId = 999u;

@@ -9,7 +9,7 @@ using Unity.Entities;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// A disposable baking world the M2 acceptance tests bake GameObject hierarchies into

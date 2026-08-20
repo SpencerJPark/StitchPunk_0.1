@@ -2,7 +2,7 @@
 
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Actor-root component holding the baked clip registry (architecture section 5.2). Two actors

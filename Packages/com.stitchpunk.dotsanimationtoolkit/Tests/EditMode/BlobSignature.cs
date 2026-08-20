@@ -3,7 +3,7 @@
 using System.Text;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Renders a whole <see cref="ClipRegistryBlob"/> as a text signature covering every field of

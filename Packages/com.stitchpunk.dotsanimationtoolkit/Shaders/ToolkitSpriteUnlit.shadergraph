@@ -1466,7 +1466,7 @@
                     "asm": "Unity.ShaderGraph.Editor"
                 },
                 "data": {
-                    "m_providerKey": "StitchPunk.AnimationToolkit.ToolkitFlipbookAtlasUV",
+                    "m_providerKey": "DotsAnimationToolkit.ToolkitFlipbookAtlasUV",
                     "m_sourceAssetId": "3387f7f1093449b3b8dc8012ca767064"
                 }
             }
@@ -1632,7 +1632,7 @@
                     "asm": "Unity.ShaderGraph.Editor"
                 },
                 "data": {
-                    "m_providerKey": "StitchPunk.AnimationToolkit.ToolkitBillboardVertex",
+                    "m_providerKey": "DotsAnimationToolkit.ToolkitBillboardVertex",
                     "m_sourceAssetId": "81272f3b993b4d18baf310eb8b323ecb"
                 }
             }

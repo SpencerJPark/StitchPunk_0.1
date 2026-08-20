@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Creates, renames, removes and deletes the assets a <see cref="ClipSetAsset"/> is made of.

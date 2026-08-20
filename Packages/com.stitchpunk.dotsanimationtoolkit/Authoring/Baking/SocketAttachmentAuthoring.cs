@@ -3,7 +3,7 @@
 using Unity.Entities;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Makes this GameObject's entity ride a socket on an actor (architecture section 5.2's part

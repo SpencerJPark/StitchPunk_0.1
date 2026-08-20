@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Turns "which way is this character facing" into "which clip do I play, mirrored or not"

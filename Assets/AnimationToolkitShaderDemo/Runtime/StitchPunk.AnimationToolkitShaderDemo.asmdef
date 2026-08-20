@@ -2,7 +2,7 @@
     "name": "StitchPunk.AnimationToolkitShaderDemo",
     "rootNamespace": "StitchPunk.AnimationToolkitShaderDemo",
     "references": [
-        "StitchPunk.AnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Runtime",
         "Unity.Entities",
         "Unity.Mathematics",
         "Unity.Collections"

@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit;
+using DotsAnimationToolkit;
 using Unity.Collections;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>RigBindingSystem</c> — the spawn-time re-bind of architecture section 5.3

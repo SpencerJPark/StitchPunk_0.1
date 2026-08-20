@@ -2,7 +2,7 @@
 
 using Unity.Burst;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Id → dense-index resolution over the baked registry (architecture section 4.3): binary

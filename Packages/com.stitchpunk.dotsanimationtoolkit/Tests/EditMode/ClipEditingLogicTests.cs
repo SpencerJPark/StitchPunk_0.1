@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
-using StitchPunk.AnimationToolkit.Editor;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// The arithmetic behind keying and gizmo dragging — the parts with a right answer.

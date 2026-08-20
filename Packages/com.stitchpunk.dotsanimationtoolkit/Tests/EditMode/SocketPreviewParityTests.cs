@@ -2,12 +2,12 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
-using StitchPunk.AnimationToolkit.Editor;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of the claim that a socket marker sits where the runtime will put it.

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-using StitchPunk.AnimationToolkit;
+using DotsAnimationToolkit;
 using Unity.Mathematics;
 using UnityEngine;
 

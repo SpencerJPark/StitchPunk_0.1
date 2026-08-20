@@ -4,10 +4,10 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// The identity half of the module M1 acceptance list (architecture sections 3.4, 8 M1):

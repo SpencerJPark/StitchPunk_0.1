@@ -2,7 +2,7 @@
 
 using System;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Mints the random stable ids that replace enum-ordinal identity (architecture section 3.4).

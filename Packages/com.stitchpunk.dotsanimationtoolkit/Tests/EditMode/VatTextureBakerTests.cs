@@ -2,11 +2,11 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Editor;
+using DotsAnimationToolkit.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Covers <c>VatTextureBaker</c> — the M2 VAT slice of architecture section 4.7, which shipped

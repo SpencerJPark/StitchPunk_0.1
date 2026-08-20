@@ -117,7 +117,7 @@ enable the `AnimationCommandPending` gate, and the two are easy to forget
 independently:
 
 ```csharp
-using StitchPunk.AnimationToolkit;
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Entities;
 

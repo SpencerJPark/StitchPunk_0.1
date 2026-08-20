@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Amendment A44's orientation maths, exercised without a World. Every behaviour A44 promises —

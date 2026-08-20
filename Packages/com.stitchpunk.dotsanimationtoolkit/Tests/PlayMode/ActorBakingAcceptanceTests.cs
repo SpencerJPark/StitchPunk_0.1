@@ -2,13 +2,13 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// The module M2 baking acceptance list (architecture section 8): baking an
@@ -229,7 +229,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
                     {
                         continue;
                     }
-                    if (managedType.Namespace.StartsWith("StitchPunk.AnimationToolkit"))
+                    if (managedType.Namespace.StartsWith("DotsAnimationToolkit"))
                     {
                         presentToolkitNames.Add(managedType.Name);
                     }

@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace StitchPunk.AnimationToolkitSmoke.Editor
+namespace DotsAnimationToolkitSmoke.Editor
 {
     /// <summary>
     /// Builds the host-shaped smoke scene the DOTS Animation Toolkit's C4 Definition of Done calls

@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of <see cref="Interpolation.Bezier"/>.

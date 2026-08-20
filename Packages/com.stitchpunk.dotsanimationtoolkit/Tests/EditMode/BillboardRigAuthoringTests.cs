@@ -3,10 +3,10 @@
 using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// The rig-side half of amendment A44: the billboard-root rows a rig declares, the stable ids

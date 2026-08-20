@@ -5,7 +5,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Smoke coverage proving the PlayMode test assembly compiles, loads, and runs
@@ -17,7 +17,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
     /// version lacked. That version checked only <c>Assembly.GetName().Name</c> — a string that is
     /// equally true whichever mode the assembly runs in. It passed for the whole of build step C3
     /// while the entire 27-test suite was executing in EditMode, because
-    /// <c>StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef</c> had been given
+    /// <c>DotsAnimationToolkit.Tests.PlayMode.asmdef</c> had been given
     /// <c>"includePlatforms": ["Editor"]</c> and an editor-only assembly is classified as an
     /// EditMode test assembly. A project-wide PlayMode run discovered zero tests and reported
     /// Passed, which is indistinguishable from success at a glance.
@@ -36,7 +36,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         public void PlayModeTestAssembly_HasContractedName()
         {
             string assemblyName = typeof(PlayModeAssemblySmokeTest).Assembly.GetName().Name;
-            Assert.AreEqual("StitchPunk.AnimationToolkit.Tests.PlayMode", assemblyName);
+            Assert.AreEqual("DotsAnimationToolkit.Tests.PlayMode", assemblyName);
         }
 
         [Test]

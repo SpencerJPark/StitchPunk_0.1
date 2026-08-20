@@ -3,15 +3,15 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit;
+using DotsAnimationToolkit.Authoring;
 using Unity.Collections;
 using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>SocketResolveSystem</c> — the socket-attachment placement system that shipped with
@@ -636,7 +636,7 @@ namespace StitchPunk.AnimationToolkit.Tests.PlayMode
         // -------------------------------------------------------------------------------------
         // Socket registry blob construction
         //
-        // Mirrors StitchPunk.AnimationToolkit.Authoring.SocketRegistryBuilder.TryBuild: sockets are
+        // Mirrors DotsAnimationToolkit.Authoring.SocketRegistryBuilder.TryBuild: sockets are
         // sorted ascending by id, sortedSocketIds and sockets are allocated and filled together in
         // that order, and clipTracks is allocated and filled afterward.
         // -------------------------------------------------------------------------------------

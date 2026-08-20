@@ -13,9 +13,9 @@
 #include "ShaderApiReflectionSupport.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitFlipbookSliceIndex</sg:ProviderKey>
+///     <sg:ProviderKey>DotsAnimationToolkit.ToolkitFlipbookSliceIndex</sg:ProviderKey>
 ///     <sg:DisplayName>Flipbook Slice Index</sg:DisplayName>
-///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
+///     <sg:SearchCategory>DOTS Animation Toolkit</sg:SearchCategory>
 ///</funchints>
 ///<paramhints name = "imageIndex">
 ///     <sg:DisplayName>Image Index</sg:DisplayName>

@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// Packaging conformance tests (a) through (e) contracted by the Phase B architecture,
@@ -67,8 +67,8 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
         {
             new AsmdefExpectation
             {
-                relativePath = "Runtime/StitchPunk.AnimationToolkit.Runtime.asmdef",
-                assemblyName = "StitchPunk.AnimationToolkit.Runtime",
+                relativePath = "Runtime/DotsAnimationToolkit.Runtime.asmdef",
+                assemblyName = "DotsAnimationToolkit.Runtime",
                 expectedReferences = new string[]
                 {
                     "Unity.Entities",
@@ -84,11 +84,11 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             },
             new AsmdefExpectation
             {
-                relativePath = "Authoring/StitchPunk.AnimationToolkit.Authoring.asmdef",
-                assemblyName = "StitchPunk.AnimationToolkit.Authoring",
+                relativePath = "Authoring/DotsAnimationToolkit.Authoring.asmdef",
+                assemblyName = "DotsAnimationToolkit.Authoring",
                 expectedReferences = new string[]
                 {
-                    "StitchPunk.AnimationToolkit.Runtime",
+                    "DotsAnimationToolkit.Runtime",
                     "Unity.Entities",
                     "Unity.Entities.Hybrid",
                     "Unity.Burst",
@@ -101,12 +101,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             },
             new AsmdefExpectation
             {
-                relativePath = "Editor/StitchPunk.AnimationToolkit.Editor.asmdef",
-                assemblyName = "StitchPunk.AnimationToolkit.Editor",
+                relativePath = "Editor/DotsAnimationToolkit.Editor.asmdef",
+                assemblyName = "DotsAnimationToolkit.Editor",
                 expectedReferences = new string[]
                 {
-                    "StitchPunk.AnimationToolkit.Runtime",
-                    "StitchPunk.AnimationToolkit.Authoring",
+                    "DotsAnimationToolkit.Runtime",
+                    "DotsAnimationToolkit.Authoring",
                     "Unity.Entities",
                     "Unity.Entities.Hybrid",
                     "Unity.Burst",
@@ -118,13 +118,13 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             },
             new AsmdefExpectation
             {
-                relativePath = "Tests/EditMode/StitchPunk.AnimationToolkit.Tests.EditMode.asmdef",
-                assemblyName = "StitchPunk.AnimationToolkit.Tests.EditMode",
+                relativePath = "Tests/EditMode/DotsAnimationToolkit.Tests.EditMode.asmdef",
+                assemblyName = "DotsAnimationToolkit.Tests.EditMode",
                 expectedReferences = new string[]
                 {
-                    "StitchPunk.AnimationToolkit.Runtime",
-                    "StitchPunk.AnimationToolkit.Authoring",
-                    "StitchPunk.AnimationToolkit.Editor",
+                    "DotsAnimationToolkit.Runtime",
+                    "DotsAnimationToolkit.Authoring",
+                    "DotsAnimationToolkit.Editor",
                     "UnityEngine.TestRunner",
                     "UnityEditor.TestRunner",
                     "Unity.Entities",
@@ -138,12 +138,12 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
             },
             new AsmdefExpectation
             {
-                relativePath = "Tests/PlayMode/StitchPunk.AnimationToolkit.Tests.PlayMode.asmdef",
-                assemblyName = "StitchPunk.AnimationToolkit.Tests.PlayMode",
+                relativePath = "Tests/PlayMode/DotsAnimationToolkit.Tests.PlayMode.asmdef",
+                assemblyName = "DotsAnimationToolkit.Tests.PlayMode",
                 expectedReferences = new string[]
                 {
-                    "StitchPunk.AnimationToolkit.Runtime",
-                    "StitchPunk.AnimationToolkit.Authoring",
+                    "DotsAnimationToolkit.Runtime",
+                    "DotsAnimationToolkit.Authoring",
                     "UnityEngine.TestRunner",
                     "Unity.Entities",
                     "Unity.Entities.Hybrid",
@@ -260,13 +260,17 @@ namespace StitchPunk.AnimationToolkit.Tests.EditMode
                 string.Join(", ", violations));
         }
 
-        // (d) No package file references host-game namespaces (the StitchPunk prefix outside
-        //     AnimationToolkit) or host-project asset folder paths.
+        // (d) No package file references the host game at all, by name or by asset path.
         [Test]
         public void Conformance_D_NoHostNamespaceOrHostAssetPathReferences()
         {
             // Assembled from fragments so this file's own source never matches the patterns.
-            Regex hostNamespacePattern = new Regex("StitchPunk" + "\\.(?!AnimationToolkit)");
+            //
+            // Stricter since the DotsAnimationToolkit rename. This used to carve out an exception
+            // for the package's own former namespace, which carried the host's name; it no longer
+            // does, so the host's name may not appear in a shipped package in any form. Note that
+            // this comment cannot spell that name either -- the scan reads this very file.
+            Regex hostNamespacePattern = new Regex("Stitch" + "Punk");
             Regex hostAssetPathPattern = new Regex("Asse" + "ts/");
             List<string> violations = new List<string>();
             List<string> scannedFiles = EnumeratePackageFiles(TextFileSearchPatterns);

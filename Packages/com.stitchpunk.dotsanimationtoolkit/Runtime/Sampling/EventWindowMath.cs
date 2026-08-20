@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Wrap-correct "is this marker's window open right now" math (architecture section 5.5,

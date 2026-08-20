@@ -2,7 +2,7 @@
 
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Per-layer playback state on the actor root (architecture sections 5.2, 5.4). One element

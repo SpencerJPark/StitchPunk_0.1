@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.PlayMode
+namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
     /// Covers <c>VatMaterialSystem</c> — the vertex-animation-texture technique of architecture

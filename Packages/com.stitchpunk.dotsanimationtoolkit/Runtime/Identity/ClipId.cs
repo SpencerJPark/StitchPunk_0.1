@@ -2,7 +2,7 @@
 
 using System;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Stable 64-bit identity of a clip (architecture section 3.4). Ids are random (folded GUIDs

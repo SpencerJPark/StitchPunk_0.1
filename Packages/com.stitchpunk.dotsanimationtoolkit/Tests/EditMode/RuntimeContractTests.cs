@@ -6,7 +6,7 @@ using NUnit.Framework;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode conformance of the C1 data slice against the architecture's normative tables:

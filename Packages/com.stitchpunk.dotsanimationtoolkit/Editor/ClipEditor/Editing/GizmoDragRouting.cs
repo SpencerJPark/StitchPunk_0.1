@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>Where a finished gizmo drag's value is written.</summary>
     public enum GizmoDragDestination

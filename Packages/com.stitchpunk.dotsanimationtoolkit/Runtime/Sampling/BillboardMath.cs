@@ -3,7 +3,7 @@
 using Unity.Burst;
 using Unity.Mathematics;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// The whole of billboard orientation, as pure functions (amendment A44): where a node must

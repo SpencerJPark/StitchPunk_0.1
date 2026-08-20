@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using Unity.Collections;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Renders a hierarchy path as <c>Root/Child/Leaf</c> text sized to fit a

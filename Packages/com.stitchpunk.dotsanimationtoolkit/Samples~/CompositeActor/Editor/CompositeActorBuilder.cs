@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Samples
+namespace DotsAnimationToolkit.Samples
 {
     /// <summary>
     /// Builds an actor that uses <strong>two techniques at once</strong>: cutout limbs driven by

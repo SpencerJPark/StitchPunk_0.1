@@ -128,7 +128,7 @@ than for assertions.
 | com.unity.render-pipelines.universal | 17.5.0 |
 
 Package id: `com.stitchpunk.dotsanimationtoolkit`. Version: see
-`package.json` (pre-release). Root C# namespace: `StitchPunk.AnimationToolkit`
+`package.json` (pre-release). Root C# namespace: `DotsAnimationToolkit`
 (with `.Authoring` and `.Editor` sub-namespaces).
 
 ## Installing

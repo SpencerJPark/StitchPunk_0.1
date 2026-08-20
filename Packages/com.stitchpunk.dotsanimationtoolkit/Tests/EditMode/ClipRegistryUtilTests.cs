@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of the binary-search id resolve contract (architecture sections 4.3,

@@ -3,7 +3,7 @@
 using Unity.Entities;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Per-actor link between the baked registry and its VAT textures

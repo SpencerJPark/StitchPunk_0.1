@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Creates the material every line-drawn preview overlay uses — grid, selection box, bone

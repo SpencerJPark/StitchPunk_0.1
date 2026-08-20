@@ -2,7 +2,7 @@
 
 using Unity.Burst;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Turns a flipbook key's stored number into the array index it names.

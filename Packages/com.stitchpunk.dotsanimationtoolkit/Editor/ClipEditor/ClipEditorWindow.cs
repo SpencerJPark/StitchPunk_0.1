@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stitch Punk. All rights reserved.
 
 using System.Collections.Generic;
-using StitchPunk.AnimationToolkit.Authoring;
+using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -9,7 +9,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace StitchPunk.AnimationToolkit.Editor
+namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The clip timeline editor (architecture section 7.1, 7.2).
@@ -55,7 +55,7 @@ namespace StitchPunk.AnimationToolkit.Editor
         /// purpose: a dock layout is a habit of the person, and following them between projects is
         /// the behaviour every other editor window has.
         /// </summary>
-        private const string SplitPrefsPrefix = "StitchPunk.AnimationToolkit.ClipEditor.Split.";
+        private const string SplitPrefsPrefix = "DotsAnimationToolkit.ClipEditor.Split.";
 
         /// <summary>Below this a pane is a sliver with nothing readable in it, so it is never stored.</summary>
         private const float MinimumSplitDimension = 60f;
@@ -2888,7 +2888,7 @@ namespace StitchPunk.AnimationToolkit.Editor
             });
         }
 
-        private const string ReparentDragKey = "StitchPunk.AnimationToolkit.ReparentItem";
+        private const string ReparentDragKey = "DotsAnimationToolkit.ReparentItem";
 
         /// <summary>Whether the row under the cursor is a legal drop target for the current drag.</summary>
         private bool CanDropOn(HierarchyItem dropTarget)

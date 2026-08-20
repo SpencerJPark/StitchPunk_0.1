@@ -2144,7 +2144,7 @@
                     "asm": "Unity.ShaderGraph.Editor"
                 },
                 "data": {
-                    "m_providerKey": "StitchPunk.AnimationToolkit.ToolkitVatBoneSkin",
+                    "m_providerKey": "DotsAnimationToolkit.ToolkitVatBoneSkin",
                     "m_sourceAssetId": "9c273fe65c234fd19ff4c1f5f6069e7f"
                 }
             }

@@ -2,7 +2,7 @@
 
 using System;
 
-namespace StitchPunk.AnimationToolkit
+namespace DotsAnimationToolkit
 {
     /// <summary>
     /// How playback time maps onto a clip's duration (architecture sections 3.2, 5.4, 8 M3).

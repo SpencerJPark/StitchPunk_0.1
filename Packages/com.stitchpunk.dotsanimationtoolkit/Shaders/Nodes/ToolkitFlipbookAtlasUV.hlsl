@@ -11,9 +11,9 @@
 #include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl"
 
 ///<funchints>
-///     <sg:ProviderKey>StitchPunk.AnimationToolkit.ToolkitFlipbookAtlasUV</sg:ProviderKey>
+///     <sg:ProviderKey>DotsAnimationToolkit.ToolkitFlipbookAtlasUV</sg:ProviderKey>
 ///     <sg:DisplayName>Flipbook Atlas UV</sg:DisplayName>
-///     <sg:SearchCategory>StitchPunk/Animation</sg:SearchCategory>
+///     <sg:SearchCategory>DOTS Animation Toolkit</sg:SearchCategory>
 ///</funchints>
 ///<paramhints name = "uv">
 ///     <sg:DisplayName>UV</sg:DisplayName>

@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Unity.Collections;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of wrap-correct event crossing (architecture sections 5.5, 8 M3, 11):

@@ -64,7 +64,7 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   **vertex stage**), `ToolkitVatBoneSkin` / `ToolkitVatVertexFetch` (VAT,
   **vertex stage**, point/clamp sampler or limbs melt), `ToolkitFlipbookSliceUV` /
   `ToolkitFlipbookSliceIndex` / `ToolkitFlipbookAtlasUV` (fragment). ProviderKeys
-  are `StitchPunk.AnimationToolkit.*`, fully qualified: the package's own
+  are `DotsAnimationToolkit.*`, fully qualified: the package's own
   `Conformance_D` test forbids a bare `StitchPunk.` prefix inside the package,
   because a sellable package must not carry the host's namespace.
 

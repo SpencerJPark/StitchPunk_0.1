@@ -2,11 +2,11 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using StitchPunk.AnimationToolkit.Authoring;
-using StitchPunk.AnimationToolkit.Editor;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
 using UnityEngine;
 
-namespace StitchPunk.AnimationToolkit.Tests.EditMode
+namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// EditMode coverage of what a prefab restructure does and does not break.

@@ -1186,7 +1186,7 @@
                     "asm": "Unity.ShaderGraph.Editor"
                 },
                 "data": {
-                    "m_providerKey": "StitchPunk.AnimationToolkit.ToolkitBillboardVertex",
+                    "m_providerKey": "DotsAnimationToolkit.ToolkitBillboardVertex",
                     "m_sourceAssetId": "81272f3b993b4d18baf310eb8b323ecb"
                 }
             }
@@ -2055,7 +2055,7 @@
                     "asm": "Unity.ShaderGraph.Editor"
                 },
                 "data": {
-                    "m_providerKey": "StitchPunk.AnimationToolkit.ToolkitFlipbookSliceIndex",
+                    "m_providerKey": "DotsAnimationToolkit.ToolkitFlipbookSliceIndex",
                     "m_sourceAssetId": "724f3a12660c4bdabcb790a3bdf96ea0"
                 }
             }

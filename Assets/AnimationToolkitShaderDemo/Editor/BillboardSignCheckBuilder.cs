@@ -232,7 +232,7 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
                 CreateQuadMaterial(spriteShader, glyph, "SignCheckCpuPath", 0f);
 
             BillboardSignProbe probe = quad.AddComponent<BillboardSignProbe>();
-            probe.mode = StitchPunk.AnimationToolkit.BillboardMode.ScreenAligned;
+            probe.mode = DotsAnimationToolkit.BillboardMode.ScreenAligned;
         }
 
         // -----------------------------------------------------------------------------------

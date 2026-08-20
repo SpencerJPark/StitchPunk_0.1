@@ -3,7 +3,7 @@
 using Unity.Collections;
 using Unity.Entities;
 
-namespace StitchPunk.AnimationToolkit.Authoring
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// The bake-time half of a rig part's binding: what <c>RigTargetBaker</c> knows and
