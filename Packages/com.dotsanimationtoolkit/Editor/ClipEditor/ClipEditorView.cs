@@ -75,6 +75,17 @@ namespace DotsAnimationToolkit.Editor
                     + "nothing is selected.";
             }
 
+            // The ghost scrollbar. ScrollView.mode="Vertical" only swaps USS variant classes; it
+            // leaves horizontalScrollerVisibility at Auto, so the view still grows its own
+            // horizontal scrollbar whenever its content happens to measure wider than the viewport.
+            // It flickers in and out as content changes and does nothing when dragged, because
+            // there is nothing to scroll: the lanes are one element wide that draws a zoomed
+            // window. Turning it off leaves the scroller below as the only one.
+            if (timelineScroll != null)
+            {
+                timelineScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            }
+
             // Built here rather than declared in UXML. Horizontal scrolling is the view transform,
             // not a ScrollView: the lanes are one element wide drawing a zoomed window, so there is
             // no oversized content for a ScrollView to scroll. Constructing it in code also keeps a
