@@ -75,6 +75,11 @@
                             <ui:VisualElement class="clip-editor__pane-actions">
                                 <ui:Button name="add-socket-button" text="+ Socket"
                                            class="clip-editor__pane-action" />
+                                <!-- Toggles rather than adds: a node either is a billboard root
+                                     or is not, and one button that reads the selection says so
+                                     more clearly than an add/remove pair. -->
+                                <ui:Button name="billboard-root-button" text="+ Billboard"
+                                           class="clip-editor__pane-action" />
                                 <ui:Button name="edit-prefab-button" text="Edit Prefab"
                                            class="clip-editor__pane-action" />
                             </ui:VisualElement>

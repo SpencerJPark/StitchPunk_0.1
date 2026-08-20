@@ -77,11 +77,16 @@ Building1.blend
 !/[Pp]ackages/manifest.json
 !/[Pp]ackages/packages-lock.json
 
-# Embedded packages developed in this repo ARE source-controlled
-!/Packages/com.stitchpunk.dotsanimationtoolkit/
+# Embedded packages developed in this repo ARE source-controlled.
+# NOTE: /Packages/*/ above ignores every package folder, so this un-ignore must be kept in
+# step with the folder name. It was not, across the com.stitchpunk.dotsanimationtoolkit ->
+# com.dotsanimationtoolkit rename: already-tracked files kept working (git tracks what it
+# tracks), so nothing looked wrong, but any NEW file added to the package would have been
+# silently dropped from every commit.
+!/Packages/com.dotsanimationtoolkit/
 
 # Disk round-trip test scratch assets. TearDown deletes these, but an Editor crash
 # mid-test leaves them inside the package folder — and this package is shipped, so a
 # stray commit would put test junk in a customer's install.
-Packages/com.stitchpunk.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*/
-Packages/com.stitchpunk.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
+Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*/
+Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
