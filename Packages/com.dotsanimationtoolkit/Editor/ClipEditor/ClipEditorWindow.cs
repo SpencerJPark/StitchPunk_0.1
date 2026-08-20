@@ -491,11 +491,22 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void OnUndoRedo()
         {
+            // A gesture holds times recorded before the undo, so finishing it afterwards would
+            // write them back over whatever the undo restored. Discarded rather than cancelled:
+            // cancelling restores those same stale times and reverts a group from inside the undo
+            // callback that is already running.
+            DiscardKeyTransform();
+
             selectedKeys.Clear();
             hasActiveKey = false;
             RefreshSerializedClip();
             MarkPreviewDirty();
             RebuildTimeline();
+
+            // Undo can restore a different clip length or frame rate, and the ruler and the
+            // transport fields both read from those rather than deriving them.
+            OnClipTimingChanged();
+            RebuildInspector();
         }
 
         // -------------------------------------------------------------------------------------

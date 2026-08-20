@@ -299,6 +299,27 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
+        /// <summary>
+        /// Drops a running gesture without restoring anything and without touching the undo stack.
+        /// </summary>
+        /// <remarks>
+        /// For the one case where cancelling would be wrong: an undo performed mid-gesture. The
+        /// snapshot holds times recorded before the undo, so restoring them would write the undone
+        /// state straight back, and reverting the gesture group from inside undoRedoPerformed would
+        /// re-enter it. The gesture is simply abandoned; the undo has already decided what the data
+        /// should be.
+        /// </remarks>
+        private void DiscardKeyTransform()
+        {
+            if (!IsTransformActive)
+            {
+                return;
+            }
+            activeTransform = KeyTransformKind.None;
+            transformSnapshots.Clear();
+            HideTransformReadout();
+        }
+
         private void RestoreOriginalTimes()
         {
             for (int snapshotIndex = 0; snapshotIndex < transformSnapshots.Count; snapshotIndex++)
@@ -502,6 +523,13 @@ namespace DotsAnimationToolkit.Editor
         {
             if (!IsTransformActive)
             {
+                // Ctrl+S is save and Ctrl+Z is undo. Neither should start a gesture, and a reflex
+                // Ctrl+S silently beginning a scale is a particularly bad way to learn that.
+                if (keyEvent.ctrlKey || keyEvent.commandKey)
+                {
+                    return false;
+                }
+
                 // Not modal yet: G and S start a gesture, and nothing else here applies.
                 if (keyEvent.keyCode == KeyCode.G)
                 {

@@ -526,6 +526,20 @@ namespace DotsAnimationToolkit.Editor
         private void RegisterTransportShortcuts()
         {
             rootVisualElement.focusable = true;
+            Button undoButton = rootVisualElement.Q<Button>("undo-button");
+            if (undoButton != null)
+            {
+                undoButton.tooltip = "Undo the last change (Ctrl+Z).";
+                undoButton.clicked += PerformUndo;
+            }
+
+            Button redoButton = rootVisualElement.Q<Button>("redo-button");
+            if (redoButton != null)
+            {
+                redoButton.tooltip = "Redo (Ctrl+Y or Ctrl+Shift+Z).";
+                redoButton.clicked += PerformRedo;
+            }
+
             rootVisualElement.RegisterCallback<KeyDownEvent>(OnTransportKeyDown);
         }
 
@@ -546,9 +560,38 @@ namespace DotsAnimationToolkit.Editor
             }
 
             int largeStep = Mathf.Max(1, LargeStepFrames);
+            bool commandKey = keyEvent.ctrlKey || keyEvent.commandKey;
             bool handled = true;
             switch (keyEvent.keyCode)
             {
+                // Undo has to be handled here rather than left to the Editor. Every edit already
+                // records through Undo.RecordObject and the window already refreshes on
+                // undoRedoPerformed — what was missing is that a focused UI Toolkit window keeps
+                // the keystroke, so Ctrl+Z never reached Unity to begin with.
+                case KeyCode.Z:
+                    if (!commandKey)
+                    {
+                        handled = false;
+                    }
+                    else if (keyEvent.shiftKey)
+                    {
+                        PerformRedo();
+                    }
+                    else
+                    {
+                        PerformUndo();
+                    }
+                    break;
+                case KeyCode.Y:
+                    if (commandKey)
+                    {
+                        PerformRedo();
+                    }
+                    else
+                    {
+                        handled = false;
+                    }
+                    break;
                 case KeyCode.Space:
                     SetPlaying(!isPlaying);
                     break;
@@ -604,6 +647,25 @@ namespace DotsAnimationToolkit.Editor
                 // window, PreventDefault stops the Editor's own Space/arrow handling running too.
                 keyEvent.StopPropagation();
             }
+        }
+
+        /// <summary>
+        /// Undo one step and let the window catch up.
+        /// </summary>
+        /// <remarks>
+        /// The refresh is not done here: <c>Undo.PerformUndo</c> raises
+        /// <c>Undo.undoRedoPerformed</c>, which the window is already subscribed to. Refreshing in
+        /// both places would rebuild the timeline twice per keystroke and, worse, would leave the
+        /// button path and the shortcut path with different behaviour.
+        /// </remarks>
+        private void PerformUndo()
+        {
+            Undo.PerformUndo();
+        }
+
+        private void PerformRedo()
+        {
+            Undo.PerformRedo();
         }
 
         /// <summary>

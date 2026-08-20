@@ -62,6 +62,11 @@
             </ui:TwoPaneSplitView>
             <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
                 <ui:VisualElement name="transport-bar" class="clip-editor__transport">
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Button name="undo-button" text="Undo" class="clip-editor__transport-button"/>
+                        <ui:Button name="redo-button" text="Redo" class="clip-editor__transport-button"/>
+                    </ui:VisualElement>
+
                     <ui:VisualElement name="PlayHead" class="clip-editor__transport-group">
                         <ui:Button name="jump-start-button" text="|&lt;" class="clip-editor__transport-button"/>
                         <ui:Button name="step-back-button" text="&lt;" class="clip-editor__transport-button"/>
