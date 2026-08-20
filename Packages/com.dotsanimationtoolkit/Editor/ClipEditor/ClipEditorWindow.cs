@@ -4189,7 +4189,6 @@ namespace DotsAnimationToolkit.Editor
             BeginUndoGesture("Move Animation Keys");
 
             isDraggingKeys = true;
-            dragPreviousTime = GetKeyTime(address);
             dragTrackKind = address.trackKind;
             dragTrackIndex = address.trackIndex;
 
@@ -4199,7 +4198,20 @@ namespace DotsAnimationToolkit.Editor
                 lane.CapturePointer(pointerEvent.pointerId);
                 lane.RegisterCallback<PointerMoveEvent>(OnDragMove);
                 lane.RegisterCallback<PointerUpEvent>(OnDragEnd);
+
+                dragLaneWidth = lane.contentRect.width;
+                dragPointerLaneX = pointerEvent.localPosition.x;
             }
+
+            // Measured from where the pointer is, not from where the key is. Seeding with the key
+            // time meant grabbing a key slightly off its centre jumped it by that offset on the
+            // first move; from here the key follows the cursor exactly.
+            dragPreviousTime = TimelineGeometry.Snap(
+                TimelineGeometry.Create(dragLaneWidth, viewZoom, viewPan).XToTime(dragPointerLaneX),
+                SnapFrameCount);
+
+            dragAutoScroll = rootVisualElement.schedule
+                .Execute(TickDragAutoScroll).Every(16);
             RepaintLanes();
             RebuildInspector();
         }
@@ -4264,9 +4276,48 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            TimelineGeometry geometry = TimelineGeometry.Create(lane.contentRect.width);
+            dragPointerLaneX = moveEvent.localPosition.x;
+            dragLaneWidth = lane.contentRect.width;
+            UpdateKeyDrag();
+        }
+
+        /// <summary>
+        /// Moves the selection to follow the pointer, using the view as it is right now.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Three separate faults lived in the old version of this, and only one of them was
+        /// the clamp.</strong>
+        /// </para>
+        /// <para>
+        /// It built its geometry with <c>TimelineGeometry.Create(width)</c> — the one-argument
+        /// overload, which means zoom 1 and pan 0. Every pointer position was therefore converted
+        /// as though the timeline were unzoomed and unscrolled, so at 4x zoom a key crawled at a
+        /// quarter of the cursor speed and looked like it was refusing to keep up.
+        /// </para>
+        /// <para>
+        /// It finished by calling <c>RebuildTimeline</c>, which clears the lane column and builds
+        /// new lanes. The element holding the pointer capture was destroyed mid-gesture, so the
+        /// drag stopped receiving moves after the first one — the "stops short" half of the report.
+        /// Repainting the existing lanes is both correct and enormously cheaper.
+        /// </para>
+        /// <para>
+        /// And it clamped each key to [0, 1], which is the same restriction that stopped keys being
+        /// placed outside the clip. Removed here and everywhere else it appeared; out-of-range keys
+        /// are authored data, and the shaded region either side of the clip exists to show them.
+        /// </para>
+        /// </remarks>
+        private void UpdateKeyDrag()
+        {
+            if (!isDraggingKeys || selectedClip == null)
+            {
+                return;
+            }
+
+            TimelineGeometry geometry =
+                TimelineGeometry.Create(dragLaneWidth, viewZoom, viewPan);
             float pointerTime = TimelineGeometry.Snap(
-                geometry.XToTime(moveEvent.localPosition.x), SnapFrameCount);
+                geometry.XToTime(dragPointerLaneX), SnapFrameCount);
             float delta = pointerTime - dragPreviousTime;
             if (Mathf.Abs(delta) < 1e-6f)
             {
@@ -4277,13 +4328,62 @@ namespace DotsAnimationToolkit.Editor
             // multi-key drag. Moving every key to the pointer instead would collapse them together.
             foreach (KeyAddress address in selectedKeys)
             {
-                SetKeyTime(address, Mathf.Clamp01(GetKeyTime(address) + delta));
+                SetKeyTime(address, GetKeyTime(address) + delta);
             }
             dragPreviousTime = pointerTime;
 
             EditorUtility.SetDirty(selectedClip);
             SetPlayheadTime(pointerTime);
-            RebuildTimeline();
+            MarkPreviewDirty();
+            RepaintLanes();
+        }
+
+        /// <summary>
+        /// Scrolls the view when a drag reaches the edge of the lane, so the gesture can continue.
+        /// </summary>
+        /// <remarks>
+        /// Driven by a scheduler rather than by pointer movement, because the case that matters is
+        /// the pointer held still against the edge. Scrolling only on movement would mean the view
+        /// stopped the moment the user stopped wiggling the mouse, which is the behaviour that
+        /// makes an edge feel like a wall.
+        /// </remarks>
+        private void TickDragAutoScroll()
+        {
+            if (!isDraggingKeys || dragLaneWidth <= 0f)
+            {
+                return;
+            }
+
+            const float EdgeMarginPixels = 28f;
+            const float MaximumScrollPixelsPerTick = 14f;
+
+            float overshoot = 0f;
+            if (dragPointerLaneX < EdgeMarginPixels)
+            {
+                overshoot = dragPointerLaneX - EdgeMarginPixels;
+            }
+            else if (dragPointerLaneX > dragLaneWidth - EdgeMarginPixels)
+            {
+                overshoot = dragPointerLaneX - (dragLaneWidth - EdgeMarginPixels);
+            }
+            if (Mathf.Abs(overshoot) < 0.5f)
+            {
+                return;
+            }
+
+            // Proportional to how far past the margin the pointer is, so easing into the edge
+            // scrolls gently and shoving past it scrolls fast.
+            float scrollPixels = Mathf.Clamp(
+                overshoot, -MaximumScrollPixelsPerTick, MaximumScrollPixelsPerTick);
+            TimelineGeometry geometry =
+                TimelineGeometry.Create(dragLaneWidth, viewZoom, viewPan);
+            viewPan += scrollPixels / geometry.PixelsPerNormalizedUnit;
+            ApplyTimelineView();
+
+            // The view moved under a stationary pointer, so the time under the pointer changed and
+            // the keys have to follow it. Without this the selection would sit still while the
+            // world slid past.
+            UpdateKeyDrag();
         }
 
         private void OnDragEnd(PointerUpEvent upEvent)
@@ -4294,6 +4394,12 @@ namespace DotsAnimationToolkit.Editor
                 lane.ReleasePointer(upEvent.pointerId);
                 lane.UnregisterCallback<PointerMoveEvent>(OnDragMove);
                 lane.UnregisterCallback<PointerUpEvent>(OnDragEnd);
+            }
+
+            if (dragAutoScroll != null)
+            {
+                dragAutoScroll.Pause();
+                dragAutoScroll = null;
             }
 
             if (!isDraggingKeys)
@@ -4925,6 +5031,15 @@ namespace DotsAnimationToolkit.Editor
         /// want it, for one that does.
         /// </remarks>
         private int[] lastSortIndexMap;
+
+        /// <summary>Pointer x within the dragged lane, and that lane width, as of the last move.</summary>
+        /// <remarks>
+        /// Held as state because the auto-scroll ticker runs without a pointer event to read: the
+        /// case it exists for is a pointer resting against the edge.
+        /// </remarks>
+        private float dragPointerLaneX;
+        private float dragLaneWidth;
+        private IVisualElementScheduledItem dragAutoScroll;
 
         /// <summary>
         /// Sorts a key list by time and reports where each key ended up.

@@ -138,7 +138,7 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
                 TransformKey key = transformKeys[keyIndex];
-                key.normalizedTime = UnityEngine.Mathf.Clamp01(atTime + key.normalizedTime);
+                key.normalizedTime = atTime + key.normalizedTime;
                 clip.transformTracks[trackIndex].keys.Add(key);
                 pastedCount++;
             }
@@ -151,7 +151,7 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
                 SpriteKey key = spriteKeys[keyIndex];
-                key.normalizedTime = UnityEngine.Mathf.Clamp01(atTime + key.normalizedTime);
+                key.normalizedTime = atTime + key.normalizedTime;
                 clip.spriteTracks[trackIndex].keys.Add(key);
                 pastedCount++;
             }
@@ -159,7 +159,7 @@ namespace DotsAnimationToolkit.Editor
             for (int markerIndex = 0; markerIndex < eventMarkers.Count; markerIndex++)
             {
                 EventMarker marker = eventMarkers[markerIndex];
-                marker.normalizedTime = UnityEngine.Mathf.Clamp01(atTime + marker.normalizedTime);
+                marker.normalizedTime = atTime + marker.normalizedTime;
                 clip.events.Add(marker);
                 pastedCount++;
             }

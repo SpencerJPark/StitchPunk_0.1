@@ -1797,6 +1797,26 @@ Both had the same shape — a mechanism that was correct about its own job and w
 - **`A` is select-all, not frame-all.** Framing moved to `Shift+F`; `F` still frames the selection. Both framing actions keep visible buttons, so the rebind costs no discoverability.
 - **`Home` is jump-to-start only.** A key that means two things depending on which pane the user imagines themselves in is worse than a second key.
 
+### A48.5 The ruler measures zoom, and keys live outside the clip
+
+Three further faults, reported together and worth reading together, because two of them were one line.
+
+**The ruler had no relationship to zoom.** Ticks were a fixed subdivision of the clip capped at 240, so any clip longer than 240 frames drew ticks that did not land on frames — the ruler was measuring something that did not exist. Labels were seconds, spaced by a stride computed from the *unzoomed* track width, so the spacing never responded to zoom and the numbering collided as you zoomed out. Both now derive from pixels-per-frame through a shared 1-2-5 ladder (`TimelineGeometry.ChooseFrameStep`), draw across the *visible* range rather than the clip, and label frames rather than seconds. Minor ticks subdivide the label step by five, then by two, then not at all. The invariant — a labelled frame is drawn at the pixel the geometry puts that frame at — is a test, checked across seven zoom levels and four pan offsets.
+
+Labels are frame numbers now. Seconds moved to the transport bar and the ruler tooltip; a ruler whose ticks are frames should number frames, or the number above a tick is not that tick.
+
+**Dragging a key had three faults, only one of which was the reported clamp.**
+
+1. `OnDragMove` built its geometry with `TimelineGeometry.Create(width)` — the one-argument overload, meaning zoom 1 and pan 0. Every pointer position was converted as though the timeline were unzoomed and unscrolled, so at 4x zoom a key moved at a quarter of the cursor speed.
+2. It finished by calling `RebuildTimeline`, which clears the lane column. The element holding the pointer capture was destroyed mid-gesture, so the drag received one move and then stopped. Lanes are repainted now, not rebuilt.
+3. `Mathf.Clamp01` on each key — the clamp that also forbade out-of-range placement.
+
+The three presented as one symptom ("keys will not drag far"), which is the argument for fixing a reported behaviour by reading the whole path rather than by finding the first plausible line.
+
+**Out-of-range placement is now allowed everywhere it is expressible**: drag, scale, and paste. Nothing auto-extends the clip; the end marker stays where the user put it. Out-of-range keys paint, hit-test, select and edit normally — the lane hit test never filtered by range, so only the clamps had to go. The bake path needed no change: `ClipRegistryBuilder` validates ordering rather than range, and `ClipSampler` clamps evaluation to the outermost keys, so a key outside the clip is simply never reached. **Dropping such keys at bake was deliberately not done** — it would change the golden content hash of every existing clip to fix something that is not broken.
+
+The playhead is still clamped to the clip. Scrubbing is evaluation, and there is nothing to evaluate at frame -20.
+
 ### A48.4 Still open
 
 - **Key times in seconds.** Authoring in seconds and normalizing at bake would let a length change leave keys at their authored time and mark them out of range, rather than rescaling them with the clip. It touches five key types, V04, `ClipRegistryBuilder`, and needs a migration for existing clips — deliberately not bundled with the interaction work.

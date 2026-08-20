@@ -19,6 +19,19 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color MajorTick = new Color(0.70f, 0.70f, 0.72f);
         private static readonly Color MinorTick = new Color(0.38f, 0.38f, 0.40f);
 
+        /// <summary>Frame 0 and the last frame, tinted to match the clip boundary lines.</summary>
+        private static readonly Color ClipBoundaryLabel = new Color(0.85f, 0.62f, 0.28f);
+
+        /// <summary>
+        /// How much room a frame number needs, and how much a minor tick needs.
+        /// </summary>
+        /// <remarks>
+        /// Shared by the tick painter and the label builder so the two cannot pick different steps
+        /// and leave numbers floating between ticks.
+        /// </remarks>
+        private const float MinimumLabelSpacingPixels = 46f;
+        private const float MinimumMinorSpacingPixels = 5f;
+
         /// <summary>Clip length in seconds, used only for the labels.</summary>
         public float durationSeconds = 1f;
 
@@ -110,67 +123,73 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Rebuilds the whole-second labels along the ruler.
+        /// Rebuilds the frame-number labels. Call after changing the view or the clip timing.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Child labels rather than painted text: <c>Painter2D</c> draws geometry, and a ruler that
-        /// had to rasterise its own glyphs would be a font renderer with a timeline attached.
-        /// </para>
-        /// <para>
-        /// Labels are thinned so they never collide — a ten-second clip in a narrow pane gets a
-        /// label every two or five seconds instead of an unreadable smear. The ticks stay dense;
-        /// only the numbering thins, so the grid is still legible where the text is not.
-        /// </para>
-        /// </remarks>
-        /// <summary>
-        /// Rebuilds the whole-second labels. Call after changing the view or the clip timing.
-        /// </summary>
-        /// <remarks>
         /// <strong>Never call this from <c>generateVisualContent</c>.</strong> It did exactly that
         /// once: Clear() and Add() mutate the visual tree, and mutating the tree from inside a
         /// repaint neither clears reliably nor re-lays-out, so labels accumulated on every zoom step
-        /// and stacked into an unreadable smear of overlapping numbers. Repaint draws; it does not
-        /// restructure.
+        /// and stacked into an unreadable smear. Repaint draws; it does not restructure.
+        /// </para>
+        /// <para>
+        /// <strong>Labels are frame numbers now, not seconds.</strong> The seconds stride was
+        /// computed from the <em>unzoomed</em> track width, so it never responded to zoom at all --
+        /// which is what made the numbering collide as you zoomed out. Frames are also what the
+        /// ticks are made of, so numbering frames means the number above a tick is that tick.
+        /// Seconds remain readable in the transport bar and in this element tooltip.
+        /// </para>
+        /// <para>
+        /// Labels span the <em>visible</em> range rather than the clip, so they continue into
+        /// negative frames and past the clip end -- which is where keys are now allowed to live.
+        /// </para>
         /// </remarks>
         public void RefreshSecondLabels()
         {
             Clear();
 
             float width = contentRect.width;
-            if (width <= 0f || durationSeconds <= 0f)
+            if (width <= 0f)
             {
                 return;
             }
 
-            int wholeSeconds = Mathf.FloorToInt(durationSeconds);
-            if (wholeSeconds < 1)
-            {
-                return;
-            }
-
-            const float MinimumLabelSpacingPixels = 44f;
-            int secondStride = 1;
+            int frames = Mathf.Max(1, frameCount);
             TimelineGeometry geometry = TimelineGeometry.Create(width, viewZoom, viewPan);
-            while (geometry.TrackPixelWidth / (durationSeconds / secondStride) < MinimumLabelSpacingPixels)
+            float pixelsPerFrame = geometry.PixelsPerNormalizedUnit / frames;
+            if (pixelsPerFrame <= 0f)
             {
-                secondStride = secondStride == 1 ? 2 : secondStride + (secondStride == 2 ? 3 : 5);
-                if (secondStride > 600)
-                {
-                    return;
-                }
+                return;
             }
 
-            for (int second = 0; second <= wholeSeconds; second += secondStride)
+            tooltip = "Frame numbers. Clip is " + durationSeconds.ToString("0.###")
+                + "s over " + frames.ToString() + " frames.";
+
+            int labelStep = TimelineGeometry.ChooseFrameStep(
+                pixelsPerFrame, MinimumLabelSpacingPixels);
+
+            float firstVisibleFrame = geometry.XToTime(0f) * frames;
+            float lastVisibleFrame = geometry.XToTime(width) * frames;
+            int frame = TimelineGeometry.FloorToStep(firstVisibleFrame, labelStep);
+
+            // A ceiling on how many labels one pass may create. The step ladder bounds the loop in
+            // every sane case; this is here so a degenerate view cannot spin building labels.
+            const int MaximumLabels = 256;
+            int created = 0;
+            while (frame <= lastVisibleFrame && created < MaximumLabels)
             {
-                Label marker = new Label(second.ToString() + "s");
+                Label marker = new Label(frame.ToString());
                 marker.pickingMode = PickingMode.Ignore;
                 marker.style.position = Position.Absolute;
-                marker.style.left = geometry.TimeToX(second / durationSeconds) + 2f;
+                marker.style.left = geometry.TimeToX(frame / (float)frames) + 2f;
                 marker.style.top = 0f;
                 marker.style.fontSize = 9f;
-                marker.style.color = MajorTick;
+                marker.style.color = frame == 0 || frame == frames
+                    ? ClipBoundaryLabel : MajorTick;
                 Add(marker);
+
+                frame += labelStep;
+                created++;
             }
         }
 
@@ -195,26 +214,44 @@ namespace DotsAnimationToolkit.Editor
 
             TimelineGeometry geometry = TimelineGeometry.Create(rect.width, viewZoom, viewPan);
             TimelineRangeShading.Paint(painter, geometry, rect);
-            int ticks = Mathf.Clamp(frameCount, 1, 240);
 
-            // Thin out the minor ticks when frames would fall closer together than they can be
-            // told apart, so a long clip degrades to a readable ruler instead of a grey bar.
-            int stride = 1;
-            while (geometry.TrackPixelWidth / (ticks / (float)stride) < 4f)
+            // Ticks are real frames across the visible range, not a fixed subdivision of the clip.
+            // The old version capped the count at 240 and spaced ticks by clip fraction, so a clip
+            // longer than 240 frames drew ticks that did not land on frames at all -- the ruler was
+            // measuring something that did not exist.
+            int frames = Mathf.Max(1, frameCount);
+            float pixelsPerFrame = geometry.PixelsPerNormalizedUnit / frames;
+            if (pixelsPerFrame <= 0f)
             {
-                stride *= 2;
+                return;
             }
 
+            int labelStep = TimelineGeometry.ChooseFrameStep(
+                pixelsPerFrame, MinimumLabelSpacingPixels);
+            int minorStep = TimelineGeometry.ChooseMinorFrameStep(
+                labelStep, pixelsPerFrame, MinimumMinorSpacingPixels);
+
+            float firstVisibleFrame = geometry.XToTime(0f) * frames;
+            float lastVisibleFrame = geometry.XToTime(rect.width) * frames;
+            int frame = TimelineGeometry.FloorToStep(firstVisibleFrame, minorStep);
+
+            const int MaximumTicks = 2048;
+            int drawn = 0;
             painter.lineWidth = 1f;
-            for (int tickIndex = 0; tickIndex <= ticks; tickIndex += stride)
+            while (frame <= lastVisibleFrame && drawn < MaximumTicks)
             {
-                bool major = tickIndex == 0 || tickIndex == ticks || (tickIndex % 10) == 0;
-                float x = Mathf.Round(geometry.TimeToX(tickIndex / (float)ticks)) + 0.5f;
+                // Major exactly when a label sits here, so a number never appears over a short tick
+                // and a tall tick never appears bare.
+                bool major = (frame % labelStep) == 0;
+                float x = Mathf.Round(geometry.TimeToX(frame / (float)frames)) + 0.5f;
                 painter.strokeColor = major ? MajorTick : MinorTick;
                 painter.BeginPath();
                 painter.MoveTo(new Vector2(x, major ? rect.height * 0.35f : rect.height * 0.65f));
                 painter.LineTo(new Vector2(x, rect.height));
                 painter.Stroke();
+
+                frame += minorStep;
+                drawn++;
             }
         }
     }

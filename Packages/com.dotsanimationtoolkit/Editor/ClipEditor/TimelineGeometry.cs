@@ -125,6 +125,102 @@ namespace DotsAnimationToolkit.Editor
             return normalizedTime - (anchorX - leftPadding) / PixelsPerNormalizedUnit;
         }
 
+        /// <summary>
+        /// The largest frame step from the 1-2-5 ladder whose spacing is still at least
+        /// <paramref name="minimumSpacingPixels"/> wide.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Derived from zoom, never assumed.</strong> The ruler used to step ticks by a
+        /// fixed fraction of the clip and thin them by doubling, which meant the interval had no
+        /// relationship to what a frame was worth in pixels: zoomed out the labels overlapped into
+        /// a smear, and past 240 frames the ticks stopped landing on real frames at all.
+        /// </para>
+        /// <para>
+        /// The ladder is 1, 2, 5, 10, 20, 50, 100 and so on, because those are the intervals the eye
+        /// reads without arithmetic. Doubling gives 8s and 16s, which are legible as marks but not
+        /// as numbers.
+        /// </para>
+        /// </remarks>
+        public static int ChooseFrameStep(float pixelsPerFrame, float minimumSpacingPixels)
+        {
+            if (pixelsPerFrame <= 0f || minimumSpacingPixels <= 0f)
+            {
+                return 1;
+            }
+
+            int mantissaIndex = 0;
+            int decade = 1;
+            int step = 1;
+            while (step * pixelsPerFrame < minimumSpacingPixels)
+            {
+                mantissaIndex++;
+                if (mantissaIndex >= 3)
+                {
+                    mantissaIndex = 0;
+                    decade *= 10;
+                }
+                // A ruler zoomed this far out has no useful numbering left; stop rather than
+                // overflow looking for a step that will never be wide enough.
+                if (decade > 1000000)
+                {
+                    break;
+                }
+                step = MantissaAt(mantissaIndex) * decade;
+            }
+            return Mathf.Max(1, step);
+        }
+
+        private static int MantissaAt(int mantissaIndex)
+        {
+            switch (mantissaIndex)
+            {
+                case 1:
+                    return 2;
+                case 2:
+                    return 5;
+                default:
+                    return 1;
+            }
+        }
+
+        /// <summary>
+        /// The largest whole division of <paramref name="labelStep"/> that still reads as separate
+        /// ticks, or <paramref name="labelStep"/> itself when even halves would be too dense.
+        /// </summary>
+        public static int ChooseMinorFrameStep(
+            int labelStep, float pixelsPerFrame, float minimumSpacingPixels)
+        {
+            int fifth = labelStep / 5;
+            if (fifth >= 1 && fifth * pixelsPerFrame >= minimumSpacingPixels)
+            {
+                return fifth;
+            }
+            int half = labelStep / 2;
+            if (half >= 1 && half * pixelsPerFrame >= minimumSpacingPixels)
+            {
+                return half;
+            }
+            return labelStep;
+        }
+
+        /// <summary>
+        /// The first multiple of <paramref name="step"/> at or before <paramref name="frame"/>.
+        /// </summary>
+        /// <remarks>
+        /// Floor division rather than truncation, so the grid stays aligned through frame zero
+        /// instead of mirroring around it — truncating would put ticks at -5 and -2 rather than -5
+        /// and -10, and the negative half of the ruler is exactly what this now has to draw.
+        /// </remarks>
+        public static int FloorToStep(float frame, int step)
+        {
+            if (step <= 0)
+            {
+                return Mathf.FloorToInt(frame);
+            }
+            return Mathf.FloorToInt(frame / step) * step;
+        }
+
         /// <summary>Whether a pointer at <paramref name="x"/> is grabbing a key at that time.</summary>
         public bool HitsKey(float x, float normalizedTime)
         {
