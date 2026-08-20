@@ -192,6 +192,11 @@ namespace DotsAnimationToolkit.Editor
             painter.Fill();
 
             TimelineGeometry geometry = Geometry;
+
+            // After the lane fill and before the keys: the shading is a backdrop, and a key drawn
+            // under it would look disabled rather than out of range.
+            TimelineRangeShading.Paint(painter, geometry, rect);
+
             float centreY = rect.height * 0.5f;
 
             // Bars first, so every key sits on top of its own window rather than being half-hidden

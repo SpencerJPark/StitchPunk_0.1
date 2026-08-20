@@ -194,6 +194,7 @@ namespace DotsAnimationToolkit.Editor
             painter.Fill();
 
             TimelineGeometry geometry = TimelineGeometry.Create(rect.width, viewZoom, viewPan);
+            TimelineRangeShading.Paint(painter, geometry, rect);
             int ticks = Mathf.Clamp(frameCount, 1, 240);
 
             // Thin out the minor ticks when frames would fall closer together than they can be

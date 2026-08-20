@@ -542,6 +542,19 @@ namespace DotsAnimationToolkit.Editor
                 case KeyCode.End:
                     SetPlayheadTime(1f);
                     break;
+                // Framing does NOT take Home. The transport spec already gave Home to
+                // jump-to-start, and a key that means two things depending on which pane you
+                // imagine yourself in is worse than a second key. F is what Unity users already
+                // press to frame a selection; numpad period is what Blender users press.
+                case KeyCode.F:
+                    FrameSelection();
+                    break;
+                case KeyCode.KeypadPeriod:
+                    FrameSelection();
+                    break;
+                case KeyCode.A:
+                    FrameAll();
+                    break;
                 default:
                     handled = false;
                     break;
