@@ -1769,4 +1769,38 @@ It existed to demonstrate the `UNITY_DOTS_INSTANCING_START` block and displaceme
 
 ---
 
+## Amendment A48 (2026-08-19 — product-owner directive): the timeline is a navigable, transformable editing surface
+
+The clip editor's timeline was a fixed-extent dopesheet: one clip filled the lane, keys were dragged one at a time, and the only view was "all of it". The directive was to make it work the way an animator's timeline works — a transport bar that owns everything time-related, free zoom and pan, multi-key selection, and Blender's modal grab/scale for reshaping timing directly.
+
+### A48.1 Normative
+
+- **One transport bar** docked above the timeline owns playback, the time readout in both frames and seconds, clip length and frame rate, loop, speed, zoom, framing, snap, pivot, and the quantize action. Time-related UI lives nowhere else.
+- **Frame count is derived**, never authored: `round(duration x frameRate)`, minimum 1. Length and rate are the inputs; the count is a readout.
+- **Key times stay normalized** in `[0, 1]`. Changing duration or frame rate therefore leaves every key where it is on the clip. Keys that fall off the frame grid are *marked*, not moved — `Quantize Keys` is the explicit action that moves them.
+- **The view transform lives in `TimelineGeometry`**, not in the elements. Zoom and pan are pushed into the ruler, playhead and every lane by the window. Nothing derives its own; this is the same rule, and for the same reason, as the painting/hit-testing rule the type was created for.
+- **Time-to-pixel conversion is unclamped.** A key outside the clip is real authored data with a real position; only the view decides whether that position is currently on screen.
+- **Evaluation of a modal transform is from the recorded start state**, never from the current state, on every update.
+
+### A48.2 The two bugs this cost, both worth remembering
+
+**A repaint that posed as a selection change.** `TreeView.RefreshItems` re-resolves the tree's own selection and raises `selectionChanged`. The hierarchy handler treated that echo as a fresh user click and cleared the key selection — so clicking a key selected it, built the key inspector, and then handed the panel back to the bone inspector a moment later on pointer-up. Guarded on both sides: the redraw call sites suppress the notification, *and* the handler rejects a selection identical to the one already applied, because suppression alone cannot cover a notification the tree defers to a later frame. The echo test compares resolved items rather than only ids, so a rebuilt hierarchy reusing ids is still treated as a real change.
+
+**A sort that dropped the selection it should have carried.** `SortTrackKeys` cleared `selectedKeys` on the reasonable-sounding grounds that an address is an index and sorting moves indices. But the sort runs on every pointer-up of a key drag, including the zero-distance drag that *is* an ordinary click. It now reports where each key landed and rewrites the addresses through that map. This is not only a click fix: mirroring a selection through a negative scale reverses its keys, and the user expects to still have them.
+
+Both had the same shape — a mechanism that was correct about its own job and wrong about who else was listening. Neither was findable by reading the handler that looked broken.
+
+### A48.3 Choices worth not re-litigating
+
+- **Grab snaps the distance; scale snaps each key.** Snapping every key of a grab would flatten the internal spacing of an off-grid selection, turning a move into a quantize. A scale changes spacing by definition, so there is no shape left to preserve.
+- **Bezier handles are not scaled.** They are stored in segment space (x is time *across the segment*), so a stretched segment carries its curve shape with it. Recorded here because the absence of scaling code otherwise reads as an omission.
+- **`A` is select-all, not frame-all.** Framing moved to `Shift+F`; `F` still frames the selection. Both framing actions keep visible buttons, so the rebind costs no discoverability.
+- **`Home` is jump-to-start only.** A key that means two things depending on which pane the user imagines themselves in is worse than a second key.
+
+### A48.4 Still open
+
+- **Key times in seconds.** Authoring in seconds and normalizing at bake would let a length change leave keys at their authored time and mark them out of range, rather than rescaling them with the clip. It touches five key types, V04, `ClipRegistryBuilder`, and needs a migration for existing clips — deliberately not bundled with the interaction work.
+
+---
+
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*
