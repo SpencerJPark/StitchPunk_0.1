@@ -58,11 +58,17 @@ namespace DotsAnimationToolkit.Editor
         public const float MinimumZoom = 0.25f;
         public const float MaximumZoom = 200f;
 
-        public static TimelineGeometry Create(float laneWidth)
-        {
-            return Create(laneWidth, 1f, 0f);
-        }
-
+        /// <summary>
+        /// Builds a converter for one width and one view.
+        /// </summary>
+        /// <remarks>
+        /// <strong>There is deliberately no overload that defaults the view.</strong> There was one,
+        /// and it read as a convenience while quietly meaning "zoom 1, pan 0". Two separate bugs
+        /// came from calling it by mistake — key dragging converted the cursor against an unzoomed
+        /// timeline, and box selection tested the band against where keys would be if the view had
+        /// never moved. Both looked correct at the default view, which is exactly what made them
+        /// survive. Requiring the view at every call site turns that mistake into a compile error.
+        /// </remarks>
         public static TimelineGeometry Create(float laneWidth, float zoom, float panNormalized)
         {
             return new TimelineGeometry

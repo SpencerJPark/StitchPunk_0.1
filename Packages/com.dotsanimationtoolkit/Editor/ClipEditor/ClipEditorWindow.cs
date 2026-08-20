@@ -4522,10 +4522,12 @@ namespace DotsAnimationToolkit.Editor
                     RepaintLanes();
                     RebuildInspector();
                 }
-                SetPlayheadTime(normalizedTime);
 
-                // The same press can still become a box select. It only becomes one once the pointer
-                // has actually travelled, so a plain click keeps meaning "move the playhead here".
+                // The same press can still become a box select, so the playhead is held rather than
+                // moved. Moving it here dragged it along behind every band the user drew, which
+                // reads as the two gestures fighting each other. It is applied on release, and only
+                // if the press turned out to be a click.
+                pendingPlayheadTime = normalizedTime;
                 BeginBoxSelect(pointerEvent, additive);
                 return;
             }
@@ -4546,6 +4548,11 @@ namespace DotsAnimationToolkit.Editor
         // -------------------------------------------------------------------------------------
         // Box selection
         // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Where a press on empty lane space would put the playhead, applied only if it stays a click.
+        /// </summary>
+        private float pendingPlayheadTime;
 
         private void BeginBoxSelect(PointerDownEvent pointerEvent, bool additive)
         {
@@ -4613,7 +4620,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (!isBoxSelectActive)
             {
-                // It was a click after all; the playhead already moved on press.
+                // It was a click after all, so now the playhead moves.
+                SetPlayheadTime(pendingPlayheadTime);
                 return;
             }
             isBoxSelectActive = false;
@@ -4647,7 +4655,7 @@ namespace DotsAnimationToolkit.Editor
             if (!isBoxSelectAdditive)
             {
                 selectedKeys.Clear();
-            hasActiveKey = false;
+                hasActiveKey = false;
             }
 
             for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
@@ -4664,7 +4672,13 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                TimelineGeometry geometry = TimelineGeometry.Create(lane.contentRect.width);
+                // The live view, not Create(width) -- that one-argument overload means zoom 1 and
+                // pan 0, so the band was tested against where the keys would be on an unzoomed,
+                // unscrolled timeline rather than where they are. At the default view the two agree,
+                // which is why this looked like it worked; anywhere else it selected whatever
+                // happened to line up under the wrong mapping.
+                TimelineGeometry geometry =
+                    TimelineGeometry.Create(LaneWidth, viewZoom, viewPan);
                 IReadOnlyList<float> keyTimes = lane.KeyTimes;
                 for (int keyIndex = 0; keyIndex < keyTimes.Count; keyIndex++)
                 {
