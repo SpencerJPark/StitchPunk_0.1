@@ -173,6 +173,20 @@ namespace DotsAnimationToolkit.Editor
         private readonly HashSet<KeyAddress> selectedKeys = new HashSet<KeyAddress>();
 
         /// <summary>
+        /// The key the inspector edits: the one most recently clicked, not an arbitrary member of
+        /// the selection.
+        /// </summary>
+        /// <remarks>
+        /// The inspector used to take "the last" address by iterating <see cref="selectedKeys"/> and
+        /// keeping the final value. A <c>HashSet</c> has no order, so that was whichever key the
+        /// hash buckets happened to yield last — with one key selected it looked right, and the
+        /// moment a second was added the panel showed a key the user had not clicked. Selection is a
+        /// set; the ACTIVE element is not, and it has to be stored separately.
+        /// </remarks>
+        private KeyAddress activeKey;
+        private bool hasActiveKey;
+
+        /// <summary>
         /// What is selected in the hierarchy, as the tree item id — which is also the preview's
         /// index for the same transform. -1 is nothing.
         /// </summary>
@@ -478,6 +492,7 @@ namespace DotsAnimationToolkit.Editor
         private void OnUndoRedo()
         {
             selectedKeys.Clear();
+            hasActiveKey = false;
             RefreshSerializedClip();
             MarkPreviewDirty();
             RebuildTimeline();
@@ -3310,6 +3325,7 @@ namespace DotsAnimationToolkit.Editor
             // key's values under a heading naming a different object would be a lie about what the
             // fields edit.
             selectedKeys.Clear();
+            hasActiveKey = false;
             ApplyHierarchySelection();
             RebuildTimeline();
             RebuildInspector();
@@ -3568,6 +3584,7 @@ namespace DotsAnimationToolkit.Editor
         {
             selectedClip = clip;
             selectedKeys.Clear();
+            hasActiveKey = false;
             SetPlaying(false);
             playheadTime = 0f;
             RefreshSerializedClip();
@@ -3786,6 +3803,7 @@ namespace DotsAnimationToolkit.Editor
 
             ruler.durationSeconds = selectedClip.duration;
             ruler.frameCount = TransportFrameCount;
+            ruler.RefreshSecondLabels();
             ruler.MarkDirtyRepaint();
 
             int rowIndex = 0;
@@ -4046,14 +4064,20 @@ namespace DotsAnimationToolkit.Editor
             if (!additive && !selectedKeys.Contains(address))
             {
                 selectedKeys.Clear();
+            hasActiveKey = false;
             }
             if (additive && selectedKeys.Contains(address))
             {
                 selectedKeys.Remove(address);
+                // Deselecting the active key hands the panel back to whatever remains, rather than
+                // leaving it editing a key that is no longer selected.
+                hasActiveKey = false;
             }
             else
             {
                 selectedKeys.Add(address);
+                activeKey = address;
+                hasActiveKey = true;
             }
 
             SyncBoneSelectionToKey(address);
@@ -4208,6 +4232,7 @@ namespace DotsAnimationToolkit.Editor
                 if (!additive)
                 {
                     selectedKeys.Clear();
+            hasActiveKey = false;
                     RepaintLanes();
                     RebuildInspector();
                 }
@@ -4226,6 +4251,7 @@ namespace DotsAnimationToolkit.Editor
 
             EditorUtility.SetDirty(selectedClip);
             selectedKeys.Clear();
+            hasActiveKey = false;
             SortTrackKeys(trackKind, trackIndex);
             SetPlayheadTime(insertTime);
             RebuildTimeline();
@@ -4335,6 +4361,7 @@ namespace DotsAnimationToolkit.Editor
             if (!isBoxSelectAdditive)
             {
                 selectedKeys.Clear();
+            hasActiveKey = false;
             }
 
             for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
@@ -4528,6 +4555,7 @@ namespace DotsAnimationToolkit.Editor
 
             EditorUtility.SetDirty(selectedClip);
             selectedKeys.Clear();
+            hasActiveKey = false;
             RebuildTimeline();
         }
 
@@ -4762,6 +4790,7 @@ namespace DotsAnimationToolkit.Editor
 
             // Indices moved, so held addresses no longer mean what they meant.
             selectedKeys.Clear();
+            hasActiveKey = false;
         }
 
         private void SortAllTracks()
@@ -4782,6 +4811,7 @@ namespace DotsAnimationToolkit.Editor
             }
             selectedClip.events.Sort(CompareEventMarkers);
             selectedKeys.Clear();
+            hasActiveKey = false;
         }
 
         private static int CompareTransformKeys(TransformKey first, TransformKey second)
@@ -5072,10 +5102,19 @@ namespace DotsAnimationToolkit.Editor
             // Multi-select edits the last address only. Driving N keys from one field needs a
             // mixed-value story the property system does not hand us, so rather than pretend, the
             // inspector says plainly which key it is editing.
+            // The clicked key, when one is known. Falling back to an arbitrary set member only
+            // happens for selections made without a click, such as a box select.
             KeyAddress shown = default(KeyAddress);
-            foreach (KeyAddress address in selectedKeys)
+            if (hasActiveKey && selectedKeys.Contains(activeKey))
             {
-                shown = address;
+                shown = activeKey;
+            }
+            else
+            {
+                foreach (KeyAddress address in selectedKeys)
+                {
+                    shown = address;
+                }
             }
 
             SerializedProperty keyProperty = FindKeyProperty(shown);
@@ -5715,6 +5754,7 @@ namespace DotsAnimationToolkit.Editor
             CommitClipEdit();
 
             selectedKeys.Clear();
+            hasActiveKey = false;
             RebuildTimeline();
         }
 
@@ -6351,6 +6391,7 @@ namespace DotsAnimationToolkit.Editor
             CommitClipEdit();
 
             selectedKeys.Clear();
+            hasActiveKey = false;
             RebuildTimeline();
         }
 
@@ -6475,6 +6516,7 @@ namespace DotsAnimationToolkit.Editor
             CommitClipEdit();
 
             selectedKeys.Clear();
+            hasActiveKey = false;
             RebuildTimeline();
         }
 
@@ -6622,6 +6664,7 @@ namespace DotsAnimationToolkit.Editor
             hasPendingTransformEdit = false;
 
             selectedKeys.Clear();
+            hasActiveKey = false;
             RebuildTimeline();
         }
 

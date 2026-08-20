@@ -128,6 +128,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 ruler.viewZoom = viewZoom;
                 ruler.viewPan = viewPan;
+                // Labels are children, so they are rebuilt here rather than during the repaint the
+                // line below schedules.
+                ruler.RefreshSecondLabels();
                 ruler.MarkDirtyRepaint();
             }
             if (playhead != null)

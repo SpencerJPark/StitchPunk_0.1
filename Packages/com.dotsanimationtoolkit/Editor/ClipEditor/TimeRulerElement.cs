@@ -50,6 +50,10 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<PointerDownEvent>(OnPointerDown);
             RegisterCallback<PointerMoveEvent>(OnPointerMove);
             RegisterCallback<PointerUpEvent>(OnPointerUp);
+
+            // A resize changes where every second lands, and is the one trigger the window cannot
+            // see for itself.
+            RegisterCallback<GeometryChangedEvent>(geometryEvent => RefreshSecondLabels());
         }
 
         private void OnPointerDown(PointerDownEvent pointerEvent)
@@ -119,7 +123,17 @@ namespace DotsAnimationToolkit.Editor
         /// only the numbering thins, so the grid is still legible where the text is not.
         /// </para>
         /// </remarks>
-        private void RebuildSecondLabels()
+        /// <summary>
+        /// Rebuilds the whole-second labels. Call after changing the view or the clip timing.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Never call this from <c>generateVisualContent</c>.</strong> It did exactly that
+        /// once: Clear() and Add() mutate the visual tree, and mutating the tree from inside a
+        /// repaint neither clears reliably nor re-lays-out, so labels accumulated on every zoom step
+        /// and stacked into an unreadable smear of overlapping numbers. Repaint draws; it does not
+        /// restructure.
+        /// </remarks>
+        public void RefreshSecondLabels()
         {
             Clear();
 
@@ -162,7 +176,6 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnGenerateVisualContent(MeshGenerationContext context)
         {
-            RebuildSecondLabels();
 
             Rect rect = contentRect;
             if (rect.width <= 0f || rect.height <= 0f)
