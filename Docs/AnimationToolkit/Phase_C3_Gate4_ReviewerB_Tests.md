@@ -2,7 +2,7 @@
 
 STATUS: complete — VERDICT: **FAIL** (1 blocking, 6 advisory). See `## VERDICT` at the end.
 
-Scope: `git diff 026a902..HEAD` restricted to `Packages/com.stitchpunk.dotsanimationtoolkit` and `Docs/AnimationToolkit`.
+Scope: `git diff 026a902..HEAD` restricted to `Packages/com.dotsanimationtoolkit` and `Docs/AnimationToolkit`.
 Lens: **Would this test fail if the code were wrong?**
 
 Findings are appended incrementally as they are formed. Verdict is written last.
@@ -211,7 +211,7 @@ using (BakingTestWorld rebakeWorld = new BakingTestWorld("RebakeWorld"))
 ### F7 — CONFIRMED — item 7, the test-count claim is accurate
 
 Counted by attribute over the shipped tree
-(`Packages/com.stitchpunk.dotsanimationtoolkit/Tests/`):
+(`Packages/com.dotsanimationtoolkit/Tests/`):
 
 - **EditMode: 205** `[Test]` (AuthoringPathTests 12, ClipRegistryBuilderTests 18,
   ClipRegistryDeterminismTests 14, ClipRegistryUtilTests 10, ClipSamplerTests 12,
@@ -231,7 +231,7 @@ count. The CHANGELOG's 205 + 27 claim is **accurate**.
 
 ### F8 — CONFIRMED OK — item 8, no `LogAssert.ignoreFailingMessages` in `[SetUp]`
 
-Grep over `Packages/com.stitchpunk.dotsanimationtoolkit/Tests/` and `Assets/_Scripts/Tests/`:
+Grep over `Packages/com.dotsanimationtoolkit/Tests/` and `Assets/_Scripts/Tests/`:
 the only assignments are `BakingTestWorld.cs:133-134` and `:151`, inside `Bake()`, with
 save/restore around the reflection call. `ActorBakingAcceptanceTests.cs:44-47` documents
 why it is *not* in `[SetUp]` (UTF's `BeforeAfterTestCommandBase` disposes the setup

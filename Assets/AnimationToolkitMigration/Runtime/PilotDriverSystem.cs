@@ -5,7 +5,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-namespace DotsAnimationToolkitMigration
+namespace StitchPunk.AnimationToolkitMigration
 {
     /// <summary>
     /// Ticks every <see cref="PilotDriver"/>, issuing crossfades and toggling facing so the §13.2

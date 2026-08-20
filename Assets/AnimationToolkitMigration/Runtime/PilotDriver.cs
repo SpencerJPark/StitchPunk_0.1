@@ -4,7 +4,7 @@ using DotsAnimationToolkit;
 using Unity.Entities;
 using UnityEngine;
 
-namespace DotsAnimationToolkitMigration
+namespace StitchPunk.AnimationToolkitMigration
 {
     /// <summary>
     /// Drives the pilot actor so that the three things a static scene cannot show — crossfading,

@@ -1,10 +1,10 @@
 {
-    "name": "DotsAnimationToolkitMigration.Editor",
-    "rootNamespace": "DotsAnimationToolkitMigration.Editor",
+    "name": "StitchPunk.AnimationToolkitMigration.Editor",
+    "rootNamespace": "StitchPunk.AnimationToolkitMigration.Editor",
     "references": [
         "DotsAnimationToolkit.Runtime",
         "DotsAnimationToolkit.Authoring",
-        "DotsAnimationToolkitMigration.Runtime",
+        "StitchPunk.AnimationToolkitMigration.Runtime",
         "StitchPunk.Data",
         "Unity.Entities",
         "Unity.Scenes",

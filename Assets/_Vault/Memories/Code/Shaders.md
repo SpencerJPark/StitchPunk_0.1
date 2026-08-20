@@ -59,7 +59,7 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   constraint was never real.
 
   The DOTS Animation Toolkit's nodes therefore live at
-  **`Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Nodes/`**, not under
+  **`Packages/com.dotsanimationtoolkit/Shaders/Nodes/`**, not under
   `Assets/Shaders/Nodes/`: `ToolkitBillboardVertex` (billboard displacement,
   **vertex stage**), `ToolkitVatBoneSkin` / `ToolkitVatVertexFetch` (VAT,
   **vertex stage**, point/clamp sampler or limbs melt), `ToolkitFlipbookSliceUV` /

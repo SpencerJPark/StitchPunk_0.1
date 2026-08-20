@@ -18,21 +18,21 @@ This document is self-contained: a build agent implements any module from its co
 | Field | Value |
 |---|---|
 | Display name | **DOTS Animation Toolkit** (final — product-owner decision, 2026-07-27) |
-| Package id | `com.stitchpunk.dotsanimationtoolkit` (final, same decision) |
+| Package id | `com.dotsanimationtoolkit` (final, same decision) |
 | Version | `0.1.0` during Phase C; `1.0.0` at first publish |
 | Unity | `6000.5` minimum (`"unity": "6000.5"` in package.json) |
 | Root namespace | `DotsAnimationToolkit` (+ `.Authoring`, `.Editor` sub-namespaces) |
 | Dependencies (package.json) | `com.unity.entities: 6.5.0`, `com.unity.entities.graphics: 6.5.0`, `com.unity.burst: 1.8.29`, `com.unity.collections: 6.5.0`, `com.unity.mathematics: 1.4.0`, `com.unity.render-pipelines.universal: 17.5.0` |
 | Forbidden dependencies | Anything under `Assets/` of the host project; `com.unity.physics`; UniTask; Reflex; Rive. Zero references to Stitch Punk game code — enforced by asmdef reference lists and by the packaging conformance test (§8 M6). |
 
-Development happens as an **embedded package** at `Packages/com.stitchpunk.dotsanimationtoolkit/` inside this repo (standard UPM embedded-dev workflow). The host project may reference it, never the reverse.
+Development happens as an **embedded package** at `Packages/com.dotsanimationtoolkit/` inside this repo (standard UPM embedded-dev workflow). The host project may reference it, never the reverse.
 
-**Naming note (product-owner decision, 2026-07-27):** the product name is **DOTS Animation Toolkit** / `com.stitchpunk.dotsanimationtoolkit`. The C# root namespace and asmdef prefix deliberately remain `DotsAnimationToolkit` — inside code the DOTS qualifier is redundant (everything in the package is DOTS), and shorter type-qualified names read better in user projects. This is an intentional id↔namespace divergence, not an incomplete rename.
+**Naming note (product-owner decision, 2026-07-27):** the product name is **DOTS Animation Toolkit** / `com.dotsanimationtoolkit`. The C# root namespace and asmdef prefix deliberately remain `DotsAnimationToolkit` — inside code the DOTS qualifier is redundant (everything in the package is DOTS), and shorter type-qualified names read better in user projects. This is an intentional id↔namespace divergence, not an incomplete rename.
 
 ### 1.2 Folder tree
 
 ```
-Packages/com.stitchpunk.dotsanimationtoolkit/
+Packages/com.dotsanimationtoolkit/
 ├── package.json
 ├── CHANGELOG.md
 ├── LICENSE.md
@@ -1261,7 +1261,7 @@ Dependency-ordered; each step gates on its Definition of Done (DoD = module acce
 | **C5** | M4 slice 1: includes, `ToolkitInstancing.hlsl`, subgraphs, `ToolkitSpriteLit`, billboard; M3's sprite/billboard property components wired | C4 | M4 compile + instancing-block + pass-grep tests green for sprite graph; billboard modes human-verified | Generated-code excerpts; screenshots (billboard modes, flipbook anim, batch count) |
 | **C6** | M2 VAT slice (`VatTextureBaker`) + M3 `VatMaterialSystem` + M4 slice 2 (VAT includes/graphs/crowd shader) — bone flavor first, vertex flavor second | C5 | M2 VAT acceptance green (procedural-mesh fixtures); M4 VAT tests green; `VatCrowd` scene: 1000 instances, 1 batch, human-verified vs source clip | Test runs; Rendering Debugger screenshot; side-by-side clip comparison screenshot |
 | **C7** | M5 complete: Clip Editor, preview, VAT window, inspectors, id tooling, utilities | C6 | M5 acceptance green (undo fixtures, blob-leak check); human UX walkthrough signed off | Test run; undo serialize-compare output; user walkthrough notes |
-| **C8** | M6 completion: samples, Documentation~, clean-project verification, player-build check, **naming conformance check (name finalized 2026-07-27: DOTS Animation Toolkit / `com.stitchpunk.dotsanimationtoolkit`, §1.1)**, version 1.0.0 | C7 | Full M6 acceptance incl. clean-project run and Windows player build of VatCrowd | Clean-project test log; build report; final package validation output |
+| **C8** | M6 completion: samples, Documentation~, clean-project verification, player-build check, **naming conformance check (name finalized 2026-07-27: DOTS Animation Toolkit / `com.dotsanimationtoolkit`, §1.1)**, version 1.0.0 | C7 | Full M6 acceptance incl. clean-project run and Windows player build of VatCrowd | Clean-project test log; build report; final package validation output |
 
 Rules: no step starts before its predecessor's DoD evidence is filed; any §8 contract change discovered mid-build is a **stop-the-line** doc amendment (this file), not a silent divergence; every step lands with its tests in the same change set (tests are not a trailing phase).
 
@@ -1702,7 +1702,7 @@ D1–D4 alone unblock the ragdoll work: the frame is queryable at the end of D4.
 
 §6.1 specified that the toolkit's Shader Graph surface would be **standard Custom Function nodes, not the host's reflection-API node system**, with the stated reason: *"the package must work in any Unity 6.5 project; the host may wrap the same includes in its reflection nodes locally."*
 
-**The premise is false, and it was never tested.** Shader Graph's function-reflection scanner reads any `.hlsl` in the project, including inside a UPM package — verified by moving one node into `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Nodes/` and confirming it still appears in the Create Node menu, with four nodes left in `Assets/` as the control. A buyer who installs the package gets the nodes; nothing about them depends on this host.
+**The premise is false, and it was never tested.** Shader Graph's function-reflection scanner reads any `.hlsl` in the project, including inside a UPM package — verified by moving one node into `Packages/com.dotsanimationtoolkit/Shaders/Nodes/` and confirming it still appears in the Create Node menu, with four nodes left in `Assets/` as the control. A buyer who installs the package gets the nodes; nothing about them depends on this host.
 
 So the package's Shader Graph surface **is** reflection nodes, living in the package, and the host wraps nothing. That is strictly better than the planned split: one definition instead of two, no duplicate `ProviderKey` to collide, and the package's own reference graphs can use its own nodes.
 

@@ -23,7 +23,7 @@ The three full reports follow verbatim.
 # C3 Re-review — Reviewer A (spec conformance)
 
 Scope: `026a902..HEAD` (aacde42, d288342, d237fa2, f60a4fa) over
-`Packages/com.stitchpunk.dotsanimationtoolkit` + `Docs/AnimationToolkit`.
+`Packages/com.dotsanimationtoolkit` + `Docs/AnimationToolkit`.
 
 Findings appended as confirmed. Verdict at the bottom.
 
@@ -369,7 +369,7 @@ VERDICT: FAIL — 4 blocking items (Findings 1, 2, 5, 8)
 
 # Re-review B — Test Integrity (C3 rework)
 
-Scope: `git diff 026a902..HEAD -- Packages/com.stitchpunk.dotsanimationtoolkit/Tests`
+Scope: `git diff 026a902..HEAD -- Packages/com.dotsanimationtoolkit/Tests`
 Commits: aacde42, d288342, d237fa2, f60a4fa
 
 ---
@@ -677,7 +677,7 @@ Scope: `git diff 026a902..HEAD -- .../Authoring .../Runtime` (aacde42, d288342, 
 
 ## C-1 BLOCKING — `AuthoringPathHash.PathOf` throws on non-ASCII paths; its own comment states the truncation logic backwards
 
-**File:** `Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/AuthoringPathHash.cs:91-98`
+**File:** `Packages/com.dotsanimationtoolkit/Authoring/Baking/AuthoringPathHash.cs:91-98`
 
 ```csharp
 // FixedString128Bytes holds 125 UTF-8 bytes. Trimming by character count is conservative
@@ -767,7 +767,7 @@ The rework moved the "target id the rig does not declare" error from the Bursted
 `RigTargetBaker.Bake` (`RigTargetBaker.cs:90-96`). Three pieces of prose still say the old thing, and one of them sits
 **twenty lines below the new code, in the same file, untouched by the same commit**:
 
-1. **`Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/RigTargetBaker.cs:169-174`** â€” `<remarks>` on
+1. **`Packages/com.dotsanimationtoolkit/Authoring/Baking/RigTargetBaker.cs:169-174`** â€” `<remarks>` on
    `ResolveTargetKind`:
    > "A target id the rig does not declare is *not* reported here: architecture section 4.1 gives that error to
    > `RigBindingBakingSystem`, which is the one place that can see whether the id resolves against the actor's baked
@@ -776,11 +776,11 @@ The rework moved the "target id the rig does not declare" error from the Bursted
    `Bake` now reports it exactly here. A maintainer reading this remark would conclude the `Debug.LogError` at line 90
    is a duplicate-message bug and delete it â€” restoring the very defect this rework was meant to close.
 
-2. **`Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/ActorBaker.cs:370-371`** â€” "Unknown targets are
+2. **`Packages/com.dotsanimationtoolkit/Authoring/Baking/ActorBaker.cs:370-371`** â€” "Unknown targets are
    reported once, by `RigBindingBakingSystem`; this pass stays silent about them." No longer true; they are reported
    by `RigTargetBaker`.
 
-3. **`Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/RigBindingBakingSystem.cs:97-99`** â€” `<summary>` on
+3. **`Packages/com.dotsanimationtoolkit/Authoring/Baking/RigBindingBakingSystem.cs:97-99`** â€” `<summary>` on
    `ResolveRigPartBindingsJob`: "A part that cannot be bound is reported once and left inert." After the new early
    return at lines 123-126 the commonest unbindable part is left inert and **not** reported (see C-4).
 
@@ -796,7 +796,7 @@ such a part.
 
 ## C-4 BLOCKING â€” the rework left three of the four Bursted error paths unreachable and silenced the one real failure they covered
 
-**File:** `Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/RigBindingBakingSystem.cs:114-145`
+**File:** `Packages/com.dotsanimationtoolkit/Authoring/Baking/RigBindingBakingSystem.cs:114-145`
 
 Tracing each guard against its only writer â€” `ActorBaker.cs:72` and `ActorBaker.cs:80` are the *only* places in the
 package that add `ClipRegistry` or `RigPartRef` (verified by grep across `Authoring`, `Runtime`, `Editor`):
@@ -833,7 +833,7 @@ actor rather than per part. Either way delete the three dead guards, or demote 1
 
 ## C-5 ADVISORY â€” `RigTargetBaker.CaptureRestPose`: correct API, but over-invalidating, and its new null branch is dead
 
-**File:** `Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/RigTargetBaker.cs:200-212`
+**File:** `Packages/com.dotsanimationtoolkit/Authoring/Baking/RigTargetBaker.cs:200-212`
 
 **The API is correct.** `Baker.GetComponent<T>(Component)` exists (`Baker.cs:98-101`) and routes through
 `GetComponentInternal<T>` (`Baker.cs:122-135`), which calls `DependOnGetComponent` and, for a `Transform`, additionally
@@ -858,7 +858,7 @@ diagnostic, which is worse than throwing. At the stated "no placeholders" bar, d
 
 ## C-6 ADVISORY â€” `ComputeSamplePhase`'s `>> 8` is harmless and still normalised, but the mask is now a no-op and the rationale does not match the algorithm
 
-**File:** `Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/ActorBaker.cs:492-497`
+**File:** `Packages/com.dotsanimationtoolkit/Authoring/Baking/ActorBaker.cs:492-497`
 
 - **Normalisation is correct.** `pathHash >> 8` on a `uint` yields at most `0x00FFFFFF`, so the product with
   `1f / 16777216f` lands in `[0, 0.99999994]`, still inside `[0, 1)`. No regression.
@@ -876,7 +876,7 @@ diagnostic, which is worse than throwing. At the stated "no placeholders" bar, d
 
 ## C-7 ADVISORY â€” `ClipRegistryBuilder.BuildInvocationCount`: a test seam shipped unguarded, with an inaccurate doc claim
 
-**File:** `Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Build/ClipRegistryBuilder.cs:60-79, 121`
+**File:** `Packages/com.dotsanimationtoolkit/Authoring/Build/ClipRegistryBuilder.cs:60-79, 121`
 
 - **Thread safety is not a live problem.** Bakers are invoked from a single main-thread loop
   (`com.unity.entities@e30ad8d00609/Unity.Entities.Hybrid/Baking/BakedEntityData.cs:607-645` â€” a plain `for` over the

@@ -1,6 +1,6 @@
 {
-    "name": "DotsAnimationToolkitSmoke.Editor",
-    "rootNamespace": "DotsAnimationToolkitSmoke.Editor",
+    "name": "StitchPunk.AnimationToolkitSmoke.Editor",
+    "rootNamespace": "StitchPunk.AnimationToolkitSmoke.Editor",
     "references": [
         "DotsAnimationToolkit.Runtime",
         "DotsAnimationToolkit.Authoring",

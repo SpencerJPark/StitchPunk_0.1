@@ -1,6 +1,6 @@
 # Phase C3 — Gate 4 (three-lens review)
 
-**Run:** 2026-08-01 · **Scope:** `git diff 026a902..HEAD` over `Packages/com.stitchpunk.dotsanimationtoolkit` and `Docs/AnimationToolkit` (27 files, ~3,703 insertions)
+**Run:** 2026-08-01 · **Scope:** `git diff 026a902..HEAD` over `Packages/com.dotsanimationtoolkit` and `Docs/AnimationToolkit` (27 files, ~3,703 insertions)
 **Shape:** three narrow agents in parallel, one lens each, each appending to its own file as it went. All three completed — the first gate of the four attempted to do so.
 
 ## Verdict: **FAIL** — 10 blocking items, 1 requiring a code change

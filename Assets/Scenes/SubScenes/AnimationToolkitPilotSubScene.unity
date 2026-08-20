@@ -1194,8 +1194,8 @@ MonoScript:
   m_Type: 0
   m_ExecutionOrder: 0
   m_ClassName: PilotDriverAuthoring
-  m_Namespace: DotsAnimationToolkitMigration
-  m_AssemblyName: DotsAnimationToolkitMigration.Runtime
+  m_Namespace: StitchPunk.AnimationToolkitMigration
+  m_AssemblyName: StitchPunk.AnimationToolkitMigration.Runtime
 --- !u!1 &704850546
 GameObject:
   m_ObjectHideFlags: 0
@@ -2002,7 +2002,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 686930809}
   m_Name: 
-  m_EditorClassIdentifier: DotsAnimationToolkitMigration.Runtime::DotsAnimationToolkitMigration.PilotDriverAuthoring
+  m_EditorClassIdentifier: StitchPunk.AnimationToolkitMigration.Runtime::StitchPunk.AnimationToolkitMigration.PilotDriverAuthoring
   clipInterval: 3
   blendDuration: 1
   mirrorInterval: 4

@@ -1,7 +1,7 @@
 # Shader Integration Contract
 
 This document is the integration contract for the four standalone HLSL includes under
-`Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/`:
+`Packages/com.dotsanimationtoolkit/Shaders/Includes/`:
 
 - `ToolkitBillboard.hlsl`
 - `ToolkitFlipbook.hlsl`
@@ -17,7 +17,7 @@ billboard only — into a lit shader, a toon shader, or any other shader you alr
 adopting the rest of this package.
 
 The executable form of everything below is
-`Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/HandWritten/ToolkitCompositeExample.shader`,
+`Packages/com.dotsanimationtoolkit/Shaders/HandWritten/ToolkitCompositeExample.shader`,
 which composes `ToolkitBillboard.hlsl` and `ToolkitFlipbook.hlsl` in one hand-written shader and is
 explicit that if this document and that file ever disagree, the file is the one that renders.
 
@@ -26,9 +26,9 @@ explicit that if this document and that file ever disagree, the file is the one 
 ## 1. The per-instance property contract (CPU → GPU)
 
 Every row below is a DOTS-instanced material property: a `[MaterialProperty]` component in
-`Packages/com.stitchpunk.dotsanimationtoolkit/Runtime/Components/MaterialPropertyComponents.cs`
+`Packages/com.dotsanimationtoolkit/Runtime/Components/MaterialPropertyComponents.cs`
 feeds a `UNITY_DOTS_INSTANCED_PROP` declared in
-`Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl`, and the
+`Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl`, and the
 shader property name is frozen — it must match **exactly**, character for character.
 
 | Shader property | Type | C# component | Field | Written by |
@@ -277,8 +277,8 @@ object-space **vertex position** — there is no vertex position to produce in t
 
 ```hlsl
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-#include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl"
-#include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitBillboard.hlsl"
+#include "Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl"
+#include "Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitBillboard.hlsl"
 
 // In the vertex function, after UNITY_SETUP_INSTANCE_ID(input):
 float3 displacedOS = BillboardTransform(
@@ -309,7 +309,7 @@ keeps the two addressing modes swappable behind one function —
 Atlas mode:
 
 ```hlsl
-#include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl"
+#include "Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl"
 
 // In the fragment function:
 float2 atlasUv = AtlasFrameUV(input.uv, TOOLKIT_ATLAS_FRAME);
@@ -335,8 +335,8 @@ object-space position.
 
 ```hlsl
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-#include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl"
-#include "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl"
+#include "Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl"
+#include "Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl"
 
 // Attributes must carry bone data in a UV channel — see §4:
 //   float4 boneData : TEXCOORD1;   // (index0, index1, weight0, weight1)
@@ -533,16 +533,16 @@ these settings will get the exact "renders as noise" failure mode in §6.
 
 ## Sources read for this document
 
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitBillboard.hlsl`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/HandWritten/ToolkitSpriteUnlit.shader`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/HandWritten/ToolkitVatCrowdUnlit.shader`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/HandWritten/ToolkitCompositeExample.shader`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Runtime/Components/MaterialPropertyComponents.cs`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Editor/VatBaking/VatTextureBaker.cs`
-- `Packages/com.stitchpunk.dotsanimationtoolkit/Tests/EditMode/ShaderConformanceTests.cs`
+- `Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitBillboard.hlsl`
+- `Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitFlipbook.hlsl`
+- `Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitVat.hlsl`
+- `Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitInstancing.hlsl`
+- `Packages/com.dotsanimationtoolkit/Shaders/HandWritten/ToolkitSpriteUnlit.shader`
+- `Packages/com.dotsanimationtoolkit/Shaders/HandWritten/ToolkitVatCrowdUnlit.shader`
+- `Packages/com.dotsanimationtoolkit/Shaders/HandWritten/ToolkitCompositeExample.shader`
+- `Packages/com.dotsanimationtoolkit/Runtime/Components/MaterialPropertyComponents.cs`
+- `Packages/com.dotsanimationtoolkit/Editor/VatBaking/VatTextureBaker.cs`
+- `Packages/com.dotsanimationtoolkit/Tests/EditMode/ShaderConformanceTests.cs`
 
 **Not verified** (called out inline above, repeated here for visibility):
 

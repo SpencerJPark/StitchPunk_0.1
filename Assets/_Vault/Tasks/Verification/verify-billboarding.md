@@ -12,7 +12,7 @@ roots, descendants inherit them, a nested root overrides its ancestor, and the C
 of it live. **Everything automatable is already green** (431 EditMode + 212 PlayMode) — this file is
 only the things a test cannot see.
 
-**Where the code is:** `Packages/com.stitchpunk.dotsanimationtoolkit/`, package version `0.10.0`.
+**Where the code is:** `Packages/com.dotsanimationtoolkit/`, package version `0.10.0`.
 Spec and build notes are **Amendment A44** at the end of
 [`Docs/AnimationToolkit/Phase_B_Architecture.md`](../../../../Docs/AnimationToolkit/Phase_B_Architecture.md).
 User-facing doc is `Documentation~/billboarding.md`.
@@ -206,7 +206,7 @@ On the rig asset, under **Billboarding**, per root:
 
 ```
 We're continuing work on the DOTS Animation Toolkit
-(Packages/com.stitchpunk.dotsanimationtoolkit, currently v0.10.0).
+(Packages/com.dotsanimationtoolkit, currently v0.10.0).
 
 Yesterday we built Amendment A44: hierarchical, authorable billboarding. Any rig
 node can be a billboard root, descendants inherit the nearest one, and a nested
@@ -219,7 +219,7 @@ Read these first, in this order:
    I was working through, and the known gaps)
 2. Amendment A44 at the end of Docs/AnimationToolkit/Phase_B_Architecture.md
    (the spec plus the D2 and D3-D6 build notes explaining what changed and why)
-3. Packages/com.stitchpunk.dotsanimationtoolkit/Documentation~/billboarding.md
+3. Packages/com.dotsanimationtoolkit/Documentation~/billboarding.md
    (the user-facing account)
 
 Three things you need to know without having to derive them:

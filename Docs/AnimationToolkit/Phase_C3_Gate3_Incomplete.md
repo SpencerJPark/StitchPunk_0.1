@@ -20,7 +20,7 @@ The remaining scope is untouched and must be re-reviewed from scratch.
 
 # C3 Gate Review (3rd pass) — Reviewer A, spec conformance
 
-Scope: `git diff 026a902..HEAD` over `Packages/com.stitchpunk.dotsanimationtoolkit` + `Docs/AnimationToolkit`.
+Scope: `git diff 026a902..HEAD` over `Packages/com.dotsanimationtoolkit` + `Docs/AnimationToolkit`.
 Rework commits under examination: `880a8e3`, `6612382`, `6772503`, `149956d`, `4221485` (on top of the previously-FAILed `026a902..3f08feb`).
 
 Findings appended as confirmed. Verdict at the bottom.
@@ -79,7 +79,7 @@ the number in the tree" is precisely the class of claim this gate exists to reje
 
 # Gate C3 (attempt 3) — Reviewer B — test integrity
 
-Scope: `git diff 026a902..HEAD -- Packages/com.stitchpunk.dotsanimationtoolkit/Tests`,
+Scope: `git diff 026a902..HEAD -- Packages/com.dotsanimationtoolkit/Tests`,
 read against the production code it exercises.
 
 Findings appended as confirmed. Verdict at the bottom.

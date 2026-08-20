@@ -2,7 +2,7 @@
 
 STATUS: complete — VERDICT: FAIL (7 blocking, see bottom)
 
-Scope: `git diff 026a902..HEAD` restricted to `Packages/com.stitchpunk.dotsanimationtoolkit` and `Docs/AnimationToolkit`.
+Scope: `git diff 026a902..HEAD` restricted to `Packages/com.dotsanimationtoolkit` and `Docs/AnimationToolkit`.
 Normative spec: `Docs/AnimationToolkit/Phase_B_Architecture.md`.
 Evidence rule: verified against the shipped tree, not the author's notes.
 
@@ -13,7 +13,7 @@ Evidence rule: verified against the shipped tree, not the author's notes.
 `Docs/AnimationToolkit/Phase_B_Architecture.md:358` (A21):
 > "`RigPartBakeLink` therefore carries `authoringPath` … while **every one of its four diagnostics** names the offending object."
 
-`Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/RigBindingBakingSystem.cs` has exactly **three** `Debug.LogError` calls — lines 155, 172, 183 (`grep -c Debug.LogError` = 3). At `026a902` the same file had four (lines 109/116/125/136 of the old file).
+`Packages/com.dotsanimationtoolkit/Authoring/Baking/RigBindingBakingSystem.cs` has exactly **three** `Debug.LogError` calls — lines 155, 172, 183 (`grep -c Debug.LogError` = 3). At `026a902` the same file had four (lines 109/116/125/136 of the old file).
 
 A22 (`:360`, two paragraphs later, same C3 gate, same date) explicitly states the reduction:
 > "Rows 1 and 2 of the pre-amendment binding pass — 'has no baked actor to bind to' and 'clip registry failed to build' — were unreachable by construction and have been **deleted**"
@@ -22,7 +22,7 @@ and its own ownership table assigns the binding pass exactly three rows. So A21 
 
 ### F2 — VERIFIED CLEAN — §1.3 EditMode/Unity.Entities.Hybrid constraint holds
 
-`Packages/com.stitchpunk.dotsanimationtoolkit/Tests/EditMode/DotsAnimationToolkit.Tests.EditMode.asmdef` references exactly: Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst — **no `Unity.Entities.Hybrid`**, matching §1.3's row verbatim, and `includePlatforms: ["Editor"]`.
+`Packages/com.dotsanimationtoolkit/Tests/EditMode/DotsAnimationToolkit.Tests.EditMode.asmdef` references exactly: Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst — **no `Unity.Entities.Hybrid`**, matching §1.3's row verbatim, and `includePlatforms: ["Editor"]`.
 
 `AuthoringPathText.cs:1-6` imports only `System.Collections.Generic`, `System.Text`, `Unity.Collections` — no `Unity.Entities`, no `UnityEngine`. The split genuinely achieves what §8 M2 claims. `AuthoringPathText` is `internal` (`AuthoringPathText.cs:43`) and reachable from the suite via `Authoring/AssemblyInfo.cs:9` `[assembly: InternalsVisibleTo("DotsAnimationToolkit.Tests.EditMode")]`. Confirmed against the files, not the claim.
 
@@ -63,7 +63,7 @@ and `:400-406` skips unresolved target ids. `offsetBounds` is not referenced in 
 A22 (`Phase_B_Architecture.md:360`) states the problem it exists to fix:
 > "The rework that closed B3 moved the first of those into `RigTargetBaker` without recording it, leaving the row, **three doc comments** and the code all stating different things."
 
-`Packages/com.stitchpunk.dotsanimationtoolkit/Authoring/Baking/RigTargetAuthoring.cs:17-18` — the XML `<remarks>` on the **public inspector-facing MonoBehaviour** — still says:
+`Packages/com.dotsanimationtoolkit/Authoring/Baking/RigTargetAuthoring.cs:17-18` — the XML `<remarks>` on the **public inspector-facing MonoBehaviour** — still says:
 > "A part whose id is not a target of the actor's rig is reported by `RigBindingBakingSystem` and skipped; the rest of the actor still bakes."
 
 That is the pre-A22 ownership, verbatim. Under A22 the unknown-target-id error is owned by `RigTargetBaker` (`RigTargetBaker.cs:80-96`), and `RigBindingBakingSystem` never sees such a part at all because the baker withholds `RigPartBakeLink` (`RigTargetBaker.cs:99-105`). `RigTargetAuthoring.cs` was **not** touched in `026a902..HEAD`, so this is the fourth doc comment the amendment did not find. Blocking because A22's own stated deliverable was reconciling the doc comments with the code, this is the one type a consumer reads in the inspector/IntelliSense, and the sentence is false as shipped.
@@ -91,7 +91,7 @@ Both cannot stand. Either A18's rationale paragraph is overclaimed and must be s
 
 ### F11 — BLOCKING — CHANGELOG says "all four of `RigBindingBakingSystem`'s diagnostics"; there are three, and the same entry says two were deleted
 
-`Packages/com.stitchpunk.dotsanimationtoolkit/CHANGELOG.md:36-42`:
+`Packages/com.dotsanimationtoolkit/CHANGELOG.md:36-42`:
 > "`RigPartBakeLink` carries the authoring object's hierarchy path … and **all four** of `RigBindingBakingSystem`'s diagnostics **now** name the part"
 
 `CHANGELOG.md:103-104`, same 0.4.0 entry, 60 lines later:

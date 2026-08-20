@@ -29,7 +29,7 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
         private const string ScenePath = "Assets/Scenes/AnimationToolkitBillboardDemo.unity";
         private const string MaterialFolder = "Assets/AnimationToolkitShaderDemo/Generated";
         private const string ShaderPath =
-            "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/ToolkitSpriteUnlit.shadergraph";
+            "Packages/com.dotsanimationtoolkit/Shaders/ToolkitSpriteUnlit.shadergraph";
 
         /// <summary>Mode value, label, and the colour that makes it identifiable while spinning.</summary>
         private struct DemoMode

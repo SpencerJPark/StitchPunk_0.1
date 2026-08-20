@@ -2,7 +2,7 @@
 
 STATUS: complete — VERDICT: PASS (no blocking items; 9 advisories)
 
-Scope: `git diff 026a902..HEAD -- Packages/com.stitchpunk.dotsanimationtoolkit`
+Scope: `git diff 026a902..HEAD -- Packages/com.dotsanimationtoolkit`
 Files: Authoring/Baking/ActorBakeFailed.cs, ActorBaker.cs, AuthoringPathHash.cs,
 AuthoringPathText.cs, RigBindingBakingSystem.cs, RigPartBakeLink.cs, RigTargetBaker.cs,
 Authoring/Build/ClipRegistryBuilder.cs
@@ -152,7 +152,7 @@ justification for that being harmless is `ActorBaker.cs:507-508`:
 
 > "<c>RigBindingSystem</c> re-derives it per instance at spawn."
 
-**That claim is false against the shipped tree.** `Packages/com.stitchpunk.dotsanimationtoolkit/Runtime/Systems/`
+**That claim is false against the shipped tree.** `Packages/com.dotsanimationtoolkit/Runtime/Systems/`
 is an **empty directory**, and a repo-wide grep for `RigBindingSystem` returns only doc-comment mentions
 (`ActorBaker.cs`, `ActorAuthoring.cs`, `RigBindingBakingSystem.cs`, `Runtime/Components/*.cs`) — no
 definition. Nothing in `Runtime/` writes `SampleSettings` at all; `ClipSampler.SampleFrameIndex`

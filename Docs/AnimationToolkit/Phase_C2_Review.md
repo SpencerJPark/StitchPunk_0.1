@@ -2,7 +2,7 @@
 
 **Reviewer:** Reviewer-B · **Date:** 2026-07-29 · **Scope:** SPEC CONFORMANCE and the builder's JUDGEMENT CALLS only. Test integrity and code quality belong to a separate reviewer and are not adjudicated here, except where a test *encodes a divergence as spec* or where a fixture is the only evidence a Definition-of-Done bullet has.
 
-**Deliverable:** 15 new files under `Packages/com.stitchpunk.dotsanimationtoolkit/` — `Runtime/Identity/StableIdUtility.cs`; `Authoring/Assets/{RigAsset,ClipAsset,ClipSetAsset,VatTextureSetAsset}.cs`; `Authoring/Validation/{ClipValidation,ClipValidationException,ValidationMessage}.cs`; `Authoring/Build/ClipRegistryBuilder.cs` (758 lines, the core deliverable); `Tests/EditMode/{StableIdentityTests,ClipValidationTests,ClipRegistryBuilderTests,ClipRegistryDeterminismTests,AuthoringTestAssets,BlobSignature,BlobAssetReferenceScope}.cs`.
+**Deliverable:** 15 new files under `Packages/com.dotsanimationtoolkit/` — `Runtime/Identity/StableIdUtility.cs`; `Authoring/Assets/{RigAsset,ClipAsset,ClipSetAsset,VatTextureSetAsset}.cs`; `Authoring/Validation/{ClipValidation,ClipValidationException,ValidationMessage}.cs`; `Authoring/Build/ClipRegistryBuilder.cs` (758 lines, the core deliverable); `Tests/EditMode/{StableIdentityTests,ClipValidationTests,ClipRegistryBuilderTests,ClipRegistryDeterminismTests,AuthoringTestAssets,BlobSignature,BlobAssetReferenceScope}.cs`.
 
 **Normative refs:** `Phase_B_Architecture.md` §1.2, §1.3, §3.1–3.5, §4.1–4.6, §5.8, §8 M1, §9 C2, §11. Precedent for format and rigor: `Phase_C1_Review.md`.
 

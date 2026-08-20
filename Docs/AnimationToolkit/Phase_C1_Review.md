@@ -1,6 +1,6 @@
 # Phase C1 Review — M3 Runtime Data Slice
 
-**Reviewers:** Reviewer-A (compilability), Reviewer-B (spec conformance), Reviewer-C (test integrity + code quality) · **Date:** 2026-07-28 · **Deliverable:** 26 files under `Packages/com.stitchpunk.dotsanimationtoolkit/` (16 Runtime, 10 Tests/EditMode) · **Normative refs:** Phase_B_Architecture.md §1.2, §1.3, §2, §3.2–3.4, §4.2, §4.5, §5.2–5.7, §5.10, §5.11, §6.2, §8 M3, §9 C1, §11 · **Method:** the review was split across three independent reviewers with non-overlapping scopes, none able to see the others' findings, after two single-reviewer attempts were killed by a 600s no-progress watchdog. No C1 code has ever been compiled or run — see §"Evidence status".
+**Reviewers:** Reviewer-A (compilability), Reviewer-B (spec conformance), Reviewer-C (test integrity + code quality) · **Date:** 2026-07-28 · **Deliverable:** 26 files under `Packages/com.dotsanimationtoolkit/` (16 Runtime, 10 Tests/EditMode) · **Normative refs:** Phase_B_Architecture.md §1.2, §1.3, §2, §3.2–3.4, §4.2, §4.5, §5.2–5.7, §5.10, §5.11, §6.2, §8 M3, §9 C1, §11 · **Method:** the review was split across three independent reviewers with non-overlapping scopes, none able to see the others' findings, after two single-reviewer attempts were killed by a 600s no-progress watchdog. No C1 code has ever been compiled or run — see §"Evidence status".
 
 ## Build history
 

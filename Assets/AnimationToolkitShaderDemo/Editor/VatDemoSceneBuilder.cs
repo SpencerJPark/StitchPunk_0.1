@@ -22,7 +22,7 @@ namespace StitchPunk.AnimationToolkitShaderDemo.Editor
         private const string VatFolder = "Assets/AnimationToolkitShaderDemo/Generated/Vat";
         private const string ScenePath = "Assets/Scenes/AnimationToolkitVatDemo.unity";
         private const string ShaderPath =
-            "Packages/com.stitchpunk.dotsanimationtoolkit/Shaders/ToolkitVatCrowdUnlit.shadergraph";
+            "Packages/com.dotsanimationtoolkit/Shaders/ToolkitVatCrowdUnlit.shadergraph";
         private const int TentacleCount = 7;
 
         [MenuItem("Tools/DOTS Animation Toolkit/Build VAT Demo Scene")]

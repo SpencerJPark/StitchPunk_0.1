@@ -1,6 +1,6 @@
 # Phase C0 Review — Package Skeleton (Packaging agent)
 
-**Reviewer:** Reviewer agent · **Date:** 2026-07-27 · **Deliverable:** `Packages/com.stitchpunk.dotsanimationtoolkit/` (13 files) · **Normative refs:** Phase_B_Architecture.md §1 (with the §1.1 naming decision: id `com.stitchpunk.dotsanimationtoolkit`, display name "DOTS Animation Toolkit", asmdef/namespace prefix `DotsAnimationToolkit`), §8 M6, §9 C0. · **Method:** every file read and diffed field-for-field against the contract; conformance-test logic audited for vacuous-pass/hardcoded-pass routes; test (d)'s scans independently re-run by the reviewer against the shipped files; working tree checked for out-of-scope modifications.
+**Reviewer:** Reviewer agent · **Date:** 2026-07-27 · **Deliverable:** `Packages/com.dotsanimationtoolkit/` (13 files) · **Normative refs:** Phase_B_Architecture.md §1 (with the §1.1 naming decision: id `com.dotsanimationtoolkit`, display name "DOTS Animation Toolkit", asmdef/namespace prefix `DotsAnimationToolkit`), §8 M6, §9 C0. · **Method:** every file read and diffed field-for-field against the contract; conformance-test logic audited for vacuous-pass/hardcoded-pass routes; test (d)'s scans independently re-run by the reviewer against the shipped files; working tree checked for out-of-scope modifications.
 
 ---
 
@@ -8,7 +8,7 @@
 
 | # | Criterion | Verdict | Justification |
 |---|---|---|---|
-| 1 | `package.json` matches §1.1 (id, display name, version, unity min, dependency pins) | **PASS** | `com.stitchpunk.dotsanimationtoolkit` / "DOTS Animation Toolkit" / `0.1.0` / `"unity": "6000.5"`; all six pins exact (`entities` 6.5.0, `entities.graphics` 6.5.0, `burst` 1.8.29, `collections` 6.5.0, `mathematics` 1.4.0, `render-pipelines.universal` 17.5.0); empty `samples` correct until C8; description truthfully states skeleton-only status. |
+| 1 | `package.json` matches §1.1 (id, display name, version, unity min, dependency pins) | **PASS** | `com.dotsanimationtoolkit` / "DOTS Animation Toolkit" / `0.1.0` / `"unity": "6000.5"`; all six pins exact (`entities` 6.5.0, `entities.graphics` 6.5.0, `burst` 1.8.29, `collections` 6.5.0, `mathematics` 1.4.0, `render-pipelines.universal` 17.5.0); empty `samples` correct until C8; description truthfully states skeleton-only status. |
 | 2 | Runtime asmdef vs §1.3 | **PASS** | Name, rootNamespace `DotsAnimationToolkit`, all six references exact and in order, no platform restriction, `allowUnsafeCode: true`. |
 | 3 | Authoring asmdef vs §1.3 | **PASS** | Six references exact (Runtime + Entities/Hybrid/Burst/Collections/Mathematics), no platform restriction, no UnityEditor, unsafe false, `.Authoring` sub-namespace per §1.1. |
 | 4 | Editor asmdef vs §1.3 | **PASS** | Seven references exact; `"includePlatforms": ["Editor"]` — the host-repo failure mode (audit §1) is structurally prevented. |
@@ -41,7 +41,7 @@
 
 ## Advisories (no action required from the Packaging agent; coordinator attention)
 
-- **The package is invisible to git.** `.gitignore:76` (`/[Pp]ackages/*/`) ignores every directory under `Packages/`, so the deliverable is neither tracked nor shown as untracked. Before any Phase C work is committed, the host repo needs an exception (e.g. `!/Packages/com.stitchpunk.dotsanimationtoolkit/`). This is host-repo configuration outside the C0 contract, but if unaddressed the entire package can be silently lost.
+- **The package is invisible to git.** `.gitignore:76` (`/[Pp]ackages/*/`) ignores every directory under `Packages/`, so the deliverable is neither tracked nor shown as untracked. Before any Phase C work is committed, the host repo needs an exception (e.g. `!/Packages/com.dotsanimationtoolkit/`). This is host-repo configuration outside the C0 contract, but if unaddressed the entire package can be silently lost.
 - Optional test hardening for a later step: (c)/(d)/(e) could each assert their scanned-file set is non-empty; today they are anchored by (a)'s existence asserts on the same root, so the suite as a whole is safe.
 
 ---
@@ -58,7 +58,7 @@
 - Test Runner: all tests green (EditMode conformance suite + PlayMode smoke) — user-confirmed.
 - Editor.log grep for `error CS` / `error BC`: clean.
 - Console warnings present are pre-existing host-game issues unrelated to the package (`CharacterRigBakingSystem` query-in-OnUpdate, `PartLibraryBakingSystem` MaleHair textureArray warning) plus a UnityConnect cache sharing violation (Unity infra noise).
-- Follow-ups executed per this review: `.gitignore` un-ignores the embedded package (`!/Packages/com.stitchpunk.dotsanimationtoolkit/`, verified via `git check-ignore`); §9 C0 row amended "6 asmdefs" → "5 asmdefs (§1.3)".
+- Follow-ups executed per this review: `.gitignore` un-ignores the embedded package (`!/Packages/com.dotsanimationtoolkit/`, verified via `git check-ignore`); §9 C0 row amended "6 asmdefs" → "5 asmdefs (§1.3)".
 
 **C0 gate: CLOSED — APPROVED.**
 

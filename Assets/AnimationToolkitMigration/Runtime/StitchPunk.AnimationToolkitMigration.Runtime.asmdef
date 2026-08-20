@@ -1,6 +1,6 @@
 {
-    "name": "DotsAnimationToolkitMigration.Runtime",
-    "rootNamespace": "DotsAnimationToolkitMigration",
+    "name": "StitchPunk.AnimationToolkitMigration.Runtime",
+    "rootNamespace": "StitchPunk.AnimationToolkitMigration",
     "references": [
         "DotsAnimationToolkit.Runtime",
         "DotsAnimationToolkit.Authoring",

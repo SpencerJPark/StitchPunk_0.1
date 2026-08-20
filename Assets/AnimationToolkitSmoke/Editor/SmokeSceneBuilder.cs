@@ -9,7 +9,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace DotsAnimationToolkitSmoke.Editor
+namespace StitchPunk.AnimationToolkitSmoke.Editor
 {
     /// <summary>
     /// Builds the host-shaped smoke scene the DOTS Animation Toolkit's C4 Definition of Done calls

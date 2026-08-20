@@ -3,13 +3,13 @@
 using System.Collections.Generic;
 using DotsAnimationToolkit;
 using DotsAnimationToolkit.Authoring;
-using DotsAnimationToolkitMigration;
+using StitchPunk.AnimationToolkitMigration;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace DotsAnimationToolkitMigration.Editor
+namespace StitchPunk.AnimationToolkitMigration.Editor
 {
     /// <summary>
     /// Stands up one actor on the <em>converted</em> host content — step 2 of the §13.2 cutover

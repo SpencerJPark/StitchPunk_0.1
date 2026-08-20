@@ -39,8 +39,8 @@
       "dependencies": {},
       "hash": "e5acc106ee196bc5a32fb14cdf2987b0f96d11e0"
     },
-    "com.stitchpunk.dotsanimationtoolkit": {
-      "version": "file:com.stitchpunk.dotsanimationtoolkit",
+    "com.dotsanimationtoolkit": {
+      "version": "file:com.dotsanimationtoolkit",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
