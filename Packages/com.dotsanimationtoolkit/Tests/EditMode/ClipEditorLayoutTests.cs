@@ -30,9 +30,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             "clip-editor-root", "clip-editor-toolbar",
             "clip-set-field", "new-clip-set-button",
-            "play-toggle", "rewind-button", "time-label", "snap-toggle",
+            "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle", "billboard-preview-toggle",
-            "frame-count-field", "skinned-source-field", "validation-badge-slot",
+            "skinned-source-field", "validation-badge-slot",
+            // Transport bar: every control that answers "when", docked above the timeline.
+            "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
+            "step-forward-button", "jump-end-button",
+            "current-frame-field", "current-seconds-field",
+            "clip-length-field", "frame-rate-field", "frame-count-label",
+            "loop-toggle", "playback-speed-field", "quantize-keys-button",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
             "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",

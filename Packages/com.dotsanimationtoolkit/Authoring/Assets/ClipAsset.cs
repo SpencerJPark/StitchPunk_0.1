@@ -53,6 +53,46 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Default fade-out length in seconds. Clamped to <see cref="duration"/> at bake (validation rule V12).</summary>
         [Min(0f)] public float defaultBlendOut;
 
+        /// <summary>
+        /// The clip's authoring frame rate: how many frames the timeline divides
+        /// <see cref="duration"/> into. Total frames is <c>duration * frameRate</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A grid, not a sampling rate.</strong> This decides where the ruler ticks, what a
+        /// frame number means in the transport bar, and what scrubbing snaps to. It does not decide
+        /// how often the runtime evaluates a pose — that is <c>SampleSettings.rateHz</c> per actor
+        /// and <c>AnimationToolkitConfig.defaultSampleRateHz</c> per world, and conflating the two
+        /// would make an authoring convenience silently change how a shipped actor animates.
+        /// </para>
+        /// <para>
+        /// <strong>Changing it cannot destroy key data.</strong> Keys are stored as a fraction of
+        /// the clip's duration, so the frame grid is a view over them rather than a container for
+        /// them: raising or lowering the rate re-rules the timeline and moves no key. A key that
+        /// does not land exactly on a frame of the new grid stays where it is and is reported
+        /// rather than snapped — an authored key is data, and a display setting must not quietly
+        /// rewrite it.
+        /// </para>
+        /// </remarks>
+        [Min(1f)] public float frameRate = 30f;
+
+        /// <summary>
+        /// The clip's total frame count at its current <see cref="frameRate"/>, rounded to the
+        /// nearest whole frame and never below one.
+        /// </summary>
+        /// <remarks>
+        /// Derived rather than stored, so it cannot disagree with the two fields that define it.
+        /// The transport bar shows it read-only for the same reason.
+        /// </remarks>
+        public int FrameCount
+        {
+            get
+            {
+                float frames = Mathf.Max(MinimumDuration, duration) * Mathf.Max(1f, frameRate);
+                return Mathf.Max(1, Mathf.RoundToInt(frames));
+            }
+        }
+
         /// <summary>Keyed TRS curves, each bound to one rig target.</summary>
         public List<TransformTrack> transformTracks = new List<TransformTrack>();
 

@@ -43,7 +43,7 @@ namespace DotsAnimationToolkit.Editor
     /// inspector edits simply were not undoable — which is the gap this closes.
     /// </para>
     /// </remarks>
-    public sealed class ClipEditorWindow : EditorWindow
+    public sealed partial class ClipEditorWindow : EditorWindow
     {
         private const float PlaybackHertz = 30f;
 
@@ -116,7 +116,6 @@ namespace DotsAnimationToolkit.Editor
         private Button deleteClipButton;
         private TreeView hierarchyTreeView;
         private Label hierarchyEmptyLabel;
-        private ToolbarToggle playToggle;
         private ToolbarToggle snapToggle;
         private ToolbarToggle autoKeyToggle;
 
@@ -151,8 +150,6 @@ namespace DotsAnimationToolkit.Editor
         private float3 pendingPosition;
         private float3 pendingRotationDegrees;
         private float3 pendingScale;
-        private IntegerField frameCountField;
-        private Label timeLabel;
         private VisualElement trackHeaderColumn;
         private VisualElement laneColumn;
         private VisualElement laneStack;
@@ -551,20 +548,10 @@ namespace DotsAnimationToolkit.Editor
                 newClipSetButton.tooltip = "Create a new clip set asset and load it into this window.";
             }
 
-            playToggle = rootVisualElement.Q<ToolbarToggle>("play-toggle");
-            if (playToggle != null)
-            {
-                playToggle.RegisterValueChangedCallback(changeEvent => SetPlaying(changeEvent.newValue));
-            }
-
-            ToolbarButton rewindButton = rootVisualElement.Q<ToolbarButton>("rewind-button");
-            if (rewindButton != null)
-            {
-                rewindButton.clicked += () => SetPlayheadTime(0f);
-            }
-
-            timeLabel = rootVisualElement.Q<Label>("time-label");
+            // Play, the playhead readout and the frame grid all moved to the transport bar above
+            // the timeline. Snap stays here: it governs what a DRAG writes, not when anything is.
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
+            BindTransportBar();
 
             ToolbarToggle billboardPreviewToggle =
                 rootVisualElement.Q<ToolbarToggle>("billboard-preview-toggle");
@@ -614,19 +601,6 @@ namespace DotsAnimationToolkit.Editor
                         CommitPendingTransformEdit();
                     }
                     RebuildInspector();
-                });
-            }
-
-            frameCountField = rootVisualElement.Q<IntegerField>("frame-count-field");
-            if (frameCountField != null)
-            {
-                frameCountField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    if (ruler != null)
-                    {
-                        ruler.frameCount = Mathf.Max(1, changeEvent.newValue);
-                        ruler.MarkDirtyRepaint();
-                    }
                 });
             }
 
@@ -3613,10 +3587,7 @@ namespace DotsAnimationToolkit.Editor
         {
             isPlaying = playing;
             lastTickTime = EditorApplication.timeSinceStartup;
-            if (playToggle != null && playToggle.value != playing)
-            {
-                playToggle.SetValueWithoutNotify(playing);
-            }
+            RefreshPlayButtonState();
         }
 
         private void OnEditorTick()
@@ -3634,8 +3605,24 @@ namespace DotsAnimationToolkit.Editor
                 // Advance in seconds then convert, so a clip's duration sets playback speed exactly
                 // the way it does at runtime rather than every clip taking the same wall time.
                 float duration = Mathf.Max(ClipAsset.MinimumDuration, selectedClip.duration);
-                float advanced = playheadTime + (float)elapsed / duration;
-                SetPlayheadTime(advanced - Mathf.Floor(advanced));
+                float speed = playbackSpeedField != null ? playbackSpeedField.value : 1f;
+                float advanced = playheadTime + (float)elapsed * speed / duration;
+
+                bool shouldLoop = loopToggle == null || loopToggle.value;
+                if (shouldLoop)
+                {
+                    // Floor rather than a modulo so a negative speed wraps to the END, which is
+                    // what "loop" means when playing backwards.
+                    advanced -= Mathf.Floor(advanced);
+                }
+                else if (advanced >= 1f || advanced < 0f)
+                {
+                    // Stop AT the boundary rather than past it, and drop out of play, so the
+                    // transport agrees with what the viewport is showing.
+                    advanced = Mathf.Clamp01(advanced);
+                    SetPlaying(false);
+                }
+                SetPlayheadTime(advanced);
             }
 
             // The preview updates every tick, not only while playing — scrubbing a paused clip is
@@ -3737,11 +3724,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 playhead.NormalizedTime = playheadTime;
             }
-            if (timeLabel != null)
-            {
-                float duration = selectedClip != null ? selectedClip.duration : 1f;
-                timeLabel.text = (playheadTime * duration).ToString("0.000") + "s";
-            }
+            SyncTransportPlayhead();
 
             // The inspector shows the value at the playhead, so it moves with it. In place rather
             // than by rebuilding: a rebuild would destroy the field being typed into.
@@ -3757,7 +3740,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     return 0;
                 }
-                return frameCountField != null ? Mathf.Max(1, frameCountField.value) : 30;
+                return TransportFrameCount;
             }
         }
 
@@ -3801,7 +3784,7 @@ namespace DotsAnimationToolkit.Editor
                 + "   selected " + selectedKeys.Count.ToString();
 
             ruler.durationSeconds = selectedClip.duration;
-            ruler.frameCount = frameCountField != null ? Mathf.Max(1, frameCountField.value) : 30;
+            ruler.frameCount = TransportFrameCount;
             ruler.MarkDirtyRepaint();
 
             int rowIndex = 0;
@@ -4412,7 +4395,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             bool commandModifier = keyEvent.ctrlKey || keyEvent.commandKey;
-            float frameStep = 1f / Mathf.Max(1, frameCountField != null ? frameCountField.value : 30);
+            float frameStep = 1f / Mathf.Max(1, TransportFrameCount);
 
             switch (keyEvent.keyCode)
             {

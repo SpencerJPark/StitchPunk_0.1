@@ -22,9 +22,9 @@
             <ui:Label text="Clip Set" class="clip-editor__toolbar-label" />
             <uie:ObjectField name="clip-set-field" class="clip-editor__object-field" />
             <uie:ToolbarButton name="new-clip-set-button" text="New Set" />
-            <uie:ToolbarToggle name="play-toggle" text="Play" />
-            <uie:ToolbarButton name="rewind-button" text="|&lt;" />
-            <ui:Label name="time-label" text="0.000s" class="clip-editor__toolbar-label clip-editor__time-label" />
+            <!-- Playback and timing used to live here. They now sit in the transport bar docked
+                 above the timeline, so everything about WHEN is in one place and this toolbar is
+                 only about what an edit writes. -->
             <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" />
             <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key" />
             <!-- Mode switch. Off = animate (gizmos key), on = rig edit (gizmos write the base
@@ -36,8 +36,6 @@
                  game is worse than no preview. It is switchable because a billboarded rig faces
                  the camera from every angle, which makes the authored pose impossible to see. -->
             <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" />
-            <ui:Label text="Frames" class="clip-editor__toolbar-label" />
-            <ui:IntegerField name="frame-count-field" value="30" class="clip-editor__frame-field" />
             <ui:Label text="Rig" class="clip-editor__toolbar-label" />
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field" />
             <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot" />
@@ -126,6 +124,53 @@
                 two independent scrollers would let the headers drift out of line with their lanes.
             -->
             <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
+
+                <!--
+                    Transport bar. Docked immediately above the timeline on purpose: every control
+                    here answers "when", and the thing they act on is directly below them. Reading
+                    order across the bar is deliberate — move the playhead, read where it is, then
+                    the two fields that define the frame grid, then how playback behaves.
+                -->
+                <ui:VisualElement name="transport-bar" class="clip-editor__transport">
+
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Button name="jump-start-button" text="|&lt;" class="clip-editor__transport-button" />
+                        <ui:Button name="step-back-button" text="&lt;" class="clip-editor__transport-button" />
+                        <ui:Button name="play-toggle" text="Play" class="clip-editor__transport-button clip-editor__transport-play" />
+                        <ui:Button name="step-forward-button" text="&gt;" class="clip-editor__transport-button" />
+                        <ui:Button name="jump-end-button" text="&gt;|" class="clip-editor__transport-button" />
+                    </ui:VisualElement>
+
+                    <!-- The readout is editable in BOTH units, because "frame 12" and "0.4s" are
+                         the two ways an author already thinks about the same instant. -->
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Label text="Frame" class="clip-editor__transport-label" />
+                        <ui:IntegerField name="current-frame-field" class="clip-editor__transport-field" />
+                        <ui:Label text="Time" class="clip-editor__transport-label" />
+                        <ui:FloatField name="current-seconds-field" class="clip-editor__transport-field" />
+                    </ui:VisualElement>
+
+                    <!-- Length and rate define the grid; the count is derived and therefore
+                         read-only, so it can never disagree with the two fields above it. -->
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Label text="Length" class="clip-editor__transport-label" />
+                        <ui:FloatField name="clip-length-field" class="clip-editor__transport-field" />
+                        <ui:Label text="FPS" class="clip-editor__transport-label" />
+                        <ui:FloatField name="frame-rate-field" class="clip-editor__transport-field" />
+                        <ui:Label name="frame-count-label" text="0 frames"
+                                  class="clip-editor__transport-label clip-editor__transport-derived" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Toggle name="loop-toggle" label="Loop" class="clip-editor__transport-toggle" />
+                        <ui:Label text="Speed" class="clip-editor__transport-label" />
+                        <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field" />
+                    </ui:VisualElement>
+
+                    <ui:Button name="quantize-keys-button" text="Quantize Keys"
+                               class="clip-editor__transport-button clip-editor__transport-action" />
+                </ui:VisualElement>
+
                 <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status" />
                 <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">
                     <ui:VisualElement name="timeline-row" class="clip-editor__timeline-row">
