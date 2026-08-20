@@ -353,6 +353,10 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // Every step, not just the first: the gesture spans frames, and an unrecorded frame is
+            // a change Unity never sees.
+            RecordUndoGestureStep();
+
             bool snapping = SnapFrameCount > 0 && !transformSnapSuppressed;
             float grabDelta = 0f;
             float scaleFactor = 1f;
@@ -542,6 +546,16 @@ namespace DotsAnimationToolkit.Editor
                     return true;
                 }
                 return false;
+            }
+
+            // Ctrl+Z during a gesture means "get me out of this", which is what cancelling does —
+            // and it is the right answer rather than a real undo, because the gesture has not been
+            // committed yet. Undoing the step before it while it is still running would leave the
+            // snapshot describing times that no longer exist.
+            if ((keyEvent.ctrlKey || keyEvent.commandKey) && keyEvent.keyCode == KeyCode.Z)
+            {
+                CancelKeyTransform();
+                return true;
             }
 
             switch (keyEvent.keyCode)

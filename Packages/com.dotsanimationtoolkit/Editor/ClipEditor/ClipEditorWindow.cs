@@ -338,6 +338,7 @@ namespace DotsAnimationToolkit.Editor
         // collapses into it on release.
         private bool isDraggingKeys;
         private int gestureUndoGroup;
+        private string gestureUndoName;
         private float dragPreviousTime;
         private TimelineTrackKind dragTrackKind;
         private int dragTrackIndex;
@@ -4386,6 +4387,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            RecordUndoGestureStep();
+
             // The whole selection moves by the grabbed key's delta, so relative spacing survives a
             // multi-key drag. Moving every key to the pointer instead would collapse them together.
             foreach (KeyAddress address in selectedKeys)
@@ -4681,8 +4684,37 @@ namespace DotsAnimationToolkit.Editor
         {
             Undo.IncrementCurrentGroup();
             gestureUndoGroup = Undo.GetCurrentGroup();
+            gestureUndoName = actionName;
             Undo.SetCurrentGroupName(actionName);
             Undo.RecordObject(selectedClip, actionName);
+        }
+
+        /// <summary>
+        /// Re-records the clip before another step of an in-progress gesture.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Recording once at the start of a gesture is not enough, and this is why undo
+        /// appeared to do nothing after a scale.</strong> <c>Undo.RecordObject</c> takes a snapshot
+        /// and Unity diffs the object against it at the end of that frame. A modal scale or a key
+        /// drag runs over many frames, and every frame after the first mutated the clip with no
+        /// snapshot registered — so those changes were never recorded at all. Ctrl+Z reverted the
+        /// first micro-step of the gesture and looked like a no-op.
+        /// </para>
+        /// <para>
+        /// Recording every step is the supported pattern for a multi-frame gesture; the pile of
+        /// entries it produces is what <see cref="EndUndoGesture"/> collapses back into one.
+        /// </para>
+        /// </remarks>
+        private void RecordUndoGestureStep()
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
+            Undo.RecordObject(
+                selectedClip,
+                string.IsNullOrEmpty(gestureUndoName) ? "Edit Animation Keys" : gestureUndoName);
         }
 
         private void EndUndoGesture()
