@@ -126,9 +126,29 @@ namespace DotsAnimationToolkit.Editor
         public float viewZoom = 1f;
         public float viewPan;
 
+
+        /// <summary>
+        /// The timeline width the window wants used, in pixels. Zero means "measure yourself".
+        /// </summary>
+        /// <remarks>
+        /// <strong>Pushed in for the same reason zoom and pan are.</strong> The ruler and playhead
+        /// sit in the lane stack while the lanes sit in a column inside it, so each element
+        /// measuring its own <c>contentRect</c> gave three widths that agreed only once layout had
+        /// settled. Any difference between them is multiplied by the zoom, so a few pixels of
+        /// disagreement at 1x became a visible gap between the cursor and the key at 20x. One width
+        /// for the whole timeline makes that gap unrepresentable.
+        /// </remarks>
+        public float viewLaneWidth;
+
+        /// <summary>The width to build geometry from: the pushed one, or our own before layout.</summary>
+        private float ResolvedWidth
+        {
+            get { return viewLaneWidth > 1f ? viewLaneWidth : contentRect.width; }
+        }
+
         private TimelineGeometry Geometry
         {
-            get { return TimelineGeometry.Create(contentRect.width, viewZoom, viewPan); }
+            get { return TimelineGeometry.Create(ResolvedWidth, viewZoom, viewPan); }
         }
 
         private void OnPointerDown(PointerDownEvent pointerEvent)

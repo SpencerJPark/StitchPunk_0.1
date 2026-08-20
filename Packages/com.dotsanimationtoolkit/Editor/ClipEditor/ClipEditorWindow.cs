@@ -4092,7 +4092,13 @@ namespace DotsAnimationToolkit.Editor
                 trackIndex = trackIndex,
                 isAlternateRow = (rowIndex & 1) == 1,
                 isChannelRow = isChannelRow,
-                isKeySelected = selectedKeys.Contains
+                isKeySelected = selectedKeys.Contains,
+
+                // Born with the current view. A lane created without it renders unzoomed under a
+                // ruler that is not, until something happens to push the view down again.
+                viewLaneWidth = LaneWidth,
+                viewZoom = viewZoom,
+                viewPan = viewPan
             };
             lane.SetKeyTimes(times);
             if (trackKind == TimelineTrackKind.Event)
@@ -4245,7 +4251,6 @@ namespace DotsAnimationToolkit.Editor
                 lane.RegisterCallback<PointerMoveEvent>(OnDragMove);
                 lane.RegisterCallback<PointerUpEvent>(OnDragEnd);
 
-                dragLaneWidth = lane.contentRect.width;
                 dragPointerLaneX = pointerEvent.localPosition.x;
             }
 
@@ -4253,7 +4258,7 @@ namespace DotsAnimationToolkit.Editor
             // time meant grabbing a key slightly off its centre jumped it by that offset on the
             // first move; from here the key follows the cursor exactly.
             dragPreviousTime = TimelineGeometry.Snap(
-                TimelineGeometry.Create(dragLaneWidth, viewZoom, viewPan).XToTime(dragPointerLaneX),
+                TimelineGeometry.Create(LaneWidth, viewZoom, viewPan).XToTime(dragPointerLaneX),
                 SnapFrameCount);
 
             dragAutoScroll = rootVisualElement.schedule
@@ -4323,7 +4328,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             dragPointerLaneX = moveEvent.localPosition.x;
-            dragLaneWidth = lane.contentRect.width;
             UpdateKeyDrag();
         }
 
@@ -4360,8 +4364,9 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            TimelineGeometry geometry =
-                TimelineGeometry.Create(dragLaneWidth, viewZoom, viewPan);
+            // Read live, never cached: this is the same width the lanes and the ruler are drawn
+            // with this frame, so the key lands under the cursor rather than near it.
+            TimelineGeometry geometry = TimelineGeometry.Create(LaneWidth, viewZoom, viewPan);
             float pointerTime = TimelineGeometry.Snap(
                 geometry.XToTime(dragPointerLaneX), SnapFrameCount);
             float delta = pointerTime - dragPreviousTime;
@@ -4417,11 +4422,12 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         private void TickDragAutoScroll()
         {
-            if (!isDraggingKeys || dragLaneWidth <= 0f)
+            if (!isDraggingKeys)
             {
                 return;
             }
 
+            float laneWidth = LaneWidth;
             const float EdgeMarginPixels = 28f;
             const float MaximumScrollPixelsPerTick = 14f;
 
@@ -4430,9 +4436,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 overshoot = dragPointerLaneX - EdgeMarginPixels;
             }
-            else if (dragPointerLaneX > dragLaneWidth - EdgeMarginPixels)
+            else if (dragPointerLaneX > laneWidth - EdgeMarginPixels)
             {
-                overshoot = dragPointerLaneX - (dragLaneWidth - EdgeMarginPixels);
+                overshoot = dragPointerLaneX - (laneWidth - EdgeMarginPixels);
             }
             if (Mathf.Abs(overshoot) < 0.5f)
             {
@@ -4443,8 +4449,7 @@ namespace DotsAnimationToolkit.Editor
             // scrolls gently and shoving past it scrolls fast.
             float scrollPixels = Mathf.Clamp(
                 overshoot, -MaximumScrollPixelsPerTick, MaximumScrollPixelsPerTick);
-            TimelineGeometry geometry =
-                TimelineGeometry.Create(dragLaneWidth, viewZoom, viewPan);
+            TimelineGeometry geometry = TimelineGeometry.Create(laneWidth, viewZoom, viewPan);
             viewPan += scrollPixels / geometry.PixelsPerNormalizedUnit;
             ApplyTimelineView();
 
@@ -5100,13 +5105,13 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         private int[] lastSortIndexMap;
 
-        /// <summary>Pointer x within the dragged lane, and that lane width, as of the last move.</summary>
+        /// <summary>Pointer x within the dragged lane, as of the last move.</summary>
         /// <remarks>
         /// Held as state because the auto-scroll ticker runs without a pointer event to read: the
-        /// case it exists for is a pointer resting against the edge.
+        /// case it exists for is a pointer resting against the edge. The width is deliberately not
+        /// held alongside it -- a cached width is how the cursor and the key came apart.
         /// </remarks>
         private float dragPointerLaneX;
-        private float dragLaneWidth;
         private IVisualElementScheduledItem dragAutoScroll;
 
         /// <summary>

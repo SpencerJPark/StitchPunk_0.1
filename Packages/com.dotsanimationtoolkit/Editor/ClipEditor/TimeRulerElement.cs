@@ -56,6 +56,26 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public const string UssClassName = "clip-editor__ruler";
 
+
+        /// <summary>
+        /// The timeline width the window wants used, in pixels. Zero means "measure yourself".
+        /// </summary>
+        /// <remarks>
+        /// <strong>Pushed in for the same reason zoom and pan are.</strong> The ruler and playhead
+        /// sit in the lane stack while the lanes sit in a column inside it, so each element
+        /// measuring its own <c>contentRect</c> gave three widths that agreed only once layout had
+        /// settled. Any difference between them is multiplied by the zoom, so a few pixels of
+        /// disagreement at 1x became a visible gap between the cursor and the key at 20x. One width
+        /// for the whole timeline makes that gap unrepresentable.
+        /// </remarks>
+        public float viewLaneWidth;
+
+        /// <summary>The width to build geometry from: the pushed one, or our own before layout.</summary>
+        private float ResolvedWidth
+        {
+            get { return viewLaneWidth > 1f ? viewLaneWidth : contentRect.width; }
+        }
+
         public TimeRulerElement()
         {
             AddToClassList(UssClassName);
@@ -113,7 +133,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            float normalizedTime = TimelineGeometry.Create(contentRect.width, viewZoom, viewPan).XToTime(localX);
+            float normalizedTime =
+                TimelineGeometry.Create(ResolvedWidth, viewZoom, viewPan).XToTime(localX);
             if (!freeScrub)
             {
                 int frames = Mathf.Max(1, frameCount);
@@ -148,7 +169,7 @@ namespace DotsAnimationToolkit.Editor
         {
             Clear();
 
-            float width = contentRect.width;
+            float width = ResolvedWidth;
             if (width <= 0f)
             {
                 return;
@@ -212,7 +233,7 @@ namespace DotsAnimationToolkit.Editor
             painter.ClosePath();
             painter.Fill();
 
-            TimelineGeometry geometry = TimelineGeometry.Create(rect.width, viewZoom, viewPan);
+            TimelineGeometry geometry = TimelineGeometry.Create(ResolvedWidth, viewZoom, viewPan);
             TimelineRangeShading.Paint(painter, geometry, rect);
 
             // Ticks are real frames across the visible range, not a fixed subdivision of the clip.
@@ -232,7 +253,7 @@ namespace DotsAnimationToolkit.Editor
                 labelStep, pixelsPerFrame, MinimumMinorSpacingPixels);
 
             float firstVisibleFrame = geometry.XToTime(0f) * frames;
-            float lastVisibleFrame = geometry.XToTime(rect.width) * frames;
+            float lastVisibleFrame = geometry.XToTime(ResolvedWidth) * frames;
             int frame = TimelineGeometry.FloorToStep(firstVisibleFrame, minorStep);
 
             const int MaximumTicks = 2048;

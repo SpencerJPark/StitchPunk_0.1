@@ -74,6 +74,14 @@ namespace DotsAnimationToolkit.Editor
                     + "nothing is selected.";
             }
 
+            // A resize changes what every normalized time is worth in pixels, and it is the one
+            // trigger the window cannot see for itself.
+            if (laneStack != null)
+            {
+                laneStack.RegisterCallback<GeometryChangedEvent>(
+                    geometryEvent => ApplyTimelineView());
+            }
+
             if (timelineScroll != null)
             {
                 timelineScroll.RegisterCallback<WheelEvent>(OnTimelineWheel);
@@ -81,6 +89,12 @@ namespace DotsAnimationToolkit.Editor
                 timelineScroll.RegisterCallback<PointerMoveEvent>(OnTimelinePanMove);
                 timelineScroll.RegisterCallback<PointerUpEvent>(OnTimelinePanUp);
             }
+
+            // Without this the restored zoom and pan lived only in the slider: the elements kept
+            // their defaults of zoom 1 and pan 0, so the window opened showing an unzoomed timeline
+            // under a slider that said otherwise, and the first nudge of the slider "fixed" it by
+            // finally pushing the view down.
+            ApplyTimelineView();
         }
 
         /// <summary>Applies a new zoom while holding one normalized position under one screen point.</summary>
@@ -99,10 +113,23 @@ namespace DotsAnimationToolkit.Editor
             ApplyTimelineView();
         }
 
+        /// <summary>
+        /// The one width every part of the timeline converts against.
+        /// </summary>
+        /// <remarks>
+        /// Measured on the lane stack rather than the lane column, because the stack is the common
+        /// ancestor: the ruler and playhead are its direct children and the lane column stretches to
+        /// it. Taking the column meant the ruler and the lanes could be built from different widths
+        /// while layout settled, and the drag maths from a third.
+        /// </remarks>
         private float LaneWidth
         {
             get
             {
+                if (laneStack != null && laneStack.contentRect.width > 1f)
+                {
+                    return laneStack.contentRect.width;
+                }
                 if (laneColumn != null && laneColumn.contentRect.width > 1f)
                 {
                     return laneColumn.contentRect.width;
@@ -124,8 +151,11 @@ namespace DotsAnimationToolkit.Editor
                 isSyncingZoomSlider = false;
             }
 
+            float laneWidth = LaneWidth;
+
             if (ruler != null)
             {
+                ruler.viewLaneWidth = laneWidth;
                 ruler.viewZoom = viewZoom;
                 ruler.viewPan = viewPan;
                 // Labels are children, so they are rebuilt here rather than during the repaint the
@@ -135,6 +165,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (playhead != null)
             {
+                playhead.viewLaneWidth = laneWidth;
                 playhead.viewZoom = viewZoom;
                 playhead.viewPan = viewPan;
                 playhead.MarkDirtyRepaint();
@@ -143,6 +174,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 laneColumn.Query<TrackLaneElement>().ForEach(lane =>
                 {
+                    lane.viewLaneWidth = laneWidth;
                     lane.viewZoom = viewZoom;
                     lane.viewPan = viewPan;
                     lane.MarkDirtyRepaint();
