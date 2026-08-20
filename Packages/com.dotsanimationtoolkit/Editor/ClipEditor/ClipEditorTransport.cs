@@ -176,6 +176,9 @@ namespace DotsAnimationToolkit.Editor
             clipLengthField = rootVisualElement.Q<FloatField>("clip-length-field");
             if (clipLengthField != null)
             {
+                // Commit on blur or Enter, not per keystroke: "0.5" arrives as "0" first, which the
+                // minimum-duration clamp turns into a value the rest of the number is typed on top of.
+                clipLengthField.isDelayed = true;
                 clipLengthField.tooltip =
                     "Clip length in seconds. With the frame rate this defines the frame count.";
                 clipLengthField.RegisterValueChangedCallback(changeEvent =>
@@ -194,6 +197,7 @@ namespace DotsAnimationToolkit.Editor
             frameRateField = rootVisualElement.Q<FloatField>("frame-rate-field");
             if (frameRateField != null)
             {
+                frameRateField.isDelayed = true;
                 frameRateField.tooltip =
                     "Frames per second the timeline divides the clip into. A grid for authoring and "
                     + "snapping — it does not change how often the runtime samples the pose, which "
@@ -269,15 +273,24 @@ namespace DotsAnimationToolkit.Editor
             {
                 bool hasClip = selectedClip != null;
 
+                // Enabled state is always pushed; the value is not pushed into a field the user is
+                // typing in. This sync runs from OnClipTimingChanged, which the field's own callback
+                // raises, so writing back unconditionally means the field fights its own edit.
                 if (clipLengthField != null)
                 {
                     clipLengthField.SetEnabled(hasClip);
-                    clipLengthField.SetValueWithoutNotify(hasClip ? selectedClip.duration : 0f);
+                    if (!IsBeingEdited(clipLengthField))
+                    {
+                        clipLengthField.SetValueWithoutNotify(hasClip ? selectedClip.duration : 0f);
+                    }
                 }
                 if (frameRateField != null)
                 {
                     frameRateField.SetEnabled(hasClip);
-                    frameRateField.SetValueWithoutNotify(hasClip ? selectedClip.frameRate : 30f);
+                    if (!IsBeingEdited(frameRateField))
+                    {
+                        frameRateField.SetValueWithoutNotify(hasClip ? selectedClip.frameRate : 30f);
+                    }
                 }
                 if (frameCountLabel != null)
                 {

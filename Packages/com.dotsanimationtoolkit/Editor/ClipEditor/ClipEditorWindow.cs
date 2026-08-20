@@ -1760,10 +1760,7 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void RefreshAfterBillboardEdit()
         {
-            if (hierarchyTreeView != null)
-            {
-                hierarchyTreeView.RefreshItems();
-            }
+            RefreshHierarchyRows();
             if (previewImage != null)
             {
                 previewImage.MarkDirtyRepaint();
@@ -3275,6 +3272,16 @@ namespace DotsAnimationToolkit.Editor
 
         private void ApplyHierarchySelectionChange()
         {
+            // An echo is not a click. RefreshItems re-resolves the tree's selection and notifies
+            // with the set that is already applied; taking that for a user action cleared the key
+            // selection a moment after the click that made it, so clicking a key showed the bone
+            // panel instead of the key. Suppressing the notification at the RefreshItems call is
+            // only half the fix — it cannot cover a notification the tree defers to a later frame.
+            if (IsHierarchySelectionEcho())
+            {
+                return;
+            }
+
             int previousActiveItemId = selectedHierarchyItemId;
 
             selectedHierarchyItems.Clear();
@@ -3329,6 +3336,77 @@ namespace DotsAnimationToolkit.Editor
             ApplyHierarchySelection();
             RebuildTimeline();
             RebuildInspector();
+        }
+
+        /// <summary>
+        /// Whether the tree is reporting the selection that has already been applied.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Compares by resolved item, not only by id. A rebuilt hierarchy can hand out the same ids
+        /// for freshly constructed items, and treating that as an echo would leave
+        /// <see cref="selectedHierarchyItems"/> holding detached objects the inspector would then
+        /// edit — a quieter bug than the one this fixes.
+        /// </para>
+        /// <para>
+        /// A user re-clicking an already-selected row also lands here and is skipped. That is the
+        /// behaviour worth having: it keeps a key selection alive across a redundant click.
+        /// </para>
+        /// </remarks>
+        private bool IsHierarchySelectionEcho()
+        {
+            if (hierarchyTreeView == null)
+            {
+                return false;
+            }
+
+            int matchedCount = 0;
+            foreach (int selectedIndex in hierarchyTreeView.selectedIndices)
+            {
+                int itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
+                HierarchyItem item;
+                if (!hierarchyItemsById.TryGetValue(itemId, out item))
+                {
+                    return false;
+                }
+                if (!previouslySelectedItemIds.Contains(itemId)
+                    || !selectedHierarchyItems.Contains(item))
+                {
+                    return false;
+                }
+                matchedCount++;
+            }
+
+            // Counts as well as membership, so a selection that shrank is not mistaken for an echo
+            // of the larger one it came from.
+            return matchedCount == previouslySelectedItemIds.Count
+                && matchedCount == selectedHierarchyItems.Count;
+        }
+
+        /// <summary>
+        /// Repaints the tree's rows without letting the repaint pose as a selection change.
+        /// </summary>
+        /// <remarks>
+        /// <c>RefreshItems</c> re-resolves the tree's selection as part of redrawing it, which
+        /// raises <c>selectionChanged</c>. Every call here is a redraw — the marks for which rows
+        /// are animated or billboarded — so none of them should reach the selection handler.
+        /// </remarks>
+        private void RefreshHierarchyRows()
+        {
+            if (hierarchyTreeView == null)
+            {
+                return;
+            }
+            bool wasHandlingSelection = isHandlingHierarchySelection;
+            isHandlingHierarchySelection = true;
+            try
+            {
+                hierarchyTreeView.RefreshItems();
+            }
+            finally
+            {
+                isHandlingHierarchySelection = wasHandlingSelection;
+            }
         }
 
         /// <summary>
@@ -3590,6 +3668,11 @@ namespace DotsAnimationToolkit.Editor
             RefreshSerializedClip();
             RefreshClipActionButtons();
             RebuildTimeline();
+
+            // The bar is bound once, while nothing is selected, so its fields start disabled and
+            // showing zero. Without this they stay that way for the rest of the session and the
+            // clip length simply cannot be typed into.
+            SyncTransportFromClip();
         }
 
         private void RefreshSerializedClip()
@@ -3778,10 +3861,7 @@ namespace DotsAnimationToolkit.Editor
 
             // The hierarchy's bold marks track which clip is selected, so it is refreshed with the
             // timeline rather than only when the rig changes.
-            if (hierarchyTreeView != null)
-            {
-                hierarchyTreeView.RefreshItems();
-            }
+            RefreshHierarchyRows();
 
             if (selectedClip == null)
             {
@@ -4064,7 +4144,7 @@ namespace DotsAnimationToolkit.Editor
             if (!additive && !selectedKeys.Contains(address))
             {
                 selectedKeys.Clear();
-            hasActiveKey = false;
+                hasActiveKey = false;
             }
             if (additive && selectedKeys.Contains(address))
             {
@@ -4232,7 +4312,7 @@ namespace DotsAnimationToolkit.Editor
                 if (!additive)
                 {
                     selectedKeys.Clear();
-            hasActiveKey = false;
+                    hasActiveKey = false;
                     RepaintLanes();
                     RebuildInspector();
                 }
