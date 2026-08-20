@@ -93,7 +93,15 @@
                         <ui:Button name="frame-all-button" text="Frame All" class="clip-editor__transport-button"/>
                         <ui:Button name="frame-selection-button" text="Frame Sel" class="clip-editor__transport-button"/>
                     </ui:VisualElement>
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Label text="Pivot" class="clip-editor__transport-label"/>
+                        <ui:DropdownField name="pivot-dropdown" class="clip-editor__transport-dropdown"/>
+                    </ui:VisualElement>
+
                     <ui:Button name="quantize-keys-button" text="Quantize Keys" class="clip-editor__transport-button clip-editor__transport-action"/>
+                    <!-- Only visible while a grab or scale is running: a modal gesture has to say
+                         so, or the next mouse move looks like the timeline has gone haywire. -->
+                    <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
                 </ui:VisualElement>
                 <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status"/>
                 <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">

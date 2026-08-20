@@ -536,6 +536,15 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // First refusal, and it has to be first: while a grab or scale is running every key
+            // belongs to it, including the ones the transport would otherwise claim. Space starting
+            // playback in the middle of a retime is the exact confusion a modal gesture avoids.
+            if (HandleTransformKeyDown(keyEvent))
+            {
+                keyEvent.StopPropagation();
+                return;
+            }
+
             int largeStep = Mathf.Max(1, LargeStepFrames);
             bool handled = true;
             switch (keyEvent.keyCode)
@@ -560,13 +569,29 @@ namespace DotsAnimationToolkit.Editor
                 // imagine yourself in is worse than a second key. F is what Unity users already
                 // press to frame a selection; numpad period is what Blender users press.
                 case KeyCode.F:
-                    FrameSelection();
+                    // Shift widens the frame from the selection to the whole clip. A took select-all
+                    // instead, which is the meaning every animator already has for it.
+                    if (keyEvent.shiftKey)
+                    {
+                        FrameAll();
+                    }
+                    else
+                    {
+                        FrameSelection();
+                    }
                     break;
                 case KeyCode.KeypadPeriod:
                     FrameSelection();
                     break;
                 case KeyCode.A:
-                    FrameAll();
+                    if (keyEvent.altKey)
+                    {
+                        DeselectAllKeys();
+                    }
+                    else
+                    {
+                        SelectAllKeys();
+                    }
                     break;
                 default:
                     handled = false;

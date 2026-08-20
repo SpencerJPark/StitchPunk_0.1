@@ -568,6 +568,7 @@ namespace DotsAnimationToolkit.Editor
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
             BindTransportBar();
             BindTimelineView();
+            BindKeyTransform();
 
             ToolbarToggle billboardPreviewToggle =
                 rootVisualElement.Q<ToolbarToggle>("billboard-preview-toggle");
@@ -4021,8 +4022,20 @@ namespace DotsAnimationToolkit.Editor
 
             Label headerLabel = new Label(headerText);
             headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
-            headerLabel.tooltip = headerText;
+            headerLabel.tooltip = headerText
+                + "\nClick to select every key on this track; "
+                + "shift-click to add them to the selection.";
             headerRow.Add(headerLabel);
+
+            TimelineTrackKind headerTrackKind = trackKind;
+            int headerTrackIndex = trackIndex;
+            headerLabel.RegisterCallback<PointerDownEvent>(pointerEvent =>
+            {
+                bool additive = pointerEvent.shiftKey
+                    || pointerEvent.ctrlKey || pointerEvent.commandKey;
+                SelectAllKeysOnTrack(headerTrackKind, headerTrackIndex, additive);
+                pointerEvent.StopPropagation();
+            });
             trackHeaderColumn.Add(headerRow);
 
             AddLane(trackKind, trackIndex, times, rowIndex, false);
@@ -4497,6 +4510,15 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnTimelineKeyDown(KeyDownEvent keyEvent)
         {
+            // A running grab or scale owns the keyboard. This handler sits on the lane stack, which
+            // is inside the root the modal handler listens on, so it sees every key first — and it
+            // reads Backspace as "delete the selected keys" while the gesture reads it as "rub out
+            // the last digit I typed". Bowing out here lets the event bubble to the gesture.
+            if (IsTransformActive)
+            {
+                return;
+            }
+
             if (selectedClip == null)
             {
                 return;
@@ -4850,27 +4872,242 @@ namespace DotsAnimationToolkit.Editor
         /// than the one before it — impossible without first moving the other key out of the way.
         /// The cost is that indices change, which is why the selection is cleared below.
         /// </remarks>
+        /// <summary>
+        /// Re-sorts one track by time and moves the selection with the keys.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>It used to clear the selection instead.</strong> That was defensible — an address
+        /// is an index, and sorting moves indices — but the sort runs on every pointer-up of a key
+        /// drag, including the zero-distance drag that is an ordinary click. So clicking a key
+        /// selected it and then deselected it a moment later, which is what made the key inspector
+        /// look broken.
+        /// </para>
+        /// <para>
+        /// Dropping a selection is also wrong for a reorder that a scale caused: mirroring a
+        /// selection across a pivot reverses its keys, and the user expects to still have them.
+        /// </para>
+        /// </remarks>
         private void SortTrackKeys(TimelineTrackKind trackKind, int trackIndex)
         {
+            int[] newIndexOfOldIndex;
             switch (trackKind)
             {
                 case TimelineTrackKind.Transform:
-                    selectedClip.transformTracks[trackIndex].keys.Sort(CompareTransformKeys);
+                    newIndexOfOldIndex = SortKeysTrackingIndices(
+                        selectedClip.transformTracks[trackIndex].keys, TransformKeyTime);
                     break;
                 case TimelineTrackKind.Sprite:
-                    selectedClip.spriteTracks[trackIndex].keys.Sort(CompareSpriteKeys);
+                    newIndexOfOldIndex = SortKeysTrackingIndices(
+                        selectedClip.spriteTracks[trackIndex].keys, SpriteKeyTime);
                     break;
                 case TimelineTrackKind.Bone:
-                    selectedClip.boneTracks[trackIndex].keys.Sort(CompareBoneKeys);
+                    newIndexOfOldIndex = SortKeysTrackingIndices(
+                        selectedClip.boneTracks[trackIndex].keys, BoneKeyTime);
                     break;
                 default:
-                    selectedClip.events.Sort(CompareEventMarkers);
+                    newIndexOfOldIndex = SortKeysTrackingIndices(
+                        selectedClip.events, EventMarkerTime);
                     break;
             }
 
-            // Indices moved, so held addresses no longer mean what they meant.
+            lastSortIndexMap = newIndexOfOldIndex;
+            RemapSelectionAfterSort(trackKind, trackIndex, newIndexOfOldIndex);
+        }
+
+        /// <summary>
+        /// The index map produced by the most recent <see cref="SortTrackKeys"/>.
+        /// </summary>
+        /// <remarks>
+        /// Read by the modal grab/scale gesture, which tracks keys by the index they had when the
+        /// gesture began and has to follow them through every re-sort a mirroring scale causes.
+        /// Returning it from the sort instead would mean changing three call sites that do not
+        /// want it, for one that does.
+        /// </remarks>
+        private int[] lastSortIndexMap;
+
+        /// <summary>
+        /// Sorts a key list by time and reports where each key ended up.
+        /// </summary>
+        /// <returns>A map from a key's index before the sort to its index after it.</returns>
+        /// <remarks>
+        /// The comparison breaks ties on the original index, which makes the sort stable. Two keys
+        /// stacked on the same frame therefore keep their order rather than swapping on every
+        /// re-sort — and a selection that covered one of them keeps covering the same one.
+        /// </remarks>
+        private static int[] SortKeysTrackingIndices<TKey>(List<TKey> keys, System.Func<TKey, float> timeOf)
+        {
+            int keyCount = keys.Count;
+            int[] sortedOrder = new int[keyCount];
+            for (int index = 0; index < keyCount; index++)
+            {
+                sortedOrder[index] = index;
+            }
+
+            TKey[] originalKeys = keys.ToArray();
+            System.Array.Sort(sortedOrder, delegate (int leftIndex, int rightIndex)
+            {
+                int comparison = timeOf(originalKeys[leftIndex])
+                    .CompareTo(timeOf(originalKeys[rightIndex]));
+                return comparison != 0 ? comparison : leftIndex.CompareTo(rightIndex);
+            });
+
+            int[] newIndexOfOldIndex = new int[keyCount];
+            for (int position = 0; position < keyCount; position++)
+            {
+                keys[position] = originalKeys[sortedOrder[position]];
+                newIndexOfOldIndex[sortedOrder[position]] = position;
+            }
+            return newIndexOfOldIndex;
+        }
+
+        /// <summary>Rewrites the addresses of one track's selected keys through a sort's index map.</summary>
+        private void RemapSelectionAfterSort(
+            TimelineTrackKind trackKind, int trackIndex, int[] newIndexOfOldIndex)
+        {
+            if (selectedKeys.Count == 0)
+            {
+                return;
+            }
+
+            List<KeyAddress> remapped = new List<KeyAddress>(selectedKeys.Count);
+            bool changed = false;
+            foreach (KeyAddress address in selectedKeys)
+            {
+                // Other tracks did not move, so their addresses are still correct.
+                if (address.trackKind != trackKind || address.trackIndex != trackIndex)
+                {
+                    remapped.Add(address);
+                    continue;
+                }
+                if (address.keyIndex < 0 || address.keyIndex >= newIndexOfOldIndex.Length)
+                {
+                    // The key is gone rather than moved; dropping it is the only honest answer.
+                    changed = true;
+                    continue;
+                }
+                remapped.Add(new KeyAddress(
+                    trackKind, trackIndex, newIndexOfOldIndex[address.keyIndex]));
+                changed = true;
+            }
+
+            if (!changed)
+            {
+                return;
+            }
+
+            selectedKeys.Clear();
+            for (int index = 0; index < remapped.Count; index++)
+            {
+                selectedKeys.Add(remapped[index]);
+            }
+
+            if (hasActiveKey
+                && activeKey.trackKind == trackKind
+                && activeKey.trackIndex == trackIndex)
+            {
+                if (activeKey.keyIndex >= 0 && activeKey.keyIndex < newIndexOfOldIndex.Length)
+                {
+                    activeKey = new KeyAddress(
+                        trackKind, trackIndex, newIndexOfOldIndex[activeKey.keyIndex]);
+                }
+                else
+                {
+                    hasActiveKey = false;
+                }
+            }
+        }
+
+        /// <summary>Selects every key in the clip, across every track.</summary>
+        private void SelectAllKeys()
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
             selectedKeys.Clear();
             hasActiveKey = false;
+
+            AddTrackKeysToSelection(TimelineTrackKind.Transform, selectedClip.transformTracks.Count);
+            AddTrackKeysToSelection(TimelineTrackKind.Sprite, selectedClip.spriteTracks.Count);
+            AddTrackKeysToSelection(
+                TimelineTrackKind.Bone,
+                selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0);
+            AddKeysOnTrackToSelection(TimelineTrackKind.Event, 0);
+
+            RepaintLanes();
+            RebuildInspector();
+            RebuildTimeline();
+        }
+
+        private void AddTrackKeysToSelection(TimelineTrackKind trackKind, int trackCount)
+        {
+            for (int trackIndex = 0; trackIndex < trackCount; trackIndex++)
+            {
+                AddKeysOnTrackToSelection(trackKind, trackIndex);
+            }
+        }
+
+        private void AddKeysOnTrackToSelection(TimelineTrackKind trackKind, int trackIndex)
+        {
+            int keyCount = CountKeysOnTrack(trackKind, trackIndex);
+            for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
+            {
+                selectedKeys.Add(new KeyAddress(trackKind, trackIndex, keyIndex));
+            }
+        }
+
+        /// <summary>Clears the key selection without touching the hierarchy selection.</summary>
+        private void DeselectAllKeys()
+        {
+            if (selectedKeys.Count == 0)
+            {
+                return;
+            }
+            selectedKeys.Clear();
+            hasActiveKey = false;
+            RepaintLanes();
+            RebuildInspector();
+            RebuildTimeline();
+        }
+
+        /// <summary>Selects every key on one track, replacing the selection unless adding to it.</summary>
+        private void SelectAllKeysOnTrack(
+            TimelineTrackKind trackKind, int trackIndex, bool additive)
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
+            if (!additive)
+            {
+                selectedKeys.Clear();
+                hasActiveKey = false;
+            }
+            AddKeysOnTrackToSelection(trackKind, trackIndex);
+            RepaintLanes();
+            RebuildInspector();
+            RebuildTimeline();
+        }
+
+        private static float TransformKeyTime(TransformKey key)
+        {
+            return key.normalizedTime;
+        }
+
+        private static float SpriteKeyTime(SpriteKey key)
+        {
+            return key.normalizedTime;
+        }
+
+        private static float BoneKeyTime(BoneKey key)
+        {
+            return key.normalizedTime;
+        }
+
+        private static float EventMarkerTime(EventMarker marker)
+        {
+            return marker.normalizedTime;
         }
 
         private void SortAllTracks()

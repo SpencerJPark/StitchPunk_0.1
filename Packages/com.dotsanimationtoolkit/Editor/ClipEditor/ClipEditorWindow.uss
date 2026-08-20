@@ -230,6 +230,18 @@
     margin-left: 6px;
 }
 
+.clip-editor__transport-dropdown {
+    width: 118px;
+    margin-right: 4px;
+}
+
+.clip-editor__transform-readout {
+    -unity-font-style: bold;
+    color: rgb(240, 190, 110);
+    margin-left: 8px;
+    -unity-text-align: middle-left;
+}
+
 .clip-editor__transport-slider {
     width: 110px;
     margin-right: 4px;
