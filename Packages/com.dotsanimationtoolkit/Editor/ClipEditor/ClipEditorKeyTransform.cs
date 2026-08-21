@@ -104,9 +104,12 @@ namespace DotsAnimationToolkit.Editor
             pivotDropdown = rootVisualElement.Q<DropdownField>("pivot-dropdown");
             if (pivotDropdown != null)
             {
+                // Each choice is a whole sentence about what S will do, because the "Pivot" label
+                // that used to head this control is gone: a bare "Playhead" in a bar that already
+                // has a playhead readout says nothing about scaling.
                 pivotDropdown.choices = new List<string>
                 {
-                    "Playhead", "Selection Center", "Selection Start"
+                    "Scale From Playhead", "Scale From Center", "Scale From Start"
                 };
                 pivotDropdown.index = (int)transformPivotMode;
                 pivotDropdown.tooltip =

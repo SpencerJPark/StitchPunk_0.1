@@ -96,7 +96,8 @@
                         <ui:Button name="frame-selection-button" text="Frame Sel" class="clip-editor__transport-button"/>
                     </ui:VisualElement>
                     <ui:VisualElement class="clip-editor__transport-group">
-                        <ui:Label text="Pivot" class="clip-editor__transport-label"/>
+                        <!-- No "Pivot" label: every choice in the list names itself, so the word
+                             was a heading over a control that already says what it does. -->
                         <ui:DropdownField name="pivot-dropdown" class="clip-editor__transport-dropdown"/>
                     </ui:VisualElement>
 

@@ -236,8 +236,10 @@
     margin-right: 6px;
 }
 
+/* Wide enough for the longest choice, "Scale From Playhead". The list carries its own heading now
+   that there is no label beside it, so a truncated choice would leave the control unexplained. */
 .clip-editor__transport-dropdown {
-    width: 118px;
+    width: 148px;
     margin-right: 4px;
 }
 
