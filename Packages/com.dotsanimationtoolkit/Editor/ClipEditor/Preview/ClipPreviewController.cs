@@ -70,6 +70,18 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Keeps a degenerate rig — one flat quad, or nothing but a socket marker — framable.</summary>
         private const float MinimumFrameRadius = 0.25f;
 
+        /// <summary>
+        /// How high above the floor the camera aims, at the least, in world units.
+        /// </summary>
+        /// <remarks>
+        /// Aiming at the rig's centre is right when the rig has one; aiming at the origin, which is
+        /// what happens when the parts are laid out around it, points the camera at the floor and
+        /// hands the bottom half of the frame to empty ground. A unit up is roughly chest height on
+        /// a two-unit character, so the space above the floor — the space anything is animated in —
+        /// is the space the viewport shows.
+        /// </remarks>
+        private const float MinimumFocusHeight = 1f;
+
         private PreviewRenderUtility renderUtility;
         private readonly PreviewRigMirror rigMirror = new PreviewRigMirror();
 
@@ -952,7 +964,9 @@ namespace DotsAnimationToolkit.Editor
         /// origin — that is where it belongs in the space, and the floor grid is drawn for it there.
         /// But a character stands <em>on</em> the floor, so none of it is near 0,0,0; a camera aimed
         /// at the origin looks at the ground between its feet. This aims at the middle of what is
-        /// actually there.
+        /// actually there, and never lower than <see cref="MinimumFocusHeight"/> — a paper-doll rig
+        /// whose parts are laid out around the origin has its middle on the floor, which is the
+        /// same low aim by another route.
         /// </para>
         /// <para>
         /// Distance comes from the bounding sphere and the vertical field of view, so it fits a
@@ -969,14 +983,21 @@ namespace DotsAnimationToolkit.Editor
             Bounds rigBounds;
             if (!TryComputeRigBounds(out rigBounds))
             {
-                orbitFocus = Vector3.zero;
+                orbitFocus = new Vector3(0f, MinimumFocusHeight, 0f);
                 orbitDistance = DefaultOrbitDistance;
                 return;
             }
 
-            orbitFocus = rigBounds.center;
+            Vector3 framedFocus = rigBounds.center;
+            framedFocus.y = Mathf.Max(framedFocus.y, MinimumFocusHeight);
+            orbitFocus = framedFocus;
 
-            float radius = Mathf.Max(rigBounds.extents.magnitude, MinimumFrameRadius);
+            // Measured from where the camera is aimed, not from the middle of the rig. Raising the
+            // aim moves the rig down the frame, and a radius that still described a sphere around
+            // the bounds centre would crop whatever the lift pushed past the bottom edge.
+            float radius = Mathf.Max(
+                rigBounds.extents.magnitude + Vector3.Distance(rigBounds.center, framedFocus),
+                MinimumFrameRadius);
             float halfFieldOfViewRadians = FrameFieldOfViewDegrees * 0.5f * Mathf.Deg2Rad;
             orbitDistance = Mathf.Clamp(
                 radius / Mathf.Tan(halfFieldOfViewRadians) * FramePadding,
