@@ -73,7 +73,9 @@
                         <ui:Button name="play-toggle" text="Play" class="clip-editor__transport-button clip-editor__transport-play"/>
                         <ui:Button name="step-forward-button" text="&gt;" class="clip-editor__transport-button"/>
                         <ui:Button name="jump-end-button" text="&gt;|" class="clip-editor__transport-button"/>
-                        <ui:Toggle name="loop-toggle" label="Loop" class="clip-editor__transport-toggle"/>
+                        <ui:Button name="loop-button" class="clip-editor__transport-button clip-editor__transport-loop">
+                            <ui:Image name="loop-icon" picking-mode="Ignore" class="clip-editor__transport-loop-icon"/>
+                        </ui:Button>
                     </ui:VisualElement>
                     <ui:VisualElement class="clip-editor__transport-group">
                         <ui:Label text="Frame" class="clip-editor__transport-label"/>

@@ -253,20 +253,33 @@
     margin-right: 4px;
 }
 
-.clip-editor__transport-toggle {
-    margin-left: 6px;
-    margin-right: 4px;
+/* Loop is a mode, not an action, so it carries the icon alone and shows its state by staying lit
+   rather than by a word next to a box. The icon rides a child element rather than the button's own
+   background, which the editor theme uses for the button's chrome. */
+.clip-editor__transport-loop {
+    width: 28px;
+    align-items: center;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
 }
 
-/* Unity gives every BaseField label a 120px min-width so that stacked inspector rows line their
-   labels up in a column. In a horizontal transport bar there is no column to line up with, so all
-   it produces is a long gap between the word and the box it belongs to. */
-.clip-editor__transport-toggle > .unity-base-field__label {
-    min-width: 0;
-    width: auto;
-    margin-right: 3px;
-    padding-right: 0;
-    flex-shrink: 0;
+/* Drawn at the icon's own 16px so it stays crisp rather than being scaled to the button, and
+   dimmed while looping is off so the state reads from the glyph as well as the tint. Picking is
+   off: a child that swallows the pointer would make the middle of the button dead to clicks. */
+.clip-editor__transport-loop-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.55;
+}
+
+/* The same tint the play button wears while running: one vocabulary for "this mode is on". */
+.clip-editor__transport-loop--on {
+    background-color: rgb(70, 130, 90);
+}
+
+.clip-editor__transport-loop--on .clip-editor__transport-loop-icon {
+    opacity: 1;
 }
 
 /* Appears only when some key does not land on a frame of the current grid. */

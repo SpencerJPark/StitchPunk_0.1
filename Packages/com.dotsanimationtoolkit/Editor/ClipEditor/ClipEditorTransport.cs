@@ -48,7 +48,7 @@ namespace DotsAnimationToolkit.Editor
         private FloatField clipLengthField;
         private FloatField frameRateField;
         private Label frameCountLabel;
-        private Toggle loopToggle;
+        private Button loopButton;
         private FloatField playbackSpeedField;
         private Button quantizeKeysButton;
 
@@ -60,6 +60,15 @@ namespace DotsAnimationToolkit.Editor
         {
             get { return EditorPrefs.GetInt("DotsAnimationToolkit.ClipEditor.LargeStep", DefaultLargeStepFrames); }
         }
+
+        /// <summary>Where the preview loop mode is remembered between sessions.</summary>
+        private const string LoopPrefKey = "DotsAnimationToolkit.ClipEditor.Loop";
+
+        /// <summary>
+        /// Whether preview playback wraps at the end. Held here rather than read off the control,
+        /// because the control is now a plain button and has no value of its own to read.
+        /// </summary>
+        private bool isLoopEnabled = true;
 
         // -----------------------------------------------------------------------------------
         // Frame <-> normalized. Every conversion in the window goes through these two, so the
@@ -222,13 +231,35 @@ namespace DotsAnimationToolkit.Editor
                     + "with the two fields beside it.";
             }
 
-            loopToggle = rootVisualElement.Q<Toggle>("loop-toggle");
-            if (loopToggle != null)
+            loopButton = rootVisualElement.Q<Button>("loop-button");
+            if (loopButton != null)
             {
-                loopToggle.value = true;
-                loopToggle.tooltip = "Wrap at the end during preview playback. Preview only — the "
+                // The built-in loop glyph, so the button reads at transport size without a word in
+                // it. Carried on a child Image rather than the button's own background, because the
+                // editor theme draws the button's chrome there. Falls back to text rather than
+                // shipping a blank button if the icon ever leaves the editor's icon set.
+                GUIContent loopIconContent = EditorGUIUtility.IconContent("preAudioLoopOff");
+                Texture2D loopIcon = loopIconContent != null ? loopIconContent.image as Texture2D : null;
+                Image loopIconImage = loopButton.Q<Image>("loop-icon");
+                if (loopIcon != null && loopIconImage != null)
+                {
+                    loopIconImage.image = loopIcon;
+                }
+                else
+                {
+                    if (loopIconImage != null)
+                    {
+                        loopIconImage.RemoveFromHierarchy();
+                    }
+                    loopButton.text = "Loop";
+                }
+
+                loopButton.clicked += () => SetLooping(!isLoopEnabled);
+                loopButton.tooltip = "Wrap at the end during preview playback. Preview only — the "
                     + "clip's own loop mode is authored on the asset.";
             }
+            isLoopEnabled = EditorPrefs.GetBool(LoopPrefKey, true);
+            RefreshLoopButtonState();
 
             playbackSpeedField = rootVisualElement.Q<FloatField>("playback-speed-field");
             if (playbackSpeedField != null)
@@ -336,6 +367,27 @@ namespace DotsAnimationToolkit.Editor
             }
             playButton.text = isPlaying ? "Pause" : "Play";
             playButton.EnableInClassList("clip-editor__transport-play--playing", isPlaying);
+        }
+
+        /// <summary>Turns preview looping on or off and remembers the choice.</summary>
+        private void SetLooping(bool looping)
+        {
+            isLoopEnabled = looping;
+            EditorPrefs.SetBool(LoopPrefKey, looping);
+            RefreshLoopButtonState();
+        }
+
+        /// <summary>
+        /// A button has no checked state of its own, so the lit class is the only thing telling the
+        /// author whether playback will wrap.
+        /// </summary>
+        private void RefreshLoopButtonState()
+        {
+            if (loopButton == null)
+            {
+                return;
+            }
+            loopButton.EnableInClassList("clip-editor__transport-loop--on", isLoopEnabled);
         }
 
         /// <summary>

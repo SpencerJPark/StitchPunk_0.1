@@ -3722,8 +3722,7 @@ namespace DotsAnimationToolkit.Editor
                 float speed = playbackSpeedField != null ? playbackSpeedField.value : 1f;
                 float advanced = playheadTime + (float)elapsed * speed / duration;
 
-                bool shouldLoop = loopToggle == null || loopToggle.value;
-                if (shouldLoop)
+                if (isLoopEnabled)
                 {
                     // Floor rather than a modulo so a negative speed wraps to the END, which is
                     // what "loop" means when playing backwards.
