@@ -20,11 +20,15 @@ see [`cutout-characters.md`](cutout-characters.md) or
   - **Alt- or shift-click cycles** through everything stacked under the cursor, nearest first. Repeat it to walk backwards through overlapping parts; an ordinary click returns to the nearest.
   - **Bones are clickable even where there is no geometry.** Every joint of a `SkinnedMeshRenderer` gets an octahedral handle, linked to its parent so the skeleton reads as a skeleton, and the handle is the click target. Joints are offered *ahead* of the mesh around them — a bone sits inside the thing it deforms, so ordering strictly by depth would make it impossible to click. The mesh underneath is still reachable by cycling.
   - Dragging orbits, as before. A click only selects if the pointer did not travel, so an orbit never changes the selection.
+- **The inspector is a component stack.** Select an object and it lists what that object carries on this clip — **Transform**, **Bone Transform**, **Flipbook**, **Billboard**, **Socket** — each in its own foldable block with a **✕** to remove it, and **Add Component** underneath. A part with nothing on it animates nothing until you add something; adding **Transform** declares the channel and puts its fields on screen, which is a decision separate from making the first key. A kind that cannot go on this object is listed disabled with the reason, so the menu never silently omits what you came for.
+  - **Removing takes the track with it.** An empty one goes without a prompt; one with keys asks first, and says how many. Undo brings it back.
+  - **Several of a kind where that makes sense.** A part can carry as many flipbook tracks as it has independent feature sets, and as many sockets as it needs; Transform, Bone Transform and Billboard are one to an object, because two of either is a validation error whichever wins the bake.
+  - **The scope is on the block.** A component with a **rig-wide** badge is stored on the rig, so an edit there is seen by every clip in the set.
 - **Keying.** Select a part and its transform is always on screen, updating as you scrub. The field border says which of three things you are looking at: a stored key, a sampled in-between value, or a change you have made but not keyed. **Auto Key** writes edits straight into a key at the playhead; with it off, press **Key** to keep one.
 - **Gizmos.** W/E/R give move, rotate and scale handles on the selected part in the viewport. They write the same values the numeric fields do — one code path — and commit a key on release when Auto Key is on. Rotate is a single Z ring and scale is XY only, because that is exactly what a cutout part's data has.
-- **The dopesheet.** Expand a track to see its channels as separate rows. Drag keys horizontally to retime; drag across empty space to box-select; a key dragged past a neighbour reorders rather than stopping. Selecting a key exposes its easing as a curve: pick a preset — Linear (the default), Hold, Ease In, Ease Out, Ease In Out, Smooth, Snap — and drag the curve's handles to shape it from there, which turns the preset into a custom Bézier. Every shape is plotted through the same function the runtime evaluates, so what the curve shows is what plays.
+- **The dopesheet.** Expand a track to see its channels as separate rows. Drag keys horizontally to retime; drag across empty space to box-select; a key dragged past a neighbour reorders rather than stopping. Selecting a key shows its object's component stack, then the key's own values. Its easing is a curve: pick a preset — Linear (the default), Hold, Ease In, Ease Out, Ease In Out, Smooth, Snap — and drag the curve's handles to shape it from there, which turns the preset into a custom Bézier. Every shape is plotted through the same function the runtime evaluates, so what the curve shows is what plays.
 - **Focus.** Selecting a part filters the timeline to that part's tracks — the way to read a busy clip. The status line names what is shown and how many rows are hidden; deselect to bring them back. Event rows always stay visible, because they belong to the clip rather than to any one part.
-- **Several parts at once.** Ctrl- or shift-click in the hierarchy to select more. The timeline shows all of their tracks together, and the inspector gives each part its own labelled block — its own live transform, its own flipbook indices — so there is never a question of whose numbers are whose. One block is marked **(active)**: the one the viewport gizmo and outline are on, which can only be in one place.
+- **Several parts at once.** Ctrl- or shift-click in the hierarchy to select more. The timeline shows all of their tracks together, and the inspector gives each part its own stack — its own live transform, its own flipbook indices — so there is never a question of whose numbers are whose. One stack is marked **(active)**: the one the viewport gizmo and outline are on, which can only be in one place.
 - **Flipbook indices step on their keys.** A frame index does not interpolate: the key at or before the playhead is what you see, and it holds until the next key's own time. Scrub through a key and the number changes exactly there, not halfway to the next one.
 - **Parts start where the prefab puts them.** Assign the prefab in the toolbar's **Rig** field and each rig target picks up the position, rotation and scale of the prefab transform with the same name, measured relative to the prefab root. That is the part's rest pose, and a clip animates *from* it — position and rotation add to it, scale multiplies it — which is exactly how the runtime composes, so what you preview is what plays. A target with no matching transform in the prefab falls back to the origin at unit scale.
 - **The space is centred on 0,0,0, and squares are one unit.** Two grids: a backdrop in the XY plane to measure a flat rig against, and a floor in the XZ plane so a 3D prop or vehicle has something to stand on. Each square is one world unit — the height of Unity's default cube — so on a character running about two units tall a square reads directly as half its height. The origin is drawn as three short axis stubs, X red, Y green, Z blue. The rig is spawned there, so a character authored standing on the floor reads as standing on the floor.
@@ -32,7 +36,7 @@ see [`cutout-characters.md`](cutout-characters.md) or
 - **Retiming.** Change `duration` and every key moves with it — times are normalized, so a re-time never moves a key relative to the clip.
 - **Events.** Place `EventMarker`s on the timeline — footfalls, hit frames, VFX triggers. These surface at runtime in the actor's `AnimEventOutput` buffer.
 - **Layer and blend defaults.** `defaultBlendIn`/`defaultBlendOut` set how the clip crossfades in and out.
-- **Sockets.** Placed, tracked and previewed here — see [Sockets](#sockets) below.
+- **Sockets.** Added to the bone or part they follow, then tracked and previewed here — see [Sockets](#sockets) below.
 - **Validation.** The toolbar badge runs the same `ClipValidation` the bake runs, so an error you see here is the error a bake would throw, with the same rule code.
 - **Scrubbing the composite.** The preview poses through `ClipSampler` — the runtime's own functions — so what you scrub is what plays.
 
@@ -44,16 +48,22 @@ A socket is an attachment point: a pose the rig exposes so a game can hang somet
 
 ### Placing one
 
-**+ Socket** in the hierarchy header creates a socket bound to whatever is selected — pick the hand first and it comes out already following the hand. Socket rows are listed after the rig's parts and labelled with what they follow:
+**A socket is a component of the thing it follows.** Select the hand — the bone or the part — and add **Socket** from its **Add Component** menu, or press **+ Socket** in the hierarchy header, which does the same thing to the same selection. The source is fixed by where you added it, so there is no binding to type and no way to end up following something you did not mean to.
+
+Its component says what it follows, the playback layer for a bone socket, and the offset. **Move in View** puts the viewport gizmo on its marker; **W** and **E** then move and rotate it, and the result is stored as an offset in the followed part's space, so it stays put as the rig moves. Clicking the socket's marker — or its preview attachment — in the viewport selects the source and puts the gizmo back on that socket.
+
+Because a socket belongs to the rig rather than to the clip, its component carries a **rig-wide** badge: moving it while looking at one animation moves it in all of them.
+
+### Finding them all
+
+With nothing selected, the inspector lists every socket on the rig, labelled with what it follows:
 
 ```
 RightHand Socket  →  RightHand
 Blade Tip         →  Bone_Weapon_02   (unresolved)
 ```
 
-That `(unresolved)` mark is the point. A binding that matches nothing does not error — it resolves to the actor's origin, and you find out in play mode with a sword lying at the character's feet.
-
-Select a socket to get its inspector: what it follows (a **dropdown**, not a text field — typing is how you get an unresolved binding), the playback layer for a bone socket, and the offset. **W** and **E** give you move and rotate gizmos in the viewport; the result is stored as an offset in the followed part's space, so it stays put as the rig moves.
+That `(unresolved)` mark is the point. A binding that matches nothing does not error — it resolves to the actor's origin, and you find out in play mode with a sword lying at the character's feet. A resolvable socket offers **Select Source**, which jumps to the object carrying it; an unresolved one has no object to live on, so this list is where you rebind or delete it.
 
 ### Two kinds, and why the difference matters
 

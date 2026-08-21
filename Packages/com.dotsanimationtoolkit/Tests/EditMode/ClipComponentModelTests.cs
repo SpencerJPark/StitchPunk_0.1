@@ -1,0 +1,326 @@
+// Copyright (c) 2026 Spencer Park. All rights reserved.
+
+using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
+using NUnit.Framework;
+
+namespace DotsAnimationToolkit.Tests.EditMode
+{
+    /// <summary>
+    /// EditMode coverage of <see cref="ClipComponentModel"/> — the rules behind the clip editor's
+    /// component stack.
+    /// </summary>
+    /// <remarks>
+    /// The stack derives what an object has from the tracks bound to it rather than storing a list,
+    /// so every one of these is really the same question asked five ways: does the derivation agree
+    /// with the asset? A disagreement would show as a component that cannot be removed because the
+    /// inspector is pointing at the wrong index, which is the failure worth catching here rather
+    /// than in a panel.
+    /// </remarks>
+    public sealed class ClipComponentModelTests
+    {
+        private const uint HeadTargetId = 0x11u;
+        private const uint HandTargetId = 0x22u;
+        private const uint BillboardRootId = 0x99u;
+        private const string BoneName = "Bone.Spine";
+
+        private AuthoringTestAssets assets;
+        private RigAsset rig;
+        private ClipAsset clip;
+        private List<ClipComponentInstance> instances;
+
+        [SetUp]
+        public void SetUp()
+        {
+            assets = new AuthoringTestAssets();
+            rig = assets.CreateRig("Rig", 1uL, 1, new uint[] { HeadTargetId, HandTargetId });
+            clip = assets.CreateClip("Clip", rig, 2uL, 1f);
+            instances = new List<ClipComponentInstance>();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            assets.DestroyAll();
+        }
+
+        private ClipObjectRef Head
+        {
+            get { return ClipObjectRef.RigTarget(HeadTargetId, 0u); }
+        }
+
+        private ClipObjectRef Bone
+        {
+            get { return ClipObjectRef.Bone(BoneName, 0u); }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Applicability.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void ARigTargetTakesTransformAndFlipbook_ButNotBoneTransform()
+        {
+            string reason;
+            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Transform, Head, out reason));
+            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Flipbook, Head, out reason));
+            Assert.IsFalse(
+                ClipComponentModel.AppliesTo(ClipComponentKind.BoneTransform, Head, out reason),
+                "A rig target has no bone track — the two kinds address different things.");
+            Assert.IsNotEmpty(reason, "An unavailable kind must say why, or the menu reads as broken.");
+        }
+
+        [Test]
+        public void ABoneTakesBoneTransform_ButNotTransformOrFlipbook()
+        {
+            string reason;
+            Assert.IsTrue(
+                ClipComponentModel.AppliesTo(ClipComponentKind.BoneTransform, Bone, out reason));
+            Assert.IsFalse(ClipComponentModel.AppliesTo(ClipComponentKind.Transform, Bone, out reason));
+            Assert.IsFalse(ClipComponentModel.AppliesTo(ClipComponentKind.Flipbook, Bone, out reason));
+        }
+
+        [Test]
+        public void BothKindsTakeASocket()
+        {
+            string reason;
+            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Socket, Head, out reason));
+            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Socket, Bone, out reason));
+        }
+
+        [Test]
+        public void BillboardIsOfferedOnlyToABillboardRoot()
+        {
+            string reason;
+            Assert.IsFalse(
+                ClipComponentModel.AppliesTo(ClipComponentKind.Billboard, Head, out reason),
+                "A billboard track animates a root the rig declares, not any node.");
+            Assert.IsTrue(ClipComponentModel.AppliesTo(
+                ClipComponentKind.Billboard,
+                ClipObjectRef.RigTarget(HeadTargetId, BillboardRootId),
+                out reason));
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Presence is derived from the tracks.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void AnObjectWithNoTracksHasNoComponents()
+        {
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.AreEqual(0, instances.Count);
+        }
+
+        [Test]
+        public void ATrackBoundToTheObjectIsItsComponent_AndOneBoundElsewhereIsNot()
+        {
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HandTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+
+            Assert.AreEqual(1, instances.Count, "Only the head's own track is the head's component.");
+            Assert.AreEqual(ClipComponentKind.Transform, instances[0].kind);
+            Assert.AreEqual(
+                1, instances[0].index,
+                "The instance must index the track's real position in the clip's list, not its "
+                + "position among the object's own tracks — removal addresses the list.");
+        }
+
+        [Test]
+        public void SeveralFlipbooksOnOnePartAreSeveralComponents()
+        {
+            AuthoringTestAssets.AddSpriteTrack(clip, HeadTargetId, SpriteFrameMode.Slice);
+            AuthoringTestAssets.AddSpriteTrack(clip, HeadTargetId, SpriteFrameMode.Slice);
+
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+
+            Assert.AreEqual(2, instances.Count);
+            Assert.IsTrue(ClipComponentModel.AllowsMultiple(ClipComponentKind.Flipbook));
+            Assert.IsFalse(ClipComponentModel.AllowsMultiple(ClipComponentKind.Transform));
+        }
+
+        [Test]
+        public void ASocketIsAComponentOfWhateverItFollows()
+        {
+            rig.sockets = new List<SocketDefinition>();
+            rig.sockets.Add(new SocketDefinition
+            {
+                displayName = "Hand Socket",
+                mode = SocketAttachMode.RigTarget,
+                targetId = HandTargetId
+            });
+            rig.sockets.Add(new SocketDefinition
+            {
+                displayName = "Spine Socket",
+                mode = SocketAttachMode.Bone,
+                boneName = BoneName
+            });
+
+            ClipComponentModel.CollectInstances(clip, rig, Bone, instances);
+            Assert.AreEqual(1, instances.Count, "Only the socket following this bone.");
+            Assert.AreEqual(ClipComponentKind.Socket, instances[0].kind);
+            Assert.AreEqual(1, instances[0].index);
+
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.AreEqual(0, instances.Count, "The head follows nothing — the socket is the hand's.");
+        }
+
+        [Test]
+        public void ComponentsComeBackInStackOrder()
+        {
+            AuthoringTestAssets.AddSpriteTrack(clip, HeadTargetId, SpriteFrameMode.Slice);
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            rig.sockets = new List<SocketDefinition>();
+            rig.sockets.Add(new SocketDefinition
+            {
+                mode = SocketAttachMode.RigTarget,
+                targetId = HeadTargetId
+            });
+
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+
+            Assert.AreEqual(3, instances.Count);
+            Assert.AreEqual(
+                ClipComponentKind.Transform, instances[0].kind,
+                "Transform leads the stack whatever order the tracks were authored in.");
+            Assert.AreEqual(ClipComponentKind.Flipbook, instances[1].kind);
+            Assert.AreEqual(ClipComponentKind.Socket, instances[2].kind);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Add.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void AddingATransformCreatesAnEmptyTrackBoundToTheObject()
+        {
+            ClipComponentInstance added =
+                ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Transform, string.Empty);
+
+            Assert.AreEqual(0, added.index);
+            Assert.AreEqual(1, clip.transformTracks.Count);
+            Assert.AreEqual(HeadTargetId, clip.transformTracks[0].targetId);
+            Assert.AreEqual(
+                0, clip.transformTracks[0].keys.Count,
+                "Adding a component is not keying it — an empty track is a valid, bakeable state.");
+        }
+
+        [Test]
+        public void AddingASecondSingletonComponentIsRefused()
+        {
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Transform, string.Empty);
+
+            string reason;
+            Assert.IsFalse(
+                ClipComponentModel.CanAdd(
+                    clip, rig, Head, ClipComponentKind.Transform, out reason),
+                "Two transform tracks on one part is a validation error whichever wins the bake.");
+
+            ClipComponentInstance refused =
+                ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Transform, string.Empty);
+            Assert.AreEqual(-1, refused.index);
+            Assert.AreEqual(1, clip.transformTracks.Count, "Nothing was added.");
+        }
+
+        [Test]
+        public void AddingASocketBindsItToTheObjectItWasAddedOn()
+        {
+            ClipComponentInstance addedOnBone =
+                ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Socket, "Spine Socket");
+
+            Assert.AreEqual(0, addedOnBone.index);
+            Assert.AreEqual(SocketAttachMode.Bone, rig.sockets[0].mode);
+            Assert.AreEqual(BoneName, rig.sockets[0].boneName);
+            Assert.AreEqual("Spine Socket", rig.sockets[0].displayName);
+
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Socket, "Head Socket");
+            Assert.AreEqual(SocketAttachMode.RigTarget, rig.sockets[1].mode);
+            Assert.AreEqual(HeadTargetId, rig.sockets[1].targetId);
+        }
+
+        [Test]
+        public void ARigScopedComponentCannotBeAddedWithoutARig()
+        {
+            string reason;
+            Assert.IsFalse(
+                ClipComponentModel.CanAdd(clip, null, Head, ClipComponentKind.Socket, out reason));
+            Assert.IsNotEmpty(reason);
+
+            Assert.AreEqual(
+                ClipComponentScope.Rig, ClipComponentModel.Scope(ClipComponentKind.Socket),
+                "A socket is rig structure: every clip in the set sees the same one.");
+            Assert.AreEqual(
+                ClipComponentScope.Clip, ClipComponentModel.Scope(ClipComponentKind.Transform));
+        }
+
+        [Test]
+        public void AClipScopedComponentCannotBeAddedWithoutAClip()
+        {
+            string reason;
+            Assert.IsFalse(
+                ClipComponentModel.CanAdd(null, rig, Head, ClipComponentKind.Transform, out reason));
+            Assert.IsNotEmpty(reason);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Remove.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void RemovingAComponentDeletesTheTrackItStandsFor()
+        {
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HandTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.IsTrue(ClipComponentModel.Remove(clip, rig, instances[0]));
+
+            Assert.AreEqual(1, clip.transformTracks.Count);
+            Assert.AreEqual(
+                HandTargetId, clip.transformTracks[0].targetId,
+                "The other part's track must survive removing this one.");
+        }
+
+        [Test]
+        public void RemovingASocketDeletesItFromTheRig()
+        {
+            ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Socket, "Spine Socket");
+            ClipComponentModel.CollectInstances(clip, rig, Bone, instances);
+
+            Assert.IsTrue(ClipComponentModel.Remove(clip, rig, instances[0]));
+            Assert.AreEqual(0, rig.sockets.Count);
+        }
+
+        [Test]
+        public void RemovingAStaleInstanceIsRefusedRatherThanThrowing()
+        {
+            Assert.IsFalse(
+                ClipComponentModel.Remove(
+                    clip, rig, new ClipComponentInstance(ClipComponentKind.Transform, 4)),
+                "An index left over from a rebuild must fail closed, not take out a neighbour.");
+        }
+
+        [Test]
+        public void KeyCountReportsWhatRemovingWouldDestroy()
+        {
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.AreEqual(0, ClipComponentModel.KeyCount(clip, instances[0]));
+
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, Unity.Mathematics.float3.zero, 0f,
+                new Unity.Mathematics.float3(1f, 1f, 1f), Interpolation.Linear);
+
+            Assert.AreEqual(1, ClipComponentModel.KeyCount(clip, instances[0]));
+        }
+    }
+}

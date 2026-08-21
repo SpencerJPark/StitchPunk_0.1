@@ -222,10 +222,7 @@ namespace DotsAnimationToolkit.Editor
             PrefabTransform,
 
             /// <summary>A part the rig declares, which transform and flipbook tracks bind to.</summary>
-            RigTarget,
-
-            /// <summary>An attachment point the rig declares.</summary>
-            Socket
+            RigTarget
         }
 
         private sealed class HierarchyItem
@@ -235,9 +232,6 @@ namespace DotsAnimationToolkit.Editor
 
             /// <summary>Set for a rig target.</summary>
             public uint targetId;
-
-            /// <summary>Set for a socket.</summary>
-            public uint socketId;
 
             /// <summary>Set for a previewed transform: its index in the preview's hierarchy.</summary>
             public int previewIndex;
@@ -249,17 +243,6 @@ namespace DotsAnimationToolkit.Editor
         /// no threshold constant to outgrow, unlike an offset scheme.
         /// </summary>
         private const int RigTargetItemIdBase = -2;
-
-        /// <summary>
-        /// Tree ids for socket rows, far enough below the rig-target range never to meet it.
-        /// </summary>
-        /// <remarks>
-        /// A million targets below zero is not a rig anyone will author, so the two negative ranges
-        /// are disjoint in practice without either needing to know the other's size. The alternative
-        /// — packing a kind into the high bits — would make every id unreadable in a debugger for
-        /// the sake of a collision that cannot happen.
-        /// </remarks>
-        private const int SocketItemIdBase = -1000000;
 
         /// <summary>
         /// Not −1: that is a legitimate tree id under <see cref="RigTargetItemIdBase"/>'s scheme,
@@ -990,17 +973,11 @@ namespace DotsAnimationToolkit.Editor
                 return string.Empty;
             }
 
-            // A socket has no transform of its own in the prefab, so it resolves through whatever
-            // it follows — opening prefab mode on the hand is the useful answer to "edit this
-            // socket's object", since the socket itself lives in the rig asset.
             Transform node;
             switch (item.kind)
             {
                 case HierarchyItemKind.RigTarget:
                     node = PrefabAuthoringBridge.FindByName(root, item.displayName);
-                    break;
-                case HierarchyItemKind.Socket:
-                    node = PrefabAuthoringBridge.FindByName(root, ResolveSocketFollowName(item.socketId));
                     break;
                 default:
                     node = previewController.GetTransformByIndex(item.previewIndex);
@@ -2580,12 +2557,20 @@ namespace DotsAnimationToolkit.Editor
 
             // Sockets are tested first because a click on one usually lands on its attachment — a
             // sword, not a cube — whose transform belongs to neither of the other two hierarchies.
+            // The row selected is the socket's source, and the gizmo goes on the socket itself:
+            // that pair is what "I clicked the sword" has to mean now that a socket is a component
+            // of the thing it follows rather than a row of its own.
             if (previewController.TryGetSocketIdForTransform(pickedTransform, out pickedSocketId))
             {
-                if (!TryFindSocketItemId(pickedSocketId, out itemId))
+                if (!TryFindSocketSourceItemId(pickedSocketId, out itemId))
                 {
                     return;
                 }
+                hierarchyTreeView.SetSelectionById(itemId);
+                hierarchyTreeView.ScrollToItemById(itemId);
+                FocusSocket(pickedSocketId);
+                RebuildInspector();
+                return;
             }
             else if (previewController.TryGetTargetIdForTransform(pickedTransform, out pickedTargetId))
             {
@@ -2687,10 +2672,6 @@ namespace DotsAnimationToolkit.Editor
             // flipbook track had no object to belong to.
             rootItems.AddRange(BuildRigTargetItems());
 
-            // After the parts, before the prefab's transforms: a socket belongs to the rig, so it
-            // reads with the rig's own rows rather than buried in the imported hierarchy.
-            rootItems.AddRange(BuildSocketItems());
-
             // Built from the preview's live instance, not from the prefab asset. The viewport picks
             // transforms out of that instance, so sourcing the tree from it means a picked object is
             // literally a node of the tree's own source — no mapping between two hierarchies that
@@ -2779,53 +2760,17 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// One row per socket, flat, listed after the parts.
+        /// A socket's one-line label: its name, what it follows, and a mark when that resolves to
+        /// nothing.
         /// </summary>
         /// <remarks>
-        /// Their own rows rather than children of whatever they follow. A socket may follow a rig
-        /// target or an imported bone, which live in two different trees, so nesting them would put
-        /// half the sockets in one place and half in another — and a socket whose binding is broken
-        /// would have nowhere at all to appear, which is exactly when the author needs to find it.
+        /// The binding travels with the name because an unresolved socket is the failure that
+        /// otherwise surfaces at run time as a weapon pinned to the actor's feet. Saying it in the
+        /// list costs nothing and catches it before a bake — which matters more now that a socket
+        /// with no resolvable source has no object's stack to appear in, and the clip inspector's
+        /// list is where it can still be found.
         /// </remarks>
-        private List<TreeViewItemData<HierarchyItem>> BuildSocketItems()
-        {
-            List<TreeViewItemData<HierarchyItem>> socketItems =
-                new List<TreeViewItemData<HierarchyItem>>();
-            if (clipSet == null || clipSet.rig == null || clipSet.rig.sockets == null)
-            {
-                return socketItems;
-            }
-
-            for (int socketIndex = 0; socketIndex < clipSet.rig.sockets.Count; socketIndex++)
-            {
-                SocketDefinition socket = clipSet.rig.sockets[socketIndex];
-                if (socket == null)
-                {
-                    continue;
-                }
-
-                int itemId = SocketItemIdBase - socketIndex;
-                HierarchyItem item = new HierarchyItem
-                {
-                    kind = HierarchyItemKind.Socket,
-                    displayName = DescribeSocketRow(socket),
-                    socketId = socket.Id.Value
-                };
-                hierarchyItemsById[itemId] = item;
-                socketItems.Add(new TreeViewItemData<HierarchyItem>(itemId, item));
-            }
-            return socketItems;
-        }
-
-        /// <summary>
-        /// A socket's row label: its name, what it follows, and a mark when that resolves to nothing.
-        /// </summary>
-        /// <remarks>
-        /// The binding is on the row rather than only in the inspector because an unresolved socket
-        /// is the failure that otherwise surfaces at run time as a weapon pinned to the actor's
-        /// feet. Seeing it in the list costs nothing and catches it before a bake.
-        /// </remarks>
-        private string DescribeSocketRow(SocketDefinition socket)
+        private string DescribeSocketLabel(SocketDefinition socket)
         {
             string name = string.IsNullOrEmpty(socket.displayName)
                 ? "Socket " + socket.Id.Value.ToString()
@@ -2872,19 +2817,6 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
             return -1;
-        }
-
-        /// <summary>The name of whatever a socket follows, for path resolution.</summary>
-        private string ResolveSocketFollowName(uint socketId)
-        {
-            SocketDefinition socket = FindSocket(socketId);
-            if (socket == null)
-            {
-                return string.Empty;
-            }
-            return socket.mode == SocketAttachMode.RigTarget
-                ? ResolveTargetDisplayName(socket.targetId)
-                : socket.boneName;
         }
 
         /// <summary>
@@ -3065,12 +2997,6 @@ namespace DotsAnimationToolkit.Editor
                 case HierarchyItemKind.RigTarget:
                     isAnimated = CountTracksForTarget(item.targetId) > 0;
                     break;
-                case HierarchyItemKind.Socket:
-                    // A socket carries no keys, so bold means "this one has something pinned to it"
-                    // — the reading that matters when scanning a rig for what will show up.
-                    isAnimated = FindSocket(item.socketId) != null
-                        && FindSocket(item.socketId).previewAttachment != null;
-                    break;
                 default:
                     isAnimated = FindBoneTrackIndex(item.displayName) >= 0;
                     break;
@@ -3166,24 +3092,47 @@ namespace DotsAnimationToolkit.Editor
             {
                 case HierarchyItemKind.RigTarget:
                     return PrefabAuthoringBridge.FindByName(root, item.displayName);
-                case HierarchyItemKind.Socket:
-                    return PrefabAuthoringBridge.FindByName(root, ResolveSocketFollowName(item.socketId));
                 default:
                     return previewController.GetTransformByIndex(item.previewIndex);
             }
         }
 
-        private bool TryFindSocketItemId(uint socketId, out int itemId)
+        /// <summary>
+        /// The hierarchy row a socket hangs off: the part or bone it follows.
+        /// </summary>
+        /// <remarks>
+        /// Sockets have no rows of their own — they are components of their source — so picking a
+        /// socket's marker in the viewport selects that source and points the gizmo at the socket.
+        /// A socket whose source resolves to nothing has no row to offer, which is what the clip
+        /// inspector's socket list exists to catch.
+        /// </remarks>
+        private bool TryFindSocketSourceItemId(uint socketId, out int itemId)
         {
+            itemId = NothingSelectedItemId;
+            SocketDefinition socket = FindSocket(socketId);
+            if (socket == null)
+            {
+                return false;
+            }
+
+            if (socket.mode == SocketAttachMode.RigTarget)
+            {
+                return TryFindRigTargetItemId(socket.targetId, out itemId);
+            }
+
             foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
             {
-                if (pair.Value.kind == HierarchyItemKind.Socket && pair.Value.socketId == socketId)
+                if (pair.Value.kind == HierarchyItemKind.RigTarget)
+                {
+                    continue;
+                }
+                if (string.Equals(
+                        pair.Value.displayName, socket.boneName, System.StringComparison.Ordinal))
                 {
                     itemId = pair.Key;
                     return true;
                 }
             }
-            itemId = NothingSelectedItemId;
             return false;
         }
 
@@ -3453,26 +3402,30 @@ namespace DotsAnimationToolkit.Editor
                 selectedHierarchyItemId = NothingSelectedItemId;
                 selectedBoneName = null;
                 selectedTargetId = 0u;
+
+                // A socket is reached through the object carrying it, so selecting nothing leaves
+                // the gizmo nothing to be on.
+                selectedSocketId = 0u;
                 if (previewController != null)
                 {
                     previewController.SetSelectedHierarchyIndex(-1);
+                    previewController.SetSelectedSocketId(0u);
                 }
                 return;
             }
 
             selectedHierarchyItemId = FindItemIdOf(activeItem);
-            if (activeItem.kind == HierarchyItemKind.Socket)
+            // Selecting an object drops whichever socket the gizmo was on, unless that socket is
+            // one of this object's own components — the gizmo has to be on something the selection
+            // can still see.
+            if (!SocketBelongsToItem(selectedSocketId, activeItem))
             {
-                selectedBoneName = null;
-                selectedTargetId = 0u;
-                selectedSocketId = activeItem.socketId;
-                if (previewController != null)
-                {
-                    previewController.SetSelectedSocketId(activeItem.socketId);
-                }
-                return;
+                selectedSocketId = 0u;
             }
-            selectedSocketId = 0u;
+            if (previewController != null)
+            {
+                previewController.SetSelectedSocketId(selectedSocketId);
+            }
             if (activeItem.kind == HierarchyItemKind.RigTarget)
             {
                 selectedBoneName = null;
@@ -5631,19 +5584,7 @@ namespace DotsAnimationToolkit.Editor
                 for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
                 {
                     HierarchyItem item = selectedHierarchyItems[itemIndex];
-                    bool isActive = item == activeItem;
-                    switch (item.kind)
-                    {
-                        case HierarchyItemKind.RigTarget:
-                            BuildRigTargetInspector(item, isActive);
-                            break;
-                        case HierarchyItemKind.Socket:
-                            BuildSocketInspector(item, isActive);
-                            break;
-                        default:
-                            BuildBoneInspector(item, isActive);
-                            break;
-                    }
+                    BuildComponentStack(item, item == activeItem);
                 }
                 return;
             }
@@ -5682,6 +5623,19 @@ namespace DotsAnimationToolkit.Editor
             if (keyProperty == null)
             {
                 return false;
+            }
+
+            // The key's object first, with its components. A key is a moment of something, and the
+            // something is what the channels belong to — reading the key without it meant losing
+            // sight of what else the part was doing at that time. An event marker has no object:
+            // it belongs to the clip, so it gets no stack.
+            if (shown.trackKind != TimelineTrackKind.Event)
+            {
+                HierarchyItem owningItem = FindHierarchyItemForKey(shown);
+                if (owningItem != null)
+                {
+                    BuildComponentStack(owningItem, true);
+                }
             }
 
             inspectorPane.Add(MakeHeading(
@@ -6236,52 +6190,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The inspector for a transform picked in the hierarchy.
-        /// </summary>
-        /// <remarks>
-        /// Adding the track happens here rather than in the clip inspector because this is where the
-        /// bone is named. A name typed by hand that resolves to nothing bakes the bone at rest,
-        /// which reads as an animation that simply does not play; picking it from the rig's own
-        /// hierarchy removes that failure outright.
-        /// </remarks>
-        private void BuildBoneInspector(HierarchyItem item, bool isActive)
-        {
-            string boneName = item.displayName;
-            inspectorPane.Add(MakeSelectionHeading(boneName, isActive));
-
-            // The hierarchy lists every transform, not only bones, so the inspector says which kind
-            // this one is. What you can usefully do with it depends on the answer: only a skinned
-            // bone moves the mesh when a bone track drives it.
-            if (previewController != null)
-            {
-                string description = previewController.DescribeHierarchyItem(item.previewIndex);
-                if (!string.IsNullOrEmpty(description))
-                {
-                    inspectorPane.Add(MakeHint(description));
-                }
-            }
-
-            if (selectedClip == null)
-            {
-                inspectorPane.Add(MakeHint("Select a clip to animate this object."));
-                return;
-            }
-
-            int boneTrackIndex = FindBoneTrackIndex(boneName);
-            if (boneTrackIndex < 0)
-            {
-                inspectorPane.Add(MakeHint("No track on this clip animates this bone."));
-                inspectorPane.Add(new Button(() => AddBoneTrack(boneName))
-                {
-                    text = "Add Bone Track"
-                });
-                return;
-            }
-
-            AddBoneTransformFields(selectedClip.boneTracks[boneTrackIndex]);
-        }
-
-        /// <summary>
         /// The live pose of a bone at the playhead, editable in place.
         /// </summary>
         /// <remarks>
@@ -6289,7 +6197,7 @@ namespace DotsAnimationToolkit.Editor
         /// as an array — the panel showing a list of keys rather than the value at the time being
         /// looked at. The keys belong on the timeline; this answers "what is this bone doing now".
         /// </remarks>
-        private void AddBoneTransformFields(BoneTrack track)
+        private void AddBoneTransformFields(VisualElement parent, BoneTrack track)
         {
             LiveTransformBinding binding = new LiveTransformBinding { boneTrack = track };
             liveTransformBindings.Add(binding);
@@ -6301,10 +6209,9 @@ namespace DotsAnimationToolkit.Editor
                 track, playheadTime, out position, out rotationDegrees, out scale);
             bool isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
 
-            inspectorPane.Add(MakeHeading("Bone Transform"));
 
             binding.stateChip = MakeHint(DescribeBoneState(hasKeys, isOnKey));
-            inspectorPane.Add(binding.stateChip);
+            parent.Add(binding.stateChip);
 
             VisualElement transformBlock = new VisualElement();
             transformBlock.AddToClassList(TransformBlockUssClassName);
@@ -6351,9 +6258,9 @@ namespace DotsAnimationToolkit.Editor
             binding.scaleField = scaleField;
             transformBlock.Add(scaleField);
 
-            inspectorPane.Add(transformBlock);
+            parent.Add(transformBlock);
 
-            inspectorPane.Add(new Button(() =>
+            parent.Add(new Button(() =>
             {
                 ApplyBoneEdit(track, position, rotationDegrees, scale);
             })
@@ -6398,53 +6305,12 @@ namespace DotsAnimationToolkit.Editor
             RebuildTimeline();
         }
 
-        /// <summary>
-        /// The inspector for a rig target: the flipbook tracks driving it, each with its base index.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// A target may carry several flipbook tracks, which is how one texture array holds
-        /// independent feature sets — a mouth track based at 0 and an eye track based at 32 animate
-        /// the same part without either knowing the other exists. They are listed rather than
-        /// merged for exactly that reason.
-        /// </para>
-        /// <para>
-        /// The base index is editable here because it is the retargeting handle: every relative key
-        /// on the track holds an offset against it, so moving this one number slides the whole track
-        /// onto a different span of the array without touching a key.
-        /// </para>
-        /// </remarks>
-        private void BuildRigTargetInspector(HierarchyItem item, bool isActive)
-        {
-            uint targetId = item.targetId;
-            inspectorPane.Add(MakeSelectionHeading(
-                ResolveTargetDisplayName(targetId), isActive));
-            inspectorPane.Add(MakeHint("Rig target — animated by transform and flipbook tracks."));
-
-            if (selectedClip == null)
-            {
-                inspectorPane.Add(MakeHint("Select a clip to animate this part."));
-                return;
-            }
-
-            AddTransformFields(targetId);
-
-            // Keyed off the window's active target rather than the heading's marker: the marker is
-            // suppressed when there is only one block, but that block is still the one with a gizmo.
-            if (targetId == selectedTargetId)
-            {
-                RefreshGizmo();
-            }
-
-            AddFlipbookFields(targetId);
-        }
-
         // -------------------------------------------------------------------------------------
         // Sockets.
         // -------------------------------------------------------------------------------------
 
         /// <summary>
-        /// The inspector for a socket: what it follows, where it sits, and what to hang off it.
+        /// A socket's fields: what it follows, where it sits, and what to hang off it.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -6454,32 +6320,39 @@ namespace DotsAnimationToolkit.Editor
         /// they move.
         /// </para>
         /// <para>
+        /// <strong>The socket is a component of its source.</strong> It hangs off the bone or part
+        /// it follows and is edited there, rather than being a row of its own to hunt for — the
+        /// source is the thing you are looking at when you decide where the attachment goes. Which
+        /// is also why "Follows" is fixed here: changing it would move the socket onto a different
+        /// object, so it is done by removing it and adding one where it belongs.
+        /// </para>
+        /// <para>
         /// Every edit records undo on the <em>rig</em>, not the clip. A socket is rig structure —
         /// every clip in the set sees the same one — and putting it on the clip's undo stack would
         /// make an undo in one clip silently move an attachment in all the others.
         /// </para>
         /// </remarks>
-        private void BuildSocketInspector(HierarchyItem item, bool isActive)
+        private void AddSocketFields(VisualElement parent, SocketDefinition socket)
         {
-            SocketDefinition socket = FindSocket(item.socketId);
-            if (socket == null)
+            RigAsset rig = ActiveRig;
+            if (rig == null)
             {
-                inspectorPane.Add(MakeHint("This socket is no longer on the rig."));
                 return;
             }
 
-            RigAsset rig = clipSet.rig;
-            inspectorPane.Add(MakeSelectionHeading(
-                string.IsNullOrEmpty(socket.displayName)
-                    ? "Socket " + socket.Id.Value.ToString()
-                    : socket.displayName,
-                isActive));
-
             bool resolved = previewController != null && previewController.IsSocketResolved(socket);
-            inspectorPane.Add(MakeHint(resolved
-                ? "Attachment point — follows its target every frame."
+            parent.Add(MakeHint(resolved
+                ? "Attachment point — follows this object every frame."
                 : "Follows nothing: the binding below matches no part or bone, so this socket "
                     + "will sit at the actor's origin."));
+
+            parent.Add(new Button(() => FocusSocket(socket.Id.Value))
+            {
+                text = "Move in View",
+                tooltip =
+                    "Puts the viewport gizmo on this socket's marker. W and E then move and rotate "
+                    + "it, writing the offset below."
+            });
 
             TextField nameField = new TextField("Name");
             nameField.SetValueWithoutNotify(socket.displayName);
@@ -6489,29 +6362,20 @@ namespace DotsAnimationToolkit.Editor
                 socket.displayName = changeEvent.newValue;
                 CommitSocketEdit(false);
             });
-            inspectorPane.Add(nameField);
+            parent.Add(nameField);
 
-            EnumField modeField = new EnumField("Follows", socket.mode);
-            modeField.tooltip =
-                "Rig Target follows a part this rig declares, live. Bone follows a bone of the "
-                + "imported skeleton, whose motion is baked into the VAT.";
-            modeField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordSocketEdit(rig, "Change Socket Mode");
-                socket.mode = (SocketAttachMode)changeEvent.newValue;
-                CommitSocketEdit(true);
-                RebuildInspector();
-            });
-            inspectorPane.Add(modeField);
+            // The binding is stated, not offered. This socket is a component of the object it
+            // follows, so rebinding it is removing it here and adding one where it belongs —
+            // a dropdown that silently moved it into another object's stack would read as a
+            // disappearance.
+            Label followsLabel = MakeHint(socket.mode == SocketAttachMode.RigTarget
+                ? "Follows this rig target, live."
+                : "Follows this bone, whose motion is baked into the VAT.");
+            parent.Add(followsLabel);
 
-            if (socket.mode == SocketAttachMode.RigTarget)
+            if (socket.mode == SocketAttachMode.Bone)
             {
-                inspectorPane.Add(BuildSocketTargetField(rig, socket));
-            }
-            else
-            {
-                inspectorPane.Add(BuildSocketBoneField(rig, socket));
-                inspectorPane.Add(MakeSocketBakeHint(socket));
+                parent.Add(MakeSocketBakeHint(socket));
 
                 IntegerField layerField = new IntegerField("Layer");
                 layerField.SetValueWithoutNotify(socket.layerIndex);
@@ -6524,10 +6388,10 @@ namespace DotsAnimationToolkit.Editor
                     socket.layerIndex = Mathf.Max(0, changeEvent.newValue);
                     CommitSocketEdit(true);
                 });
-                inspectorPane.Add(layerField);
+                parent.Add(layerField);
             }
 
-            inspectorPane.Add(MakeHeading("Offset"));
+            parent.Add(MakeHeading("Offset"));
 
             Vector3Field offsetPositionField = new Vector3Field("Position");
             offsetPositionField.SetValueWithoutNotify(socket.localPosition);
@@ -6539,7 +6403,7 @@ namespace DotsAnimationToolkit.Editor
                 socket.localPosition = changeEvent.newValue;
                 CommitSocketEdit(true);
             });
-            inspectorPane.Add(offsetPositionField);
+            parent.Add(offsetPositionField);
 
             Vector3Field offsetRotationField = new Vector3Field("Rotation");
             offsetRotationField.SetValueWithoutNotify(socket.localEulerAngles);
@@ -6549,10 +6413,10 @@ namespace DotsAnimationToolkit.Editor
                 socket.localEulerAngles = changeEvent.newValue;
                 CommitSocketEdit(true);
             });
-            inspectorPane.Add(offsetRotationField);
+            parent.Add(offsetRotationField);
 
-            inspectorPane.Add(MakeHeading("Preview Attachment"));
-            inspectorPane.Add(MakeHint(
+            parent.Add(MakeHeading("Preview Attachment"));
+            parent.Add(MakeHint(
                 "Editor only. Hangs a prefab off this socket so the placement can be judged "
                 + "against the animation; nothing reads it at run time or ships in a build."));
 
@@ -6572,12 +6436,8 @@ namespace DotsAnimationToolkit.Editor
                 }
                 MarkPreviewDirty();
             });
-            inspectorPane.Add(attachmentField);
+            parent.Add(attachmentField);
 
-            inspectorPane.Add(new Button(() => ConfirmDeleteSocket(socket))
-            {
-                text = "Delete Socket"
-            });
         }
 
         /// <summary>
@@ -6746,61 +6606,32 @@ namespace DotsAnimationToolkit.Editor
         /// feature exists to make visible, and creating one in that state as a matter of course
         /// would train the author to ignore the warning.
         /// </remarks>
+        /// <summary>
+        /// Adds a socket to the selected object — the same act as Add Component ▸ Socket.
+        /// </summary>
+        /// <remarks>
+        /// Kept as a header button because that is where you look when you do not yet know the
+        /// feature is there, while the component menu is where you look once you do. Both end in
+        /// the same call, so there is one set of rules about what a socket may hang off.
+        /// </remarks>
         private void AddSocket()
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (rig == null)
             {
                 ShowNotification(new GUIContent("Assign a clip set with a rig first."));
                 return;
             }
-            if (rig.sockets == null)
-            {
-                rig.sockets = new List<SocketDefinition>();
-            }
 
-            SocketDefinition socket = new SocketDefinition();
             HierarchyItem activeItem = ActiveHierarchyItem;
-            if (activeItem != null && activeItem.kind == HierarchyItemKind.RigTarget)
+            if (activeItem == null)
             {
-                socket.mode = SocketAttachMode.RigTarget;
-                socket.targetId = activeItem.targetId;
-                socket.displayName = activeItem.displayName + " Socket";
-            }
-            else if (activeItem != null && activeItem.kind == HierarchyItemKind.PrefabTransform)
-            {
-                socket.mode = SocketAttachMode.Bone;
-                socket.boneName = activeItem.displayName;
-                socket.displayName = activeItem.displayName + " Socket";
-            }
-            else if (rig.targets != null && rig.targets.Count > 0 && rig.targets[0] != null)
-            {
-                socket.mode = SocketAttachMode.RigTarget;
-                socket.targetId = rig.targets[0].Id.Value;
-                socket.displayName = "New Socket";
-            }
-            else
-            {
-                socket.displayName = "New Socket";
+                ShowNotification(new GUIContent(
+                    "Select the part or bone the socket should follow."));
+                return;
             }
 
-            Undo.RecordObject(rig, "Add Socket");
-            rig.sockets.Add(socket);
-
-            // Minted here rather than left to OnValidate, which does not run in time. A socket whose
-            // id is still 0 is not merely unidentified: 0 is the sentinel for "no socket selected",
-            // so the new socket would be unselectable and its marker unfindable.
-            rig.EnsureStableIds();
-
-            EditorUtility.SetDirty(rig);
-            AssetDatabase.SaveAssetIfDirty(rig);
-
-            if (previewController != null)
-            {
-                previewController.RebuildSockets();
-            }
-            RebuildHierarchy();
-            MarkPreviewDirty();
+            AddComponent(BuildObjectRef(activeItem), ClipComponentKind.Socket);
         }
 
         private void ConfirmDeleteSocket(SocketDefinition socket)
@@ -6850,47 +6681,6 @@ namespace DotsAnimationToolkit.Editor
             heading.AddToClassList(SelectionHeadingUssClassName);
             heading.EnableInClassList(SelectionHeadingActiveUssClassName, isActive);
             return heading;
-        }
-
-        /// <summary>
-        /// The live flipbook index for the selected part: one block per track driving it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The value at the playhead, not a list of keys.</strong> This panel answers "what
-        /// is this part showing right now", the same question the transform block above it answers.
-        /// The keys themselves live on the timeline, which is where they can be moved and selected;
-        /// repeating them here made a long track unreadable and put the same data in two places that
-        /// could disagree.
-        /// </para>
-        /// <para>
-        /// Several blocks are expected. A target can carry several flipbook tracks, each with its
-        /// own base — that is how one texture array holds independent feature sets, a mouth based
-        /// at 0 and eyes based at 32 driving the same part.
-        /// </para>
-        /// </remarks>
-        private void AddFlipbookFields(uint targetId)
-        {
-            ClipSpriteEditing.CollectTracksForTarget(
-                selectedClip, targetId, flipbookTracks, flipbookTrackIndices);
-
-            inspectorPane.Add(MakeHeading("Flipbook Index"));
-
-            if (flipbookTracks.Count == 0)
-            {
-                inspectorPane.Add(MakeHint("No flipbook track on this clip drives this part."));
-            }
-
-            for (int listIndex = 0; listIndex < flipbookTracks.Count; listIndex++)
-            {
-                inspectorPane.Add(BuildFlipbookTrackBlock(
-                    flipbookTracks[listIndex], flipbookTrackIndices[listIndex]));
-            }
-
-            inspectorPane.Add(new Button(() => AddFlipbookTrack(targetId))
-            {
-                text = "Add Flipbook Track"
-            });
         }
 
         /// <summary>
@@ -7003,10 +6793,6 @@ namespace DotsAnimationToolkit.Editor
             });
             trackBlock.Add(sliceSpaceField);
 
-            trackBlock.Add(new Button(() => RemoveFlipbookTrack(trackIndex))
-            {
-                text = "Remove Track"
-            });
             return trackBlock;
         }
 
@@ -7117,47 +6903,6 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
             return "Target " + targetId.ToString();
-        }
-
-        private void AddFlipbookTrack(uint targetId)
-        {
-            if (selectedClip == null || targetId == 0u)
-            {
-                return;
-            }
-
-            if (selectedClip.spriteTracks == null)
-            {
-                selectedClip.spriteTracks = new List<SpriteTrack>();
-            }
-
-            RecordClipEdit("Add Flipbook Track");
-            selectedClip.spriteTracks.Add(new SpriteTrack
-            {
-                targetId = targetId,
-                mode = SpriteFrameMode.Slice,
-                keys = new List<SpriteKey>()
-            });
-            CommitClipEdit();
-
-            RebuildTimeline();
-        }
-
-        private void RemoveFlipbookTrack(int trackIndex)
-        {
-            if (selectedClip == null || selectedClip.spriteTracks == null
-                || trackIndex < 0 || trackIndex >= selectedClip.spriteTracks.Count)
-            {
-                return;
-            }
-
-            RecordClipEdit("Remove Flipbook Track");
-            selectedClip.spriteTracks.RemoveAt(trackIndex);
-            CommitClipEdit();
-
-            selectedKeys.Clear();
-            hasActiveKey = false;
-            RebuildTimeline();
         }
 
         /// <summary>
@@ -7323,7 +7068,7 @@ namespace DotsAnimationToolkit.Editor
         /// keys makes scrubbing useless for judging a pose. The state chip says which kind of value
         /// is on screen so a sampled number is never mistaken for a stored one.
         /// </remarks>
-        private void AddTransformFields(uint targetId)
+        private void AddTransformFields(VisualElement parent, uint targetId)
         {
             LiveTransformBinding binding = new LiveTransformBinding { targetId = targetId };
             liveTransformBindings.Add(binding);
@@ -7334,9 +7079,8 @@ namespace DotsAnimationToolkit.Editor
             TransformValueState valueState =
                 ResolveDisplayedTransform(targetId, out position, out rotationDegrees, out scale);
 
-            inspectorPane.Add(MakeHeading("Transform"));
             binding.stateChip = MakeTransformStateChip(valueState);
-            inspectorPane.Add(binding.stateChip);
+            parent.Add(binding.stateChip);
 
             VisualElement transformBlock = new VisualElement();
             binding.block = transformBlock;
@@ -7388,7 +7132,7 @@ namespace DotsAnimationToolkit.Editor
             binding.scaleField = scaleField;
             transformBlock.Add(scaleField);
 
-            inspectorPane.Add(transformBlock);
+            parent.Add(transformBlock);
 
             VisualElement keyRow = new VisualElement();
             keyRow.AddToClassList(FlipbookKeyUssClassName);
@@ -7421,7 +7165,7 @@ namespace DotsAnimationToolkit.Editor
                     text = "Revert"
                 });
             }
-            inspectorPane.Add(keyRow);
+            parent.Add(keyRow);
         }
 
         private static string DescribeTransformState(TransformValueState valueState)
@@ -7456,6 +7200,9 @@ namespace DotsAnimationToolkit.Editor
                 inspectorPane.Add(MakeHint(clipSet == null
                     ? "Assign a clip set in the toolbar."
                     : "Select a clip to edit its properties."));
+
+                // Sockets are rig data, so they are listed whether or not a clip is open.
+                AddSocketDirectory();
                 return;
             }
             clipSerializedObject.Update();
@@ -7466,6 +7213,7 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField("defaultLoop");
             AddBoundField("rig");
             AddBoneTrackControls();
+            AddSocketDirectory();
             inspectorPane.Bind(clipSerializedObject);
         }
 

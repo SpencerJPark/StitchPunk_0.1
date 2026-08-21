@@ -458,6 +458,71 @@
 /* Flipbook tracks                                                                               */
 /* ------------------------------------------------------------------------------------------- */
 
+/* One animation component in the inspector's stack. Boxed rather than merely spaced, because the
+   panel's question is "what does this object carry", and a component is the unit that answers it —
+   the box is what makes a stack of them countable at a glance. */
+.clip-editor__component {
+    margin-top: 6px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Marks the component whose socket the viewport gizmo is on. With several sockets on one object,
+   nothing else on screen says which one a drag would move. */
+.clip-editor__component--active {
+    border-color: rgba(120, 200, 255, 0.55);
+}
+
+.clip-editor__component-header {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.clip-editor__component-title {
+    flex-grow: 1;
+    -unity-font-style: bold;
+}
+
+/* Says an edit here reaches every clip in the set, not just this one. */
+.clip-editor__component-badge {
+    font-size: 10px;
+    opacity: 0.65;
+    margin-right: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.clip-editor__component-remove {
+    width: 20px;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.clip-editor__component-body {
+    padding-left: 6px;
+    padding-right: 4px;
+}
+
+.clip-editor__add-component {
+    margin-top: 6px;
+    margin-bottom: 8px;
+    height: 22px;
+}
+
 .clip-editor__flipbook-track {
     margin-top: 4px;
     margin-bottom: 6px;

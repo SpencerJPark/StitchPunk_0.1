@@ -10,6 +10,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the clip inspector is a component stack
+
+Selecting an object used to produce a fixed panel: a transform block, then every
+flipbook track, whether or not the object had either. It now lists what the
+object actually carries, as components you add and remove.
+
+- **`ClipComponentModel`** (new, `Editor/ClipEditor/Components/`) — the rules:
+  which kinds an object can carry, which it already has, and what adding or
+  removing one does to the asset. Pure over `ClipAsset`/`RigAsset`, no window
+  state, no undo — the caller owns both — so the rules are testable without a
+  panel. `ClipComponentModelTests` covers them.
+- **Presence is derived, never stored.** An object has a Transform component
+  exactly when a transform track is bound to it. No list to keep in step with
+  the tracks, no serialized schema change, and no migration: a clip authored
+  before this opens showing precisely what it animates.
+- **Kinds:** Transform, Bone Transform, Flipbook, Billboard, Socket. Flipbook and
+  Socket may repeat on one object; the rest are one to an object, because two of
+  either is a validation error whichever wins the bake. A kind that does not fit
+  is listed disabled with the reason rather than omitted.
+- **Adding is separate from keying.** Add Transform and the object has an empty
+  transform track — valid, bakeable, and unkeyed. Tracks used to appear the first
+  time somebody happened to drag a field.
+- **Removing deletes the track**, after a prompt that names the key count. An
+  empty track goes silently; a socket always asks, because it is rig structure
+  something in a scene may be attached to.
+- **Easing stays out of the stack** — it belongs to a key, not an object. A
+  selected key now shows its object's stack, then the key's own block.
+
+### Changed — sockets are components of what they follow
+
+- A socket is added to the bone or part that is its source, from that object's
+  **Add Component** menu, and edited there. Its binding is stated rather than
+  offered: rebinding is removing it and adding one where it belongs.
+- **Socket rows are gone from the hierarchy tree.** Clicking a socket's marker in
+  the viewport selects its source and puts the gizmo on that socket; **Move in
+  View** does the same from the component.
+- **The clip inspector lists every socket on the rig** with what it follows.
+  Resolvable ones offer Select Source; an unresolved socket has no object to live
+  on, so this list is where it is rebound or deleted — the one thing removing the
+  rows could otherwise have hidden.
+- **+ Socket** in the hierarchy header still exists and now routes through the
+  same call, so there is one set of rules about what a socket may hang off.
+
+### Added — billboard tracks are authorable
+
+- **`ClipBillboardEditing`** (new) — read and write a billboard track at a time,
+  with the split the data model requires: angle and blend weight eased between
+  keys, `enabled` held from its key the way a flipbook index is (A43). Covered by
+  `ClipBillboardEditingTests`.
+- The Billboard component edits those channels at the playhead. It is offered
+  only on a billboard root, since a billboard track animates a root the rig
+  declares. **Billboard keys still have no timeline row** — they are authored in
+  the component, and the block says so rather than implying the dopesheet shows
+  them.
+
 ### Changed — key easing is a curve with presets
 
 The clip inspector's **Interpolation** enum is now a **Curve** dropdown over
