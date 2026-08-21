@@ -55,11 +55,16 @@ namespace DotsAnimationToolkit.Editor
         public float panNormalized;
 
         /// <summary>
-        /// Fully zoomed out: the clip spans 70% of the track, leaving a margin of context at both
-        /// ends. It used to be 0.25, which shrank the clip into a quarter of the width — a view
-        /// with nothing in it to read, and most of the slider's travel spent getting back out of it.
+        /// Fully zoomed out: the clip spans 15% of the track, so roughly six clip lengths of empty
+        /// timeline sit around it.
         /// </summary>
-        public const float MinimumZoom = 0.7f;
+        /// <remarks>
+        /// Pulling this far back is not for reading keys, it is for finding them — a key dragged
+        /// well past either end of the clip is still authored data, and this is the view that has
+        /// it on screen. Fitting the clip is what Frame All is for, and it lands near the middle of
+        /// the slider's travel rather than at its end.
+        /// </remarks>
+        public const float MinimumZoom = 0.15f;
 
         /// <summary>
         /// The structural ceiling, not the one a user meets. Zoom divides the track width, so a

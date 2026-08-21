@@ -56,8 +56,9 @@ namespace DotsAnimationToolkit.Editor
             if (zoomSlider != null)
             {
                 zoomSlider.tooltip =
-                    "Timeline zoom, centred on the playhead. All the way left fits the clip in 70% "
-                    + "of the track; all the way right leaves "
+                    "Timeline zoom, centred on the playhead. All the way left pulls back to about "
+                    + "seven clip lengths, so keys dragged outside the clip are still on screen; "
+                    + "all the way right leaves "
                     + TimelineGeometry.VisibleFramesAtMaximumZoom.ToString("0") + " frames on "
                     + "screen, so the right-hand end moves with the clip's frame count. Ctrl+scroll "
                     + "zooms the same way (hold Alt to zoom toward the cursor instead). "
