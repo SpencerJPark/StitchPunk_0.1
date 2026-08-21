@@ -231,6 +231,32 @@ namespace DotsAnimationToolkit.Authoring
 
         [SerializeField] internal uint stableId;
 
+        /// <summary>
+        /// The path, from the previewed prefab's root, of the node this target stands for. Empty
+        /// for a target that is not tied to one.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>This is what lets an ordinary node of a prefab be a part.</strong> A rig target
+        /// is an abstract slot with a stable id, and until something says which node fills it the
+        /// only answer lives in the scene, on a <c>RigTargetAuthoring</c> the clip editor cannot
+        /// see. A plane sitting in the hierarchy therefore had no id for a sprite track to bind to,
+        /// which is why the editor could not put a flipbook on it. Writing the path here gives the
+        /// editor the answer before the bake does.
+        /// </para>
+        /// <para>
+        /// Authoring data for the editor only — no bake or runtime path reads it, exactly like
+        /// <see cref="RigAsset.mirrorPairs"/>. The scene binding is still
+        /// <c>RigTargetAuthoring.targetStableId</c>; this says which node that component is
+        /// expected to sit on, so the editor can show the part where the user is looking at it.
+        /// </para>
+        /// <para>
+        /// A path rather than a name, matching <c>BillboardNodeAddress.hierarchyPath</c>: two
+        /// planes called "Plane" is the ordinary case, not the exotic one.
+        /// </para>
+        /// </remarks>
+        public string sourceNodePath = string.Empty;
+
         /// <summary>How this target is presented, which decides the components its part entity gets.</summary>
         public TargetKind kind = TargetKind.Quad;
 

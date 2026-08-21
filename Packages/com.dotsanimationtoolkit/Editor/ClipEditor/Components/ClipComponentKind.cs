@@ -11,8 +11,16 @@ namespace DotsAnimationToolkit.Editor
     /// here is the presence of something the clip or rig already stores — a transform track, a
     /// flipbook track, a socket definition — so the stack is a view of the asset rather than a
     /// second copy of it. Adding one creates the thing; removing one deletes it. Nothing is
-    /// serialized to say "this object has a Transform component", because the transform track being
+    /// serialized to say "this object has a Flipbook component", because the sprite track being
     /// there is that statement, and two statements could disagree.
+    /// </para>
+    /// <para>
+    /// <strong>Transform is the exception, and is not an add-on.</strong> Everything in an animator
+    /// is somewhere, so every object carries a transform whether or not it has been keyed yet — an
+    /// authored part and a skinned bone alike, since posing them is the main way either gets
+    /// animated. It is therefore never in the Add Component menu and never removable, and its
+    /// track is minted by the first key rather than by an act of adding. The other kinds are the
+    /// add-ons.
     /// </para>
     /// <para>
     /// <strong>Easing is deliberately absent.</strong> It belongs to a key rather than to an object:
@@ -22,10 +30,10 @@ namespace DotsAnimationToolkit.Editor
     /// </remarks>
     public enum ClipComponentKind : byte
     {
-        /// <summary>A cutout part's keyed TRS — <c>TransformTrack</c>.</summary>
+        /// <summary>A part's keyed TRS — <c>TransformTrack</c>. Intrinsic.</summary>
         Transform = 0,
 
-        /// <summary>A skeleton bone's keyed local TRS — <c>BoneTrack</c>.</summary>
+        /// <summary>A skeleton node's keyed local TRS — <c>BoneTrack</c>. Intrinsic.</summary>
         BoneTransform = 1,
 
         /// <summary>A keyed sprite-frame index — <c>SpriteTrack</c>. A part may carry several.</summary>
@@ -63,22 +71,40 @@ namespace DotsAnimationToolkit.Editor
     /// One component on one object: its kind, and which of that kind it is.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Addressed by index into the owning list — the same reasoning as <see cref="KeyAddress"/>.
     /// The tracks and socket definitions are plain serializable objects inside lists that an undo or
     /// a delete replaces wholesale, so a held reference survives as a stale copy of something
     /// nothing shows any more, while an index is either still valid or obviously out of range.
+    /// </para>
+    /// <para>
+    /// <strong>An index of −1 is a real state for the intrinsic kinds only.</strong> A transform
+    /// component is on every object from the moment it exists, and its track is minted by the first
+    /// key — so between those two moments the component is present with nothing to index. For every
+    /// other kind −1 still means "nothing was added", because those kinds <em>are</em> the thing
+    /// they index.
+    /// </para>
     /// </remarks>
     public readonly struct ClipComponentInstance
     {
+        /// <summary>The index an intrinsic component carries before its track exists.</summary>
+        public const int NoTrackIndex = -1;
+
         public readonly ClipComponentKind kind;
 
-        /// <summary>Index into the clip's track list, or into the rig's socket list.</summary>
+        /// <summary>Index into the clip's track list, or into the rig's socket or root list.</summary>
         public readonly int index;
 
         public ClipComponentInstance(ClipComponentKind kind, int index)
         {
             this.kind = kind;
             this.index = index;
+        }
+
+        /// <summary>Whether the thing this component stands for has been created yet.</summary>
+        public bool HasTrack
+        {
+            get { return index >= 0; }
         }
     }
 }

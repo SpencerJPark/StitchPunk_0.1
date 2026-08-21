@@ -10,6 +10,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — every object has a transform, and any component goes on any object
+
+Three things the component stack got wrong. Transform was an add-on you could
+forget to add, though posing is the main way both cutout parts and skinned bones
+get animated. Flipbook was refused on anything the rig had not already declared
+a part — so a plane sitting in the prefab hierarchy could not take one, for a
+reason that is about the data model rather than about animating. And the Add
+Component menu printed each kind's description beside it, turning a list of five
+choices into a wall of prose to re-read every time.
+
+- **Transform is intrinsic.** Every object's stack opens with its transform,
+  keyed or not, and it carries no remove button — there is no state in which an
+  object has no transform. Which kind it gets follows the object: a part is posed
+  on a `TransformTrack`, anything else on a `BoneTrack`
+  (`ClipComponentModel.TransformKindFor`). The track is minted by the first key,
+  the way a part's already was; the header reads "not keyed" until then.
+  Add Component now offers Flipbook, Billboard and Socket, and nothing else.
+- **Any add-on goes on any object.** Adding a part-bound component to a node the
+  rig declares no part for declares one — `ClipComponentModel.PromoteToRigTarget`
+  mints a `RigTargetDefinition`, names it after the node, and records the node in
+  the new `RigTargetDefinition.sourceNodePath`. The node's row then *is* that
+  part: it shows the part's components, its tracks find it in the timeline, and
+  the flat rig-target row is suppressed so one part never appears as two rows.
+- **A part already named after the node is adopted rather than duplicated**, which
+  is the link a rig authored before `sourceNodePath` existed has. Bone keys on a
+  promoted node are carried onto its transform track, converted from quaternion to
+  the Euler degrees a transform key stores. When the part it adopted is already
+  keyed they cannot be merged safely, so the bone track is left alone and shown as
+  a second block on the stack — a track that animates the object with no way to see
+  it would be worse than a stack with two transform blocks in it.
+- **Descriptions moved onto hover.** `ClipComponentPicker` (new,
+  `Editor/ClipEditor/Components/`) replaces the `GenericDropdownMenu`: a list of
+  names, with a card beside it showing what the hovered kind does, and why it
+  cannot be added when it cannot. Unavailable kinds stay listed and dimmed. The
+  selected object's own description ("skinned bone", "rig target") moved onto the
+  heading's tooltip for the same reason.
+- **`RigTargetDefinition.sourceNodePath`** (new) is authoring data for the editor
+  only — no bake or runtime path reads it, exactly like `RigAsset.mirrorPairs`.
+  The scene binding is still `RigTargetAuthoring.targetStableId`. Existing rigs
+  leave it empty and behave exactly as before.
+
+
 ### Changed — the clip inspector is a component stack
 
 Selecting an object used to produce a fixed panel: a transform block, then every

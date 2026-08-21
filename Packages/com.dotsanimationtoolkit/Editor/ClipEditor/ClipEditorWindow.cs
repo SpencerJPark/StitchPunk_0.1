@@ -230,7 +230,16 @@ namespace DotsAnimationToolkit.Editor
             public HierarchyItemKind kind;
             public string displayName;
 
-            /// <summary>Set for a rig target.</summary>
+            /// <summary>
+            /// The rig part this row is, or 0 when the rig declares none for it.
+            /// </summary>
+            /// <remarks>
+            /// Set for a rig-target row always, and for a previewed node whenever a part records
+            /// that node's path as its source. Everything that asks "which part is this row"
+            /// therefore reads this rather than the row's kind — a claimed plane is as much a part
+            /// as a row in the rig's own list, and a lookup that checked the kind would find the
+            /// flipbook it carries had no row to belong to.
+            /// </remarks>
             public uint targetId;
 
             /// <summary>Set for a previewed transform: its index in the preview's hierarchy.</summary>
@@ -961,13 +970,40 @@ namespace DotsAnimationToolkit.Editor
             switch (item.kind)
             {
                 case HierarchyItemKind.RigTarget:
-                    node = PrefabAuthoringBridge.FindByName(root, item.displayName);
+                    // The recorded path first, when the target has one: two planes called "Plane"
+                    // is the ordinary case, and a name match would pick whichever came first.
+                    node = ResolveTargetSourceNode(item.targetId, root);
+                    if (node == null)
+                    {
+                        node = PrefabAuthoringBridge.FindByName(root, item.displayName);
+                    }
                     break;
                 default:
                     node = previewController.GetTransformByIndex(item.previewIndex);
                     break;
             }
             return node != null ? PrefabAuthoringBridge.GetHierarchyPath(node, root) : string.Empty;
+        }
+
+        /// <summary>The previewed node a rig target records as its source, or null when it has none.</summary>
+        private Transform ResolveTargetSourceNode(uint targetId, Transform root)
+        {
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (rig == null || rig.targets == null || root == null || targetId == 0u)
+            {
+                return null;
+            }
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = rig.targets[targetIndex];
+                if (target == null || target.Id.Value != targetId
+                    || string.IsNullOrEmpty(target.sourceNodePath))
+                {
+                    continue;
+                }
+                return PrefabAuthoringBridge.ResolveByPath(root, target.sourceNodePath);
+            }
+            return null;
         }
 
         // -------------------------------------------------------------------------------------
@@ -2602,15 +2638,38 @@ namespace DotsAnimationToolkit.Editor
             {
                 kind = HierarchyItemKind.PrefabTransform,
                 displayName = transformNode.name,
-                previewIndex = itemId
+                previewIndex = itemId,
+                targetId = ResolveNodeTargetId(transformNode)
             };
             hierarchyItemsById[itemId] = item;
             return new TreeViewItemData<HierarchyItem>(itemId, item, childItems);
         }
 
+        /// <summary>The rig part claiming a previewed node, or 0 when none does.</summary>
+        private uint ResolveNodeTargetId(Transform transformNode)
+        {
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            Transform root = previewController != null ? previewController.HierarchyRoot : null;
+            if (rig == null || root == null || transformNode == null)
+            {
+                return 0u;
+            }
+            return ClipComponentModel.ResolveTargetIdForNode(
+                rig, PrefabAuthoringBridge.GetHierarchyPath(transformNode, root));
+        }
+
         /// <summary>
-        /// One row per rig target, flat — a rig declares a list of parts, not a tree of them.
+        /// One row per rig target that has no node of its own, flat — a rig declares a list of
+        /// parts, not a tree of them.
         /// </summary>
+        /// <remarks>
+        /// A target that records which previewed node it stands for is skipped here, because that
+        /// node's own row is where it appears. Two rows for one part would each offer to add the
+        /// same components to the same thing, and the author would have no way to tell which one was
+        /// the real one. Only a target whose node cannot be found falls back to a row of its own —
+        /// with no prefab loaded, that is every one of them, which is the behaviour rigs authored
+        /// before nodes could be claimed have always had.
+        /// </remarks>
         private List<TreeViewItemData<HierarchyItem>> BuildRigTargetItems()
         {
             List<TreeViewItemData<HierarchyItem>> targetItems =
@@ -2620,10 +2679,20 @@ namespace DotsAnimationToolkit.Editor
                 return targetItems;
             }
 
+            Transform hierarchyRoot = previewController != null
+                ? previewController.HierarchyRoot
+                : null;
+
             for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
             {
                 RigTargetDefinition target = clipSet.rig.targets[targetIndex];
                 if (target == null)
+                {
+                    continue;
+                }
+                if (hierarchyRoot != null && !string.IsNullOrEmpty(target.sourceNodePath)
+                    && PrefabAuthoringBridge.ResolveByPath(
+                        hierarchyRoot, target.sourceNodePath) != null)
                 {
                     continue;
                 }
@@ -2875,15 +2944,13 @@ namespace DotsAnimationToolkit.Editor
 
             // Bold marks something the selected clip already animates, so the tree doubles as the
             // answer to "what does this clip actually touch?".
-            bool isAnimated;
-            switch (item.kind)
+            // Either binding counts. A claimed node can be animated as a part and still carry a
+            // bone track left over from before it was one, and a row that went un-bolded because
+            // the wrong half was checked would say this clip does not touch it.
+            bool isAnimated = item.targetId != 0u && CountTracksForTarget(item.targetId) > 0;
+            if (!isAnimated && item.kind != HierarchyItemKind.RigTarget)
             {
-                case HierarchyItemKind.RigTarget:
-                    isAnimated = CountTracksForTarget(item.targetId) > 0;
-                    break;
-                default:
-                    isAnimated = FindBoneTrackIndex(item.displayName) >= 0;
-                    break;
+                isAnimated = FindBoneTrackIndex(item.displayName) >= 0;
             }
             label.EnableInClassList(AnimatedBoneUssClassName, isAnimated);
             ApplyBillboardIndicator(label, item);
@@ -3020,11 +3087,19 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
+        /// <summary>
+        /// The row standing for a part, whichever pane it came from.
+        /// </summary>
+        /// <remarks>
+        /// Matched on the id alone. A part claimed by a previewed node has no flat row of its own —
+        /// that node's row is where it lives — and checking the kind here would leave its tracks
+        /// unable to find the object they belong to.
+        /// </remarks>
         private bool TryFindRigTargetItemId(uint targetId, out int itemId)
         {
             foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
             {
-                if (pair.Value.kind == HierarchyItemKind.RigTarget && pair.Value.targetId == targetId)
+                if (targetId != 0u && pair.Value.targetId == targetId)
                 {
                     itemId = pair.Key;
                     return true;
@@ -3355,12 +3430,20 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether a transform or flipbook track's target is in the current selection.</summary>
+        /// <remarks>
+        /// On the id rather than the row's kind, for the same reason
+        /// <see cref="TryFindRigTargetItemId"/> is: a claimed node is a part, and its tracks are
+        /// what the timeline shows when it is selected.
+        /// </remarks>
         private bool IsTargetSelected(uint targetId)
         {
+            if (targetId == 0u)
+            {
+                return false;
+            }
             for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
             {
-                HierarchyItem item = selectedHierarchyItems[itemIndex];
-                if (item.kind == HierarchyItemKind.RigTarget && item.targetId == targetId)
+                if (selectedHierarchyItems[itemIndex].targetId == targetId)
                 {
                     return true;
                 }
@@ -5260,11 +5343,19 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         private sealed class LiveTransformBinding
         {
-            /// <summary>The rig target this block edits; 0 when <see cref="boneTrack"/> is set.</summary>
+            /// <summary>The rig target this block edits; 0 when <see cref="boneName"/> is set.</summary>
             public uint targetId;
 
-            /// <summary>The bone track this block edits; null for a rig target.</summary>
-            public BoneTrack boneTrack;
+            /// <summary>
+            /// The node this block edits by name; empty for a part.
+            /// </summary>
+            /// <remarks>
+            /// The name rather than the track, because a node with no keys yet still has a block on
+            /// screen and the track that will hold its poses does not exist. Holding a track would
+            /// have made "unkeyed" indistinguishable from "a part", and a scrub would have refreshed
+            /// the block against the wrong reading.
+            /// </remarks>
+            public string boneName;
 
             public VisualElement block;
             public Label stateChip;
@@ -5315,7 +5406,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshLiveTransformBinding(LiveTransformBinding binding)
         {
-            if (binding.boneTrack != null)
+            if (!string.IsNullOrEmpty(binding.boneName))
             {
                 RefreshLiveBoneValues(binding);
                 return;
@@ -5355,12 +5446,17 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshLiveBoneValues(LiveTransformBinding binding)
         {
+            // Looked up per refresh rather than held, because the first key on this node mints the
+            // track: a reference captured when the block was built would stay null for the rest of
+            // the block's life, leaving the fields frozen the moment they started to matter.
+            BoneTrack track = FindBoneTrack(binding.boneName);
+
             float3 position;
             float3 rotationDegrees;
             float3 scale;
             bool hasKeys = ClipBoneEditing.TryEvaluate(
-                binding.boneTrack, playheadTime, out position, out rotationDegrees, out scale);
-            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(binding.boneTrack, playheadTime) >= 0;
+                track, playheadTime, out position, out rotationDegrees, out scale);
+            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
 
             SetVectorWithoutDisturbingEdit(
                 binding.positionField, new Vector3(position.x, position.y, position.z));
@@ -6078,10 +6174,16 @@ namespace DotsAnimationToolkit.Editor
         /// as an array — the panel showing a list of keys rather than the value at the time being
         /// looked at. The keys belong on the timeline; this answers "what is this bone doing now".
         /// </remarks>
-        private void AddBoneTransformFields(VisualElement parent, BoneTrack track)
+        private void AddBoneTransformFields(VisualElement parent, string boneName)
         {
-            LiveTransformBinding binding = new LiveTransformBinding { boneTrack = track };
+            LiveTransformBinding binding = new LiveTransformBinding { boneName = boneName };
             liveTransformBindings.Add(binding);
+
+            // Resolved rather than passed in, and allowed to come back null: every object shows a
+            // transform from the moment it is selected, and the track that stores its poses is
+            // minted by the first key. Everything below reads a null track as "no keys", which is
+            // exactly what an unkeyed node has.
+            BoneTrack track = FindBoneTrack(boneName);
 
             float3 position;
             float3 rotationDegrees;
@@ -6105,7 +6207,7 @@ namespace DotsAnimationToolkit.Editor
             positionField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyBoneEdit(
-                    track,
+                    boneName,
                     new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
                     rotationDegrees, scale);
             });
@@ -6121,7 +6223,7 @@ namespace DotsAnimationToolkit.Editor
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyBoneEdit(
-                    track, position,
+                    boneName, position,
                     new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
                     scale);
             });
@@ -6133,7 +6235,7 @@ namespace DotsAnimationToolkit.Editor
             scaleField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyBoneEdit(
-                    track, position, rotationDegrees,
+                    boneName, position, rotationDegrees,
                     new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z));
             });
             binding.scaleField = scaleField;
@@ -6143,11 +6245,31 @@ namespace DotsAnimationToolkit.Editor
 
             parent.Add(new Button(() =>
             {
-                ApplyBoneEdit(track, position, rotationDegrees, scale);
+                ApplyBoneEdit(boneName, position, rotationDegrees, scale);
             })
             {
                 text = "Key"
             });
+        }
+
+        /// <summary>The bone track posing a node on this clip, or null when nothing keys it yet.</summary>
+        private BoneTrack FindBoneTrack(string boneName)
+        {
+            if (selectedClip == null || selectedClip.boneTracks == null
+                || string.IsNullOrEmpty(boneName))
+            {
+                return null;
+            }
+            for (int trackIndex = 0; trackIndex < selectedClip.boneTracks.Count; trackIndex++)
+            {
+                BoneTrack track = selectedClip.boneTracks[trackIndex];
+                if (track != null
+                    && string.Equals(track.boneName, boneName, System.StringComparison.Ordinal))
+                {
+                    return track;
+                }
+            }
+            return null;
         }
 
         private static string DescribeBoneState(bool hasKeys, bool isOnKey)
@@ -6162,28 +6284,62 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Writes a bone pose at the playhead.
+        /// Writes a bone pose at the playhead, creating the track if this is its first key.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Always keys, unlike a transform edit. A bone track has no rest pose in this window to
         /// fall back to, so a held-but-unkeyed value would have nothing to be shown against — it
         /// would just be a number that vanished on the next scrub.
+        /// </para>
+        /// <para>
+        /// <strong>The track is minted here rather than by an act of adding.</strong> Every object
+        /// carries a transform, so the panel shows one for a node nothing has keyed yet; making the
+        /// author add a track first would be a step that exists only because of how the data is
+        /// shaped. This mirrors what <see cref="CommitPendingTransformEdit"/> does for a part.
+        /// </para>
         /// </remarks>
         private void ApplyBoneEdit(
-            BoneTrack track, float3 position, float3 rotationDegrees, float3 scale)
+            string boneName, float3 position, float3 rotationDegrees, float3 scale)
         {
-            if (selectedClip == null || track == null)
+            if (selectedClip == null || string.IsNullOrEmpty(boneName))
             {
                 return;
             }
 
             RecordClipEdit("Key Bone");
+
+            BoneTrack track = FindBoneTrack(boneName);
+            bool isFirstKey = track == null;
+            if (isFirstKey)
+            {
+                if (selectedClip.boneTracks == null)
+                {
+                    selectedClip.boneTracks = new List<BoneTrack>();
+                }
+                track = new BoneTrack
+                {
+                    boneName = boneName,
+                    keys = new List<BoneKey>()
+                };
+                selectedClip.boneTracks.Add(track);
+            }
+
             ClipBoneEditing.SetKeyValues(track, playheadTime, position, rotationDegrees, scale);
             CommitClipEdit();
 
             selectedKeys.Clear();
             hasActiveKey = false;
             RebuildTimeline();
+
+            // Only the first key rebuilds the panels around the field. It is the one that changes
+            // what they say — the row becomes animated and the component stops reading "not keyed"
+            // — and a rebuild on every keystroke would destroy the field being typed into.
+            if (isFirstKey)
+            {
+                RebuildHierarchy();
+                RebuildInspector();
+            }
         }
 
         // -------------------------------------------------------------------------------------

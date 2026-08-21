@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using DotsAnimationToolkit.Editor;
 using NUnit.Framework;
+using Unity.Mathematics;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
@@ -12,11 +13,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
     /// component stack.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The stack derives what an object has from the tracks bound to it rather than storing a list,
-    /// so every one of these is really the same question asked five ways: does the derivation agree
-    /// with the asset? A disagreement would show as a component that cannot be removed because the
-    /// inspector is pointing at the wrong index, which is the failure worth catching here rather
-    /// than in a panel.
+    /// so most of these are the same question asked several ways: does the derivation agree with the
+    /// asset? A disagreement would show as a component that cannot be removed because the inspector
+    /// is pointing at the wrong index, which is the failure worth catching here rather than in a
+    /// panel.
+    /// </para>
+    /// <para>
+    /// The transform kinds are the exception and get their own question: they are present whether or
+    /// not anything derives them, so what is tested there is that the stack says so, that exactly
+    /// one of the two turns up, and that promoting a node moves its poses onto the other one.
+    /// </para>
     /// </remarks>
     public sealed class ClipComponentModelTests
     {
@@ -24,6 +32,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private const uint HandTargetId = 0x22u;
         private const uint BillboardRootId = 0x99u;
         private const string BoneName = "Bone.Spine";
+        private const string BonePath = "Root/Spine";
 
         private AuthoringTestAssets assets;
         private RigAsset rig;
@@ -50,15 +59,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
             get { return ClipObjectRef.RigTarget(HeadTargetId, 0u); }
         }
 
+        /// <summary>A previewed node the rig declares no part for.</summary>
         private ClipObjectRef Bone
         {
-            get { return ClipObjectRef.Bone(BoneName, 0u, "Root/Spine", true); }
+            get { return ClipObjectRef.Bone(BoneName, 0u, 0u, BonePath, true); }
         }
 
-        /// <summary>A bone with no previewed hierarchy, so no path to be addressed by.</summary>
+        /// <summary>A node with no previewed hierarchy, so no path to be addressed by.</summary>
         private ClipObjectRef UnaddressableBone
         {
-            get { return ClipObjectRef.Bone(BoneName, 0u, string.Empty, false); }
+            get { return ClipObjectRef.Bone(BoneName, 0u, 0u, string.Empty, false); }
         }
 
         /// <summary>The head, already declared a billboard root by the rig.</summary>
@@ -67,38 +77,143 @@ namespace DotsAnimationToolkit.Tests.EditMode
             get { return ClipObjectRef.RigTarget(HeadTargetId, BillboardRootId); }
         }
 
+        /// <summary>The first instance of a kind in <see cref="instances"/>, or −1 when absent.</summary>
+        private int IndexOfKind(ClipComponentKind kind)
+        {
+            for (int instanceIndex = 0; instanceIndex < instances.Count; instanceIndex++)
+            {
+                if (instances[instanceIndex].kind == kind)
+                {
+                    return instanceIndex;
+                }
+            }
+            return -1;
+        }
+
         // -----------------------------------------------------------------------------------
-        // Applicability.
+        // Transform is intrinsic.
         // -----------------------------------------------------------------------------------
 
         [Test]
-        public void ARigTargetTakesTransformAndFlipbook_ButNotBoneTransform()
+        public void EveryObjectHasATransform_BeforeAnythingKeysIt()
+        {
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.AreEqual(1, instances.Count);
+            Assert.AreEqual(ClipComponentKind.Transform, instances[0].kind);
+            Assert.IsFalse(
+                instances[0].HasTrack,
+                "The component is present and the track is not — that is what 'not keyed yet' is.");
+
+            ClipComponentModel.CollectInstances(clip, rig, Bone, instances);
+            Assert.AreEqual(1, instances.Count);
+            Assert.AreEqual(
+                ClipComponentKind.BoneTransform, instances[0].kind,
+                "A node the rig declares no part for is posed by name, on a bone track.");
+            Assert.IsFalse(instances[0].HasTrack);
+        }
+
+        [Test]
+        public void AnObjectHasExactlyOneOfTheTwoTransformKinds()
         {
             string reason;
             Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Transform, Head, out reason));
-            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Flipbook, Head, out reason));
             Assert.IsFalse(
                 ClipComponentModel.AppliesTo(ClipComponentKind.BoneTransform, Head, out reason),
-                "A rig target has no bone track — the two kinds address different things.");
-            Assert.IsNotEmpty(reason, "An unavailable kind must say why, or the menu reads as broken.");
+                "A part is posed on its transform track; two transform components would be two "
+                + "answers to one question.");
+            Assert.IsNotEmpty(reason, "An unavailable kind must say why, or the stack reads as broken.");
+
+            Assert.IsTrue(
+                ClipComponentModel.AppliesTo(ClipComponentKind.BoneTransform, Bone, out reason));
+            Assert.IsFalse(
+                ClipComponentModel.AppliesTo(ClipComponentKind.Transform, Bone, out reason));
         }
 
         [Test]
-        public void ABoneTakesBoneTransform_ButNotTransformOrFlipbook()
+        public void AClaimedNodeIsPosedOnATransformTrack_NotABoneTrack()
+        {
+            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, HeadTargetId, 0u, BonePath, true);
+
+            Assert.AreEqual(
+                ClipComponentKind.Transform, ClipComponentModel.TransformKindFor(claimed),
+                "Once the rig declares a part for the node, the part's track is what the bake "
+                + "samples.");
+            Assert.AreEqual(
+                ClipComponentKind.BoneTransform, ClipComponentModel.TransformKindFor(Bone));
+        }
+
+        [Test]
+        public void AddComponentDoesNotOfferTheTransformKinds()
+        {
+            IReadOnlyList<ClipComponentKind> addable = ClipComponentModel.AddableKinds;
+            for (int kindIndex = 0; kindIndex < addable.Count; kindIndex++)
+            {
+                Assert.IsFalse(
+                    ClipComponentModel.IsIntrinsic(addable[kindIndex]),
+                    "Offering to add a component that is never missing is offering nothing.");
+            }
+
+            CollectionAssert.AreEqual(
+                new ClipComponentKind[]
+                {
+                    ClipComponentKind.Flipbook,
+                    ClipComponentKind.Billboard,
+                    ClipComponentKind.Socket
+                },
+                addable,
+                "The add-ons, in stack order.");
+        }
+
+        [Test]
+        public void EveryKindDescribesItself_BecauseTheHoverCardIsTheOnlyPlaceItIsSaid()
+        {
+            IReadOnlyList<ClipComponentKind> kinds = ClipComponentModel.AllKinds;
+            for (int kindIndex = 0; kindIndex < kinds.Count; kindIndex++)
+            {
+                Assert.IsNotEmpty(
+                    ClipComponentModel.Describe(kinds[kindIndex]),
+                    "The picker moved the descriptions onto hover; a missing one is a row that "
+                    + "explains nothing at all.");
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Applicability of the add-ons.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void EveryAddOnAppliesToEveryObject()
+        {
+            IReadOnlyList<ClipComponentKind> addable = ClipComponentModel.AddableKinds;
+            for (int kindIndex = 0; kindIndex < addable.Count; kindIndex++)
+            {
+                string reason;
+                Assert.IsTrue(
+                    ClipComponentModel.AppliesTo(addable[kindIndex], Head, out reason),
+                    "Add-on refused on a part: " + reason);
+                Assert.IsTrue(
+                    ClipComponentModel.AppliesTo(addable[kindIndex], Bone, out reason),
+                    "Add-on refused on a node: " + reason);
+            }
+        }
+
+        [Test]
+        public void AFlipbookCanBeAddedToANodeTheRigDeclaresNoPartFor()
         {
             string reason;
             Assert.IsTrue(
-                ClipComponentModel.AppliesTo(ClipComponentKind.BoneTransform, Bone, out reason));
-            Assert.IsFalse(ClipComponentModel.AppliesTo(ClipComponentKind.Transform, Bone, out reason));
-            Assert.IsFalse(ClipComponentModel.AppliesTo(ClipComponentKind.Flipbook, Bone, out reason));
+                ClipComponentModel.CanAdd(clip, rig, Bone, ClipComponentKind.Flipbook, out reason),
+                "A plane in the prefab hierarchy is the ordinary thing to put a flipbook on; "
+                + "refusing it because no part is declared yet is the data model talking.");
         }
 
         [Test]
-        public void BothKindsTakeASocket()
+        public void AFlipbookOnAnUnclaimedNodeNeedsARigToDeclareThePartOn()
         {
             string reason;
-            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Socket, Head, out reason));
-            Assert.IsTrue(ClipComponentModel.AppliesTo(ClipComponentKind.Socket, Bone, out reason));
+            Assert.IsFalse(
+                ClipComponentModel.CanAdd(clip, null, Bone, ClipComponentKind.Flipbook, out reason));
+            Assert.IsNotEmpty(reason);
         }
 
         [Test]
@@ -111,11 +226,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 + "not one yet.");
             Assert.IsTrue(
                 ClipComponentModel.AppliesTo(ClipComponentKind.Billboard, Bone, out reason));
+
             Assert.IsFalse(
-                ClipComponentModel.AppliesTo(
-                    ClipComponentKind.Billboard, UnaddressableBone, out reason),
+                ClipComponentModel.CanAdd(
+                    clip, rig, UnaddressableBone, ClipComponentKind.Billboard, out reason),
                 "With no hierarchy to read a path against, an empty path would silently mean the "
-                + "prefab root rather than this bone.");
+                + "prefab root rather than this node.");
             Assert.IsNotEmpty(reason);
         }
 
@@ -126,6 +242,180 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 ClipComponentScope.Rig, ClipComponentModel.Scope(ClipComponentKind.Billboard),
                 "A node carrying it faces the viewer in every clip, animated or not.");
         }
+
+        // -----------------------------------------------------------------------------------
+        // Promotion: a node becomes a part.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void AddingAFlipbookToANodeDeclaresAPartAndBindsTheTrackToIt()
+        {
+            int targetCountBefore = rig.targets.Count;
+
+            ClipComponentInstance added =
+                ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Flipbook, string.Empty);
+
+            Assert.AreEqual(0, added.index);
+            Assert.AreEqual(
+                targetCountBefore + 1, rig.targets.Count, "The node became a part of the rig.");
+
+            RigTargetDefinition minted = rig.targets[rig.targets.Count - 1];
+            Assert.AreEqual(BoneName, minted.displayName);
+            Assert.AreEqual(
+                BonePath, minted.sourceNodePath,
+                "The path is the record of which node this part is — without it the editor would "
+                + "have to guess again next time.");
+            Assert.AreNotEqual(
+                0u, minted.Id.Value, "A part saved with id 0 is one no track could address.");
+
+            Assert.AreEqual(1, clip.spriteTracks.Count);
+            Assert.AreEqual(minted.Id.Value, clip.spriteTracks[0].targetId);
+            Assert.AreEqual(
+                0, clip.spriteTracks[0].keys.Count,
+                "Adding a component is not keying it — an empty track is a valid, bakeable state.");
+        }
+
+        [Test]
+        public void PromotingANodeTwiceReusesTheSamePart()
+        {
+            ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Flipbook, string.Empty);
+            uint mintedId = rig.targets[rig.targets.Count - 1].Id.Value;
+            int targetCountAfterFirst = rig.targets.Count;
+
+            // The window rebuilds its object reference from the rig, so the second add sees the
+            // node already carrying the part.
+            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, mintedId, 0u, BonePath, true);
+            ClipComponentModel.Add(clip, rig, claimed, ClipComponentKind.Flipbook, string.Empty);
+
+            Assert.AreEqual(
+                targetCountAfterFirst, rig.targets.Count,
+                "A second flipbook on the same node is a second track, not a second part.");
+            Assert.AreEqual(2, clip.spriteTracks.Count);
+            Assert.AreEqual(mintedId, clip.spriteTracks[1].targetId);
+        }
+
+        [Test]
+        public void PromotionAdoptsAPartAlreadyNamedAfterTheNode()
+        {
+            // The link a rig authored before sourceNodePath existed has: the part and the node are
+            // called the same thing, and a RigTargetAuthoring in the scene binds them.
+            rig.targets[0].displayName = BoneName;
+
+            RigTargetDefinition adopted = ClipComponentModel.PromoteToRigTarget(clip, rig, Bone);
+
+            Assert.AreSame(
+                rig.targets[0], adopted,
+                "Minting a second part for a node that already has one would split it in two — one "
+                + "baked, one not.");
+            Assert.AreEqual(2, rig.targets.Count, "Nothing new was declared.");
+            Assert.AreEqual(BonePath, adopted.sourceNodePath, "The adoption is recorded.");
+        }
+
+        [Test]
+        public void PromotionCarriesTheNodesBoneKeysOntoItsTransformTrack()
+        {
+            BoneTrack boneTrack = new BoneTrack { boneName = BoneName };
+            boneTrack.keys.Add(new BoneKey
+            {
+                normalizedTime = 0.25f,
+                localPosition = new float3(1f, 2f, 3f),
+                localRotation = quaternion.Euler(math.radians(new float3(0f, 0f, 90f))),
+                localScale = new float3(2f, 2f, 2f),
+                interpolation = Interpolation.Linear
+            });
+            clip.boneTracks.Add(boneTrack);
+
+            RigTargetDefinition promoted = ClipComponentModel.PromoteToRigTarget(clip, rig, Bone);
+
+            Assert.AreEqual(
+                0, clip.boneTracks.Count,
+                "A bone track on a node that is now a part is a track nothing samples.");
+            Assert.AreEqual(1, clip.transformTracks.Count);
+            Assert.AreEqual(promoted.Id.Value, clip.transformTracks[0].targetId);
+
+            Assert.AreEqual(1, clip.transformTracks[0].keys.Count);
+            TransformKey carried = clip.transformTracks[0].keys[0];
+            Assert.AreEqual(0.25f, carried.normalizedTime, 1e-5f);
+            Assert.AreEqual(1f, carried.position.x, 1e-4f);
+            Assert.AreEqual(2f, carried.scale.y, 1e-4f);
+            Assert.AreEqual(
+                90f, carried.rotation.z, 1e-3f,
+                "The quaternion the bone key stored, in the degrees a transform key stores.");
+        }
+
+        [Test]
+        public void PromotionStrandsBoneKeysRatherThanOverwritingAnAlreadyKeyedPart()
+        {
+            rig.targets[0].displayName = BoneName;
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                clip.transformTracks[0], 0.5f, new float3(9f, 9f, 9f), 0f,
+                new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            clip.boneTracks.Add(new BoneTrack { boneName = BoneName });
+            clip.boneTracks[0].keys.Add(new BoneKey { normalizedTime = 0f });
+
+            ClipComponentModel.PromoteToRigTarget(clip, rig, Bone);
+
+            Assert.AreEqual(1, clip.transformTracks[0].keys.Count);
+            Assert.AreEqual(
+                9f, clip.transformTracks[0].keys[0].position.x, 1e-4f,
+                "Appending a node's keys to a part somebody already animated would interleave two "
+                + "animations into one unreadable track.");
+            Assert.AreEqual(
+                1, clip.boneTracks.Count,
+                "Nor are they deleted to tidy up the binding — those are authored keys, and this is "
+                + "not entitled to trade them for a neater asset.");
+        }
+
+        [Test]
+        public void AStrandedBoneTrackIsShownOnThePartItCouldNotMergeInto()
+        {
+            rig.targets[0].displayName = BoneName;
+            AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                clip.transformTracks[0], 0.5f, new float3(9f, 9f, 9f), 0f,
+                new float3(1f, 1f, 1f), Interpolation.Linear);
+            clip.boneTracks.Add(new BoneTrack { boneName = BoneName });
+            clip.boneTracks[0].keys.Add(new BoneKey { normalizedTime = 0f });
+
+            ClipComponentModel.PromoteToRigTarget(clip, rig, Bone);
+            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, HeadTargetId, 0u, BonePath, true);
+
+            ClipComponentModel.CollectInstances(clip, rig, claimed, instances);
+
+            Assert.AreEqual(2, instances.Count, "Its transform, and the track left behind.");
+            Assert.AreEqual(ClipComponentKind.Transform, instances[0].kind);
+            Assert.AreEqual(
+                ClipComponentKind.BoneTransform, instances[1].kind,
+                "A track that animates the object with no way to see it is worse than a stack with "
+                + "two transform blocks in it.");
+            Assert.IsTrue(
+                ClipComponentModel.IsPrimaryTransform(ClipComponentKind.Transform, claimed));
+            Assert.IsFalse(
+                ClipComponentModel.IsPrimaryTransform(ClipComponentKind.BoneTransform, claimed),
+                "Which is what gives the leftover a remove button and the object's own transform "
+                + "none.");
+        }
+
+        [Test]
+        public void ANodeIsResolvedToItsPartByPath()
+        {
+            rig.targets[0].sourceNodePath = BonePath;
+
+            Assert.AreEqual(
+                HeadTargetId, ClipComponentModel.ResolveTargetIdForNode(rig, BonePath));
+            Assert.AreEqual(
+                0u, ClipComponentModel.ResolveTargetIdForNode(rig, "Root/Somewhere/Else"),
+                "By the path the rig recorded, never by a name that happens to match — two planes "
+                + "called Plane is the ordinary case.");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Billboard.
+        // -----------------------------------------------------------------------------------
 
         [Test]
         public void AddingBillboardDeclaresTheNodeARoot_AndPresenceFollowsThatRoot()
@@ -149,17 +439,19 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 ClipObjectRef.RigTarget(HeadTargetId, rig.billboardRoots[0].Id.Value);
 
             ClipComponentModel.CollectInstances(clip, rig, rootedHead, instances);
-            Assert.AreEqual(1, instances.Count);
-            Assert.AreEqual(ClipComponentKind.Billboard, instances[0].kind);
+            Assert.AreEqual(2, instances.Count, "Its transform, and the billboard just added.");
+
+            int billboardIndex = IndexOfKind(ClipComponentKind.Billboard);
+            Assert.AreNotEqual(-1, billboardIndex);
             Assert.AreEqual(
-                0, instances[0].index, "The instance addresses the rig's root list.");
+                0, instances[billboardIndex].index, "The instance addresses the rig's root list.");
         }
 
         [Test]
         public void ANodeThatIsNotARootCarriesNoBillboardComponent()
         {
             ClipComponentModel.CollectInstances(clip, rig, Head, instances);
-            Assert.AreEqual(0, instances.Count);
+            Assert.AreEqual(-1, IndexOfKind(ClipComponentKind.Billboard));
         }
 
         [Test]
@@ -174,7 +466,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             ClipObjectRef rootedHead = ClipObjectRef.RigTarget(HeadTargetId, rootStableId);
             ClipComponentModel.CollectInstances(clip, rig, rootedHead, instances);
-            Assert.IsTrue(ClipComponentModel.Remove(clip, rig, instances[0]));
+            Assert.IsTrue(
+                ClipComponentModel.Remove(clip, rig, instances[IndexOfKind(ClipComponentKind.Billboard)]));
 
             Assert.AreEqual(0, rig.billboardRoots.Count);
             Assert.AreEqual(
@@ -207,13 +500,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // -----------------------------------------------------------------------------------
 
         [Test]
-        public void AnObjectWithNoTracksHasNoComponents()
-        {
-            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
-            Assert.AreEqual(0, instances.Count);
-        }
-
-        [Test]
         public void ATrackBoundToTheObjectIsItsComponent_AndOneBoundElsewhereIsNot()
         {
             AuthoringTestAssets.AddTransformTrack(
@@ -239,7 +525,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             ClipComponentModel.CollectInstances(clip, rig, Head, instances);
 
-            Assert.AreEqual(2, instances.Count);
+            Assert.AreEqual(3, instances.Count, "Its transform, and both flipbooks.");
+            Assert.AreEqual(ClipComponentKind.Flipbook, instances[1].kind);
+            Assert.AreEqual(ClipComponentKind.Flipbook, instances[2].kind);
             Assert.IsTrue(ClipComponentModel.AllowsMultiple(ClipComponentKind.Flipbook));
             Assert.IsFalse(ClipComponentModel.AllowsMultiple(ClipComponentKind.Transform));
         }
@@ -262,12 +550,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
             });
 
             ClipComponentModel.CollectInstances(clip, rig, Bone, instances);
-            Assert.AreEqual(1, instances.Count, "Only the socket following this bone.");
-            Assert.AreEqual(ClipComponentKind.Socket, instances[0].kind);
-            Assert.AreEqual(1, instances[0].index);
+            int socketIndex = IndexOfKind(ClipComponentKind.Socket);
+            Assert.AreNotEqual(-1, socketIndex, "Only the socket following this node.");
+            Assert.AreEqual(1, instances[socketIndex].index);
 
             ClipComponentModel.CollectInstances(clip, rig, Head, instances);
-            Assert.AreEqual(0, instances.Count, "The head follows nothing — the socket is the hand's.");
+            Assert.AreEqual(
+                -1, IndexOfKind(ClipComponentKind.Socket),
+                "The head follows nothing — the socket is the hand's.");
         }
 
         [Test]
@@ -395,7 +685,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Socket, "Spine Socket");
             ClipComponentModel.CollectInstances(clip, rig, Bone, instances);
 
-            Assert.IsTrue(ClipComponentModel.Remove(clip, rig, instances[0]));
+            Assert.IsTrue(
+                ClipComponentModel.Remove(clip, rig, instances[IndexOfKind(ClipComponentKind.Socket)]));
             Assert.AreEqual(0, rig.sockets.Count);
         }
 
@@ -417,10 +708,20 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(0, ClipComponentModel.KeyCount(clip, Head, instances[0]));
 
             AuthoringTestAssets.AddTransformKey(
-                track, 0f, Unity.Mathematics.float3.zero, 0f,
-                new Unity.Mathematics.float3(1f, 1f, 1f), Interpolation.Linear);
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
             Assert.AreEqual(1, ClipComponentModel.KeyCount(clip, Head, instances[0]));
+        }
+
+        [Test]
+        public void AnUnkeyedTransformCountsNoKeysRatherThanThrowing()
+        {
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+
+            Assert.AreEqual(
+                0, ClipComponentModel.KeyCount(clip, Head, instances[0]),
+                "The component is present with no track behind it, and −1 must read as empty "
+                + "rather than index the list.");
         }
     }
 }

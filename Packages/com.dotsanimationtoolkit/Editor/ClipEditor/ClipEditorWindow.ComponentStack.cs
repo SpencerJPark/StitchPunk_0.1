@@ -20,17 +20,25 @@ namespace DotsAnimationToolkit.Editor
     /// authored before this existed — an old clip opens showing precisely what it animates.
     /// </para>
     /// <para>
-    /// <strong>Adding is a decision separate from keying.</strong> Add Transform and the object has
-    /// an empty transform track: nothing plays yet, but the channel is declared, and the fields to
-    /// key it are on screen. Before this, a track appeared the first time somebody happened to drag
-    /// a field, which meant the answer to "does this clip animate this part" was a thing you found
-    /// out by accident.
+    /// <strong>Adding is a decision separate from keying.</strong> Add a Flipbook and the object has
+    /// an empty sprite track: nothing plays yet, but the channel is declared, and the fields to key
+    /// it are on screen. Before this, a track appeared the first time somebody happened to drag a
+    /// field, which meant the answer to "does this clip animate this part" was a thing you found out
+    /// by accident.
+    /// </para>
+    /// <para>
+    /// <strong>Transform is not one of the add-ons.</strong> Everything in the animator is
+    /// somewhere, so every object's stack opens with its transform whether or not it has been keyed
+    /// — a part's on a transform track, anything else's on a bone track — and it carries no remove
+    /// button, because there is no state in which an object has no transform. The Add Component
+    /// menu therefore offers Flipbook, Billboard and Socket, and those are the only things a person
+    /// decides to put on an object.
     /// </para>
     /// <para>
     /// <strong>Easing is not in the stack.</strong> It belongs to a key, not to an object — every
-    /// key has one whether or not anyone chose it — so it is shown in the key block instead. The
-    /// other four kinds are per-object channels, and Socket is per-object structure the rig owns,
-    /// which is why it is badged: moving it while looking at one clip moves it in all of them.
+    /// key has one whether or not anyone chose it — so it is shown in the key block instead. Socket
+    /// and Billboard are per-object structure the rig owns, which is why they are badged: moving one
+    /// while looking at one clip moves it in all of them.
     /// </para>
     /// </remarks>
     public sealed partial class ClipEditorWindow
@@ -52,6 +60,10 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly List<BillboardTrack> billboardTracks = new List<BillboardTrack>();
         private readonly List<int> billboardTrackIndices = new List<int>();
+
+        /// <summary>Rebuilt each time the picker opens, which is once per click and not per frame.</summary>
+        private readonly List<ClipComponentPickerEntry> componentPickerEntries =
+            new List<ClipComponentPickerEntry>();
 
         /// <summary>
         /// Kinds the author has folded away, remembered across rebuilds.
@@ -77,13 +89,13 @@ namespace DotsAnimationToolkit.Editor
         {
             ClipObjectRef objectRef = BuildObjectRef(item);
 
-            inspectorPane.Add(MakeSelectionHeading(
+            Label heading = MakeSelectionHeading(
                 item.kind == HierarchyItemKind.RigTarget
                     ? ResolveTargetDisplayName(item.targetId)
                     : item.displayName,
-                isActive));
-
-            AddObjectKindHint(item);
+                isActive);
+            DescribeSelectedObject(heading, item, objectRef);
+            inspectorPane.Add(heading);
 
             if (isActive && item.kind == HierarchyItemKind.RigTarget)
             {
@@ -102,47 +114,74 @@ namespace DotsAnimationToolkit.Editor
                 inspectorPane.Add(BuildComponentBlock(objectRef, instance));
             }
 
-            if (componentInstances.Count == 0)
+            // Said on the absence of a clip rather than on an empty stack, which no longer happens:
+            // every object has a transform, so the stack is never empty and "nothing here" stopped
+            // being able to mean "nothing to read it from".
+            if (selectedClip == null)
             {
-                inspectorPane.Add(MakeHint(selectedClip == null
-                    ? "Select a clip, then add a component to animate this object."
-                    : "Nothing on this object yet. Add a component to animate it — Transform for a "
-                        + "part, Bone Transform for a bone."));
+                inspectorPane.Add(MakeHint(
+                    "No clip selected, so nothing here is keyed. Pick one to animate this object."));
             }
 
             inspectorPane.Add(BuildAddComponentButton(objectRef));
         }
 
-        /// <summary>Says what kind of thing the selected row is, which decides what it can carry.</summary>
-        private void AddObjectKindHint(HierarchyItem item)
+        /// <summary>
+        /// Says what kind of thing the selected row is, on the heading's hover rather than under it.
+        /// </summary>
+        /// <remarks>
+        /// It answers a question that is asked once — "what am I looking at" — and then sits there
+        /// being re-read for the rest of the session, pushing the components it describes further
+        /// down a pane that is already short. Hovering asks for it; the stack keeps the room.
+        /// </remarks>
+        private void DescribeSelectedObject(Label heading, HierarchyItem item, ClipObjectRef objectRef)
         {
-            if (item.kind == HierarchyItemKind.RigTarget)
+            if (heading == null)
             {
-                inspectorPane.Add(MakeHint("Rig target — a cutout part this rig declares."));
                 return;
             }
 
-            // The hierarchy lists every transform, not only bones, so the inspector says which kind
-            // this one is. What you can usefully do with it depends on the answer: only a skinned
-            // bone moves the mesh when a bone track drives it.
-            if (previewController == null)
+            if (item.kind == HierarchyItemKind.RigTarget)
             {
+                heading.tooltip = "Rig target — a cutout part this rig declares.";
                 return;
             }
-            string description = previewController.DescribeHierarchyItem(item.previewIndex);
-            if (!string.IsNullOrEmpty(description))
+
+            // The hierarchy lists every transform, not only bones, so this says which kind this one
+            // is. What you can usefully do with it depends on the answer: only a skinned bone moves
+            // the mesh when a bone track drives it.
+            string description = previewController != null
+                ? previewController.DescribeHierarchyItem(item.previewIndex)
+                : string.Empty;
+
+            // A claimed node is a part as well as a node, and that is the more consequential half:
+            // it decides which track its poses land on and whether a flipbook can bind to it.
+            if (objectRef.HasRigTarget)
             {
-                inspectorPane.Add(MakeHint(description));
+                string partLine = "Declared a rig part by this rig, so it is posed on a transform "
+                    + "track and can carry a flipbook.";
+                heading.tooltip = string.IsNullOrEmpty(description)
+                    ? partLine
+                    : description + "\n\n" + partLine;
+                return;
             }
+            heading.tooltip = description;
         }
 
         /// <summary>
-        /// The object a stack belongs to, with its billboard root resolved.
+        /// The object a stack belongs to, with its billboard root and its rig part resolved.
         /// </summary>
         /// <remarks>
-        /// The root id is resolved here rather than inside the model because a bone's root is
-        /// addressed by hierarchy path, and only the window knows the previewed hierarchy that path
-        /// is read against.
+        /// <para>
+        /// Both are resolved here rather than inside the model because both are addressed by
+        /// hierarchy path, and only the window knows the previewed hierarchy that path is read
+        /// against.
+        /// </para>
+        /// <para>
+        /// <strong>A previewed node carries a target id whenever some part claims its path.</strong>
+        /// That is what makes a plane in the prefab hierarchy something a flipbook can bind to: the
+        /// id is the binding, and until a part records which node it stands for, a node has none.
+        /// </para>
         /// </remarks>
         private ClipObjectRef BuildObjectRef(HierarchyItem item)
         {
@@ -162,13 +201,17 @@ namespace DotsAnimationToolkit.Editor
                 return ClipObjectRef.RigTarget(item.targetId, billboardRootId);
             }
 
-            // A bone is addressed by path, and an empty path means the prefab root — a real answer,
+            // A node is addressed by path, and an empty path means the prefab root — a real answer,
             // not a missing one. So the check is whether there is a hierarchy to read a path
             // against at all, rather than whether the path came back empty.
             bool billboardAddressable =
                 previewController != null && previewController.HierarchyRoot != null;
+            // The part comes off the row rather than being resolved again here. The hierarchy
+            // already answered it when the row was built, and two resolutions of the same question
+            // are two things that can disagree.
             return ClipObjectRef.Bone(
-                item.displayName, billboardRootId, ResolveHierarchyPath(item), billboardAddressable);
+                item.displayName, item.targetId, billboardRootId,
+                ResolveHierarchyPath(item), billboardAddressable);
         }
 
         /// <summary>One component: a header that folds it away, and the fields it owns.</summary>
@@ -208,11 +251,20 @@ namespace DotsAnimationToolkit.Editor
                 header.Add(badge);
             }
 
-            Button removeButton = new Button(() => ConfirmRemoveComponent(objectRef, instance));
-            removeButton.text = "✕";
-            removeButton.tooltip = "Remove " + ClipComponentModel.DisplayName(instance.kind) + ".";
-            removeButton.AddToClassList(ComponentRemoveUssClassName);
-            header.Add(removeButton);
+            // No remove button on the object's own transform. There is no state in which an object
+            // has no transform, so a button offering to reach one would be offering something the
+            // panel could not then show — and the thing it would really delete is the keys, which
+            // the timeline is where you delete. A bone track stranded on a node that has since
+            // become a part is not that, and removing it is the reason it is shown at all.
+            if (!ClipComponentModel.IsPrimaryTransform(instance.kind, objectRef))
+            {
+                Button removeButton = new Button(() => ConfirmRemoveComponent(objectRef, instance));
+                removeButton.text = "✕";
+                removeButton.tooltip =
+                    "Remove " + ClipComponentModel.DisplayName(instance.kind) + ".";
+                removeButton.AddToClassList(ComponentRemoveUssClassName);
+                header.Add(removeButton);
+            }
 
             block.Add(header);
 
@@ -248,6 +300,13 @@ namespace DotsAnimationToolkit.Editor
                 return name;
             }
 
+            // "Not keyed" rather than "0 key(s)": for an intrinsic component the track does not
+            // exist yet, and a count implies a thing there is a count of.
+            if (!instance.HasTrack)
+            {
+                return name + "  ·  not keyed";
+            }
+
             int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
             return name + "  ·  " + keyCount + " key(s)";
         }
@@ -272,14 +331,11 @@ namespace DotsAnimationToolkit.Editor
                     return;
 
                 case ClipComponentKind.BoneTransform:
-                {
-                    BoneTrack track = ResolveBoneTrack(instance);
-                    if (track != null)
-                    {
-                        AddBoneTransformFields(body, track);
-                    }
+                    // By name rather than by the resolved track, because the track may not exist
+                    // yet: a transform is on every object from the moment it is selected, and the
+                    // first key is what mints the track to hold it.
+                    AddBoneTransformFields(body, objectRef.boneName);
                     return;
-                }
 
                 case ClipComponentKind.Flipbook:
                 {
@@ -305,16 +361,6 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
             }
-        }
-
-        private BoneTrack ResolveBoneTrack(ClipComponentInstance instance)
-        {
-            if (selectedClip == null || selectedClip.boneTracks == null
-                || instance.index < 0 || instance.index >= selectedClip.boneTracks.Count)
-            {
-                return null;
-            }
-            return selectedClip.boneTracks[instance.index];
         }
 
         private SpriteTrack ResolveSpriteTrack(ClipComponentInstance instance)
@@ -353,38 +399,54 @@ namespace DotsAnimationToolkit.Editor
         // -------------------------------------------------------------------------------------
 
         /// <summary>
-        /// The Add Component button, and the menu of what this object could carry.
+        /// The Add Component button, and the picker of what this object could carry.
         /// </summary>
         /// <remarks>
-        /// Kinds that do not fit are listed disabled with the reason attached rather than omitted: a
-        /// menu that silently leaves out the thing you came looking for reads as a bug, and the
-        /// reason is usually actionable — "make this node a billboard root first".
+        /// <para>
+        /// The transform kinds are absent: they are on every object already, so there is nothing to
+        /// add. What is left is the three add-ons, and all three apply to every object — a node the
+        /// rig declares no part for gets one minted when it takes a flipbook.
+        /// </para>
+        /// <para>
+        /// Kinds that still cannot be added are listed dimmed with the reason on their hover card
+        /// rather than omitted: a menu that silently leaves out the thing you came looking for reads
+        /// as a bug, and the reason is usually actionable.
+        /// </para>
         /// </remarks>
         private VisualElement BuildAddComponentButton(ClipObjectRef objectRef)
         {
             Button addButton = new Button();
             addButton.text = "Add Component";
             addButton.AddToClassList(AddComponentUssClassName);
-            addButton.clicked += () =>
-            {
-                GenericDropdownMenu menu = new GenericDropdownMenu();
-                IReadOnlyList<ClipComponentKind> kinds = ClipComponentModel.AllKinds;
-                for (int kindIndex = 0; kindIndex < kinds.Count; kindIndex++)
-                {
-                    ClipComponentKind kind = kinds[kindIndex];
-                    string unavailableReason;
-                    string label = ClipComponentModel.DisplayName(kind);
-                    if (ClipComponentModel.CanAdd(
-                            selectedClip, ActiveRig, objectRef, kind, out unavailableReason))
-                    {
-                        menu.AddItem(label, false, () => AddComponent(objectRef, kind));
-                        continue;
-                    }
-                    menu.AddDisabledItem(label + "  —  " + unavailableReason, false);
-                }
-                menu.DropDown(addButton.worldBound, addButton, true);
-            };
+            addButton.clicked += () => OpenComponentPicker(addButton, objectRef);
             return addButton;
+        }
+
+        /// <summary>Opens the picker over the whole window, so a hover card has room beside it.</summary>
+        private void OpenComponentPicker(VisualElement anchor, ClipObjectRef objectRef)
+        {
+            componentPickerEntries.Clear();
+            IReadOnlyList<ClipComponentKind> kinds = ClipComponentModel.AddableKinds;
+            for (int kindIndex = 0; kindIndex < kinds.Count; kindIndex++)
+            {
+                ClipComponentKind kind = kinds[kindIndex];
+                string unavailableReason;
+                bool isAvailable = ClipComponentModel.CanAdd(
+                    selectedClip, ActiveRig, objectRef, kind, out unavailableReason);
+
+                componentPickerEntries.Add(new ClipComponentPickerEntry
+                {
+                    kind = kind,
+                    displayName = ClipComponentModel.DisplayName(kind),
+                    description = ClipComponentModel.Describe(kind),
+                    isAvailable = isAvailable,
+                    unavailableReason = unavailableReason
+                });
+            }
+
+            ClipComponentPicker.Open(
+                rootVisualElement, anchor, componentPickerEntries,
+                pickedKind => AddComponent(objectRef, pickedKind));
         }
 
         /// <summary>
@@ -425,11 +487,35 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            RecordClipEdit("Add " + ClipComponentModel.DisplayName(kind));
+
+            // A part-bound component on a node the rig declares nothing for mints the part, so this
+            // one clip-scoped add can write the rig too. Both undo records are opened before the
+            // edit rather than the rig's being skipped when it turns out unnecessary: an undo that
+            // covers half of what one click did is worse than one that covers a no-op.
+            string operationName = "Add " + ClipComponentModel.DisplayName(kind);
+            bool promotesNode =
+                ClipComponentModel.RequiresRigTarget(kind) && !objectRef.HasRigTarget && rig != null;
+            if (promotesNode)
+            {
+                RecordSocketEdit(rig, operationName);
+            }
+
+            RecordClipEdit(operationName);
             ClipComponentModel.Add(selectedClip, rig, objectRef, kind, string.Empty);
             CommitClipEdit();
 
-            // A new track is a new lane, and the timeline is where its keys will be made.
+            if (promotesNode)
+            {
+                // Minted here rather than left to OnValidate, which does not run in time. A target
+                // saved with id 0 is one no track could ever bind to.
+                rig.EnsureStableIds();
+                AssetDatabase.SaveAssetIfDirty(rig);
+                CommitSocketEdit(true);
+            }
+
+            // A new track is a new lane, and the timeline is where its keys will be made. The
+            // hierarchy is rebuilt too: a promoted node has just become a part, and its row now
+            // stands for one.
             RebuildTimeline();
             RebuildHierarchy();
             RebuildInspector();
@@ -687,12 +773,12 @@ namespace DotsAnimationToolkit.Editor
             {
                 return false;
             }
-            if (item.kind == HierarchyItemKind.RigTarget)
+            if (socket.mode == SocketAttachMode.RigTarget)
             {
-                return socket.mode == SocketAttachMode.RigTarget
-                    && socket.targetId == item.targetId;
+                // On the id, not the row's kind: a claimed node is the part its sockets follow.
+                return item.targetId != 0u && socket.targetId == item.targetId;
             }
-            return socket.mode == SocketAttachMode.Bone
+            return item.kind != HierarchyItemKind.RigTarget
                 && string.Equals(socket.boneName, item.displayName, System.StringComparison.Ordinal);
         }
 
