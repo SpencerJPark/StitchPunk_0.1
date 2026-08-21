@@ -54,9 +54,42 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public float panNormalized;
 
-        /// <summary>The smallest and largest zoom the view will accept.</summary>
-        public const float MinimumZoom = 0.25f;
+        /// <summary>
+        /// Fully zoomed out: the clip spans 70% of the track, leaving a margin of context at both
+        /// ends. It used to be 0.25, which shrank the clip into a quarter of the width — a view
+        /// with nothing in it to read, and most of the slider's travel spent getting back out of it.
+        /// </summary>
+        public const float MinimumZoom = 0.7f;
+
+        /// <summary>
+        /// The structural ceiling, not the one a user meets. Zoom divides the track width, so a
+        /// runaway value is a division by something near zero; this is the clamp that keeps the
+        /// geometry finite. What the slider and Ctrl+scroll actually stop at is the per-clip
+        /// ceiling from <see cref="MaximumZoomForFrameCount"/>, which is always smaller.
+        /// </summary>
         public const float MaximumZoom = 200f;
+
+        /// <summary>How many frames fill the track when zoomed all the way in.</summary>
+        /// <remarks>
+        /// The zoom-in limit is a count of frames rather than a fixed multiplier because that is
+        /// what the limit is for: keeping keys far enough apart to grab individually. A fixed 20x
+        /// meant a 30-frame clip zoomed to a frame and a half — a view of one key and no context —
+        /// while a 600-frame clip could not get close enough to separate its keys at all.
+        /// </remarks>
+        public const float VisibleFramesAtMaximumZoom = 20f;
+
+        /// <summary>
+        /// The zoom that fits <see cref="VisibleFramesAtMaximumZoom"/> frames across the track.
+        /// </summary>
+        /// <remarks>
+        /// Floored at 1 so a clip shorter than that count still zooms in to fill the view rather
+        /// than being pinned below it, and capped at <see cref="MaximumZoom"/> so an absurd frame
+        /// count cannot walk past the structural clamp.
+        /// </remarks>
+        public static float MaximumZoomForFrameCount(int frameCount)
+        {
+            return Mathf.Clamp(frameCount / VisibleFramesAtMaximumZoom, 1f, MaximumZoom);
+        }
 
         /// <summary>
         /// Builds a converter for one width and one view.

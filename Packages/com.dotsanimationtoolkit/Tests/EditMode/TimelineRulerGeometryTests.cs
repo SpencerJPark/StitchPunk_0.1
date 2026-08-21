@@ -103,13 +103,51 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // -------------------------------------------------------------------------------
 
         [Test]
+        public void MaximumZoomLeavesTwentyFramesOnScreen()
+        {
+            // The zoom-in stop is a promise about how many frames are readable at once, so it is
+            // checked as that rather than as a multiplier: at the ceiling, the visible span of the
+            // clip times the frame count is the frame budget.
+            int[] frameCounts = { 30, 120, 600 };
+            for (int index = 0; index < frameCounts.Length; index++)
+            {
+                int frameCount = frameCounts[index];
+                float ceiling = TimelineGeometry.MaximumZoomForFrameCount(frameCount);
+                float visibleFrames = frameCount / ceiling;
+
+                Assert.AreEqual(
+                    TimelineGeometry.VisibleFramesAtMaximumZoom, visibleFrames, 1e-3f,
+                    "A clip of " + frameCount + " frames zoomed to its ceiling should show "
+                    + TimelineGeometry.VisibleFramesAtMaximumZoom + " frames.");
+            }
+        }
+
+        [Test]
+        public void MaximumZoomNeverStopsShortOfFillingTheView()
+        {
+            // A clip with fewer frames than the budget already shows all of them, so the ceiling
+            // must not fall below 1 — that would pin the view zoomed out of its own clip.
+            Assert.AreEqual(1f, TimelineGeometry.MaximumZoomForFrameCount(10), 1e-4f);
+            Assert.AreEqual(1f, TimelineGeometry.MaximumZoomForFrameCount(0), 1e-4f);
+
+            // And it never walks past the structural clamp, which is what keeps the pixel
+            // conversions finite.
+            Assert.AreEqual(
+                TimelineGeometry.MaximumZoom,
+                TimelineGeometry.MaximumZoomForFrameCount(1000000), 1e-4f);
+        }
+
+        [Test]
         public void LabelledFrameIsDrawnWhereTheGeometryPutsThatFrame()
         {
             // 600 frames is past the old 240-tick cap, which is where ticks used to stop matching
             // the frames they claimed to mark.
             const int FrameCount = 600;
 
-            float[] zoomLevels = { 0.25f, 0.5f, 1f, 2f, 7.5f, 40f, 200f };
+            float[] zoomLevels =
+            {
+                TimelineGeometry.MinimumZoom, 1f, 2f, 7.5f, 40f, TimelineGeometry.MaximumZoom
+            };
             float[] panValues = { -0.4f, 0f, 0.33f, 1.2f };
 
             for (int zoomIndex = 0; zoomIndex < zoomLevels.Length; zoomIndex++)

@@ -330,6 +330,9 @@ namespace DotsAnimationToolkit.Editor
 
                 SyncTransportPlayhead();
                 RefreshQuantizeButton();
+
+                // The zoom-in limit is a frame count, and the frame count is what just changed.
+                RefreshZoomRange();
             }
             finally
             {
@@ -578,20 +581,10 @@ namespace DotsAnimationToolkit.Editor
         private void RegisterTransportShortcuts()
         {
             rootVisualElement.focusable = true;
-            Button undoButton = rootVisualElement.Q<Button>("undo-button");
-            if (undoButton != null)
-            {
-                undoButton.tooltip = "Undo the last change (Ctrl+Z).";
-                undoButton.clicked += PerformUndo;
-            }
 
-            Button redoButton = rootVisualElement.Q<Button>("redo-button");
-            if (redoButton != null)
-            {
-                redoButton.tooltip = "Redo (Ctrl+Y or Ctrl+Shift+Z).";
-                redoButton.clicked += PerformRedo;
-            }
-
+            // Undo and redo are keyboard-only. They had buttons in the bar, but a transport is
+            // about time and they are not: every editor in Unity undoes with Ctrl+Z, and two
+            // buttons restating that were paying for themselves in bar width.
             rootVisualElement.RegisterCallback<KeyDownEvent>(OnTransportKeyDown);
         }
 

@@ -273,9 +273,11 @@
     opacity: 0.55;
 }
 
-/* The same tint the play button wears while running: one vocabulary for "this mode is on". */
+/* Lit in a muted yellow rather than the play button's green: "playback is running" and "playback
+   will wrap" are different facts, and two controls in the same group wearing one colour would read
+   as one state. */
 .clip-editor__transport-loop--on {
-    background-color: rgb(70, 130, 90);
+    background-color: rgb(150, 128, 52);
 }
 
 .clip-editor__transport-loop--on .clip-editor__transport-loop-icon {

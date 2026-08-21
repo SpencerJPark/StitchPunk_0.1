@@ -24,6 +24,17 @@ namespace DotsAnimationToolkit.Editor
         private float viewZoom = 1f;
         private float viewPan;
 
+        /// <summary>
+        /// How far in this clip can be zoomed: the zoom that leaves
+        /// <see cref="TimelineGeometry.VisibleFramesAtMaximumZoom"/> frames on screen. It depends on
+        /// the clip's frame count, so it is read live rather than cached — length and frame rate are
+        /// both editable from the bar right above the timeline.
+        /// </summary>
+        private float MaximumViewZoom
+        {
+            get { return TimelineGeometry.MaximumZoomForFrameCount(TransportFrameCount); }
+        }
+
         private ScrollView timelineScroll;
         private Slider zoomSlider;
         private Scroller horizontalScroller;
@@ -37,7 +48,7 @@ namespace DotsAnimationToolkit.Editor
         {
             viewZoom = Mathf.Clamp(
                 EditorPrefs.GetFloat(ZoomPrefKey, 1f),
-                TimelineGeometry.MinimumZoom, TimelineGeometry.MaximumZoom);
+                TimelineGeometry.MinimumZoom, MaximumViewZoom);
             viewPan = EditorPrefs.GetFloat(PanPrefKey, 0f);
 
             timelineScroll = rootVisualElement.Q<ScrollView>("timeline-scroll");
@@ -45,10 +56,13 @@ namespace DotsAnimationToolkit.Editor
             if (zoomSlider != null)
             {
                 zoomSlider.tooltip =
-                    "Timeline zoom, centred on the playhead. Ctrl+scroll zooms the same way "
-                    + "(hold Alt to zoom toward the cursor instead). Shift+scroll or a sideways "
-                    + "scroll pans, as does a middle-drag.";
-                zoomSlider.SetValueWithoutNotify(viewZoom);
+                    "Timeline zoom, centred on the playhead. All the way left fits the clip in 70% "
+                    + "of the track; all the way right leaves "
+                    + TimelineGeometry.VisibleFramesAtMaximumZoom.ToString("0") + " frames on "
+                    + "screen, so the right-hand end moves with the clip's frame count. Ctrl+scroll "
+                    + "zooms the same way (hold Alt to zoom toward the cursor instead). "
+                    + "Shift+scroll or a sideways scroll pans, as does a middle-drag.";
+                RefreshZoomRange();
                 zoomSlider.RegisterValueChangedCallback(changeEvent =>
                 {
                     if (isSyncingZoomSlider)
@@ -141,6 +155,44 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Points the slider's ends at the current zoom bounds, and pulls the view inside them.
+        /// </summary>
+        /// <remarks>
+        /// The zoomed-in end moves with the clip: it is a frame count, and both fields that decide
+        /// the frame count sit in the bar beside this slider. Leaving the ends where they were meant
+        /// a slider whose right-hand stop no longer matched what the view would accept, so the last
+        /// stretch of travel did nothing.
+        /// </remarks>
+        private void RefreshZoomRange()
+        {
+            float ceiling = MaximumViewZoom;
+            float clampedZoom = Mathf.Clamp(viewZoom, TimelineGeometry.MinimumZoom, ceiling);
+
+            if (zoomSlider != null)
+            {
+                isSyncingZoomSlider = true;
+                try
+                {
+                    zoomSlider.lowValue = TimelineGeometry.MinimumZoom;
+                    zoomSlider.highValue = ceiling;
+                    zoomSlider.SetValueWithoutNotify(clampedZoom);
+                }
+                finally
+                {
+                    isSyncingZoomSlider = false;
+                }
+            }
+
+            // A shortened clip can drop the ceiling under where the view already is. That is a move
+            // of the view, so everything that paints or hit-tests against it has to be told.
+            if (!Mathf.Approximately(clampedZoom, viewZoom))
+            {
+                viewZoom = clampedZoom;
+                ApplyTimelineView();
+            }
+        }
+
+        /// <summary>
         /// Zooms while holding <paramref name="anchorTime"/> where it is on screen.
         /// </summary>
         /// <remarks>
@@ -161,7 +213,7 @@ namespace DotsAnimationToolkit.Editor
                 anchorX = before.leftPadding + before.TrackPixelWidth * 0.5f;
             }
 
-            viewZoom = Mathf.Clamp(newZoom, TimelineGeometry.MinimumZoom, TimelineGeometry.MaximumZoom);
+            viewZoom = Mathf.Clamp(newZoom, TimelineGeometry.MinimumZoom, MaximumViewZoom);
 
             TimelineGeometry after = TimelineGeometry.Create(laneWidth, viewZoom, viewPan);
             viewPan = after.PanToAnchor(anchorTime, anchorX);
@@ -177,7 +229,7 @@ namespace DotsAnimationToolkit.Editor
             float anchorX = before.leftPadding + before.TrackPixelWidth * Mathf.Clamp01(anchorFraction);
             float timeUnderAnchor = before.XToTime(anchorX);
 
-            viewZoom = Mathf.Clamp(newZoom, TimelineGeometry.MinimumZoom, TimelineGeometry.MaximumZoom);
+            viewZoom = Mathf.Clamp(newZoom, TimelineGeometry.MinimumZoom, MaximumViewZoom);
 
             TimelineGeometry after = TimelineGeometry.Create(laneWidth, viewZoom, viewPan);
             viewPan = after.PanToAnchor(timeUnderAnchor, anchorX);
@@ -552,7 +604,7 @@ namespace DotsAnimationToolkit.Editor
             float padded = span * (1f + MarginFraction * 2f);
 
             viewZoom = Mathf.Clamp(
-                1f / padded, TimelineGeometry.MinimumZoom, TimelineGeometry.MaximumZoom);
+                1f / padded, TimelineGeometry.MinimumZoom, MaximumViewZoom);
             viewPan = fromTime - span * MarginFraction;
             ApplyTimelineView();
         }
