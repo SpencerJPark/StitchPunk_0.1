@@ -24,13 +24,14 @@ namespace DotsAnimationToolkit.Editor
     /// with none of that.
     /// </para>
     /// <para>
-    /// <strong>There are two grids, and they answer different questions.</strong> The backdrop lies
-    /// in the XY plane at z = 0 — the plane cutout parts live in and the one the default camera
-    /// faces head-on, so it reads as graph paper behind the rig without the user having to orbit.
-    /// The floor lies in the XZ plane at y = 0 and is what makes the space a space: it says which
-    /// way is down, gives a 3D prop or vehicle something to stand on, and shows at a glance whether
-    /// a character's feet are on the ground or sunk through it. Neither alone does both jobs, which
-    /// is why the floor sits beside the backdrop rather than replacing it.
+    /// <strong>There are two grids, they answer different questions, and one stands on the
+    /// other.</strong> The floor lies in the XZ plane at y = 0 and is the base: it says which way is
+    /// down, gives a 3D prop or vehicle something to stand on, and shows at a glance whether a
+    /// character's feet are on the ground or sunk through it. The backdrop lies in the XY plane at
+    /// z = 0 — the plane cutout parts live in and the one the default camera faces head-on — and
+    /// rises from the floor rather than being centred on the origin, so reading up it is reading
+    /// height above the ground. Its lower half used to hang below the floor, measuring a space
+    /// nothing is animated in: a character stands on y = 0, so its mass is entirely above it.
     /// </para>
     /// <para>
     /// The origin is drawn as three short axis stubs, so 0,0,0 is a place you can see rather than
@@ -56,6 +57,16 @@ namespace DotsAnimationToolkit.Editor
         /// reads directly as "half this character" without anyone having to work out a scale factor.
         /// </remarks>
         private const float GridCellSize = 1f;
+
+        /// <summary>
+        /// How far the upright backdrop reaches above the floor, in world units.
+        /// </summary>
+        /// <remarks>
+        /// Half the floor's width rather than the full span, because the backdrop no longer has a
+        /// lower half to balance an upper one: five squares is already more than twice a character's
+        /// height, and a wall taller than that measures nothing anyone is animating.
+        /// </remarks>
+        private const float BackdropHeight = GridHalfLineCount * GridCellSize;
 
         /// <summary>Keeps a flat object's outline from collapsing to a zero-scale nothing.</summary>
         private const float MinimumSelectionExtent = 0.002f;
@@ -201,16 +212,13 @@ namespace DotsAnimationToolkit.Editor
                 float offset = lineIndex * GridCellSize;
                 bool isCentreLine = lineIndex == 0;
 
-                // Backdrop, in the XY plane at z = 0.
+                // Backdrop, in the XY plane at z = 0, standing ON the floor: it runs from y = 0
+                // upward rather than being centred on the origin, so every square it measures is a
+                // square of height above the ground.
                 AddLine(
                     vertices, colors, indices,
-                    new Vector3(offset, -extent, 0f), new Vector3(offset, extent, 0f),
+                    new Vector3(offset, 0f, 0f), new Vector3(offset, BackdropHeight, 0f),
                     isCentreLine ? VerticalAxisColor : GridLineColor);
-
-                AddLine(
-                    vertices, colors, indices,
-                    new Vector3(-extent, offset, 0f), new Vector3(extent, offset, 0f),
-                    isCentreLine ? HorizontalAxisColor : GridLineColor);
 
                 // Floor, in the XZ plane at y = 0. The centre lines are left in the plain grid
                 // colour: the axes through the origin are drawn once, by the origin marker, and
@@ -224,6 +232,16 @@ namespace DotsAnimationToolkit.Editor
                     vertices, colors, indices,
                     new Vector3(-extent, 0f, offset), new Vector3(extent, 0f, offset),
                     FloorLineColor);
+
+                // The backdrop's horizontal rules. Only the half at and above the floor exists, so
+                // this runs over the positive indices rather than the full span the other lines do.
+                if (lineIndex >= 0)
+                {
+                    AddLine(
+                        vertices, colors, indices,
+                        new Vector3(-extent, offset, 0f), new Vector3(extent, offset, 0f),
+                        isCentreLine ? HorizontalAxisColor : GridLineColor);
+                }
             }
 
             AddOriginMarker(vertices, colors, indices);
