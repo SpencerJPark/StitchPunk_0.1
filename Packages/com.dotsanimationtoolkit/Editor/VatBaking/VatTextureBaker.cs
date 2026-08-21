@@ -39,6 +39,20 @@ namespace DotsAnimationToolkit.Editor
         public float durationSeconds;
 
         /// <summary>
+        /// Poses baked per second of this clip's time, or 0 to fall back to
+        /// <see cref="VatBakeInput.samplesPerSecond"/>.
+        /// </summary>
+        /// <remarks>
+        /// <strong>This is the clip's frame rate, and it decides how tall its block of the texture
+        /// is.</strong> A clip is <c>duration * rate</c> rows, so the rate an animator sets on the
+        /// <c>ClipAsset</c> is the rate the animation is stored and played back at — twelve frames a
+        /// second bakes twelve rows a second and reads as twelve frames a second. It used to be one
+        /// number for the whole bake, which meant a set could not hold a snappy 12fps clip beside a
+        /// smooth 60fps one without baking twice.
+        /// </remarks>
+        public float samplesPerSecond;
+
+        /// <summary>
         /// Append a duplicate of frame 0 after the last frame, so the shader's two-row lerp never
         /// reads across the clip boundary at the loop seam.
         /// </summary>
@@ -57,7 +71,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Bone matrices or vertex positions.</summary>
         public VatFlavor flavor;
 
-        /// <summary>Frames sampled per second of clip time.</summary>
+        /// <summary>
+        /// Frames sampled per second of clip time, for clips that do not carry their own
+        /// <see cref="VatBakeClip.samplesPerSecond"/>. Every clip baked from a <c>ClipAsset</c>
+        /// does, so this is the rate for imported clips reached from a script or a test.
+        /// </summary>
         public float samplesPerSecond;
 
         /// <summary>Clips to bake, laid end to end into one texture.</summary>
@@ -238,7 +256,7 @@ namespace DotsAnimationToolkit.Editor
                         targetId = bakeClip.targetId,
                         frameStart = globalFrame,
                         frameCount = frameCount,
-                        fps = input.samplesPerSecond
+                        fps = ResolveSampleRate(bakeClip, input)
                     });
                     globalFrame += frameCount;
                 }
@@ -443,7 +461,8 @@ namespace DotsAnimationToolkit.Editor
 
             AnimationClip animationClip = bakeClip.animationClip;
             float clipLengthSeconds = animationClip != null ? animationClip.length : bakeClip.durationSeconds;
-            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(clipLengthSeconds * input.samplesPerSecond));
+            float sampleRate = ResolveSampleRate(bakeClip, input);
+            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(clipLengthSeconds * sampleRate));
 
             List<VatSocketTrack> tracksForThisClip = new List<VatSocketTrack>();
             for (int socketIndex = 0; socketIndex < input.sockets.Count; socketIndex++)
@@ -457,7 +476,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     clipId = bakeClip.clipId,
                     socketId = input.sockets[socketIndex].socketId,
-                    fps = input.samplesPerSecond
+                    fps = sampleRate
                 });
             }
 
@@ -527,7 +546,8 @@ namespace DotsAnimationToolkit.Editor
         {
             AnimationClip animationClip = bakeClip.animationClip;
             float clipLengthSeconds = animationClip != null ? animationClip.length : bakeClip.durationSeconds;
-            int sampleCount = Mathf.Max(1, Mathf.RoundToInt(clipLengthSeconds * input.samplesPerSecond));
+            int sampleCount = Mathf.Max(
+                1, Mathf.RoundToInt(clipLengthSeconds * ResolveSampleRate(bakeClip, input)));
 
             Matrix4x4 worldToRoot = rootTransform.worldToLocalMatrix;
             Matrix4x4[] bindposes = sharedMesh.bindposes;
@@ -645,6 +665,20 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// The rate one clip bakes at: its own, or the input's when it does not carry one.
+        /// </summary>
+        /// <remarks>
+        /// Every site that needs the rate goes through here — the row count, the socket sample
+        /// count, the fps written into the range, and the hash. Sampling at one rate and labelling
+        /// the range with another is a clip that plays at the wrong speed for the rest of its life,
+        /// and nothing about the texture would look wrong.
+        /// </remarks>
+        private static float ResolveSampleRate(VatBakeClip bakeClip, VatBakeInput input)
+        {
+            return bakeClip.samplesPerSecond > 0f ? bakeClip.samplesPerSecond : input.samplesPerSecond;
+        }
+
+        /// <summary>
         /// Point filtering and clamped wrapping are not stylistic. A bilinear sampler would blend
         /// neighbouring bones or vertices — an average of two unrelated joints — and repeat wrapping
         /// would make an off-by-one row read the far side of the texture instead of clamping.
@@ -677,6 +711,8 @@ namespace DotsAnimationToolkit.Editor
                 hash = FoldHash(hash, bakeClip.clipId);
                 hash = FoldHash(hash, (ulong)bakeClip.targetId);
                 hash = FoldHash(hash, bakeClip.loopSafe ? 1UL : 0UL);
+                hash = FoldHash(
+                    hash, (ulong)Mathf.RoundToInt(ResolveSampleRate(bakeClip, input) * 1000f));
                 if (bakeClip.animationClip != null)
                 {
                     hash = FoldHash(hash, (ulong)Mathf.RoundToInt(bakeClip.animationClip.length * 1000f));

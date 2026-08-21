@@ -1824,3 +1824,23 @@ The playhead is still clamped to the clip. Scrubbing is evaluation, and there is
 ---
 
 *End of Phase B architecture. Contract changes during Phase C amend this document first (§9 rules).*
+
+---
+
+## Amendment A49 (2026-08-20 — product-owner directive): a clip's FPS is its sample rate
+
+**The owner:** *"i want fps to actually mean fps for the final animation, meaning it is the normalized sample rate. it will change how many rows the end vat texture will have, and how frequently those are sampled (time sets length, frames is how many per second)."*
+
+A48.1 called `ClipAsset.frameRate` an authoring grid — the ruler's ticks and what scrubbing snaps to — and left the rate a bake was actually sampled at in the VAT Bake window as one "Samples / Second" number for the whole set. Two numbers meaning the same thing, able to disagree, and the one the animator sets was the one that did not reach the output.
+
+### Normative
+
+- **`ClipAsset.frameRate` is the clip's sample rate.** Duration says how long the clip lasts; the rate says how many poses it holds per second. `round(duration x frameRate)` is still the frame count, and it is now also the number of frame rows the clip occupies in a VAT texture.
+- **A bake samples each clip at its own rate**, not at one rate per bake. `VatBakeClip.samplesPerSecond` carries it, `VatBakeInput.samplesPerSecond` is the fallback for clips reached without a `ClipAsset` (a script, a test, an imported clip), and the VAT Bake window's field is labelled as that fallback. One texture set can hold a 12fps clip beside a 60fps one.
+- **The range's fps is the rate it was sampled at.** `VatClipRange.fps` and each `VatSocketTrack.fps` come from the same resolver the row count does, so the rate the shader steps rows with cannot disagree with the rate they were baked at.
+- **The bake hash folds each clip's rate**, so changing a clip's FPS marks its texture set stale under V08 rather than shipping rows built at the old rate.
+- **This is not `SampleSettings.rateHz`.** That stays a per-actor throttle on how often the runtime re-evaluates a pose, tied to distance through the LOD policy. It belongs to the actor; FPS belongs to the animation.
+
+### What did not change
+
+Key times are still normalized, so changing the rate still moves no key (A48.1) — it changes how finely the clip is cut, and off-grid keys are still marked rather than snapped. Baked textures are fixed at bake time, so a rate change means a re-bake; the hash is what says so.

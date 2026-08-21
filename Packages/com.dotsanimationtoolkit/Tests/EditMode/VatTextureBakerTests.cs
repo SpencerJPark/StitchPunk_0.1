@@ -242,6 +242,57 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
+        /// Catches: a bake that samples every clip at one rate. A clip's frame rate is what the
+        /// animator set on the ClipAsset, so its block of the texture has to be duration x that
+        /// rate — and the range has to carry the same number, because the shader steps the rows
+        /// with it. A set holding a snappy clip beside a smooth one is the whole point.
+        /// </summary>
+        [Test]
+        public void EachClip_BakesAtItsOwnRate()
+        {
+            SkinnedMeshRenderer renderer = CreateSkinnedRenderer(boneCount: 2);
+
+            VatBakeClip snappyClip = AuthoredOnlyClip(WalkClipId, 1f);
+            snappyClip.samplesPerSecond = 12f;
+            VatBakeClip smoothClip = AuthoredOnlyClip(IdleClipId, 1f);
+            smoothClip.samplesPerSecond = 30f;
+
+            VatBakeInput input = BuildInput(renderer, VatFlavor.BoneMatrix);
+            // Deliberately neither clip's rate: a fallback that leaked into a clip carrying its own
+            // rate would show up here as the wrong row count rather than as nothing at all.
+            input.samplesPerSecond = 10f;
+            input.clips = new List<VatBakeClip> { snappyClip, smoothClip };
+
+            Assert.IsTrue(VatTextureBaker.Bake(input, out VatBakeResult result), result.message);
+
+            Assert.AreEqual(12, result.clipRanges[0].frameCount, "One second at 12 fps.");
+            Assert.AreEqual(12f, result.clipRanges[0].fps, 1e-4f);
+            Assert.AreEqual(30, result.clipRanges[1].frameCount, "One second at 30 fps.");
+            Assert.AreEqual(30f, result.clipRanges[1].fps, 1e-4f);
+            Assert.AreEqual(
+                12, result.clipRanges[1].frameStart,
+                "The second clip still starts where the first ended.");
+        }
+
+        /// <summary>
+        /// Catches: a clip with no rate of its own falling through to nothing instead of to the
+        /// input's rate. Imported clips reached from a script or a test carry no ClipAsset.
+        /// </summary>
+        [Test]
+        public void AClipWithoutARate_FallsBackToTheInputRate()
+        {
+            SkinnedMeshRenderer renderer = CreateSkinnedRenderer(boneCount: 2);
+
+            VatBakeInput input = BuildInput(renderer, VatFlavor.BoneMatrix, AuthoredOnlyClip(WalkClipId, 1f));
+            input.samplesPerSecond = 10f;
+
+            Assert.IsTrue(VatTextureBaker.Bake(input, out VatBakeResult result), result.message);
+
+            Assert.AreEqual(10, result.clipRanges[0].frameCount, "One second at the fallback 10 fps.");
+            Assert.AreEqual(10f, result.clipRanges[0].fps, 1e-4f);
+        }
+
+        /// <summary>
         /// Catches: dropping the loop-safe duplicate frame. Without it the shader's floor→floor+1
         /// lerp reads the *next clip's* first row at the seam, so a looping clip flickers through a
         /// frame of an unrelated animation once per cycle.
@@ -364,6 +415,31 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsTrue(VatTextureBaker.Bake(fastInput, out VatBakeResult fastResult), fastResult.message);
 
             Assert.AreNotEqual(slowResult.sourceHash, fastResult.sourceHash);
+        }
+
+        /// <summary>
+        /// Catches: a hash blind to a single clip's rate. The input rate is unchanged here, so a
+        /// hash that folds only that one reports the set as fresh while one clip's rows were
+        /// rebuilt at a different rate — exactly the stale texture V08 exists to catch.
+        /// </summary>
+        [Test]
+        public void TheSourceHash_ChangesWithOneClipsOwnRate()
+        {
+            SkinnedMeshRenderer renderer = CreateSkinnedRenderer(boneCount: 2);
+
+            VatBakeClip snappyClip = AuthoredOnlyClip(WalkClipId, 1f);
+            snappyClip.samplesPerSecond = 12f;
+            VatBakeInput snappyInput = BuildInput(renderer, VatFlavor.BoneMatrix, snappyClip);
+            Assert.IsTrue(
+                VatTextureBaker.Bake(snappyInput, out VatBakeResult snappyResult), snappyResult.message);
+
+            VatBakeClip smoothClip = AuthoredOnlyClip(WalkClipId, 1f);
+            smoothClip.samplesPerSecond = 24f;
+            VatBakeInput smoothInput = BuildInput(renderer, VatFlavor.BoneMatrix, smoothClip);
+            Assert.IsTrue(
+                VatTextureBaker.Bake(smoothInput, out VatBakeResult smoothResult), smoothResult.message);
+
+            Assert.AreNotEqual(snappyResult.sourceHash, smoothResult.sourceHash);
         }
 
         /// <summary>

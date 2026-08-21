@@ -208,9 +208,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 frameRateField.isDelayed = true;
                 frameRateField.tooltip =
-                    "Frames per second the timeline divides the clip into. A grid for authoring and "
-                    + "snapping — it does not change how often the runtime samples the pose, which "
-                    + "is the actor's own sample rate. Changing it never moves a key.";
+                    "Frames per second: how many poses the clip holds per second, and the rate a "
+                    + "VAT bake samples it at — a clip is duration x FPS rows of texture, played "
+                    + "back at this rate. Length sets how long the clip lasts; this sets how "
+                    + "finely it is cut. Changing it never moves a key, but it does mean re-baking "
+                    + "the VAT set.";
                 frameRateField.RegisterValueChangedCallback(changeEvent =>
                 {
                     if (isSyncingTransport || selectedClip == null)

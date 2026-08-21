@@ -80,10 +80,11 @@ namespace DotsAnimationToolkit.Editor
             };
             root.Add(flavorField);
 
-            sampleRateField = new FloatField("Samples / Second") { value = 30f };
+            sampleRateField = new FloatField("Fallback Samples / Second") { value = 30f };
             sampleRateField.tooltip =
-                "Frames baked per second of clip. Higher is smoother and larger; the shader lerps "
-                + "between frames, so this is not the playback framerate.";
+                "Used only for a clip that carries no frame rate of its own. Every clip in a set "
+                + "bakes at its own FPS — the field in the Clip Editor's transport bar — so a set "
+                + "can hold a 12fps clip beside a 60fps one and each keeps its own row count.";
             root.Add(sampleRateField);
 
             fullPrecisionField = new Toggle("Full Precision (RGBAFloat)");
@@ -254,6 +255,10 @@ namespace DotsAnimationToolkit.Editor
                         animationClip = hasImportedSource ? clip.vatSource.sourceClip : null,
                         boneTracks = clip.boneTracks,
                         durationSeconds = clip.duration,
+                        // The clip's own FPS, so its block of the texture is exactly the frames the
+                        // Clip Editor rules its timeline into. A set of clips no longer has to
+                        // share one rate to share one texture.
+                        samplesPerSecond = clip.frameRate,
                         loopSafe = hasImportedSource && clip.vatSource.loopSafe
                     });
                 }
@@ -272,6 +277,9 @@ namespace DotsAnimationToolkit.Editor
                         clipId = clip.Id.Value,
                         targetId = track.targetId,
                         animationClip = track.sourceClip,
+                        // A target-scoped part is a block of the same clip and plays on the same
+                        // clock, so it bakes at the same rate the clip does.
+                        samplesPerSecond = clip.frameRate,
                         loopSafe = track.loopSafe
                     });
                 }

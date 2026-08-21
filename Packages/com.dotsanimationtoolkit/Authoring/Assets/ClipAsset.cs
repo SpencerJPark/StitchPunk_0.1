@@ -54,16 +54,27 @@ namespace DotsAnimationToolkit.Authoring
         [Min(0f)] public float defaultBlendOut;
 
         /// <summary>
-        /// The clip's authoring frame rate: how many frames the timeline divides
-        /// <see cref="duration"/> into. Total frames is <c>duration * frameRate</c>.
+        /// The clip's frame rate: how many poses it holds per second. Total frames is
+        /// <c>duration * frameRate</c>, and <see cref="duration"/> alone sets how long it lasts.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// <strong>A grid, not a sampling rate.</strong> This decides where the ruler ticks, what a
-        /// frame number means in the transport bar, and what scrubbing snaps to. It does not decide
-        /// how often the runtime evaluates a pose — that is <c>SampleSettings.rateHz</c> per actor
-        /// and <c>AnimationToolkitConfig.defaultSampleRateHz</c> per world, and conflating the two
-        /// would make an authoring convenience silently change how a shipped actor animates.
+        /// <strong>The rate the animation is stored and played at.</strong> It rules the Clip
+        /// Editor's timeline, and it is the rate a VAT bake samples the clip at: a clip's block of
+        /// the texture is <c>duration * frameRate</c> rows, and the range's fps — what the shader
+        /// steps through those rows with — is this number. Twelve here bakes twelve rows a second
+        /// and reads on screen as twelve frames a second, which is why it is one number rather than
+        /// an authoring grid sitting next to a separate bake setting that could disagree with it.
+        /// </para>
+        /// <para>
+        /// It is not <c>SampleSettings.rateHz</c>. That is a per-actor throttle on how often the
+        /// runtime re-evaluates a pose — a performance knob, tied to distance through the LOD
+        /// policy — and it belongs to the actor rather than to the animation.
+        /// </para>
+        /// <para>
+        /// <strong>Changing it means re-baking.</strong> The row count of a baked texture is fixed
+        /// at bake time, so a clip whose rate moved afterwards is stale until the VAT set is baked
+        /// again; the bake hash folds the rate in, so rule V08 sees the change.
         /// </para>
         /// <para>
         /// <strong>Changing it cannot destroy key data.</strong> Keys are stored as a fraction of
