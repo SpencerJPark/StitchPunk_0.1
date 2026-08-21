@@ -199,27 +199,47 @@ namespace DotsAnimationToolkit.Editor
                 return existingIndex;
             }
 
+            float2 inheritedStartHandle;
+            float2 inheritedEndHandle;
+            Interpolation inheritedInterpolation = InheritInterpolationAt(
+                track, normalizedTime, out inheritedStartHandle, out inheritedEndHandle);
             TransformKey insertedKey = new TransformKey
             {
                 normalizedTime = normalizedTime,
                 position = position,
                 rotation = rotationDegrees,
                 scale = scale,
-                interpolation = InheritInterpolationAt(track, normalizedTime)
+                interpolation = inheritedInterpolation,
+                bezierStartHandle = inheritedStartHandle,
+                bezierEndHandle = inheritedEndHandle
             };
             track.keys.Add(insertedKey);
             track.keys.Sort(CompareKeyTimes);
             return FindKeyIndexAt(track, normalizedTime);
         }
 
-        private static Interpolation InheritInterpolationAt(TransformTrack track, float normalizedTime)
+        /// <summary>
+        /// The easing of the key a new one lands after — its mode and its handles both.
+        /// </summary>
+        /// <remarks>
+        /// The handles travel with the mode because a Bézier without them is not a curve: the
+        /// sampler reads an all-zero pair as linear, so inheriting the mode alone would turn the one
+        /// segment the author had shaped by hand back into a straight line.
+        /// </remarks>
+        private static Interpolation InheritInterpolationAt(
+            TransformTrack track, float normalizedTime,
+            out float2 bezierStartHandle, out float2 bezierEndHandle)
         {
             Interpolation inherited = Interpolation.Linear;
+            bezierStartHandle = float2.zero;
+            bezierEndHandle = float2.zero;
             for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
             {
                 if (track.keys[keyIndex].normalizedTime <= normalizedTime)
                 {
                     inherited = track.keys[keyIndex].interpolation;
+                    bezierStartHandle = track.keys[keyIndex].bezierStartHandle;
+                    bezierEndHandle = track.keys[keyIndex].bezierEndHandle;
                 }
             }
             return inherited;

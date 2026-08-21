@@ -215,6 +215,30 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void SetKeyValues_InheritsTheBezierHandlesOfTheSegmentItLandsIn()
+        {
+            TransformTrack track = BuildTwoKeyTrack();
+            TransformKey curvedKey = track.keys[0];
+            curvedKey.interpolation = Interpolation.Bezier;
+            curvedKey.bezierStartHandle = new float2(0.25f, 0.1f);
+            curvedKey.bezierEndHandle = new float2(0.25f, 1f);
+            track.keys[0] = curvedKey;
+
+            int keyIndex = ClipTransformEditing.SetKeyValues(
+                track, 0.5f, new float3(1f, 1f, 0f), new float3(0f, 0f, 30f), new float3(1f, 1f, 1f));
+
+            Assert.AreEqual(
+                Interpolation.Bezier, track.keys[keyIndex].interpolation);
+            Assert.AreEqual(
+                0.25f, track.keys[keyIndex].bezierStartHandle.x, Tolerance,
+                "A Bezier with no handles is read as linear, so inheriting the mode without them "
+                + "would flatten the curve the author shaped.");
+            Assert.AreEqual(0.1f, track.keys[keyIndex].bezierStartHandle.y, Tolerance);
+            Assert.AreEqual(0.25f, track.keys[keyIndex].bezierEndHandle.x, Tolerance);
+            Assert.AreEqual(1f, track.keys[keyIndex].bezierEndHandle.y, Tolerance);
+        }
+
+        [Test]
         public void FindKeyIndexAt_ToleratesFloatingPointPlayheadDrift()
         {
             TransformTrack track = BuildTwoKeyTrack();

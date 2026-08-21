@@ -5711,11 +5711,46 @@ namespace DotsAnimationToolkit.Editor
                 return true;
             }
 
-            inspectorPane.Add(new PropertyField(keyProperty));
+            AddKeyValueFields(keyProperty);
             inspectorPane.Bind(clipSerializedObject);
 
             AddInterpolationControls(shown);
             return true;
+        }
+
+        /// <summary>
+        /// The key's own values, each as its own field, with the easing fields left out.
+        /// </summary>
+        /// <remarks>
+        /// Flattened rather than one <see cref="PropertyField"/> on the struct, because the drawer
+        /// renders an array element as a foldout named "Element 3" — a number that means nothing
+        /// beside a heading already naming the key by its time. The easing fields are skipped
+        /// because <see cref="AddInterpolationControls"/> shows them below as a curve; drawn twice,
+        /// the raw enum and its two handle vectors are the same setting in a form that contradicts
+        /// what the curve says the moment either is touched.
+        /// </remarks>
+        private void AddKeyValueFields(SerializedProperty keyProperty)
+        {
+            SerializedProperty childProperty = keyProperty.Copy();
+            SerializedProperty endProperty = keyProperty.GetEndProperty();
+            bool enterChildren = true;
+            while (childProperty.NextVisible(enterChildren)
+                && !SerializedProperty.EqualContents(childProperty, endProperty))
+            {
+                enterChildren = false;
+                if (IsEasingPropertyName(childProperty.name))
+                {
+                    continue;
+                }
+                inspectorPane.Add(new PropertyField(childProperty.Copy()));
+            }
+        }
+
+        private static bool IsEasingPropertyName(string propertyName)
+        {
+            return propertyName == "interpolation"
+                || propertyName == "bezierStartHandle"
+                || propertyName == "bezierEndHandle";
         }
 
         /// <summary>
@@ -6015,12 +6050,27 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The selected key's easing, plus handle editing when that easing is a curve.
+        /// The selected key's easing: a named preset to start from, and the curve it draws, whose
+        /// handles are dragged to shape it further.
         /// </summary>
         /// <remarks>
+        /// <para>
+        /// <strong>One control, not a mode plus a conditional curve.</strong> The curve is always on
+        /// screen because the shape is the thing being authored; the preset dropdown is a way of
+        /// jumping to a known one, and a drag is a way of leaving it. A key that has never been
+        /// touched sits on Linear, which is both the preset list's first entry and the enum's
+        /// default, so a fresh key and a key explicitly set to linear are the same key.
+        /// </para>
+        /// <para>
+        /// Dragging writes <see cref="Interpolation.Bezier"/> and refreshes the dropdown's label in
+        /// place rather than rebuilding the inspector: a rebuild mid-gesture would replace the
+        /// element under the captured pointer and drop the drag on its first frame.
+        /// </para>
+        /// <para>
         /// Only transform and bone keys have easing. A flipbook key is chosen by nearest neighbour
         /// rather than blended — an index cannot be halfway between two frames — so offering it an
         /// interpolation mode would be offering a setting with no effect.
+        /// </para>
         /// </remarks>
         private void AddInterpolationControls(KeyAddress address)
         {
@@ -6031,37 +6081,75 @@ namespace DotsAnimationToolkit.Editor
             }
 
             Interpolation currentInterpolation = GetKeyInterpolation(address);
-            inspectorPane.Add(MakeHeading("Easing"));
-
-            EnumField interpolationField = new EnumField("Interpolation", currentInterpolation);
-            interpolationField.tooltip =
-                "How the curve leaves this key on its way to the next one.";
-            interpolationField.RegisterValueChangedCallback(changeEvent =>
-            {
-                SetKeyInterpolation(address, (Interpolation)changeEvent.newValue);
-                RebuildInspector();
-            });
-            inspectorPane.Add(interpolationField);
-
-            if (currentInterpolation != Interpolation.Bezier)
-            {
-                return;
-            }
-
             float2 startHandle;
             float2 endHandle;
             GetKeyBezierHandles(address, out startHandle, out endHandle);
 
-            BezierCurveEditorElement curveEditor = new BezierCurveEditorElement();
-            curveEditor.SetHandlesWithoutNotify(startHandle, endHandle);
-            curveEditor.handlesChanged += (draggedStart, draggedEnd) =>
+            inspectorPane.Add(MakeHeading("Easing"));
+
+            EasingCurveEditorElement curveEditor = new EasingCurveEditorElement();
+            curveEditor.SetCurveWithoutNotify(currentInterpolation, startHandle, endHandle);
+
+            DropdownField presetField = new DropdownField(
+                "Curve",
+                new List<string>(EasingPresets.DisplayNames),
+                EasingPresets.IndexOf(currentInterpolation, startHandle, endHandle));
+            presetField.tooltip =
+                "The shape the curve leaves this key with. Pick a preset, then drag the handles to "
+                + "make it your own.";
+            presetField.RegisterValueChangedCallback(changeEvent =>
             {
-                SetKeyBezierHandles(address, draggedStart, draggedEnd);
+                ApplyEasingPreset(address, curveEditor, changeEvent.newValue);
+            });
+
+            curveEditor.curveEdited += (draggedStart, draggedEnd) =>
+            {
+                SetKeyCurve(address, Interpolation.Bezier, draggedStart, draggedEnd);
+                presetField.SetValueWithoutNotify(EasingPresets.DisplayNameOf(
+                    Interpolation.Bezier, draggedStart, draggedEnd));
             };
+
+            inspectorPane.Add(presetField);
             inspectorPane.Add(curveEditor);
             inspectorPane.Add(MakeHint(
-                "Drag the handles. They stay inside the unit square: outside it the curve stops "
-                + "being a function of time, or overshoots further than the baked bounds allow."));
+                "Drag the handles to reshape the curve — that turns any preset into a custom one. "
+                + "They stay inside the unit square: outside it the curve stops being a function of "
+                + "time, or overshoots further than the baked bounds allow."));
+        }
+
+        /// <summary>
+        /// Writes the chosen preset onto the key and onto the curve widget.
+        /// </summary>
+        /// <remarks>
+        /// Choosing <see cref="EasingPresets.CustomDisplayName"/> keeps the shape already on screen
+        /// and only changes what stores it — the fixed mode's matching handles become the key's own
+        /// Bézier handles. Picking "Custom" is a request to start editing, not a request to look
+        /// different, so a jump to some canonical curve would throw away the shape being edited.
+        /// </remarks>
+        private void ApplyEasingPreset(
+            KeyAddress address, EasingCurveEditorElement curveEditor, string chosenDisplayName)
+        {
+            int chosenIndex = EasingPresets.IndexOfDisplayName(chosenDisplayName);
+            if (chosenIndex < 0)
+            {
+                return;
+            }
+
+            if (EasingPresets.IsCustomIndex(chosenIndex))
+            {
+                float2 shownStartHandle;
+                float2 shownEndHandle;
+                curveEditor.GetHandles(out shownStartHandle, out shownEndHandle);
+                SetKeyCurve(address, Interpolation.Bezier, shownStartHandle, shownEndHandle);
+                curveEditor.SetCurveWithoutNotify(
+                    Interpolation.Bezier, shownStartHandle, shownEndHandle);
+                return;
+            }
+
+            EasingPreset preset = EasingPresets.At(chosenIndex);
+            SetKeyCurve(address, preset.interpolation, preset.startHandle, preset.endHandle);
+            curveEditor.SetCurveWithoutNotify(
+                preset.interpolation, preset.startHandle, preset.endHandle);
         }
 
         private Interpolation GetKeyInterpolation(KeyAddress address)
@@ -6073,15 +6161,27 @@ namespace DotsAnimationToolkit.Editor
             return selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex].interpolation;
         }
 
-        private void SetKeyInterpolation(KeyAddress address, Interpolation interpolation)
+        /// <summary>
+        /// Writes a key's easing mode and its handles together.
+        /// </summary>
+        /// <remarks>
+        /// The handles are written even for the fixed modes, which never read them. They are the
+        /// cubic that matches the mode's curve, so a key later switched to Bézier — by picking
+        /// Custom, or by dragging a handle — starts from the shape it was already playing instead of
+        /// snapping to a straight line.
+        /// </remarks>
+        private void SetKeyCurve(
+            KeyAddress address, Interpolation interpolation, float2 startHandle, float2 endHandle)
         {
-            RecordClipEdit("Change Key Interpolation");
+            RecordClipEdit("Change Key Easing");
+            EnsureUsableBezierHandles(ref startHandle, ref endHandle, interpolation);
             if (address.trackKind == TimelineTrackKind.Bone)
             {
                 BoneTrack track = selectedClip.boneTracks[address.trackIndex];
                 BoneKey key = track.keys[address.keyIndex];
                 key.interpolation = interpolation;
-                EnsureUsableBezierHandles(ref key.bezierStartHandle, ref key.bezierEndHandle, interpolation);
+                key.bezierStartHandle = startHandle;
+                key.bezierEndHandle = endHandle;
                 track.keys[address.keyIndex] = key;
             }
             else
@@ -6089,14 +6189,15 @@ namespace DotsAnimationToolkit.Editor
                 TransformTrack track = selectedClip.transformTracks[address.trackIndex];
                 TransformKey key = track.keys[address.keyIndex];
                 key.interpolation = interpolation;
-                EnsureUsableBezierHandles(ref key.bezierStartHandle, ref key.bezierEndHandle, interpolation);
+                key.bezierStartHandle = startHandle;
+                key.bezierEndHandle = endHandle;
                 track.keys[address.keyIndex] = key;
             }
             CommitClipEdit();
         }
 
         /// <summary>
-        /// Gives a key switched to Bézier the handles that describe a straight line.
+        /// Gives a Bézier key with no handles the ones that describe a straight line.
         /// </summary>
         /// <remarks>
         /// A key that has never carried handles holds two zeros, which the sampler reads as linear.
@@ -6113,8 +6214,8 @@ namespace DotsAnimationToolkit.Editor
             }
             if (math.all(startHandle == float2.zero) && math.all(endHandle == float2.zero))
             {
-                startHandle = new float2(1f / 3f, 1f / 3f);
-                endHandle = new float2(2f / 3f, 2f / 3f);
+                startHandle = EasingPresets.LinearStartHandle;
+                endHandle = EasingPresets.LinearEndHandle;
             }
         }
 
@@ -6132,28 +6233,6 @@ namespace DotsAnimationToolkit.Editor
                 selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex];
             startHandle = transformKey.bezierStartHandle;
             endHandle = transformKey.bezierEndHandle;
-        }
-
-        private void SetKeyBezierHandles(KeyAddress address, float2 startHandle, float2 endHandle)
-        {
-            RecordClipEdit("Edit Key Tangents");
-            if (address.trackKind == TimelineTrackKind.Bone)
-            {
-                BoneTrack track = selectedClip.boneTracks[address.trackIndex];
-                BoneKey key = track.keys[address.keyIndex];
-                key.bezierStartHandle = startHandle;
-                key.bezierEndHandle = endHandle;
-                track.keys[address.keyIndex] = key;
-            }
-            else
-            {
-                TransformTrack track = selectedClip.transformTracks[address.trackIndex];
-                TransformKey key = track.keys[address.keyIndex];
-                key.bezierStartHandle = startHandle;
-                key.bezierEndHandle = endHandle;
-                track.keys[address.keyIndex] = key;
-            }
-            CommitClipEdit();
         }
 
         /// <summary>

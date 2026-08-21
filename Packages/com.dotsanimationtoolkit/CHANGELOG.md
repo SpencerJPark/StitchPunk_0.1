@@ -10,6 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — key easing is a curve with presets
+
+The clip inspector's **Interpolation** enum is now a **Curve** dropdown over
+named presets plus the curve itself, always on screen.
+
+- **Presets:** Linear (the default, and the enum's default, so an untouched key
+  and a key set to linear are the same key), Hold (Step), Ease In, Ease Out,
+  Ease In Out, Smooth, Snap, and Custom.
+- **Picking a preset writes the cheapest representation of its shape** — a fixed
+  `Interpolation` where one exists, a Bézier where it does not — so the runtime
+  keeps evaluating a switch rather than a solve wherever it can.
+- **Dragging a handle turns any preset into a custom Bézier**, seeded from the
+  cubic that matches the shape already drawn, so the curve follows the pointer
+  instead of jumping. A fixed mode's handles are drawn dimmed until then.
+- **The widget plots every mode through `ClipSampler.Ease`**, not just Bézier, so
+  the drawn curve is the played curve for all of them. Step is drawn as a hold
+  and a riser rather than sampled, because the sampler short-circuits it.
+- **The key's raw `interpolation` and handle fields no longer appear twice.** The
+  generic property drawer's copies are skipped; the curve is the one control.
+- **Fixed:** a key inserted inside a hand-shaped Bézier segment inherited the
+  mode but not the handles, and an all-zero handle pair reads as linear — so
+  keying inside a custom curve silently flattened it. Handles now travel with
+  the inherited mode.
+- `BezierCurveEditorElement` is now `EasingCurveEditorElement`, and the new
+  `EasingPresets` table is covered by `EasingPresetTests`.
+
 ### Changed — every shader is a Shader Graph now (amendment A46)
 
 The package shipped three hand-written `.shader` files and no graphs. It now

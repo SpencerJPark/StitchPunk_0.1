@@ -603,7 +603,7 @@
     bottom: 0;
 }
 
-.clip-editor__bezier-curve {
+.clip-editor__easing-curve {
     height: 140px;
     margin-top: 4px;
     margin-bottom: 4px;
