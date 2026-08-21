@@ -177,6 +177,13 @@ public sealed class RigAsset : ScriptableObject
 {
     public string displayName;                                // freely renameable
     [SerializeField] internal uint stableId;                  // generated on add; never edited
+    public string sourceNodePath;                             // which previewed prefab node this part is;
+                                                              // editor-only, like mirrorPairs — no bake or
+                                                              // runtime path reads it. Empty when unclaimed.
+                                                              // The scene binding is still
+                                                              // RigTargetAuthoring.targetStableId; this is
+                                                              // what lets the clip editor put part-bound
+                                                              // components on an ordinary hierarchy node.
     public TargetKind kind;                                   // Quad, VatMesh, FlipbookPlane
     public float3 boundsExtents;                              // conservative local half-extents used
                                                               // by bake-time bounds math (§4.6); default 0.5
