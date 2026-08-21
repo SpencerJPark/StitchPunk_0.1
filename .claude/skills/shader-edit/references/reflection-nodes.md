@@ -118,21 +118,17 @@ ShaderIncludeImporter:
   assetBundleVariant:
 ```
 
-## Existing library (grep before writing — the node may exist)
+## Before writing a node
 
-- `Nodes/Lighting/` — `CelShadedLighting` (the production toon lighting; reads
-  `_AdditionalLightsCount` directly ON PURPOSE, don't "fix" it to the
-  keyword-gated call), `CelShadedLightingDebug` (gated path + light-count
-  output), `CelShadedCommon.hlsl`.
-- `Nodes/Painterly/` — `SelectChannel`, `ValueContrast`, `ColorRamp4`
-  (variable 1–4 stops, per-stop positions, self-clamping ascending),
-  `HueSatValue`, `ObjectRandom` (position-hash instance variation),
-  `PainterlyColor` (combined chain), `HeightToNormal` (ddx/ddy world-space
-  bump — used because the custom-lit graphs have no master-stack Normal
-  block), `PainterlyCommon.hlsl`.
-- `Nodes/Screen/` — `ReconstructViewPosition`, `ScreenSpaceNormal`,
-  `EncodeViewSpaceNormal`, `CrossSampleUVs`, `CrossSampleScreenUVs`,
-  `RobertsCrossDepth`, `RobertsCrossNormals`, `NdotVTransform`,
-  `ScreenSpaceCommon.hlsl` — outline-rebuild library, currently unreferenced
-  by production.
-- `Nodes/Utility/` — `IfAnyNonZero`.
+**List the folders first** — the node may already exist:
+`ls Assets/Shaders/Nodes/*/ Packages/com.dotsanimationtoolkit/Shaders/Nodes/`.
+A written inventory here would rot and cause duplicates; the filesystem never does.
+`Assets/_Vault/Memories/Code/Shaders.md` carries the current per-node notes.
+
+Two deliberate quirks not to "fix":
+- `CelShadedLighting` reads `_AdditionalLightsCount` directly **on purpose** — do not
+  convert it to the keyword-gated call.
+- `HeightToNormal` uses `ddx`/`ddy` world-space bump because the custom-lit graphs have
+  no master-stack Normal block.
+- `Nodes/Screen/*` is a complete outline-rebuild library that production does not
+  currently reference — it is parked, not dead.

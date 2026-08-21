@@ -23,19 +23,19 @@ A signature change to an existing node that is already placed in a graph is
 BOTH workflows (see "Signature changes" below) — this is the easiest way to
 silently break a graph, treat it with care.
 
-## Project shader layout (post-2026-07 reorg)
+## Project shader layout
 
-| Folder | Contents |
-|---|---|
-| `Assets/Shaders/Graphs/` | Production graphs: `2DShader`, `2DTextureArrayShader`, `3DShader`, `PainterlyShader` — all lit via the **Cel Shaded Lighting** node |
-| `Assets/Shaders/Nodes/{Lighting,Screen,Painterly,Utility}/` | Reflection-API node library, one exported function per `.hlsl` file, plus non-exported `*Common.hlsl` shared-math files |
-| `Assets/Shaders/RenderFeatures/` | Hand-written `.shader` passes for the outline render features — NOT graph-related, rarely touched |
-| `Assets/Shaders/SubGraphs/` | Only `WorldSpaceSurfaceData` (geometry-context bundle; correctly a subgraph — do not convert it to a node, HLSL functions can't access geometry implicitly) |
-| `Assets/Shaders/Legacy/` | Parked experiments, delete-at-will |
+Graphs in `Assets/Shaders/Graphs/`, the reflection-node library in
+`Assets/Shaders/Nodes/<Category>/` (one exported function per `.hlsl`, plus non-exported
+`*Common.hlsl` shared math), hand-written outline passes in `RenderFeatures/`, parked
+experiments in `Legacy/`. `SubGraphs/WorldSpaceSurfaceData` stays a subgraph — HLSL
+functions cannot access geometry context implicitly, so do not convert it to a node.
+Shader work also happens in `Packages/com.dotsanimationtoolkit/Shaders/`.
 
-The living context doc is `Assets/_Vault/Memories/Code/Shaders.md` — update it
-whenever you add a node, change a graph, or move files, so the next session
-doesn't rediscover.
+**Never trust a written inventory of what exists** — list the folders before asking
+"does this node already exist?", since a stale list causes duplicates. The living context
+doc is `Assets/_Vault/Memories/Code/Shaders.md`; update it whenever you add a node,
+change a graph, or move files.
 
 ## Hard rules (each one broke something once)
 
@@ -56,11 +56,7 @@ doesn't rediscover.
   with `scripts/validate_shadergraph.py` after. Hand-built JSON that passes
   referential validation has imported cleanly every time; unvalidated edits
   are how you hand the user a broken graph.
-- **No Unity MCP / no Editor bridge.** The compile/import gate is: ask the
-  user to focus Unity and report the Console, or grep
-  `C:/Users/spenc/AppData/Local/Unity/Editor/Editor.log` for fresh
-  `error CS` / `BC` / import errors after they have. Never claim an edit
-  imports when you couldn't check.
+- **Compile gate:** `mcp__UnityMCP__refresh_unity` → poll `editor_state.isCompiling` until false → `mcp__UnityMCP__read_console` for `error CS`/`BC`. Editor closed? Grep the **project-relative** `Logs/Editor.log` (never the `%LOCALAPPDATA%` copy — it is a stub that always greps clean) and confirm its mtime is newer than your edit. Never claim an edit compiles when you could not check.
 - After material or graph changes, entities in baked subscenes can log
   `RenderMeshArray ... invalid out of bounds index` — that is a **stale
   subscene bake**, not a shader bug. Tell the user to reopen/rebake the
@@ -98,9 +94,7 @@ overwritten by) the disk edit.
 
 ## Verification loop
 
-1. Save files → user focuses Unity → Console clean (or Editor.log grep).
-2. New nodes: user searches "StitchPunk" in the Create Node menu.
-3. Graph edits: open the graph once in the editor (import success ≠ sensible
-   layout; positions matter to humans).
-4. Visual result: subscene rebake if entities render it, then a screenshot
-   from the user — you cannot capture the Editor.
+Compile/import gate as above, then: new nodes — the user searches "StitchPunk" in the
+Create Node menu; graph edits — open the graph once (a successful import does not mean a
+sensible node layout, and positions matter to humans); visual result — rebake the subscene
+if entities render it, then ask the user for a screenshot.
