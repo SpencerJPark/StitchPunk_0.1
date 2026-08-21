@@ -268,6 +268,9 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private readonly List<HierarchyItem> selectedHierarchyItems = new List<HierarchyItem>();
 
+        /// <summary>Rebuilt per paste, which is once per keystroke and not per frame.</summary>
+        private readonly List<ClipObjectRef> pasteDestinations = new List<ClipObjectRef>();
+
         /// <summary>The row the gizmo and the viewport outline follow, of the several selected.</summary>
         private int activeHierarchyItemId = NothingSelectedItemId;
 
@@ -4705,7 +4708,7 @@ namespace DotsAnimationToolkit.Editor
                     {
                         return;
                     }
-                    ClipKeyClipboard.Copy(selectedClip, selectedKeys);
+                    CopySelectedKeys();
                     break;
                 case KeyCode.V:
                     if (!commandModifier)
@@ -4721,7 +4724,7 @@ namespace DotsAnimationToolkit.Editor
                     {
                         return;
                     }
-                    ClipKeyClipboard.Copy(selectedClip, selectedKeys);
+                    CopySelectedKeys();
                     PasteKeysAtPlayhead();
                     break;
                 default:
@@ -4731,24 +4734,117 @@ namespace DotsAnimationToolkit.Editor
             keyEvent.StopPropagation();
         }
 
-        private void PasteKeysAtPlayhead()
+        /// <summary>Puts the selected keys on the clipboard, and says what was taken.</summary>
+        private void CopySelectedKeys()
         {
+            ClipKeyClipboard.Copy(selectedClip, selectedKeys);
             if (!ClipKeyClipboard.HasContent)
             {
                 return;
             }
 
-            BeginUndoGesture("Paste Animation Keys");
-            int pastedCount = ClipKeyClipboard.Paste(selectedClip, playheadTime);
-            EndUndoGesture();
+            // Said out loud because copy is the one half of the pair with nothing on screen to show
+            // for it. Silence after Ctrl+C is indistinguishable from a shortcut that did not fire.
+            ShowNotification(new GUIContent(
+                "Copied " + ClipKeyClipboard.KeyCount.ToString() + " key(s) from "
+                + ClipKeyClipboard.ObjectCount.ToString() + " object(s)"));
+        }
 
-            if (pastedCount == 0)
+        /// <summary>
+        /// Pastes the clipboard onto the selected objects, anchored at the playhead.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The playhead is the anchor and the hierarchy selection is the destination.</strong>
+        /// The buffer holds times relative to its earliest key, so the group lands where the
+        /// playhead is with its internal rhythm intact, on whatever object is selected — which is
+        /// what makes "copy this part's bounce and put it on that one" a thing you can do. With
+        /// nothing selected the keys go back onto the objects they came from, which is what
+        /// duplicate has always meant.
+        /// </para>
+        /// <para>
+        /// <strong>The rig is recorded whether or not the paste turns out to write it.</strong>
+        /// Pasting a flipbook onto a node the rig declares no part for declares one, and there is no
+        /// way to know that before the paste runs. Recording an object that does not change costs an
+        /// empty diff; recording it too late would leave one Ctrl+Z undoing half of what one
+        /// keystroke did.
+        /// </para>
+        /// </remarks>
+        private void PasteKeysAtPlayhead()
+        {
+            if (!ClipKeyClipboard.HasContent || selectedClip == null)
             {
                 return;
             }
-            EditorUtility.SetDirty(selectedClip);
-            SortAllTracks();
-            RebuildTimeline();
+
+            pasteDestinations.Clear();
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                pasteDestinations.Add(BuildObjectRef(selectedHierarchyItems[itemIndex]));
+            }
+
+            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            if (rig != null)
+            {
+                RecordSocketEdit(rig, "Paste Animation Keys");
+            }
+
+            BeginUndoGesture("Paste Animation Keys");
+            ClipKeyPasteResult pasteResult =
+                ClipKeyClipboard.Paste(selectedClip, rig, pasteDestinations, playheadTime);
+            EndUndoGesture();
+
+            if (pasteResult.touchedRig && rig != null)
+            {
+                AssetDatabase.SaveAssetIfDirty(rig);
+                CommitSocketEdit(true);
+            }
+
+            if (pasteResult.keyCount > 0)
+            {
+                EditorUtility.SetDirty(selectedClip);
+                SortAllTracks();
+            }
+
+            // A promoted node has just become a part, so its row stands for one and the timeline has
+            // a lane it did not have. Both are rebuilt even when nothing was pasted, because a
+            // component may still have been added.
+            if (pasteResult.keyCount > 0 || pasteResult.addedComponentCount > 0)
+            {
+                RebuildTimeline();
+                RebuildHierarchy();
+                RebuildInspector();
+            }
+
+            ShowNotification(new GUIContent(DescribePasteResult(pasteResult)));
+        }
+
+        /// <summary>
+        /// One line saying what the paste did, including the parts of it that did nothing.
+        /// </summary>
+        /// <remarks>
+        /// The dropped count is the one that matters: a paste onto an object whose component could
+        /// not be created writes fewer keys than were copied, and without saying so the difference
+        /// shows up later as an animation that is missing a channel nobody remembers losing.
+        /// </remarks>
+        private static string DescribePasteResult(ClipKeyPasteResult pasteResult)
+        {
+            if (pasteResult.keyCount == 0 && pasteResult.addedComponentCount == 0)
+            {
+                return "Nothing pasted — the clipboard's components could not be placed here.";
+            }
+
+            string described = "Pasted " + pasteResult.keyCount.ToString() + " key(s)";
+            if (pasteResult.addedComponentCount > 0)
+            {
+                described += ", added " + pasteResult.addedComponentCount.ToString()
+                    + " component(s)";
+            }
+            if (pasteResult.droppedKeyCount > 0)
+            {
+                described += ", dropped " + pasteResult.droppedKeyCount.ToString();
+            }
+            return described;
         }
 
         /// <summary>

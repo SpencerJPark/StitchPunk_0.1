@@ -10,6 +10,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — keys copy and paste between objects, bringing their components with them
+
+The key clipboard held the *index of the track* each key came from and pasted
+them straight back into the track at that index. That made copy/paste a way to
+duplicate keys in place and nothing else: pasting onto a different object was
+not something the buffer could express, and pasting into a clip whose tracks
+were authored in a different order landed the keys on whatever part happened to
+be sitting at that index.
+
+- **The buffer holds objects and components now.** What is copied is "this
+  object's transform" and "its second flipbook", not "track 4". Paste resolves
+  those against the hierarchy selection, so Ctrl+C on one part and Ctrl+V with
+  another selected moves the animation across. With nothing selected the keys go
+  back where they came from, which is what Ctrl+D has always meant.
+- **A destination missing a component gets one.** The components are what the
+  keys need in order to exist, so paste creates them — including declaring an
+  unclaimed hierarchy node a rig part, exactly as the Add Component menu does.
+  `ClipKeyPasteResult.touchedRig` reports when a paste wrote the rig so the
+  window records undo on both assets rather than half the edit.
+- **A created track inherits the source's settings** — a sprite track's mode,
+  slice space and base index, a transform track's blend op and channel mask. A
+  relative sprite key pasted onto a track based at 0 when it was authored
+  against 32 addresses a different block of the texture array. Settings are
+  never stamped onto a track that already existed, which would retune animation
+  the paste was not asked to touch.
+- **Poses cross between the two transform kinds.** A part is keyed on a
+  transform track and a node by name, so `ClipKeyConversion` (new) converts a
+  pose either way — Euler degrees to quaternion and back — and the destination
+  decides which. `ClipComponentModel`'s promotion path uses the same converter.
+- **Bone keys are copyable at all**, which they were not: the buffer knew about
+  transform, sprite and event keys only, so a selection of bone keys copied as
+  nothing.
+- **Both halves report what they did.** Copy says how many keys from how many
+  objects; paste says how many landed, how many components it added, and how
+  many keys were dropped because a component could not be created. A paste that
+  silently writes fewer keys than were copied shows up much later as a channel
+  nobody remembers losing.
+- `ClipComponentModel.CollectInstancesOfKind` is public, for callers that want
+  one kind rather than the whole stack. Adopting a part no longer blanks its
+  `sourceNodePath` when the caller has no previewed hierarchy to offer one.
+
+
 ### Changed — every object has a transform, and any component goes on any object
 
 Three things the component stack got wrong. Transform was an add-on you could

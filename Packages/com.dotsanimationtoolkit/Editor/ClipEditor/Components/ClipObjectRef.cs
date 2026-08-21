@@ -140,6 +140,22 @@ namespace DotsAnimationToolkit.Editor
                 billboardRootId, address, billboardAddressable);
         }
 
+        /// <summary>
+        /// The same object, now carrying the part the rig has just declared for it.
+        /// </summary>
+        /// <remarks>
+        /// Promoting a node writes the rig, and every reference built before that call still says
+        /// the node is not a part. Rebuilding the whole reference from the hierarchy is what the
+        /// window does between edits; this is for the callers that promote several things in one
+        /// pass — a paste, chiefly — and cannot afford a hierarchy rebuild between each one.
+        /// </remarks>
+        public ClipObjectRef WithRigTarget(uint newTargetId)
+        {
+            return new ClipObjectRef(
+                kind, newTargetId, boneName, nodePath, billboardRootId, billboardAddress,
+                billboardAddressable);
+        }
+
         /// <summary>Whether this reference names something a track could actually be bound to.</summary>
         public bool IsValid
         {

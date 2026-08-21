@@ -683,6 +683,43 @@ namespace DotsAnimationToolkit.Editor
                         SelectAllKeys();
                     }
                     break;
+
+                // Copy, paste and duplicate are handled window-wide as well as on the lane stack,
+                // because pasting keys onto a different object means selecting that object first —
+                // and selecting it puts the focus in the hierarchy, where the timeline's own
+                // handler never runs. The lane stack still gets first refusal and stops the event
+                // when it acts, so a paste is never made twice.
+                case KeyCode.C:
+                    if (commandKey && selectedClip != null)
+                    {
+                        CopySelectedKeys();
+                    }
+                    else
+                    {
+                        handled = false;
+                    }
+                    break;
+                case KeyCode.V:
+                    if (commandKey && selectedClip != null)
+                    {
+                        PasteKeysAtPlayhead();
+                    }
+                    else
+                    {
+                        handled = false;
+                    }
+                    break;
+                case KeyCode.D:
+                    if (commandKey && selectedClip != null)
+                    {
+                        CopySelectedKeys();
+                        PasteKeysAtPlayhead();
+                    }
+                    else
+                    {
+                        handled = false;
+                    }
+                    break;
                 default:
                     handled = false;
                     break;

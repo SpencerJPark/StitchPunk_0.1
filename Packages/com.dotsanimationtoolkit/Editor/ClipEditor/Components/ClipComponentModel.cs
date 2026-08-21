@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
-using Unity.Mathematics;
 
 namespace DotsAnimationToolkit.Editor
 {
@@ -273,7 +272,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 ClipComponentKind kind = stackOrder[orderIndex];
                 int countBefore = instances.Count;
-                CollectInstancesOfKind(clip, rig, objectRef, kind, instances);
+                CollectInstancesOfKindInto(clip, rig, objectRef, kind, instances);
 
                 if (!IsIntrinsic(kind))
                 {
@@ -320,7 +319,7 @@ namespace DotsAnimationToolkit.Editor
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind)
         {
             presenceScratch.Clear();
-            CollectInstancesOfKind(clip, rig, objectRef, kind, presenceScratch);
+            CollectInstancesOfKindInto(clip, rig, objectRef, kind, presenceScratch);
             return presenceScratch.Count > 0;
         }
 
@@ -468,8 +467,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 // Stamping the path is what makes the adoption stick: next time the window builds
                 // the object it resolves this target by path rather than by the name coincidence
-                // that found it here.
-                existing.sourceNodePath = objectRef.nodePath;
+                // that found it here. An empty path is not stamped — a caller that never had a
+                // previewed hierarchy to read one against would otherwise erase the binding a
+                // caller that did had already recorded.
+                if (!string.IsNullOrEmpty(objectRef.nodePath))
+                {
+                    existing.sourceNodePath = objectRef.nodePath;
+                }
                 MigrateBoneTrackToTransform(clip, objectRef.boneName, existing);
                 return existing;
             }
@@ -795,28 +799,33 @@ namespace DotsAnimationToolkit.Editor
             transformTrack.keys = new List<TransformKey>(boneTrack.keys.Count);
             for (int keyIndex = 0; keyIndex < boneTrack.keys.Count; keyIndex++)
             {
-                transformTrack.keys.Add(ToTransformKey(boneTrack.keys[keyIndex]));
+                transformTrack.keys.Add(ClipKeyConversion.ToTransformKey(boneTrack.keys[keyIndex]));
             }
             clip.boneTracks.RemoveAt(boneTrackIndex);
         }
 
-        /// <summary>The same pose, with the rotation in the form a transform key stores it.</summary>
-        private static TransformKey ToTransformKey(BoneKey boneKey)
+        /// <summary>
+        /// The instances of one kind on one object, in the order the owning list holds them.
+        /// </summary>
+        /// <remarks>
+        /// Public because a caller sometimes wants one kind rather than the whole stack — a paste
+        /// asking "does this object have a third flipbook yet" has no use for its sockets. Unlike
+        /// <see cref="CollectInstances"/> this never invents the placeholder an unkeyed intrinsic
+        /// component carries: the question here is what exists, not what the panel shows.
+        /// </remarks>
+        public static void CollectInstancesOfKind(
+            ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
+            List<ClipComponentInstance> instances)
         {
-            float3 rotationDegrees = ClipBoneEditing.ToSignedEulerDegrees(boneKey.localRotation);
-            return new TransformKey
+            if (instances == null)
             {
-                normalizedTime = boneKey.normalizedTime,
-                position = boneKey.localPosition,
-                rotation = rotationDegrees,
-                scale = boneKey.localScale,
-                interpolation = boneKey.interpolation,
-                bezierStartHandle = boneKey.bezierStartHandle,
-                bezierEndHandle = boneKey.bezierEndHandle
-            };
+                return;
+            }
+            instances.Clear();
+            CollectInstancesOfKindInto(clip, rig, objectRef, kind, instances);
         }
 
-        private static void CollectInstancesOfKind(
+        private static void CollectInstancesOfKindInto(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
             List<ClipComponentInstance> instances)
         {
