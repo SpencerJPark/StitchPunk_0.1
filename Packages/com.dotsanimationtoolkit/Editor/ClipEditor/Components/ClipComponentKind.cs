@@ -31,7 +31,10 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>A keyed sprite-frame index — <c>SpriteTrack</c>. A part may carry several.</summary>
         Flipbook = 2,
 
-        /// <summary>Keyed billboard facing for a billboard root — <c>BillboardTrack</c>.</summary>
+        /// <summary>
+        /// This node faces the viewer — a <c>BillboardRootDefinition</c> on the rig, animated by the
+        /// clip's <c>BillboardTrack</c>s.
+        /// </summary>
         Billboard = 3,
 
         /// <summary>An attachment point hung off this object — <c>SocketDefinition</c> on the rig.</summary>

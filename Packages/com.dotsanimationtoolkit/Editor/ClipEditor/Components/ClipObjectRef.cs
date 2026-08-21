@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System;
+using DotsAnimationToolkit.Authoring;
 
 namespace DotsAnimationToolkit.Editor
 {
@@ -24,10 +25,10 @@ namespace DotsAnimationToolkit.Editor
     /// <c>BoneTrack.boneName</c> and <c>SocketDefinition.boneName</c> already carry.
     /// </para>
     /// <para>
-    /// <strong><see cref="billboardRootId"/> is resolved by the caller, not looked up here.</strong>
-    /// A billboard root is addressed by hierarchy path for a bone, and only the window knows the
-    /// previewed hierarchy that path is read against. Passing the resolved id in keeps this struct —
-    /// and the model that reads it — free of the preview scene.
+    /// <strong><see cref="billboardRootId"/> and <see cref="billboardAddress"/> are resolved by the
+    /// caller, not looked up here.</strong> A billboard root is addressed by hierarchy path for a
+    /// bone, and only the window knows the previewed hierarchy that path is read against. Passing
+    /// both in keeps this struct — and the model that reads it — free of the preview scene.
     /// </para>
     /// </remarks>
     public readonly struct ClipObjectRef : IEquatable<ClipObjectRef>
@@ -45,25 +46,61 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public readonly uint billboardRootId;
 
+        /// <summary>
+        /// How the rig would address this object as a billboard root, if it were made one.
+        /// </summary>
+        /// <remarks>
+        /// Carried whether or not the object is a root yet, because that is what adding the
+        /// Billboard component writes. Meaningful only when <see cref="billboardAddressable"/>.
+        /// </remarks>
+        public readonly BillboardNodeAddress billboardAddress;
+
+        /// <summary>
+        /// Whether that address can be resolved at all — false for a bone with no previewed
+        /// hierarchy to read a path against, where an empty path would silently mean the prefab
+        /// root rather than "unknown".
+        /// </summary>
+        public readonly bool billboardAddressable;
+
         private ClipObjectRef(
-            ClipObjectKind kind, uint targetId, string boneName, uint billboardRootId)
+            ClipObjectKind kind, uint targetId, string boneName, uint billboardRootId,
+            BillboardNodeAddress billboardAddress, bool billboardAddressable)
         {
             this.kind = kind;
             this.targetId = targetId;
             this.boneName = boneName;
             this.billboardRootId = billboardRootId;
+            this.billboardAddress = billboardAddress;
+            this.billboardAddressable = billboardAddressable;
         }
 
+        /// <summary>
+        /// A rig target, which is always addressable as a billboard root: it has a stable id, so
+        /// unlike a bone there is no hierarchy to read a path against.
+        /// </summary>
         public static ClipObjectRef RigTarget(uint targetId, uint billboardRootId)
         {
+            BillboardNodeAddress address = new BillboardNodeAddress
+            {
+                kind = BillboardAddressKind.RigTarget,
+                targetId = targetId
+            };
             return new ClipObjectRef(
-                ClipObjectKind.RigTarget, targetId, string.Empty, billboardRootId);
+                ClipObjectKind.RigTarget, targetId, string.Empty, billboardRootId, address, true);
         }
 
-        public static ClipObjectRef Bone(string boneName, uint billboardRootId)
+        public static ClipObjectRef Bone(
+            string boneName, uint billboardRootId,
+            string billboardHierarchyPath, bool billboardAddressable)
         {
+            BillboardNodeAddress address = new BillboardNodeAddress
+            {
+                kind = BillboardAddressKind.HierarchyPath,
+                hierarchyPath = billboardHierarchyPath ?? string.Empty
+            };
             return new ClipObjectRef(
-                ClipObjectKind.Bone, 0u, boneName ?? string.Empty, billboardRootId);
+                ClipObjectKind.Bone, 0u, boneName ?? string.Empty, billboardRootId,
+                address, billboardAddressable);
         }
 
         /// <summary>Whether this reference names something a track could actually be bound to.</summary>

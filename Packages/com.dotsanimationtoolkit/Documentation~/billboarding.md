@@ -27,8 +27,11 @@ opt-in throughout: a rig that declares no roots bakes nothing and costs nothing 
 
 ### Marking a node
 
-The easiest way is the **Clip Editor's hierarchy**: right-click a row → **Billboard ▸ Make Billboard
-Root**. The address is filled in from the row you clicked. Right-click a root again to clear it.
+In the **Clip Editor**, select the node and add **Billboard** from its **Add Component** menu. The
+address is filled in from the object you added it on. Removing the component stops the node
+billboarding — and takes the billboard keys of the open clip with it, since keys addressing a root
+the rig no longer declares animate nothing. The row's right-click menu carries the same pair
+(**Billboard ▸ Add / Remove**).
 
 The hierarchy then shows what is going on:
 
@@ -104,7 +107,8 @@ orientation.
 
 ## Animating it
 
-A clip can key three channels per billboard root:
+A root's **Billboard** component keys three channels, at the playhead — there is no timeline row for
+them yet:
 
 | Channel | Does |
 |---|---|
@@ -118,6 +122,8 @@ being approximated between two moments.
 
 If several active layers key the same root, the **highest layer wins**, since layer index is
 priority.
+
+A root with no keys still billboards: the component is the root, and the keys only say how much.
 
 ---
 

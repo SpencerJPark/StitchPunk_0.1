@@ -58,9 +58,18 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Which asset a kind is stored on, and therefore how far an edit to it reaches.
+        /// </summary>
+        /// <remarks>
+        /// Billboard counts as rig-scoped because the component <em>is</em> the billboard root, which
+        /// is rig structure: a node carrying it turns to face the viewer in every clip, whether or
+        /// not this clip animates how much. Its keys are clip data hanging off that, the same way a
+        /// socket's offset is rig data every clip shares.
+        /// </remarks>
         public static ClipComponentScope Scope(ClipComponentKind kind)
         {
-            return kind == ClipComponentKind.Socket
+            return kind == ClipComponentKind.Socket || kind == ClipComponentKind.Billboard
                 ? ClipComponentScope.Rig
                 : ClipComponentScope.Clip;
         }
@@ -122,13 +131,13 @@ namespace DotsAnimationToolkit.Editor
                     return false;
 
                 case ClipComponentKind.Billboard:
-                    if (objectRef.billboardRootId != 0u)
+                    if (objectRef.billboardRootId != 0u || objectRef.billboardAddressable)
                     {
                         return true;
                     }
                     unavailableReason =
-                        "This node is not a billboard root. Make it one first — a billboard track "
-                        + "animates a root the rig declares.";
+                        "The rig has no way to address this node. Assign the rigged prefab in the "
+                        + "toolbar first.";
                     return false;
 
                 default:
@@ -220,7 +229,8 @@ namespace DotsAnimationToolkit.Editor
         /// confirms its removal on different grounds: it is rig structure, and something in a scene
         /// may be attached to it.
         /// </remarks>
-        public static int KeyCount(ClipAsset clip, ClipComponentInstance instance)
+        public static int KeyCount(
+            ClipAsset clip, ClipObjectRef objectRef, ClipComponentInstance instance)
         {
             switch (instance.kind)
             {
@@ -241,8 +251,25 @@ namespace DotsAnimationToolkit.Editor
                 }
                 case ClipComponentKind.Billboard:
                 {
-                    BillboardTrack track = GetAt(clip == null ? null : clip.billboardTracks, instance.index);
-                    return track == null || track.keys == null ? 0 : track.keys.Count;
+                    // Summed over the root's tracks rather than read from one: the instance
+                    // addresses the rig's root list, and the keys are in the clip.
+                    if (clip == null || clip.billboardTracks == null
+                        || objectRef.billboardRootId == 0u)
+                    {
+                        return 0;
+                    }
+                    int billboardKeyCount = 0;
+                    for (int trackIndex = 0; trackIndex < clip.billboardTracks.Count; trackIndex++)
+                    {
+                        BillboardTrack track = clip.billboardTracks[trackIndex];
+                        if (track == null || track.keys == null
+                            || track.rootStableId != objectRef.billboardRootId)
+                        {
+                            continue;
+                        }
+                        billboardKeyCount += track.keys.Count;
+                    }
+                    return billboardKeyCount;
                 }
                 default:
                     return 0;
@@ -266,10 +293,15 @@ namespace DotsAnimationToolkit.Editor
         /// unidentified — it is unselectable and its marker unfindable.
         /// </para>
         /// </remarks>
+        /// <param name="newComponentName">
+        /// Cosmetic label for the rig-scoped kinds, which are the ones a person names: a socket and
+        /// a billboard root both appear in lists of their own. Ignored by the track kinds, whose
+        /// identity is the object they are bound to.
+        /// </param>
         /// <returns>The instance created, or an index of −1 when nothing could be added.</returns>
         public static ClipComponentInstance Add(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
-            string socketDisplayName)
+            string newComponentName)
         {
             string unavailableReason;
             if (!CanAdd(clip, rig, objectRef, kind, out unavailableReason))
@@ -305,11 +337,18 @@ namespace DotsAnimationToolkit.Editor
                 }
                 case ClipComponentKind.Billboard:
                 {
-                    EnsureList(ref clip.billboardTracks);
-                    BillboardTrack track = new BillboardTrack();
-                    track.rootStableId = objectRef.billboardRootId;
-                    clip.billboardTracks.Add(track);
-                    return new ClipComponentInstance(kind, clip.billboardTracks.Count - 1);
+                    if (rig.billboardRoots == null)
+                    {
+                        rig.billboardRoots = new List<BillboardRootDefinition>();
+                    }
+                    BillboardRootDefinition definition = new BillboardRootDefinition();
+                    definition.displayName = newComponentName;
+                    definition.address = objectRef.billboardAddress;
+                    rig.billboardRoots.Add(definition);
+
+                    // The caller mints the id, as it does for a socket: a root saved with id 0 is
+                    // one no billboard track could ever address.
+                    return new ClipComponentInstance(kind, rig.billboardRoots.Count - 1);
                 }
                 default:
                 {
@@ -318,7 +357,7 @@ namespace DotsAnimationToolkit.Editor
                         rig.sockets = new List<SocketDefinition>();
                     }
                     SocketDefinition socket = new SocketDefinition();
-                    socket.displayName = socketDisplayName;
+                    socket.displayName = newComponentName;
                     if (objectRef.kind == ClipObjectKind.RigTarget)
                     {
                         socket.mode = SocketAttachMode.RigTarget;
@@ -348,7 +387,30 @@ namespace DotsAnimationToolkit.Editor
                 case ClipComponentKind.Flipbook:
                     return RemoveAt(clip == null ? null : clip.spriteTracks, instance.index);
                 case ClipComponentKind.Billboard:
-                    return RemoveAt(clip == null ? null : clip.billboardTracks, instance.index);
+                {
+                    // The tracks go with the root. A track bound to a root the rig no longer
+                    // declares is a validation error (V24) that animates nothing, so leaving one
+                    // behind would be a broken clip with no visible cause.
+                    BillboardRootDefinition definition =
+                        GetAt(rig == null ? null : rig.billboardRoots, instance.index);
+                    if (definition == null)
+                    {
+                        return false;
+                    }
+                    uint rootStableId = definition.Id.Value;
+                    if (clip != null && clip.billboardTracks != null)
+                    {
+                        for (int trackIndex = clip.billboardTracks.Count - 1; trackIndex >= 0; trackIndex--)
+                        {
+                            BillboardTrack track = clip.billboardTracks[trackIndex];
+                            if (track != null && track.rootStableId == rootStableId)
+                            {
+                                clip.billboardTracks.RemoveAt(trackIndex);
+                            }
+                        }
+                    }
+                    return RemoveAt(rig.billboardRoots, instance.index);
+                }
                 default:
                     return RemoveAt(rig == null ? null : rig.sockets, instance.index);
             }
@@ -411,16 +473,20 @@ namespace DotsAnimationToolkit.Editor
                 }
                 case ClipComponentKind.Billboard:
                 {
-                    if (clip == null || clip.billboardTracks == null || objectRef.billboardRootId == 0u)
+                    // The component is the root the rig declares, so its index addresses the rig's
+                    // root list. The clip's tracks hang off it and may not exist yet: a node can
+                    // billboard without any clip animating how much.
+                    if (rig == null || rig.billboardRoots == null || objectRef.billboardRootId == 0u)
                     {
                         return;
                     }
-                    for (int trackIndex = 0; trackIndex < clip.billboardTracks.Count; trackIndex++)
+                    for (int rootIndex = 0; rootIndex < rig.billboardRoots.Count; rootIndex++)
                     {
-                        BillboardTrack track = clip.billboardTracks[trackIndex];
-                        if (track != null && track.rootStableId == objectRef.billboardRootId)
+                        BillboardRootDefinition definition = rig.billboardRoots[rootIndex];
+                        if (definition != null && definition.Id.Value == objectRef.billboardRootId)
                         {
-                            instances.Add(new ClipComponentInstance(kind, trackIndex));
+                            instances.Add(new ClipComponentInstance(kind, rootIndex));
+                            return;
                         }
                     }
                     return;

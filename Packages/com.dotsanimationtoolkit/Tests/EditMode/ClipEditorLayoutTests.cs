@@ -43,7 +43,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
             "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",
-            "add-socket-button", "billboard-root-button", "edit-prefab-button",
+            "edit-prefab-button",
             "viewport-pane", "viewport-status", "viewport-image",
             "inspector-pane", "inspector-content",
             "timeline-pane", "timeline-status", "pivot-dropdown", "timeline-scroll", "timeline-row",

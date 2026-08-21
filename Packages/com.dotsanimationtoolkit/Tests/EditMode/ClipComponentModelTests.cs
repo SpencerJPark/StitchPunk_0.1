@@ -52,7 +52,19 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private ClipObjectRef Bone
         {
-            get { return ClipObjectRef.Bone(BoneName, 0u); }
+            get { return ClipObjectRef.Bone(BoneName, 0u, "Root/Spine", true); }
+        }
+
+        /// <summary>A bone with no previewed hierarchy, so no path to be addressed by.</summary>
+        private ClipObjectRef UnaddressableBone
+        {
+            get { return ClipObjectRef.Bone(BoneName, 0u, string.Empty, false); }
+        }
+
+        /// <summary>The head, already declared a billboard root by the rig.</summary>
+        private ClipObjectRef BillboardingHead
+        {
+            get { return ClipObjectRef.RigTarget(HeadTargetId, BillboardRootId); }
         }
 
         // -----------------------------------------------------------------------------------
@@ -90,16 +102,104 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void BillboardIsOfferedOnlyToABillboardRoot()
+        public void BillboardIsOfferedWhereverTheRigCanAddressTheNode()
         {
             string reason;
-            Assert.IsFalse(
+            Assert.IsTrue(
                 ClipComponentModel.AppliesTo(ClipComponentKind.Billboard, Head, out reason),
-                "A billboard track animates a root the rig declares, not any node.");
-            Assert.IsTrue(ClipComponentModel.AppliesTo(
-                ClipComponentKind.Billboard,
-                ClipObjectRef.RigTarget(HeadTargetId, BillboardRootId),
-                out reason));
+                "Adding Billboard is what makes a node a root, so it is offered to nodes that are "
+                + "not one yet.");
+            Assert.IsTrue(
+                ClipComponentModel.AppliesTo(ClipComponentKind.Billboard, Bone, out reason));
+            Assert.IsFalse(
+                ClipComponentModel.AppliesTo(
+                    ClipComponentKind.Billboard, UnaddressableBone, out reason),
+                "With no hierarchy to read a path against, an empty path would silently mean the "
+                + "prefab root rather than this bone.");
+            Assert.IsNotEmpty(reason);
+        }
+
+        [Test]
+        public void BillboardIsRigScoped_BecauseTheComponentIsTheRoot()
+        {
+            Assert.AreEqual(
+                ClipComponentScope.Rig, ClipComponentModel.Scope(ClipComponentKind.Billboard),
+                "A node carrying it faces the viewer in every clip, animated or not.");
+        }
+
+        [Test]
+        public void AddingBillboardDeclaresTheNodeARoot_AndPresenceFollowsThatRoot()
+        {
+            ClipComponentInstance added =
+                ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Billboard, string.Empty);
+
+            Assert.AreEqual(0, added.index);
+            Assert.AreEqual(1, rig.billboardRoots.Count);
+            Assert.AreEqual(
+                BillboardAddressKind.RigTarget, rig.billboardRoots[0].address.kind);
+            Assert.AreEqual(HeadTargetId, rig.billboardRoots[0].address.targetId);
+            Assert.AreEqual(
+                0, clip.billboardTracks.Count,
+                "The root is the component; the track is made by the first edit, the way a "
+                + "flipbook's first key is.");
+
+            // Ids are minted by the caller, exactly as they are for a socket.
+            rig.EnsureStableIds();
+            ClipObjectRef rootedHead =
+                ClipObjectRef.RigTarget(HeadTargetId, rig.billboardRoots[0].Id.Value);
+
+            ClipComponentModel.CollectInstances(clip, rig, rootedHead, instances);
+            Assert.AreEqual(1, instances.Count);
+            Assert.AreEqual(ClipComponentKind.Billboard, instances[0].kind);
+            Assert.AreEqual(
+                0, instances[0].index, "The instance addresses the rig's root list.");
+        }
+
+        [Test]
+        public void ANodeThatIsNotARootCarriesNoBillboardComponent()
+        {
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.AreEqual(0, instances.Count);
+        }
+
+        [Test]
+        public void RemovingBillboardTakesTheRootAndTheTracksThatAddressedIt()
+        {
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Billboard, string.Empty);
+            rig.EnsureStableIds();
+            uint rootStableId = rig.billboardRoots[0].Id.Value;
+
+            clip.billboardTracks.Add(new BillboardTrack { rootStableId = rootStableId });
+            clip.billboardTracks.Add(new BillboardTrack { rootStableId = 0xAAu });
+
+            ClipObjectRef rootedHead = ClipObjectRef.RigTarget(HeadTargetId, rootStableId);
+            ClipComponentModel.CollectInstances(clip, rig, rootedHead, instances);
+            Assert.IsTrue(ClipComponentModel.Remove(clip, rig, instances[0]));
+
+            Assert.AreEqual(0, rig.billboardRoots.Count);
+            Assert.AreEqual(
+                1, clip.billboardTracks.Count,
+                "A track left bound to a root the rig no longer declares fails V24 and animates "
+                + "nothing, so it goes with the root — but another root's track must not.");
+            Assert.AreEqual(0xAAu, clip.billboardTracks[0].rootStableId);
+        }
+
+        [Test]
+        public void BillboardKeyCountSumsTheRootsOwnTracks()
+        {
+            BillboardTrack track = new BillboardTrack { rootStableId = BillboardRootId };
+            track.keys.Add(new BillboardKey { normalizedTime = 0f });
+            track.keys.Add(new BillboardKey { normalizedTime = 1f });
+            clip.billboardTracks.Add(new BillboardTrack { rootStableId = 0xAAu });
+            clip.billboardTracks.Add(track);
+
+            Assert.AreEqual(
+                2,
+                ClipComponentModel.KeyCount(
+                    clip, BillboardingHead,
+                    new ClipComponentInstance(ClipComponentKind.Billboard, 0)),
+                "The instance addresses the rig's roots, so the keys are found by root id rather "
+                + "than by that index.");
         }
 
         // -----------------------------------------------------------------------------------
@@ -314,13 +414,13 @@ namespace DotsAnimationToolkit.Tests.EditMode
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             ClipComponentModel.CollectInstances(clip, rig, Head, instances);
-            Assert.AreEqual(0, ClipComponentModel.KeyCount(clip, instances[0]));
+            Assert.AreEqual(0, ClipComponentModel.KeyCount(clip, Head, instances[0]));
 
             AuthoringTestAssets.AddTransformKey(
                 track, 0f, Unity.Mathematics.float3.zero, 0f,
                 new Unity.Mathematics.float3(1f, 1f, 1f), Interpolation.Linear);
 
-            Assert.AreEqual(1, ClipComponentModel.KeyCount(clip, instances[0]));
+            Assert.AreEqual(1, ClipComponentModel.KeyCount(clip, Head, instances[0]));
         }
     }
 }

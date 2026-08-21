@@ -271,7 +271,6 @@ namespace DotsAnimationToolkit.Editor
         private bool isHandlingHierarchySelection;
 
         private Button editPrefabButton;
-        private Button billboardRootButton;
         private ToolbarToggle rigEditToggle;
         private VisualElement reconcilePanel;
         private ScrollView reconcileList;
@@ -898,27 +897,12 @@ namespace DotsAnimationToolkit.Editor
             hierarchyTreeView.bindItem = BindHierarchyRow;
             hierarchyTreeView.selectionChanged += OnHierarchySelectionChanged;
 
-            Button addSocketButton = rootVisualElement.Q<Button>("add-socket-button");
-            if (addSocketButton != null)
-            {
-                addSocketButton.tooltip =
-                    "Add an attachment point, bound to whatever is selected in this tree.";
-                addSocketButton.clicked += AddSocket;
-            }
-
-            billboardRootButton = rootVisualElement.Q<Button>("billboard-root-button");
-            if (billboardRootButton != null)
-            {
-                billboardRootButton.clicked += ToggleBillboardRootOnSelection;
-            }
-
             editPrefabButton = rootVisualElement.Q<Button>("edit-prefab-button");
             if (editPrefabButton != null)
             {
                 editPrefabButton.clicked += OpenPrefabForSelection;
             }
             RefreshPrefabActionState();
-            RefreshBillboardButtonState();
         }
 
         /// <summary>
@@ -1577,94 +1561,21 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            ClipObjectRef objectRef = BuildObjectRef(item);
             int existingIndex = FindBillboardRootIndexFor(rig, item);
             if (existingIndex >= 0)
             {
                 menuEvent.menu.AppendAction(
-                    "Billboard/Clear Billboard Root",
-                    action => ClearBillboardRoot(rig, existingIndex));
+                    "Billboard/Remove Billboard",
+                    action => ConfirmRemoveComponent(
+                        objectRef,
+                        new ClipComponentInstance(ClipComponentKind.Billboard, existingIndex)));
                 return;
             }
 
             menuEvent.menu.AppendAction(
-                "Billboard/Make Billboard Root",
-                action => MakeBillboardRoot(rig, item));
-        }
-
-        /// <summary>
-        /// Makes the selected row a billboard root, or clears it if it already is one.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>One button that reads the selection, not an add/remove pair.</strong> A node
-        /// either is a billboard root or is not; a pair would force the author to know which state
-        /// they were in before choosing, which is exactly what the button is supposed to tell them.
-        /// The label follows the selection for the same reason.
-        /// </para>
-        /// <para>
-        /// The same operation lives on the row's right-click menu. This exists because the context
-        /// menu is where you look once you know the feature is there, and the pane header is where
-        /// you look when you do not.
-        /// </para>
-        /// </remarks>
-        private void ToggleBillboardRootOnSelection()
-        {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
-            HierarchyItem item = ActiveHierarchyItem;
-            if (rig == null || item == null)
-            {
-                ShowNotification(new GUIContent(
-                    "Select a node in the hierarchy first, and load a clip set whose rig can hold "
-                    + "the billboard root."));
-                return;
-            }
-
-            int existingIndex = FindBillboardRootIndexFor(rig, item);
-            if (existingIndex >= 0)
-            {
-                ClearBillboardRoot(rig, existingIndex);
-            }
-            else
-            {
-                MakeBillboardRoot(rig, item);
-            }
-            RefreshBillboardButtonState();
-        }
-
-        /// <summary>
-        /// Points the button at what it would do to the current selection.
-        /// </summary>
-        /// <remarks>
-        /// Disabled rather than hidden when nothing is selected: a control that vanishes is a
-        /// control nobody learns exists, which is the whole problem this button was added to solve.
-        /// </remarks>
-        private void RefreshBillboardButtonState()
-        {
-            if (billboardRootButton == null)
-            {
-                return;
-            }
-
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
-            HierarchyItem item = ActiveHierarchyItem;
-            bool canAct = rig != null && item != null;
-            billboardRootButton.SetEnabled(canAct);
-
-            if (!canAct)
-            {
-                billboardRootButton.text = "+ Billboard";
-                billboardRootButton.tooltip =
-                    "Select a node in the hierarchy to make it a billboard root.";
-                return;
-            }
-
-            bool alreadyRoot = FindBillboardRootIndexFor(rig, item) >= 0;
-            billboardRootButton.text = alreadyRoot ? "- Billboard" : "+ Billboard";
-            billboardRootButton.tooltip = alreadyRoot
-                ? "Stop '" + item.displayName + "' being a billboard root. Nodes under it fall back "
-                    + "to whichever root is above it, or to none."
-                : "Make '" + item.displayName + "' a billboard root. It turns to face the viewer, "
-                    + "and so does everything under it unless a child declares a root of its own.";
+                "Billboard/Add Billboard",
+                action => AddComponent(objectRef, ClipComponentKind.Billboard));
         }
 
         /// <summary>The rig's billboard root addressing this row, or −1.</summary>
@@ -1716,33 +1627,6 @@ namespace DotsAnimationToolkit.Editor
                 kind = BillboardAddressKind.HierarchyPath,
                 hierarchyPath = ResolveHierarchyPath(item)
             };
-        }
-
-        private void MakeBillboardRoot(RigAsset rig, HierarchyItem item)
-        {
-            Undo.RecordObject(rig, "Make Billboard Root");
-            if (rig.billboardRoots == null)
-            {
-                rig.billboardRoots = new List<BillboardRootDefinition>();
-            }
-            rig.billboardRoots.Add(new BillboardRootDefinition
-            {
-                displayName = item.displayName,
-                address = BuildBillboardAddressFor(item)
-            });
-            // Mints the row's stable id, which clip billboard tracks bind to. Without this the row
-            // saves with id 0 and no track could ever address it.
-            rig.EnsureStableIds();
-            EditorUtility.SetDirty(rig);
-            RefreshAfterBillboardEdit();
-        }
-
-        private void ClearBillboardRoot(RigAsset rig, int rootIndex)
-        {
-            Undo.RecordObject(rig, "Clear Billboard Root");
-            rig.billboardRoots.RemoveAt(rootIndex);
-            EditorUtility.SetDirty(rig);
-            RefreshAfterBillboardEdit();
         }
 
         /// <summary>
@@ -3227,9 +3111,6 @@ namespace DotsAnimationToolkit.Editor
                 isHandlingHierarchySelection = false;
             }
 
-            // The button names what it would do to the row now selected, so it has to follow the
-            // selection rather than only the edits it makes itself.
-            RefreshBillboardButtonState();
         }
 
         private void ApplyHierarchySelectionChange()
@@ -6606,34 +6487,6 @@ namespace DotsAnimationToolkit.Editor
         /// feature exists to make visible, and creating one in that state as a matter of course
         /// would train the author to ignore the warning.
         /// </remarks>
-        /// <summary>
-        /// Adds a socket to the selected object — the same act as Add Component ▸ Socket.
-        /// </summary>
-        /// <remarks>
-        /// Kept as a header button because that is where you look when you do not yet know the
-        /// feature is there, while the component menu is where you look once you do. Both end in
-        /// the same call, so there is one set of rules about what a socket may hang off.
-        /// </remarks>
-        private void AddSocket()
-        {
-            RigAsset rig = ActiveRig;
-            if (rig == null)
-            {
-                ShowNotification(new GUIContent("Assign a clip set with a rig first."));
-                return;
-            }
-
-            HierarchyItem activeItem = ActiveHierarchyItem;
-            if (activeItem == null)
-            {
-                ShowNotification(new GUIContent(
-                    "Select the part or bone the socket should follow."));
-                return;
-            }
-
-            AddComponent(BuildObjectRef(activeItem), ClipComponentKind.Socket);
-        }
-
         private void ConfirmDeleteSocket(SocketDefinition socket)
         {
             RigAsset rig = clipSet != null ? clipSet.rig : null;

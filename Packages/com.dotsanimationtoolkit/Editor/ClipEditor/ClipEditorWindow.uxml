@@ -30,10 +30,6 @@
                     <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
                         <ui:VisualElement class="clip-editor__pane-header">
                             <ui:Label text="Hierarchy" class="clip-editor__pane-title"/>
-                            <ui:VisualElement class="clip-editor__pane-actions">
-                                <ui:Button name="add-socket-button" text="+ Socket" class="clip-editor__pane-action"/>
-                                <ui:Button name="billboard-root-button" text="+ Billboard" class="clip-editor__pane-action"/>
-                            </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Label name="hierarchy-empty-label" text="Assign a rig in the toolbar to list its transforms." class="clip-editor__hint"/>
                         <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy"/>

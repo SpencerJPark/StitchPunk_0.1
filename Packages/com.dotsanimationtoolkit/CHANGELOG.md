@@ -53,17 +53,28 @@ object actually carries, as components you add and remove.
 - **+ Socket** in the hierarchy header still exists and now routes through the
   same call, so there is one set of rules about what a socket may hang off.
 
-### Added — billboard tracks are authorable
+### Added — billboard tracks are authorable, as a component
 
 - **`ClipBillboardEditing`** (new) — read and write a billboard track at a time,
   with the split the data model requires: angle and blend weight eased between
   keys, `enabled` held from its key the way a flipbook index is (A43). Covered by
   `ClipBillboardEditingTests`.
-- The Billboard component edits those channels at the playhead. It is offered
-  only on a billboard root, since a billboard track animates a root the rig
-  declares. **Billboard keys still have no timeline row** — they are authored in
-  the component, and the block says so rather than implying the dopesheet shows
-  them.
+- **The Billboard component is the billboard root**, not a track on one. Adding
+  it declares the node a root; its body animates how much, creating the track on
+  the first edit the way a flipbook makes its first key; removing it clears the
+  root and takes the tracks that addressed it, since a track bound to a root the
+  rig no longer declares fails V24 and animates nothing. Rig-scoped, and badged.
+- **Billboard keys still have no timeline row** — they are authored in the
+  component, and the block says so rather than implying the dopesheet shows them.
+
+### Removed — the hierarchy pane's + Socket and + Billboard buttons
+
+Both were the only way to create things that are now components, and a second
+door with its own rules. `Add Component ▸ Socket` and `Add Component ▸ Billboard`
+on the object itself replace them; the row's context menu keeps `Billboard/Add`
+and `Billboard/Remove`, routed through the same calls so there is one rule set
+and one confirmation. The rig asset's own inspector still lists and edits sockets
+as it did.
 
 ### Changed — key easing is a curve with presets
 

@@ -50,6 +50,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<ClipComponentInstance> componentInstances =
             new List<ClipComponentInstance>();
 
+        private readonly List<BillboardTrack> billboardTracks = new List<BillboardTrack>();
+        private readonly List<int> billboardTrackIndices = new List<int>();
+
         /// <summary>
         /// Kinds the author has folded away, remembered across rebuilds.
         /// </summary>
@@ -158,7 +161,14 @@ namespace DotsAnimationToolkit.Editor
             {
                 return ClipObjectRef.RigTarget(item.targetId, billboardRootId);
             }
-            return ClipObjectRef.Bone(item.displayName, billboardRootId);
+
+            // A bone is addressed by path, and an empty path means the prefab root — a real answer,
+            // not a missing one. So the check is whether there is a hierarchy to read a path
+            // against at all, rather than whether the path came back empty.
+            bool billboardAddressable =
+                previewController != null && previewController.HierarchyRoot != null;
+            return ClipObjectRef.Bone(
+                item.displayName, billboardRootId, ResolveHierarchyPath(item), billboardAddressable);
         }
 
         /// <summary>One component: a header that folds it away, and the fields it owns.</summary>
@@ -178,7 +188,8 @@ namespace DotsAnimationToolkit.Editor
             header.AddToClassList(ComponentHeaderUssClassName);
 
             Label title = new Label(
-                (isExpanded ? ExpandedGlyph : CollapsedGlyph) + DescribeComponent(instance));
+                (isExpanded ? ExpandedGlyph : CollapsedGlyph)
+                + DescribeComponent(objectRef, instance));
             title.AddToClassList(ComponentTitleUssClassName);
             title.RegisterCallback<PointerDownEvent>(pointerEvent =>
             {
@@ -224,7 +235,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>The component's name, plus what it holds when that is worth knowing up front.</summary>
-        private string DescribeComponent(ClipComponentInstance instance)
+        private string DescribeComponent(ClipObjectRef objectRef, ClipComponentInstance instance)
         {
             string name = ClipComponentModel.DisplayName(instance.kind);
             if (instance.kind == ClipComponentKind.Socket)
@@ -237,7 +248,7 @@ namespace DotsAnimationToolkit.Editor
                 return name;
             }
 
-            int keyCount = ClipComponentModel.KeyCount(selectedClip, instance);
+            int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
             return name + "  ·  " + keyCount + " key(s)";
         }
 
@@ -281,7 +292,7 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 case ClipComponentKind.Billboard:
-                    AddBillboardFields(body, instance.index);
+                    AddBillboardFields(body, objectRef);
                     return;
 
                 default:
@@ -393,16 +404,19 @@ namespace DotsAnimationToolkit.Editor
                 {
                     return;
                 }
-                RecordSocketEdit(rig, "Add Socket");
+                RecordSocketEdit(rig, "Add " + ClipComponentModel.DisplayName(kind));
                 ClipComponentModel.Add(
-                    selectedClip, rig, objectRef, kind, DescribeNewSocketName(objectRef));
+                    selectedClip, rig, objectRef, kind, DescribeNewComponentName(objectRef, kind));
 
-                // Minted here rather than left to OnValidate, which does not run in time. A socket
-                // whose id is still 0 is not merely unidentified: 0 is the sentinel for "no socket
-                // selected", so it would be unselectable and its marker unfindable.
+                // Minted here rather than left to OnValidate, which does not run in time. An id
+                // still 0 is not merely unidentified: for a socket 0 is the sentinel for "none
+                // selected", and a billboard root saved with it is one no track could address.
                 rig.EnsureStableIds();
                 AssetDatabase.SaveAssetIfDirty(rig);
                 CommitSocketEdit(true);
+
+                // A billboard root changes how the node renders in the preview, and marks its row.
+                RefreshHierarchyRows();
                 RebuildInspector();
                 return;
             }
@@ -421,11 +435,23 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        private string DescribeNewSocketName(ClipObjectRef objectRef)
+        /// <summary>
+        /// The label a newly added rig-scoped component carries, built from its object's name.
+        /// </summary>
+        /// <remarks>
+        /// A billboard root is named after the node outright, because it <em>is</em> that node
+        /// facing the viewer. A socket takes the node's name plus "Socket", because a node can hang
+        /// several off itself and they have to be told apart.
+        /// </remarks>
+        private string DescribeNewComponentName(ClipObjectRef objectRef, ClipComponentKind kind)
         {
             string sourceName = objectRef.kind == ClipObjectKind.RigTarget
                 ? ResolveTargetDisplayName(objectRef.targetId)
                 : objectRef.boneName;
+            if (kind == ClipComponentKind.Billboard)
+            {
+                return sourceName;
+            }
             return string.IsNullOrEmpty(sourceName) ? "New Socket" : sourceName + " Socket";
         }
 
@@ -474,7 +500,13 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            int keyCount = ClipComponentModel.KeyCount(selectedClip, instance);
+            if (instance.kind == ClipComponentKind.Billboard)
+            {
+                ConfirmRemoveBillboard(objectRef, instance);
+                return;
+            }
+
+            int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
             if (keyCount > 0 && !EditorUtility.DisplayDialog(
                     "Remove " + kindName,
                     "Remove " + kindName + " from this object?\n\n"
@@ -496,6 +528,58 @@ namespace DotsAnimationToolkit.Editor
 
             RebuildTimeline();
             RebuildHierarchy();
+            RebuildInspector();
+        }
+
+        /// <summary>
+        /// Removes a billboard root, and the keys of every clip track that addressed it.
+        /// </summary>
+        /// <remarks>
+        /// The one component whose removal writes both assets, so both are recorded: the root is rig
+        /// structure and the keys are this clip's. A track left bound to a root the rig no longer
+        /// declares fails validation rule V24 and animates nothing, so it goes with it — which the
+        /// prompt says out loud, because the keys are only visible in this component.
+        /// </remarks>
+        private void ConfirmRemoveBillboard(
+            ClipObjectRef objectRef, ClipComponentInstance instance)
+        {
+            RigAsset rig = ActiveRig;
+            if (rig == null)
+            {
+                return;
+            }
+
+            int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
+            string keyWarning = keyCount > 0
+                ? "\n\n" + keyCount + " key(s) on this clip go with it."
+                : string.Empty;
+            if (!EditorUtility.DisplayDialog(
+                    "Remove Billboard",
+                    "Stop this node facing the viewer?\n\n"
+                        + "It is rig structure, so every clip in the set loses it." + keyWarning,
+                    "Remove",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            RecordSocketEdit(rig, "Remove Billboard");
+            if (selectedClip != null)
+            {
+                RecordClipEdit("Remove Billboard");
+            }
+            ClipComponentModel.Remove(selectedClip, rig, instance);
+            if (selectedClip != null)
+            {
+                CommitClipEdit();
+            }
+            AssetDatabase.SaveAssetIfDirty(rig);
+            CommitSocketEdit(false);
+
+            selectedKeys.Clear();
+            hasActiveKey = false;
+            RefreshHierarchyRows();
+            RebuildTimeline();
             RebuildInspector();
         }
 
@@ -732,29 +816,40 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Written the way the flipbook body is: editing a value keys it at the playhead rather than
-        /// holding it pending, because there is no gizmo for a billboard angle and so nothing to
-        /// hold an unkeyed edit against.
+        /// <strong>The component is the root; the track is optional.</strong> A node with this
+        /// component faces the viewer in every clip whether or not anything animates it, so the
+        /// fields open at the resting values and the first edit creates the track — the same
+        /// bargain the flipbook body strikes with its first key.
+        /// </para>
+        /// <para>
+        /// Editing keys at the playhead rather than holding the value pending, because there is no
+        /// gizmo for a billboard angle and so nothing to show an unkeyed edit against.
         /// </para>
         /// <para>
         /// <strong>Billboard tracks have no timeline lane yet.</strong> The keys are real and the
         /// bake reads them; what is missing is a row to see and drag them on, so this block says how
-        /// many there are and where the nearest one is rather than pretending the timeline shows it.
+        /// many there are rather than pretending the dopesheet shows them.
         /// </para>
         /// </remarks>
-        private void AddBillboardFields(VisualElement parent, int trackIndex)
+        private void AddBillboardFields(VisualElement parent, ClipObjectRef objectRef)
         {
-            BillboardTrack track = ResolveBillboardTrack(trackIndex);
-            if (track == null)
+            if (selectedClip == null)
             {
+                parent.Add(MakeHint(
+                    "This node faces the viewer. Select a clip to animate how much."));
                 return;
             }
 
-            int keyCount = track.keys != null ? track.keys.Count : 0;
-            bool isOnKey = ClipBillboardEditing.FindKeyIndexAt(track, playheadTime) >= 0;
+            ClipBillboardEditing.CollectTracksForRoot(
+                selectedClip, objectRef.billboardRootId, billboardTracks, billboardTrackIndices);
+            BillboardTrack track = billboardTracks.Count > 0 ? billboardTracks[0] : null;
+
+            int keyCount = track != null && track.keys != null ? track.keys.Count : 0;
+            bool isOnKey = track != null
+                && ClipBillboardEditing.FindKeyIndexAt(track, playheadTime) >= 0;
 
             parent.Add(MakeHint(keyCount == 0
-                ? "Empty — editing a value below makes the first key at the playhead."
+                ? "Facing the viewer, unanimated — editing a value below makes the first key."
                 : (isOnKey
                     ? "On a key — editing changes this key."
                     : "Between keys — editing keys the value at the playhead.")));
@@ -772,7 +867,7 @@ namespace DotsAnimationToolkit.Editor
             angleField.SetValueWithoutNotify(angleOffsetDegrees);
             angleField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBillboardEdit(track, changeEvent.newValue, blendWeight, enabled);
+                ApplyBillboardEdit(objectRef, changeEvent.newValue, blendWeight, enabled);
             });
             parent.Add(angleField);
 
@@ -784,7 +879,7 @@ namespace DotsAnimationToolkit.Editor
             blendField.SetValueWithoutNotify(blendWeight);
             blendField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBillboardEdit(track, angleOffsetDegrees, changeEvent.newValue, enabled);
+                ApplyBillboardEdit(objectRef, angleOffsetDegrees, changeEvent.newValue, enabled);
             });
             parent.Add(blendField);
 
@@ -795,7 +890,7 @@ namespace DotsAnimationToolkit.Editor
             enabledField.SetValueWithoutNotify(enabled);
             enabledField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBillboardEdit(track, angleOffsetDegrees, blendWeight, changeEvent.newValue);
+                ApplyBillboardEdit(objectRef, angleOffsetDegrees, blendWeight, changeEvent.newValue);
             });
             parent.Add(enabledField);
 
@@ -804,10 +899,33 @@ namespace DotsAnimationToolkit.Editor
                 + "here, at the playhead."));
         }
 
+        /// <summary>
+        /// Keys the billboard channels at the playhead, creating the track on the first edit.
+        /// </summary>
         private void ApplyBillboardEdit(
-            BillboardTrack track, float angleOffsetDegrees, float blendWeight, bool enabled)
+            ClipObjectRef objectRef, float angleOffsetDegrees, float blendWeight, bool enabled)
         {
+            if (selectedClip == null || objectRef.billboardRootId == 0u)
+            {
+                return;
+            }
+
             RecordClipEdit("Edit Billboard");
+
+            ClipBillboardEditing.CollectTracksForRoot(
+                selectedClip, objectRef.billboardRootId, billboardTracks, billboardTrackIndices);
+            BillboardTrack track = billboardTracks.Count > 0 ? billboardTracks[0] : null;
+            if (track == null)
+            {
+                if (selectedClip.billboardTracks == null)
+                {
+                    selectedClip.billboardTracks = new List<BillboardTrack>();
+                }
+                track = new BillboardTrack();
+                track.rootStableId = objectRef.billboardRootId;
+                selectedClip.billboardTracks.Add(track);
+            }
+
             ClipBillboardEditing.SetKeyValues(
                 track, playheadTime, angleOffsetDegrees, blendWeight, enabled);
             CommitClipEdit();
