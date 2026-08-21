@@ -10,6 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Billboard goes on anything, with nothing to satisfy first
+
+Adding a Billboard was refused unless the rig could already "address the node",
+which meant a previewed prefab hierarchy had to be loaded to read a path
+against. The reasoning was that an empty path silently names the prefab root, so
+a root added without a hierarchy would billboard the wrong node.
+
+Two things wrong with that. A hierarchy-node row **only exists when a hierarchy
+is loaded** — the tree is built from the previewed instance — so the condition
+could never be false for anything selectable, and the gate only ever fired in a
+hand-built unit test. And an empty path is an address rather than a missing one:
+it names the prefab root, and billboarding the whole actor is an ordinary thing
+to want.
+
+- **`ClipObjectRef.billboardAddressable` is gone**, along with the check in
+  `CanAdd`. Put Billboard on an object and that object faces the viewer;
+  everything beneath it comes along, because everything beneath it is a
+  transform child riding on the parent it was already riding on. There is
+  nothing further to decide, so there is nothing further to refuse.
+- `ClipObjectRef.Bone` loses its trailing `billboardAddressable` argument.
+
+
 ### Changed — keys copy and paste between objects, bringing their components with them
 
 The key clipboard held the *index of the track* each key came from and pasted

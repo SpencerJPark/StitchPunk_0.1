@@ -63,7 +63,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private static ClipObjectRef Node()
         {
-            return ClipObjectRef.Bone(BoneName, 0u, 0u, BonePath, true);
+            return ClipObjectRef.Bone(BoneName, 0u, 0u, BonePath);
         }
 
         /// <summary>A transform track on the head with two keys, a quarter of the clip apart.</summary>

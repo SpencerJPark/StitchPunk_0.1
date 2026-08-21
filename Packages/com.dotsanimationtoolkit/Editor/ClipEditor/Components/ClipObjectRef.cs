@@ -56,9 +56,9 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// This is what a newly minted rig target records as its source, and what a billboard root
-        /// on a node is addressed by. Empty is meaningfully different from "the root": with no
-        /// previewed hierarchy an empty path would silently name the root rather than this node,
-        /// which is what <see cref="billboardAddressable"/> guards.
+        /// on a node is addressed by. An empty path is an address, not a missing one: it names the
+        /// prefab root, which is an ordinary thing to billboard — the whole actor turning to face
+        /// the viewer.
         /// </remarks>
         public readonly string nodePath;
 
@@ -72,20 +72,13 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// Carried whether or not the object is a root yet, because that is what adding the
-        /// Billboard component writes. Meaningful only when <see cref="billboardAddressable"/>.
+        /// Billboard component writes.
         /// </remarks>
         public readonly BillboardNodeAddress billboardAddress;
 
-        /// <summary>
-        /// Whether that address can be resolved at all — false for a node with no previewed
-        /// hierarchy to read a path against, where an empty path would silently mean the prefab
-        /// root rather than "unknown".
-        /// </summary>
-        public readonly bool billboardAddressable;
-
         private ClipObjectRef(
             ClipObjectKind kind, uint targetId, string boneName, string nodePath,
-            uint billboardRootId, BillboardNodeAddress billboardAddress, bool billboardAddressable)
+            uint billboardRootId, BillboardNodeAddress billboardAddress)
         {
             this.kind = kind;
             this.targetId = targetId;
@@ -93,12 +86,11 @@ namespace DotsAnimationToolkit.Editor
             this.nodePath = nodePath;
             this.billboardRootId = billboardRootId;
             this.billboardAddress = billboardAddress;
-            this.billboardAddressable = billboardAddressable;
         }
 
         /// <summary>
-        /// A rig target with no previewed node of its own, which is always addressable as a
-        /// billboard root: it has a stable id, so unlike a node there is no path to resolve.
+        /// A rig target with no previewed node of its own, addressed as a billboard root by its
+        /// stable id — unlike a node, there is no path to resolve.
         /// </summary>
         public static ClipObjectRef RigTarget(uint targetId, uint billboardRootId)
         {
@@ -109,7 +101,7 @@ namespace DotsAnimationToolkit.Editor
             };
             return new ClipObjectRef(
                 ClipObjectKind.RigTarget, targetId, string.Empty, string.Empty, billboardRootId,
-                address, true);
+                address);
         }
 
         /// <summary>
@@ -122,8 +114,7 @@ namespace DotsAnimationToolkit.Editor
         /// it does.
         /// </param>
         public static ClipObjectRef Bone(
-            string boneName, uint targetId, uint billboardRootId,
-            string hierarchyPath, bool billboardAddressable)
+            string boneName, uint targetId, uint billboardRootId, string hierarchyPath)
         {
             string resolvedPath = hierarchyPath ?? string.Empty;
 
@@ -137,7 +128,7 @@ namespace DotsAnimationToolkit.Editor
             };
             return new ClipObjectRef(
                 ClipObjectKind.Bone, targetId, boneName ?? string.Empty, resolvedPath,
-                billboardRootId, address, billboardAddressable);
+                billboardRootId, address);
         }
 
         /// <summary>
@@ -152,8 +143,7 @@ namespace DotsAnimationToolkit.Editor
         public ClipObjectRef WithRigTarget(uint newTargetId)
         {
             return new ClipObjectRef(
-                kind, newTargetId, boneName, nodePath, billboardRootId, billboardAddress,
-                billboardAddressable);
+                kind, newTargetId, boneName, nodePath, billboardRootId, billboardAddress);
         }
 
         /// <summary>Whether this reference names something a track could actually be bound to.</summary>

@@ -216,6 +216,20 @@ namespace DotsAnimationToolkit.Editor
         /// cares about and the person animating does not. Adding one promotes the node instead.
         /// </para>
         /// <para>
+        /// <strong>Billboard applies everywhere too, and deliberately so.</strong> Put it on an
+        /// object and that object turns to face the viewer; everything beneath it comes along,
+        /// because everything beneath it is a transform child and rides on the parent it is already
+        /// riding on. There is nothing further to decide, so there is nothing further to refuse —
+        /// including on the prefab root, where the empty path is the address rather than a missing
+        /// one and the whole actor turning is exactly what somebody meant by it.
+        /// </para>
+        /// <para>
+        /// <strong>Which is a statement about kinds, not about right now.</strong> An add-on can
+        /// still be unavailable because of the state around it — no clip open, no rig to store it
+        /// on — and <see cref="CanAdd"/> is where those are answered. Keeping them apart is what
+        /// stops a passing circumstance being recorded as a permanent fact about the component.
+        /// </para>
+        /// <para>
         /// The transform kinds are the only ones that can answer no, and they answer it about each
         /// other: an object has exactly one of them, chosen by
         /// <see cref="TransformKindFor"/>. The reason is still returned rather than the kind simply
@@ -326,6 +340,12 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// Whether Add Component should offer a kind, given what the object already has.
         /// </summary>
+        /// <remarks>
+        /// Everything refused here is refused by circumstance rather than by kind — no clip
+        /// selected, no rig to store it on, one of this kind already there — which is why these
+        /// live here and not in <see cref="AppliesTo"/>. Each one is a sentence the picker can show
+        /// on the row's hover card, and each one names something the author can go and change.
+        /// </remarks>
         public static bool CanAdd(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
             out string unavailableReason)

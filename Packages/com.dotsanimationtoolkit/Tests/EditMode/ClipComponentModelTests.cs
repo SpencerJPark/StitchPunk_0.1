@@ -62,13 +62,13 @@ namespace DotsAnimationToolkit.Tests.EditMode
         /// <summary>A previewed node the rig declares no part for.</summary>
         private ClipObjectRef Bone
         {
-            get { return ClipObjectRef.Bone(BoneName, 0u, 0u, BonePath, true); }
+            get { return ClipObjectRef.Bone(BoneName, 0u, 0u, BonePath); }
         }
 
-        /// <summary>A node with no previewed hierarchy, so no path to be addressed by.</summary>
-        private ClipObjectRef UnaddressableBone
+        /// <summary>The prefab root, whose path below itself is empty.</summary>
+        private ClipObjectRef PrefabRoot
         {
-            get { return ClipObjectRef.Bone(BoneName, 0u, 0u, string.Empty, false); }
+            get { return ClipObjectRef.Bone("Actor", 0u, 0u, string.Empty); }
         }
 
         /// <summary>The head, already declared a billboard root by the rig.</summary>
@@ -132,7 +132,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void AClaimedNodeIsPosedOnATransformTrack_NotABoneTrack()
         {
-            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, HeadTargetId, 0u, BonePath, true);
+            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, HeadTargetId, 0u, BonePath);
 
             Assert.AreEqual(
                 ClipComponentKind.Transform, ClipComponentModel.TransformKindFor(claimed),
@@ -217,22 +217,38 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void BillboardIsOfferedWhereverTheRigCanAddressTheNode()
+        public void BillboardGoesOnAnyObject_TheRootIncluded()
         {
             string reason;
             Assert.IsTrue(
-                ClipComponentModel.AppliesTo(ClipComponentKind.Billboard, Head, out reason),
-                "Adding Billboard is what makes a node a root, so it is offered to nodes that are "
-                + "not one yet.");
+                ClipComponentModel.CanAdd(clip, rig, Head, ClipComponentKind.Billboard, out reason),
+                "Adding Billboard is what makes a node a root, so it is offered to objects that "
+                + "are not one yet: " + reason);
             Assert.IsTrue(
-                ClipComponentModel.AppliesTo(ClipComponentKind.Billboard, Bone, out reason));
+                ClipComponentModel.CanAdd(clip, rig, Bone, ClipComponentKind.Billboard, out reason),
+                reason);
 
-            Assert.IsFalse(
+            // The prefab root's path below itself is empty, and that is its address rather than a
+            // missing one. Billboarding the whole actor is an ordinary thing to want, so there is
+            // nothing here to refuse.
+            Assert.IsTrue(
                 ClipComponentModel.CanAdd(
-                    clip, rig, UnaddressableBone, ClipComponentKind.Billboard, out reason),
-                "With no hierarchy to read a path against, an empty path would silently mean the "
-                + "prefab root rather than this node.");
-            Assert.IsNotEmpty(reason);
+                    clip, rig, PrefabRoot, ClipComponentKind.Billboard, out reason),
+                reason);
+        }
+
+        [Test]
+        public void AddingBillboardToANodeAddressesItByPath()
+        {
+            ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Billboard, "Spine");
+            rig.EnsureStableIds();
+
+            Assert.AreEqual(1, rig.billboardRoots.Count);
+            Assert.AreEqual(
+                BillboardAddressKind.HierarchyPath, rig.billboardRoots[0].address.kind,
+                "A billboard root is a fact about where a node sits, which is what its descendants "
+                + "inherit it through.");
+            Assert.AreEqual(BonePath, rig.billboardRoots[0].address.hierarchyPath);
         }
 
         [Test]
@@ -284,7 +300,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             // The window rebuilds its object reference from the rig, so the second add sees the
             // node already carrying the part.
-            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, mintedId, 0u, BonePath, true);
+            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, mintedId, 0u, BonePath);
             ClipComponentModel.Add(clip, rig, claimed, ClipComponentKind.Flipbook, string.Empty);
 
             Assert.AreEqual(
@@ -382,7 +398,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             clip.boneTracks[0].keys.Add(new BoneKey { normalizedTime = 0f });
 
             ClipComponentModel.PromoteToRigTarget(clip, rig, Bone);
-            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, HeadTargetId, 0u, BonePath, true);
+            ClipObjectRef claimed = ClipObjectRef.Bone(BoneName, HeadTargetId, 0u, BonePath);
 
             ClipComponentModel.CollectInstances(clip, rig, claimed, instances);
 

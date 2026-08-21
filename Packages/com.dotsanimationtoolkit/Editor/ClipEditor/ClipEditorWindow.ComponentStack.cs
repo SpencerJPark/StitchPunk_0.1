@@ -201,17 +201,14 @@ namespace DotsAnimationToolkit.Editor
                 return ClipObjectRef.RigTarget(item.targetId, billboardRootId);
             }
 
-            // A node is addressed by path, and an empty path means the prefab root — a real answer,
-            // not a missing one. So the check is whether there is a hierarchy to read a path
-            // against at all, rather than whether the path came back empty.
-            bool billboardAddressable =
-                previewController != null && previewController.HierarchyRoot != null;
             // The part comes off the row rather than being resolved again here. The hierarchy
             // already answered it when the row was built, and two resolutions of the same question
             // are two things that can disagree.
+            //
+            // The path may come back empty, and that is an address: the row for the prefab root
+            // has no path below the root because it is the root.
             return ClipObjectRef.Bone(
-                item.displayName, item.targetId, billboardRootId,
-                ResolveHierarchyPath(item), billboardAddressable);
+                item.displayName, item.targetId, billboardRootId, ResolveHierarchyPath(item));
         }
 
         /// <summary>One component: a header that folds it away, and the fields it owns.</summary>

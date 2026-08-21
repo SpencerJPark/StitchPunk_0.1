@@ -672,7 +672,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return ClipObjectRef.RigTarget(owner.targetId, 0u);
             }
-            return ClipObjectRef.Bone(owner.boneName, 0u, 0u, string.Empty, false);
+            return ClipObjectRef.Bone(owner.boneName, 0u, 0u, string.Empty);
         }
 
         private static int KeyCountOf(CopiedTrack track)
