@@ -61,7 +61,14 @@
                 </ui:TwoPaneSplitView>
             </ui:TwoPaneSplitView>
             <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
-                <ui:VisualElement name="transport-bar" class="clip-editor__transport">
+                <ui:VisualElement name="transport-bar" class="clip-editor__transport" style="align-self: center; align-content: center;">
+                    <ui:VisualElement class="clip-editor__transport-group">
+                        <ui:Label text="Length" class="clip-editor__transport-label"/>
+                        <ui:FloatField name="clip-length-field" class="clip-editor__transport-field"/>
+                        <ui:Label text="FPS" class="clip-editor__transport-label"/>
+                        <ui:FloatField name="frame-rate-field" class="clip-editor__transport-field"/>
+                        <ui:Label name="frame-count-label" text="0 frames" class="clip-editor__transport-label clip-editor__transport-derived"/>
+                    </ui:VisualElement>
                     <ui:VisualElement name="PlayHead" class="clip-editor__transport-group">
                         <ui:Button name="jump-start-button" text="|&lt;" class="clip-editor__transport-button"/>
                         <ui:Button name="step-back-button" text="&lt;" class="clip-editor__transport-button"/>
@@ -72,41 +79,27 @@
                             <ui:Image name="loop-icon" picking-mode="Ignore" class="clip-editor__transport-loop-icon"/>
                         </ui:Button>
                     </ui:VisualElement>
-                    <ui:VisualElement class="clip-editor__transport-group">
+                    <ui:VisualElement class="clip-editor__transport-group" style="align-self: center;">
                         <ui:Label text="Frame" class="clip-editor__transport-label"/>
                         <ui:IntegerField name="current-frame-field" class="clip-editor__transport-field"/>
                         <ui:Label text="Time" class="clip-editor__transport-label"/>
                         <ui:FloatField name="current-seconds-field" class="clip-editor__transport-field"/>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="clip-editor__transport-group">
-                        <ui:Label text="Length" class="clip-editor__transport-label"/>
-                        <ui:FloatField name="clip-length-field" class="clip-editor__transport-field"/>
-                        <ui:Label text="FPS" class="clip-editor__transport-label"/>
-                        <ui:FloatField name="frame-rate-field" class="clip-editor__transport-field"/>
-                        <ui:Label name="frame-count-label" text="0 frames" class="clip-editor__transport-label clip-editor__transport-derived"/>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="clip-editor__transport-group">
                         <ui:Label text="Speed" class="clip-editor__transport-label"/>
                         <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field"/>
                     </ui:VisualElement>
                     <ui:VisualElement class="clip-editor__transport-group">
                         <ui:Label text="Zoom" class="clip-editor__transport-label"/>
                         <ui:Slider name="zoom-slider" class="clip-editor__transport-slider"/>
-                        <ui:Button name="frame-all-button" text="Frame All" class="clip-editor__transport-button"/>
-                        <ui:Button name="frame-selection-button" text="Frame Sel" class="clip-editor__transport-button"/>
+                        <ui:Button name="frame-all-button" text="All" class="clip-editor__transport-button"/>
+                        <ui:Button name="frame-selection-button" text="Selected" class="clip-editor__transport-button"/>
                     </ui:VisualElement>
-                    <ui:VisualElement class="clip-editor__transport-group">
-                        <!-- No "Pivot" label: every choice in the list names itself, so the word
-                             was a heading over a control that already says what it does. -->
-                        <ui:DropdownField name="pivot-dropdown" class="clip-editor__transport-dropdown"/>
-                    </ui:VisualElement>
-
                     <ui:Button name="quantize-keys-button" text="Quantize Keys" class="clip-editor__transport-button clip-editor__transport-action"/>
-                    <!-- Only visible while a grab or scale is running: a modal gesture has to say
-                         so, or the next mouse move looks like the timeline has gone haywire. -->
                     <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
                 </ui:VisualElement>
-                <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status"/>
+                <ui:VisualElement name="timeline-status-row" class="clip-editor__status-row">
+                    <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status"/>
+                    <ui:DropdownField name="pivot-dropdown" class="clip-editor__transport-dropdown clip-editor__status-dropdown"/>
+                </ui:VisualElement>
                 <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">
                     <ui:VisualElement name="timeline-row" class="clip-editor__timeline-row">
                         <ui:VisualElement name="track-header-stack" class="clip-editor__track-header-stack">

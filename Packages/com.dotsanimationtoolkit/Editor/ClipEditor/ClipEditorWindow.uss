@@ -521,6 +521,31 @@
     flex-shrink: 0;
 }
 
+/* The status line and the scale-pivot choice share this row. The status is a short sentence that
+   never fills the width, and the pivot is about the keys below rather than about time, so it reads
+   better at the head of the key area than in the transport bar among the playback controls. */
+.clip-editor__status-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* The status grows long — a clip name, then its counts, then the focus note — so inside this row it
+   is allowed to shrink and trail off rather than shove the dropdown past the right edge. */
+.clip-editor__status-row > .clip-editor__status {
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Held against the right edge by its auto left margin, so it stays put whatever the status says. */
+.clip-editor__status-dropdown {
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-right: 6px;
+}
+
 .clip-editor__timeline-scroll {
     flex-grow: 1;
 }

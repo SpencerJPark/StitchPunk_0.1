@@ -46,7 +46,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "add-socket-button", "billboard-root-button", "edit-prefab-button",
             "viewport-pane", "viewport-status", "viewport-image",
             "inspector-pane", "inspector-content",
-            "timeline-pane", "timeline-status", "timeline-scroll", "timeline-row",
+            "timeline-pane", "timeline-status", "pivot-dropdown", "timeline-scroll", "timeline-row",
             "track-header-stack", "track-header-column", "lane-stack", "lane-column"
         };
 
