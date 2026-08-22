@@ -14,7 +14,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 - `IComponentData` — single value or small fixed set of values on an entity.
 - `IBufferElementData` — variable-length list on an entity (e.g. `ActionOption` buffer for scored actions).
 - `IEnableableComponent` — tag or component that can be toggled on/off without structural change. Prefer this over adding/removing when the component will toggle frequently.
-- Group related components in one file (e.g. `AIComponents.cs`, `UnitComponents.cs`).
+- Group related components in one file (e.g. `UtilityAiComponents.cs`, `UnitComponents.cs`).
 - Never put helper methods or logic inside a component. If you need a helper, put it in the matching `Utils/` file.
 
 ---
@@ -23,12 +23,9 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 
 | File | Path | Contains |
 |---|---|---|
-| `AIComponents.cs` | `Components/AI/` | `Brain` (BrainType enum), `ActiveBrain` (enableable), `Awareness`, `SelectedAction`, `NeedsAction` (enableable), `ActionOption` buffer, `Behaviour` buffer, `PlayerControlled` (enableable), `PlayerOrder` |
-| `Brains.cs` | `Components/AI/` | Brain-type tags: `CitizenBrain`, `ZombieBrain` |
-| `Motivations.cs` | `Components/AI/` | One struct per motivation (9 core + personality traits) |
-| `Interactions.cs` | `Components/AI/` | `Interaction`, `InteractionTimer`, `InteractionOccupant` buffer, interaction-type components |
+| `UtilityAiComponents.cs` | `Components/AI/` | The whole utility-AI surface: `UtilityBrain`, `PlayerUnitBrain`, `UtilityActions` buffer, `StateMachine`, `CurrentAction`, `Motivation`/`PersonalityAttributes` buffers, `Faction`/`ThreatEntry`/`FactionRegistry`, request components. Read the file for fields. |
+| `InteractionComponents.cs` | `Components/AI/` | Interaction point data on waypoint/building entities |
 | `SpatialHashRegistry.cs` | `Components/AI/` | `SpatialHashRegistry` singleton (two NativeParallelMultiHashMaps) |
-| `CombatAI.cs` | `Components/AI/` | `Faction`, `ThreatEntry` buffer, `CombatTarget` (enableable), `ChaseConfig`, `MeleeAttackConfig`, `FactionRegistry` singleton |
 | `AnimationComponents.cs` | `Components/Animation/` | `AnimationLayer` buffer, `AnimationTargetRestPose`, `AnimationTargetPose`, `ImageIndex`, `ImageIndexOverride`, `Billboard`, `BaseParent`, per-instance tints `BodyPartTint` (`_BaseColor`) + `BodyPartSecondaryTint` (`_SecondaryColor`) + `BodyPartTertiaryTint` (`_TertiaryColor`) — packed-recolor layer colours, baked white by `BodyPartAuthoring`, written by `DesignApplyUtil.ApplyDesign` (alpha = layer blend strength on G/B). ⚠ `AnimatorTarget` buffer + `AnimationTargetTag` were **unified into `BodyPart` / `BodyPartInfo`** (CharacterRig refactor) — see `BodyPartComponents.cs` |
 | `BodyPartComponents.cs` | `Components/Units/` | **CharacterRig registry:** `BodyPart` buffer (root, replaces `AnimatorTarget` — `entity`+`target`+`partDef`+`flags`), `BodyPartInfo` (each part child, replaces `AnimationTargetTag`), `CharacterPalette` (`IPersist`: `groups` shape tags + `colors` rolled `ColorChoice` per `ColorPaletteType` + `useAlternateColors` conversion mode), `CharacterRigConfig` + `RagdollJointBakeData` (both `[BakingType]`; the latter now carries the joint's RESOLVED settle/segment/weight from `RagdollJointAuthoring`) |
 | `PartLibraryComponents.cs` | `Components/Units/` | `PartLibrary` (singleton blob holder), `PartLibraryReference` (bake-time `UnityObjectRef<PartLibrarySO>`) — enum-indexed per-part static config (design grid + ragdoll zones) |
@@ -36,18 +33,16 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `DamageBus.cs` | `Components/Combat/` | `DamageBus` singleton — recycled `NativeQueue<DamageEvent>` transport (`raw` + `resolved`). Owned/disposed by `DamageBusSystem` |
 | `Hazard.cs` | `Components/Combat/` | `HazardZone` — proximity damage zone (spikes): `damageAmount`, `damageSource`, `radius`, `retriggerInterval`, `lastTriggerTime` (whole-zone gate), kill-knockback fields |
 | `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
-| `UnitDesignComponents.cs` | `Components/Units/` | `RandomizeDesign` (enableable), design tags, `Outline`/`OutlineChild`/`OutlinedTag` (the `UnitVisualComponents.cs` file never existed — they live here). ⚠ `UnitSkinColor`/`UnitHairColor`/`UnitHeadShape`/`UnitNoseShape` removed — `CharacterPalette` is their successor |
 | `DesignComponents.cs` | `Components/Units/` | **Semantic** Unit Design: `DesignSlot` (`target`+`shapeIndex`), `PersistedDesign` (`IPersist`, rolled shapes — auto-saved), `ShapeOverride`, `ChangeDesignRequest` (enableable, semantic re-skin: shape-tag `paletteChanges` + `shapeOverrides` + `alternateColorMode` Enable/Disable), `RandomTagOption` buffer (authored roll pool from `CharacterRigAuthoring.randomTags` — what a random spawn may look like), `DesignReloadOnBake` (`[BakingType]`). Colours live in `CharacterPalette`; slices re-derived through the `PartLibrary` blob, colours through the `ColorPaletteLibrary` blob. ⚠ `DesignPart`/`DesignRange` buffers removed |
 | `CameraVisibilityComponents.cs` | `Components/Units/` | `CameraVisible` (enableable tag) — camera-visibility gate, flipped by `CameraVisibilitySystem` (GameManagerSystemGroup) from `CameraView`. Baked ENABLED on rig roots (`CharacterRigAuthoring`), parts (`BodyPartAuthoring`), standalone quads (`ImageIndexAuthoring`). ⚠ **PRESENTATION-ONLY gate** — see [[RULES]] |
-| `MovementComponents.cs` | `Components/Movement/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
-| `PathfindingComponents.cs` | `Components/Movement/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
+| `MovementComponents.cs` | `Components/Units/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
+| `PathfindingComponents.cs` | `Components/Units/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
 | `SpawnerComponents.cs` | `Components/Spawners/` | `UnitSpawner`, `PoolOwner`, `NeedsAnimatorInit` |
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
 | `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, visual root child — tilt/spin/flail), `Ragdoll2DJoint` (enableable, joint pivots — baked settle/segment/weight + pendulum flail state), `RagdollLandingZone` buffer (authored zones on each joint, from `RagdollJointSO` via `RagdollJointAuthoring`), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable — float3 flight velocity, restitution, airborne/sleeping), `RagdollSimConfig` (flat singleton, global tuning), `CorpseCells` (singleton corpse-stacking hash). ⚠ joints come from the `BodyPart` buffer (`RagdollJoint` flag); ragdoll config is fully separate from the design `PartLibrary` blob |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
-| `ItemLibraryComponents.cs` | `Components/Items/` | `ItemLibrary` (singleton blob holder), `ItemLibraryReference` (bake-time `UnityObjectRef<ItemLibrarySO>`) — item `ItemCategory` + effect data for AI item awareness. `PickupItemAction` tag itself lives in `AiComponents.cs` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `ColorPaletteLibrary` (+`ColorPaletteLibraryReference`), `UnitPrefabEntry` |
 | `FactoryComponents.cs` | `Components/Structures/` | `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer, `FactoryGridConfig` singleton, `FactoryGridCell` buffer |
 | `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
@@ -62,100 +57,28 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 
 ## AI Components (`Components/AI/`)
 
-Used by [[Systems_AI]].
+Four files: `UtilityAiComponents.cs` (the whole utility-AI surface), `InteractionComponents.cs`,
+`Dialogue.cs`, `SpatialHashRegistry.cs`. **Read `UtilityAiComponents.cs` for fields** — it is one file
+and a transcription here would rot. [[Systems_AI]] has the pipeline; [[Contracts]] has producers/consumers.
 
-### `AIComponents.cs` — AI state (all on the single unit entity)
+Shape worth knowing before you open it:
 
-> No separate brain entity. No BodyLink/BrainLink. Everything is on the same entity.
+- **Everything lives on the single unit entity.** There is no separate brain entity, and no
+  `BrainLink`/`BodyLink` — that split was removed. Anything describing it is stale.
+- `UtilityBrain` (enableable) marks a thinking unit; `PlayerUnitBrain` marks a player-commanded one.
+- Scored options accumulate in the **`UtilityActions` buffer**; the winner is written into
+  **`StateMachine`**, and `CurrentAction` holds what is executing now.
+- **Needs are one buffer keyed by `NeedType`** (`Motivation`), not one component per need.
+  Per-unit variation is the `PersonalityAttributes` buffer.
+- Requests are enableable and consumed by their handler: `ActionRequest`,
+  `ActionInterruptRequest`, `ActionSelectionValidationRequest`, `SocialInvite`, `SwapBrainRequest`.
+- Faction/threat state: `Faction`, `AttackFaction`, `ThreatEntry`, `FactionRegistry`.
+  World-level signals: `GlobalContext`, `DangerSignal`, `AngeryMobSignal`.
 
-```
-Brain                       BrainType activeBrain
-ActiveBrain (enableable)    tag — disabled on dead/inactive units
-Awareness                   float range
-SelectedAction              ActionCategory category, Entity targetEntity, float3 targetPosition
-NeedsAction (enableable)    tag — enable to trigger AI scoring/selection pipeline
-ActionOption (buffer)       float score, ActionCategory category, Entity targetEntity, float3 targetPosition
-Behaviour (buffer)          BehaviourType behaviourType, MotivationType targetMotivation,
-                            ActionType actionType, int value, DamageSource damageSource,
-                            FactionType hostileFaction, float range
-PlayerControlled (enableable) tag — enabled when minion is under player command
-PlayerOrder                 float3 destination, Entity targetEntity, CommandType commandType
-
-PlayerControlled (enableable)   tag — on brain entity. When enabled, ActionSelectionSystem is bypassed.
-                                MinionAutoCounterSystem disables this when the minion takes damage.
-                                ⚠ Must be baked (disabled) on ALL brain types via BrainBakeHelper.AddRequirements.
-                                  ActionSelectionJob uses [WithDisabled], which requires the component to be present —
-                                  brains that lack it entirely are silently excluded from the AI pipeline.
-PlayerOrder                     float3 destination, Entity targetEntity — on brain entity.
-                                Written by MinionCommandSystem. Drives SelectedAction / PathRequest
-                                while PlayerControlled is enabled.
-```
-
-### `Brains.cs` — Brain personality type tags
-
-```
-CitizenBrain    tag — marks this brain as a citizen AI
-ZombieBrain     tag — marks this brain as a zombie AI
-```
-
-### `Motivations.cs` — One component per motivation need
-
-Each has a single `int value` in range `[-100, 100]`. Negative = depleted, positive = satisfied.
-
-**Core (9 — drive the scoring pipeline):**
-```
-HungerMotivation
-EnergyMotivation
-FunMotivation
-SocialMotivation
-ComfortMotivation
-BladderMotivation
-SafetyMotivation
-MovementMotivation
-SelfPreservationMotivation
-```
-
-**Personality traits (randomly assigned, modify scoring weights):**
-```
-BookwormMotivation
-WorkMotivation
-NightOwlMotivation
-EarlyBirdMotivation
-GluttonMotivation
-GrumpyMotivation
-DepressedMotivation
-LazyMotivation
-NervousMotivation
-```
-
-> ⚠ **Each motivation is a separate `IComponentData` struct.** There is no single "Motivations" component. Querying a specific motivation requires naming its struct.
-
-### `Interactions.cs` — Interaction point data (lives on waypoint/building entities)
-
-```
-InteractionProvider (enableable)    tag — marks entity as an active interaction source
-Interaction                         float interactionRange, ActionType actionType, int maxOccupants
-InteractionTimer (enableable)       float maxTime, float duration, float elapsed
-InteractionOccupant (buffer)        Entity entity, MotivationType motivationType, float score
-InteractionHandled (enableable)     tag — interaction is currently being served
-```
-
-Interaction-type components (mark what a waypoint satisfies — one per object):
-```
-HungerInteraction / EnergyInteraction / FunInteraction / SocialInteraction
-ComfortInteraction / BladderInteraction / SafetyInteraction / MovementInteraction
-```
-Each has `int value` — the satisfaction amount granted per use.
-
-### `SpatialHashRegistry.cs` — Spatial lookup singleton
-
-```
-SpatialHashRegistry (singleton on one entity)
-    NativeParallelMultiHashMap<int2, Entity>                waypointCells       — general waypoint lookup
-    NativeParallelMultiHashMap<SpatialInteractionKey, Entity> interactionCells   — filtered by (cell, MotivationType)
-```
-
----
+⚠ Renamed — old names appear in archived task docs: `Brain` → `UtilityBrain`,
+`MotivationType` → `NeedType`, `ActionOption` → `UtilityActions`, `Personality` →
+`PersonalityAttributes`. `ActiveBrain`, `SelectedAction`, `NeedsAction`, `Behaviour`,
+`PlayerControlled`, `PlayerOrder`, `CitizenBrain`, `ZombieBrain` no longer exist in any form.
 
 ## Animation Components (`Components/Animation/`)
 
@@ -260,7 +183,7 @@ Enums: `UnitPartId : short` (`Data/Enums/PartEnums.cs`, one per interchangeable 
 
 ---
 
-## Movement Components (`Components/Movement/`)
+## Movement Components (`Components/Units/`)
 
 Used by [[Systems_Movement]].
 
