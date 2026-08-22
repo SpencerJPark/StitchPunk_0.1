@@ -47,5 +47,4 @@ Interface-based save system: `IDataService` + `ISerializer`. Current implementat
 
 | File | Status |
 |---|---|
-| `RiveAnimator.cs` | Legacy. Was for Rive animation package integration; package changed and broke it. **Move to `Unused/` when convenient.** Do not reference. |
 | `Core/Unused/` | All files here are the old MonoBehaviour-based animation system. Replaced by the DOTS animation system — see [[Systems_Animation]]. Do not reference or restore. |
