@@ -1,94 +1,11 @@
-# Project Skills — Index
+# Skills
 
-> **Skills are version-controlled in the repo at `.claude/skills/`** (repo root, outside `Assets/`). That folder is the single source of truth — Claude Code loads project skills only from there, and it commits/syncs across computers via git.
-> This page is a **read-only index** for browsing in Obsidian. To edit a skill, change its `SKILL.md` in `.claude/skills/` and commit. (Links below point outside the Obsidian vault root, so they may not be clickable in Obsidian — open the path in your editor / file browser.)
+Project skills live in `.claude/skills/` and are git-synced with the repo.
 
-These are custom skills for Stitch Punk. The `dots-*` scaffolding skills generate code; `dots-task-creator` authors plans and `execute-plan` builds them. Reference the scaffolders by name in plan docs under a **`Skills Needed`** heading so the right one is used at build time.
+**Do not maintain an index here.** Claude Code injects every skill's name and description
+into each session automatically, so a list in this file is duplication that silently goes
+stale — it previously advertised three skills that no longer exist, and reference files
+that had been deleted.
 
----
-
-## dots-task-creator *(workflow skill — not a scaffolder)*
-`.claude/skills/dots-task-creator/SKILL.md`
-
-Authors a **self-contained system design/plan doc** in `Assets/_Vault/Tasks/Plans/`. Runs a batched Q&A to lock architecture decisions, flags which scaffolding skills the build will use (under `Skills Needed`), and writes the spec from a template with `← DECISION` markers + build phases. **Planning only — writes no code** (`execute-plan` builds an approved plan).
-
-**Use when:** "plan the X system", "flesh out X", "spec out Y", "make a plan for Z". **Not for:** building/implementing (use `execute-plan`), or scaffolding individual C# files (use the `dots-*` skills).
-**References:** `planning-questions.md` (question checklist), `plan-template.md` (spec skeleton)
-
----
-
-## execute-plan *(workflow skill — the execution counterpart to dots-task-creator)*
-`.claude/skills/execute-plan/SKILL.md`
-
-**Builds** an approved plan from `Assets/_Vault/Tasks/Plans/`. Asks clarifying questions until every `← DECISION` marker + ambiguity is resolved, builds phase-by-phase using the `dots-*` skills the plan lists under `Skills Needed`, does full vault housekeeping (plan status + Plans/README + memory docs), then `git mv`s the completed plan into `Assets/_Vault/Tasks/Verification/` with a `verify-<system>.md` steps file and commits + pushes to `main`. (No Unity compile here — correctness is static review; compile + play-test live in the moved verification steps.)
-
-**Use when:** "execute / build / enact / implement the X plan", "build out the approved spec". **Not for:** planning (use `dots-task-creator`), scaffolding a single file (use the `dots-*` skills), or debugging.
-
----
-
-## dots-system-scaffold
-`.claude/skills/dots-system-scaffold/SKILL.md`
-
-Scaffolds a new DOTS **`ISystem` + `IJobEntity`** file following the project's strict conventions: no `var`, explicit types, `[BurstCompile]` on the struct and every method, `[ReadOnly]` from `Unity.Collections`, `state.RequireForUpdate<GameSceneTag>()`, `ScheduleParallel` with `state.Dependency`, and the correct `[UpdateInGroup]` from `SystemGroups.cs`.
-
-**Use when:** "add a system", "write an ECS system for X", "create a job that does Y", or any new file under `_Scripts/Systems/`. Also for fixing a system that violates these conventions.
-**References:** `system-templates.md`, `lookup-patterns.md` · **Evals:** `evals/evals.json`
-
-## dots-authoring-baker
-`.claude/skills/dots-authoring-baker/SKILL.md`
-
-Scaffolds a DOTS **MonoBehaviour + nested `Baker`** pair following authoring conventions: correct `TransformUsageFlags`, explicit `AddComponent` / `SetComponentEnabled` / `AddBuffer` ordering, `DependsOn(so)` for referenced ScriptableObjects, and a cross-entity baking system in `PostBakingSystemGroup` when the baker touches child entities.
-
-**Use when:** "add authoring for X", "write a baker for Y", "bake a MonoBehaviour", "wire a new prefab into ECS", or any new file under `_Scripts/Authoring/`. Also for fixing `TransformUsageFlags` misuse or the "entity doesn't belong to the current authoring component" error.
-**References:** `cross-entity-bake.md` · **Evals:** `evals/evals.json`
-
-## dots-blob-library
-`.claude/skills/dots-blob-library/SKILL.md`
-
-Scaffolds the full **SO → BlobAsset library pipeline**: `FooSO` + `FooLibrarySO` + `FooLibraryBlob` + `FooLibrary`/`FooLibraryReference` components + `FooLibraryAuthoring` + `FooLibraryBakingSystem` in `PostBakingSystemGroup`. Five files; the most repetitive, silently-bug-prone pattern in the codebase.
-
-**Use when:** "make a new library", "bake a list of SOs into a blob", "expose X to systems via blob", "add a FooLibrary", "new blob asset".
-**References:** `canonical-blob-library.md`, `nested-blob-arrays.md` · **Evals:** `evals/evals.json`
-
-## dots-unit-ai
-`.claude/skills/dots-unit-ai/SKILL.md`
-
-Scaffolds or extends a **unit AI decision behaviour**: awareness systems that emit `ActionOption` entries, wiring new `ActionType`/`MotivationType` enums, Burst function pointers in `SelectionFunctions`, action-execution systems driving `PathRequest`/`AttackRequest`/`AnimationRequest`, and `ActionInterruptRequest` for urgent reactions.
-
-**Use when:** "make units react to X", "add a daily schedule", "units should panic when Y", "add an awareness system", "wire up ActionType.Foo", "add an interrupt for W". **Not for:** blob libraries (use `dots-blob-library`), bakers (use `dots-authoring-baker`), or generic non-AI systems (use `dots-system-scaffold`).
-
-## dots-feature-group
-`.claude/skills/dots-feature-group/SKILL.md`
-
-Scaffolds a complete **new top-level feature system group**: the `GameSceneSystemGroup`-derived declaration in `SystemGroups.cs` with explicit pipeline edges, the matching `Systems/<Name>SystemGroup/` folder, optional feature plug tag + `FeatureConfigAuthoring` checkbox, the `SystemGroupOrderTests` registration, and the [[Contracts]] documentation row.
-
-**Use when:** "add a new feature group", "create a WeatherSystemGroup", "make X a pluggable feature", or a new domain needs its own top-level slot in the frame pipeline. **Not for:** single systems in an existing group (`dots-system-scaffold`) or nested child groups.
-
-## dots-test
-`.claude/skills/dots-test/SKILL.md`
-
-Scaffolds a **Unity Test Runner fixture** (and the `StitchPunk.Tests` asmdef if missing) — EditMode for pure-logic/value-type code (no World), PlayMode for `ISystem`/`ComponentLookup`/World-bound integration. Enforces the project conventions in test code and writes characterization tests that pin **actual** behaviour. EditMode targets live under `Assets/_Scripts/Tests/`.
-
-**Use when:** "add a test for X", "unit-test the curve/scoring/grid math", "set up the test assembly", "add an EditMode/PlayMode test". **Not for:** running the suite (Window ▸ General ▸ Test Runner, user-driven) or non-test gameplay code.
-
-## shader-edit
-`.claude/skills/shader-edit/SKILL.md`
-
-Authors **Unity 6.5 reflection-API HLSL nodes** (`UNITY_EXPORT_REFLECTION`, one node per file, `StitchPunk.*` provider keys under `Assets/Shaders/Nodes/`) and performs **programmatic `.shadergraph` surgery** — adding nodes/properties/edges, rewiring, signature-change slot rebuilds, orphan sweeps — with backup + referential validation via bundled scripts (`shadergraph_lib.py`, `validate_shadergraph.py`). Encodes the hard-won gotchas: meta GUIDs before import, importer NREs on missing subgraph refs, slot numbering, the no-Unity-MCP verification loop, stale-subscene-bake errors.
-
-**Use when:** "add/change a shader node", "wire X into the shader graph", "new HLSL node", "tune the painterly/cel look", "shader import error", or before touching anything under `Assets/Shaders/`. **Not for:** render-feature C# or DOTS systems.
-**References:** `reflection-nodes.md`, `shadergraph-surgery.md` · **Scripts:** `shadergraph_lib.py`, `validate_shadergraph.py`
-
----
-
-## video-script *(content skill — not a scaffolder)*
-`.claude/skills/video-script/SKILL.md`
-
-Generates a **loose devlog video script + shot list** from what was actually built — code, vault design docs, and git history (feature mode: "video about the flee system"; time-window mode: "weekly update" → `git log --since`). Always asks format first (short-form Reels/TikTok/Shorts vs long-form YouTube devlog). Tone + audience come from [[Memories/Marketing/Strategy]]; planned devlog slots from `Spencer/Content_Recording.md`. Shots are limited to capturable footage (Play mode, Editor UI, code/IDE, vault art). Scripts save to `Assets/_Vault/Videos/`.
-
-**Use when:** "make me a video script", "devlog for X", "weekly update video", "script for a short/reel". **Not for:** marketing-strategy edits or store-page/announcement copy.
-**References:** `script-templates.md` (long/short-form skeletons + worked example)
-
----
-
-*Maintained alongside the code it scaffolds. When you add or rename a skill in `.claude/skills/`, update this index.*
+To see what exists: `ls .claude/skills/`. Reference a scaffolder by name in a plan doc
+under a **`Skills Needed`** heading so the right one is used at build time.

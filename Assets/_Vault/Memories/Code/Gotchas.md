@@ -48,13 +48,6 @@ from `LinkedEntityGroup` in `SpawnInitSystemGroup` (see the Spawn Init Pattern i
 
 ---
 
-### BrainLink is not baked onto body prefabs
-The body prefab has no `BrainLinkAuthoring`, so `BrainLink` does not exist on baked body entities. `UnitSpawnerSystem` adds it via ECB after instantiating both body and brain. See [[Components]] for the `BrainLink`/`BodyLink` component definitions.
-
-**Consequence:** Do not query body entities for `BrainLink` during the same ECB playback frame they were spawned. It will exist from the next frame onward.
-
----
-
 ### Enableable bits are not reliably copied by ECB.Instantiate (spawn AND pool reclaim)
 `IEnableableComponent` enabled bits are not guaranteed to be copied correctly by `ECB.Instantiate`
 for entities that are not the root of a `LinkedEntityGroup`, and a reclaimed pool unit keeps
@@ -96,25 +89,9 @@ Any components added via ECB in `OnUpdate` are not visible to `SystemAPI.Query<>
 
 ---
 
-## Brain / Body Cross-Reference Pattern
-
-When an execution system needs data from the other side of the Brain/Body split:
-
-```csharp
-// From body → brain:
-Entity brainEntity = SystemAPI.GetComponent<BrainLink>(bodyEntity).brain;
-
-// From brain → body:
-Entity bodyEntity = SystemAPI.GetComponent<BodyLink>(brainEntity).body;
-```
-
-Keep these lookups in execution systems only. Scoring systems should query brain entities directly and never touch the body. See [[Systems_AI]] for Brain/Body split architecture.
-
----
-
 ## IEnableableComponent vs AddComponent/RemoveComponent
 
-For components that toggle frequently (e.g. `AttackRequest`, `PathRequest`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (e.g. adding `BrainLink` to a body that never had it). Full list of enableable components is in [[Components]].
+For components that toggle frequently (e.g. `AttackRequest`, `PathRequest`, `Dead`), use `SetComponentEnabled<T>()` — it avoids structural changes and is much cheaper. Only use `AddComponent`/`RemoveComponent` for components that are genuinely absent (a component the entity genuinely never had). Full list of enableable components is in [[Components]].
 
 ### An `EnabledRefRW<T>` parameter silently makes the job **skip entities where T is disabled**
 
@@ -162,7 +139,7 @@ InvalidOperationException: Entity doesn't belong to the current authoring compon
 
 **Fix:** Write only config + entity refs to the root entity in the Baker. Use a `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]` system in `PostBakingSystemGroup` to distribute components to child entities after bake. See [[Authoring]] for the cross-entity baking pattern.
 
-See `Ragdoll2DRootAuthoring` + `Ragdoll2DBakingSystem` as the reference implementation.
+See `RagdollJointAuthoring` + `CharacterRigBakingSystem` as the reference implementation.
 
 ### Structural changes are not allowed during SystemAPI.Query iteration
 Calling `em.AddComponentData` or `em.AddComponent` inside a `foreach (... in SystemAPI.Query<>())` loop throws:

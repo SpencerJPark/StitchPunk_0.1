@@ -152,15 +152,13 @@ Runs inside `SimulationSystemGroup`, before `MinionActionSelectionSystemGroup`. 
 
 ### MinionActionSelectionSystemGroup (`Systems/MinionActionSelectionSystemGroup/`)
 
-Runs before `AIActionSelectionSystemGroup`. Handles player-commanded units (`PlayerControlled` enabled). Reads `PlayerOrder` set by `MinionCommandSystem` and writes `ActionOption` buffer entries from the player's command. See [[Systems_AI]].
+Runs before `StateMachineSystemGroup`. Handles player-commanded units and writes `UtilityActions` buffer entries from the player's command. See [[Systems_AI]].
 
 ---
 
-### AIActionSelectionSystemGroup — see [[Systems_AI]]
+### StateMachineSystemGroup — see [[Systems_AI]]
 
----
-
-### ActionSystemGroup — see [[Systems_AI]]
+Contains the nested `ActionSelectionSystemGroup` and `ActionExecutionSystemGroup` (see `SystemGroups.cs`).
 
 ---
 
@@ -237,10 +235,10 @@ Combat runs on a **recycled `NativeQueue<DamageEvent>` bus (v2)** — no per-uni
 |---|---|---|
 | `DeathSystem` | `DeathSystem.cs` | First-death-frame work (`Dead` is enabled upstream in `DamageEventSystem`); latches on `UnitAction.current == ActionType.Death` (set here) so it runs once per death. Halts pathing, fires `ActionInterruptRequest`, cancels in-flight `AttackRequest`. **Enables `PlayerInteractable` (if present) so a revivable corpse becomes targetable by the player reviver** (`PlayerTargetingSystem` scans `PlayerInteractable`; only `UndeadAuthoring` units carry it, baked disabled). `Alive` deprecated — `Dead` is the sole life-state. |
 | `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Health.kill*` (full `killSourcePosition` float3): derives `fallSideSign` (X) + a real 3D launch velocity (horizontal away from source × `killLaunchForceX` + up × `killLaunchForceY`), seeds `Ragdoll2DLaunch` (restitution = per-attack or `RagdollSimConfig` default, `airborne=1`), copies flail/spin onto `Ragdoll2D`, resets each `RagdollJoint`-flagged joint (zone target from its `RagdollLandingZone` buffer, launch-proportional trail kick on `angularVelocity`, baked settle/segment/weight preserved). Fully independent of the design `PartLibrary` blob |
-| `HealSystem` | `HealSystem.cs` | Applies `Heal` component when enabled |
+| `HealRequestSystem` | `HealRequestSystem.cs` | Applies a heal request when enabled |
 | `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, `UnitAction`→Idle (re-arms death latch), disables `PlayerInteractable` (alive again → no longer a reviver target). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
 | `SwapBrainSystem` | `SwapBrainSystem.cs` | `[UpdateAfter(ReviveRequestSystem)]`. Consumes an enabled `SwapBrainRequest`: re-keys `UtilityBrain.unitType`/`UnitData.unitType`, `Faction`, and rebuilds the `AttackFaction`/`AvailableAttack`/`Motivation` buffers from `UnitDataLibrary[newUnit]`; fires `ActionInterruptRequest`; consumes the request via ECB. Generic brain-swap hook (revive, future feral turn, debug). Rebuilt motivations are zero-decay (blob has no decay data). |
-| `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
+| `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveRequestSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
 
 > ⚠ **`Ragdoll2DSystem` does NOT run in HealthSystemGroup** — it lives in the declared `RagdollSystemGroup` (`LateSimulationSystemGroup`, SpawnInit → Ragdoll → Sound) so it runs *after* `ApplyAnimatedPoseSystem`, which stomps every part `LocalTransform` unconditionally each frame — this is also why sleeping corpses still re-write their settled rotations.
