@@ -16,6 +16,7 @@ MonoBehaviour:
   targets:
   - displayName: Body
     stableId: 495986569
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -25,6 +26,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: UpperLeftArm
     stableId: 1369813100
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -34,6 +36,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: UpperRightArm
     stableId: 1535265300
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -43,6 +46,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LowerLeftArm
     stableId: 4144195230
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -52,6 +56,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LowerRightArm
     stableId: 473712160
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -61,6 +66,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LeftHand
     stableId: 4151087213
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -70,6 +76,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: RightHand
     stableId: 542452871
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -79,6 +86,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: ItemRightHand
     stableId: 2623282063
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -88,6 +96,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: ItemLeftHand
     stableId: 296804633
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -97,6 +106,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Pelvis
     stableId: 3245896405
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -106,6 +116,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: UpperLeftLeg
     stableId: 3130078484
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -115,6 +126,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: UpperRightLeg
     stableId: 2155680897
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -124,6 +136,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LowerLeftLeg
     stableId: 1524753996
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -133,6 +146,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LowerRightLeg
     stableId: 3459638820
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -142,6 +156,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LeftFoot
     stableId: 1155747920
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -151,6 +166,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: RightFoot
     stableId: 2113642582
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -160,6 +176,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Head
     stableId: 3633909935
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -169,6 +186,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LeftEyebrow
     stableId: 3686243058
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -178,6 +196,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: RightEyebrow
     stableId: 4086129200
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -187,6 +206,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: LeftEye
     stableId: 915970425
+    sourceNodePath: LeftEye
     kind: 2
     boundsExtents:
       x: 0.5
@@ -196,6 +216,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: RightEye
     stableId: 4216110445
+    sourceNodePath: RightEye
     kind: 2
     boundsExtents:
       x: 0.5
@@ -205,6 +226,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Mouth
     stableId: 4216423581
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -214,6 +236,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Hair
     stableId: 2407896100
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -223,6 +246,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Mustache
     stableId: 579426253
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -232,6 +256,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Nose
     stableId: 1147359481
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -241,6 +266,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Ear
     stableId: 3626777948
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -250,6 +276,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Hat
     stableId: 147186507
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -259,6 +286,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Torso
     stableId: 381404764
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -268,6 +296,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: JacketLeftSide
     stableId: 2877654713
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -277,6 +306,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: JacketRightSide
     stableId: 2240726959
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -286,6 +316,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: JacketInside
     stableId: 1350498048
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -295,6 +326,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Belt
     stableId: 2451490638
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -304,6 +336,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: PantFront
     stableId: 275814466
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -313,6 +346,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: Neck
     stableId: 1778450242
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -322,6 +356,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: FaceDetails
     stableId: 2592244987
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -331,6 +366,7 @@ MonoBehaviour:
     facesDirection: 1
   - displayName: FaceWare
     stableId: 3461313679
+    sourceNodePath: 
     kind: 2
     boundsExtents:
       x: 0.5
@@ -352,13 +388,5 @@ MonoBehaviour:
   - displayName: Override
     defaultActive: 0
   mirrorPairs: []
-  sockets:
-  - displayName: ItemRightHand Socket
-    stableId: 3275277067
-    mode: 0
-    targetId: 2623282063
-    boneName: 
-    layerIndex: 0
-    localPosition: {x: 0, y: 0, z: 0}
-    localEulerAngles: {x: 0, y: 0, z: 0}
-    previewAttachment: {fileID: 0}
+  sockets: []
+  billboardRoots: []

@@ -36,7 +36,7 @@ see [`cutout-characters.md`](cutout-characters.md) or
   - **A pose moves between a part and a bone.** They store rotation differently, so the paste converts; the destination decides which form the keys land in.
   - **With nothing selected the keys go back where they came from**, which is what duplicating at the playhead means. Copy from one object with several selected and its animation goes onto all of them; copy from several and they pair up with the selection in order.
   - Both halves say what they did, including how many keys were dropped because a component could not be made.
-- **The dopesheet.** Expand a track to see its channels as separate rows. Drag keys horizontally to retime; drag across empty space to box-select; a key dragged past a neighbour reorders rather than stopping. Selecting a key shows its object's component stack, then the key's own values. Its easing is a curve: pick a preset — Linear (the default), Hold, Ease In, Ease Out, Ease In Out, Smooth, Snap — and drag the curve's handles to shape it from there, which turns the preset into a custom Bézier. Every shape is plotted through the same function the runtime evaluates, so what the curve shows is what plays.
+- **The dopesheet.** Expand a track to see its channels as separate rows. Drag keys horizontally to retime; drag across empty space to box-select; a key dragged past a neighbour reorders rather than stopping. Empty space means anywhere in the key area, including the striped rows under the last track — a clip with three rows still gives you the whole pane to start a band in. Selecting a key shows its object's component stack, then the key's own values. Its easing is a curve: pick a preset — Linear (the default), Hold, Ease In, Ease Out, Ease In Out, Smooth, Snap — and drag the curve's handles to shape it from there, which turns the preset into a custom Bézier. Every shape is plotted through the same function the runtime evaluates, so what the curve shows is what plays.
 - **Focus.** Selecting a part filters the timeline to that part's tracks — the way to read a busy clip. The status line names what is shown and how many rows are hidden; deselect to bring them back. Event rows always stay visible, because they belong to the clip rather than to any one part.
 - **Several parts at once.** Ctrl- or shift-click in the hierarchy to select more. The timeline shows all of their tracks together, and the inspector gives each part its own stack — its own live transform, its own flipbook indices — so there is never a question of whose numbers are whose. One stack is marked **(active)**: the one the viewport gizmo and outline are on, which can only be in one place.
 - **Flipbook indices step on their keys.** A frame index does not interpolate: the key at or before the playhead is what you see, and it holds until the next key's own time. Scrub through a key and the number changes exactly there, not halfway to the next one.
@@ -47,7 +47,9 @@ see [`cutout-characters.md`](cutout-characters.md) or
 - **Events.** Place `EventMarker`s on the timeline — footfalls, hit frames, VFX triggers. These surface at runtime in the actor's `AnimEventOutput` buffer.
 - **Layer and blend defaults.** `defaultBlendIn`/`defaultBlendOut` set how the clip crossfades in and out.
 - **Sockets.** Added to the bone or part they follow, then tracked and previewed here — see [Sockets](#sockets) below.
-- **Validation.** The toolbar badge runs the same `ClipValidation` the bake runs, so an error you see here is the error a bake would throw, with the same rule code.
+- **Validation.** The toolbar badge runs the same `ClipValidation` the bake runs, so an error you see here is the error a bake would throw, with the same rule code. The badge shows the counts; **click it** to list the findings over a corner of the preview, and click again to put them away. It starts away — a clip set part-way through being built is meant to be invalid, and its errors have no business taking the space you are posing in. Each finding is a button that selects the asset it is about.
+- **Bake without leaving.** The toolbar's **VAT Bake** toggle covers the editor with the bake panel — the same one the standalone window shows — and uncovers it again. Nothing is torn down: the playhead, the selection and every split boundary are where you left them, so authoring a clip, baking it and looking at the result is one window rather than three. The clip set you have open is offered to the panel's Clip Set field when it is empty, and left alone once you have chosen one there.
+- **Ragdoll is not built yet.** The toolbar carries a **Ragdoll** toggle for dropping the previewed rig under its own physics — ground contact, self-collision — to see whether a pose reads on impact. Nothing reads the toggle today; it is there so the place it belongs is settled.
 - **Scrubbing the composite.** The preview poses through `ClipSampler` — the runtime's own functions — so what you scrub is what plays.
 
 ---
@@ -100,13 +102,15 @@ The Clip Editor animates a rig. It does not restructure one — parenting, addin
 
 ### Getting into prefab mode
 
-- **Edit Prefab** in the hierarchy header opens the loaded prefab.
+- **Edit Prefab** in the toolbar opens the loaded prefab. It is enabled only while the toolbar's **Rig** field holds a prefab asset; with the field empty it says so on hover rather than failing after the press.
 - **Right-click any row** for *Open Prefab Here* (opens with that object selected and framed), *Ping in Project*, and *Select in Scene*.
 - **Double-click a row** does the same as *Open Prefab Here*.
 
 It is a mode switch, not a window arrangement. The Clip Editor docks beside the Scene view, so entering prefab mode brings the Scene view and Hierarchy forward and the Clip Editor steps behind on its own; leaving prefab mode brings it back with the playhead and selection where you left them. You never have to move a window.
 
 > If your Clip Editor is currently floating, the first **Edit Prefab** docks it for you, carrying its clip set, playhead and selection across. That happens once.
+
+Sharing a tab group is what makes the switch free, and it is also why the Clip Editor's top bar is not on screen while you are in the stage. The Scene view carries a **Clip Editor** overlay for that: one button back to the timeline, one straight to the VAT bake tab, both leaving the prefab stage open behind them. Dismiss it from the Scene view's overlay menu if you would rather use the tab.
 
 ### Coming back
 

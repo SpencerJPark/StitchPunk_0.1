@@ -185,3 +185,44 @@ the rotation pivot is at the character's centre of mass. Or raise the root entit
 A `Color` written into a `[MaterialProperty("_BaseColor")]` component (e.g. `BodyPartTint`) is uploaded to the GPU as a **raw `float4`**. Unlike the material inspector — which auto-converts Shader Graph colour properties from sRGB to linear — the DOTS instancing path does **no conversion**. In a Linear-colour-space project (this one: `m_ActiveColorSpace: 1`) that makes every tint too bright / washed-out (a mid-tone sRGB `0.5` should be linear `~0.21`), so a multiply-tint looks weak and "whiter than expected."
 
 **Fix:** bake `authoring.tintColor.linear` (not the raw `.r/.g/.b`) into the `float4`. Any future runtime system that writes a `Color` into a material-property component must do the same `.linear` conversion. See `BodyPartAuthoring.Baker`.
+
+---
+
+## UI Toolkit — filler elements and unlaid-out sizes
+
+Both bit the clip editor's ghost rows (`GhostLaneStripElement`, 2026-08-22) and neither throws.
+
+### An element sized from the container it lives in grows without bound
+A filler element that measures "the space left over" from its own parent is asking a question it is
+part of the answer to. Inside a `ScrollView` the parent is content-sized, so each pass hands the
+filler the room it just made for itself, the content outgrows the viewport, a scrollbar appears, and
+it keeps going. **Measure `ScrollView.contentViewport` instead** — the pane fixes that, so the sum
+settles on the first pass. Exclude the filler from the subtraction (make it a *sibling* of the
+content stack, not a child).
+
+### `resolvedStyle.height` is NaN before an element's first layout, and NaN loses every comparison
+`if (height < 1f)` and `if (height <= 1f)` are both **false** for NaN, so an unmeasured element sails
+past the guard and poisons whatever arithmetic follows — `Mathf.Max(0f, NaN)` returns NaN, and a NaN
+written into `style.height` is not a size layout recovers from. Write the guard negated —
+`if (!(height >= 1f))` — so NaN takes the safe branch. A size that must come from USS can only be
+read off an element that already exists, so expect a two-pass settle: build one, let it lay out, then
+read it in the `GeometryChangedEvent`.
+
+### A panel that must cover something has to be parented into it
+UI Toolkit paints siblings in document order, so a dropdown built inside a `Toolbar` overflows down
+out of the bar and is painted **behind** the body element that follows it — invisible, not floating.
+`position: absolute` does not change that; absolute positions against an ancestor, it does not raise
+above a later sibling. To hang a panel over the thing below, parent it into *that* subtree, after the
+element it should cover. The clip editor's validation list does this: an absolute, `picking-mode`
+Ignore slot fills the viewport frame after the preview `Image`, and the panel sits inside it under
+ordinary flex rules (`align-items: flex-end`, percentage `max-width`/`max-height`) so it stays a
+corner of the 3D area at any pane size. `picking-mode` Ignore on the slot is not inherited — the
+panel's own buttons still take clicks while a drag anywhere else reaches the viewport.
+
+### One rule set, two renderers, and the un-dismissable one wins
+`ClipRegistryBuilder` throws a `ClipValidationException` whose `.Message` is every offending rule on
+its own line. Anything that puts an exception message straight into a wrapping status label has
+built a second, permanent error list beside the real one — different wording, different order, and
+no way to switch it off. Catch the validation exception *separately* from `Exception`: name the
+problem in one sentence and point at the surface that lists it, and keep the full `.Message` only
+for the unexpected throws that have nowhere else to report.

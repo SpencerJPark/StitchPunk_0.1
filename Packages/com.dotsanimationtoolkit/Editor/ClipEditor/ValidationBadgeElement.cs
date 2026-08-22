@@ -22,6 +22,21 @@ namespace DotsAnimationToolkit.Editor
     /// that matters.
     /// </para>
     /// <para>
+    /// <strong>This is the window's only list of findings, and it is off until asked for.</strong>
+    /// The findings used to reach the user twice: once here, and once as the raw
+    /// <see cref="ClipValidationException"/> text that <c>ClipPreviewController</c> put in the
+    /// viewport status line — a multi-line dump sitting directly above the 3D preview, squeezing it
+    /// every time a set was mid-edit. Two renderings of one rule set is one too many: they wrap
+    /// differently, order differently, and the one you cannot switch off is the one in the way. The
+    /// status line now says a single sentence and points here; the list lives here alone, and the
+    /// summary button is its switch.
+    /// </para>
+    /// <para>
+    /// <strong>The list is not a child of this element.</strong> It hangs over the 3D viewport
+    /// instead — see <see cref="AttachMessagePanel"/>. Left inside the top bar it had nowhere to go
+    /// but down, out of a <c>Toolbar</c> that is one control tall, into a body painted after it.
+    /// </para>
+    /// <para>
     /// Messages carry an <c>assetContext</c>, so clicking one selects the offending asset. That is
     /// the whole navigation story for now: section 7.6 also wants a click to focus the offending
     /// key or track, but a <see cref="ValidationMessage"/> does not carry a key address, so honest
@@ -35,7 +50,9 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color CleanColor = new Color(0.45f, 0.78f, 0.48f);
 
         private readonly Button summaryButton;
-        private readonly VisualElement messageList;
+        private readonly VisualElement messagePanel;
+        private readonly Label messagePanelTitle;
+        private readonly ScrollView messageList;
         private readonly List<ValidationMessage> currentMessages = new List<ValidationMessage>();
 
         private bool isExpanded;
@@ -47,6 +64,9 @@ namespace DotsAnimationToolkit.Editor
         public const string UssClassName = "clip-editor__validation-badge";
 
         private const string SummaryUssClassName = "clip-editor__validation-summary";
+        private const string SummaryExpandedUssClassName = "clip-editor__validation-summary--expanded";
+        private const string PanelUssClassName = "clip-editor__validation-overlay";
+        private const string PanelTitleUssClassName = "clip-editor__validation-overlay-title";
         private const string MessageListUssClassName = "clip-editor__validation-messages";
         private const string MessageUssClassName = "clip-editor__validation-message";
         private const string HiddenUssClassName = "clip-editor--hidden";
@@ -57,16 +77,57 @@ namespace DotsAnimationToolkit.Editor
 
             summaryButton = new Button(ToggleExpanded) { text = "—" };
             summaryButton.AddToClassList(SummaryUssClassName);
+            summaryButton.tooltip =
+                "Show or hide the validation findings for this clip set. The list appears over a "
+                + "corner of the preview and starts hidden, so a set mid-edit does not spend its "
+                + "errors on the space you are posing in.";
             Add(summaryButton);
 
-            messageList = new VisualElement();
+            // Built here and parented elsewhere. Built here because the summary and the list are two
+            // halves of one control, and splitting their state across two classes is how they would
+            // drift apart; parented elsewhere because the top bar cannot hold it.
+            messagePanel = new VisualElement();
+            messagePanel.AddToClassList(PanelUssClassName);
+            messagePanel.AddToClassList(HiddenUssClassName);
+
+            messagePanelTitle = new Label("Validation");
+            messagePanelTitle.AddToClassList(PanelTitleUssClassName);
+            messagePanel.Add(messagePanelTitle);
+
+            messageList = new ScrollView(ScrollViewMode.Vertical);
             messageList.AddToClassList(MessageListUssClassName);
-            messageList.AddToClassList(HiddenUssClassName);
-            Add(messageList);
+            messagePanel.Add(messageList);
         }
 
         /// <summary>Whether the last validation found anything that blocks a bake.</summary>
         public bool HasErrors { get; private set; }
+
+        /// <summary>
+        /// Parents the findings list into <paramref name="host"/>, which is expected to be the
+        /// viewport frame.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The host has to be painted after the 3D image and bounded by it.</strong> UI
+        /// Toolkit paints siblings in order, so a panel that must appear over the preview has to
+        /// come after it under the same parent — which is also what keeps the list inside the 3D
+        /// area rather than floating across the whole window. The stylesheet anchors it to one
+        /// corner and caps its size from there, so the scene stays visible around it.
+        /// </para>
+        /// <para>
+        /// Called once, from the window's viewport binding. A null host leaves the list unparented
+        /// and the toggle inert rather than throwing — the same failure mode as every other
+        /// <c>Q</c> miss in this window, and guarded by the same layout test.
+        /// </para>
+        /// </remarks>
+        public void AttachMessagePanel(VisualElement host)
+        {
+            if (host == null)
+            {
+                return;
+            }
+            host.Add(messagePanel);
+        }
 
         /// <summary>
         /// Revalidates <paramref name="clipSet"/> and repaints the badge.
@@ -85,6 +146,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 summaryButton.text = "No clip set";
                 summaryButton.style.color = CleanColor;
+                messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
             }
@@ -121,13 +183,18 @@ namespace DotsAnimationToolkit.Editor
                 summaryButton.style.color = errorCount > 0 ? ErrorColor : WarningColor;
             }
 
+            // The panel repeats the counts because it is read on its own, over the preview, with the
+            // button it belongs to at the far end of a different row.
+            messagePanelTitle.text = "Validation — " + summaryButton.text;
+
             RebuildMessageList();
         }
 
         private void ToggleExpanded()
         {
             isExpanded = !isExpanded;
-            messageList.EnableInClassList(HiddenUssClassName, !isExpanded);
+            messagePanel.EnableInClassList(HiddenUssClassName, !isExpanded);
+            summaryButton.EnableInClassList(SummaryExpandedUssClassName, isExpanded);
         }
 
         private void RebuildMessageList()

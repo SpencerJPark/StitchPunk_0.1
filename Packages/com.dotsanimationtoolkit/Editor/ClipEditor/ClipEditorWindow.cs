@@ -150,9 +150,24 @@ namespace DotsAnimationToolkit.Editor
         private float3 pendingPosition;
         private float3 pendingRotationDegrees;
         private float3 pendingScale;
+        /// <summary>The VAT bake tab, and the panel built into it the first time it is opened.</summary>
+        private VisualElement vatBakePane;
+        private VatBakePanel vatBakePanel;
+
         private VisualElement trackHeaderColumn;
         private VisualElement laneColumn;
         private VisualElement laneStack;
+        private GhostLaneStripElement ghostLanes;
+
+        /// <summary>
+        /// How many rows the last rebuild put in the lane column, tracks and channel rows together.
+        /// </summary>
+        /// <remarks>
+        /// Kept so the ghost rows below can carry on the stripe alternation. Counted rather than
+        /// read back off the column because the column is also asked for its height on the same
+        /// pass, and a count taken from <c>childCount</c> would have to be re-derived every time.
+        /// </remarks>
+        private int timelineRowCount;
         private TimeRulerElement ruler;
         private PlayheadElement playhead;
         private ScrollView inspectorPane;
@@ -352,6 +367,70 @@ namespace DotsAnimationToolkit.Editor
                 "Clip Editor", ClipEditorDocking.PreferredDockNeighbours());
             window.titleContent = new GUIContent("Clip Editor");
             window.minSize = new Vector2(820f, 460f);
+        }
+
+        /// <summary>Brings the Clip Editor forward showing the editor, opening it if it is closed.</summary>
+        public static void FocusClipEditing()
+        {
+            FocusWithVatBakeTab(false);
+        }
+
+        /// <summary>Brings the Clip Editor forward showing the VAT bake tab.</summary>
+        public static void FocusVatBakeSettings()
+        {
+            FocusWithVatBakeTab(true);
+        }
+
+        /// <summary>
+        /// The entry points the prefab stage's overlay drives, so the top bar's views are reachable
+        /// from a Scene view the Clip Editor is sitting behind.
+        /// </summary>
+        /// <remarks>
+        /// <strong>The view is switched through the toolbar toggle, not by calling
+        /// <see cref="ShowVatBakeTab"/>.</strong> The toggle is the only thing that drives that
+        /// method, and it has to stay the only thing: reaching past it would let the toggle sit lit
+        /// over the editor, or dark over the bake panel, with no way to tell which was right.
+        /// Assigning <c>value</c> raises the change callback, so one path still does the work.
+        /// </remarks>
+        private static void FocusWithVatBakeTab(bool showVatBake)
+        {
+            ClipEditorWindow window = FindOpenWindow();
+            if (window == null)
+            {
+                ShowWindow();
+                window = FindOpenWindow();
+            }
+            if (window == null)
+            {
+                return;
+            }
+            window.Focus();
+
+            ToolbarToggle vatBakeToggle = window.rootVisualElement != null
+                ? window.rootVisualElement.Q<ToolbarToggle>("vat-bake-toggle")
+                : null;
+            if (vatBakeToggle != null)
+            {
+                vatBakeToggle.value = showVatBake;
+                return;
+            }
+
+            // No toggle to drive means the layout failed to load, which the window says loudly on
+            // its own. Switching the view directly is still the better of the two failures.
+            window.ShowVatBakeTab(showVatBake);
+        }
+
+        private static ClipEditorWindow FindOpenWindow()
+        {
+            ClipEditorWindow[] openWindows = Resources.FindObjectsOfTypeAll<ClipEditorWindow>();
+            for (int windowIndex = 0; windowIndex < openWindows.Length; windowIndex++)
+            {
+                if (openWindows[windowIndex] != null)
+                {
+                    return openWindows[windowIndex];
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -569,8 +648,12 @@ namespace DotsAnimationToolkit.Editor
                 newClipSetButton.tooltip = "Create a new clip set asset and load it into this window.";
             }
 
-            // Play, the playhead readout and the frame grid all moved to the transport bar above
-            // the timeline. Snap stays here: it governs what a DRAG writes, not when anything is.
+            // Snap and Auto Key are no longer in the top bar. They sit on the status row over the
+            // key area with the scale pivot, because all three answer "what will my next edit here
+            // do" — a different question from the clip set and rig identity this bar is for.
+            // Still resolved from this method, which is where every toggle in the window is bound:
+            // Q searches the whole tree, and splitting the bindings by which row an element ended
+            // up in would only make them harder to find.
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
             BindTransportBar();
             BindTimelineView();
@@ -596,6 +679,35 @@ namespace DotsAnimationToolkit.Editor
                     }
                     Repaint();
                 });
+            }
+
+            // A placeholder, and deliberately a visible one. It carries no callback because there
+            // is nothing yet to call: the package cannot reach into the game's ragdoll systems —
+            // the conformance scan forbids naming a host's namespaces, and rightly, since a package
+            // that only worked inside one project is not a package — so previewing a drop means the
+            // toolkit growing its own simulation in the preview scene. The toggle holds its own
+            // value until something registers for it; the tooltip says outright that nothing has.
+            ToolbarToggle ragdollPreviewToggle =
+                rootVisualElement.Q<ToolbarToggle>("ragdoll-preview-toggle");
+            if (ragdollPreviewToggle != null)
+            {
+                ragdollPreviewToggle.tooltip =
+                    "Drop the previewed rig as an active ragdoll — its own physics, ground contact "
+                    + "and self-collision — to see whether a pose still reads on impact.\n"
+                    + "Not simulating yet: nothing reads this toggle.";
+            }
+
+            vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
+            ToolbarToggle vatBakeToggle = rootVisualElement.Q<ToolbarToggle>("vat-bake-toggle");
+            if (vatBakeToggle != null)
+            {
+                vatBakeToggle.tooltip =
+                    "Swap the editor for the VAT bake settings, and back. Nothing is torn down "
+                    + "either way — the playhead, the selection and the three split positions are "
+                    + "where you left them — so a bake, a look at the result and another bake is "
+                    + "three clicks rather than three windows.";
+                vatBakeToggle.RegisterValueChangedCallback(
+                    changeEvent => ShowVatBakeTab(changeEvent.newValue));
             }
 
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
@@ -1210,6 +1322,45 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
+        /// <summary>
+        /// Shows or hides the VAT bake tab over the editor.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The pane covers the dock; it does not replace it.</strong> The reasoning is in
+        /// <c>.clip-editor__vat-bake-pane</c> — a <c>TwoPaneSplitView</c> laid out at zero by zero
+        /// keeps the zero, and you would come back to a collapsed pane. Covering means switching
+        /// back costs nothing and changes nothing.
+        /// </para>
+        /// <para>
+        /// The panel is built on first use rather than at bind time. It is a stack of object fields
+        /// most sessions never open, and building it eagerly would put its cost on every window that
+        /// only ever wanted to edit a clip.
+        /// </para>
+        /// </remarks>
+        private void ShowVatBakeTab(bool isShown)
+        {
+            if (vatBakePane == null)
+            {
+                return;
+            }
+
+            if (isShown)
+            {
+                if (vatBakePanel == null)
+                {
+                    vatBakePanel = new VatBakePanel();
+                    vatBakePane.Add(vatBakePanel);
+                }
+
+                // Offered, not imposed: the panel keeps a clip set the user chose there. See
+                // VatBakePanel.OfferClipSet.
+                vatBakePanel.OfferClipSet(clipSet);
+            }
+
+            vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
         private void ApplyRigEditChrome()
         {
             bool isRigEdit = IsRigEditMode;
@@ -1687,6 +1838,16 @@ namespace DotsAnimationToolkit.Editor
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
             rigEditBanner = rootVisualElement.Q<Label>("rig-edit-banner");
 
+            // The validation findings are shown over the preview rather than in the top bar, and
+            // only while the bar's summary button asks for them. Attached from here rather than
+            // built here, because the panel and that button are two halves of one control — see
+            // ValidationBadgeElement. BindToolbar has already run, so the badge exists.
+            if (validationBadge != null)
+            {
+                validationBadge.AttachMessagePanel(
+                    rootVisualElement.Q<VisualElement>("validation-overlay-slot"));
+            }
+
             reconcilePanel = rootVisualElement.Q<VisualElement>("reconcile-panel");
             reconcileList = rootVisualElement.Q<ScrollView>("reconcile-list");
             reconcileTitle = rootVisualElement.Q<Label>("reconcile-title");
@@ -1746,6 +1907,13 @@ namespace DotsAnimationToolkit.Editor
             ruler = new TimeRulerElement();
             ruler.scrubbed += SetPlayheadTime;
             laneStack.Insert(0, ruler);
+
+            // Straight after the lane column, so the empty rows begin where the tracks stop. Added
+            // before the two overlays below: they are drawn in tree order, and a band or a playhead
+            // painted under the ghost rows would vanish the moment it left the last track.
+            ghostLanes = new GhostLaneStripElement();
+            ghostLanes.ghostPointerDown += OnGhostLanePointerDown;
+            laneStack.Add(ghostLanes);
 
             // Under the playhead so the current-time line stays readable over a band.
             boxSelectElement = new BoxSelectElement();
@@ -2543,6 +2711,13 @@ namespace DotsAnimationToolkit.Editor
             RebuildHierarchy();
             RebuildTimeline();
             RebuildInspector();
+
+            // The rig field is the only thing Edit Prefab's enabled state depends on, and this is
+            // the only place that field changes. Without this the button was disabled at bind time —
+            // when no rig is assigned yet — and never re-enabled, so assigning a rig left a button
+            // that swallowed clicks in silence. The failure locked itself in: the only other refresh
+            // runs after a prefab round trip, which is the thing the dead button prevented.
+            RefreshPrefabActionState();
         }
 
         // -------------------------------------------------------------------------------------
@@ -3721,6 +3896,13 @@ namespace DotsAnimationToolkit.Editor
             if (previewStatusLabel != null)
             {
                 previewStatusLabel.text = viewportStatus;
+
+                // Collapsed when there is nothing to say, rather than left as an empty line. It sits
+                // directly above the preview and takes a line's height whatever its text, so on a
+                // healthy set that is a strip of dead space between the pane's top and the rig — and
+                // the whole point of what changed around it is that the viewport keeps its room.
+                previewStatusLabel.EnableInClassList(
+                    HiddenUssClassName, string.IsNullOrEmpty(viewportStatus));
             }
 
             Rect previewRect = previewImage.contentRect;
@@ -3798,6 +3980,8 @@ namespace DotsAnimationToolkit.Editor
             if (selectedClip == null)
             {
                 statusLabel.text = clipSet == null ? "Assign a clip set." : "Select a clip.";
+                timelineRowCount = 0;
+                SyncGhostLanes();
                 RebuildInspector();
                 return;
             }
@@ -3913,6 +4097,9 @@ namespace DotsAnimationToolkit.Editor
                         ? " (" + hiddenTrackCount.ToString() + " track(s) hidden — deselect to show all)"
                         : string.Empty);
             }
+
+            timelineRowCount = rowIndex;
+            SyncGhostLanes();
 
             SetPlayheadTime(playheadTime);
             RebuildInspector();
@@ -4462,6 +4649,36 @@ namespace DotsAnimationToolkit.Editor
             SortTrackKeys(trackKind, trackIndex);
             SetPlayheadTime(insertTime);
             RebuildTimeline();
+        }
+
+        /// <summary>
+        /// Handles a press on the empty rows below the last track: the same click-clears-and-scrubs,
+        /// drag-selects gesture the lanes have, minus the double click that would add a key.
+        /// </summary>
+        /// <remarks>
+        /// <strong>This is the point of the ghost rows.</strong> A band starts on the element the
+        /// pointer went down on, so a clip with three tracks used to offer a three-row-tall strip to
+        /// start one in and a pane full of dead space below it. There is no track under a ghost row
+        /// to insert into, so a double click here scrubs like a single one rather than keying
+        /// something the user cannot see.
+        /// </remarks>
+        private void OnGhostLanePointerDown(float normalizedTime, PointerDownEvent pointerEvent)
+        {
+            laneStack.Focus();
+
+            bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
+            if (!additive)
+            {
+                selectedKeys.Clear();
+                hasActiveKey = false;
+                RepaintLanes();
+                RebuildInspector();
+            }
+
+            // Held rather than moved, for the reason spelled out in OnLanePointerDown: the playhead
+            // dragging along behind every band reads as the two gestures fighting each other.
+            pendingPlayheadTime = normalizedTime;
+            BeginBoxSelect(pointerEvent, additive);
         }
 
         // -------------------------------------------------------------------------------------

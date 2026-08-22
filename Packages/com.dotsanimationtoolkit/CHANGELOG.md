@@ -10,6 +10,183 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — validation errors sat on top of the 3D preview, twice
+
+A clip set part-way through being built is *supposed* to be invalid, so the
+window spent its most-wanted space on saying so. Two separate renderings of one
+rule set, neither of them optional:
+
+- `ClipRegistryBuilder` throws a `ClipValidationException` whose message is every
+  offending rule on its own line, the preview controller put that whole dump in
+  `StatusMessage`, and the status line is a wrapping label immediately above the
+  viewport. Three findings meant four lines of pane the rig no longer had —
+  permanently, with no way to dismiss it.
+- The validation badge listed the same findings again, in different words and a
+  different order, stacked under its button inside a `Toolbar` that is one
+  control tall.
+
+**Now there is one list, it is off by default, and it is over the preview rather
+than above it.** The badge's summary button is its switch and shows a pressed
+state, the list hangs in a corner of the viewport frame capped at 60% of it and
+scrolls past that, and the scene stays visible and orbitable everywhere the panel
+is not. The status line says one sentence naming the problem and pointing at the
+button; anything thrown that *isn't* a validation failure still reports in full,
+because nothing else in the window would surface it. The status line also
+collapses when it has nothing to say, instead of holding an empty row open.
+
+### Fixed — a box select could not be started in the empty half of the timeline
+
+A band begins on whatever element the pointer went down on, and under the last
+track row there was no element: the lane column stopped where the tracks
+stopped, and everything below it was the scroll view's own background. So the
+part of the timeline with the most room to drag a box out in was the one part
+that would not start one. On a clip with three rows that was most of the pane.
+
+- **The key area now fills itself with ghost rows** down to the bottom edge —
+  empty rows, striped in the tracks' own alternation so the reading of the grid
+  carries on, and shaded past the clip's ends by the same code the lanes use so
+  the clip boundary is one line all the way down.
+- **They are selection targets, not decoration.** Pressing one clears the
+  selection and scrubs exactly as pressing empty lane space does, and dragging
+  from one draws a band. There is no track underneath to key, so a double click
+  there scrubs rather than adding a key nothing could show.
+- The strip is sized against the scroll view's *viewport*, never against the
+  lane stack it sits in — the stack is as tall as its own contents, so measuring
+  it would have the rows making room for themselves, one scrollbar at a time.
+
+### Fixed — Edit Prefab was disabled from the moment the window opened
+
+The button is enabled only when the toolbar's Rig field holds a prefab, and that
+state was computed at bind time — when the field is empty — and then never
+again. Assigning a rig left a button that swallowed clicks in silence.
+
+**The failure locked itself in.** The only other refresh runs after returning
+from a prefab round trip, which is exactly what the dead button prevented, so
+nothing in an ordinary session could ever re-enable it.
+
+- `OnSkinnedSourceChanged` now refreshes it. That handler is the only place the
+  rig field changes, and the field is the only thing the state depends on.
+
+### Changed — one spacing rule for every run of buttons
+
+The top bar had drifted into per-control inline padding and a hand-placed margin
+here and there, and those margins read as deliberate grouping when they were
+only leftovers: the gap before VAT Bake said "these two belong apart" about two
+controls that belong together.
+
+- **`.clip-editor__bar-action` is now the only thing that sizes a control in a
+  run of them** — one padding, no gap, no inline overrides. It is shared by the
+  top bar and by Snap / Auto Key at the head of the key area, so the two rows
+  cannot drift apart from each other.
+- **A run is a segmented strip with one hairline between controls, and the same
+  hairline capping each end.** Removing the margin alone was not enough: flush
+  neighbours drew their borders side by side, and the doubled line looked like
+  the spacing that had just been removed. Each control now borders both edges
+  and overlaps its neighbour by a pixel, so the two borders land in the same
+  column. The ends need no hand-placed cap and stay right through a control
+  being added, reordered, or — like Quantize Keys — hidden.
+- **Edit Prefab is a `ToolbarButton`.** It was a plain `Button` wearing the
+  pane-action class among ToolbarToggles, so it carried a different height,
+  border and hover state from everything beside it. `Q<Button>` still resolves
+  it, because `ToolbarButton` is one. Quantize Keys moved the same way.
+- The section labels keep a wider left margin — it separates *groups* of
+  controls rather than two controls — and that now lives in the stylesheet, so
+  both labels cannot drift apart from each other. Fields stay out of the runs
+  for the same reason: an object field or the pivot dropdown carries its own
+  frame, which inside a flush strip would read as a seam.
+
+### Changed — Quantize Keys sits with Snap and Auto Key
+
+It was in the transport bar, among the controls that answer "when". It does not
+answer "when": it rewrites authored key times, and it appears at all only when
+some key is off the frame grid — which is the same kind of statement Snap and
+Auto Key make about what an edit will do next.
+
+- **It is now the first control of the status row's group**, at the head of the
+  key area it edits. Leading the group rather than trailing it matters because
+  it comes and goes: right-aligned, it grows leftwards into the status line's
+  slack, and Snap, Auto Key and the pivot hold their place instead of sliding
+  out from under the pointer when the count changes.
+
+### Added — the Clip Editor's views are reachable from the prefab stage
+
+Edit Prefab docks the Clip Editor into the Scene view's tab group on the first
+trip, on purpose: a floating window sits above everything and has to be dragged
+aside. The cost is that the Scene view coming forward puts the Clip Editor
+behind it, top bar and all — so switching back meant hunting for the tab.
+
+- **A Scene view overlay, "Clip Editor"**, with two buttons: back to the
+  timeline, or straight to the VAT bake tab. Both leave the prefab stage open,
+  so they switch context rather than ending it.
+- **Navigation only, never state.** Mirroring a toggle into the Scene view would
+  put its value in two places, and the copy out there is the one nobody would
+  think to update.
+- A prefab stage is a scene the Scene view opens and no window of ours can hold
+  one, so "keep the top bar visible while editing the prefab" has to mean
+  putting the bar's exits where the user already is.
+
+### Added — the VAT bake panel is a tab of the Clip Editor
+
+Authoring a clip and baking it were two windows, which meant the loop of bake,
+look, adjust, bake was a window-management exercise. It is now a toolbar toggle.
+
+- **`VatBakePanel` is a `VisualElement`**, carrying the UI and the bake that used
+  to live in `VatBakeWindow.CreateGUI`. `VatBakeWindow` is what is left: a menu
+  entry and a host. The Clip Editor hosts the same panel, so a bake produced from
+  either is the same bake — the only arrangement in which that stays true.
+- **The tab covers the dock rather than replacing it.** Hiding a
+  `TwoPaneSplitView` gives it a geometry pass at zero by zero, and a split that
+  clamps its fixed pane against a height of nothing keeps that number: you would
+  come back to a collapsed pane with no handle to drag it out. Covering touches
+  nothing, so the playhead, the selection and all three split boundaries are
+  where you left them. That is what makes switching back and forth worth doing.
+- The panel is built the first time the tab is opened, not at window bind time.
+- **The open clip set is offered to the panel's Clip Set field, not imposed on
+  it.** Only an empty field is filled. A host that pushed its selection in on
+  every switch would make that field impossible to hold against it.
+- `VatTextureSetAsset`'s "Open VAT Baker" button and the menu entry are unchanged.
+
+### Added — a Ragdoll toggle in the toolbar, not yet wired to anything
+
+A place for dropping the previewed rig under its own physics — ground contact,
+self-collision — to check whether a pose still reads on impact.
+
+**Nothing reads it yet, and the tooltip says so.** The toolkit cannot borrow a
+host game's ragdoll: the conformance scan forbids a package naming a host's
+namespaces, and a package that only worked inside one project would not be one.
+Previewing a drop means the toolkit growing its own simulation in the preview
+scene, so the toggle lands first and the simulation follows.
+
+### Changed — Snap and Auto Key move down beside the scale pivot
+
+The scale pivot moved to the status row over the key area for a reason that
+applies just as well to these two: it says what an edit *here* will do, so it
+belongs where the editing happens rather than in the bar that identifies the
+clip set and the rig. Snap and Auto Key were the two left behind.
+
+- **Both toggles now sit on the timeline's status row**, in the order Snap,
+  Auto Key, scale pivot, in a group held against the right edge. The auto left
+  margin that used to be on the pivot alone moved onto the group, so the three
+  travel together instead of the pivot drifting away from them.
+- The group does not shrink; the status line beside it is what gives way as the
+  pane narrows, exactly as it already did for the pivot on its own.
+- They are still bound in `BindToolbar` — `Q` searches the whole tree, and every
+  toggle in the window being resolved in one place is worth more than each
+  binding sitting in a method named after the row it landed in.
+
+### Changed — the transport bar spans the timeline instead of clustering in the middle
+
+The bar was centred on its own contents, which left every group in one dense
+clump with dead space either side of it, and at that width the separators
+between groups were carrying the whole job of telling them apart.
+
+- **The bar stretches the width of the pane** and distributes its groups with
+  `space-evenly`, so the end gaps match the ones between groups: the set still
+  reads as centred, but each group has room of its own.
+- The two inline `align-self` overrides in `ClipEditorWindow.uxml` are gone.
+  Layout for this window lives in `ClipEditorWindow.uss` and an inline style is
+  the one thing there that cannot be overridden from it.
+
 ### Changed — Billboard goes on anything, with nothing to satisfy first
 
 Adding a Billboard was refused unless the rig could already "address the node",

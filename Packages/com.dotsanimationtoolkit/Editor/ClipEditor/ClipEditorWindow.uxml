@@ -4,110 +4,123 @@
         <uie:Toolbar name="clip-editor-toolbar" class="clip-editor__toolbar">
             <ui:Label text="Clip Set" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="clip-set-field" class="clip-editor__object-field"/>
-            <uie:ToolbarButton name="new-clip-set-button" text="New Set"/>
-            <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true"/>
-            <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key"/>
-            <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true"/>
+            <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
             <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
-            <uie:ToolbarToggle name="rig-edit-toggle" text="Rig Edit" class="clip-editor__rig-edit-toggle"/>
-            <ui:Button name="edit-prefab-button" text="Edit Prefab" class="clip-editor__pane-action"/>
+            <uie:ToolbarToggle name="rig-edit-toggle" text="Rig Edit" class="clip-editor__bar-action clip-editor__rig-edit-toggle"/>
+            <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
+            <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action"/>
+            <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
+            <uie:ToolbarToggle name="vat-bake-toggle" text="VAT Bake" class="clip-editor__bar-action"/>
             <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
         </uie:Toolbar>
-        <ui:TwoPaneSplitView name="dock-vertical" orientation="Vertical" fixed-pane-index="1" fixed-pane-initial-dimension="220" class="clip-editor__dock">
-            <ui:TwoPaneSplitView name="dock-columns" orientation="Horizontal" fixed-pane-index="0" fixed-pane-initial-dimension="240">
-                <ui:TwoPaneSplitView name="dock-left" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="150">
-                    <ui:VisualElement name="clip-list-pane" class="clip-editor__pane">
-                        <ui:VisualElement class="clip-editor__pane-header">
-                            <ui:Label text="Clips" class="clip-editor__pane-title"/>
-                            <ui:VisualElement class="clip-editor__pane-actions">
-                                <ui:Button name="new-clip-button" text="New" class="clip-editor__pane-action"/>
-                                <ui:Button name="delete-clip-button" text="Delete" class="clip-editor__pane-action"/>
+        <ui:VisualElement name="clip-editor-body" class="clip-editor__body">
+            <ui:TwoPaneSplitView name="dock-vertical" orientation="Vertical" fixed-pane-index="1" fixed-pane-initial-dimension="220" class="clip-editor__dock">
+                <ui:TwoPaneSplitView name="dock-columns" orientation="Horizontal" fixed-pane-index="0" fixed-pane-initial-dimension="240">
+                    <ui:TwoPaneSplitView name="dock-left" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="150">
+                        <ui:VisualElement name="clip-list-pane" class="clip-editor__pane">
+                            <ui:VisualElement class="clip-editor__pane-header">
+                                <ui:Label text="Clips" class="clip-editor__pane-title"/>
+                                <ui:VisualElement class="clip-editor__pane-actions">
+                                    <ui:Button name="new-clip-button" text="New" class="clip-editor__pane-action"/>
+                                    <ui:Button name="delete-clip-button" text="Delete" class="clip-editor__pane-action"/>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:ListView name="clip-list" class="clip-editor__clip-list"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
+                            <ui:VisualElement class="clip-editor__pane-header">
+                                <ui:Label text="Hierarchy" class="clip-editor__pane-title"/>
+                            </ui:VisualElement>
+                            <ui:Label name="hierarchy-empty-label" text="Assign a rig in the toolbar to list its transforms." class="clip-editor__hint"/>
+                            <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy"/>
+                        </ui:VisualElement>
+                    </ui:TwoPaneSplitView>
+                    <ui:TwoPaneSplitView name="dock-right" orientation="Horizontal" fixed-pane-index="1" fixed-pane-initial-dimension="280">
+                        <ui:VisualElement name="viewport-pane" class="clip-editor__pane clip-editor__viewport-pane">
+                            <ui:Label name="rig-edit-banner" class="clip-editor__mode-banner clip-editor--hidden"/>
+                            <ui:Label name="viewport-status" class="clip-editor__viewport-status"/>
+                            <ui:VisualElement name="viewport-frame" class="clip-editor__viewport-frame">
+                                <ui:Image name="viewport-image" class="clip-editor__viewport"/>
+                                <!-- The validation findings hang here, after the image so they paint
+                                     over it and inside the frame so they can never reach further
+                                     than the 3D area. Empty in the UXML: ValidationBadgeElement
+                                     builds the panel, because the panel and the toolbar button that
+                                     switches it are one control. -->
+                                <ui:VisualElement name="validation-overlay-slot" picking-mode="Ignore" class="clip-editor__validation-overlay-slot"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="reconcile-panel" class="clip-editor__reconcile clip-editor--hidden">
+                                <ui:VisualElement class="clip-editor__reconcile-header">
+                                    <ui:Label name="reconcile-title" class="clip-editor__reconcile-title"/>
+                                    <ui:Button name="reconcile-dismiss-button" text="Dismiss" class="clip-editor__pane-action"/>
+                                </ui:VisualElement>
+                                <ui:ScrollView name="reconcile-list" class="clip-editor__reconcile-list"/>
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:ListView name="clip-list" class="clip-editor__clip-list"/>
-                    </ui:VisualElement>
-                    <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
-                        <ui:VisualElement class="clip-editor__pane-header">
-                            <ui:Label text="Hierarchy" class="clip-editor__pane-title"/>
+                        <ui:VisualElement name="inspector-pane" class="clip-editor__pane">
+                            <ui:Label text="Clip Inspector" class="clip-editor__pane-title"/>
+                            <ui:ScrollView name="inspector-content" class="clip-editor__inspector"/>
                         </ui:VisualElement>
-                        <ui:Label name="hierarchy-empty-label" text="Assign a rig in the toolbar to list its transforms." class="clip-editor__hint"/>
-                        <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy"/>
-                    </ui:VisualElement>
+                    </ui:TwoPaneSplitView>
                 </ui:TwoPaneSplitView>
-                <ui:TwoPaneSplitView name="dock-right" orientation="Horizontal" fixed-pane-index="1" fixed-pane-initial-dimension="280">
-                    <ui:VisualElement name="viewport-pane" class="clip-editor__pane clip-editor__viewport-pane">
-                        <ui:Label name="rig-edit-banner" class="clip-editor__mode-banner clip-editor--hidden"/>
-                        <ui:Label name="viewport-status" class="clip-editor__viewport-status"/>
-                        <ui:VisualElement name="viewport-frame" class="clip-editor__viewport-frame">
-                            <ui:Image name="viewport-image" class="clip-editor__viewport"/>
+                <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
+                    <ui:VisualElement name="transport-bar" class="clip-editor__transport">
+                        <ui:VisualElement class="clip-editor__transport-group">
+                            <ui:Label text="Length" class="clip-editor__transport-label"/>
+                            <ui:FloatField name="clip-length-field" class="clip-editor__transport-field"/>
+                            <ui:Label text="FPS" class="clip-editor__transport-label"/>
+                            <ui:FloatField name="frame-rate-field" class="clip-editor__transport-field"/>
+                            <ui:Label name="frame-count-label" text="0 frames" class="clip-editor__transport-label clip-editor__transport-derived"/>
                         </ui:VisualElement>
-                        <ui:VisualElement name="reconcile-panel" class="clip-editor__reconcile clip-editor--hidden">
-                            <ui:VisualElement class="clip-editor__reconcile-header">
-                                <ui:Label name="reconcile-title" class="clip-editor__reconcile-title"/>
-                                <ui:Button name="reconcile-dismiss-button" text="Dismiss" class="clip-editor__pane-action"/>
+                        <ui:VisualElement name="PlayHead" class="clip-editor__transport-group">
+                            <ui:Button name="jump-start-button" text="|&lt;" class="clip-editor__transport-button"/>
+                            <ui:Button name="step-back-button" text="&lt;" class="clip-editor__transport-button"/>
+                            <ui:Button name="play-toggle" text="Play" class="clip-editor__transport-button clip-editor__transport-play"/>
+                            <ui:Button name="step-forward-button" text="&gt;" class="clip-editor__transport-button"/>
+                            <ui:Button name="jump-end-button" text="&gt;|" class="clip-editor__transport-button"/>
+                            <ui:Button name="loop-button" class="clip-editor__transport-button clip-editor__transport-loop">
+                                <ui:Image name="loop-icon" picking-mode="Ignore" class="clip-editor__transport-loop-icon"/>
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="clip-editor__transport-group">
+                            <ui:Label text="Frame" class="clip-editor__transport-label"/>
+                            <ui:IntegerField name="current-frame-field" class="clip-editor__transport-field"/>
+                            <ui:Label text="Time" class="clip-editor__transport-label"/>
+                            <ui:FloatField name="current-seconds-field" class="clip-editor__transport-field"/>
+                            <ui:Label text="Speed" class="clip-editor__transport-label"/>
+                            <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="clip-editor__transport-group">
+                            <ui:Label text="Zoom" class="clip-editor__transport-label"/>
+                            <ui:Slider name="zoom-slider" class="clip-editor__transport-slider"/>
+                            <ui:Button name="frame-all-button" text="All" class="clip-editor__transport-button"/>
+                            <ui:Button name="frame-selection-button" text="Selected" class="clip-editor__transport-button"/>
+                        </ui:VisualElement>
+                        <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="timeline-status-row" class="clip-editor__status-row">
+                        <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status"/>
+                        <ui:VisualElement class="clip-editor__status-actions">
+                            <uie:ToolbarButton name="quantize-keys-button" text="Quantize Keys" class="clip-editor__bar-action clip-editor__quantize-action"/>
+                            <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" class="clip-editor__bar-action clip-editor__status-toggle"/>
+                            <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key" class="clip-editor__bar-action clip-editor__status-toggle"/>
+                            <ui:DropdownField name="pivot-dropdown" class="clip-editor__status-dropdown"/>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">
+                        <ui:VisualElement name="timeline-row" class="clip-editor__timeline-row">
+                            <ui:VisualElement name="track-header-stack" class="clip-editor__track-header-stack">
+                                <ui:VisualElement class="clip-editor__track-header-spacer"/>
+                                <ui:VisualElement name="track-header-column"/>
                             </ui:VisualElement>
-                            <ui:ScrollView name="reconcile-list" class="clip-editor__reconcile-list"/>
+                            <ui:VisualElement name="lane-stack" focusable="true" class="clip-editor__lane-stack">
+                                <ui:VisualElement name="lane-column"/>
+                            </ui:VisualElement>
                         </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement name="inspector-pane" class="clip-editor__pane">
-                        <ui:Label text="Inspector" class="clip-editor__pane-title"/>
-                        <ui:ScrollView name="inspector-content" class="clip-editor__inspector"/>
-                    </ui:VisualElement>
-                </ui:TwoPaneSplitView>
+                    </ui:ScrollView>
+                </ui:VisualElement>
             </ui:TwoPaneSplitView>
-            <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
-                <ui:VisualElement name="transport-bar" class="clip-editor__transport" style="align-self: center; align-content: center;">
-                    <ui:VisualElement class="clip-editor__transport-group">
-                        <ui:Label text="Length" class="clip-editor__transport-label"/>
-                        <ui:FloatField name="clip-length-field" class="clip-editor__transport-field"/>
-                        <ui:Label text="FPS" class="clip-editor__transport-label"/>
-                        <ui:FloatField name="frame-rate-field" class="clip-editor__transport-field"/>
-                        <ui:Label name="frame-count-label" text="0 frames" class="clip-editor__transport-label clip-editor__transport-derived"/>
-                    </ui:VisualElement>
-                    <ui:VisualElement name="PlayHead" class="clip-editor__transport-group">
-                        <ui:Button name="jump-start-button" text="|&lt;" class="clip-editor__transport-button"/>
-                        <ui:Button name="step-back-button" text="&lt;" class="clip-editor__transport-button"/>
-                        <ui:Button name="play-toggle" text="Play" class="clip-editor__transport-button clip-editor__transport-play"/>
-                        <ui:Button name="step-forward-button" text="&gt;" class="clip-editor__transport-button"/>
-                        <ui:Button name="jump-end-button" text="&gt;|" class="clip-editor__transport-button"/>
-                        <ui:Button name="loop-button" class="clip-editor__transport-button clip-editor__transport-loop">
-                            <ui:Image name="loop-icon" picking-mode="Ignore" class="clip-editor__transport-loop-icon"/>
-                        </ui:Button>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="clip-editor__transport-group" style="align-self: center;">
-                        <ui:Label text="Frame" class="clip-editor__transport-label"/>
-                        <ui:IntegerField name="current-frame-field" class="clip-editor__transport-field"/>
-                        <ui:Label text="Time" class="clip-editor__transport-label"/>
-                        <ui:FloatField name="current-seconds-field" class="clip-editor__transport-field"/>
-                        <ui:Label text="Speed" class="clip-editor__transport-label"/>
-                        <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field"/>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="clip-editor__transport-group">
-                        <ui:Label text="Zoom" class="clip-editor__transport-label"/>
-                        <ui:Slider name="zoom-slider" class="clip-editor__transport-slider"/>
-                        <ui:Button name="frame-all-button" text="All" class="clip-editor__transport-button"/>
-                        <ui:Button name="frame-selection-button" text="Selected" class="clip-editor__transport-button"/>
-                    </ui:VisualElement>
-                    <ui:Button name="quantize-keys-button" text="Quantize Keys" class="clip-editor__transport-button clip-editor__transport-action"/>
-                    <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
-                </ui:VisualElement>
-                <ui:VisualElement name="timeline-status-row" class="clip-editor__status-row">
-                    <ui:Label name="timeline-status" text="Assign a clip set." class="clip-editor__status"/>
-                    <ui:DropdownField name="pivot-dropdown" class="clip-editor__transport-dropdown clip-editor__status-dropdown"/>
-                </ui:VisualElement>
-                <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">
-                    <ui:VisualElement name="timeline-row" class="clip-editor__timeline-row">
-                        <ui:VisualElement name="track-header-stack" class="clip-editor__track-header-stack">
-                            <ui:VisualElement class="clip-editor__track-header-spacer"/>
-                            <ui:VisualElement name="track-header-column"/>
-                        </ui:VisualElement>
-                        <ui:VisualElement name="lane-stack" focusable="true" class="clip-editor__lane-stack">
-                            <ui:VisualElement name="lane-column"/>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:ScrollView>
-            </ui:VisualElement>
-        </ui:TwoPaneSplitView>
+            <ui:VisualElement name="vat-bake-pane" class="clip-editor__vat-bake-pane clip-editor--hidden"/>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -32,22 +32,33 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "clip-set-field", "new-clip-set-button",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle", "billboard-preview-toggle",
+            "ragdoll-preview-toggle", "vat-bake-toggle",
             "skinned-source-field", "validation-badge-slot",
             // Transport bar: every control that answers "when", docked above the timeline.
             "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
             "step-forward-button", "jump-end-button",
             "current-frame-field", "current-seconds-field",
             "clip-length-field", "frame-rate-field", "frame-count-label",
-            "loop-button", "loop-icon", "playback-speed-field", "quantize-keys-button",
+            "loop-button", "loop-icon", "playback-speed-field",
             "zoom-slider", "frame-all-button", "frame-selection-button",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
             "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",
             "edit-prefab-button",
             "viewport-pane", "viewport-status", "viewport-image",
+            // Where the validation findings hang. Empty in the UXML and filled by the badge, so a
+            // rename here presents as an error button that appears to do nothing.
+            "validation-overlay-slot",
             "inspector-pane", "inspector-content",
-            "timeline-pane", "timeline-status", "pivot-dropdown", "timeline-scroll", "timeline-row",
-            "track-header-stack", "track-header-column", "lane-stack", "lane-column"
+            // The status row at the head of the key area: what the next edit will do, plus
+            // Quantize Keys, which lives here rather than in the transport bar because it
+            // edits keys rather than answering "when".
+            "timeline-pane", "timeline-status", "pivot-dropdown", "quantize-keys-button",
+            "timeline-scroll", "timeline-row",
+            "track-header-stack", "track-header-column", "lane-stack", "lane-column",
+            // The VAT bake tab's slot. Nothing is built into it until the tab is first opened, so a
+            // rename here would present as a toggle that does nothing rather than as a failure.
+            "vat-bake-pane"
         };
 
         [Test]

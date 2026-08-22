@@ -154,6 +154,73 @@ MonoBehaviour:
       bezierEndHandle:
         x: 0
         y: 0
+  - targetId: 4216110445
+    blendOp: 0
+    channels: 1
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: -0.005
+        z: 0
+      rotation:
+        x: -0
+        y: 0
+        z: 24.45
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0.01
+        z: 0
+      rotation:
+        x: -0
+        y: 0
+        z: 24.45
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: -0.005
+        z: 0
+      rotation:
+        x: -0
+        y: 0
+        z: 24.45
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   spriteTracks:
   - targetId: 3686243058
     mode: 0
@@ -226,8 +293,32 @@ MonoBehaviour:
         y: 1
         z: 0
         w: 0
+    - normalizedTime: 0
+      sliceIndex: 53
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
     - normalizedTime: 0.02
       sliceIndex: 35
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.02
+      sliceIndex: 35
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.04
+      sliceIndex: 33
       indexMode: 0
       atlasRect:
         x: 1
@@ -250,8 +341,32 @@ MonoBehaviour:
         y: 1
         z: 0
         w: 0
+    - normalizedTime: 0.06
+      sliceIndex: 31
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
     - normalizedTime: 0.08
       sliceIndex: 29
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.08
+      sliceIndex: 29
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.94
+      sliceIndex: 31
       indexMode: 0
       atlasRect:
         x: 1
@@ -274,8 +389,32 @@ MonoBehaviour:
         y: 1
         z: 0
         w: 0
+    - normalizedTime: 0.96
+      sliceIndex: 33
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
     - normalizedTime: 0.98
       sliceIndex: 35
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0.98
+      sliceIndex: 35
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 1
+      sliceIndex: 53
       indexMode: 0
       atlasRect:
         x: 1
@@ -297,6 +436,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       sliceIndex: 52
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+    - normalizedTime: 0
+      sliceIndex: -1
       indexMode: 0
       atlasRect:
         x: 1
@@ -335,6 +482,14 @@ MonoBehaviour:
         y: 1
         z: 0
         w: 0
+    - normalizedTime: 0.5
+      sliceIndex: -1
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
     - normalizedTime: 0.94
       sliceIndex: 30
       indexMode: 0
@@ -367,6 +522,24 @@ MonoBehaviour:
         y: 1
         z: 0
         w: 0
+    - normalizedTime: 1
+      sliceIndex: -1
+      indexMode: 0
+      atlasRect:
+        x: 1
+        y: 1
+        z: 0
+        w: 0
+  - targetId: 4216110445
+    mode: 0
+    sliceSpace: 0
+    baseIndex: 0
+    keys: []
+  - targetId: 915970425
+    mode: 0
+    sliceSpace: 0
+    baseIndex: 0
+    keys: []
   boneTracks:
   - boneName: Hair
     keys:

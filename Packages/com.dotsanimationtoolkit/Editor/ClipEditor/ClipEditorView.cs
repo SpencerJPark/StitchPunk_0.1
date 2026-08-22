@@ -140,6 +140,22 @@ namespace DotsAnimationToolkit.Editor
                     geometryEvent => ApplyTimelineView());
             }
 
+            // Two more resizes matter to the ghost rows and to nothing else, which is why the stack
+            // alone was enough until now. The lane column changes height whenever tracks are added,
+            // removed or expanded — and the strip shrinks by however much the column grew, so the
+            // stack it sits in can end up exactly as tall as before and never report a thing.
+            // Dragging the timeline pane taller changes the viewport without touching either.
+            if (laneColumn != null)
+            {
+                laneColumn.RegisterCallback<GeometryChangedEvent>(
+                    geometryEvent => ApplyTimelineView());
+            }
+            if (timelineScroll != null && timelineScroll.contentViewport != null)
+            {
+                timelineScroll.contentViewport.RegisterCallback<GeometryChangedEvent>(
+                    geometryEvent => ApplyTimelineView());
+            }
+
             if (timelineScroll != null)
             {
                 timelineScroll.RegisterCallback<WheelEvent>(OnTimelineWheel);
@@ -306,6 +322,74 @@ namespace DotsAnimationToolkit.Editor
                     lane.MarkDirtyRepaint();
                 });
             }
+
+            // After the lanes, because how many ghost rows fit is decided by how tall the lane
+            // column ended up.
+            SyncGhostLanes();
+            if (ghostLanes != null)
+            {
+                ghostLanes.PushView(laneWidth, viewZoom, viewPan);
+            }
+        }
+
+        /// <summary>
+        /// Resizes the ghost rows to whatever the timeline has left under its last track.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The space is measured against the scroll view's viewport, never against the lane
+        /// stack.</strong> The stack is as tall as its own contents, so sizing the strip from it
+        /// would be asking a question whose answer the strip is part of: every pass would add the
+        /// rows it had just measured room for, and the timeline would grow a scrollbar and keep
+        /// growing. The viewport is fixed by the pane, so the sum settles on the first pass.
+        /// </para>
+        /// <para>
+        /// Nothing happens before the first layout — the viewport has no height to divide up yet,
+        /// and the geometry callbacks registered in <c>BindTimelineView</c> bring us back here the
+        /// moment it does.
+        /// </para>
+        /// </remarks>
+        private void SyncGhostLanes()
+        {
+            if (ghostLanes == null || timelineScroll == null)
+            {
+                return;
+            }
+
+            VisualElement viewport = timelineScroll.contentViewport;
+            float viewportHeight = viewport != null ? viewport.contentRect.height : 0f;
+
+            // Negated rather than "<= 1f" so an unlaid-out NaN stops here too. NaN loses every
+            // comparison, so written the other way round it would sail past and be subtracted from
+            // into a NaN height, which is not a size any layout can recover from.
+            if (!(viewportHeight > 1f))
+            {
+                return;
+            }
+
+            // The parity carries on from the tracks so the stripes do not restart, which would put
+            // two rows of one shade against each other exactly where the eye looks for the join.
+            ghostLanes.SyncRows(
+                viewportHeight - ResolvedHeightOrZero(ruler) - ResolvedHeightOrZero(laneColumn),
+                (timelineRowCount & 1) == 1);
+        }
+
+        /// <summary>
+        /// An element's laid-out height, treating "has never been laid out" as no height at all.
+        /// </summary>
+        /// <remarks>
+        /// An element that has not been through a layout pass resolves to NaN, and one NaN in the
+        /// subtraction above poisons the whole result. Zero is the honest answer for something that
+        /// is not on screen yet, and the geometry callbacks bring us back once it is.
+        /// </remarks>
+        private static float ResolvedHeightOrZero(VisualElement element)
+        {
+            if (element == null)
+            {
+                return 0f;
+            }
+            float resolvedHeight = element.resolvedStyle.height;
+            return float.IsNaN(resolvedHeight) ? 0f : resolvedHeight;
         }
 
         // -----------------------------------------------------------------------------------

@@ -43,10 +43,55 @@
     flex-shrink: 0;
 }
 
+/* Each label heads a pair of fields, so its left margin is the gap between one group and the next
+   rather than the gap between two controls. That is the only spacing in this row that is allowed to
+   be larger than the others, and it is here rather than inline so both labels cannot drift apart. */
 .clip-editor__toolbar-label {
     -unity-text-align: middle-left;
-    margin-left: 4px;
+    margin-left: 16px;
     margin-right: 4px;
+}
+
+/*
+ * Every button and toggle that joins a run of them — the top bar, and the Snap / Auto Key group at
+ * the head of the key area. One rule, so the two rows cannot drift apart from each other.
+ *
+ * The top bar had drifted into per-control inline padding plus a hand-placed margin here and there,
+ * and the margins read as deliberate grouping when they were only leftovers — the gap before VAT
+ * Bake said "these two belong apart" about two controls that belong together. Edit Prefab was worse
+ * than spaced wrong: it was a `Button` wearing the pane-action class among ToolbarToggles, so it
+ * carried a different height, border and hover state from everything beside it. It is a
+ * ToolbarButton now, and this is the only thing that sizes any of them.
+ *
+ * There is no gap inside a run: the controls read as one segmented strip, and the only spacing left
+ * is between runs — the label margin in the top bar, the dropdown margin in the status row.
+ *
+ * Sitting them flush is not just a matter of dropping the margin, though. Every control draws a
+ * border, so two neighbours put two lines side by side and the doubled line reads as the gap that
+ * was supposed to be gone. Hence the -1px left margin: it slides each control one pixel over its
+ * neighbour so the two borders land in the same pixel column rather than beside it. The later
+ * sibling paints last, so a shared edge comes out as exactly one line — which is why the colour
+ * has to be opaque. A translucent one would blend twice where borders overlap, and the seams
+ * inside a run would end up darker than the two ends.
+ *
+ * Bordering both edges, rather than one edge plus a hand-placed cap on whichever control happens
+ * to be last, is what keeps the ends honest: a run opens and closes with the same line it uses
+ * between controls, wherever it ends. That covers a control being added or reordered, and it also
+ * covers Quantize Keys, which is absent from the row most of the time — the strip caps itself at
+ * whichever control is showing.
+ *
+ * Add a control to a run, give it this class. That is the whole convention.
+ */
+.clip-editor__bar-action {
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-left: -1px;
+    margin-right: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-color: rgb(32, 32, 32);
 }
 
 .clip-editor__time-label {
@@ -61,16 +106,47 @@
     width: 44px;
 }
 
+/* Holds the validation summary button and nothing else. It was a column back when the findings list
+   stacked beneath the button inside the bar; the list is over the viewport now, so this is a row. */
 .clip-editor__badge-slot {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
 }
 
 /* ------------------------------------------------------------------------------------------- */
 /* Dock and panes                                                                                */
 /* ------------------------------------------------------------------------------------------- */
 
+/* Everything under the toolbar. It exists so the VAT Bake pane has something to cover: an overlay
+   positions against its own parent, and hung off the root it would have swallowed the toolbar with
+   the rest — including the toggle that switches it back off. */
+.clip-editor__body {
+    flex-grow: 1;
+}
+
 .clip-editor__dock {
     flex-grow: 1;
+}
+
+/*
+ * The bake pane covers the dock rather than replacing it.
+ *
+ * Switching by display:none on the dock would be simpler and is the wrong trade. A hidden
+ * TwoPaneSplitView still gets a geometry pass, at zero by zero, and a split that clamps its fixed
+ * pane against a height of nothing keeps that number: you come back to a collapsed pane and no
+ * handle to drag it out with. Covering touches nothing, so the timeline, the preview and all three
+ * splits are exactly as you left them when you switch back — which is the point of the tab.
+ *
+ * The background is opaque for the same reason it is hardcoded: this is the ground the dock would
+ * otherwise show through, and every other surface in this window picks its greys the same way.
+ */
+.clip-editor__vat-bake-pane {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgb(56, 56, 56);
 }
 
 /*
@@ -171,10 +247,18 @@
 /* ------------------------------------------------------------------------------------------- */
 
 /* Docked directly above the timeline. flex-shrink 0 so it never collapses when the timeline pane
- * is dragged small — a transport you cannot read is worse than a shorter timeline. */
+ * is dragged small — a transport you cannot read is worse than a shorter timeline.
+ *
+ * The bar spans the pane rather than hugging its contents in the middle. Centring the bar itself
+ * left the groups in one dense clump with dead space either side, and at that width the separators
+ * between groups were doing all the work of telling them apart. space-evenly keeps the set centred
+ * — the end gaps match the ones between groups — while giving each group room of its own. */
 .clip-editor__transport {
     flex-direction: row;
     align-items: center;
+    justify-content: space-evenly;
+    align-self: stretch;
+    width: 100%;
     flex-wrap: wrap;
     flex-shrink: 0;
     padding-top: 2px;
@@ -238,11 +322,6 @@
 
 /* Wide enough for the longest choice, "Scale From Playhead". The list carries its own heading now
    that there is no label beside it, so a truncated choice would leave the control unexplained. */
-.clip-editor__transport-dropdown {
-    width: 148px;
-    margin-right: 4px;
-}
-
 .clip-editor__transform-readout {
     -unity-font-style: bold;
     color: rgb(240, 190, 110);
@@ -287,8 +366,9 @@
 }
 
 /* Appears only when some key does not land on a frame of the current grid. */
-.clip-editor__transport-action {
-    margin-left: 6px;
+/* Quantize Keys, tinted because it is the one control in its run that changes authored data rather
+   than a mode. Sizing and dividers come from the shared bar-action rule; this only colours it. */
+.clip-editor__quantize-action {
     background-color: rgb(150, 110, 40);
 }
 
@@ -656,9 +736,11 @@
     flex-shrink: 0;
 }
 
-/* The status line and the scale-pivot choice share this row. The status is a short sentence that
-   never fills the width, and the pivot is about the keys below rather than about time, so it reads
-   better at the head of the key area than in the transport bar among the playback controls. */
+/* The status line at the left, and at the right the controls that say what an edit in the key area
+   will do: Snap, Auto Key, the scale pivot, and Quantize Keys when there is something to quantize.
+   The status is a short sentence that never fills the width, and none of them is about time, so
+   they read better at the head of the key area than in the transport bar among the playback
+   controls or in the top bar among the asset fields. */
 .clip-editor__status-row {
     flex-direction: row;
     align-items: center;
@@ -666,7 +748,7 @@
 }
 
 /* The status grows long — a clip name, then its counts, then the focus note — so inside this row it
-   is allowed to shrink and trail off rather than shove the dropdown past the right edge. */
+   is allowed to shrink and trail off rather than shove the controls past the right edge. */
 .clip-editor__status-row > .clip-editor__status {
     flex-shrink: 1;
     overflow: hidden;
@@ -674,10 +756,37 @@
     text-overflow: ellipsis;
 }
 
-/* Held against the right edge by its auto left margin, so it stays put whatever the status says. */
-.clip-editor__status-dropdown {
+/* Held against the right edge by the auto left margin, so they stay put whatever the status beside
+   them says. They belong together: each one answers "what will my next edit in the key area do",
+   which is a different question from the clip set and rig identity the top bar is for — and the
+   answer matters where the editing happens, not two rows up. Quantize Keys joined them from the
+   transport bar for that reason: it is an edit to the keys, not a playback control, and it reports
+   a state of the keys by appearing at all.
+
+   Quantize leads the run rather than trailing it, because it comes and goes: at the head of a
+   right-aligned group it grows leftwards into the status line's slack, and Snap, Auto Key and the
+   pivot hold their place instead of sliding under the pointer.
+
+   flex-shrink 0 so the status line is what gives way when the pane narrows. */
+.clip-editor__status-actions {
+    flex-direction: row;
+    align-items: center;
     flex-shrink: 0;
     margin-left: auto;
+}
+
+/* No margins: Snap and Auto Key are run members, and the shared rule owns the gap between them. */
+.clip-editor__status-toggle {
+    flex-shrink: 0;
+}
+
+/* The pivot is a field, not a button, so it stays out of the segmented run for the same reason the
+   object fields do in the top bar — its own frame inside a flush strip would read as a seam. The
+   left margin is the gap between the run and it; the right one holds it off the pane edge. */
+.clip-editor__status-dropdown {
+    flex-shrink: 0;
+    width: 148px;
+    margin-left: 8px;
     margin-right: 6px;
 }
 
@@ -758,6 +867,22 @@
     flex-grow: 1;
 }
 
+/* The rows below the last track, filling the timeline to its bottom edge. Its height is the one
+   measured value in the window: it is whatever the viewport has left, so it cannot be authored
+   here. overflow hidden clips the last row, which is deliberately allowed to overhang — a row that
+   stopped short would leave a dead strip along the bottom, and a dead strip is the bug these rows
+   exist to remove. flex-shrink 0 so the rows keep a track row's height instead of being squeezed
+   to fit the count. */
+.clip-editor__ghost-lanes {
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.clip-editor__ghost-lane {
+    height: var(--clip-editor-lane-height);
+    flex-shrink: 0;
+}
+
 /* Spans the whole lane stack so the current-time line is continuous across every track. */
 .clip-editor__playhead {
     position: absolute;
@@ -771,8 +896,13 @@
 /* Validation badge                                                                              */
 /* ------------------------------------------------------------------------------------------- */
 
+/* Only the summary button lives in the top bar now, so this is a row of one. The findings list it
+   switches is over in the viewport frame — a Toolbar is one control tall, and a list stacked under
+   the button inside it had nowhere to grow but out of the bar and behind the body, which paints
+   after it. */
 .clip-editor__validation-badge {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
 }
 
 .clip-editor__validation-summary {
@@ -780,9 +910,88 @@
     margin-right: 4px;
 }
 
+/* The pressed look for the toggle. The button carries the counts either way, so without this the
+   only evidence of which way it is switched would be a panel somewhere else on screen. */
+.clip-editor__validation-summary--expanded {
+    background-color: rgb(70, 96, 124);
+}
+
+/*
+ * Where the findings hang: a layer over the preview, the size of the viewport frame and ignoring
+ * every click, so the panel inside it can be placed by ordinary flex rules against the 3D area's
+ * own bounds rather than by four hand-tuned offsets.
+ *
+ * picking-mode is Ignore on this element and inherited by nothing — the panel's own buttons still
+ * take clicks, which is what makes a finding clickable — so an orbit drag started anywhere the
+ * panel is not still reaches the viewport beneath.
+ */
+.clip-editor__validation-overlay-slot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding-top: 6px;
+    padding-right: 6px;
+    padding-bottom: 6px;
+    padding-left: 6px;
+    /* The panel's minimum width is larger than this frame can be dragged down to, so without this
+       a viewport squeezed to its own minimum would push findings out over the inspector beside it.
+       Clipped rather than allowed to escape: this layer's promise is that it never reaches past
+       the 3D area. */
+    overflow: hidden;
+}
+
+/*
+ * The findings panel. Hidden until the top bar's button asks for it, and sized to a corner even
+ * then: a clip set mid-edit is *expected* to be invalid, so its errors must never cost the space
+ * being posed in. The maximums are fractions of the frame rather than pixels so the panel stays a
+ * corner of a small viewport as well as of a large one, and the list inside scrolls once it hits
+ * them instead of growing the panel over the rig.
+ *
+ * Nearly opaque rather than fully: enough contrast to read red text on, while still showing that
+ * there is a scene underneath rather than a pane that replaced it.
+ */
+.clip-editor__validation-overlay {
+    max-width: 60%;
+    max-height: 60%;
+    min-width: 180px;
+    background-color: rgba(28, 28, 28, 0.92);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgb(96, 96, 96);
+    border-right-color: rgb(96, 96, 96);
+    border-top-color: rgb(96, 96, 96);
+    border-bottom-color: rgb(96, 96, 96);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    padding-bottom: 4px;
+}
+
+/* Says what the box is. Over a 3D scene an unlabelled panel of coloured text is a guess, and the
+   button that explains it is at the far end of another row. */
+.clip-editor__validation-overlay-title {
+    -unity-font-style: bold;
+    color: rgb(200, 200, 200);
+    white-space: normal;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+/* flex-shrink so the panel's max-height is what bounds this, rather than the list's content height
+   pushing the panel past it. */
 .clip-editor__validation-messages {
-    margin-left: 8px;
-    max-height: 220px;
+    flex-shrink: 1;
+    margin-left: 2px;
+    margin-right: 2px;
 }
 
 .clip-editor__validation-message {

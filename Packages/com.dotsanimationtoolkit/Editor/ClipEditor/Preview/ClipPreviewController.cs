@@ -213,11 +213,10 @@ namespace DotsAnimationToolkit.Editor
         /// Rebuilds the transient registry for <paramref name="clipSet"/> and the mirror for its rig.
         /// </summary>
         /// <remarks>
-        /// Validation failures are caught and surfaced through <see cref="StatusMessage"/> rather
-        /// than propagated. <c>ClipRegistryBuilder.Build</c> throws on any error-severity rule, and
-        /// an authoring window that dies on an invalid clip is useless precisely when it is most
-        /// needed — while the clip is being fixed. The side effect is that the preview doubles as a
-        /// validation surface for free.
+        /// Validation failures are caught rather than propagated. <c>ClipRegistryBuilder.Build</c>
+        /// throws on any error-severity rule, and an authoring window that dies on an invalid clip
+        /// is useless precisely when it is most needed — while the clip is being fixed. What it
+        /// does <em>not</em> do is report them: see <see cref="RebuildRegistry"/>.
         /// </remarks>
         public void SetClipSet(ClipSetAsset clipSet)
         {
@@ -312,12 +311,36 @@ namespace DotsAnimationToolkit.Editor
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
         }
 
+        /// <summary>
+        /// Builds the preview registry, or records why it could not be built.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A validation failure is named here, not listed here.</strong>
+        /// <see cref="ClipValidationException.Message"/> is every offending rule on its own line,
+        /// and <see cref="StatusMessage"/> ends up in a wrapping label directly above the 3D
+        /// preview — so putting it there turned each finding into two or three lines of pane the
+        /// rig no longer had, at exactly the moment the rig was what you were looking at. It also
+        /// made this the window's second renderer of one rule set, disagreeing in wording and order
+        /// with <c>ValidationBadgeElement</c>, which is the one that can be switched off and the one
+        /// whose findings are clickable. One sentence pointing at it is the whole job here.
+        /// </para>
+        /// <para>
+        /// Anything else thrown still reports in full. An unexpected build failure has no other
+        /// surface in this window, and a message nobody planned for is worth more than a category.
+        /// </para>
+        /// </remarks>
         private void RebuildRegistry(ClipSetAsset clipSet)
         {
             try
             {
                 Unity.Entities.Hash128 contentHash;
                 ClipRegistryBuilder.Build(clipSet, out registry, out contentHash);
+            }
+            catch (ClipValidationException)
+            {
+                registry = default(BlobAssetReference<ClipRegistryBlob>);
+                statusMessage = "Clip set has validation errors — open the error list in the top bar.";
             }
             catch (Exception buildException)
             {
