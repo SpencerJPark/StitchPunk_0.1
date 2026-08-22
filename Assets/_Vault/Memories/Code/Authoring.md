@@ -33,20 +33,22 @@ public class FooAuthoring : MonoBehaviour {
 
 ## Unit Prefab Structure
 
-A unit is **two linked prefabs**:
+**A unit is ONE prefab and ONE entity.** The old two-prefab body/brain split is gone — there is no
+brain prefab, and `BrainLinkAuthoring` / `BodyLinkAuthoring` / `UnitMoverAuthoring` no longer exist.
+Anything describing a cross-reference between a body and a brain entity is stale.
 
-- **Body prefab** — contains the visual hierarchy (layered quads), `UnitAuthoring`, `CharacterRigAuthoring` (root) with a `BodyPartAuthoring` on each part GO, `UnitMoverAuthoring`, `HealthAuthoring`, `AttackAuthoring`, etc. This is what moves and gets animated.
-- **Brain prefab** — contains `CitizenBrainAuthoring` (or equivalent), motivation components, action buffer. This is what makes decisions.
-
-They are linked at bake time via `BrainLinkAuthoring` / `BodyLinkAuthoring`, which store a cross-reference entity on each side. See [[Systems_AI]] for Brain/Body runtime behaviour.
+On the unit root: `UnitAuthoring`, a brain authoring (`CitizenBrainAuthoring` or equivalent — it bakes
+onto the same entity via `UnitBakingUtil.BakeRequirements`), `CharacterRigAuthoring`, `HealthAuthoring`,
+`AttackAuthoring`. Each rig part GO carries a `BodyPartAuthoring`; dedicated joint empties carry
+`RagdollJointAuthoring`. See [[Systems_AI]] for runtime behaviour.
 
 **When adding a new unit type:**
-1. Duplicate an existing brain prefab and swap `CitizenBrainAuthoring` for the appropriate brain authoring.
-2. Duplicate an existing body prefab and assign the correct `UnitSO` on `UnitAuthoring`.
+1. Duplicate an existing unit prefab and set the appropriate brain authoring on the root.
+2. Assign the correct `UnitSO` on `UnitAuthoring`.
 3. Add the new `UnitType` enum value — see [[Data]] for enum conventions.
 4. Add a `UnitSO` asset under `Assets/ScriptableObjects/Units/`.
-5. Register it in `UnitLibraryAuthoring` so it gets baked into the `UnitLibraryBlob`.
-6. Add an entry to the `AnimationLibrarySO` for any new animation clips — see [[Systems_Animation]] for the animation data pipeline.
+5. Register it in `UnitLibraryAuthoring` so it bakes into the `UnitLibraryBlob`.
+6. Add an `AnimationLibrarySO` entry for any new clips — see [[Systems_Animation]].
 
 ---
 
@@ -86,4 +88,4 @@ A Baker can **only** call `AddComponent` / `AddBuffer` on the entity returned by
 2. A `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]` system in `PostBakingSystemGroup` reads the config, iterates child entities, and calls `em.AddComponentData` on them. See [[Systems]] for PostBakingSystemGroup placement.
 3. Collect adds into a `NativeList` during the query — **do not call `em.AddComponentData` inside `SystemAPI.Query` iteration** (structural change during query = exception). See [[Gotchas]] for the full trap.
 
-`Ragdoll2DRootAuthoring` + `Ragdoll2DBakingSystem` is the reference implementation of this pattern.
+`RagdollJointAuthoring` + `CharacterRigBakingSystem` is the reference implementation of this pattern.

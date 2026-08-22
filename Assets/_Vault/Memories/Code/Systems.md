@@ -394,12 +394,4 @@ public partial struct MySpawnInitSystem : ISystem
 
 ---
 
-## ISystem Rules
-
-- Prefer `ISystem` (struct) over `SystemBase` — it is Burst-compatible.
-- Always annotate the struct with `[BurstCompile]`.
-- `OnCreate`, `OnUpdate`, `OnDestroy` must all be annotated with `[BurstCompile]` individually.
-- Use `SystemAPI.Query<>()` for component iteration — it is the Burst-friendly query API.
-- Use `SystemAPI.GetSingleton<>()` / `SetSingleton<>()` for singleton components (library blobs, world state).
-- Schedule jobs with `state.Dependency` — never ignore the dependency chain.
-- See [[RULES]] for the full DOTS/ECS coding conventions.
+DOTS/ECS coding conventions: [[RULES]].

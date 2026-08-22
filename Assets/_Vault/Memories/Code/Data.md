@@ -54,7 +54,7 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 | `AttackLibrarySO` + `AttackSO` | `DamageSource` (was `AttackType`) | Attack stats, ranges, damage + ragdoll response (`ragdollForce`/`launchForceX/Y`/flail/spin/restitution). Optional `ragdollProfile` (`RagdollProfileSO`) — flattened over the inline fields at bake by `AttackLibraryBakingSystem` |
 | `RagdollProfileSO` | — (flattened into `AttackBlob`) | Shared ragdoll response for a family of attacks (launch, flail, spin, restitution). Referenced by `AttackSO.ragdollProfile`; zero runtime indirection |
 | `RagdollConfigSO` | — (flat singleton) | Global ragdoll sim tuning (gravity, drag, restitution, bounce/sleep thresholds, corpse-stack cells). Baked to the `RagdollSimConfig` singleton by `RagdollSimConfigAuthoring` — NOT a blob; systems have identical built-in fallbacks |
-| `AIScoringLibrary` + `AIScoringCurveSO` | `MotivationType` | Scoring curve shapes per motivation — used by [[Systems_AI]] |
+| `BehaviorLibrary` + `BehaviorSO` / `UtilityActionSO` | `ActionType` | Behaviour command sequences + consideration curves, read by `ConsiderationScoringSystem` and `BehaviorExecutionSystem` — see [[Systems_AI]] |
 | `BuildingTypeListSO` + `BuildingTypeSO` | `BuildingType` | Building stats and prefab refs |
 | `ResourceTypeListSO` + `ResourceTypeSO` | `ResourceType` | Resource display names, icons, caps |
 | `ItemLibrarySO` + `ItemSO` | `ItemType` | Item `ItemCategory` + effect data (heal amount, satisfied motivation, restoration, pickup range) — used by `ItemAwarenessSystem`; consumed downstream by `ItemConsumeSystem` (consumables) / `ItemEquipSystem` (weapons) via `PickupBehaviour` + `RequestPickup`. Baked by `ItemLibraryBakingSystem` into `ItemLibraryBlob` (holder: `ItemLibrary`) |
@@ -72,7 +72,7 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 | `AnimationTarget` | 36+ | Names every animatable body part quad |
 | `AnimationLayerType` | 7 | Base / Direction / Action / Face / Eyes / Mouth / Override |
 | `ActionType` | 22 | AI action identifiers |
-| `MotivationType` | 9 | Hunger / Energy / Comfort / Bladder / Fun / Social / Safety / Movement / SelfPreservation |
+| `NeedType` | 13 | None / Hunger / Energy / Fun / Social / Comfort / Bladder / Safety / Movement / SelfPreservation / SelfDefence / BloodLust / Work (`Data/Enums/AiEnums.cs`; renamed from `MotivationType`) |
 | `UnitType` | 4 | MaleCitizen / FemaleCitizen / MaleZombie / FemaleZombie |
 | `BuildingType` | 7 | Building categories |
 | `Direction` | 8 | N / NE / E / SE / S / SW / W / NW |
@@ -113,7 +113,7 @@ Designer-tweakable values (e.g. `animationFrameRate`) are **not** here — they 
 
 ---
 
-## BlobLibraryUtils (`Data/Structs/BlobLibraryUtils.cs`)
+## BlobLibraryUtils (`Utils/BlobLibraryUtils.cs`)
 
 Static helper class used by `PostBakingSystemGroup` baking systems. Provides:
 - `BuildEnumLookup<TSO>()` — builds `Dictionary<int, TSO>` from a SO list (handles null entries)
