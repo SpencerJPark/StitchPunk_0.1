@@ -226,3 +226,54 @@ built a second, permanent error list beside the real one — different wording, 
 no way to switch it off. Catch the validation exception *separately* from `Exception`: name the
 problem in one sentence and point at the surface that lists it, and keep the full `.Message` only
 for the unexpected throws that have nowhere else to report.
+
+---
+
+## DOTS Animation Toolkit — ragdoll (Packages/com.dotsanimationtoolkit)
+
+### A ragdoll must re-write its pose every frame, including while asleep
+`TransformApplySystem` stomps **every** visible part's `LocalTransform` unconditionally, every
+frame. Anything that poses a part outside the sampler has to run *after* it and win — a settled,
+sleeping ragdoll that stops writing gets overwritten by the animation and snaps back. Symptom:
+"the ragdoll works for one frame and then reverts."
+
+**The obvious fix is wrong.** Adding `[WithDisabled(typeof(RagdollActor))]` to `TransformSampleSystem`
+excludes every actor that *never asked for a ragdoll*, because `RagdollActor` is opt-in and a
+`WithDisabled` on an **absent** component matches nothing. Same shape as the `PartFacing` trap.
+Keep the stomp-and-rewrite; the ragdoll group is ordered after apply for this reason.
+
+### An `EnabledRefRW/RO<T>` job parameter silently filters the query to *enabled* only
+It enrols `T` as an `All` match. A job that wants **disabled** entities — a release/restore system,
+anything reacting to a switch-off — matches nothing at all, every frame, with no error. Fix with
+`[WithPresent(typeof(T))]` and an explicit `ValueRO` check in the body. Pre-existing precedent:
+`CommandApplySystem` does this for `BoundsDirty`.
+
+### A solver that re-applies a pre-measured penetration injects energy
+Contact `distance` measured once by a probe, then re-applied on each of N position-solve
+iterations, pushes out N× per substep. The body accelerates instead of settling (observed: −0.16 →
++89 units/s over ~200 frames, bouncing higher each time). Re-derive penetration against *current*
+positions every iteration.
+
+**Why this survives a green test suite:** determinism, joint limits and the planar invariant all
+hold perfectly while energy is being pumped in. Only a runtime *settle* test catches it. When
+adding a constraint solver, write the settle test.
+
+### `[ReadOnly]` and `[NativeDisableParallelForRestriction]` live in `Unity.Collections`
+A new job file without `using Unity.Collections;` fails with `CS0246: ReadOnlyAttribute could not be
+found`, which reads like a missing assembly reference rather than a missing using.
+
+### A mutable `NativeArray<T>` crossing a `[BurstCompile]` static entry point needs `ref`
+`in` and a bare value parameter both fail (BC1063/BC1067) even though `NativeArray` is only a
+pointer handle. `ClipSampler`'s `in NativeArray<PlaybackLayer>` works *only* because it is read-only
+— copying that shape for a write target breaks the whole assembly.
+
+### Unity's UI Builder deletes XML comments from `.uxml` on save
+Opening `ClipEditorWindow.uxml` in the visual editor and saving strips every comment in the file.
+If an explanatory comment has vanished from a `.uxml`, this is why.
+
+### Check the amendment number before claiming one
+`Phase_B_Architecture.md`'s amendments run past A49. The ragdoll spec was drafted as "A45", which was
+already taken (reflection nodes), and the wrong number reached ~55 places across shipped source
+comments before it was caught. `grep -nE "^## Amendment A[0-9]+"` the architecture doc first — and
+note that some **event-window** source comments cite "amendment A45" for something else again, a
+pre-existing inconsistency that predates this.

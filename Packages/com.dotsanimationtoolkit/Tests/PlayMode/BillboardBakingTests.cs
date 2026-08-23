@@ -44,9 +44,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             {
                 displayName = displayName,
                 stableId = rootId,
-                address = new BillboardNodeAddress
+                address = new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.RigTarget,
+                    kind = RigNodeAddressKind.RigTarget,
                     targetId = targetId
                 }
             };
@@ -61,9 +61,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             {
                 displayName = displayName,
                 stableId = rootId,
-                address = new BillboardNodeAddress
+                address = new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.HierarchyPath,
+                    kind = RigNodeAddressKind.HierarchyPath,
                     hierarchyPath = path
                 }
             };

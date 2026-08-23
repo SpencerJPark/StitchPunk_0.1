@@ -150,6 +150,19 @@ namespace DotsAnimationToolkit.Editor
         private float3 pendingPosition;
         private float3 pendingRotationDegrees;
         private float3 pendingScale;
+
+        /// <summary>
+        /// A Rig Edit gizmo drag's held value, entirely separate from
+        /// <see cref="hasPendingTransformEdit"/>. Rig Edit addresses whatever hierarchy node is
+        /// selected — a rig target, a bare grouping transform, or a skinned bone — none of which is
+        /// guaranteed to carry a target id or a selected clip, so it cannot reuse the clip-keying
+        /// pending state that every check above gates on.
+        /// </summary>
+        private bool hasPendingRigPoseEdit;
+        private float3 pendingRigPosition;
+        private float3 pendingRigRotationDegrees;
+        private float3 pendingRigScale;
+
         /// <summary>The VAT bake tab, and the panel built into it the first time it is opened.</summary>
         private VisualElement vatBakePane;
         private VatBakePanel vatBakePanel;
@@ -299,6 +312,7 @@ namespace DotsAnimationToolkit.Editor
 
         private Button editPrefabButton;
         private ToolbarToggle rigEditToggle;
+        private ToolbarToggle ragdollPreviewToggle;
         private VisualElement reconcilePanel;
         private ScrollView reconcileList;
         private Label reconcileTitle;
@@ -681,20 +695,18 @@ namespace DotsAnimationToolkit.Editor
                 });
             }
 
-            // A placeholder, and deliberately a visible one. It carries no callback because there
-            // is nothing yet to call: the package cannot reach into the game's ragdoll systems —
-            // the conformance scan forbids naming a host's namespaces, and rightly, since a package
-            // that only worked inside one project is not a package — so previewing a drop means the
-            // toolkit growing its own simulation in the preview scene. The toggle holds its own
-            // value until something registers for it; the tooltip says outright that nothing has.
-            ToolbarToggle ragdollPreviewToggle =
-                rootVisualElement.Q<ToolbarToggle>("ragdoll-preview-toggle");
+            // Phase D6: the toolkit's own preview simulation (RagdollPreviewSimulation), not a hook
+            // into any host game's ragdoll systems — the conformance scan forbids naming a host's
+            // namespaces, and rightly, since a package that only worked inside one project would
+            // not be a package.
+            ragdollPreviewToggle = rootVisualElement.Q<ToolbarToggle>("ragdoll-preview-toggle");
             if (ragdollPreviewToggle != null)
             {
                 ragdollPreviewToggle.tooltip =
                     "Drop the previewed rig as an active ragdoll — its own physics, ground contact "
-                    + "and self-collision — to see whether a pose still reads on impact.\n"
-                    + "Not simulating yet: nothing reads this toggle.";
+                    + "and self-collision — to see whether a pose still reads on impact. Turning it "
+                    + "off restores the pose exactly.";
+                ragdollPreviewToggle.RegisterValueChangedCallback(OnRagdollPreviewToggleChanged);
             }
 
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
@@ -1323,6 +1335,46 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Wires the Ragdoll toolbar toggle (Phase D6, spec §8.4).
+        /// </summary>
+        /// <remarks>
+        /// Off → On and On → Off are both handled by <see cref="ClipPreviewController"/> itself
+        /// (<c>TryEnableRagdollPreview</c> / <c>DisableRagdollPreview</c>); this callback is the
+        /// thin routing layer spec §8.4's table describes, plus reverting the toggle's own visual
+        /// state when the rig refuses to engage.
+        /// </remarks>
+        private void OnRagdollPreviewToggleChanged(ChangeEvent<bool> changeEvent)
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+
+            if (changeEvent.newValue)
+            {
+                string refusalReason;
+                if (!previewController.TryEnableRagdollPreview(out refusalReason))
+                {
+                    // Refuses to engage: the toggle snaps back off and the status line says why,
+                    // exactly as spec §8.4's "no bodies" row requires.
+                    ragdollPreviewToggle.SetValueWithoutNotify(false);
+                    previewController.ReportTransientStatus(refusalReason);
+                    return;
+                }
+
+                // A held, unkeyed edit belongs to the clip at the frozen playhead; a ragdoll about
+                // to own every transform underneath it is not a context that edit survives into.
+                DiscardPendingTransformEdit();
+            }
+            else
+            {
+                previewController.DisableRagdollPreview();
+            }
+
+            RebuildInspector();
+        }
+
+        /// <summary>
         /// Shows or hides the VAT bake tab over the editor.
         /// </summary>
         /// <remarks>
@@ -1392,18 +1444,23 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// <para>
-        /// The values arriving here are the same ones the animate path would have keyed, but they
-        /// mean something different: in a clip they are an offset from rest, and here they
-        /// <em>are</em> the rest. So the composition is undone before writing — the drag's delta is
-        /// added to the transform the prefab currently has, rather than replacing it with a number
-        /// that was only ever meaningful relative to it.
+        /// <strong>These are absolute local values, not an offset.</strong> A clip key is meaningful
+        /// only relative to the rest pose, but Rig Edit's drag starts from the node's own live
+        /// preview transform (see <c>TryBeginGizmoDrag</c>'s Rig Edit branch and
+        /// <see cref="PreviewRigNodeDrag"/>), so what arrives here already <em>is</em> the pose to
+        /// write — no rest-pose composition or decomposition happens on either end.
+        /// </para>
+        /// <para>
+        /// Addressed by the current hierarchy selection rather than by a rig-target id: Rig Edit
+        /// operates on whichever node is selected — a declared rig target, a bare grouping transform,
+        /// or a skinned bone — and only the first of those has an id at all.
         /// </para>
         /// <para>
         /// Nothing is written until the drag is released. A per-frame write would mean one asset
         /// save per pointer move.
         /// </para>
         /// </remarks>
-        private void CommitRigBaseEdit(uint targetId, float3 position, float3 rotationDegrees, float3 scale)
+        private void CommitRigBaseEdit(float3 position, float3 rotationDegrees, float3 scale)
         {
             HierarchyItem item = ActiveHierarchyItem;
             if (item == null)
@@ -1738,7 +1795,7 @@ namespace DotsAnimationToolkit.Editor
         /// </para>
         /// <para>
         /// A rig-target row is addressed by stable id and anything else by path, which is the same
-        /// split <c>BillboardNodeAddress</c> makes and for the same reason: only a target has an id
+        /// split <c>RigNodeAddress</c> makes and for the same reason: only a target has an id
         /// to be addressed by.
         /// </para>
         /// </remarks>
@@ -1775,7 +1832,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return -1;
             }
-            BillboardNodeAddress address = BuildBillboardAddressFor(item);
+            RigNodeAddress address = BuildBillboardAddressFor(item);
             for (int rootIndex = 0; rootIndex < rig.billboardRoots.Count; rootIndex++)
             {
                 BillboardRootDefinition definition = rig.billboardRoots[rootIndex];
@@ -1783,7 +1840,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                if (address.kind == BillboardAddressKind.RigTarget)
+                if (address.kind == RigNodeAddressKind.RigTarget)
                 {
                     if (definition.address.targetId == address.targetId)
                     {
@@ -1802,19 +1859,100 @@ namespace DotsAnimationToolkit.Editor
             return -1;
         }
 
-        private BillboardNodeAddress BuildBillboardAddressFor(HierarchyItem item)
+        private RigNodeAddress BuildBillboardAddressFor(HierarchyItem item)
         {
             if (item.kind == HierarchyItemKind.RigTarget)
             {
-                return new BillboardNodeAddress
+                return new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.RigTarget,
+                    kind = RigNodeAddressKind.RigTarget,
                     targetId = item.targetId
                 };
             }
-            return new BillboardNodeAddress
+            return new RigNodeAddress
             {
-                kind = BillboardAddressKind.HierarchyPath,
+                kind = RigNodeAddressKind.HierarchyPath,
+                hierarchyPath = ResolveHierarchyPath(item)
+            };
+        }
+
+        /// <summary>The rig's ragdoll body addressing this row, or −1 (Phase D5).</summary>
+        /// <remarks>
+        /// The reverse of this lookup — which node a body's address resolves to — is D6's problem,
+        /// for the viewport box handles. This direction is all the component stack needs: given the
+        /// row the author is looking at, is there already a body welded to it.
+        /// </remarks>
+        private int FindRagdollBodyIndexFor(RigAsset rig, HierarchyItem item)
+        {
+            if (rig.ragdollBodies == null)
+            {
+                return -1;
+            }
+            RigNodeAddress address = BuildRagdollAddressFor(item);
+            for (int bodyIndex = 0; bodyIndex < rig.ragdollBodies.Count; bodyIndex++)
+            {
+                RagdollBodyDefinition definition = rig.ragdollBodies[bodyIndex];
+                if (definition == null || definition.address.kind != address.kind)
+                {
+                    continue;
+                }
+                if (address.kind == RigNodeAddressKind.RigTarget)
+                {
+                    if (definition.address.targetId == address.targetId)
+                    {
+                        return bodyIndex;
+                    }
+                    continue;
+                }
+                if (address.kind == RigNodeAddressKind.Bone)
+                {
+                    if (string.Equals(
+                            definition.address.boneName, address.boneName,
+                            System.StringComparison.Ordinal))
+                    {
+                        return bodyIndex;
+                    }
+                    continue;
+                }
+                if (string.Equals(
+                        definition.address.hierarchyPath,
+                        address.hierarchyPath,
+                        System.StringComparison.Ordinal))
+                {
+                    return bodyIndex;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// How a ragdoll body would address this row — by rig-target id, by a skinned bone's name,
+        /// or by hierarchy path, the same three-way split <see cref="RigNodeAddress"/> itself makes
+        /// (spec §2). Unlike <see cref="BuildBillboardAddressFor"/> this can come back
+        /// <see cref="RigNodeAddressKind.Bone"/>: billboarding rejects that kind at validation
+        /// (rule V-R8), but a ragdoll body welds cleanly to a skinned bone.
+        /// </summary>
+        private RigNodeAddress BuildRagdollAddressFor(HierarchyItem item)
+        {
+            if (item.kind == HierarchyItemKind.RigTarget)
+            {
+                return new RigNodeAddress
+                {
+                    kind = RigNodeAddressKind.RigTarget,
+                    targetId = item.targetId
+                };
+            }
+            if (previewController != null && previewController.IsSkinnedBone(item.previewIndex))
+            {
+                return new RigNodeAddress
+                {
+                    kind = RigNodeAddressKind.Bone,
+                    boneName = item.displayName
+                };
+            }
+            return new RigNodeAddress
+            {
+                kind = RigNodeAddressKind.HierarchyPath,
                 hierarchyPath = ResolveHierarchyPath(item)
             };
         }
@@ -2116,9 +2254,23 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (selectedTargetId == 0u || selectedClip == null)
+            // Rig Edit answers "is there a gizmo" by node alone -- it writes the prefab's base pose,
+            // which has nothing to do with a clip or with whether the rig declares this node a
+            // target, so any selected hierarchy node qualifies. See GizmoDragRouting for the shared
+            // rule; it used to be reimplemented here as "selectedTargetId == 0u || selectedClip ==
+            // null", which is a clip-authoring question and made Rig Edit dead whenever no clip was
+            // open or the node was a bare grouping transform or skinned bone.
+            HierarchyItem activeRigEditItem = IsRigEditMode ? ActiveHierarchyItem : null;
+            if (!GizmoDragRouting.ShouldShowTransformGizmo(
+                    IsRigEditMode, activeRigEditItem != null, selectedTargetId != 0u, selectedClip != null))
             {
                 previewController.SetGizmo(false, gizmoMode, Vector3.zero, GizmoHandle.None);
+                return;
+            }
+
+            if (IsRigEditMode)
+            {
+                RefreshRigEditGizmo(activeRigEditItem);
                 return;
             }
 
@@ -2130,6 +2282,32 @@ namespace DotsAnimationToolkit.Editor
 
             previewController.SetGizmo(
                 true, gizmoMode, new Vector3(position.x, position.y, position.z), activeGizmoHandle);
+        }
+
+        /// <summary>
+        /// Rig Edit's gizmo pivot: the selected node's own live preview transform, held-drag value
+        /// if one is in progress.
+        /// </summary>
+        /// <remarks>
+        /// Unlike clip authoring there is no track to sample -- <see cref="ResolveDisplayedTransform"/>
+        /// would return an offset-from-rest value (zero, for an unkeyed part) that has no relationship
+        /// to where the node actually sits, which is the bug this mode shipped with. The live preview
+        /// transform is always the node's actual current pose, whether or not it is a declared rig
+        /// target.
+        /// </remarks>
+        private void RefreshRigEditGizmo(HierarchyItem item)
+        {
+            Transform node = ResolveHierarchyTransform(item);
+            if (node == null)
+            {
+                previewController.SetGizmo(false, gizmoMode, Vector3.zero, GizmoHandle.None);
+                return;
+            }
+
+            Vector3 pivot = hasPendingRigPoseEdit
+                ? new Vector3(pendingRigPosition.x, pendingRigPosition.y, pendingRigPosition.z)
+                : node.localPosition;
+            previewController.SetGizmo(true, gizmoMode, pivot, activeGizmoHandle);
         }
 
         private void OnPreviewPointerDown(PointerDownEvent pointerEvent)
@@ -2151,9 +2329,14 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // A press on a gizmo handle is a transform drag, not an orbit and not a selection. Tested
-            // first for exactly that reason: the handle sits on top of the thing it edits, so any
-            // other order would make it unusable.
+            // A press on a ragdoll box handle or an ordinary gizmo handle is a drag, not an orbit
+            // and not a selection. Tested first for exactly that reason: a handle sits on top of
+            // the thing it edits, so any other order would make it unusable. Ragdoll first, since a
+            // selected body's grab handles can be on screen at the same time as an ordinary gizmo.
+            if (TryBeginRagdollBoxDrag(pointerEvent.localPosition))
+            {
+                return;
+            }
             if (TryBeginGizmoDrag(pointerEvent.localPosition))
             {
                 return;
@@ -2188,6 +2371,11 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (activeRagdollBoxHandle != RagdollBoxHandle.None)
+            {
+                ContinueRagdollBoxDrag(moveEvent.localPosition, moveEvent.shiftKey);
+                return;
+            }
             if (activeGizmoHandle != GizmoHandle.None)
             {
                 ContinueGizmoDrag(moveEvent.localPosition);
@@ -2200,7 +2388,10 @@ namespace DotsAnimationToolkit.Editor
         private bool TryBeginGizmoDrag(Vector2 localPosition)
         {
             bool draggingSocket = selectedSocketId != 0u;
-            if (!draggingSocket && (selectedTargetId == 0u || selectedClip == null))
+            HierarchyItem activeRigEditItem = (!draggingSocket && IsRigEditMode) ? ActiveHierarchyItem : null;
+            if (!draggingSocket
+                && !GizmoDragRouting.ShouldShowTransformGizmo(
+                    IsRigEditMode, activeRigEditItem != null, selectedTargetId != 0u, selectedClip != null))
             {
                 return false;
             }
@@ -2236,6 +2427,21 @@ namespace DotsAnimationToolkit.Editor
                     marker.localPosition.x, marker.localPosition.y, marker.localPosition.z);
                 rotationDegrees = new float3(markerEuler.x, markerEuler.y, markerEuler.z);
                 scale = new float3(1f, 1f, 1f);
+            }
+            else if (IsRigEditMode)
+            {
+                // No track to seed from -- the drag starts from the node's own live pose, not a
+                // clip-relative offset. See RefreshRigEditGizmo for why sampling the clip here would
+                // be wrong.
+                Transform node = ResolveHierarchyTransform(activeRigEditItem);
+                if (node == null)
+                {
+                    return false;
+                }
+                Vector3 nodeEuler = node.localEulerAngles;
+                position = new float3(node.localPosition.x, node.localPosition.y, node.localPosition.z);
+                rotationDegrees = new float3(nodeEuler.x, nodeEuler.y, nodeEuler.z);
+                scale = new float3(node.localScale.x, node.localScale.y, node.localScale.z);
             }
             else
             {
@@ -2391,10 +2597,10 @@ namespace DotsAnimationToolkit.Editor
         /// Sends a drag's value wherever the current selection says it belongs.
         /// </summary>
         /// <remarks>
-        /// One dispatcher rather than a test at each of the three drag branches, so "what does a
-        /// gizmo drag write" has a single answer in a single place. A socket is held live rather
-        /// than written per frame for the same reason a clip edit is: one asset write per pointer
-        /// move would be absurd, and the marker already shows the result.
+        /// One dispatcher rather than a test at each of the branches, so "what does a gizmo drag
+        /// write" has a single answer in a single place. A socket and a Rig Edit node are both held
+        /// live rather than written per frame for the same reason a clip edit is: one asset write per
+        /// pointer move would be absurd, and the viewport already shows the result.
         /// </remarks>
         private void ApplyGizmoDragValue(float3 position, float3 rotationDegrees, float3 scale)
         {
@@ -2406,12 +2612,34 @@ namespace DotsAnimationToolkit.Editor
                 PreviewSocketDrag(position, rotationDegrees);
                 return;
             }
+            if (IsRigEditMode)
+            {
+                pendingRigPosition = position;
+                pendingRigRotationDegrees = rotationDegrees;
+                pendingRigScale = scale;
+                hasPendingRigPoseEdit = true;
+                PreviewRigNodeDrag(position, rotationDegrees, scale);
+                return;
+            }
             ApplyTransformEdit(selectedTargetId, position, rotationDegrees, scale, false);
         }
 
         private bool hasPendingSocketEdit;
         private float3 pendingSocketPosition;
         private float3 pendingSocketRotation;
+
+        /// <summary>Moves the selected node live during a Rig Edit drag, without touching the asset.</summary>
+        private void PreviewRigNodeDrag(float3 position, float3 rotationDegrees, float3 scale)
+        {
+            Transform node = ResolveHierarchyTransform(ActiveHierarchyItem);
+            if (node == null)
+            {
+                return;
+            }
+            node.localPosition = new Vector3(position.x, position.y, position.z);
+            node.localRotation = Quaternion.Euler(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z);
+            node.localScale = new Vector3(scale.x, scale.y, scale.z);
+        }
 
         /// <summary>Moves the marker during the drag, without touching the asset.</summary>
         private void PreviewSocketDrag(float3 position, float3 rotationDegrees)
@@ -2493,8 +2721,12 @@ namespace DotsAnimationToolkit.Editor
 
             // The fork the whole mode exists for. The rule itself lives in GizmoDragRouting so it
             // can be read — and tested — as a table, rather than reconstructed from these branches.
+            // Rig Edit reads its own held-edit flag: a Rig Edit drag never goes through
+            // ApplyTransformEdit (see ApplyGizmoDragValue), so hasPendingTransformEdit stays false
+            // for it and would make Resolve report Nothing regardless of the drag that just happened.
+            bool hasPendingEdit = IsRigEditMode ? hasPendingRigPoseEdit : hasPendingTransformEdit;
             GizmoDragDestination destination = GizmoDragRouting.Resolve(
-                selectedSocketId != 0u, IsRigEditMode, IsAutoKeyEnabled, hasPendingTransformEdit);
+                selectedSocketId != 0u, false, IsRigEditMode, IsAutoKeyEnabled, hasPendingEdit);
 
             switch (destination)
             {
@@ -2504,9 +2736,8 @@ namespace DotsAnimationToolkit.Editor
                     return;
 
                 case GizmoDragDestination.RigBasePose:
-                    CommitRigBaseEdit(
-                        pendingTransformTargetId, pendingPosition, pendingRotationDegrees, pendingScale);
-                    DiscardPendingTransformEdit();
+                    CommitRigBaseEdit(pendingRigPosition, pendingRigRotationDegrees, pendingRigScale);
+                    hasPendingRigPoseEdit = false;
                     break;
 
                 case GizmoDragDestination.ClipKey:
@@ -2552,6 +2783,12 @@ namespace DotsAnimationToolkit.Editor
         private void OnPreviewPointerUp(PointerUpEvent upEvent)
         {
             previewImage.ReleasePointer(upEvent.pointerId);
+
+            if (activeRagdollBoxHandle != RagdollBoxHandle.None)
+            {
+                EndRagdollBoxDrag();
+                return;
+            }
 
             if (activeGizmoHandle != GizmoHandle.None)
             {
@@ -3560,10 +3797,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.SetSelectedSocketId(selectedSocketId);
             }
+            // targetId is set on a RigTarget row always, and on a PrefabTransform row whenever a
+            // part claims that node — a claimed part is as much a clip-authoring target as a rig
+            // target row is (see HierarchyItem.targetId), so the gizmo/drag key on it either way.
+            selectedTargetId = activeItem.targetId;
             if (activeItem.kind == HierarchyItemKind.RigTarget)
             {
                 selectedBoneName = null;
-                selectedTargetId = activeItem.targetId;
                 if (previewController != null)
                 {
                     previewController.SetSelectedTargetId(activeItem.targetId);
@@ -3572,7 +3812,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             selectedBoneName = activeItem.displayName;
-            selectedTargetId = 0u;
             if (previewController != null)
             {
                 previewController.SetSelectedHierarchyIndex(activeItem.previewIndex);
@@ -3882,7 +4121,16 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string viewportStatus = previewController.StatusMessage;
-            if (selectedClip != null && previewController.HasRegistry
+
+            // A ragdoll has no timeline (spec §8.4): the playhead is frozen while it runs, which
+            // means not re-sampling the clip at all, not merely leaving the transport paused. Every
+            // other tick still writes the mirrors' transforms — the ragdoll step does, in Render —
+            // so skipping this call is what "frozen" actually means rather than a cosmetic pause.
+            if (previewController.RagdollPreviewEnabled)
+            {
+                // Falls through to the render below unconditionally; the ragdoll step happens there.
+            }
+            else if (selectedClip != null && previewController.HasRegistry
                 && !previewController.SamplePose(selectedClip.Id.Value, playheadTime))
             {
                 viewportStatus = "Clip is not in the built registry — is it listed in the set?";
@@ -3924,14 +4172,29 @@ namespace DotsAnimationToolkit.Editor
         private void SetPlayheadTime(float normalizedTime)
         {
             float clampedTime = Mathf.Clamp01(normalizedTime);
+            bool timeIsActuallyMoving = !Mathf.Approximately(clampedTime, playheadTime);
 
             // A held edit describes the part at one instant, so moving off that instant ends it.
             // Carrying it along would silently apply a value the user never keyed to a time they
             // never looked at.
-            if (hasPendingTransformEdit && !Mathf.Approximately(clampedTime, playheadTime))
+            if (hasPendingTransformEdit && timeIsActuallyMoving)
             {
                 DiscardPendingTransformEdit();
                 RebuildInspector();
+            }
+
+            // Spec §8.4: "Scrubbing while on turns the toggle off first — a ragdoll has no
+            // timeline; pretending it does would be a lie the transport cannot keep." Play advances
+            // time through this same setter every tick, so it is caught by the identical rule: a
+            // ragdoll owns the pose from here on, and nothing about a playing or scrubbed clip can
+            // be shown at the same time as a drop.
+            if (timeIsActuallyMoving && previewController != null && previewController.RagdollPreviewEnabled)
+            {
+                previewController.DisableRagdollPreview();
+                if (ragdollPreviewToggle != null)
+                {
+                    ragdollPreviewToggle.SetValueWithoutNotify(false);
+                }
             }
 
             playheadTime = clampedTime;
@@ -5725,6 +5988,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // Rig Edit's fields show the live preview pose, not the clip's offset-from-rest value
+            // (see AddTransformFields) -- the per-tick refresh has to keep showing that same thing,
+            // or the correct value painted when the block was built would be overwritten by the
+            // wrong one on the very next tick.
+            if (IsRigEditMode)
+            {
+                RefreshLiveRigEditTransform(binding);
+                return;
+            }
+
             float3 position;
             float3 rotationDegrees;
             float3 scale;
@@ -5757,8 +6030,37 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Rig Edit's per-tick refresh for a rig target's transform block: the same live-pose
+        /// source <see cref="AddTransformFields"/> paints it with initially, kept in sync so the
+        /// fields never drift from what the viewport gizmo is dragging.
+        /// </summary>
+        private void RefreshLiveRigEditTransform(LiveTransformBinding binding)
+        {
+            float3 position;
+            float3 rotationDegrees;
+            float3 scale;
+            ReadRigEditPose(binding.targetId, out position, out rotationDegrees, out scale);
+
+            SetVectorWithoutDisturbingEdit(
+                binding.positionField, new Vector3(position.x, position.y, position.z));
+            SetVectorWithoutDisturbingEdit(
+                binding.rotationField,
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            SetVectorWithoutDisturbingEdit(
+                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
+        }
+
         private void RefreshLiveBoneValues(LiveTransformBinding binding)
         {
+            // Rig Edit's fields show the live preview pose, not a bone track's key value -- see
+            // AddBoneTransformFields. The per-tick refresh has to keep showing that same thing.
+            if (IsRigEditMode)
+            {
+                RefreshLiveRigEditBone(binding);
+                return;
+            }
+
             // Looked up per refresh rather than held, because the first key on this node mints the
             // track: a reference captured when the block was built would stay null for the rest of
             // the block's life, leaving the fields frozen the moment they started to matter.
@@ -5789,6 +6091,26 @@ namespace DotsAnimationToolkit.Editor
                 binding.block.EnableInClassList(
                     TransformInterpolatedUssClassName, hasKeys && !isOnKey);
             }
+        }
+
+        /// <summary>
+        /// Rig Edit's per-tick refresh for a bone or bare grouping transform's block: the same
+        /// live-pose source <see cref="AddBoneTransformFields"/> paints it with initially.
+        /// </summary>
+        private void RefreshLiveRigEditBone(LiveTransformBinding binding)
+        {
+            float3 position;
+            float3 rotationDegrees;
+            float3 scale;
+            ReadRigEditBonePose(binding.boneName, out position, out rotationDegrees, out scale);
+
+            SetVectorWithoutDisturbingEdit(
+                binding.positionField, new Vector3(position.x, position.y, position.z));
+            SetVectorWithoutDisturbingEdit(
+                binding.rotationField,
+                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            SetVectorWithoutDisturbingEdit(
+                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
         }
 
         private void RefreshLiveFlipbookBinding(LiveFlipbookBinding binding)
@@ -6492,21 +6814,39 @@ namespace DotsAnimationToolkit.Editor
             LiveTransformBinding binding = new LiveTransformBinding { boneName = boneName };
             liveTransformBindings.Add(binding);
 
-            // Resolved rather than passed in, and allowed to come back null: every object shows a
-            // transform from the moment it is selected, and the track that stores its poses is
-            // minted by the first key. Everything below reads a null track as "no keys", which is
-            // exactly what an unkeyed node has.
-            BoneTrack track = FindBoneTrack(boneName);
+            bool isRigEdit = IsRigEditMode;
 
             float3 position;
             float3 rotationDegrees;
             float3 scale;
-            bool hasKeys = ClipBoneEditing.TryEvaluate(
-                track, playheadTime, out position, out rotationDegrees, out scale);
-            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
+            bool hasKeys;
+            bool isOnKey;
+            if (isRigEdit)
+            {
+                // A bone track has no rest pose to fall back to (ApplyBoneEdit's own remark), so
+                // outside Rig Edit an unkeyed bone reads as zero -- correct there, since zero
+                // literally is "no offset yet". Rig Edit has no offset concept at all; it shows the
+                // node's live preview pose, the same source RefreshRigEditGizmo pivots on.
+                ReadRigEditBonePose(boneName, out position, out rotationDegrees, out scale);
+                hasKeys = false;
+                isOnKey = false;
+            }
+            else
+            {
+                // Resolved rather than passed in, and allowed to come back null: every object shows
+                // a transform from the moment it is selected, and the track that stores its poses is
+                // minted by the first key. Everything below reads a null track as "no keys", which is
+                // exactly what an unkeyed node has.
+                BoneTrack track = FindBoneTrack(boneName);
+                hasKeys = ClipBoneEditing.TryEvaluate(
+                    track, playheadTime, out position, out rotationDegrees, out scale);
+                isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
+            }
 
-
-            binding.stateChip = MakeHint(DescribeBoneState(hasKeys, isOnKey));
+            binding.stateChip = MakeHint(isRigEdit
+                ? "Base pose — drag the viewport gizmo to edit it. Rig Edit writes the prefab, not "
+                    + "a key, so these fields are read-only here."
+                : DescribeBoneState(hasKeys, isOnKey));
             parent.Add(binding.stateChip);
 
             VisualElement transformBlock = new VisualElement();
@@ -6517,6 +6857,7 @@ namespace DotsAnimationToolkit.Editor
 
             Vector3Field positionField = new Vector3Field("Position");
             positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
+            positionField.SetEnabled(!isRigEdit);
             positionField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyBoneEdit(
@@ -6530,6 +6871,7 @@ namespace DotsAnimationToolkit.Editor
             Vector3Field rotationField = new Vector3Field("Rotation");
             rotationField.SetValueWithoutNotify(
                 new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            rotationField.SetEnabled(!isRigEdit);
             rotationField.tooltip =
                 "Euler degrees. The authored key stores a quaternion; this is the readable form of "
                 + "it, converted at the boundary.";
@@ -6545,6 +6887,7 @@ namespace DotsAnimationToolkit.Editor
 
             Vector3Field scaleField = new Vector3Field("Scale");
             scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
+            scaleField.SetEnabled(!isRigEdit);
             scaleField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyBoneEdit(
@@ -6556,6 +6899,14 @@ namespace DotsAnimationToolkit.Editor
 
             parent.Add(transformBlock);
 
+            // Every route into keying is refused in Rig Edit (ApplyBoneEdit is a clip edit; this
+            // mode writes the prefab), so a Key button that could not do anything would just be
+            // another dead control on top of the read-only fields above.
+            if (isRigEdit)
+            {
+                return;
+            }
+
             parent.Add(new Button(() =>
             {
                 ApplyBoneEdit(boneName, position, rotationDegrees, scale);
@@ -6563,6 +6914,32 @@ namespace DotsAnimationToolkit.Editor
             {
                 text = "Key"
             });
+        }
+
+        /// <summary>
+        /// A skinned bone or bare grouping transform's live preview pose, for Rig Edit's read-only
+        /// display -- the same source <see cref="RefreshRigEditGizmo"/> pivots on, found by name
+        /// since a component block only has the bone name.
+        /// </summary>
+        private void ReadRigEditBonePose(
+            string boneName, out float3 position, out float3 rotationDegrees, out float3 scale)
+        {
+            int previewIndex = previewController != null
+                ? previewController.FindHierarchyIndexByName(boneName)
+                : -1;
+            Transform node = previewIndex >= 0 ? previewController.GetTransformByIndex(previewIndex) : null;
+            if (node == null)
+            {
+                position = float3.zero;
+                rotationDegrees = float3.zero;
+                scale = new float3(1f, 1f, 1f);
+                return;
+            }
+
+            position = new float3(node.localPosition.x, node.localPosition.y, node.localPosition.z);
+            Vector3 nodeEuler = node.localEulerAngles;
+            rotationDegrees = new float3(nodeEuler.x, nodeEuler.y, nodeEuler.z);
+            scale = new float3(node.localScale.x, node.localScale.y, node.localScale.z);
         }
 
         /// <summary>The bone track posing a node on this clip, or null when nothing keys it yet.</summary>
@@ -7395,27 +7772,45 @@ namespace DotsAnimationToolkit.Editor
             LiveTransformBinding binding = new LiveTransformBinding { targetId = targetId };
             liveTransformBindings.Add(binding);
 
+            bool isRigEdit = IsRigEditMode;
+
             float3 position;
             float3 rotationDegrees;
             float3 scale;
-            TransformValueState valueState =
-                ResolveDisplayedTransform(targetId, out position, out rotationDegrees, out scale);
+            TransformValueState valueState;
+            if (isRigEdit)
+            {
+                // The clip has an offset-from-rest value here (zero, if the part is unkeyed) that
+                // has no relationship to where the node actually sits -- see RefreshRigEditGizmo.
+                // Rig Edit shows and edits the live preview pose instead.
+                ReadRigEditPose(targetId, out position, out rotationDegrees, out scale);
+                valueState = TransformValueState.Unkeyed;
+            }
+            else
+            {
+                valueState = ResolveDisplayedTransform(targetId, out position, out rotationDegrees, out scale);
+            }
 
-            binding.stateChip = MakeTransformStateChip(valueState);
+            binding.stateChip = isRigEdit
+                ? MakeHint("Base pose — drag the viewport gizmo to edit it. Rig Edit writes the "
+                    + "prefab, not a key, so these fields are read-only here.")
+                : MakeTransformStateChip(valueState);
             parent.Add(binding.stateChip);
 
             VisualElement transformBlock = new VisualElement();
             binding.block = transformBlock;
             transformBlock.AddToClassList(TransformBlockUssClassName);
             transformBlock.EnableInClassList(
-                TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
+                TransformOnKeyUssClassName, !isRigEdit && valueState == TransformValueState.OnKey);
             transformBlock.EnableInClassList(
-                TransformInterpolatedUssClassName, valueState == TransformValueState.Interpolated);
+                TransformInterpolatedUssClassName,
+                !isRigEdit && valueState == TransformValueState.Interpolated);
             transformBlock.EnableInClassList(
-                TransformModifiedUssClassName, valueState == TransformValueState.Modified);
+                TransformModifiedUssClassName, !isRigEdit && valueState == TransformValueState.Modified);
 
             Vector3Field positionField = new Vector3Field("Position");
             positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
+            positionField.SetEnabled(!isRigEdit);
             positionField.RegisterValueChangedCallback(changeEvent =>
             {
                 float3 edited = new float3(
@@ -7429,6 +7824,7 @@ namespace DotsAnimationToolkit.Editor
             Vector3Field rotationField = new Vector3Field("Rotation");
             rotationField.SetValueWithoutNotify(
                 new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
+            rotationField.SetEnabled(!isRigEdit);
             rotationField.tooltip =
                 "Euler degrees in Unity's ZXY order. The bake converts to radians once (section 4.5). "
                 + "A flat rig leaves x and y at zero.";
@@ -7444,6 +7840,7 @@ namespace DotsAnimationToolkit.Editor
 
             Vector3Field scaleField = new Vector3Field("Scale");
             scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
+            scaleField.SetEnabled(!isRigEdit);
             scaleField.RegisterValueChangedCallback(changeEvent =>
             {
                 float3 edited = new float3(
@@ -7455,6 +7852,14 @@ namespace DotsAnimationToolkit.Editor
             transformBlock.Add(scaleField);
 
             parent.Add(transformBlock);
+
+            // Keying is refused outright in Rig Edit (CommitPendingTransformEdit), so a Key/Revert
+            // row that could not do anything would just be another dead control on top of the
+            // read-only fields above.
+            if (isRigEdit)
+            {
+                return;
+            }
 
             VisualElement keyRow = new VisualElement();
             keyRow.AddToClassList(FlipbookKeyUssClassName);
@@ -7488,6 +7893,30 @@ namespace DotsAnimationToolkit.Editor
                 });
             }
             parent.Add(keyRow);
+        }
+
+        /// <summary>
+        /// A rig target's live preview pose, for Rig Edit's read-only display -- the same source
+        /// <see cref="RefreshRigEditGizmo"/> pivots on, found by target id instead of by hierarchy
+        /// row since a component block only has the id.
+        /// </summary>
+        private void ReadRigEditPose(
+            uint targetId, out float3 position, out float3 rotationDegrees, out float3 scale)
+        {
+            Transform root = previewController != null ? previewController.HierarchyRoot : null;
+            Transform node = root != null ? ResolveTargetSourceNode(targetId, root) : null;
+            if (node == null)
+            {
+                position = float3.zero;
+                rotationDegrees = float3.zero;
+                scale = new float3(1f, 1f, 1f);
+                return;
+            }
+
+            position = new float3(node.localPosition.x, node.localPosition.y, node.localPosition.z);
+            Vector3 nodeEuler = node.localEulerAngles;
+            rotationDegrees = new float3(nodeEuler.x, nodeEuler.y, nodeEuler.z);
+            scale = new float3(node.localScale.x, node.localScale.y, node.localScale.z);
         }
 
         private static string DescribeTransformState(TransformValueState valueState)

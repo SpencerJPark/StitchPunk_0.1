@@ -74,11 +74,30 @@ namespace DotsAnimationToolkit.Editor
         /// Carried whether or not the object is a root yet, because that is what adding the
         /// Billboard component writes.
         /// </remarks>
-        public readonly BillboardNodeAddress billboardAddress;
+        public readonly RigNodeAddress billboardAddress;
+
+        /// <summary>
+        /// The stable id of the ragdoll body welded to this object, or 0 when none is (Phase D5).
+        /// </summary>
+        public readonly uint ragdollBodyId;
+
+        /// <summary>
+        /// How the rig would address this object as a ragdoll body, if one were added to it.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="billboardAddress"/> this can be a <see cref="RigNodeAddressKind.Bone"/>
+        /// address — billboarding rejects that kind at validation (rule V-R8; a bone has no billboard
+        /// frame of its own to turn), but a ragdoll body welds cleanly to a skinned bone, and a bone's
+        /// path below the prefab root is not the stable handle on it that a bare transform's path is
+        /// (spec §2). Carried whether or not the object has a body yet, because that is what adding
+        /// the Ragdoll component writes.
+        /// </remarks>
+        public readonly RigNodeAddress ragdollAddress;
 
         private ClipObjectRef(
             ClipObjectKind kind, uint targetId, string boneName, string nodePath,
-            uint billboardRootId, BillboardNodeAddress billboardAddress)
+            uint billboardRootId, RigNodeAddress billboardAddress, uint ragdollBodyId,
+            RigNodeAddress ragdollAddress)
         {
             this.kind = kind;
             this.targetId = targetId;
@@ -86,22 +105,24 @@ namespace DotsAnimationToolkit.Editor
             this.nodePath = nodePath;
             this.billboardRootId = billboardRootId;
             this.billboardAddress = billboardAddress;
+            this.ragdollBodyId = ragdollBodyId;
+            this.ragdollAddress = ragdollAddress;
         }
 
         /// <summary>
-        /// A rig target with no previewed node of its own, addressed as a billboard root by its
-        /// stable id — unlike a node, there is no path to resolve.
+        /// A rig target with no previewed node of its own, addressed as a billboard root or a
+        /// ragdoll body by its stable id — unlike a node, there is no path to resolve.
         /// </summary>
-        public static ClipObjectRef RigTarget(uint targetId, uint billboardRootId)
+        public static ClipObjectRef RigTarget(uint targetId, uint billboardRootId, uint ragdollBodyId = 0u)
         {
-            BillboardNodeAddress address = new BillboardNodeAddress
+            RigNodeAddress address = new RigNodeAddress
             {
-                kind = BillboardAddressKind.RigTarget,
+                kind = RigNodeAddressKind.RigTarget,
                 targetId = targetId
             };
             return new ClipObjectRef(
                 ClipObjectKind.RigTarget, targetId, string.Empty, string.Empty, billboardRootId,
-                address);
+                address, ragdollBodyId, address);
         }
 
         /// <summary>
@@ -113,22 +134,44 @@ namespace DotsAnimationToolkit.Editor
         /// is keyed on a bone track, and minting a target is what adding a part-bound component to
         /// it does.
         /// </param>
+        /// <param name="isSkinnedBone">
+        /// Whether this node is an imported skinned-mesh bone rather than an authored guiding
+        /// transform (Phase D5). Decides only <see cref="ragdollAddress"/>'s kind — billboarding
+        /// always addresses a node by path regardless (rule V-R8 forbids a bone address on a root),
+        /// so <see cref="billboardAddress"/> is unaffected. Defaults false for every caller that
+        /// predates the ragdoll work and never had a bone kind to tell apart.
+        /// </param>
         public static ClipObjectRef Bone(
-            string boneName, uint targetId, uint billboardRootId, string hierarchyPath)
+            string boneName, uint targetId, uint billboardRootId, string hierarchyPath,
+            uint ragdollBodyId = 0u, bool isSkinnedBone = false)
         {
             string resolvedPath = hierarchyPath ?? string.Empty;
+            string resolvedBoneName = boneName ?? string.Empty;
 
             // A claimed node is still addressed by path for billboarding, not by its target id.
             // The id says which part it is; the path says where it sits, and a billboard root is a
             // fact about the node's place in the hierarchy that its descendants inherit.
-            BillboardNodeAddress address = new BillboardNodeAddress
+            RigNodeAddress billboardAddress = new RigNodeAddress
             {
-                kind = BillboardAddressKind.HierarchyPath,
+                kind = RigNodeAddressKind.HierarchyPath,
                 hierarchyPath = resolvedPath
             };
+
+            // A ragdoll body takes the same path address as billboarding, unless the node is a
+            // skinned bone — a bone's path below the prefab root moves whenever an artist reparents
+            // inside the armature, where a bare transform's does not, so a bone is addressed by name
+            // instead (spec §2, the same reasoning SocketDefinition.boneName already established).
+            RigNodeAddress ragdollAddress = isSkinnedBone
+                ? new RigNodeAddress { kind = RigNodeAddressKind.Bone, boneName = resolvedBoneName }
+                : new RigNodeAddress
+                {
+                    kind = RigNodeAddressKind.HierarchyPath,
+                    hierarchyPath = resolvedPath
+                };
+
             return new ClipObjectRef(
-                ClipObjectKind.Bone, targetId, boneName ?? string.Empty, resolvedPath,
-                billboardRootId, address);
+                ClipObjectKind.Bone, targetId, resolvedBoneName, resolvedPath,
+                billboardRootId, billboardAddress, ragdollBodyId, ragdollAddress);
         }
 
         /// <summary>
@@ -143,7 +186,8 @@ namespace DotsAnimationToolkit.Editor
         public ClipObjectRef WithRigTarget(uint newTargetId)
         {
             return new ClipObjectRef(
-                kind, newTargetId, boneName, nodePath, billboardRootId, billboardAddress);
+                kind, newTargetId, boneName, nodePath, billboardRootId, billboardAddress,
+                ragdollBodyId, ragdollAddress);
         }
 
         /// <summary>Whether this reference names something a track could actually be bound to.</summary>

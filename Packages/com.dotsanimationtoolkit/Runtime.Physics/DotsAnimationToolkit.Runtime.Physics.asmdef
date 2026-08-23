@@ -1,0 +1,29 @@
+{
+    "name": "DotsAnimationToolkit.Runtime.Physics",
+    "rootNamespace": "DotsAnimationToolkit.Physics",
+    "references": [
+        "DotsAnimationToolkit.Runtime",
+        "Unity.Entities",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Physics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "DOTS_ANIM_TOOLKIT_PHYSICS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.physics",
+            "expression": "1.0.0",
+            "define": "DOTS_ANIM_TOOLKIT_PHYSICS"
+        }
+    ],
+    "noEngineReferences": false
+}

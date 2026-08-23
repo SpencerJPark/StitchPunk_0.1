@@ -148,6 +148,10 @@ And the two references both of them lean on:
 - [`billboarding.md`](billboarding.md) — billboard roots and inheritance, the
   six modes, snapping and clamping, what an animated rotation means on a
   billboarded node, and reading the resolved frame at runtime.
+- [`ragdoll.md`](ragdoll.md) — box-collider bodies on the rig hierarchy, why
+  the default mode falls *inside the billboard plane* rather than in world
+  space, hierarchy-implied joints and limits, self-collision, previewing a
+  drop in the Clip Editor, and the one component a game enables to start one.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.

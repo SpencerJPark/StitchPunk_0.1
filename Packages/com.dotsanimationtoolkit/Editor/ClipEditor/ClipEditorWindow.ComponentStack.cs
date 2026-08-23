@@ -1,8 +1,11 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
+using DotsAnimationToolkit;
 using DotsAnimationToolkit.Authoring;
+using Unity.Mathematics;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -44,6 +47,15 @@ namespace DotsAnimationToolkit.Editor
     public sealed partial class ClipEditorWindow
     {
         private const string ComponentBlockUssClassName = "clip-editor__component";
+
+        /// <summary>
+        /// The object's own Transform or BoneTransform, styled apart from the add-on components
+        /// below it. <see cref="ClipComponentKind"/>'s own doc comment already says why: it is
+        /// intrinsic, never in the Add Component menu, never removable -- this is that same fact
+        /// applied to the block's presentation, not a second decision.
+        /// </summary>
+        private const string ComponentIntrinsicUssClassName = "clip-editor__component--intrinsic";
+
         private const string ComponentHeaderUssClassName = "clip-editor__component-header";
         private const string ComponentTitleUssClassName = "clip-editor__component-title";
         private const string ComponentBadgeUssClassName = "clip-editor__component-badge";
@@ -97,11 +109,21 @@ namespace DotsAnimationToolkit.Editor
             DescribeSelectedObject(heading, item, objectRef);
             inspectorPane.Add(heading);
 
-            if (isActive && item.kind == HierarchyItemKind.RigTarget)
+            // Keyed off ActiveHierarchyItem directly rather than the isActive parameter: that flag
+            // is nulled out by the caller for a single selection to suppress the "(active)" marker
+            // in the heading (there is nothing to disambiguate with one block on screen), but a
+            // single selection is still exactly the block a gizmo belongs on. Reusing isActive here
+            // meant a lone selection never refreshed the gizmo at all -- a stale or hidden gizmo is
+            // indistinguishable from a broken one, which is the "no gizmos appeared" report this
+            // fixes at its root, not only for Rig Edit.
+            //
+            // Rig Edit always qualifies, whatever the node's kind, per GizmoDragRouting's rule: it
+            // writes the prefab's base pose for any selected node, target or not. Outside Rig Edit
+            // the RigTarget-kind gate is unchanged -- clip authoring's gizmo still needs a declared
+            // target and a selected clip, checked inside RefreshGizmo itself.
+            if (item == ActiveHierarchyItem
+                && (item.kind == HierarchyItemKind.RigTarget || IsRigEditMode))
             {
-                // Keyed off the window's active target rather than the heading's marker: the marker
-                // is suppressed when there is only one block, but that block is still the one with a
-                // gizmo.
                 RefreshGizmo();
             }
 
@@ -186,6 +208,7 @@ namespace DotsAnimationToolkit.Editor
         private ClipObjectRef BuildObjectRef(HierarchyItem item)
         {
             uint billboardRootId = 0u;
+            uint ragdollBodyId = 0u;
             RigAsset rig = ActiveRig;
             if (rig != null)
             {
@@ -194,11 +217,17 @@ namespace DotsAnimationToolkit.Editor
                 {
                     billboardRootId = rig.billboardRoots[rootIndex].Id.Value;
                 }
+
+                int bodyIndex = FindRagdollBodyIndexFor(rig, item);
+                if (bodyIndex >= 0 && rig.ragdollBodies[bodyIndex] != null)
+                {
+                    ragdollBodyId = rig.ragdollBodies[bodyIndex].Id.Value;
+                }
             }
 
             if (item.kind == HierarchyItemKind.RigTarget)
             {
-                return ClipObjectRef.RigTarget(item.targetId, billboardRootId);
+                return ClipObjectRef.RigTarget(item.targetId, billboardRootId, ragdollBodyId);
             }
 
             // The part comes off the row rather than being resolved again here. The hierarchy
@@ -207,18 +236,33 @@ namespace DotsAnimationToolkit.Editor
             //
             // The path may come back empty, and that is an address: the row for the prefab root
             // has no path below the root because it is the root.
+            bool isSkinnedBone =
+                previewController != null && previewController.IsSkinnedBone(item.previewIndex);
             return ClipObjectRef.Bone(
-                item.displayName, item.targetId, billboardRootId, ResolveHierarchyPath(item));
+                item.displayName, item.targetId, billboardRootId, ResolveHierarchyPath(item),
+                ragdollBodyId, isSkinnedBone);
         }
 
-        /// <summary>One component: a header that folds it away, and the fields it owns.</summary>
+        /// <summary>
+        /// One component: a header that folds it away, and the fields it owns -- except the
+        /// object's own Transform or BoneTransform, which is never folded and never a decision
+        /// anyone made, so it gets neither.
+        /// </summary>
         private VisualElement BuildComponentBlock(
             ClipObjectRef objectRef, ClipComponentInstance instance)
         {
             VisualElement block = new VisualElement();
             block.AddToClassList(ComponentBlockUssClassName);
 
-            bool isExpanded = !collapsedComponentKinds.Contains(instance.kind);
+            // Everything in the animator is somewhere, so this one component is not a thing the
+            // author decided to add -- there is no state in which it is missing, and folding it
+            // away would just be hiding the object's own current pose. Styled apart for the same
+            // reason: a foldout arrow and a header that looks exactly like Flipbook's or Socket's
+            // is what made it read as one more thing someone added rather than what every part has.
+            bool isIntrinsicTransform = ClipComponentModel.IsPrimaryTransform(instance.kind, objectRef);
+            block.EnableInClassList(ComponentIntrinsicUssClassName, isIntrinsicTransform);
+
+            bool isExpanded = isIntrinsicTransform || !collapsedComponentKinds.Contains(instance.kind);
 
             VisualElement body = new VisualElement();
             body.AddToClassList(ComponentBodyUssClassName);
@@ -227,15 +271,18 @@ namespace DotsAnimationToolkit.Editor
             VisualElement header = new VisualElement();
             header.AddToClassList(ComponentHeaderUssClassName);
 
-            Label title = new Label(
-                (isExpanded ? ExpandedGlyph : CollapsedGlyph)
-                + DescribeComponent(objectRef, instance));
+            Label title = new Label(isIntrinsicTransform
+                ? DescribeComponent(objectRef, instance)
+                : (isExpanded ? ExpandedGlyph : CollapsedGlyph) + DescribeComponent(objectRef, instance));
             title.AddToClassList(ComponentTitleUssClassName);
-            title.RegisterCallback<PointerDownEvent>(pointerEvent =>
+            if (!isIntrinsicTransform)
             {
-                ToggleComponentKind(instance.kind);
-                pointerEvent.StopPropagation();
-            });
+                title.RegisterCallback<PointerDownEvent>(pointerEvent =>
+                {
+                    ToggleComponentKind(instance.kind);
+                    pointerEvent.StopPropagation();
+                });
+            }
             header.Add(title);
 
             if (ClipComponentModel.Scope(instance.kind) == ClipComponentScope.Rig)
@@ -280,6 +327,15 @@ namespace DotsAnimationToolkit.Editor
                 block.EnableInClassList(ComponentActiveUssClassName, isGizmoTarget);
             }
 
+            // Same marking, for the same reason, on the ragdoll body whose box handles are up in
+            // the viewport (spec §8.3).
+            if (instance.kind == ClipComponentKind.Ragdoll)
+            {
+                RagdollBodyDefinition ragdollBody = ResolveRagdollBody(instance);
+                bool isHandleTarget = ragdollBody != null && ragdollBody.Id.Value == selectedRagdollBodyId;
+                block.EnableInClassList(ComponentActiveUssClassName, isHandleTarget);
+            }
+
             return block;
         }
 
@@ -293,6 +349,19 @@ namespace DotsAnimationToolkit.Editor
                 if (socket != null && !string.IsNullOrEmpty(socket.displayName))
                 {
                     return name + "  ·  " + socket.displayName;
+                }
+                return name;
+            }
+
+            // A ragdoll body has no keys at all (spec §3.3 is authored tuning, not animated data),
+            // so a "0 key(s)" suffix below would read as an unkeyed track rather than what it is —
+            // named rig structure, exactly the same shape Socket's own name suffix takes.
+            if (instance.kind == ClipComponentKind.Ragdoll)
+            {
+                RagdollBodyDefinition body = ResolveRagdollBody(instance);
+                if (body != null && !string.IsNullOrEmpty(body.displayName))
+                {
+                    return name + "  ·  " + body.displayName;
                 }
                 return name;
             }
@@ -348,6 +417,16 @@ namespace DotsAnimationToolkit.Editor
                     AddBillboardFields(body, objectRef);
                     return;
 
+                case ClipComponentKind.Ragdoll:
+                {
+                    RagdollBodyDefinition ragdollBody = ResolveRagdollBody(instance);
+                    if (ragdollBody != null)
+                    {
+                        AddRagdollFields(body, ragdollBody);
+                    }
+                    return;
+                }
+
                 default:
                 {
                     SocketDefinition socket = ResolveSocket(instance);
@@ -389,6 +468,54 @@ namespace DotsAnimationToolkit.Editor
                 return null;
             }
             return rig.sockets[instance.index];
+        }
+
+        private RagdollBodyDefinition ResolveRagdollBody(ClipComponentInstance instance)
+        {
+            RigAsset rig = ActiveRig;
+            if (rig == null || rig.ragdollBodies == null
+                || instance.index < 0 || instance.index >= rig.ragdollBodies.Count)
+            {
+                return null;
+            }
+            return rig.ragdollBodies[instance.index];
+        }
+
+        /// <summary>
+        /// Sizes a freshly minted ragdoll body's box from its node's renderer, when it has one.
+        /// </summary>
+        /// <remarks>
+        /// Left to the window rather than <see cref="ClipComponentModel"/> because only the preview
+        /// knows the node's geometry — the model is pure over the assets and has no scene to measure
+        /// against (spec §8.1). A rig-target row with no previewed node, and a previewed node with no
+        /// renderer of its own, both keep <see cref="RagdollBodyDefinition"/>'s own unit-box field
+        /// initializer.
+        /// </remarks>
+        private void SizeRagdollBoxFromRenderer(RigAsset rig, ClipObjectRef objectRef, int bodyIndex)
+        {
+            if (rig.ragdollBodies == null || bodyIndex < 0 || bodyIndex >= rig.ragdollBodies.Count
+                || previewController == null || objectRef.kind != ClipObjectKind.Bone)
+            {
+                return;
+            }
+
+            int hierarchyIndex = previewController.FindHierarchyIndexByName(objectRef.boneName);
+            if (hierarchyIndex < 0)
+            {
+                return;
+            }
+
+            Vector3 localCenter;
+            Vector3 localSize;
+            if (!previewController.TryGetLocalRendererBounds(
+                    hierarchyIndex, out localCenter, out localSize))
+            {
+                return;
+            }
+
+            RagdollBodyDefinition body = rig.ragdollBodies[bodyIndex];
+            body.boxCenter = ToFloat3(localCenter);
+            body.boxSize = ToFloat3(localSize);
         }
 
         // -------------------------------------------------------------------------------------
@@ -464,8 +591,16 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
                 RecordSocketEdit(rig, "Add " + ClipComponentModel.DisplayName(kind));
-                ClipComponentModel.Add(
+                ClipComponentInstance added = ClipComponentModel.Add(
                     selectedClip, rig, objectRef, kind, DescribeNewComponentName(objectRef, kind));
+
+                // The model has no viewport to measure against, so a freshly minted ragdoll body
+                // sizes its box here — from the node's own renderer where it has one, and left at
+                // the definition's unit-box default otherwise (spec §8.1).
+                if (kind == ClipComponentKind.Ragdoll && added.HasTrack)
+                {
+                    SizeRagdollBoxFromRenderer(rig, objectRef, added.index);
+                }
 
                 // Minted here rather than left to OnValidate, which does not run in time. An id
                 // still 0 is not merely unidentified: for a socket 0 is the sentinel for "none
@@ -589,6 +724,12 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (instance.kind == ClipComponentKind.Ragdoll)
+            {
+                ConfirmRemoveRagdoll(instance);
+                return;
+            }
+
             int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
             if (keyCount > 0 && !EditorUtility.DisplayDialog(
                     "Remove " + kindName,
@@ -663,6 +804,56 @@ namespace DotsAnimationToolkit.Editor
             hasActiveKey = false;
             RefreshHierarchyRows();
             RebuildTimeline();
+            RebuildInspector();
+        }
+
+        /// <summary>Removes a ragdoll body from the rig, asking first.</summary>
+        /// <remarks>
+        /// No key warning to fold in — unlike a billboard root, a ragdoll body carries no clip-side
+        /// data at all (spec §3.3 is authored tuning, not animated keys), so there is nothing this
+        /// clip stands to lose. What the prompt still has to say is that the body is rig structure,
+        /// seen by every clip that previews this rig, and that a body whose implied parent was this
+        /// one becomes its own root the moment it is gone (D3's baker walks the hierarchy fresh on
+        /// every bake, so nothing here has to renumber the rest of the chain by hand).
+        /// </remarks>
+        private void ConfirmRemoveRagdoll(ClipComponentInstance instance)
+        {
+            RigAsset rig = ActiveRig;
+            if (rig == null)
+            {
+                return;
+            }
+            RagdollBodyDefinition body = ResolveRagdollBody(instance);
+            if (body == null)
+            {
+                return;
+            }
+
+            string bodyLabel = string.IsNullOrEmpty(body.displayName)
+                ? "this body"
+                : "\"" + body.displayName + "\"";
+            if (!EditorUtility.DisplayDialog(
+                    "Remove Ragdoll",
+                    "Remove " + bodyLabel + " from the rig's ragdoll?\n\n"
+                        + "It is rig structure, so every clip in the set loses it. Any body whose "
+                        + "nearest ragdolled ancestor was this one becomes its own root.",
+                    "Remove",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            bool wasHandleTarget = body.Id.Value == selectedRagdollBodyId;
+            RecordSocketEdit(rig, "Remove Ragdoll");
+            ClipComponentModel.Remove(selectedClip, rig, instance);
+            AssetDatabase.SaveAssetIfDirty(rig);
+            if (wasHandleTarget)
+            {
+                FocusRagdollBody(0u);
+            }
+            CommitSocketEdit(false);
+
+            RefreshHierarchyRows();
             RebuildInspector();
         }
 
@@ -1013,6 +1204,329 @@ namespace DotsAnimationToolkit.Editor
                 track, playheadTime, angleOffsetDegrees, blendWeight, enabled);
             CommitClipEdit();
             RebuildInspector();
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Ragdoll component body (Phase D5, spec §8.2).
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>Labels for the 8 self-collision groups a ragdoll body can belong to or admit.</summary>
+        private static readonly List<string> RagdollSelfCollisionGroupChoices = new List<string>
+        {
+            "Group 0", "Group 1", "Group 2", "Group 3",
+            "Group 4", "Group 5", "Group 6", "Group 7"
+        };
+
+        /// <summary>
+        /// A ragdoll body's fields: the rig-wide space it falls in, its box, its physical tuning, the
+        /// joint limit for whichever space is active, and its self-collision masks.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>None of this is animatable.</strong> Unlike Billboard, a ragdoll body has no key
+        /// data at all (spec §3.3) — every field here is authored tuning that holds for every clip,
+        /// so there is no playhead to read against and no "on key / between keys" distinction to
+        /// show. That is also why every edit goes through <see cref="ApplyRagdollEdit"/> rather than
+        /// a clip-recording path: there is no clip half to this component, only the rig's.
+        /// </para>
+        /// <para>
+        /// <strong><see cref="RagdollRigSettings.space"/> is shown here but does not belong to this
+        /// body.</strong> It is badged separately from the component's own "rig-wide" header badge
+        /// because that header badge says this body's fields are rig structure; the space field says
+        /// something stronger — that changing it changes every other body on the rig too (spec §3.2).
+        /// </para>
+        /// </remarks>
+        private void AddRagdollFields(VisualElement parent, RagdollBodyDefinition ragdollBody)
+        {
+            RigAsset rig = ActiveRig;
+            if (rig == null)
+            {
+                return;
+            }
+
+            VisualElement spaceRow = new VisualElement();
+            spaceRow.style.flexDirection = FlexDirection.Row;
+            spaceRow.style.alignItems = Align.Center;
+
+            EnumField spaceField = new EnumField("Space", rig.ragdollSettings.space);
+            spaceField.tooltip =
+                "Planar2D falls within the billboard's own plane; Spatial3D falls freely in three "
+                + "dimensions. One setting for the whole rig — every body obeys it together (spec "
+                + "§3.2), which is why this changes it here rather than on this body alone.";
+            spaceField.style.flexGrow = 1f;
+            spaceField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RagdollSpace newSpace = (RagdollSpace)changeEvent.newValue;
+                ApplyRagdollEdit(() => { rig.ragdollSettings.space = newSpace; });
+            });
+            spaceRow.Add(spaceField);
+
+            Label spaceBadge = new Label("rig-wide");
+            spaceBadge.AddToClassList(ComponentBadgeUssClassName);
+            spaceBadge.tooltip =
+                "Comes off the rig's ragdoll settings, not this body — every body on the rig reads "
+                + "the same value.";
+            spaceRow.Add(spaceBadge);
+            parent.Add(spaceRow);
+
+            parent.Add(new Button(() => FocusRagdollBody(ragdollBody.Id.Value))
+            {
+                text = "Move in View",
+                tooltip =
+                    "Puts this body's box handles up in the viewport (spec §8.3) — live whether or "
+                    + "not Rig Edit is on, since placing a box is a rig edit but not a hierarchy "
+                    + "edit. A centre handle moves it, six face handles resize it, and a rotation "
+                    + "ring turns it."
+            });
+
+            parent.Add(MakeHeading("Box"));
+
+            Vector3Field boxCenterField = new Vector3Field("Center");
+            boxCenterField.tooltip = "Local offset from the addressed node's origin.";
+            boxCenterField.SetValueWithoutNotify(ToVector3(ragdollBody.boxCenter));
+            boxCenterField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float3 newCenter = ToFloat3(changeEvent.newValue);
+                ApplyRagdollEdit(() => { ragdollBody.boxCenter = newCenter; });
+            });
+            parent.Add(boxCenterField);
+
+            Vector3Field boxSizeField = new Vector3Field("Size");
+            boxSizeField.tooltip = "Full extents, local to the addressed node. All three must be "
+                + "greater than 0 (rule V-R4).";
+            boxSizeField.SetValueWithoutNotify(ToVector3(ragdollBody.boxSize));
+            boxSizeField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float3 newSize = ToFloat3(changeEvent.newValue);
+                ApplyRagdollEdit(() => { ragdollBody.boxSize = newSize; });
+            });
+            parent.Add(boxSizeField);
+
+            Vector3Field boxRotationField = new Vector3Field("Rotation");
+            boxRotationField.tooltip = "Local rotation, degrees, applied ZXY — the same convention "
+                + "every typed angle in this toolkit uses.";
+            boxRotationField.SetValueWithoutNotify(ToVector3(ragdollBody.boxEulerAngles));
+            boxRotationField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float3 newRotation = ToFloat3(changeEvent.newValue);
+                ApplyRagdollEdit(() => { ragdollBody.boxEulerAngles = newRotation; });
+            });
+            parent.Add(boxRotationField);
+
+            parent.Add(MakeHeading("Physical"));
+
+            FloatField massField = new FloatField("Mass");
+            massField.tooltip = "Must be greater than 0 (rule V-R7) — the inertia tensor is derived "
+                + "from this and the box size at bake, and a zero or negative mass has no closed "
+                + "form to derive it from.";
+            massField.SetValueWithoutNotify(ragdollBody.mass);
+            massField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newMass = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.mass = newMass; });
+            });
+            parent.Add(massField);
+
+            FloatField linearDampingField = new FloatField("Linear Damping");
+            linearDampingField.tooltip = "Per second. −1 inherits the rig's default rather than "
+                + "setting one on this body.";
+            linearDampingField.SetValueWithoutNotify(ragdollBody.linearDamping);
+            linearDampingField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newLinearDamping = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.linearDamping = newLinearDamping; });
+            });
+            parent.Add(linearDampingField);
+
+            FloatField angularDampingField = new FloatField("Angular Damping");
+            angularDampingField.tooltip = "Per second. −1 inherits the rig's default, the same "
+                + "sentinel as Linear Damping.";
+            angularDampingField.SetValueWithoutNotify(ragdollBody.angularDamping);
+            angularDampingField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newAngularDamping = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.angularDamping = newAngularDamping; });
+            });
+            parent.Add(angularDampingField);
+
+            FloatField restitutionField = new FloatField("Restitution");
+            restitutionField.tooltip = "Contact bounce, [0, 1].";
+            restitutionField.SetValueWithoutNotify(ragdollBody.restitution);
+            restitutionField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newRestitution = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.restitution = newRestitution; });
+            });
+            parent.Add(restitutionField);
+
+            FloatField frictionField = new FloatField("Friction");
+            frictionField.tooltip = "Contact friction coefficient.";
+            frictionField.SetValueWithoutNotify(ragdollBody.friction);
+            frictionField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newFriction = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.friction = newFriction; });
+            });
+            parent.Add(frictionField);
+
+            AddRagdollLimitFields(parent, rig, ragdollBody);
+
+            parent.Add(MakeHeading("Self-Collision"));
+
+            IntegerField selfGroupField = new IntegerField("Self Group");
+            selfGroupField.tooltip = "Which of 8 self-collision groups this body belongs to — a bit "
+                + "index, 0-7, not a mask.";
+            selfGroupField.SetValueWithoutNotify(ragdollBody.selfGroup);
+            selfGroupField.RegisterValueChangedCallback(changeEvent =>
+            {
+                byte newSelfGroup = (byte)Mathf.Clamp(changeEvent.newValue, 0, 7);
+                ApplyRagdollEdit(() => { ragdollBody.selfGroup = newSelfGroup; });
+            });
+            parent.Add(selfGroupField);
+
+            MaskField selfCollidesWithField = new MaskField(
+                "Collides With", RagdollSelfCollisionGroupChoices, ragdollBody.selfCollidesWith);
+            selfCollidesWithField.tooltip = "Bitmask of the groups this body collides with. Both "
+                + "bodies of a pair must admit each other's group for the pair to collide, and a "
+                + "body's own parent-child pairs are excluded automatically regardless of this mask.";
+            selfCollidesWithField.RegisterValueChangedCallback(changeEvent =>
+            {
+                byte newSelfCollidesWith = (byte)(changeEvent.newValue & 0xFF);
+                ApplyRagdollEdit(() => { ragdollBody.selfCollidesWith = newSelfCollidesWith; });
+            });
+            parent.Add(selfCollidesWithField);
+
+            Toggle collidesWithWorldField = new Toggle("Collides With World");
+            collidesWithWorldField.tooltip = "Off lets this body pass through world geometry while "
+                + "it still takes part in self-collision and its own joint — a cape tip, most often.";
+            collidesWithWorldField.SetValueWithoutNotify(ragdollBody.collidesWithWorld);
+            collidesWithWorldField.RegisterValueChangedCallback(changeEvent =>
+            {
+                bool newCollidesWithWorld = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.collidesWithWorld = newCollidesWithWorld; });
+            });
+            parent.Add(collidesWithWorldField);
+        }
+
+        /// <summary>
+        /// The joint limit pair for whichever space is active — hinge range in Planar2D, swing/twist
+        /// in Spatial3D.
+        /// </summary>
+        /// <remarks>
+        /// Both pairs are always stored on <see cref="RagdollBodyDefinition"/> regardless of which
+        /// one this shows (spec §3.3): switching the rig's space to look and switching back must not
+        /// destroy tuning authored for the space not currently displayed.
+        /// </remarks>
+        private void AddRagdollLimitFields(
+            VisualElement parent, RigAsset rig, RagdollBodyDefinition ragdollBody)
+        {
+            parent.Add(MakeHeading("Joint Limit"));
+            parent.Add(MakeHint(
+                "Measured against this body's implied parent — its nearest ragdolled ancestor in "
+                + "the addressed hierarchy. Both the hinge pair and the swing/twist pair are always "
+                + "kept, whichever one is shown here."));
+
+            if (rig.ragdollSettings.space == RagdollSpace.Planar2D)
+            {
+                FloatField limitMinField = new FloatField("Hinge Min");
+                limitMinField.tooltip = "Signed degrees, measured from this body's rest relative "
+                    + "orientation. Must not exceed Hinge Max, both within [-180, 180] (rule V-R5).";
+                limitMinField.SetValueWithoutNotify(ragdollBody.limitMinDegrees);
+                limitMinField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    float newLimitMin = changeEvent.newValue;
+                    ApplyRagdollEdit(() => { ragdollBody.limitMinDegrees = newLimitMin; });
+                });
+                parent.Add(limitMinField);
+
+                FloatField limitMaxField = new FloatField("Hinge Max");
+                limitMaxField.tooltip = "Signed degrees. Must not be less than Hinge Min, both "
+                    + "within [-180, 180] (rule V-R5).";
+                limitMaxField.SetValueWithoutNotify(ragdollBody.limitMaxDegrees);
+                limitMaxField.RegisterValueChangedCallback(changeEvent =>
+                {
+                    float newLimitMax = changeEvent.newValue;
+                    ApplyRagdollEdit(() => { ragdollBody.limitMaxDegrees = newLimitMax; });
+                });
+                parent.Add(limitMaxField);
+                return;
+            }
+
+            FloatField swingLimitField = new FloatField("Swing Limit");
+            swingLimitField.tooltip = "Cone half-angle in degrees, [0, 180].";
+            swingLimitField.SetValueWithoutNotify(ragdollBody.swingLimitDegrees);
+            swingLimitField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newSwingLimit = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.swingLimitDegrees = newSwingLimit; });
+            });
+            parent.Add(swingLimitField);
+
+            FloatField twistLimitField = new FloatField("Twist Limit");
+            twistLimitField.tooltip = "Half-range about the joint's own axis, in degrees, [0, 180].";
+            twistLimitField.SetValueWithoutNotify(ragdollBody.twistLimitDegrees);
+            twistLimitField.RegisterValueChangedCallback(changeEvent =>
+            {
+                float newTwistLimit = changeEvent.newValue;
+                ApplyRagdollEdit(() => { ragdollBody.twistLimitDegrees = newTwistLimit; });
+            });
+            parent.Add(twistLimitField);
+        }
+
+        private static Vector3 ToVector3(float3 value)
+        {
+            return new Vector3(value.x, value.y, value.z);
+        }
+
+        private static float3 ToFloat3(Vector3 value)
+        {
+            return new float3(value.x, value.y, value.z);
+        }
+
+        /// <summary>
+        /// Writes one ragdoll field edit through a single undo record on the rig — generalising
+        /// <see cref="ApplyBillboardEdit"/>'s shape past the three fields a billboard channel has to
+        /// the dozen a ragdoll body carries.
+        /// </summary>
+        /// <remarks>
+        /// A closure over the one field that changed, rather than every field passed positionally as
+        /// <see cref="ApplyBillboardEdit"/> does: billboard's three values fit comfortably as
+        /// parameters, and a ragdoll body's do not. What both share, and what actually matters, is
+        /// that every field in the component funnels through one call site that opens exactly one
+        /// undo — a run of drags on a single body coalesces the way a socket's own drag already does
+        /// (<see cref="RecordSocketEdit"/>), rather than each keystroke opening its own.
+        /// </remarks>
+        /// <summary>
+        /// Applies one ragdoll-body field edit under a single undo.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>This deliberately does not go through <c>CommitSocketEdit</c>, and that is what
+        /// makes dragging a number field work.</strong> Dragging a <c>FloatField</c>'s label emits a
+        /// change event on every mouse move. <c>CommitSocketEdit</c> calls <c>RebuildHierarchy</c>,
+        /// so routing these edits through it tore down and rebuilt the hierarchy tree on each delta,
+        /// and the rebuild took the drag's pointer capture with it — the drag died after roughly one
+        /// pixel, which makes small adjustments impossible and is exactly what a drag handle is for.
+        /// </para>
+        /// <para>
+        /// A socket edit genuinely needs that rebuild: its hierarchy row label carries the binding
+        /// and the unresolved mark, so the row is stale the moment either changes. A ragdoll body's
+        /// box, mass, damping and limits appear in no row label, so nothing in the tree can go stale
+        /// and there is nothing to rebuild. Marking the rig dirty and the preview dirty is the whole
+        /// of what this edit owes the rest of the window.
+        /// </para>
+        /// </remarks>
+        private void ApplyRagdollEdit(System.Action mutate)
+        {
+            RigAsset rig = ActiveRig;
+            if (rig == null || mutate == null)
+            {
+                return;
+            }
+            RecordSocketEdit(rig, "Edit Ragdoll");
+            mutate();
+            EditorUtility.SetDirty(rig);
+            MarkPreviewDirty();
         }
     }
 }

@@ -399,6 +399,130 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 "No group was created in this world, so there was nothing to set.");
         }
 
+        // -----------------------------------------------------------------------------------
+        // The ragdoll group (Phase D4, amendment A50, spec §7). Behavioural coverage of the same
+        // ordering contract — that a socket on a ragdolling node resolves this frame, not one frame
+        // late — lives in RagdollSystemOrderTests; these are the attribute-level guardrails.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Catches: moving the ragdoll group out of the presentation group. It reads
+        /// <c>LocalTransform</c> values <c>TransformApplySystem</c> and <c>BillboardResolveSystem</c>
+        /// already wrote this frame, both of which live in the presentation group.
+        /// </summary>
+        [Test]
+        public void RagdollGroup_IsInThePresentationGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(AnimationToolkitRagdollSystemGroup));
+
+            Assert.AreEqual(typeof(AnimationToolkitPresentationSystemGroup), updateInGroup.GroupType);
+        }
+
+        /// <summary>
+        /// Catches: dropping either ordering edge on the ragdoll group. Both are load-bearing (spec
+        /// §7's own emphasis): after <c>BillboardResolveSystem</c> so a Planar2D ragdoll falls in
+        /// this frame's billboard resolution rather than last frame's, and before
+        /// <c>SocketResolveSystem</c> so an attached item is not one frame behind the hand holding
+        /// it — the exact symptom <c>rigged-characters.md</c> already documents.
+        /// </summary>
+        [Test]
+        public void RagdollGroup_RunsAfterBillboardResolve_AndBeforeSocketResolve()
+        {
+            object[] afterAttributes =
+                typeof(AnimationToolkitRagdollSystemGroup).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+            object[] beforeAttributes =
+                typeof(AnimationToolkitRagdollSystemGroup).GetCustomAttributes(typeof(UpdateBeforeAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on the ragdoll group.");
+            Assert.AreEqual(typeof(BillboardResolveSystem), ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+
+            Assert.AreEqual(1, beforeAttributes.Length, "Expected exactly one UpdateBefore on the ragdoll group.");
+            Assert.AreEqual(typeof(SocketResolveSystem), ((UpdateBeforeAttribute)beforeAttributes[0]).SystemType);
+        }
+
+        /// <summary>
+        /// Catches: dropping <c>OrderFirst</c> from <c>RagdollCaptureSystem</c>, which would let
+        /// another system in the group read <c>RagdollBody.state</c> or <c>RagdollState</c>'s cached
+        /// frame before this frame's freshly seeded values landed.
+        /// </summary>
+        [Test]
+        public void RagdollCapture_IsOrderFirstInTheRagdollGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(RagdollCaptureSystem));
+
+            Assert.AreEqual(typeof(AnimationToolkitRagdollSystemGroup), updateInGroup.GroupType);
+            Assert.IsTrue(updateInGroup.OrderFirst, "RagdollCaptureSystem must be OrderFirst.");
+        }
+
+        /// <summary>
+        /// Catches: dropping <c>OrderLast</c> from <c>RagdollReleaseSystem</c>, which would let
+        /// <c>RagdollApplySystem</c> write a solved body pose over the restored one in the same
+        /// frame the ragdoll was switched off.
+        /// </summary>
+        [Test]
+        public void RagdollRelease_IsOrderLastInTheRagdollGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(RagdollReleaseSystem));
+
+            Assert.AreEqual(typeof(AnimationToolkitRagdollSystemGroup), updateInGroup.GroupType);
+            Assert.IsTrue(updateInGroup.OrderLast, "RagdollReleaseSystem must be OrderLast.");
+        }
+
+        /// <summary>
+        /// Catches: leaving the probe/solve/apply trio to the sort's tie-break instead of explicit
+        /// edges. An unordered trio would let the solver read a stale or empty contact buffer on
+        /// some runs and not others (CLAUDE.md: "never ad-hoc ordering").
+        /// </summary>
+        [Test]
+        public void RagdollProbeFallback_RunsAfterCapture_AndBeforeSolve()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(RagdollProbeFallbackSystem));
+            Assert.AreEqual(typeof(AnimationToolkitRagdollSystemGroup), updateInGroup.GroupType);
+
+            object[] afterAttributes =
+                typeof(RagdollProbeFallbackSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+            object[] beforeAttributes =
+                typeof(RagdollProbeFallbackSystem).GetCustomAttributes(typeof(UpdateBeforeAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on RagdollProbeFallbackSystem.");
+            Assert.AreEqual(typeof(RagdollCaptureSystem), ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+
+            Assert.AreEqual(1, beforeAttributes.Length, "Expected exactly one UpdateBefore on RagdollProbeFallbackSystem.");
+            Assert.AreEqual(typeof(RagdollSolveSystem), ((UpdateBeforeAttribute)beforeAttributes[0]).SystemType);
+        }
+
+        /// <summary>Catches: dropping the edge that keeps the solver reading this frame's contact buffer.</summary>
+        [Test]
+        public void RagdollSolve_RunsAfterProbeFallback()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(RagdollSolveSystem));
+            Assert.AreEqual(typeof(AnimationToolkitRagdollSystemGroup), updateInGroup.GroupType);
+
+            object[] afterAttributes =
+                typeof(RagdollSolveSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on RagdollSolveSystem.");
+            Assert.AreEqual(typeof(RagdollProbeFallbackSystem), ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+        }
+
+        /// <summary>
+        /// Catches: dropping the edge that keeps <c>RagdollApplySystem</c> writing the solved pose
+        /// after the solver actually produced it — the same "known ordering, never a tie-break"
+        /// convention as the rest of this group.
+        /// </summary>
+        [Test]
+        public void RagdollApply_RunsAfterSolve()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(RagdollApplySystem));
+            Assert.AreEqual(typeof(AnimationToolkitRagdollSystemGroup), updateInGroup.GroupType);
+
+            object[] afterAttributes =
+                typeof(RagdollApplySystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on RagdollApplySystem.");
+            Assert.AreEqual(typeof(RagdollSolveSystem), ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+        }
+
         private static bool HasConfigSingleton(World world)
         {
             EntityQuery configQuery = world.EntityManager.CreateEntityQuery(

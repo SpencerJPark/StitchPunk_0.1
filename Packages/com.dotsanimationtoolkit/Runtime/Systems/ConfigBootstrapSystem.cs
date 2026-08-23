@@ -61,6 +61,29 @@ namespace DotsAnimationToolkit
                     "AnimationToolkitConfig");
             }
 
+            if (!SystemAPI.HasSingleton<RagdollConfig>())
+            {
+                // Same "create if absent, never overwrite" contract as AnimationToolkitConfig above
+                // (Phase D, amendment A50, spec §5.7) — a host that authors or tunes its own
+                // RagdollConfig must not have it replaced by defaults just because this system
+                // happened to run. Defaults are tuned-but-conservative rather than do-nothing: unlike
+                // AnimationToolkitConfig's zeros, a zero gravity or a zero substep cap would make
+                // every ragdoll in the project simply not fall, which is a worse "unconfigured"
+                // experience than picking real numbers.
+                state.EntityManager.CreateSingleton(
+                    new RagdollConfig
+                    {
+                        worldGravity = new float3(0f, -9.81f, 0f),
+                        sleepLinearSpeed = 0.05f,
+                        sleepAngularSpeed = 0.05f,
+                        sleepDelaySeconds = 0.5f,
+                        maxSubstepsPerFrame = 4,
+                        fallbackGroundHeight = 0f,
+                        contactProbeRadius = 0.02f
+                    },
+                    "RagdollConfig");
+            }
+
             state.Enabled = false;
         }
     }

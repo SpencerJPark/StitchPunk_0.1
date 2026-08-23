@@ -46,6 +46,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 GizmoDragDestination destination = GizmoDragRouting.Resolve(
                     hasSocketSelected: false,
+                    hasRagdollBodySelected: false,
                     isRigEditMode: true,
                     isAutoKeyEnabled: autoKey,
                     hasPendingEdit: true);
@@ -69,27 +70,112 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             Assert.AreEqual(
                 GizmoDragDestination.SocketOffset,
-                GizmoDragRouting.Resolve(true, false, true, true),
+                GizmoDragRouting.Resolve(true, false, false, true, true),
                 "A selected socket outranks Auto Key.");
 
             Assert.AreEqual(
                 GizmoDragDestination.SocketOffset,
-                GizmoDragRouting.Resolve(true, true, false, true),
+                GizmoDragRouting.Resolve(true, false, true, false, true),
                 "A selected socket outranks Rig Edit too.");
 
             Assert.AreEqual(
                 GizmoDragDestination.ClipKey,
-                GizmoDragRouting.Resolve(false, false, true, true));
+                GizmoDragRouting.Resolve(false, false, false, true, true));
 
             Assert.AreEqual(
                 GizmoDragDestination.HeldClipEdit,
-                GizmoDragRouting.Resolve(false, false, false, true),
+                GizmoDragRouting.Resolve(false, false, false, false, true),
                 "With Auto Key off the value is held, not discarded.");
 
             Assert.AreEqual(
                 GizmoDragDestination.Nothing,
-                GizmoDragRouting.Resolve(false, false, true, false),
+                GizmoDragRouting.Resolve(false, false, false, true, false),
                 "A drag that produced no value writes nothing.");
+        }
+
+        /// <summary>
+        /// A selected ragdoll body's box wins outright, exactly like a selected socket — spec §8.3:
+        /// "placing a box is a rig edit but not a hierarchy edit," the same call socket placement
+        /// already makes, so it must not need Rig Edit mode to be live and must not compete with
+        /// Auto Key at all.
+        /// </summary>
+        [Test]
+        public void DragRouting_RagdollBodySelected_OutranksRigEditAndAutoKey()
+        {
+            Assert.AreEqual(
+                GizmoDragDestination.RagdollBody,
+                GizmoDragRouting.Resolve(false, true, false, true, true),
+                "A selected ragdoll body must not need Rig Edit mode to be live.");
+
+            Assert.AreEqual(
+                GizmoDragDestination.RagdollBody,
+                GizmoDragRouting.Resolve(false, true, true, false, true),
+                "A selected ragdoll body outranks Rig Edit too.");
+
+            Assert.AreEqual(
+                GizmoDragDestination.SocketOffset,
+                GizmoDragRouting.Resolve(true, true, false, true, true),
+                "The two are never both selected at once, but a socket still wins the tie.");
+        }
+
+        /// <summary>
+        /// Rig Edit shows a gizmo for any selected node; clip authoring still needs a declared
+        /// target and an open clip.
+        /// </summary>
+        /// <remarks>
+        /// This is the exact defect report (D10): <c>RefreshGizmo</c> used to bail out on
+        /// <c>selectedTargetId == 0u || selectedClip == null</c> unconditionally, which are
+        /// clip-authoring questions Rig Edit has no business asking — it writes the prefab's base
+        /// pose for whatever hierarchy node is selected, target or not, clip or not. A bare grouping
+        /// transform and a skinned bone are exactly the nodes someone restructures a rig with, so a
+        /// gate that excluded them made the mode dead outside the narrow case of a declared,
+        /// node-having rig target with a clip open.
+        /// </remarks>
+        [Test]
+        public void ShouldShowTransformGizmo_RigEdit_OnlyNeedsANodeSelected()
+        {
+            Assert.IsTrue(
+                GizmoDragRouting.ShouldShowTransformGizmo(
+                    isRigEditMode: true, hasActiveHierarchyItem: true,
+                    hasTargetSelected: false, hasClipSelected: false),
+                "A bare grouping transform or skinned bone, no clip open: still gets a gizmo.");
+
+            Assert.IsTrue(
+                GizmoDragRouting.ShouldShowTransformGizmo(
+                    isRigEditMode: true, hasActiveHierarchyItem: true,
+                    hasTargetSelected: true, hasClipSelected: true),
+                "A declared target with a clip open is still just a node in Rig Edit.");
+
+            Assert.IsFalse(
+                GizmoDragRouting.ShouldShowTransformGizmo(
+                    isRigEditMode: true, hasActiveHierarchyItem: false,
+                    hasTargetSelected: false, hasClipSelected: false),
+                "Nothing selected at all: nothing to put a gizmo on.");
+        }
+
+        /// <summary>
+        /// Outside Rig Edit the gate is unchanged: a declared rig target and an open clip, both.
+        /// </summary>
+        [Test]
+        public void ShouldShowTransformGizmo_ClipAuthoring_NeedsTargetAndClipBoth()
+        {
+            Assert.IsTrue(
+                GizmoDragRouting.ShouldShowTransformGizmo(
+                    isRigEditMode: false, hasActiveHierarchyItem: true,
+                    hasTargetSelected: true, hasClipSelected: true));
+
+            Assert.IsFalse(
+                GizmoDragRouting.ShouldShowTransformGizmo(
+                    isRigEditMode: false, hasActiveHierarchyItem: true,
+                    hasTargetSelected: false, hasClipSelected: true),
+                "A bare grouping transform or skinned bone has no target id to key a TransformTrack "
+                    + "against, clip open or not.");
+
+            Assert.IsFalse(
+                GizmoDragRouting.ShouldShowTransformGizmo(
+                    isRigEditMode: false, hasActiveHierarchyItem: true,
+                    hasTargetSelected: true, hasClipSelected: false),
+                "A declared target with no clip open has nowhere to write a key.");
         }
 
         // -----------------------------------------------------------------------------------

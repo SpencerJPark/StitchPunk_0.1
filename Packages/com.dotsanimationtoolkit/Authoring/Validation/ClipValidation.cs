@@ -8,7 +8,7 @@ namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// The single authoritative implementation of the architecture section 3.5 rule table
-    /// (V01–V23), shared by the inspectors, the clip editor, and the bake so that all three agree on
+    /// (V01–V32), shared by the inspectors, the clip editor, and the bake so that all three agree on
     /// what is legal. Pure static managed code — no editor-assembly dependency, no ECS world, and
     /// no side effects on the assets it inspects.
     /// </summary>
@@ -16,16 +16,19 @@ namespace DotsAnimationToolkit.Authoring
     {
         /// <summary>
         /// Validates a rig against the rules that concern it: V13 (layer count), V05 (target id
-        /// uniqueness) and the billboard-root rules V21, V22 and V23 (amendment A44).
+        /// uniqueness), the billboard-root rules V21, V22, V23 and V25 (amendment A44; V25 is the
+        /// ragdoll spec's V-R8), and the ragdoll-body rules V26–V32 (amendment A50, spec §4's
+        /// V-R1–V-R7).
         /// </summary>
         /// <param name="rig">The rig to validate. A null rig reports V13, since a set without a rig
         /// has no layers.</param>
         /// <returns>
         /// The findings in discovery order — layer checks (V13) first, then per-target id
-        /// uniqueness (V05) in target-list order, then the billboard roots (V21, V23, V22) in
-        /// billboard-root order. Deliberately not sorted by rule number: the
-        /// inspector and the clip editor list findings in the order the asset reads, so a reader
-        /// can walk the asset top to bottom. Empty when the rig is fully valid.
+        /// uniqueness (V05) in target-list order, then the billboard roots (V21, V25, V23, V22) in
+        /// billboard-root order, then the ragdoll bodies (V27, V26, V28, V29, V30, V32 per body,
+        /// then V31 once for the whole rig) in ragdoll-body order. Deliberately not sorted by rule
+        /// number: the inspector and the clip editor list findings in the order the asset reads, so
+        /// a reader can walk the asset top to bottom. Empty when the rig is fully valid.
         /// </returns>
         public static List<ValidationMessage> ValidateRig(RigAsset rig)
         {
@@ -250,17 +253,18 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             ValidateBillboardRootsInto(rig, targetNamesById, messages);
+            ValidateRagdollBodiesInto(rig, targetNamesById, messages);
         }
 
         /// <summary>
-        /// Validates the rig's billboard roots (amendment A44): V21, V22 and V23.
+        /// Validates the rig's billboard roots (amendment A44): V21, V22, V23 and V25.
         /// </summary>
         /// <remarks>
         /// <para>
         /// <strong>V21 is only half-reachable here, and the reachable half is the target one.</strong>
-        /// A <see cref="BillboardAddressKind.RigTarget"/> address names a row of this very asset, so
+        /// A <see cref="RigNodeAddressKind.RigTarget"/> address names a row of this very asset, so
         /// it can be resolved against <paramref name="targetNamesById"/> and reported now, while the
-        /// author is looking at the rig. A <see cref="BillboardAddressKind.HierarchyPath"/> address
+        /// author is looking at the rig. A <see cref="RigNodeAddressKind.HierarchyPath"/> address
         /// names a transform of the authoring prefab, which a <see cref="RigAsset"/> does not
         /// reference and cannot see — the rig asset carries no hierarchy of its own. Path addresses
         /// are therefore resolved by the entity bake, which does hold the prefab, and which reports
@@ -270,6 +274,12 @@ namespace DotsAnimationToolkit.Authoring
         /// This is the same shape as V08's split (amendment A12): a rule whose evidence lives in an
         /// assembly the validator cannot legally reach is checked where the evidence is, and saying
         /// so here is what stops a later reader assuming the silence means "valid".
+        /// </para>
+        /// <para>
+        /// <strong>V25 needs no such split.</strong> A <see cref="RigNodeAddressKind.Bone"/> address
+        /// is wrong for a billboard root regardless of which bone it names — the rig asset does not
+        /// need to see the prefab to know that billboarding has no bone path — so it is fully
+        /// reachable here, unlike V21's path half.
         /// </para>
         /// </remarks>
         private static void ValidateBillboardRootsInto(
@@ -292,7 +302,7 @@ namespace DotsAnimationToolkit.Authoring
                 }
 
                 bool addressResolves = true;
-                if (rootDefinition.address.kind == BillboardAddressKind.RigTarget
+                if (rootDefinition.address.kind == RigNodeAddressKind.RigTarget
                     && !targetNamesById.ContainsKey(rootDefinition.address.targetId))
                 {
                     addressResolves = false;
@@ -303,6 +313,22 @@ namespace DotsAnimationToolkit.Authoring
                         "Billboard root '" + rootDefinition.displayName + "' addresses target id " +
                         rootDefinition.address.targetId.ToString() + ", which rig '" + rig.name +
                         "' does not define."));
+                }
+
+                // V-R8 (ragdoll spec): billboarding has no bone path. The Bone kind exists for the
+                // ragdoll body list that shares this address struct, not for billboard roots, so a
+                // row that carries one is treated the same as an unresolved address — it must not
+                // also be checked for an address-key duplicate below.
+                if (rootDefinition.address.kind == RigNodeAddressKind.Bone)
+                {
+                    addressResolves = false;
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V25,
+                        rig,
+                        "Billboard root '" + rootDefinition.displayName + "' in rig '" + rig.name +
+                        "' addresses bone '" + rootDefinition.address.boneName + "'; billboarding " +
+                        "has no bone path, only a rig target or a hierarchy path."));
                 }
 
                 if (rootDefinition.mode == BillboardMode.AxisConstrained
@@ -352,14 +378,301 @@ namespace DotsAnimationToolkit.Authoring
         /// and the path "7" are not the same node, and a key that could not tell them apart would
         /// report a duplicate that is not one.
         /// </remarks>
-        private static string DescribeBillboardAddress(BillboardNodeAddress address)
+        private static string DescribeBillboardAddress(RigNodeAddress address)
         {
-            if (address.kind == BillboardAddressKind.RigTarget)
+            if (address.kind == RigNodeAddressKind.RigTarget)
             {
                 return "target " + address.targetId.ToString();
             }
             // An empty path addresses the prefab root, which is a real node and a legal thing to
             // billboard — so it is named rather than treated as a missing value.
+            return string.IsNullOrEmpty(address.hierarchyPath)
+                ? "the prefab root"
+                : "path '" + address.hierarchyPath + "'";
+        }
+
+        /// <summary>
+        /// Validates the rig's ragdoll bodies (Phase D ragdoll spec, amendment A50): V26, V27, V28,
+        /// V29, V30, V31 and V32.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>V26 is only half-reachable here, mirroring V21's split for billboard roots.</strong>
+        /// A <see cref="RigNodeAddressKind.RigTarget"/> address names a row of this very asset and is
+        /// resolved against <paramref name="targetNamesById"/>; a
+        /// <see cref="RigNodeAddressKind.HierarchyPath"/> or <see cref="RigNodeAddressKind.Bone"/>
+        /// address names something a <see cref="RigAsset"/> cannot see on its own, and is left to the
+        /// entity bake (Phase D3) to resolve or report, the same way an unresolved billboard path is
+        /// left to <c>BillboardRootResolver</c>.
+        /// </para>
+        /// <para>
+        /// <strong>V31 checks only what this asset can itself confirm.</strong> Whether the ragdoll
+        /// bodies form a single tree is, in general, a question about the real prefab hierarchy —
+        /// exactly the gap V26 documents for address resolution. A
+        /// <see cref="RigNodeAddressKind.HierarchyPath"/> address is the one kind whose ancestry this
+        /// asset can verify unaided, by string prefix, so only those bodies are placed in the tree;
+        /// a rig whose bodies are entirely target- or bone-addressed never trips V31 at authoring
+        /// time, and that silence must not be read as "the hierarchy was checked and is fine".
+        /// </para>
+        /// </remarks>
+        private static void ValidateRagdollBodiesInto(
+            RigAsset rig,
+            Dictionary<uint, string> targetNamesById,
+            List<ValidationMessage> messages)
+        {
+            if (rig.ragdollBodies == null)
+            {
+                return;
+            }
+
+            Dictionary<uint, string> bodyNamesById = new Dictionary<uint, string>();
+            Dictionary<string, string> bodyNamesByAddress = new Dictionary<string, string>();
+            List<KeyValuePair<string, string>> hierarchyPathBodies = new List<KeyValuePair<string, string>>();
+
+            for (int bodyIndex = 0; bodyIndex < rig.ragdollBodies.Count; bodyIndex++)
+            {
+                RagdollBodyDefinition bodyDefinition = rig.ragdollBodies[bodyIndex];
+                if (bodyDefinition == null)
+                {
+                    continue;
+                }
+
+                // V-R2 (V27): the id must exist and must not repeat.
+                if (bodyDefinition.stableId == 0u)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V27,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' in rig '" + rig.name +
+                        "' has no stable id; EnsureStableIds must run before this rig is bakeable."));
+                }
+                else
+                {
+                    string previousBodyName;
+                    if (bodyNamesById.TryGetValue(bodyDefinition.stableId, out previousBodyName))
+                    {
+                        messages.Add(new ValidationMessage(
+                            ValidationSeverity.Error,
+                            ValidationCode.V27,
+                            rig,
+                            "Ragdoll bodies '" + previousBodyName + "' and '" +
+                            bodyDefinition.displayName + "' share body id " +
+                            bodyDefinition.Id.ToString() + " in rig '" + rig.name + "'."));
+                    }
+                    else
+                    {
+                        bodyNamesById.Add(bodyDefinition.stableId, bodyDefinition.displayName);
+                    }
+                }
+
+                // V-R1 (V26): only the RigTarget half is reachable at rig scope.
+                bool addressResolves = true;
+                if (bodyDefinition.address.kind == RigNodeAddressKind.RigTarget
+                    && !targetNamesById.ContainsKey(bodyDefinition.address.targetId))
+                {
+                    addressResolves = false;
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V26,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' addresses target id " +
+                        bodyDefinition.address.targetId.ToString() + ", which rig '" + rig.name +
+                        "' does not define."));
+                }
+
+                // V-R3 (V28): no two bodies on the same node. An address that does not resolve
+                // cannot meaningfully duplicate another - one fault, not two, mirroring V22's own
+                // discipline against V21's unresolved case.
+                bool isDuplicateNodeAddress = false;
+                if (addressResolves)
+                {
+                    string addressKey = DescribeRagdollAddress(bodyDefinition.address);
+                    string previousBodyName;
+                    if (bodyNamesByAddress.TryGetValue(addressKey, out previousBodyName))
+                    {
+                        isDuplicateNodeAddress = true;
+                        messages.Add(new ValidationMessage(
+                            ValidationSeverity.Error,
+                            ValidationCode.V28,
+                            rig,
+                            "Ragdoll bodies '" + previousBodyName + "' and '" +
+                            bodyDefinition.displayName + "' both address " + addressKey +
+                            " in rig '" + rig.name +
+                            "'; a node may carry at most one ragdoll body."));
+                    }
+                    else
+                    {
+                        bodyNamesByAddress.Add(addressKey, bodyDefinition.displayName);
+                    }
+                }
+
+                // V-R4 (V29): every box extent must be positive.
+                if (bodyDefinition.boxSize.x <= 0f
+                    || bodyDefinition.boxSize.y <= 0f
+                    || bodyDefinition.boxSize.z <= 0f)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V29,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' in rig '" + rig.name +
+                        "' has box size (" + bodyDefinition.boxSize.x + ", " +
+                        bodyDefinition.boxSize.y + ", " + bodyDefinition.boxSize.z +
+                        "); every component must be greater than 0."));
+                }
+
+                // V-R5 (V30): both limit pairs are always stored, so both are always checked,
+                // regardless of the rig's current RagdollRigSettings.space.
+                if (bodyDefinition.limitMinDegrees > bodyDefinition.limitMaxDegrees
+                    || bodyDefinition.limitMinDegrees < -180f || bodyDefinition.limitMinDegrees > 180f
+                    || bodyDefinition.limitMaxDegrees < -180f || bodyDefinition.limitMaxDegrees > 180f)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V30,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' in rig '" + rig.name +
+                        "' has a Planar2D hinge range of [" + bodyDefinition.limitMinDegrees + ", " +
+                        bodyDefinition.limitMaxDegrees +
+                        "] degrees; the minimum must not exceed the maximum and both must stay " +
+                        "within [-180, 180]."));
+                }
+                if (bodyDefinition.swingLimitDegrees < 0f || bodyDefinition.swingLimitDegrees > 180f)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V30,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' in rig '" + rig.name +
+                        "' has a Spatial3D swing limit of " + bodyDefinition.swingLimitDegrees +
+                        " degrees; it must stay within [0, 180]."));
+                }
+                if (bodyDefinition.twistLimitDegrees < 0f || bodyDefinition.twistLimitDegrees > 180f)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V30,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' in rig '" + rig.name +
+                        "' has a Spatial3D twist limit of " + bodyDefinition.twistLimitDegrees +
+                        " degrees; it must stay within [0, 180]."));
+                }
+
+                // V-R7 (V32): mass must be positive.
+                if (bodyDefinition.mass <= 0f)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V32,
+                        rig,
+                        "Ragdoll body '" + bodyDefinition.displayName + "' in rig '" + rig.name +
+                        "' has mass " + bodyDefinition.mass + "; it must be greater than 0."));
+                }
+
+                // V-R6 (V31) data collection: only a HierarchyPath address's ancestry is a fact this
+                // asset can confirm on its own. See this method's remarks. A duplicate node address
+                // is excluded here too - it already reported V28, and counting the same node twice
+                // toward the tree would report a second, unrelated-looking fault for one mistake.
+                if (bodyDefinition.address.kind == RigNodeAddressKind.HierarchyPath
+                    && !isDuplicateNodeAddress)
+                {
+                    string hierarchyPath = bodyDefinition.address.hierarchyPath ?? string.Empty;
+                    hierarchyPathBodies.Add(
+                        new KeyValuePair<string, string>(hierarchyPath, bodyDefinition.displayName));
+                }
+            }
+
+            ValidateRagdollBodyTreeInto(rig, hierarchyPathBodies, messages);
+        }
+
+        /// <summary>
+        /// V-R6 (V31): among the bodies whose ancestry this asset can confirm (hierarchy-path
+        /// addresses only - see <see cref="ValidateRagdollBodiesInto"/>'s remarks), exactly one must
+        /// have no other such body as an ancestor.
+        /// </summary>
+        private static void ValidateRagdollBodyTreeInto(
+            RigAsset rig,
+            List<KeyValuePair<string, string>> hierarchyPathBodies,
+            List<ValidationMessage> messages)
+        {
+            if (hierarchyPathBodies.Count < 2)
+            {
+                return;
+            }
+
+            int rootCount = 0;
+            for (int bodyIndex = 0; bodyIndex < hierarchyPathBodies.Count; bodyIndex++)
+            {
+                string candidatePath = hierarchyPathBodies[bodyIndex].Key;
+                bool hasRagdolledAncestor = false;
+                for (int otherIndex = 0; otherIndex < hierarchyPathBodies.Count; otherIndex++)
+                {
+                    if (otherIndex == bodyIndex)
+                    {
+                        continue;
+                    }
+                    if (IsAncestorPath(hierarchyPathBodies[otherIndex].Key, candidatePath))
+                    {
+                        hasRagdolledAncestor = true;
+                        break;
+                    }
+                }
+                if (!hasRagdolledAncestor)
+                {
+                    rootCount++;
+                }
+            }
+
+            if (rootCount != 1)
+            {
+                messages.Add(new ValidationMessage(
+                    ValidationSeverity.Warning,
+                    ValidationCode.V31,
+                    rig,
+                    "Rig '" + rig.name + "' has " + rootCount +
+                    " hierarchy-path-addressed ragdoll bodies with no ragdolled ancestor among the " +
+                    "bodies this asset can place in the hierarchy; a single articulated ragdoll " +
+                    "has exactly one root."));
+            }
+        }
+
+        /// <summary>
+        /// True when <paramref name="ancestorPath"/> is a proper ancestor of
+        /// <paramref name="descendantPath"/> below the prefab root, by string prefix. An empty path
+        /// (the prefab root itself) is an ancestor of every other non-empty path.
+        /// </summary>
+        private static bool IsAncestorPath(string ancestorPath, string descendantPath)
+        {
+            if (ancestorPath == descendantPath)
+            {
+                return false;
+            }
+            if (ancestorPath.Length == 0)
+            {
+                return descendantPath.Length > 0;
+            }
+            return descendantPath.StartsWith(ancestorPath + "/", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Renders a ragdoll body address as the key V28 compares on, and as the text it reports.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="DescribeBillboardAddress"/>, this must also render
+        /// <see cref="RigNodeAddressKind.Bone"/>: billboard roots reject that kind outright (V25),
+        /// but a ragdoll body may legitimately be welded to a skinned bone.
+        /// </remarks>
+        private static string DescribeRagdollAddress(RigNodeAddress address)
+        {
+            if (address.kind == RigNodeAddressKind.RigTarget)
+            {
+                return "target " + address.targetId.ToString();
+            }
+            if (address.kind == RigNodeAddressKind.Bone)
+            {
+                return "bone '" + address.boneName + "'";
+            }
             return string.IsNullOrEmpty(address.hierarchyPath)
                 ? "the prefab root"
                 : "path '" + address.hierarchyPath + "'";

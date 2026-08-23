@@ -46,7 +46,15 @@ namespace DotsAnimationToolkit.Editor
         Billboard = 3,
 
         /// <summary>An attachment point hung off this object — <c>SocketDefinition</c> on the rig.</summary>
-        Socket = 4
+        Socket = 4,
+
+        /// <summary>
+        /// A box collider this node falls with when the rig's ragdoll drops — the presence of a
+        /// <c>RagdollBodyDefinition</c> on the rig, exactly as a socket's presence is a
+        /// <c>SocketDefinition</c>: a track that exists rather than a flag on the asset. Works on an
+        /// authored guiding part and an imported skinned-mesh bone alike (spec §3.3, amendment A45).
+        /// </summary>
+        Ragdoll = 5
     }
 
     /// <summary>

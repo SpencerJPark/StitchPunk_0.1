@@ -127,8 +127,8 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// Error: a <see cref="BillboardRootDefinition"/> addresses a node that does not exist
-        /// (amendment A44) — a <see cref="BillboardAddressKind.RigTarget"/> id that is not a target
-        /// of this rig, or a <see cref="BillboardAddressKind.HierarchyPath"/> with no path.
+        /// (amendment A44) — a <see cref="RigNodeAddressKind.RigTarget"/> id that is not a target
+        /// of this rig, or a <see cref="RigNodeAddressKind.HierarchyPath"/> with no path.
         /// </summary>
         /// <remarks>
         /// An unresolved root is silent damage: it bakes nothing, so the node it was meant to turn
@@ -172,7 +172,108 @@ namespace DotsAnimationToolkit.Authoring
         /// reader chasing "V02: unknown target" against a track that names no target at all would be
         /// looking in the wrong list.
         /// </remarks>
-        V24 = 24
+        V24 = 24,
+
+        /// <summary>
+        /// Error: a <see cref="RigAsset.billboardRoots"/> row carries a
+        /// <see cref="RigNodeAddressKind.Bone"/> address (Phase D ragdoll spec, rule V-R8).
+        /// </summary>
+        /// <remarks>
+        /// Billboarding has no bone path: a billboard root turns a node's transform, and a bone has
+        /// no transform of its own to write — only the VAT bake samples it, into a texel, never into
+        /// a facing. The <see cref="RigNodeAddressKind.Bone"/> kind exists for the ragdoll body list
+        /// that shares this address struct, not for billboard roots, and a rig row that authors one
+        /// anyway would bake a billboard that silently does nothing.
+        /// </remarks>
+        V25 = 25,
+
+        /// <summary>
+        /// Error: a <see cref="RagdollBodyDefinition"/>'s <c>address</c> names a
+        /// <see cref="RigNodeAddressKind.RigTarget"/> id that is not a target of this rig (Phase D
+        /// ragdoll spec, rule V-R1).
+        /// </summary>
+        /// <remarks>
+        /// Only the <see cref="RigNodeAddressKind.RigTarget"/> half is reachable here, for exactly
+        /// the reason V21 is only half-reachable for billboard roots: a
+        /// <see cref="RigNodeAddressKind.HierarchyPath"/> or <see cref="RigNodeAddressKind.Bone"/>
+        /// address names something outside this asset, and a <see cref="RigAsset"/> neither
+        /// references a prefab nor carries a hierarchy of its own. Resolving those two kinds needs
+        /// the actual prefab, which only the entity bake (Phase D3) holds - a future ragdoll-body
+        /// resolver in that phase reports an unresolved path or bone the same way
+        /// <c>BillboardRootResolver</c> already does for V21.
+        /// </remarks>
+        V26 = 26,
+
+        /// <summary>
+        /// Error: a <see cref="RagdollBodyDefinition"/>'s <c>stableId</c> is left at the reserved 0
+        /// value, or duplicates another body's id, within one rig (Phase D ragdoll spec, rule V-R2).
+        /// </summary>
+        V27 = 27,
+
+        /// <summary>
+        /// Error: two <see cref="RagdollBodyDefinition"/> rows address the same node (Phase D
+        /// ragdoll spec, rule V-R3).
+        /// </summary>
+        /// <remarks>
+        /// Two bodies on one node have no defined resolution - the implied-parent hierarchy (spec
+        /// section 3.3) cannot place one body relative to another that shares its own node, and the
+        /// self-collision exclusion between "parent" and "child" would not know which pair it was
+        /// looking at. The duplicate-identity shape mirrors V22's, scoped to a node that can carry a
+        /// ragdoll body instead of a billboard root.
+        /// </remarks>
+        V28 = 28,
+
+        /// <summary>
+        /// Error: a <see cref="RagdollBodyDefinition"/>'s <c>boxSize</c> has a component that is not
+        /// greater than 0 (Phase D ragdoll spec, rule V-R4). A collider with a zero or negative
+        /// extent has no volume for the bake's inertia derivation to work from.
+        /// </summary>
+        V29 = 29,
+
+        /// <summary>
+        /// Error: a <see cref="RagdollBodyDefinition"/>'s joint limits are out of range (Phase D
+        /// ragdoll spec, rule V-R5) - <c>limitMinDegrees</c> exceeds <c>limitMaxDegrees</c>, either
+        /// one leaves [-180, 180], or <c>swingLimitDegrees</c> / <c>twistLimitDegrees</c> leaves
+        /// [0, 180].
+        /// </summary>
+        V30 = 30,
+
+        /// <summary>
+        /// Warning: this rig's ragdoll bodies do not form a single tree (Phase D ragdoll spec, rule
+        /// V-R6) - among the bodies whose place in the hierarchy this asset can itself confirm, more
+        /// or fewer than exactly one has no ragdolled ancestor.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A warning rather than an error on purpose (spec section 4): two disconnected
+        /// articulations on one rig is odd but simulable, and a rig mid-authoring passes through
+        /// that state on the way to a finished one.
+        /// </para>
+        /// <para>
+        /// <strong>Only <see cref="RigNodeAddressKind.HierarchyPath"/> bodies are checked.</strong>
+        /// A path's ancestry is a fact the rig asset can verify on its own, by string prefix, with
+        /// no prefab in hand. A <see cref="RigNodeAddressKind.RigTarget"/> address carries no
+        /// path - <c>RigTargetDefinition.sourceNodePath</c> is an unvalidated editor convenience,
+        /// never a source of truth, so treating it as one here would be reporting a fact this asset
+        /// cannot actually back up - and a <see cref="RigNodeAddressKind.Bone"/> address lives in an
+        /// armature this asset does not reference at all. A rig whose bodies are entirely
+        /// target- or bone-addressed therefore never trips this rule at authoring time; the fully
+        /// accurate check needs the real prefab, the same gap V-R1/V26 documents for address
+        /// resolution.
+        /// </para>
+        /// <para>
+        /// A body whose node is already reported as a V-R3/V28 duplicate is excluded from this
+        /// count. Two bodies sharing one path are one mistake, not a second, unrelated-looking claim
+        /// that the tree is also disconnected.
+        /// </para>
+        /// </remarks>
+        V31 = 31,
+
+        /// <summary>
+        /// Error: a <see cref="RagdollBodyDefinition"/>'s <c>mass</c> is not greater than 0 (Phase D
+        /// ragdoll spec, rule V-R7). A zero or negative mass has no closed-form inertia tensor.
+        /// </summary>
+        V32 = 32
     }
 
     /// <summary>

@@ -417,6 +417,32 @@
 /* The toggle itself is tinted when on, so the mode is legible from the toolbar as well as from
    the viewport. Three signals for one mode is deliberate: the cost of misreading it is a gizmo
    drag that edits the rig when you meant to key a pose. */
+/* Lives in the Rig Hierarchy pane header rather than the toolbar, so it has to read as one of that
+   row's buttons (New / Delete / All) rather than as a flat toolbar toggle. A ToolbarToggle outside a
+   Toolbar inherits a transparent background and no border, which in a pane header looks like a label
+   somebody forgot to style — these rules give it the ordinary button chrome back. It stays a
+   ToolbarToggle rather than becoming a Button so its :checked state still reads at a glance and the
+   existing bindings are untouched. */
+.clip-editor__rig-edit-toggle {
+    background-color: rgb(88, 88, 88);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgb(48, 48, 48);
+    border-right-color: rgb(48, 48, 48);
+    border-top-color: rgb(48, 48, 48);
+    border-bottom-color: rgb(48, 48, 48);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.clip-editor__rig-edit-toggle:hover {
+    background-color: rgb(103, 103, 103);
+}
+
 .clip-editor__rig-edit-toggle:checked {
     background-color: rgb(226, 138, 44);
     color: rgb(24, 20, 14);
@@ -555,6 +581,28 @@
    nothing else on screen says which one a drag would move. */
 .clip-editor__component--active {
     border-color: rgba(120, 200, 255, 0.55);
+}
+
+/* The object's own Transform or BoneTransform (Task C, D10): every part has one, so it does not
+   get the boxed, bordered chrome that says "a component someone added". No border, no fill, no
+   header background -- it reads as the object's own heading running straight into its fields,
+   not as one more item in the stack below it. */
+.clip-editor__component--intrinsic {
+    margin-top: 2px;
+    margin-bottom: 4px;
+    padding-bottom: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.clip-editor__component--intrinsic > .clip-editor__component-header {
+    padding-left: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.clip-editor__component--intrinsic > .clip-editor__component-header > .clip-editor__component-title {
+    -unity-font-style: normal;
+    opacity: 0.8;
 }
 
 .clip-editor__component-header {

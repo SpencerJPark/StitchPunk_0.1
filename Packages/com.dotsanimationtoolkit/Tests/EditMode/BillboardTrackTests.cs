@@ -46,9 +46,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 displayName = "Torso",
                 stableId = TorsoRootId,
-                address = new BillboardNodeAddress
+                address = new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.RigTarget,
+                    kind = RigNodeAddressKind.RigTarget,
                     targetId = TargetId
                 }
             });
@@ -56,9 +56,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 displayName = "Head",
                 stableId = HeadRootId,
-                address = new BillboardNodeAddress
+                address = new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.HierarchyPath,
+                    kind = RigNodeAddressKind.HierarchyPath,
                     hierarchyPath = "Head"
                 }
             });

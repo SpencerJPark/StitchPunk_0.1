@@ -46,6 +46,11 @@ Packages/com.dotsanimationtoolkit/
 │   ├── Systems/             (all ISystems + AnimationToolkitSystemGroups.cs)
 │   └── Api/                 (AnimationCommandUtil, ClipRegistryUtil, PlaybackQuery,
 │                             ToolkitWorldControl)
+├── Runtime.Physics/         (optional, Phase D7, amendment A45)
+│   └── DotsAnimationToolkit.Runtime.Physics.asmdef
+│                            (RagdollPhysicsProbeSystem — real CollisionWorld box-casts in place of
+│                             RagdollProbeFallbackSystem's one ground plane; excluded from
+│                             compilation entirely when Unity Physics is absent, §1.3, §5)
 ├── Authoring/
 │   ├── DotsAnimationToolkit.Authoring.asmdef
 │   ├── Assets/              (RigAsset, ClipAsset, ClipSetAsset, VatTextureSetAsset)
@@ -88,7 +93,8 @@ Packages/com.dotsanimationtoolkit/
 | asmdef | References | Platforms | Notes |
 |---|---|---|---|
 | `DotsAnimationToolkit.Runtime` | Unity.Entities, Unity.Entities.Graphics, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Transforms | All | No UnityEditor usage anywhere. `allowUnsafeCode: true` (blob building helpers). |
-| `DotsAnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. |
+| `DotsAnimationToolkit.Authoring` | Runtime, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Transforms (Phase D, amendment A45) | All (bakers/SO classes compile for players; Unity strips baking execution from builds — this is the standard Entities authoring layout and avoids the host project's mistake of *editor tooling* in an unrestricted assembly) | SOs, Bakers, `ClipRegistryBuilder`, `ClipValidation`. Contains **zero** `UnityEditor` references — anything needing UnityEditor goes to the Editor asmdef. `Unity.Transforms` added in Phase D3: `ActorBaker` bakes `RagdollRestPose`'s `LocalTransform`/`PostTransformMatrix` fields directly. |
+| `DotsAnimationToolkit.Runtime.Physics` (Phase D7, amendment A45) | Runtime, Unity.Entities, Unity.Burst, Unity.Collections, Unity.Mathematics, Unity.Physics | All | **Optional.** The one probe provider Unity Physics is allowed to touch (§5.6, §7.5's D2 seam) — `RagdollPhysicsProbeSystem` box-casts each ragdoll body against `CollisionWorld` and disables `RagdollProbeFallbackSystem` when it exists. Carries `versionDefines: [{ name: "com.unity.physics", expression: "1.0.0", define: "DOTS_ANIM_TOOLKIT_PHYSICS" }]` and `defineConstraints: ["DOTS_ANIM_TOOLKIT_PHYSICS"]`, so without Unity Physics installed the whole assembly is excluded from compilation. Verified in the Editor before this row was written: an excluded assembly's unresolvable reference produces no console output at all, not even a warning (D7's build-step verification item, spec §7.5). `Runtime` itself names no physics assembly and never will — this row is additive, not a change to `Runtime`'s own line above. |
 | `DotsAnimationToolkit.Editor` | Runtime, Authoring, Unity.Entities, Unity.Entities.Hybrid, Unity.Burst, Unity.Collections, Unity.Mathematics | **["Editor"] only** | Windows, preview, VAT texture baker, inspectors, id tooling. This is the fix for the audit §1/§4 finding (host `StitchPunk.Editor.asmdef` ships in builds — the package must never repeat it; enforced by test, §8 M6). |
 | `DotsAnimationToolkit.Tests.EditMode` | Runtime, Authoring, Editor, UnityEngine.TestRunner, UnityEditor.TestRunner, Unity.Entities, Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst | ["Editor"] | Pure math/data/determinism/validation tests (§11). |
 | `DotsAnimationToolkit.Tests.PlayMode` | Runtime, Authoring, UnityEngine.TestRunner, Unity.Entities, Unity.Entities.Hybrid, Unity.Entities.Graphics (amendment A33), Unity.Collections, Unity.Mathematics, Unity.Mathematics.Extensions, Unity.Burst, Unity.Transforms | **[]** (amendment A25, superseding A17) | World/system integration tests (§11). |
@@ -1851,3 +1857,112 @@ A48.1 called `ClipAsset.frameRate` an authoring grid — the ruler's ticks and w
 ### What did not change
 
 Key times are still normalized, so changing the rate still moves no key (A48.1) — it changes how finely the clip is cut, and off-grid keys are still marked rather than snapped. Baked textures are fixed at bake time, so a rate change means a re-bake; the hash is what says so.
+
+---
+
+## Amendment A50 (2026-08-22 — product-owner directive): the ragdoll is an authorable rig feature that falls in the billboard plane
+
+**Numbering note.** The Phase D spec was drafted calling this A45; A45–A49 were
+already taken. It is A50 everywhere, including in the shipped source comments.
+
+### The directive
+
+A ragdoll is a component in the Clip Editor. Adding it to a node gives that node
+a box collider placed and sized in the viewport, on an authored guiding part or
+an imported skinned bone alike. It defaults to a **2D** ragdoll — one that lives
+inside the character's own plane of existence, so a billboarded flat character
+falls *via its billboard* rather than in world space. A 3D option exists. The
+toolbar toggle starts the simulation; turning it off restores the character
+exactly as it was.
+
+### Why the plane is the whole design
+
+A billboarded cutout has no meaningful world-space "down". Orbit the camera and
+world gravity drags the character sideways out of its own plane and edge-on into
+invisibility. So `Planar2D` constrains translation to the billboard plane and
+rotation to that plane's normal, and takes gravity from the frame
+`BillboardResolveSystem` resolved **this frame**, through `BillboardQuery`.
+
+That is not a coincidence of design — A44 published `BillboardRootElement.resolvedRotation`
+and `BillboardMember` for exactly this consumer, and said so in their own doc
+comments at the time. The ragdoll and the renderer cannot disagree about facing,
+because there is one answer and both read it.
+
+### The data model — rows on the rig, beside the billboard roots
+
+`RigAsset.ragdollBodies` (`RagdollBodyDefinition`) and `ragdollSettings`
+(`RagdollRigSettings`), exactly where `billboardRoots`' doc comment predicted
+them. A body carries its box, mass, damping, contact response, both limit pairs,
+and its self-collision group and mask.
+
+**The joint is the hierarchy.** A body's parent is its nearest ragdolled
+ancestor — skipping unragdolled nodes between them — and the root is simply the
+body with no ragdolled ancestor above it. Nothing stores a parent reference or an
+`isRoot` flag, because a second statement could disagree with the hierarchy.
+
+`space` is per **rig**, not per body: half an articulation constrained to a plane
+and half free is not a configuration, it is a bug.
+
+### Address generalisation (breaking, data-safe)
+
+`BillboardNodeAddress` → `RigNodeAddress`, `BillboardAddressKind` →
+`RigNodeAddressKind`, gaining `Bone = 2`. Serialized assets are unaffected —
+Unity writes a plain `[Serializable]` struct inline as its fields, and the type
+name reaches the YAML only for `UnityEngine.Object` subclasses and
+`[SerializeReference]` fields — but it is a public API break, hence 0.11.0.
+
+Billboarding rejects `Bone` at validation (V25); the ragdoll's own rules are
+V26–V32.
+
+### Runtime shape
+
+A new `AnimationToolkitRagdollSystemGroup` inside Presentation, with two
+load-bearing edges: **after** `BillboardResolveSystem`, because the gravity frame
+must be this frame's; and **before** `SocketResolveSystem`, because a socket
+resolving first puts an attached item in the hand one frame late.
+
+One enableable `RagdollActor` is the entire public control surface. Enabling
+captures the pose into `RagdollRestPose`; disabling restores it exactly. "Before"
+means before *this drop*, not the rig's rest pose, which is why the buffer is
+captured at switch-on rather than baked.
+
+**§5.1's separation is preserved on the physics question.** World contacts arrive
+through a buffer a *provider* fills. `DotsAnimationToolkit.Runtime.Physics` is a
+separate assembly, excluded wholesale by `defineConstraints` when
+`com.unity.physics` is absent — verified empirically before it was built, with a
+scratch asmdef carrying an unresolvable reference and a bogus constraint symbol,
+which produced no console output at all. The core solver names no physics type,
+which is also what lets it run in the editor preview where no physics world
+exists.
+
+### Corrections found while building it
+
+The spec was wrong five times, and each correction cost one phase rather than a
+release:
+
+1. **A contact must re-derive its penetration on every solver iteration.**
+   Re-applying the probe's once-measured `distance` across all six iterations
+   *injects* energy — a body climbed to +89 units/s over ~200 frames and never
+   settled. **Nothing in the solver's own test suite could see it**: determinism,
+   joint limits and the plane invariant all hold perfectly while energy is being
+   pumped in. Only a runtime settle test exposed it.
+2. **The plane projection runs last in each iteration, not third.** Contacts
+   introduce an out-of-plane component, so projecting before them holds the
+   invariant only on average.
+3. Three fields omitted outright and undoable-without: a joint's
+   `parentAnchorOffset`, a contact's `bodyIndex`, and the plane's `planeOrigin`.
+4. **`V-R*` was never a real code namespace** — the rules are ordinary
+   sequential `ValidationCode` entries.
+5. **`ClipObjectRef` never distinguished `Bone` from `HierarchyPath`**, which was
+   correct while billboarding was its only consumer and silently wrong the moment
+   bodies became legal on skeleton bones.
+
+### Limitations carried forward
+
+A VAT/skinned actor authors and previews a ragdoll fully but does not simulate
+one at run time — its skeleton is texels, so there is no bone entity to move, and
+a `Bone` address therefore *never* resolves at bake (reported at info, not as an
+error, so it is not confused with a broken address). Self-collision is
+box-vs-box; contact response is linear; a ragdoll has no timeline. `Spatial3D`
+exists in the solver and the data model but is **not finished**, and the axis
+twist is measured about remains open.

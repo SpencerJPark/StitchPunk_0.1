@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Tests.EditMode
@@ -86,6 +87,36 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(
                 1, cloneTarget.styleSheets.count,
                 "ClipEditorWindow.uxml must apply its stylesheet to the clone target.");
+        }
+
+        /// <summary>
+        /// The ragdoll toggle clones as a real <see cref="ToolbarToggle"/>, defaulting off (Phase
+        /// D6, spec §8.4).
+        /// </summary>
+        /// <remarks>
+        /// <c>ClipEditorWindow.BindToolbar</c> resolves this element through
+        /// <c>Q&lt;ToolbarToggle&gt;("ragdoll-preview-toggle")</c> and calls
+        /// <c>RegisterValueChangedCallback</c> on the result: a rename to a plain <c>Toggle</c> or
+        /// to a <c>Button</c> would satisfy <see cref="ClonedLayout_ContainsEverySlotTheWindowResolves"/>'s
+        /// generic <c>Q&lt;VisualElement&gt;</c> lookup while making the typed query return null and
+        /// the callback bind to nothing — precisely the "toggle that visibly exists but does
+        /// nothing" failure the placeholder this phase replaces used to warn about in its own
+        /// tooltip. Whether the callback itself fires is not checkable without the window on
+        /// screen (this file's own scope, stated above); this is the static half of "bound and has
+        /// a callback" that can be.
+        /// </remarks>
+        [Test]
+        public void RagdollPreviewToggle_ClonesAsAToolbarToggle_DefaultingOff()
+        {
+            VisualElement cloneTarget = CloneLayout();
+            ToolbarToggle ragdollToggle = cloneTarget.Q<ToolbarToggle>("ragdoll-preview-toggle");
+            Assert.IsNotNull(
+                ragdollToggle,
+                "ragdoll-preview-toggle must clone as a ToolbarToggle, or BindToolbar's typed Q<> "
+                    + "call finds nothing and the toggle's callback never binds.");
+            Assert.IsFalse(
+                ragdollToggle.value,
+                "A ragdoll must start off — spec §8.4 has no 'preview opens already dropped' case.");
         }
 
         [Test]

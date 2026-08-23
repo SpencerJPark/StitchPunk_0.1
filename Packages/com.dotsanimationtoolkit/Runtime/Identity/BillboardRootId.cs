@@ -17,7 +17,7 @@ namespace DotsAnimationToolkit
     /// </para>
     /// <para>
     /// <strong>This is the root's own identity, not the identity of the node it addresses.</strong>
-    /// A billboard root names the node it turns through a <c>BillboardNodeAddress</c> — a target id
+    /// A billboard root names the node it turns through a <c>RigNodeAddress</c> — a target id
     /// or a hierarchy path — and that address is editable. Clip billboard tracks bind to <em>this</em>
     /// id instead, so re-pointing a root at a different node keeps every clip that keys it intact.
     /// Binding tracks to the addressed node would have made "billboard the torso instead of the hips"

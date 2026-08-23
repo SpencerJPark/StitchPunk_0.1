@@ -389,4 +389,63 @@ MonoBehaviour:
     defaultActive: 0
   mirrorPairs: []
   sockets: []
-  billboardRoots: []
+  billboardRoots:
+  - displayName: LeftLowerArm
+    stableId: 887804305
+    address:
+      kind: 1
+      targetId: 0
+      hierarchyPath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm/LeftLowerArm
+      boneName: 
+    mode: 4
+    constraintAxis:
+      x: 0
+      y: 1
+      z: 0
+    angleOffsetDegrees: 0
+    snapEnabled: 0
+    snapSteps: 8
+    snapOffsetDegrees: 0
+    clampEnabled: 0
+    clampArcDegrees: 180
+  ragdollBodies:
+  - displayName: LeftLowerArm Socket
+    stableId: 2292015977
+    address:
+      kind: 1
+      targetId: 0
+      hierarchyPath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm/LeftLowerArm
+      boneName: 
+    boxCenter:
+      x: -0.04347971
+      y: -0.20142229
+      z: -0.0045610922
+    boxSize:
+      x: 0.25
+      y: 0.5483098
+      z: 0.00000010770964
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -45
+    limitMaxDegrees: 45
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 255
+    collidesWithWorld: 1
+  ragdollSettings:
+    space: 0
+    gravityScale: 1
+    defaultLinearDamping: 0.05
+    defaultAngularDamping: 0.05
+    jointStiffness: 1
+    jointDamping: 0.5
+    solverIterations: 6
+    substepHz: 120

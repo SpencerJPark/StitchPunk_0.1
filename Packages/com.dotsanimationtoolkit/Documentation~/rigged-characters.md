@@ -42,7 +42,8 @@ The per-frame CPU cost is a Burst job writing three floats per visible part. Tha
 
 VAT trades flexibility for that. Be deliberate about it:
 
-- **The pose is frozen at bake time.** No IK, no procedural bone override, no runtime retargeting, no ragdoll blending. What you baked is what plays.
+- **The pose is frozen at bake time.** No IK, no procedural bone override, no runtime retargeting. What you baked is what plays.
+- **Ragdoll is the sharpest case of that, and the rule has two halves worth separating.** You *can* put ragdoll bodies on a rigged character's bones, place their boxes, tune their limits, and watch the whole thing fall in the Clip Editor's preview — the preview poses a real GameObject skeleton, so all of that works exactly as it does for a cutout rig. What you cannot do is simulate it **at run time**: a VAT character's skeleton exists only as texels in a texture, so there is no bone entity for a solver to move, and the actor keeps playing its baked clip instead. This is structural rather than unfinished. If you need a rigged character to physically fall in game, drive the fall with transform-track parts, which are real entities. See [`ragdoll.md`](ragdoll.md).
 - **Blending is a two-frame lerp.** You can crossfade clip A into clip B (`_VatFrameA`/`_VatFrameB`/`_VatBlend`). You cannot run an additive layer on top of a VAT part — `VatDriven.layerIndex` binds a part to exactly *one* playback layer.
 - **Memory scales with frames × bones.** Bone flavour writes a 3×4 matrix as **3 texture rows per frame**, at RGBAHalf (8 bytes/texel) unless you enable full precision. Texture width is the next power of two above your bone count, capped at 1024, wrapping to more rows beyond that.
 
@@ -129,9 +130,9 @@ and the route into prefab mode — is in [`clip-editor.md`](clip-editor.md). Two
 things there are worth calling out for a rigged character in particular:
 
 - **The rig hierarchy is the bone picker.** Assign your rigged prefab to the
-  toolbar's **Rig** field, select a bone in the tree, and the inspector offers
-  **Add Bone Track** for exactly that bone. No typing, so the "name resolved to
-  nothing and the bake froze it at rest" failure cannot happen.
+  toolbar's **Bone Source** field, select a bone in the tree, and the inspector
+  offers **Add Bone Track** for exactly that bone. No typing, so the "name
+  resolved to nothing and the bake froze it at rest" failure cannot happen.
 - **Bone sockets need a bake; rig-target sockets do not.** A bone exists at run
   time only as texels in a texture, so a socket following one has its motion
   captured by the VAT bake. Until that has happened it resolves to the actor's
@@ -140,7 +141,7 @@ things there are worth calling out for a rigged character in particular:
 ---
 
 
-> **Preview limitation, stated plainly:** the preview renders untextured quads driven by transform tracks. It does **not** play VAT. For a rigged character, the preview shows you timing, events and socket placement — not the deformed mesh.
+> **Preview limitation, stated plainly:** the Clip Editor poses the real GameObject skeleton with your Bone Source prefab's actual `SkinnedMeshRenderer` attached, so the deformed mesh *is* what you see while scrubbing bone tracks — it is not left at rest. What the preview does **not** exercise is the run-time technique itself: it never samples a baked VAT texture through the actor's shader, so it cannot catch a bake-only defect (a stale bake, a texture-format mismatch, a rig that changed after the last bake). Confirm those by baking and looking at the actor in Play mode, not by trusting the preview alone.
 
 ---
 

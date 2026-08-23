@@ -158,7 +158,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 {
                     ClipComponentKind.Flipbook,
                     ClipComponentKind.Billboard,
-                    ClipComponentKind.Socket
+                    ClipComponentKind.Socket,
+                    ClipComponentKind.Ragdoll
                 },
                 addable,
                 "The add-ons, in stack order.");
@@ -245,7 +246,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             Assert.AreEqual(1, rig.billboardRoots.Count);
             Assert.AreEqual(
-                BillboardAddressKind.HierarchyPath, rig.billboardRoots[0].address.kind,
+                RigNodeAddressKind.HierarchyPath, rig.billboardRoots[0].address.kind,
                 "A billboard root is a fact about where a node sits, which is what its descendants "
                 + "inherit it through.");
             Assert.AreEqual(BonePath, rig.billboardRoots[0].address.hierarchyPath);
@@ -442,7 +443,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(0, added.index);
             Assert.AreEqual(1, rig.billboardRoots.Count);
             Assert.AreEqual(
-                BillboardAddressKind.RigTarget, rig.billboardRoots[0].address.kind);
+                RigNodeAddressKind.RigTarget, rig.billboardRoots[0].address.kind);
             Assert.AreEqual(HeadTargetId, rig.billboardRoots[0].address.targetId);
             Assert.AreEqual(
                 0, clip.billboardTracks.Count,
@@ -509,6 +510,154 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     new ClipComponentInstance(ClipComponentKind.Billboard, 0)),
                 "The instance addresses the rig's roots, so the keys are found by root id rather "
                 + "than by that index.");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Ragdoll.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void RagdollIsRigScoped()
+        {
+            Assert.AreEqual(
+                ClipComponentScope.Rig, ClipComponentModel.Scope(ClipComponentKind.Ragdoll),
+                "A ragdoll body is rig structure with no clip-side half at all — every field on it "
+                + "is authored tuning, not a key.");
+        }
+
+        [Test]
+        public void RagdollDoesNotRequireARigTarget()
+        {
+            Assert.IsFalse(
+                ClipComponentModel.RequiresRigTarget(ClipComponentKind.Ragdoll),
+                "A body welds to a bare grouping transform or a skinned bone exactly as it does to "
+                + "a declared part — nothing about placing a box needs the node promoted first.");
+
+            int targetCountBefore = rig.targets.Count;
+            string reason;
+            Assert.IsTrue(
+                ClipComponentModel.CanAdd(clip, rig, Bone, ClipComponentKind.Ragdoll, out reason),
+                reason);
+
+            ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Ragdoll, "Spine Body");
+            Assert.AreEqual(
+                targetCountBefore, rig.targets.Count,
+                "Adding a ragdoll body must not mint a rig target the way a flipbook does.");
+        }
+
+        [Test]
+        public void RagdollAllowsOnlyOneBodyPerNode()
+        {
+            Assert.IsFalse(
+                ClipComponentModel.AllowsMultiple(ClipComponentKind.Ragdoll),
+                "V-R3 forbids two bodies on one node.");
+
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Ragdoll, "Head Body");
+            rig.EnsureStableIds();
+            ClipObjectRef weldedHead = ClipObjectRef.RigTarget(
+                HeadTargetId, 0u, rig.ragdollBodies[0].Id.Value);
+
+            string reason;
+            Assert.IsFalse(
+                ClipComponentModel.CanAdd(clip, rig, weldedHead, ClipComponentKind.Ragdoll, out reason),
+                "A second body on the same node is refused, not stacked.");
+            Assert.IsNotEmpty(reason);
+        }
+
+        [Test]
+        public void AddingRagdollOnARigTargetAddressesItById()
+        {
+            ClipComponentInstance added =
+                ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Ragdoll, "Head Body");
+
+            Assert.AreEqual(0, added.index);
+            Assert.AreEqual(1, rig.ragdollBodies.Count);
+            Assert.AreEqual(RigNodeAddressKind.RigTarget, rig.ragdollBodies[0].address.kind);
+            Assert.AreEqual(HeadTargetId, rig.ragdollBodies[0].address.targetId);
+            Assert.AreEqual("Head Body", rig.ragdollBodies[0].displayName);
+        }
+
+        [Test]
+        public void AddingRagdollOnABareTransformAddressesItByPath()
+        {
+            ClipComponentModel.Add(clip, rig, Bone, ClipComponentKind.Ragdoll, "Spine Body");
+
+            Assert.AreEqual(1, rig.ragdollBodies.Count);
+            Assert.AreEqual(
+                RigNodeAddressKind.HierarchyPath, rig.ragdollBodies[0].address.kind,
+                "A bare grouping transform has no id and no stable name — its path is the only "
+                + "handle a body has on it, the same one billboarding already uses.");
+            Assert.AreEqual(BonePath, rig.ragdollBodies[0].address.hierarchyPath);
+        }
+
+        [Test]
+        public void AddingRagdollOnASkinnedBoneAddressesItByName()
+        {
+            ClipObjectRef skinnedBone =
+                ClipObjectRef.Bone(BoneName, 0u, 0u, BonePath, 0u, isSkinnedBone: true);
+
+            ClipComponentModel.Add(clip, rig, skinnedBone, ClipComponentKind.Ragdoll, "Spine Body");
+
+            Assert.AreEqual(1, rig.ragdollBodies.Count);
+            Assert.AreEqual(
+                RigNodeAddressKind.Bone, rig.ragdollBodies[0].address.kind,
+                "A skinned bone's path below the prefab root moves whenever an artist reparents "
+                + "inside the armature, so it is addressed by name instead (spec §2).");
+            Assert.AreEqual(BoneName, rig.ragdollBodies[0].address.boneName);
+        }
+
+        [Test]
+        public void RagdollPresenceFollowsTheBodyTheWindowResolved()
+        {
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Ragdoll, "Head Body");
+            rig.EnsureStableIds();
+            uint bodyId = rig.ragdollBodies[0].Id.Value;
+
+            // The model never re-derives which node a body's address resolves to — that is the
+            // window's job, exactly as it is for a billboard root — so presence here is driven by
+            // the id the reference already carries.
+            ClipObjectRef weldedHead = ClipObjectRef.RigTarget(HeadTargetId, 0u, bodyId);
+            ClipComponentModel.CollectInstances(clip, rig, weldedHead, instances);
+
+            int ragdollIndex = IndexOfKind(ClipComponentKind.Ragdoll);
+            Assert.AreNotEqual(-1, ragdollIndex);
+            Assert.AreEqual(0, instances[ragdollIndex].index);
+
+            ClipComponentModel.CollectInstances(clip, rig, Head, instances);
+            Assert.AreEqual(
+                -1, IndexOfKind(ClipComponentKind.Ragdoll),
+                "A reference with no resolved body id carries no ragdoll component.");
+        }
+
+        [Test]
+        public void RagdollKeyCountIsAlwaysZero()
+        {
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Ragdoll, "Head Body");
+            rig.EnsureStableIds();
+            ClipObjectRef weldedHead =
+                ClipObjectRef.RigTarget(HeadTargetId, 0u, rig.ragdollBodies[0].Id.Value);
+            ClipComponentModel.CollectInstances(clip, rig, weldedHead, instances);
+
+            int ragdollIndex = IndexOfKind(ClipComponentKind.Ragdoll);
+            Assert.AreEqual(
+                0, ClipComponentModel.KeyCount(clip, weldedHead, instances[ragdollIndex]),
+                "A ragdoll body has no keys at all, the same as a socket — not because it is empty, "
+                + "but because there is nothing on it a playhead ever reads.");
+        }
+
+        [Test]
+        public void RemovingRagdollDeletesItFromTheRig()
+        {
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Ragdoll, "Head Body");
+            rig.EnsureStableIds();
+            ClipObjectRef weldedHead =
+                ClipObjectRef.RigTarget(HeadTargetId, 0u, rig.ragdollBodies[0].Id.Value);
+            ClipComponentModel.CollectInstances(clip, rig, weldedHead, instances);
+
+            Assert.IsTrue(
+                ClipComponentModel.Remove(
+                    clip, rig, instances[IndexOfKind(ClipComponentKind.Ragdoll)]));
+            Assert.AreEqual(0, rig.ragdollBodies.Count);
         }
 
         // -----------------------------------------------------------------------------------

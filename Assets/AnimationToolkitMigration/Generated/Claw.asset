@@ -18,14 +18,19 @@ MonoBehaviour:
   defaultLoop: 2
   defaultBlendIn: 0.15
   defaultBlendOut: 0.15
+  frameRate: 30
   transformTracks: []
   spriteTracks: []
+  boneTracks: []
   events:
-  - normalizedTime: 0.205
+  - normalizedTime: 0.2
     eventKey: 18
     intParam: 2
     floatParam: 0
+    windowSeconds: 0
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30
     loopSafe: 0
+  vatTracks: []
+  billboardTracks: []

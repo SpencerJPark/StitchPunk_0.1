@@ -5,9 +5,8 @@
             <ui:Label text="Clip Set" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="clip-set-field" class="clip-editor__object-field"/>
             <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
-            <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
+            <ui:Label text="Bone Source" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
-            <uie:ToolbarToggle name="rig-edit-toggle" text="Rig Edit" class="clip-editor__bar-action clip-editor__rig-edit-toggle"/>
             <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
@@ -30,9 +29,19 @@
                         </ui:VisualElement>
                         <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
                             <ui:VisualElement class="clip-editor__pane-header">
-                                <ui:Label text="Hierarchy" class="clip-editor__pane-title"/>
+                                <ui:Label text="Rig Hierarchy" class="clip-editor__pane-title"/>
+                                <ui:VisualElement class="clip-editor__pane-actions">
+                                    <!-- "Edit" rather than "Rig Edit": sitting in the Rig Hierarchy
+                                         header, the "Rig" half is said by the row it is on. It stays
+                                         a ToolbarToggle so its checked state still reads at a glance
+                                         and every existing binding keeps working; the USS below gives
+                                         it the pane-action button's flat grey rest state.
+                                         NOTE: Unity's UI Builder deletes XML comments when it saves
+                                         this file. If this one is missing again, that is why. -->
+                                    <uie:ToolbarToggle name="rig-edit-toggle" text="Edit" class="clip-editor__pane-action clip-editor__rig-edit-toggle"/>
+                                </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:Label name="hierarchy-empty-label" text="Assign a rig in the toolbar to list its transforms." class="clip-editor__hint"/>
+                            <ui:Label name="hierarchy-empty-label" text="Assign a prefab to the toolbar's Bone Source field to list its transforms." class="clip-editor__hint"/>
                             <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy"/>
                         </ui:VisualElement>
                     </ui:TwoPaneSplitView>
@@ -46,7 +55,9 @@
                                      over it and inside the frame so they can never reach further
                                      than the 3D area. Empty in the UXML: ValidationBadgeElement
                                      builds the panel, because the panel and the toolbar button that
-                                     switches it are one control. -->
+                                     switches it are one control.
+                                     NOTE: Unity's UI Builder deletes XML comments when it saves this
+                                     file. If this one is missing again, that is why. -->
                                 <ui:VisualElement name="validation-overlay-slot" picking-mode="Ignore" class="clip-editor__validation-overlay-slot"/>
                             </ui:VisualElement>
                             <ui:VisualElement name="reconcile-panel" class="clip-editor__reconcile clip-editor--hidden">

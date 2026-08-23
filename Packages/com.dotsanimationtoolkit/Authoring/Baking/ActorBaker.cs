@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 
 namespace DotsAnimationToolkit.Authoring
@@ -118,6 +119,7 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             AddBillboardRoots(actorEntity, authoring, rig);
+            AddRagdollBodies(actorEntity, authoring, rig);
         }
 
         // -----------------------------------------------------------------------------------
@@ -252,6 +254,240 @@ namespace DotsAnimationToolkit.Authoring
                 clampHalfArcRadians = definition.clampEnabled
                     ? math.radians(definition.clampArcDegrees) * 0.5f
                     : -1f
+            };
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Ragdoll bodies (Phase D, amendment A50).
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Resolves the rig's ragdoll bodies against this actor's hierarchy and bakes them into the
+        /// actor's <see cref="RagdollBody"/>/<see cref="RagdollRestPose"/> buffers, plus the
+        /// <see cref="RagdollActor"/> toggle, <see cref="RagdollState"/> and
+        /// <see cref="RagdollWorldContact"/> buffer every ragdoll needs alongside them.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Structured the same way as <see cref="AddBillboardRoots"/>, for the same reason: a
+        /// ragdoll body can be any node of the prefab, including a bare grouping transform with no
+        /// baker of its own, so collecting the resolved bodies into buffers on the actor is what
+        /// lets one baker finish the hierarchy walk without a cross-entity structural change.
+        /// </para>
+        /// <para>
+        /// <strong>Opt-in twice over.</strong> A rig with no <c>ragdollBodies</c> at all bakes
+        /// nothing (spec §3.1's free-by-default contract, identical to <c>billboardRoots</c>). So
+        /// does a rig whose bodies exist but never resolve to a runtime node — every address is
+        /// broken, or every body addresses a skinned bone, or both. Either way there is nothing this
+        /// actor can simulate, and archetype-splitting every actor in the project for a component
+        /// that would carry zero elements is exactly what the opt-in components elsewhere in this
+        /// package (<c>AnimLod</c>, the socket registry) already refuse to do.
+        /// </para>
+        /// </remarks>
+        private void AddRagdollBodies(Entity actorEntity, ActorAuthoring authoring, RigAsset rig)
+        {
+            List<string> unresolvedBodies = new List<string>();
+            List<string> boneOnlyBodies = new List<string>();
+            List<ResolvedRagdollBody> resolvedBodies =
+                RagdollBodyResolver.Resolve(rig, authoring.transform, unresolvedBodies, boneOnlyBodies);
+
+            for (int messageIndex = 0; messageIndex < unresolvedBodies.Count; messageIndex++)
+            {
+                // Validation rule V26's runtime half, the ragdoll counterpart to V21's billboard
+                // half above: ClipValidation resolves target addresses against the rig; only here,
+                // with the prefab in hand, can a path or a target that matches nothing be reported
+                // against a clickable object.
+                Debug.LogError(
+                    MessagePrefix + "Ragdoll body " + unresolvedBodies[messageIndex] +
+                    " on rig '" + rig.name + "' matches no node under actor '" + authoring.name +
+                    "'. That body will not simulate. Fix the address on the rig, or rename the " +
+                    "object back.",
+                    authoring);
+            }
+
+            if (boneOnlyBodies.Count > 0)
+            {
+                // Not an error and not a warning: this is spec §5's D1 finding working as designed,
+                // not a mistake to fix. A skinned bone has no GameObject under a VAT actor's runtime
+                // prefab at all (rigged-characters.md: "No GameObject bone hierarchy"), so these
+                // bodies author and editor-preview completely but never gain a runtime node to
+                // simulate. Logged rather than silently dropped so the gap is never a surprise, at
+                // the informational tier so a rig deliberately mixing guiding-part and skinned-bone
+                // bodies does not read as broken.
+                StringBuilder boneListBuilder = new StringBuilder();
+                for (int boneIndex = 0; boneIndex < boneOnlyBodies.Count; boneIndex++)
+                {
+                    if (boneIndex > 0)
+                    {
+                        boneListBuilder.Append(", ");
+                    }
+                    boneListBuilder.Append(boneOnlyBodies[boneIndex]);
+                }
+                Debug.Log(
+                    MessagePrefix + "Actor '" + authoring.name + "' has " +
+                    boneOnlyBodies.Count.ToString() + " ragdoll body(ies) addressing a skinned bone " +
+                    "(" + boneListBuilder.ToString() + "): these author and editor-preview but do " +
+                    "not simulate at runtime, because a VAT actor has no bone entity for them to " +
+                    "move.",
+                    authoring);
+            }
+
+            if (resolvedBodies.Count == 0)
+            {
+                return;
+            }
+
+            WarnIfDisconnected(authoring, rig, resolvedBodies);
+
+            AddComponent<RagdollActor>(actorEntity);
+            SetComponentEnabled<RagdollActor>(actorEntity, false);
+
+            DynamicBuffer<RagdollBody> bodyElements = AddBuffer<RagdollBody>(actorEntity);
+            DynamicBuffer<RagdollRestPose> restPoseElements = AddBuffer<RagdollRestPose>(actorEntity);
+            RagdollRigSettings rigSettings = rig.ragdollSettings;
+
+            for (int bodyIndex = 0; bodyIndex < resolvedBodies.Count; bodyIndex++)
+            {
+                ResolvedRagdollBody resolvedBody = resolvedBodies[bodyIndex];
+                bodyElements.Add(new RagdollBody
+                {
+                    bodyId = resolvedBody.definition.Id,
+                    node = GetEntity(resolvedBody.node.gameObject, TransformUsageFlags.Dynamic),
+                    parentBodyIndex = resolvedBody.parentBodyIndex,
+                    parameters = BuildBodyParams(resolvedBody, rigSettings),
+                    state = default
+                });
+
+                // Identity, never read until RagdollCaptureSystem writes a real value into this
+                // slot — see RagdollRestPose's remarks on why the buffer is baked at full length
+                // rather than added to at capture time.
+                restPoseElements.Add(new RagdollRestPose
+                {
+                    localTransform = LocalTransform.Identity,
+                    postTransformMatrix = new PostTransformMatrix { Value = float4x4.identity }
+                });
+            }
+
+            AddComponent(actorEntity, new RagdollState
+            {
+                frameRotation = quaternion.identity,
+                planeNormal = new float3(0f, 0f, 1f),
+                // Never read until RagdollCaptureSystem seeds a real value on the first switch-on
+                // (see RagdollState.planeOrigin's remarks — a D4 finding, not part of this table
+                // when D3 shipped).
+                planeOrigin = float3.zero,
+                substepAccumulator = 0f,
+                sleepTimer = 0f,
+                // An actor is baked with RagdollActor disabled, so its very first enable must always
+                // capture — there is no earlier drop to have already seeded RagdollRestPose from.
+                flags = RagdollStateFlags.CaptureNeeded
+            });
+
+            AddBuffer<RagdollWorldContact>(actorEntity);
+
+            // D4 finding: RagdollRigSettings' rig-wide solver knobs (space, gravityScale,
+            // jointStiffness, jointDamping, solverIterations, substepHz) have nowhere else to land
+            // at runtime — see RagdollRigConfig's own remarks. Baked once, alongside every other
+            // ragdoll component, rather than re-read from RigAsset every step.
+            AddComponent(actorEntity, new RagdollRigConfig
+            {
+                space = rigSettings.space,
+                gravityScale = rigSettings.gravityScale,
+                jointStiffness = rigSettings.jointStiffness,
+                jointDamping = rigSettings.jointDamping,
+                solverIterations = rigSettings.solverIterations,
+                substepDeltaTime = rigSettings.substepHz > 0f ? 1f / rigSettings.substepHz : 1f / 120f
+            });
+        }
+
+        /// <summary>
+        /// Reports rule V-R6/V31's runtime counterpart: more than one resolved body with no
+        /// ragdolled ancestor is a disconnected ragdoll (spec §4.1's D1 finding, made authoritative
+        /// here because this pass already walks the resolved hierarchy to compute
+        /// <c>parentBodyIndex</c> — counting how many come back −1 is free). A warning, not an
+        /// error: two disconnected articulations on one rig is odd but simulable, matching V-R6's
+        /// own severity.
+        /// </summary>
+        private static void WarnIfDisconnected(
+            ActorAuthoring authoring, RigAsset rig, List<ResolvedRagdollBody> resolvedBodies)
+        {
+            int disconnectedRootCount = 0;
+            for (int bodyIndex = 0; bodyIndex < resolvedBodies.Count; bodyIndex++)
+            {
+                if (resolvedBodies[bodyIndex].parentBodyIndex < 0)
+                {
+                    disconnectedRootCount++;
+                }
+            }
+            if (disconnectedRootCount <= 1)
+            {
+                return;
+            }
+            Debug.LogWarning(
+                MessagePrefix + "Rig '" + rig.name + "' resolves " +
+                disconnectedRootCount.ToString() + " ragdoll bodies with no ragdolled ancestor " +
+                "under actor '" + authoring.name + "'. A ragdoll is meant to be a single connected " +
+                "tree (rule V-R6); the extra roots will simulate as separate, disconnected " +
+                "articulations.",
+                authoring);
+        }
+
+        /// <summary>
+        /// Converts one resolved body into its baked, constant configuration.
+        /// </summary>
+        /// <remarks>
+        /// Degrees become radians, the box's full size becomes half-extents, mass and inertia are
+        /// inverted, and the −1 damping sentinels are resolved — all once, here, all through the
+        /// exact shared functions D6's preview builder is specified to call too
+        /// (<see cref="RagdollSolver.ComputeBoxInverseInertia"/>,
+        /// <see cref="RagdollSolver.ResolveDampingSentinel"/>), so neither side can drift from the
+        /// other by so much as a rounding rule.
+        /// </remarks>
+        private static RagdollBodyParams BuildBodyParams(
+            ResolvedRagdollBody resolvedBody, RagdollRigSettings rigSettings)
+        {
+            RagdollBodyDefinition definition = resolvedBody.definition;
+            float3 boxHalfExtents = math.max(definition.boxSize, float3.zero) * 0.5f;
+
+            RagdollSolver.ComputeBoxInverseInertia(
+                definition.mass, in boxHalfExtents, out float invMass, out float3 invInertiaDiagonal);
+            RagdollSolver.ResolveDampingSentinel(
+                definition.linearDamping, rigSettings.defaultLinearDamping, out float resolvedLinearDamping);
+            RagdollSolver.ResolveDampingSentinel(
+                definition.angularDamping, rigSettings.defaultAngularDamping, out float resolvedAngularDamping);
+
+            bool isRoot = resolvedBody.parentBodyIndex < 0;
+            RagdollBodyFlags flags = RagdollBodyFlags.None;
+            if (definition.collidesWithWorld)
+            {
+                flags |= RagdollBodyFlags.CollidesWithWorld;
+            }
+            if (isRoot)
+            {
+                flags |= RagdollBodyFlags.IsRoot;
+            }
+
+            return new RagdollBodyParams
+            {
+                boxCenter = definition.boxCenter,
+                boxHalfExtents = boxHalfExtents,
+                boxRotation = quaternion.Euler(math.radians(definition.boxEulerAngles)),
+                invMass = invMass,
+                invInertiaDiagonal = invInertiaDiagonal,
+                linearDamping = resolvedLinearDamping,
+                angularDamping = resolvedAngularDamping,
+                restitution = definition.restitution,
+                friction = definition.friction,
+                limitMin = math.radians(definition.limitMinDegrees),
+                limitMax = math.radians(definition.limitMaxDegrees),
+                swingLimit = math.radians(definition.swingLimitDegrees),
+                twistLimit = math.radians(definition.twistLimitDegrees),
+                restRelativeRotation = resolvedBody.restRelativeRotation,
+                parentAnchorOffset = resolvedBody.parentAnchorOffset,
+                parentBodyIndex = resolvedBody.parentBodyIndex,
+                selfGroup = definition.selfGroup,
+                selfCollidesWith = definition.selfCollidesWith,
+                flags = flags
             };
         }
 

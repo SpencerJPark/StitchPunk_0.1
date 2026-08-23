@@ -73,4 +73,43 @@ namespace DotsAnimationToolkit
     public partial class AnimationToolkitPresentationSystemGroup : ComponentSystemGroup
     {
     }
+
+    /// <summary>
+    /// The ragdoll's five systems (Phase D, amendment A50, spec §7): capture, the fallback world
+    /// probe, the solver, the write-back, and release.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Two ordering edges, both load-bearing (spec §7's own emphasis).</strong>
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <strong>After <see cref="BillboardResolveSystem"/>.</strong> The gravity frame a Planar2D
+    /// ragdoll falls in must be this frame's billboard resolution, not last frame's — reading a
+    /// stale frame here is exactly the kind of one-frame lag amendment A44 already fought once.
+    /// </description></item>
+    /// <item><description>
+    /// <strong>Before <see cref="SocketResolveSystem"/>.</strong> A socket resolving before this
+    /// group writes puts an attached item in the hand one frame late — <c>rigged-characters.md</c>
+    /// already lists that symptom. <see cref="SocketResolveSystem"/>'s own
+    /// <c>UpdateAfter(TransformApplySystem)</c> cannot order it against a group that did not exist
+    /// when that attribute was written, so the edge has to go here, on this group, instead.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// Inside the group, <see cref="RagdollCaptureSystem"/> is <c>OrderFirst</c> and
+    /// <see cref="RagdollReleaseSystem"/> is <c>OrderLast</c>; the three systems between them chain
+    /// explicit <c>UpdateAfter</c> edges in the exact sequence spec §7 lists
+    /// (probe → solve → apply) rather than relying on the sort's tie-break for systems with no
+    /// declared relationship to each other — this package's convention throughout (CLAUDE.md: "never
+    /// ad-hoc ordering"), and doubly so here, since an unordered probe/solve/apply trio would let the
+    /// solver read a stale or empty contact buffer on some runs and not others.
+    /// </para>
+    /// </remarks>
+    [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
+    [UpdateAfter(typeof(BillboardResolveSystem))]
+    [UpdateBefore(typeof(SocketResolveSystem))]
+    public partial class AnimationToolkitRagdollSystemGroup : ComponentSystemGroup
+    {
+    }
 }

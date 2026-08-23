@@ -156,14 +156,14 @@ namespace DotsAnimationToolkit.Authoring
         /// an empty path names the actor root, which is a real node and the whole-actor billboard
         /// case A41 shipped.
         /// </remarks>
-        public static Transform FindNode(BillboardNodeAddress address, Transform actorRoot)
+        public static Transform FindNode(RigNodeAddress address, Transform actorRoot)
         {
             if (actorRoot == null)
             {
                 return null;
             }
 
-            if (address.kind == BillboardAddressKind.HierarchyPath)
+            if (address.kind == RigNodeAddressKind.HierarchyPath)
             {
                 return string.IsNullOrEmpty(address.hierarchyPath)
                     ? actorRoot
@@ -193,7 +193,7 @@ namespace DotsAnimationToolkit.Authoring
             string label = string.IsNullOrEmpty(definition.displayName)
                 ? "(unnamed)"
                 : definition.displayName;
-            if (definition.address.kind == BillboardAddressKind.RigTarget)
+            if (definition.address.kind == RigNodeAddressKind.RigTarget)
             {
                 return label + " -> target id " + definition.address.targetId.ToString();
             }

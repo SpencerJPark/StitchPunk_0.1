@@ -8,7 +8,114 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.11.0] — the ragdoll (amendment A50)
+
+### Added — ragdolls, authored on the rig hierarchy and falling in the billboard plane
+
+A ragdoll is a **box per bone**, added as a component in the Clip Editor to any
+node the hierarchy shows — an authored part, a bare grouping transform, or an
+imported skinned bone. There is no second hierarchy: a body's parent is its
+nearest ragdolled ancestor, so the rig you already have *is* the articulation,
+and there are no joint objects to place.
+
+**The default mode falls inside the character's own plane of existence, and that
+is the point of the feature.** A billboarded cutout has no meaningful world-space
+"down" — orbit the camera and world gravity would drag it sideways out of its own
+plane and edge-on into invisibility. `Planar2D` therefore constrains translation
+to the billboard plane and rotation to that plane's normal, and takes gravity
+from the frame `BillboardResolveSystem` resolved *this frame* via
+`BillboardQuery`. The character falls down the screen, and keeps falling down the
+screen as the camera orbits, because the frame turns with it. The ragdoll and the
+renderer cannot disagree about facing, because there is one answer and both read
+it — the reason A44 published `resolvedRotation` in the first place.
+
+- **Authoring** — `RagdollBodyDefinition` rows on `RigAsset`, beside
+  `billboardRoots` exactly as that field's own doc comment predicted. Box centre,
+  size and rotation in node-local space; mass, damping, restitution and friction;
+  a hinge range for `Planar2D` and swing/twist for `Spatial3D`, both always
+  stored so switching modes to look never destroys tuning. Inertia is derived
+  from the mass and the box rather than authored, because a box has a closed form
+  and asking anyone to type an inertia tensor is asking for a wrong one.
+- **Clip Editor** — a rig-scoped `Ragdoll` component with the full field stack,
+  wireframe boxes for every body with centre/face/rotation handles on the
+  selected one, and the toolbar's **Ragdoll** toggle finally wired: it captures
+  the pose, freezes the playhead, simulates, and restores the pose exactly when
+  switched off. Editor-only test scenery lives in Project Settings, never on the
+  rig, so a shipped rig never carries somebody's test box.
+- **Solver** — an XPBD solver in `Runtime/Sampling`, pure static Burst functions
+  taking plain structs, exactly as `ClipSampler` and `BillboardMath` are. That is
+  what lets the editor preview call the *same* functions the runtime job calls,
+  and `RagdollPreviewParityTests` keeps them honest.
+- **Runtime** — five systems in a new `AnimationToolkitRagdollSystemGroup`,
+  ordered after `BillboardResolveSystem` (the gravity frame must be this frame's)
+  and before `SocketResolveSystem` (or a sword in a ragdolling hand lags a
+  frame). One enableable `RagdollActor` is the entire public control surface;
+  an optional `RagdollLaunch` throws it.
+- **World collision is optional and costs non-users nothing.** Contacts arrive
+  through a buffer a *provider* fills. `DotsAnimationToolkit.Runtime.Physics` is
+  a separate assembly that Unity excludes wholesale when `com.unity.physics` is
+  absent, so **the package still declares no physics dependency** — and the core
+  solver names no physics type at all, which is also what lets it run in the
+  editor preview where no physics world exists. Without the package the world is
+  one plane at `RagdollConfig.fallbackGroundHeight`.
+
+**Corrections made during the build, recorded because each was a real defect:**
+
+- **A contact must re-derive its penetration on every solver iteration.**
+  Re-applying the probe's once-measured `distance` across all six iterations
+  *injects* energy instead of removing it — a body climbed from −0.16 to +89
+  units/s over ~200 frames and never settled. Nothing in the solver's own test
+  suite could see it: determinism, joint limits and the plane invariant all hold
+  perfectly while energy is being pumped in. It took a runtime settle test.
+- **The plane projection runs last in each iteration, not third.** Contacts
+  introduce a small out-of-plane component, so projecting before them holds the
+  planar invariant only on average.
+- Three fields the design omitted outright and the implementation could not do
+  without: a joint's `parentAnchorOffset`, a contact's `bodyIndex`, and the
+  plane's `planeOrigin`.
+
+### Limitations
+
+- **A VAT/skinned actor does not ragdoll at run time**, and this is structural
+  rather than unfinished: its skeleton exists only as texels, so there is no bone
+  entity to move. It authors and previews fully — which is where the boxes and
+  limits are judged — and keeps playing its baked clip in game. A bone-addressed
+  body therefore *never* resolves at bake, and is reported at info level rather
+  than as an error, precisely so it is not confused with a genuinely broken
+  address. `rigged-characters.md` no longer says "no ragdoll blending" flatly.
+- Self-collision is box-vs-box only; contact response is linear (no spin from a
+  corner landing); a ragdoll has no timeline and cannot be keyed or baked.
+- The shipped physics probe casts along gravity, so a wall a body is drifting
+  sideways into does not register.
+- The preview derives rest-relative orientation from the on-screen pose rather
+  than the authored rest pose, so toggling on mid-animation can show a first-frame
+  limit correction the runtime would not produce.
+- **`Spatial3D` is present in the solver and the data model but is not
+  finished** — its editor surface is incomplete and the axis twist is measured
+  about is still an open question. Treat it as unfinished.
+
+### Breaking — `BillboardNodeAddress` is now `RigNodeAddress` (Phase D0, the ragdoll work)
+
+The billboard-root address struct is generalised to name a third kind of node: a
+skinned bone by name, which the ragdoll body list needs and billboarding never
+did.
+
+- **`BillboardAddressKind` → `RigNodeAddressKind`**, gaining `Bone = 2` beside
+  the existing `RigTarget = 0` and `HierarchyPath = 1`, whose numeric values are
+  unchanged. **`BillboardNodeAddress` → `RigNodeAddress`**, gaining a
+  `boneName` field; `kind`, `targetId` and `hierarchyPath` keep their names.
+  `BillboardRootDefinition.address` keeps its field name — only the type's name
+  changed under it.
+- **This is a public API break for anything compiling against 0.10.0** — any
+  code naming the old types by name fails to compile until it picks up the new
+  names.
+- **Existing serialized rigs are unaffected.** Unity writes a plain
+  `[Serializable]` struct inline as its fields; the type name only reaches the
+  YAML for a `UnityEngine.Object` subclass or a `[SerializeReference]` field,
+  and `RigNodeAddress` is neither. No `.asset` needs re-saving and no migration
+  runs.
+- A billboard root that authors the new `Bone` kind is rejected at validation
+  (rule V25 / the ragdoll spec's V-R8, `Error`): billboarding has no bone path.
 
 ### Fixed — validation errors sat on top of the 3D preview, twice
 

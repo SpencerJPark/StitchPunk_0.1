@@ -94,7 +94,32 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     "Unity.Burst",
                     "Unity.Collections",
                     "Unity.Mathematics",
-                    "Unity.Mathematics.Extensions"
+                    "Unity.Mathematics.Extensions",
+                    // Phase D, amendment A50: RagdollRestPose's baked LocalTransform and
+                    // PostTransformMatrix fields are Unity.Transforms types, and ActorBaker fills
+                    // them in directly, so the assembly that types them must be referenced. See §1.3.
+                    "Unity.Transforms"
+                },
+                expectedIncludePlatforms = new string[0],
+                expectedAllowUnsafeCode = false
+            },
+            new AsmdefExpectation
+            {
+                relativePath = "Runtime.Physics/DotsAnimationToolkit.Runtime.Physics.asmdef",
+                assemblyName = "DotsAnimationToolkit.Runtime.Physics",
+                expectedReferences = new string[]
+                {
+                    // Phase D7, amendment A50: the one optional probe provider allowed to name
+                    // Unity Physics (§7.5's D2 seam). Excluded from compilation entirely when Unity
+                    // Physics is absent (defineConstraints on DOTS_ANIM_TOOLKIT_PHYSICS, set by this
+                    // asmdef's own versionDefine on com.unity.physics >= 1.0.0), so this reference is
+                    // never evaluated on a project without the package. See §1.3.
+                    "DotsAnimationToolkit.Runtime",
+                    "Unity.Entities",
+                    "Unity.Burst",
+                    "Unity.Collections",
+                    "Unity.Mathematics",
+                    "Unity.Physics"
                 },
                 expectedIncludePlatforms = new string[0],
                 expectedAllowUnsafeCode = false
@@ -342,9 +367,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.10.0 is hierarchical billboarding
-            // (amendment A44), on top of 0.9.0's editor release.
-            Assert.AreEqual("0.10.0", manifest.version, "Version tracks the shipped feature set; 0.10.0 is hierarchical billboarding on top of 0.9.0's editor release.");
+            // -- not drift because someone edited the manifest. 0.11.0 is the ragdoll (amendment
+            // A45), on top of 0.10.0's hierarchical billboarding (amendment A44).
+            Assert.AreEqual("0.11.0", manifest.version, "Version tracks the shipped feature set; 0.11.0 is the ragdoll on top of 0.10.0's hierarchical billboarding.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

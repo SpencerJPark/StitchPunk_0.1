@@ -140,6 +140,26 @@ namespace DotsAnimationToolkit.Editor
         private GizmoHandle activeGizmoHandle;
 
         /// <summary>
+        /// The Ragdoll toolbar toggle's own simulation (Phase D6, spec §8.4, §8.5). Not the box
+        /// handles' authoring gizmo (<see cref="PreviewRagdollBoxHandles"/>) — this is the physics.
+        /// </summary>
+        private readonly RagdollPreviewSimulation ragdollSimulation = new RagdollPreviewSimulation();
+        private bool ragdollPreviewEnabled;
+
+        /// <summary>The viewport's ragdoll box wireframes and the selected body's grab handles (Phase D6, spec §8.3).</summary>
+        private readonly PreviewRagdollBoxHandles ragdollBoxHandles = new PreviewRagdollBoxHandles();
+        private bool ragdollBoxHandlesAdded;
+        private uint selectedRagdollBodyId;
+        private RagdollBoxHandle activeRagdollBoxHandle;
+
+        /// <summary>
+        /// When the ragdoll last stepped, so <see cref="Render"/> can advance it by real elapsed
+        /// time rather than a fixed guess — the "editor delta time is jittery" problem spec §8.5
+        /// names, solved by measuring it directly rather than trusting a caller's estimate.
+        /// </summary>
+        private double lastRagdollTickTime;
+
+        /// <summary>
         /// What is selected, as an index into the skeleton mirror's depth-first transform list.
         /// -1 is nothing. Not a <c>Transform</c> reference, because the instance is destroyed and
         /// rebuilt whenever the rig changes and a held reference would be a destroyed object.
@@ -179,6 +199,74 @@ namespace DotsAnimationToolkit.Editor
         public bool BillboardPreviewEnabled { get; set; } = true;
         private string statusMessage = "No clip set assigned.";
 
+        /// <summary>Whether the ragdoll toggle is currently dropping the previewed rig (spec §8.4).</summary>
+        public bool RagdollPreviewEnabled
+        {
+            get { return ragdollPreviewEnabled; }
+        }
+
+        /// <summary>Whether the active ragdoll has settled — nothing to show once every body sleeps.</summary>
+        public bool RagdollPreviewSleeping
+        {
+            get { return ragdollSimulation.Sleeping; }
+        }
+
+        /// <summary>
+        /// Off → On (spec §8.4): captures whatever pose is currently on screen, builds the body
+        /// array against it, and starts stepping. Refuses — leaving the toggle unchanged — when the
+        /// rig has no ragdoll bodies or none of them resolve in this preview, reporting why.
+        /// </summary>
+        public bool TryEnableRagdollPreview(out string refusalReason)
+        {
+            refusalReason = string.Empty;
+            if (ragdollPreviewEnabled)
+            {
+                return true;
+            }
+            if (mirrorRig == null)
+            {
+                refusalReason = "No rig loaded.";
+                return false;
+            }
+            if (!ragdollSimulation.TryBuild(mirrorRig, this, out refusalReason))
+            {
+                return false;
+            }
+            ragdollPreviewEnabled = true;
+            lastRagdollTickTime = 0d;
+            return true;
+        }
+
+        /// <summary>
+        /// On → Off (spec §8.4): restores every simulated node's pre-drop pose, then discards the
+        /// simulation.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The restore is explicit, and an earlier version's assumption that it need not be
+        /// was wrong.</strong> That version reasoned that the playhead never moves while ragdolling,
+        /// so the caller's next <see cref="SamplePose"/> at the same unchanged time would reproduce
+        /// the pre-drop pose on its own. That holds only for nodes the current clip actually drives.
+        /// A bone with no bone track in this clip, or a part that has never been keyed, is not
+        /// touched by a resample at all — it simply stays wherever the ragdoll dropped it, and the
+        /// toggle visibly fails to put the character back.
+        /// </para>
+        /// <para>
+        /// Restoring first and disposing second, because <see cref="RagdollPreviewSimulation.Dispose"/>
+        /// drops the captured poses along with everything else.
+        /// </para>
+        /// </remarks>
+        public void DisableRagdollPreview()
+        {
+            if (!ragdollPreviewEnabled)
+            {
+                return;
+            }
+            ragdollPreviewEnabled = false;
+            ragdollSimulation.RestoreCapturedPose();
+            ragdollSimulation.Dispose();
+        }
+
         private float orbitYaw = 0f;
         private float orbitPitch = 0f;
         private float orbitDistance = DefaultOrbitDistance;
@@ -201,6 +289,18 @@ namespace DotsAnimationToolkit.Editor
         public string StatusMessage
         {
             get { return statusMessage; }
+        }
+
+        /// <summary>
+        /// Overwrites the status line, for feedback that belongs to one moment rather than to the
+        /// preview's ongoing state (spec §8.4: "the toggle refuses to engage, and the status line
+        /// says why"). Persists until the next <see cref="Refresh"/> or <see cref="SamplePose"/>
+        /// call has its own, more current thing to say — the same lifetime every other reason this
+        /// field is set already has.
+        /// </summary>
+        public void ReportTransientStatus(string message)
+        {
+            statusMessage = message ?? string.Empty;
         }
 
         /// <summary>Whether a registry is currently built and sampleable.</summary>
@@ -262,6 +362,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+
+            // A rig swap invalidates every node the simulation is holding onto (Phase D6): the old
+            // mirror is about to be disposed out from under it.
+            DisableRagdollPreview();
+
             mirrorRig = rig;
             rigMirror.Rebuild(rig);
             mirrorRootAdded = false;
@@ -364,6 +469,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+
+            // The skeleton instance every Bone-kind and HierarchyPath-kind ragdoll body resolves
+            // against (Phase D6) is about to be destroyed and rebuilt.
+            DisableRagdollPreview();
+
             skinnedSourcePrefab = prefab;
             skeletonMirror.Rebuild(prefab);
             skeletonRootAdded = false;
@@ -404,6 +514,105 @@ namespace DotsAnimationToolkit.Editor
         public Transform GetTransformByIndex(int hierarchyIndex)
         {
             return skeletonMirror.GetTransformByIndex(hierarchyIndex);
+        }
+
+        /// <summary>
+        /// Whether a hierarchy index names an imported skinned-mesh bone, as opposed to an authored
+        /// guiding transform (Phase D5, spec §2). A ragdoll body addresses the two differently: a
+        /// bone's path below the prefab root is not stable the way a bare transform's is, so it is
+        /// addressed by name instead — <see cref="RigNodeAddressKind.Bone"/>, generalised from
+        /// <c>SocketDefinition.boneName</c>'s precedent.
+        /// </summary>
+        public bool IsSkinnedBone(int hierarchyIndex)
+        {
+            Transform node = skeletonMirror.GetTransformByIndex(hierarchyIndex);
+            return node != null && IsSkinnedBone(node);
+        }
+
+        /// <summary>
+        /// A hierarchy node's own renderer bounds, local to its transform, or false when it carries
+        /// no renderer to measure.
+        /// </summary>
+        /// <remarks>
+        /// What a freshly added Ragdoll component sizes its box from (Phase D5, spec §8.1): a node
+        /// with geometry gets a box that hugs it, and a bare grouping transform keeps the
+        /// <c>RagdollBodyDefinition</c> field initializer's unit-box default instead. Built on
+        /// <see cref="TryGetLocalBounds"/>, the same local-space bounds the selection outline already
+        /// measures, for the same reason that one avoids <c>Renderer.bounds</c>: a world-axis-aligned
+        /// box would swell and swing as the rig turns rather than hugging the node that owns it.
+        /// </remarks>
+        public bool TryGetLocalRendererBounds(int hierarchyIndex, out Vector3 center, out Vector3 size)
+        {
+            center = Vector3.zero;
+            size = Vector3.one;
+
+            Transform node = skeletonMirror.GetTransformByIndex(hierarchyIndex);
+            if (node == null)
+            {
+                return false;
+            }
+
+            Bounds localBounds;
+            if (!TryGetLocalBounds(node, out localBounds))
+            {
+                return false;
+            }
+            center = localBounds.center;
+            size = localBounds.size;
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves a <see cref="RigNodeAddress"/> to the preview transform it names — the reverse
+        /// of what D5's <c>ClipEditorWindow.BuildRagdollAddressFor</c> already does (node → address).
+        /// Shared by <c>RagdollPreviewSimulation</c> and <c>PreviewRagdollBoxHandles</c> (Phase D6,
+        /// spec §8.3, §8.5) so neither invents its own address→node lookup that could disagree with
+        /// the other's.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Two mirrors, three address kinds, two live trees.</strong>
+        /// <see cref="RigNodeAddressKind.RigTarget"/> resolves against <see cref="rigMirror"/> by a
+        /// plain id lookup — the mirror's quads are flat, so this is the only address kind that
+        /// never needs a hierarchy. <see cref="RigNodeAddressKind.Bone"/> resolves against
+        /// <see cref="skeletonMirror"/> by name. <see cref="RigNodeAddressKind.HierarchyPath"/>
+        /// names a bare grouping transform of the <em>real</em> authoring prefab — not a row this
+        /// package owns — and the only preview surface that is a literal instantiation of that
+        /// prefab, carrying its real nested structure, is <see cref="skeletonMirror"/>'s instance
+        /// (<see cref="HierarchyRoot"/>, exactly as <see cref="ApplyBillboards"/> already assumes for
+        /// the same address kind). With no skinned source assigned there is no such tree to search,
+        /// so a <see cref="RigNodeAddressKind.HierarchyPath"/> body on a pure-cutout rig resolves to
+        /// nothing here — the same pre-existing gap a <see cref="RigNodeAddressKind.HierarchyPath"/>
+        /// billboard root already has on a pure-cutout preview, not a new one this method introduces.
+        /// </para>
+        /// </remarks>
+        public Transform ResolveRagdollNode(in RigNodeAddress address)
+        {
+            switch (address.kind)
+            {
+                case RigNodeAddressKind.RigTarget:
+                    return rigMirror.GetPartTransform(address.targetId);
+
+                case RigNodeAddressKind.Bone:
+                {
+                    Transform boneTransform;
+                    return skeletonMirror.TryGetBone(address.boneName, out boneTransform)
+                        ? boneTransform
+                        : null;
+                }
+
+                default:
+                {
+                    Transform skeletonRoot = HierarchyRoot;
+                    if (skeletonRoot == null)
+                    {
+                        return null;
+                    }
+                    return string.IsNullOrEmpty(address.hierarchyPath)
+                        ? skeletonRoot
+                        : skeletonRoot.Find(address.hierarchyPath);
+                }
+            }
         }
 
         /// <summary>The socket a picked transform stands for, or false when it is not a socket.</summary>
@@ -566,6 +775,17 @@ namespace DotsAnimationToolkit.Editor
                 renderUtility.camera.transform, renderUtility.camera.fieldOfView, aspect, viewportPoint);
         }
 
+        /// <summary>The preview camera's current forward direction — the free-drag plane a ragdoll box's centre handle moves within (spec §8.3).</summary>
+        public Vector3 CameraForward
+        {
+            get
+            {
+                EnsureRenderUtility();
+                ApplyCameraPose();
+                return renderUtility.camera.transform.forward;
+            }
+        }
+
         /// <summary>The gizmo handle under a viewport point, or none.</summary>
         public GizmoHandle PickGizmoHandle(Vector2 viewportPoint, float aspect)
         {
@@ -575,6 +795,107 @@ namespace DotsAnimationToolkit.Editor
             }
             return PreviewGizmoMath.PickHandle(
                 BuildViewportRay(viewportPoint, aspect), gizmoMode, gizmoPivot, GizmoHandleLength);
+        }
+
+        /// <summary>
+        /// Points the ragdoll box handles at one body, or none (spec §8.3). Separate from
+        /// <see cref="SetSelectedSocketId"/>/<see cref="SetSelectedTargetId"/> rather than a fourth
+        /// branch of the same field: a Ragdoll component selection does not move the ordinary
+        /// selection outline (a body's node may itself be the outlined part), so the two must be
+        /// able to disagree.
+        /// </summary>
+        public void SetSelectedRagdollBodyId(uint bodyId)
+        {
+            selectedRagdollBodyId = bodyId;
+            activeRagdollBoxHandle = RagdollBoxHandle.None;
+        }
+
+        /// <summary>Which ragdoll box handle, if any, is mid-drag — for highlighting only; the drag itself is driven by the caller.</summary>
+        public void SetActiveRagdollBoxHandle(RagdollBoxHandle handle)
+        {
+            activeRagdollBoxHandle = handle;
+        }
+
+        /// <summary>The selected ragdoll body's box in world space, or false when nothing is selected or it does not resolve.</summary>
+        public bool TryGetSelectedRagdollBoxVisual(out RagdollBoxVisual box)
+        {
+            box = default(RagdollBoxVisual);
+            if (selectedRagdollBodyId == 0u || mirrorRig == null || mirrorRig.ragdollBodies == null)
+            {
+                return false;
+            }
+            for (int index = 0; index < mirrorRig.ragdollBodies.Count; index++)
+            {
+                RagdollBodyDefinition definition = mirrorRig.ragdollBodies[index];
+                if (definition != null && definition.Id.Value == selectedRagdollBodyId)
+                {
+                    return TryBuildRagdollBoxVisual(definition, out box);
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The selected ragdoll body's grab handle under a viewport point, or none.</summary>
+        public RagdollBoxHandle PickRagdollBoxHandle(Vector2 viewportPoint, float aspect)
+        {
+            RagdollBoxVisual box;
+            if (mirrorRig == null || !TryGetSelectedRagdollBoxVisual(out box))
+            {
+                return RagdollBoxHandle.None;
+            }
+            Ray ray = BuildViewportRay(viewportPoint, aspect);
+            return PreviewRagdollBoxHandles.Pick(ray, in box, mirrorRig.ragdollSettings.space, GizmoHandleLength);
+        }
+
+        /// <summary>Every ragdoll body currently resolved in the preview, in world space.</summary>
+        private List<RagdollBoxVisual> BuildRagdollBoxVisuals(RigAsset rig)
+        {
+            List<RagdollBoxVisual> boxes = new List<RagdollBoxVisual>();
+            if (rig == null || rig.ragdollBodies == null)
+            {
+                return boxes;
+            }
+            for (int index = 0; index < rig.ragdollBodies.Count; index++)
+            {
+                RagdollBodyDefinition definition = rig.ragdollBodies[index];
+                RagdollBoxVisual box;
+                if (definition != null && TryBuildRagdollBoxVisual(definition, out box))
+                {
+                    boxes.Add(box);
+                }
+            }
+            return boxes;
+        }
+
+        private bool TryBuildRagdollBoxVisual(RagdollBodyDefinition definition, out RagdollBoxVisual box)
+        {
+            box = default(RagdollBoxVisual);
+            Transform node = ResolveRagdollNode(definition.address);
+            if (node == null)
+            {
+                return false;
+            }
+
+            Vector3 localCenter = new Vector3(definition.boxCenter.x, definition.boxCenter.y, definition.boxCenter.z);
+            Vector3 localEuler = new Vector3(
+                definition.boxEulerAngles.x, definition.boxEulerAngles.y, definition.boxEulerAngles.z);
+
+            box = new RagdollBoxVisual
+            {
+                bodyId = definition.Id.Value,
+                center = node.position + node.rotation * localCenter,
+                rotation = node.rotation * Quaternion.Euler(localEuler),
+                size = new Vector3(definition.boxSize.x, definition.boxSize.y, definition.boxSize.z)
+            };
+            return true;
+        }
+
+        /// <summary>Rebuilds every body's wireframe and the selected body's grab handles for this render.</summary>
+        private void UpdateRagdollBoxHandles()
+        {
+            List<RagdollBoxVisual> boxes = BuildRagdollBoxVisuals(mirrorRig);
+            RagdollSpace space = mirrorRig != null ? mirrorRig.ragdollSettings.space : RagdollSpace.Planar2D;
+            ragdollBoxHandles.Rebuild(boxes, selectedRagdollBodyId, space, activeRagdollBoxHandle, GizmoHandleLength);
         }
 
         /// <summary>The rig target a picked transform stands for, or false when it is not a part.</summary>
@@ -779,6 +1100,14 @@ namespace DotsAnimationToolkit.Editor
         /// <returns>False when the clip is not in the registry.</returns>
         public bool SamplePose(ulong clipId, float normalizedTime)
         {
+            // Undo the previous tick's billboard before this tick's pose is written. The billboard
+            // is a transient overwrite layered on top of the authored pose, so it has to come off
+            // before a fresh pose goes on — otherwise the node a clip does not drive is never
+            // rewritten, and the next ApplyBillboards records the already-billboarded rotation as
+            // if it were the authored one. One tick of that and the recorded "original" is a
+            // billboarded pose, which is why restoring it appeared to do nothing at all.
+            RestoreBillboardedNodes();
+
             if (!registry.IsCreated)
             {
                 return false;
@@ -1120,6 +1449,8 @@ namespace DotsAnimationToolkit.Editor
                 transformGizmo.Hide();
             }
 
+            UpdateRagdollBoxHandles();
+
             ApplyCameraPose();
 
             // After the camera, because billboarding is defined against it; after the pose, because
@@ -1127,6 +1458,12 @@ namespace DotsAnimationToolkit.Editor
             // (TransformSampleSystem, TransformApplySystem, BillboardResolveSystem), and it has to
             // be, or the viewport would answer a different question from the game.
             ApplyBillboards();
+
+            // After billboarding, matching AnimationToolkitRagdollSystemGroup's own
+            // [UpdateAfter(BillboardResolveSystem)] edge (spec §7): a ragdolling body's node
+            // overwrites whatever ApplyBillboards just wrote it, exactly as RagdollApplySystem
+            // overwrites BillboardResolveSystem's write at runtime (§9 G1's own shape).
+            StepRagdollPreview();
 
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
@@ -1164,16 +1501,110 @@ namespace DotsAnimationToolkit.Editor
         /// reached more cheaply, and it is why a held item does not turn twice here either.
         /// </para>
         /// </remarks>
+        /// <summary>
+        /// Nodes this preview has billboarded, and the local rotation each had immediately before
+        /// the billboard overwrote it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A preview that writes a pose owes a way to un-write it.</strong>
+        /// <see cref="ApplyBillboards"/> assigns <c>node.rotation</c> outright. Turning the toggle
+        /// off, or deleting the billboard root, merely stops that assignment happening — it does not
+        /// put the node back, so the node keeps the last rotation the billboard gave it and the
+        /// authored pose is unreachable until the scene is rebuilt. Only nodes the current clip
+        /// actually keys are rescued by the next resample, which is why this was visible on some
+        /// nodes and not others.
+        /// </para>
+        /// <para>
+        /// Local rather than world rotation, so restoring is order-independent: a parent restored
+        /// after its child would otherwise drag the child back off its restored world pose.
+        /// </para>
+        /// </remarks>
+        private readonly List<Transform> billboardedNodes = new List<Transform>();
+        private readonly List<Quaternion> billboardedNodeLocalRotations = new List<Quaternion>();
+        private readonly List<Vector3> billboardedNodeLocalPositions = new List<Vector3>();
+
+        /// <summary>Puts every billboarded node back and forgets them all.</summary>
+        private void RestoreBillboardedNodes()
+        {
+            for (int index = 0; index < billboardedNodes.Count; index++)
+            {
+                Transform node = billboardedNodes[index];
+                if (node != null)
+                {
+                    node.localRotation = billboardedNodeLocalRotations[index];
+                    node.localPosition = billboardedNodeLocalPositions[index];
+                }
+            }
+            billboardedNodes.Clear();
+            billboardedNodeLocalRotations.Clear();
+            billboardedNodeLocalPositions.Clear();
+        }
+
+        /// <summary>
+        /// Restores and forgets any recorded node that is not among <paramref name="resolvedRoots"/>
+        /// — the case where a billboard root was deleted or re-addressed while the toggle stayed on.
+        /// </summary>
+        private void RetireBillboardedNodesNotIn(List<ResolvedBillboardRoot> resolvedRoots)
+        {
+            for (int index = billboardedNodes.Count - 1; index >= 0; index--)
+            {
+                Transform recordedNode = billboardedNodes[index];
+                bool stillBillboarded = false;
+                for (int rootIndex = 0; rootIndex < resolvedRoots.Count; rootIndex++)
+                {
+                    if (resolvedRoots[rootIndex].node == recordedNode)
+                    {
+                        stillBillboarded = true;
+                        break;
+                    }
+                }
+                if (stillBillboarded)
+                {
+                    continue;
+                }
+                if (recordedNode != null)
+                {
+                    recordedNode.localRotation = billboardedNodeLocalRotations[index];
+                    recordedNode.localPosition = billboardedNodeLocalPositions[index];
+                }
+                billboardedNodes.RemoveAt(index);
+                billboardedNodeLocalRotations.RemoveAt(index);
+                billboardedNodeLocalPositions.RemoveAt(index);
+            }
+        }
+
+        /// <summary>Records a node's pre-billboard local rotation, once.</summary>
+        /// <remarks>
+        /// <strong>Deliberately does not refresh an existing record.</strong> Re-recording on every
+        /// render tick looks harmless and is not: a node the current clip does not key is never
+        /// rewritten by <see cref="SamplePose"/>, so on the second tick its local rotation is already
+        /// the billboarded one, and refreshing would store that as the value to "restore" to. The
+        /// record is invalidated by <see cref="SamplePose"/> instead, which is the only thing that
+        /// legitimately changes the authored pose underneath it.
+        /// </remarks>
+        private void RecordBillboardedNode(Transform node)
+        {
+            for (int index = 0; index < billboardedNodes.Count; index++)
+            {
+                if (billboardedNodes[index] == node)
+                {
+                    return;
+                }
+            }
+            billboardedNodes.Add(node);
+            billboardedNodeLocalRotations.Add(node.localRotation);
+            billboardedNodeLocalPositions.Add(node.localPosition);
+        }
+
         private void ApplyBillboards()
         {
-            if (!BillboardPreviewEnabled || mirrorRig == null || renderUtility == null)
-            {
-                return;
-            }
-
             Transform previewRoot = HierarchyRoot;
-            if (previewRoot == null)
+
+            if (!BillboardPreviewEnabled || mirrorRig == null || renderUtility == null
+                || previewRoot == null)
             {
+                RestoreBillboardedNodes();
                 return;
             }
 
@@ -1181,8 +1612,13 @@ namespace DotsAnimationToolkit.Editor
                 BillboardRootResolver.Resolve(mirrorRig, previewRoot, null);
             if (resolvedRoots.Count == 0)
             {
+                RestoreBillboardedNodes();
                 return;
             }
+
+            // Everything billboarded last tick that is not billboarded this tick goes back to its
+            // authored rotation before anything new is written — see RestoreBillboardedNodes.
+            RetireBillboardedNodesNotIn(resolvedRoots);
 
             Transform cameraTransform = renderUtility.camera.transform;
             float3 cameraPosition = cameraTransform.position;
@@ -1198,6 +1634,11 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 BillboardSettings settings = BuildPreviewSettings(resolvedRoot.definition);
+
+                // Recorded before the write, every tick: the value being preserved is the freshly
+                // sampled authored rotation, which moves as the playhead does, so a stale first-tick
+                // capture would restore the wrong pose after a scrub.
+                RecordBillboardedNode(node);
 
                 quaternion resolvedRotation;
                 if (BillboardMath.TryResolve(
@@ -1283,6 +1724,64 @@ namespace DotsAnimationToolkit.Editor
             return settings;
         }
 
+        /// <summary>
+        /// Advances the Ragdoll toggle's simulation by real elapsed time (spec §8.5).
+        /// </summary>
+        /// <remarks>
+        /// Ticked from here rather than from <c>ClipEditorWindow</c>'s own per-frame hook, because
+        /// this is where <see cref="ApplyBillboards"/> just ran and where the ragdoll's own gravity
+        /// frame — the billboard root's freshly-written world rotation — is still cheap to read
+        /// straight off the transform it was written onto (see <see cref="ResolveRagdollFrameRotation"/>).
+        /// </remarks>
+        private void StepRagdollPreview()
+        {
+            if (!ragdollPreviewEnabled || !ragdollSimulation.IsBuilt || mirrorRig == null)
+            {
+                return;
+            }
+
+            double now = EditorApplication.timeSinceStartup;
+            float realDeltaTime = lastRagdollTickTime > 0d ? (float)(now - lastRagdollTickTime) : 0f;
+            lastRagdollTickTime = now;
+
+            quaternion frameRotation = ResolveRagdollFrameRotation(mirrorRig);
+            ragdollSimulation.Step(
+                mirrorRig, in frameRotation, RagdollPreviewScenery.instance.Props, realDeltaTime);
+        }
+
+        /// <summary>
+        /// This step's gravity frame for <see cref="RagdollSpace.Planar2D"/> (spec §6.2) — identity
+        /// for <see cref="RagdollSpace.Spatial3D"/> or when the ragdoll's root body inherits no
+        /// billboard root.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Reads a transform <see cref="ApplyBillboards"/> just wrote; does not resolve
+        /// billboarding a second time.</strong> The runtime's own <c>SolveRagdollJob</c> calls
+        /// <c>BillboardQuery.TryGetFrame</c> against the baked <c>BillboardRootElement</c> buffer
+        /// <c>BillboardResolveSystem</c> filled earlier the same frame — a cache read, not a second
+        /// resolve. This is the preview's equivalent: <see cref="ApplyBillboards"/> already ran this
+        /// call and already wrote the nearest billboard root's resolved world rotation onto its
+        /// transform, so reading that transform's current <c>rotation</c> is the cache read.
+        /// </remarks>
+        private quaternion ResolveRagdollFrameRotation(RigAsset rig)
+        {
+            if (rig.ragdollSettings.space != RagdollSpace.Planar2D)
+            {
+                return quaternion.identity;
+            }
+
+            Transform skeletonRoot = HierarchyRoot;
+            Transform rootBodyNode = ragdollSimulation.RootNode;
+            if (skeletonRoot == null || rootBodyNode == null)
+            {
+                return quaternion.identity;
+            }
+
+            List<ResolvedBillboardRoot> resolvedRoots = BillboardRootResolver.Resolve(rig, skeletonRoot, null);
+            int rootIndex = BillboardRootResolver.FindNearestRootIndex(resolvedRoots, rootBodyNode, skeletonRoot);
+            return rootIndex < 0 ? quaternion.identity : resolvedRoots[rootIndex].node.rotation;
+        }
+
         private void ApplyCameraPose()
         {
             Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
@@ -1327,6 +1826,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 renderUtility.AddSingleGO(transformGizmo.GizmoObject);
                 transformGizmoAdded = true;
+            }
+
+            ragdollBoxHandles.EnsureBuilt();
+            if (ragdollBoxHandles.HandlesObject != null && !ragdollBoxHandlesAdded)
+            {
+                renderUtility.AddSingleGO(ragdollBoxHandles.HandlesObject);
+                ragdollBoxHandlesAdded = true;
             }
 
             if (rigMirror.RootObject != null && !mirrorRootAdded)
@@ -1456,18 +1962,22 @@ namespace DotsAnimationToolkit.Editor
             rigMirror.Dispose();
             socketMarkers.Dispose();
             skeletonMirror.Dispose();
+            ragdollSimulation.Dispose();
+            ragdollPreviewEnabled = false;
 
             // Before Cleanup: these live in the render utility's scene, and cleaning that up first
             // would leave the references pointing at objects Unity has already destroyed.
             sceneGizmos.Dispose();
             boneHandles.Dispose();
             transformGizmo.Dispose();
+            ragdollBoxHandles.Dispose();
 
             mirrorRootAdded = false;
             skeletonRootAdded = false;
             gizmosAdded = false;
             boneHandlesAdded = false;
             transformGizmoAdded = false;
+            ragdollBoxHandlesAdded = false;
             hasGizmo = false;
             selectedHierarchyIndex = -1;
             if (renderUtility != null)

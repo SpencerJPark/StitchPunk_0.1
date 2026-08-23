@@ -10,7 +10,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
     /// The rig-side half of amendment A44: the billboard-root rows a rig declares, the stable ids
-    /// they carry, and validation rules V21, V22 and V23. Each validation fixture starts from a rig
+    /// they carry, and validation rules V21, V22, V23 and V25 (the ragdoll spec's V-R8, added
+    /// alongside the Phase D address generalisation). Each validation fixture starts from a rig
     /// that validates clean and breaks exactly one thing, matching
     /// <see cref="ClipValidationTests"/>'s discipline.
     /// </summary>
@@ -23,6 +24,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private const string ItemPivotPath = "Root/HandR/ItemPivot";
         private const string OtherPivotPath = "Root/HandL/ItemPivot";
+        private const string SpineBoneName = "Spine1";
 
         private AuthoringTestAssets assets;
 
@@ -53,9 +55,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             BillboardRootDefinition rootDefinition = new BillboardRootDefinition
             {
                 displayName = displayName,
-                address = new BillboardNodeAddress
+                address = new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.RigTarget,
+                    kind = RigNodeAddressKind.RigTarget,
                     targetId = targetId
                 }
             };
@@ -69,10 +71,26 @@ namespace DotsAnimationToolkit.Tests.EditMode
             BillboardRootDefinition rootDefinition = new BillboardRootDefinition
             {
                 displayName = displayName,
-                address = new BillboardNodeAddress
+                address = new RigNodeAddress
                 {
-                    kind = BillboardAddressKind.HierarchyPath,
+                    kind = RigNodeAddressKind.HierarchyPath,
                     hierarchyPath = hierarchyPath
+                }
+            };
+            rig.billboardRoots.Add(rootDefinition);
+            return rootDefinition;
+        }
+
+        private static BillboardRootDefinition AddBoneRoot(
+            RigAsset rig, string displayName, string boneName)
+        {
+            BillboardRootDefinition rootDefinition = new BillboardRootDefinition
+            {
+                displayName = displayName,
+                address = new RigNodeAddress
+                {
+                    kind = RigNodeAddressKind.Bone,
+                    boneName = boneName
                 }
             };
             rig.billboardRoots.Add(rootDefinition);
@@ -130,7 +148,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         /// Pins the documented half-reachability of V21 rather than the absence of a bug.
         /// </summary>
         /// <remarks>
-        /// A <see cref="BillboardAddressKind.HierarchyPath"/> address names a transform of the
+        /// A <see cref="RigNodeAddressKind.HierarchyPath"/> address names a transform of the
         /// authoring prefab, and a <see cref="RigAsset"/> neither references a prefab nor carries a
         /// hierarchy of its own — its target list is flat. Rig-scope validation therefore cannot
         /// resolve a path, and the entity bake owns that half of V21. Without this test the silence
@@ -274,6 +292,50 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AssertNoFindings(
                 ClipValidation.ValidateRig(rig),
                 "An arbitrary axis is the entire point of the mode.");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // V25 (ragdoll spec V-R8): a billboard root addressed by bone.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void V25_FiresWhenARootAddressesABoneByName()
+        {
+            RigAsset rig = CreateValidRig();
+            AddBoneRoot(rig, "Spine", SpineBoneName);
+
+            AssertOnlyCode(
+                ClipValidation.ValidateRig(rig), ValidationCode.V25, ValidationSeverity.Error);
+        }
+
+        /// <summary>
+        /// A row that fails V25 must not also be checked for a V22 address-key duplicate — the same
+        /// discipline V21's unresolved-target case already follows, so one authoring mistake is
+        /// reported once.
+        /// </summary>
+        [Test]
+        public void V25_DoesNotAlsoFireV22ForTwoBoneRootsOnTheSameBoneName()
+        {
+            RigAsset rig = CreateValidRig();
+            AddBoneRoot(rig, "Spine", SpineBoneName);
+            AddBoneRoot(rig, "Spine Again", SpineBoneName);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+            AssertOnlyCode(messages, ValidationCode.V25, ValidationSeverity.Error);
+            Assert.AreEqual(2, messages.Count, "Both bone-addressed rows fire their own V25.");
+        }
+
+        [Test]
+        public void V25_DoesNotFireForTargetOrPathAddresses()
+        {
+            RigAsset rig = CreateValidRig();
+            AddTargetRoot(rig, "Torso", TorsoTargetId);
+            AddPathRoot(rig, "Held Item", ItemPivotPath);
+
+            AssertNoFindings(
+                ClipValidation.ValidateRig(rig),
+                "The Bone kind exists for the ragdoll body list; a rig target or hierarchy path " +
+                "address must not trip the rule meant for it.");
         }
 
         // -----------------------------------------------------------------------------------

@@ -65,9 +65,12 @@ namespace DotsAnimationToolkit.Editor
         private SerializedProperty mirrorPairsProperty;
         private SerializedProperty socketsProperty;
         private SerializedProperty billboardRootsProperty;
+        private SerializedProperty ragdollSettingsProperty;
+        private SerializedProperty ragdollBodiesProperty;
 
         private VisualElement inspectorRoot;
         private VisualElement socketRowContainer;
+        private VisualElement ragdollBadgeContainer;
         private ObjectField boneNameSourceField;
 
         private GameObject boneNameSource;
@@ -107,6 +110,8 @@ namespace DotsAnimationToolkit.Editor
             mirrorPairsProperty = serializedObject.FindProperty("mirrorPairs");
             socketsProperty = serializedObject.FindProperty("sockets");
             billboardRootsProperty = serializedObject.FindProperty("billboardRoots");
+            ragdollSettingsProperty = serializedObject.FindProperty("ragdollSettings");
+            ragdollBodiesProperty = serializedObject.FindProperty("ragdollBodies");
 
             inspectorRoot = new VisualElement();
             inspectorRoot.style.paddingTop = 4f;
@@ -129,6 +134,7 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorRoot.Add(BuildSocketSection());
             inspectorRoot.Add(BuildBillboardSection());
+            inspectorRoot.Add(BuildRagdollSection());
 
             // One tracked callback for the whole asset rather than one per field: warnings are
             // cross-row (a duplicate display name involves two sockets) and cross-list (a rig-target
@@ -217,6 +223,104 @@ namespace DotsAnimationToolkit.Editor
                 section.Add(new PropertyField(billboardRootsProperty, "Billboard Roots"));
             }
             return section;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Ragdoll section (Phase D, amendment A50).
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The rig's ragdoll settings and bodies, plus a badge for every ragdoll validation finding
+        /// (V26–V32).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Same shape as <see cref="BuildBillboardSection"/> and for the same reason: a ragdoll body
+        /// is a flat block of values with no cross-row UI of its own at this phase, so a plain
+        /// <see cref="PropertyField"/> over the list is enough. The one thing this section adds that
+        /// the billboard one does not is the badge list — billboarding's only cross-cutting rules
+        /// (V21–V23) are rare enough in practice that the default inspector's own error icons on a
+        /// broken <see cref="PropertyField"/> row were judged sufficient; a ragdoll body carries
+        /// seven rules including one, V31, that is rig-wide rather than per-row and so has no row of
+        /// its own to badge.
+        /// </para>
+        /// <para>
+        /// <strong>Placing and dragging boxes in the viewport, and the "Fix addresses" reconciler,
+        /// are out of scope here.</strong> Both are Phase D6 and D-later work respectively (spec
+        /// §8.3, §8.7); this section only renders what a rig asset alone can show.
+        /// </para>
+        /// </remarks>
+        private VisualElement BuildRagdollSection()
+        {
+            VisualElement section = new VisualElement();
+            section.Add(BuildSectionHeading("Ragdoll"));
+
+            Label explanation = new Label(
+                "A ragdoll body gives a node a box collider that falls and collides once the "
+                + "ragdoll is dropped. Space, gravity scale and solver tuning are rig-wide - half a "
+                + "ragdoll on a plane and half free in space is not a supported configuration. A rig "
+                + "with no bodies bakes no ragdoll components at all.");
+            explanation.style.whiteSpace = WhiteSpace.Normal;
+            explanation.style.opacity = 0.7f;
+            explanation.style.marginBottom = 4f;
+            section.Add(explanation);
+
+            if (ragdollSettingsProperty != null)
+            {
+                section.Add(new PropertyField(ragdollSettingsProperty, "Ragdoll Settings"));
+            }
+            if (ragdollBodiesProperty != null)
+            {
+                section.Add(new PropertyField(ragdollBodiesProperty, "Ragdoll Bodies"));
+            }
+
+            ragdollBadgeContainer = new VisualElement();
+            ragdollBadgeContainer.style.marginTop = 4f;
+            section.Add(ragdollBadgeContainer);
+
+            RefreshRagdollBadges();
+            return section;
+        }
+
+        /// <summary>
+        /// Re-runs <see cref="ClipValidation.ValidateRig"/> and redraws one <see cref="HelpBox"/> per
+        /// ragdoll finding (V26–V32). A full rig validation rather than a hand-rolled subset, so this
+        /// badge list can never drift from what the bake actually enforces.
+        /// </summary>
+        private void RefreshRagdollBadges()
+        {
+            if (ragdollBadgeContainer == null)
+            {
+                return;
+            }
+            ragdollBadgeContainer.Clear();
+
+            RigAsset rig = target as RigAsset;
+            if (rig == null)
+            {
+                return;
+            }
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+            {
+                ValidationMessage message = messages[messageIndex];
+                if (!IsRagdollValidationCode(message.code))
+                {
+                    continue;
+                }
+                HelpBoxMessageType boxType = message.severity == ValidationSeverity.Error
+                    ? HelpBoxMessageType.Error
+                    : HelpBoxMessageType.Warning;
+                HelpBox badge = new HelpBox(message.text, boxType);
+                badge.style.marginTop = 2f;
+                ragdollBadgeContainer.Add(badge);
+            }
+        }
+
+        private static bool IsRagdollValidationCode(ValidationCode code)
+        {
+            return code >= ValidationCode.V26 && code <= ValidationCode.V32;
         }
 
         // -----------------------------------------------------------------------------------
@@ -759,6 +863,12 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnSerializedObjectChanged(SerializedObject changedSerializedObject)
         {
+            // Unconditional and ahead of the socket-only early return below: ragdoll findings are
+            // cross-row (V28, V31) and cross-list (V26 depends on targets), so there is no cheap way
+            // to tell whether this change touched them, and re-validating a handful of rows costs
+            // nothing worth guarding.
+            RefreshRagdollBadges();
+
             if (socketsProperty == null)
             {
                 return;

@@ -15,7 +15,7 @@ see [`cutout-characters.md`](cutout-characters.md) or
 
 ## What the window gives you
 
-- **The rig hierarchy is the bone picker.** Assign your rigged prefab to the toolbar's **Rig** field and its transforms appear as a tree in the left column. Select a bone there and the inspector offers **Add Bone Track** for exactly that bone — no typing, so the "name resolved to nothing and the bake froze it at rest" failure cannot happen. Bones the selected clip already animates are shown in bold. With no rig assigned you can still type a name, which is the only option a cutout set has.
+- **The rig hierarchy is the bone picker.** Assign your rigged prefab to the toolbar's **Bone Source** field and its transforms appear as a tree in the left column. Select a bone there and the inspector offers **Add Bone Track** for exactly that bone — no typing, so the "name resolved to nothing and the bake froze it at rest" failure cannot happen. Bones the selected clip already animates are shown in bold. With nothing assigned you can still type a name, which is the only option a cutout set has. This field is a `GameObject` prefab, not the clip set's `RigAsset` — the two are unrelated fields that happen to sit near each other.
 - **Click the model to select it.** Clicking in the viewport picks the object under the cursor and selects it in the tree; selecting in the tree outlines it in the viewport. It picks the *child* under the cursor, not the prefab root, so a hand or a prop is one click away. Selection follows the pose as you scrub.
   - **Alt- or shift-click cycles** through everything stacked under the cursor, nearest first. Repeat it to walk backwards through overlapping parts; an ordinary click returns to the nearest.
   - **Bones are clickable even where there is no geometry.** Every joint of a `SkinnedMeshRenderer` gets an octahedral handle, linked to its parent so the skeleton reads as a skeleton, and the handle is the click target. Joints are offered *ahead* of the mesh around them — a bone sits inside the thing it deforms, so ordering strictly by depth would make it impossible to click. The mesh underneath is still reachable by cycling.
@@ -40,7 +40,7 @@ see [`cutout-characters.md`](cutout-characters.md) or
 - **Focus.** Selecting a part filters the timeline to that part's tracks — the way to read a busy clip. The status line names what is shown and how many rows are hidden; deselect to bring them back. Event rows always stay visible, because they belong to the clip rather than to any one part.
 - **Several parts at once.** Ctrl- or shift-click in the hierarchy to select more. The timeline shows all of their tracks together, and the inspector gives each part its own stack — its own live transform, its own flipbook indices — so there is never a question of whose numbers are whose. One stack is marked **(active)**: the one the viewport gizmo and outline are on, which can only be in one place.
 - **Flipbook indices step on their keys.** A frame index does not interpolate: the key at or before the playhead is what you see, and it holds until the next key's own time. Scrub through a key and the number changes exactly there, not halfway to the next one.
-- **Parts start where the prefab puts them.** Assign the prefab in the toolbar's **Rig** field and each rig target picks up the position, rotation and scale of the prefab transform with the same name, measured relative to the prefab root. That is the part's rest pose, and a clip animates *from* it — position and rotation add to it, scale multiplies it — which is exactly how the runtime composes, so what you preview is what plays. A target with no matching transform in the prefab falls back to the origin at unit scale.
+- **Parts start where the prefab puts them.** Assign the prefab in the toolbar's **Bone Source** field and each rig target picks up the position, rotation and scale of the prefab transform with the same name, measured relative to the prefab root. That is the part's rest pose, and a clip animates *from* it — position and rotation add to it, scale multiplies it — which is exactly how the runtime composes, so what you preview is what plays. A target with no matching transform in the prefab falls back to the origin at unit scale.
 - **The space is centred on 0,0,0, and squares are one unit.** Two grids: a backdrop in the XY plane to measure a flat rig against, and a floor in the XZ plane so a 3D prop or vehicle has something to stand on. Each square is one world unit — the height of Unity's default cube — so on a character running about two units tall a square reads directly as half its height. The origin is drawn as three short axis stubs, X red, Y green, Z blue. The rig is spawned there, so a character authored standing on the floor reads as standing on the floor.
 - **The camera frames the rig, not the origin.** It opens aimed at the middle of the rig and far enough back to hold all of it, sized from the rig's own bounds. Placement and framing are separate: the rig sits at 0,0,0, but aiming there would look at the ground between a character's feet. Framing happens once when the rig or the loaded prefab changes — after that the camera is yours. Double-click the viewport to reframe.
 - **Retiming.** Change `duration` and every key moves with it — times are normalized, so a re-time never moves a key relative to the clip.
@@ -49,7 +49,7 @@ see [`cutout-characters.md`](cutout-characters.md) or
 - **Sockets.** Added to the bone or part they follow, then tracked and previewed here — see [Sockets](#sockets) below.
 - **Validation.** The toolbar badge runs the same `ClipValidation` the bake runs, so an error you see here is the error a bake would throw, with the same rule code. The badge shows the counts; **click it** to list the findings over a corner of the preview, and click again to put them away. It starts away — a clip set part-way through being built is meant to be invalid, and its errors have no business taking the space you are posing in. Each finding is a button that selects the asset it is about.
 - **Bake without leaving.** The toolbar's **VAT Bake** toggle covers the editor with the bake panel — the same one the standalone window shows — and uncovers it again. Nothing is torn down: the playhead, the selection and every split boundary are where you left them, so authoring a clip, baking it and looking at the result is one window rather than three. The clip set you have open is offered to the panel's Clip Set field when it is empty, and left alone once you have chosen one there.
-- **Ragdoll is not built yet.** The toolbar carries a **Ragdoll** toggle for dropping the previewed rig under its own physics — ground contact, self-collision — to see whether a pose reads on impact. Nothing reads the toggle today; it is there so the place it belongs is settled.
+- **Ragdoll.** The toolbar's **Ragdoll** toggle drops the previewed rig under its own physics — ground contact, self-collision — to see whether a pose reads on impact. Turning it off restores the pose exactly. See [Ragdoll](#ragdoll) below.
 - **Scrubbing the composite.** The preview poses through `ClipSampler` — the runtime's own functions — so what you scrub is what plays.
 
 ---
@@ -96,13 +96,37 @@ This is an authoring aid and nothing more: it is editor-only, it cannot pull the
 
 ---
 
+## Ragdoll
+
+A ragdoll body is a box collider welded to a node — an authored part or an imported skinned bone — with mass, damping and a joint limit measured against its nearest ragdolled ancestor. Like a socket, it lives on the **rig**, so it is placed once and every clip in the set sees it.
+
+### Placing a body
+
+Select a node — a rig target, a bare grouping transform, or a skinned bone — and add **Ragdoll** from its **Add Component** menu. A freshly added body sizes its box from the node's own renderer bounds when it has one, and keeps a unit box otherwise. **Move in View** puts the box handles up in the viewport, live whether or not **Rig Edit** is on — placing a box is rig structure, but it is not a hierarchy edit, the same as a socket.
+
+In the viewport, every body in the rig draws as a wireframe box, the selected one highlighted. Its handles: a centre dot that moves it (drag freely; the box tracks the cursor across the screen plane), six face handles that resize it (drag one face alone, or hold **Shift** to grow both sides at once and keep the centre fixed), and a rotation ring about the body's own local axis in Planar2D, or three rings in Spatial3D.
+
+`Space` — Planar2D or Spatial3D — is shown on every body's block but belongs to the rig, not to the body: half an articulated ragdoll flat and half free in space is not a supported configuration, so it is edited once and every body obeys it together.
+
+### Dropping it
+
+Turning the **Ragdoll** toggle on captures whatever pose is on screen, resolves the rig's bodies against the current preview, and starts simulating — the same fixed-step solver the runtime uses, so a drop here previews the drop a game would show. The playhead freezes while it runs: a ragdoll has no timeline, so scrubbing (or pressing Play) turns the toggle back off first, exactly as if you had clicked it yourself. Turning it off restores the captured pose exactly.
+
+A rig with no ragdoll bodies, or whose bodies resolve against nothing in the current preview, refuses to engage — the status line above the viewport says why rather than dropping a rig with nothing to fall.
+
+**A skinned bone ragdolls here even though it never will at run time.** A VAT actor's skeleton exists only as texels; there is no bone entity for the runtime to move, so a bone-addressed body plays its baked clip in the game regardless of `RagdollActor`. It authors cleanly and previews fully anyway — this is where you judge whether its box and limits are right, on real transforms, even though the payoff is editor-only for that body.
+
+Ground contact and self-collision are always on; the floor sits at y = 0. Project-wide, editor-only test scenery — boxes and ramps to drop the rig onto — lives in **Project Settings**, never on the rig asset, so a shipped rig never carries a test prop.
+
+---
+
 ## Editing the rig itself
 
 The Clip Editor animates a rig. It does not restructure one — parenting, adding parts and moving meshes happen in Unity's prefab mode, which already handles them correctly. What the window provides is a short path there and an honest account of what changed when you come back.
 
 ### Getting into prefab mode
 
-- **Edit Prefab** in the toolbar opens the loaded prefab. It is enabled only while the toolbar's **Rig** field holds a prefab asset; with the field empty it says so on hover rather than failing after the press.
+- **Edit Prefab** in the toolbar opens the loaded prefab. It is enabled only while the toolbar's **Bone Source** field holds a prefab asset; with the field empty it says so on hover rather than failing after the press.
 - **Right-click any row** for *Open Prefab Here* (opens with that object selected and framed), *Ping in Project*, and *Select in Scene*.
 - **Double-click a row** does the same as *Open Prefab Here*.
 

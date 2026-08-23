@@ -72,6 +72,27 @@ namespace DotsAnimationToolkit.Authoring
         public List<BillboardRootDefinition> billboardRoots = new List<BillboardRootDefinition>();
 
         /// <summary>
+        /// The box-collider bodies of this rig's ragdoll, addressed by hierarchy rather than by an
+        /// authored parent reference (Phase D, amendment A50). Empty for a rig that never opts in,
+        /// which bakes no ragdoll components at all — the same free-by-default contract
+        /// <see cref="billboardRoots"/> already established.
+        /// </summary>
+        /// <remarks>
+        /// A body's parent is implied: its nearest ragdolled ancestor in the addressed hierarchy,
+        /// resolved by walking the prefab at bake time (Phase D3). Nothing here states that parent
+        /// directly — see <see cref="RagdollBodyDefinition"/>'s remarks for why a second, authored
+        /// statement of the hierarchy was deliberately left out.
+        /// </remarks>
+        public List<RagdollBodyDefinition> ragdollBodies = new List<RagdollBodyDefinition>();
+
+        /// <summary>
+        /// Rig-wide ragdoll tuning — the plane of freedom, gravity scale, and solver settings every
+        /// body in <see cref="ragdollBodies"/> obeys together (Phase D, amendment A50). See
+        /// <see cref="RagdollRigSettings"/>'s remarks for why these are never authored per body.
+        /// </summary>
+        public RagdollRigSettings ragdollSettings = RagdollRigSettings.Default;
+
+        /// <summary>
         /// This rig's stable 64-bit identity (architecture section 3.4). Assigned once when the
         /// asset is created and never changed except through the editor's explicit remap tooling.
         /// </summary>
@@ -175,6 +196,26 @@ namespace DotsAnimationToolkit.Authoring
                     }
                 }
             }
+
+            if (ragdollBodies != null)
+            {
+                for (int bodyIndex = 0; bodyIndex < ragdollBodies.Count; bodyIndex++)
+                {
+                    RagdollBodyDefinition bodyDefinition = ragdollBodies[bodyIndex];
+                    if (bodyDefinition == null)
+                    {
+                        continue;
+                    }
+                    // Same 32-bit space again, for the same reason. A ragdoll body's id is what the
+                    // runtime buffer element and the Clip Editor's selection state bind to, so it
+                    // must exist before either can address it.
+                    if (bodyDefinition.stableId == 0u)
+                    {
+                        bodyDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        hasUnpersistedStableId = true;
+                    }
+                }
+            }
         }
 
 
@@ -251,7 +292,7 @@ namespace DotsAnimationToolkit.Authoring
         /// expected to sit on, so the editor can show the part where the user is looking at it.
         /// </para>
         /// <para>
-        /// A path rather than a name, matching <c>BillboardNodeAddress.hierarchyPath</c>: two
+        /// A path rather than a name, matching <c>RigNodeAddress.hierarchyPath</c>: two
         /// planes called "Plane" is the ordinary case, not the exotic one.
         /// </para>
         /// </remarks>
@@ -412,16 +453,23 @@ namespace DotsAnimationToolkit.Authoring
     }
 
     /// <summary>
-    /// How a <see cref="BillboardRootDefinition"/> names the node it turns (amendment A44).
+    /// How a <see cref="BillboardRootDefinition"/> or a <see cref="RagdollBodyDefinition"/> names
+    /// the node it applies to (amendment A44; generalised for the ragdoll work, Phase D).
     /// </summary>
     /// <remarks>
-    /// Two kinds because the rig has two kinds of node and only one of them has an id.
-    /// <see cref="RigAsset.targets"/> is a flat list — the rig asset carries no hierarchy at all,
-    /// and the hierarchy a billboard inherits down is the authoring prefab's transforms. A rig
-    /// target can therefore be addressed by a stable id that survives renames; a bare grouping
-    /// transform that is nobody's animatable part has no id to offer.
+    /// Three kinds because the rig has three kinds of node and only one of them has an id. A rig
+    /// target (<see cref="RigAsset.targets"/>) is a row this package owns, so it can be addressed by
+    /// a stable id that survives renames. A bare grouping transform that is nobody's animatable part
+    /// has no such row and no id to offer, so it falls back to its path below the prefab root — the
+    /// rig asset carries no hierarchy of its own; the hierarchy a billboard or a ragdoll body
+    /// inherits down is the authoring prefab's transforms. An imported skinned-mesh bone is neither:
+    /// it is not a row this package owns, and its path below the prefab root changes whenever an
+    /// artist reparents inside the armature, which a rig target's path does not. It is addressed by
+    /// name instead, because a name is the only handle the VAT bake has on a bone — the
+    /// <see cref="SocketDefinition.boneName"/> precedent already works this way, for the same
+    /// reason.
     /// </remarks>
-    public enum BillboardAddressKind : byte
+    public enum RigNodeAddressKind : byte
     {
         /// <summary>Addresses a <see cref="RigTargetDefinition"/> by its stable id.</summary>
         RigTarget = 0,
@@ -434,26 +482,44 @@ namespace DotsAnimationToolkit.Authoring
         /// reason: the node is not a row this package owns, so there is no id to assign it. The
         /// bake reports an address it cannot resolve rather than silently dropping the root.
         /// </remarks>
-        HierarchyPath = 1
+        HierarchyPath = 1,
+
+        /// <summary>
+        /// Addresses a bone of the imported skinned mesh by name (Phase D, the ragdoll work).
+        /// </summary>
+        /// <remarks>
+        /// A skinned bone's path below the prefab root is not stable the way a rig target's is: an
+        /// artist reparenting inside the armature changes it with no edit to the rig asset at all,
+        /// where a rig target's path only ever changes when the target itself is repointed. Naming
+        /// carries its own fragility — a rename in the DCC tool breaks the binding — but it is the
+        /// only handle the VAT bake has on a bone, exactly as <see cref="SocketDefinition.boneName"/>
+        /// already established. Billboarding rejects this kind at validation (rule V-R8): a bone has
+        /// no billboard frame of its own to turn.
+        /// </remarks>
+        Bone = 2
     }
 
     /// <summary>
-    /// Which node a billboard root turns (amendment A44).
+    /// Which node a billboard root or a ragdoll body applies to (amendment A44; generalised for the
+    /// ragdoll work, Phase D).
     /// </summary>
     [Serializable]
-    public struct BillboardNodeAddress
+    public struct RigNodeAddress
     {
-        /// <summary>Whether this address names a rig target or a prefab transform.</summary>
-        public BillboardAddressKind kind;
+        /// <summary>Whether this address names a rig target, a prefab transform, or a bone.</summary>
+        public RigNodeAddressKind kind;
 
-        /// <summary>Stable id of the addressed target, for <see cref="BillboardAddressKind.RigTarget"/>.</summary>
+        /// <summary>Stable id of the addressed target, for <see cref="RigNodeAddressKind.RigTarget"/>.</summary>
         public uint targetId;
 
         /// <summary>
-        /// Path below the prefab root, for <see cref="BillboardAddressKind.HierarchyPath"/>. Empty
+        /// Path below the prefab root, for <see cref="RigNodeAddressKind.HierarchyPath"/>. Empty
         /// addresses the prefab root itself.
         /// </summary>
         public string hierarchyPath;
+
+        /// <summary>Name of the addressed bone, for <see cref="RigNodeAddressKind.Bone"/>.</summary>
+        public string boneName;
     }
 
     /// <summary>
@@ -482,7 +548,7 @@ namespace DotsAnimationToolkit.Authoring
         [SerializeField] internal uint stableId;
 
         /// <summary>Which node this root turns.</summary>
-        public BillboardNodeAddress address;
+        public RigNodeAddress address;
 
         /// <summary>
         /// Which billboard rule to apply. Defaults to <see cref="BillboardMode.ScreenAligned"/>,
@@ -534,6 +600,244 @@ namespace DotsAnimationToolkit.Authoring
         public BillboardRootId Id
         {
             get { return new BillboardRootId(stableId); }
+        }
+    }
+
+    /// <summary>
+    /// Rig-wide ragdoll tuning (Phase D, amendment A50, spec §3.2): the plane of freedom every body
+    /// simulates in, gravity, and the fixed-step solver's own knobs. Never per body — see
+    /// <see cref="space"/>'s remarks for why.
+    /// </summary>
+    [Serializable]
+    public struct RagdollRigSettings
+    {
+        /// <summary>
+        /// Which plane of freedom this rig's ragdoll simulates in. Defaults to
+        /// <see cref="RagdollSpace.Planar2D"/> — most rigs this feature targets are billboarded
+        /// 2.5D characters, and a flat character should fall <em>via its billboard</em>, not in
+        /// world space.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Rig-wide by design, not an oversight.</strong> A ragdoll is one articulated body;
+        /// half of it constrained to a plane and half of it free is not a mode, it is a bug. The
+        /// Clip Editor shows this field in every Ragdoll component body (Phase D5), badged
+        /// rig-scope exactly as billboard settings already are, so it is editable from wherever the
+        /// author is looking without pretending to be a per-node choice.
+        /// </remarks>
+        public RagdollSpace space;
+
+        /// <summary>
+        /// Multiplies <see cref="RagdollConfig.worldGravity"/> (Phase D3) for this rig. A paper
+        /// cutout and a stone golem fall differently, and this is the one knob that lets a rig say
+        /// so without every body repeating it.
+        /// </summary>
+        public float gravityScale;
+
+        /// <summary>
+        /// Linear velocity damping a body adopts when its own <c>linearDamping</c> is left at the
+        /// −1 "inherit" sentinel (see <see cref="RagdollBodyDefinition.linearDamping"/>).
+        /// </summary>
+        public float defaultLinearDamping;
+
+        /// <summary>
+        /// Angular velocity damping a body adopts when its own <c>angularDamping</c> is left at the
+        /// −1 "inherit" sentinel.
+        /// </summary>
+        public float defaultAngularDamping;
+
+        /// <summary>
+        /// Limit-constraint softness, rig-wide, [0, 1]. 1 corrects a violated joint limit fully
+        /// within one solver iteration; lower softens it. Per-body softness is a knob spec §3.3
+        /// deliberately did not add — the joint pin itself is always solved rigidly, and only the
+        /// limit is allowed to feel soft.
+        /// </summary>
+        public float jointStiffness;
+
+        /// <summary>
+        /// Limit-constraint damping, rig-wide, [0, 1] — the fraction of a body's angular speed along
+        /// a limited axis removed on an iteration that is actively correcting it, so a joint settles
+        /// at its stop instead of ringing against it.
+        /// </summary>
+        public float jointDamping;
+
+        /// <summary>Position-solve iterations per fixed substep. Default 6 (spec §3.2).</summary>
+        public byte solverIterations;
+
+        /// <summary>The fixed solver rate, in steps per second. Default 120 (spec §3.2).</summary>
+        public float substepHz;
+
+        /// <summary>
+        /// A rig that has never touched these settings: <see cref="RagdollSpace.Planar2D"/>, no
+        /// gravity scaling, a light default damping so a dropped ragdoll settles rather than
+        /// spinning forever, a fully rigid joint limit with enough damping to stop it ringing, and
+        /// the spec's own solver defaults (6 iterations at 120 Hz). Assigned as
+        /// <see cref="RigAsset.ragdollSettings"/>'s field initializer, so a brand-new rig starts
+        /// here rather than at every numeric field's zero value — a 0 Hz substep rate or a 0-second
+        /// gravity scale would silently disable the whole feature the moment a rig ever authors a
+        /// body.
+        /// </summary>
+        public static RagdollRigSettings Default
+        {
+            get
+            {
+                return new RagdollRigSettings
+                {
+                    space = RagdollSpace.Planar2D,
+                    gravityScale = 1f,
+                    defaultLinearDamping = 0.05f,
+                    defaultAngularDamping = 0.05f,
+                    jointStiffness = 1f,
+                    jointDamping = 0.5f,
+                    solverIterations = 6,
+                    substepHz = 120f
+                };
+            }
+        }
+    }
+
+    /// <summary>
+    /// One box-collider body of a rig's ragdoll (Phase D, amendment A50, spec §3.3): the node it is
+    /// welded to, its collider, its physical properties, and the joint limits measured against its
+    /// implied parent — the nearest other ragdoll body above it in the addressed hierarchy.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>No <c>isRoot</c> flag and no parent reference (spec §3.4).</strong> A body whose
+    /// ancestor chain contains no other ragdolled body <em>is</em> the root, and the chain itself is
+    /// the parent — both facts the hierarchy already states once. Storing either again would be a
+    /// second statement that could disagree with it, exactly the failure mode this package's stable
+    /// ids exist to avoid for identity. Phase D3's baker derives both by walking the prefab that
+    /// <see cref="address"/> resolves against, the same walk that already produces
+    /// <c>restRelativeRotation</c>.
+    /// </para>
+    /// <para>
+    /// <strong>No enabled flag.</strong> The on/off toggle a game flips on death and revive is
+    /// <c>RagdollActor</c>, a runtime component on the actor root (spec §5.1) — never authoring
+    /// data, because whether a ragdoll is currently active is a fact about a live instance, not
+    /// about the rig every instance shares.
+    /// </para>
+    /// <para>
+    /// <strong>Mass is authored; the inertia tensor is derived, at bake, from <see cref="mass"/> and
+    /// <see cref="boxSize"/>.</strong> A box has a closed-form inertia tensor, and asking an author
+    /// for one directly is asking for a wrong one — the same reasoning that keeps the box the only
+    /// collider shape this feature offers (spec §12 row 2).
+    /// </para>
+    /// </remarks>
+    [Serializable]
+    public sealed class RagdollBodyDefinition
+    {
+        /// <summary>Cosmetic label; body identity is <see cref="Id"/>, never this name.</summary>
+        public string displayName = string.Empty;
+
+        [SerializeField] internal uint stableId;
+
+        /// <summary>Which node this body is welded to.</summary>
+        public RigNodeAddress address;
+
+        /// <summary>
+        /// The box collider's center, local to the addressed node's origin, so it travels with the
+        /// animated pose.
+        /// </summary>
+        public float3 boxCenter;
+
+        /// <summary>
+        /// The box collider's full extents, local to the addressed node. All three components must
+        /// be greater than 0 (rule V-R4). Stored as a full size rather than a half-extent because
+        /// that is what an author drags a handle to in the viewport (Phase D6); the solver's own
+        /// half-extent form is a bake-time conversion (spec §5.2), done once rather than repeated
+        /// every substep.
+        /// </summary>
+        public float3 boxSize = new float3(1f, 1f, 1f);
+
+        /// <summary>
+        /// The box collider's local rotation, in degrees, applied ZXY — matching
+        /// <c>TransformKey</c>, so a typed angle means the same thing everywhere in this toolkit.
+        /// Radians only exist from bake onward (spec §3.3), the same split
+        /// <see cref="BillboardRootDefinition.angleOffsetDegrees"/> already makes.
+        /// </summary>
+        public float3 boxEulerAngles;
+
+        /// <summary>
+        /// Mass in the rig's own units. Must be greater than 0 (rule V-R7) — a zero or negative mass
+        /// has no closed-form inertia tensor for the bake to derive.
+        /// </summary>
+        public float mass = 1f;
+
+        /// <summary>
+        /// Linear velocity damping per second. <strong>−1 means "inherit
+        /// <see cref="RagdollRigSettings.defaultLinearDamping"/>"</strong> — a negative sentinel
+        /// rather than a companion bool, following this toolkit's existing <c>snapSteps &lt; 2</c>
+        /// and <c>sliceIndex == -1</c> conventions. Resolved once at bake (Phase D3), never at
+        /// runtime.
+        /// </summary>
+        public float linearDamping = -1f;
+
+        /// <summary>
+        /// Angular velocity damping per second. Same −1 "inherit
+        /// <see cref="RagdollRigSettings.defaultAngularDamping"/>" sentinel as
+        /// <see cref="linearDamping"/>.
+        /// </summary>
+        public float angularDamping = -1f;
+
+        /// <summary>Contact restitution (bounce) for this body, [0, 1].</summary>
+        public float restitution;
+
+        /// <summary>Contact friction coefficient for this body.</summary>
+        public float friction = 0.5f;
+
+        /// <summary>
+        /// <see cref="RagdollSpace.Planar2D"/> signed hinge range minimum, in degrees, measured
+        /// against this body's rest relative orientation to its implied parent. Must not exceed
+        /// <see cref="limitMaxDegrees"/>, and both must stay within [−180, 180] (rule V-R5).
+        /// </summary>
+        /// <remarks>
+        /// <strong>This pair, and <see cref="swingLimitDegrees"/>/<see cref="twistLimitDegrees"/>
+        /// below, are both always stored regardless of <see cref="RagdollRigSettings.space"/>.</strong>
+        /// Switching the rig's space to look and switching back must not destroy tuning authored
+        /// for the other space, so neither pair is ever conditionally serialized away — a rig that
+        /// has only ever used Planar2D still keeps whatever swing and twist limits happen to hold.
+        /// </remarks>
+        public float limitMinDegrees = -45f;
+
+        /// <summary><see cref="RagdollSpace.Planar2D"/> signed hinge range maximum, in degrees.</summary>
+        public float limitMaxDegrees = 45f;
+
+        /// <summary>
+        /// <see cref="RagdollSpace.Spatial3D"/> cone half-angle, in degrees, [0, 180].
+        /// </summary>
+        public float swingLimitDegrees = 45f;
+
+        /// <summary>
+        /// <see cref="RagdollSpace.Spatial3D"/> half-range about the joint's own axis, in degrees,
+        /// [0, 180]. Which local axis "twist" is measured about is an open question the ragdoll spec
+        /// carries forward to Phase D8 (spec §13 Q1); it does not affect authoring this value.
+        /// </summary>
+        public float twistLimitDegrees = 45f;
+
+        /// <summary>Which of 8 self-collision groups this body belongs to (a bit index, 0–7, not a mask).</summary>
+        public byte selfGroup;
+
+        /// <summary>
+        /// Bitmask of the 8 self-collision groups this body collides with. Default: all. Both
+        /// bodies of a pair must admit each other's group for the pair to collide — a disagreement
+        /// between the two masks means no collision, the conservative reading spec §3.3 calls for.
+        /// A body's own parent–child pairs are excluded automatically regardless of this mask
+        /// (resolved at bake, Phase D3): two boxes sharing a joint overlap by construction, and
+        /// letting them collide is a ragdoll that explodes on its first frame.
+        /// </summary>
+        public byte selfCollidesWith = 0xFF;
+
+        /// <summary>
+        /// Whether this body resolves against world geometry. Default true. A designer turns this
+        /// off for a body that should pass through geometry — a cape tip, most often — while it
+        /// still takes part in self-collision and its own joint.
+        /// </summary>
+        public bool collidesWithWorld = true;
+
+        /// <summary>This body's stable 32-bit identity. Unique within the owning rig.</summary>
+        public RagdollBodyId Id
+        {
+            get { return new RagdollBodyId(stableId); }
         }
     }
 

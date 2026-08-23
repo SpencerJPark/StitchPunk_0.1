@@ -40,7 +40,8 @@ namespace DotsAnimationToolkit.Editor
             ClipComponentKind.BoneTransform,
             ClipComponentKind.Flipbook,
             ClipComponentKind.Billboard,
-            ClipComponentKind.Socket
+            ClipComponentKind.Socket,
+            ClipComponentKind.Ragdoll
         };
 
         /// <summary>The add-ons, in stack order — everything the Add Component menu offers.</summary>
@@ -48,7 +49,8 @@ namespace DotsAnimationToolkit.Editor
         {
             ClipComponentKind.Flipbook,
             ClipComponentKind.Billboard,
-            ClipComponentKind.Socket
+            ClipComponentKind.Socket,
+            ClipComponentKind.Ragdoll
         };
 
         private static readonly List<ClipComponentInstance> presenceScratch =
@@ -82,6 +84,7 @@ namespace DotsAnimationToolkit.Editor
                 case ClipComponentKind.BoneTransform: return "Bone Transform";
                 case ClipComponentKind.Flipbook: return "Flipbook";
                 case ClipComponentKind.Billboard: return "Billboard";
+                case ClipComponentKind.Ragdoll: return "Ragdoll";
                 default: return "Socket";
             }
         }
@@ -116,6 +119,12 @@ namespace DotsAnimationToolkit.Editor
                     return "Turns this node to face the viewer, and its children with it. Stored on "
                         + "the rig, so it holds in every clip; the keys here animate how much.";
 
+                case ClipComponentKind.Ragdoll:
+                    return "A box collider this node falls with once the rig's ragdoll drops it — "
+                        + "sized and placed in the viewport, and welded to whatever body is nearest "
+                        + "above it. Works on a guiding part or a skinned bone alike, and holds for "
+                        + "every clip since it is stored on the rig.";
+
                 default:
                     return "An attachment point that follows this object — a hand's grip, a muzzle, "
                         + "a hat's peg. Stored on the rig, so anything spawned onto it finds it in "
@@ -130,11 +139,15 @@ namespace DotsAnimationToolkit.Editor
         /// Billboard counts as rig-scoped because the component <em>is</em> the billboard root, which
         /// is rig structure: a node carrying it turns to face the viewer in every clip, whether or
         /// not this clip animates how much. Its keys are clip data hanging off that, the same way a
-        /// socket's offset is rig data every clip shares.
+        /// socket's offset is rig data every clip shares. Ragdoll is rig-scoped for the same reason
+        /// as Socket rather than Billboard's: its fields are not animatable at all (spec §3.3 has no
+        /// key data, only authored tuning), so there is no clip-side half to distinguish from the rig
+        /// structure — moving a box here moves it, full stop, in every clip that previews this rig.
         /// </remarks>
         public static ClipComponentScope Scope(ClipComponentKind kind)
         {
             return kind == ClipComponentKind.Socket || kind == ClipComponentKind.Billboard
+                || kind == ClipComponentKind.Ragdoll
                 ? ClipComponentScope.Rig
                 : ClipComponentScope.Clip;
         }
@@ -361,7 +374,9 @@ namespace DotsAnimationToolkit.Editor
             }
             if (Scope(kind) == ClipComponentScope.Rig && rig == null)
             {
-                unavailableReason = "The clip set has no rig, and this component is stored on it.";
+                unavailableReason = "This clip set's Rig field is empty, and this component is "
+                    + "stored on the rig. Assign a RigAsset there in the Inspector — the toolbar's "
+                    + "Bone Source field is a different thing, the rigged prefab for bone tracks.";
                 return false;
             }
 
@@ -369,8 +384,8 @@ namespace DotsAnimationToolkit.Editor
             // the rig. So the rig has to be there even for a kind the clip stores.
             if (RequiresRigTarget(kind) && !objectRef.HasRigTarget && rig == null)
             {
-                unavailableReason =
-                    "The clip set has no rig, so there is nothing to declare this node a part on.";
+                unavailableReason = "This clip set's Rig field is empty, so there is nothing to "
+                    + "declare this node a part on. Assign a RigAsset there in the Inspector.";
                 return false;
             }
             if (RequiresRigTarget(kind) && !objectRef.HasRigTarget
@@ -673,6 +688,24 @@ namespace DotsAnimationToolkit.Editor
                     // one no billboard track could ever address.
                     return new ClipComponentInstance(kind, rig.billboardRoots.Count - 1);
                 }
+                case ClipComponentKind.Ragdoll:
+                {
+                    if (rig.ragdollBodies == null)
+                    {
+                        rig.ragdollBodies = new List<RagdollBodyDefinition>();
+                    }
+                    RagdollBodyDefinition body = new RagdollBodyDefinition();
+                    body.displayName = newComponentName;
+                    body.address = objectRef.ragdollAddress;
+                    rig.ragdollBodies.Add(body);
+
+                    // Box, mass, damping and limits are left at the definition's own field
+                    // initializers — a unit box at the node's origin, 1kg, light damping, a ±45°
+                    // hinge. The window sizes the box from the node's renderer immediately after
+                    // this call when it has one (spec §8.1); the model has no viewport to measure
+                    // against, only the assets.
+                    return new ClipComponentInstance(kind, rig.ragdollBodies.Count - 1);
+                }
                 default:
                 {
                     if (rig.sockets == null)
@@ -734,6 +767,11 @@ namespace DotsAnimationToolkit.Editor
                     }
                     return RemoveAt(rig.billboardRoots, instance.index);
                 }
+                case ClipComponentKind.Ragdoll:
+                    // No clip-side data to take with it — a ragdoll body carries no keys (spec §3.3
+                    // has no animatable field on it at all), so unlike Billboard there is nothing
+                    // here for the caller to warn about beyond the body itself going away.
+                    return RemoveAt(rig == null ? null : rig.ragdollBodies, instance.index);
                 default:
                     return RemoveAt(rig == null ? null : rig.sockets, instance.index);
             }
@@ -920,6 +958,27 @@ namespace DotsAnimationToolkit.Editor
                         if (definition != null && definition.Id.Value == objectRef.billboardRootId)
                         {
                             instances.Add(new ClipComponentInstance(kind, rootIndex));
+                            return;
+                        }
+                    }
+                    return;
+                }
+                case ClipComponentKind.Ragdoll:
+                {
+                    // The component is the body the rig declares, addressed exactly as a billboard
+                    // root is: the window has already resolved which body (if any) welds to this
+                    // node and carries its id on the reference, because only the window holds the
+                    // previewed hierarchy the address is read against.
+                    if (rig == null || rig.ragdollBodies == null || objectRef.ragdollBodyId == 0u)
+                    {
+                        return;
+                    }
+                    for (int bodyIndex = 0; bodyIndex < rig.ragdollBodies.Count; bodyIndex++)
+                    {
+                        RagdollBodyDefinition definition = rig.ragdollBodies[bodyIndex];
+                        if (definition != null && definition.Id.Value == objectRef.ragdollBodyId)
+                        {
+                            instances.Add(new ClipComponentInstance(kind, bodyIndex));
                             return;
                         }
                     }

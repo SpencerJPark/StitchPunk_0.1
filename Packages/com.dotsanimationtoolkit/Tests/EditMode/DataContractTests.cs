@@ -444,6 +444,82 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Field("boneOrPositionTexture", typeof(UnityObjectRef<Texture2D>)),
                 Field("normalTexture", typeof(UnityObjectRef<Texture2D>))
             });
+
+            // Phase D, amendment A50: the ragdoll's actor-root inventory (spec §5). RagdollActor is
+            // a bare enableable tag and carries no fields, so it needs no AssertFieldsMatch call —
+            // its type check alone is the contract.
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(RagdollActor)));
+            Assert.IsTrue(typeof(IEnableableComponent).IsAssignableFrom(typeof(RagdollActor)));
+
+            Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(RagdollBody)));
+            AssertFieldsMatch(typeof(RagdollBody), new FieldContract[]
+            {
+                Field("bodyId", typeof(RagdollBodyId)),
+                Field("node", typeof(Entity)),
+                Field("parentBodyIndex", typeof(int)),
+                Field("parameters", typeof(RagdollBodyParams)),
+                Field("state", typeof(RagdollBodyState))
+            });
+
+            // RagdollRestPose's own field-exactness is asserted in
+            // RagdollBakingTests.RagdollRestPoseFields_MatchTheSection53Inventory (PlayMode), not
+            // here: its fields are Unity.Transforms types, and this EditMode assembly does not
+            // reference Unity.Transforms (amendment A17's deliberate EditMode/PlayMode split — see
+            // architecture §1.3). IBufferElementData conformance alone needs no such reference.
+            Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(RagdollRestPose)));
+
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(RagdollState)));
+            AssertFieldsMatch(typeof(RagdollState), new FieldContract[]
+            {
+                Field("frameRotation", typeof(quaternion)),
+                Field("planeNormal", typeof(float3)),
+
+                // D4 finding: spec §5.4's table omitted this — see RagdollState.planeOrigin's own
+                // remarks for why §6.2's planeOrigin has to live somewhere and this is the least
+                // surprising place.
+                Field("planeOrigin", typeof(float3)),
+                Field("substepAccumulator", typeof(float)),
+                Field("sleepTimer", typeof(float)),
+                Field("flags", typeof(RagdollStateFlags))
+            });
+
+            // D4 finding: not in spec §5 at all — RagdollRigSettings' rig-wide solver knobs had no
+            // baked runtime home until this component. See RagdollRigConfig's own remarks.
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(RagdollRigConfig)));
+            AssertFieldsMatch(typeof(RagdollRigConfig), new FieldContract[]
+            {
+                Field("space", typeof(RagdollSpace)),
+                Field("gravityScale", typeof(float)),
+                Field("jointStiffness", typeof(float)),
+                Field("jointDamping", typeof(float)),
+                Field("solverIterations", typeof(byte)),
+                Field("substepDeltaTime", typeof(float))
+            });
+
+            // Optional, never baked (see RagdollLaunch's own remarks) — still contracted here
+            // because it lives on the actor root and its field set must not silently drift.
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(RagdollLaunch)));
+            Assert.IsTrue(typeof(IEnableableComponent).IsAssignableFrom(typeof(RagdollLaunch)));
+            AssertFieldsMatch(typeof(RagdollLaunch), new FieldContract[]
+            {
+                Field("worldImpulse", typeof(float3)),
+                Field("worldPoint", typeof(float3)),
+                Field("worldTorque", typeof(float3))
+            });
+
+            Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(RagdollWorldContact)));
+            AssertFieldsMatch(typeof(RagdollWorldContact), new FieldContract[]
+            {
+                Field("bodyIndex", typeof(int)),
+                Field("point", typeof(float3)),
+                Field("normal", typeof(float3)),
+                Field("distance", typeof(float)),
+                // Paired with distance: the position it was measured at. Without it the solver
+                // re-applies a frame-measured penetration on every substep and pumps energy in.
+                Field("referencePosition", typeof(float3)),
+                Field("restitution", typeof(float)),
+                Field("friction", typeof(float))
+            });
         }
 
         [Test]
@@ -502,6 +578,20 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 // be a host-written per-frame value for the same reason position is — it has to be
                 // identical in the ShadowCaster pass, where UNITY_MATRIX_V is the light's.
                 Field("forward", typeof(float3))
+            });
+
+            // Phase D, amendment A50, spec §5.7: global ragdoll tuning, created by
+            // ConfigBootstrapSystem exactly as AnimationToolkitConfig is.
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(RagdollConfig)));
+            AssertFieldsMatch(typeof(RagdollConfig), new FieldContract[]
+            {
+                Field("worldGravity", typeof(float3)),
+                Field("sleepLinearSpeed", typeof(float)),
+                Field("sleepAngularSpeed", typeof(float)),
+                Field("sleepDelaySeconds", typeof(float)),
+                Field("maxSubstepsPerFrame", typeof(int)),
+                Field("fallbackGroundHeight", typeof(float)),
+                Field("contactProbeRadius", typeof(float))
             });
         }
 
