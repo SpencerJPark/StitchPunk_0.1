@@ -33,7 +33,7 @@ MonoBehaviour:
     intParam: 0
     floatParam: 0
     windowSeconds: 0
-  - normalizedTime: 0.6666667
+  - normalizedTime: 0.53333336
     eventKey: 16
     intParam: 0
     floatParam: 0

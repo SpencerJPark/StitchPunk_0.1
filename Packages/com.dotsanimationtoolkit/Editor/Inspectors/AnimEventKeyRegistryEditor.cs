@@ -55,8 +55,20 @@ namespace DotsAnimationToolkit.Editor
             RefreshFindings();
 
             // Picks up Undo/Redo and edits made from anywhere else, the same way the clip-set
-            // roster does — without re-walking the list on every repaint.
-            root.TrackSerializedObjectValue(serializedObject, changedObject => RefreshFindings());
+            // roster does — without re-walking the list on every repaint. The explicit
+            // PersistChange() call is what makes a rename typed into the bound name field above
+            // survive a domain reload when this is the project singleton (Task 1) — see its remarks;
+            // it is a no-op for an explicitly assigned override asset, which persists the ordinary
+            // AssetDatabase way instead.
+            root.TrackSerializedObjectValue(serializedObject, changedObject =>
+            {
+                AnimEventKeyRegistry changedRegistry = target as AnimEventKeyRegistry;
+                if (changedRegistry != null)
+                {
+                    changedRegistry.PersistChange();
+                }
+                RefreshFindings();
+            });
 
             return root;
         }
@@ -69,36 +81,23 @@ namespace DotsAnimationToolkit.Editor
         {
             AnimEventKeyRegistry registry = (AnimEventKeyRegistry)target;
 
-            Undo.RecordObject(registry, "Add Event Key");
-            if (registry.entries == null)
+            // CreateVocabularyEntry mints the key (falling back to the lowest free pulse-only key
+            // once every maskable slot is taken - see its remarks) and, for the project singleton,
+            // persists the change itself (Task 1) - the same path the shared vocabulary picker's
+            // "Create event..." row uses. An explicitly assigned override asset is a normal
+            // AssetDatabase asset instead (Task 1's back-compat clause), so it still needs the
+            // ordinary dirty-and-save pair; AssetDatabase.Contains is what tells the two cases apart
+            // without ever calling SaveAssetIfDirty on the singleton, which is not a persistent
+            // AssetDatabase object.
+            registry.CreateVocabularyEntry("NewEvent");
+            if (AssetDatabase.Contains(registry))
             {
-                registry.entries = new List<AnimEventKeyEntry>();
+                EditorUtility.SetDirty(registry);
+                AssetDatabase.SaveAssetIfDirty(registry);
             }
 
-            uint freeKey = registry.FindFirstFreeKey();
-            registry.entries.Add(new AnimEventKeyEntry
-            {
-                name = "NewEvent",
-
-                // Every maskable key is taken, so the new entry is necessarily pulse-only. It still
-                // gets a unique key rather than a colliding one: a pulse-only event is a legitimate
-                // thing to want, and silently duplicating a key would not be.
-                eventKey = freeKey != 0u ? freeKey : NextFreeUnmaskableKey(registry)
-            });
-
-            EditorUtility.SetDirty(registry);
             serializedObject.Update();
             RefreshFindings();
-        }
-
-        private static uint NextFreeUnmaskableKey(AnimEventKeyRegistry registry)
-        {
-            uint candidate = AnimEventMaskKeys.LastMaskKey + 1u;
-            while (registry.ContainsKey(candidate))
-            {
-                candidate++;
-            }
-            return candidate;
         }
 
         private void RefreshFindings()

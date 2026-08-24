@@ -3,6 +3,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using System.IO;
+using UnityEditor;
+#endif
 
 namespace DotsAnimationToolkit.Authoring
 {
@@ -13,18 +17,18 @@ namespace DotsAnimationToolkit.Authoring
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <strong>A tag answers a different question than a target's own stable id.</strong>
-    /// <see cref="TargetId"/> answers "which slot is this?" and is unique
-    /// within one rig; a tag answers "what is this slot for?" and is shared across every rig in the
-    /// project. A target keeps its own stable id exactly as before — this registry never replaces
-    /// that identity, it only adds a second, optional one that several rigs can agree to share.
+    /// <strong>A tag answers a different question than a target's own stable id.</strong> A rig
+    /// target's own id answers "which slot is this?" and is unique within one rig; a tag answers
+    /// "what is this slot for?" and is shared across every rig in the project. A target keeps its
+    /// own stable id exactly as before — this registry never replaces that identity, it only adds a
+    /// second, optional one that several rigs can agree to share.
     /// </para>
     /// <para>
     /// <strong>Authoring only — this asset is never baked and never read at runtime.</strong> Same
     /// contract as <see cref="AnimEventKeyRegistry"/>, and for the same reason: a project must be
     /// able to rename a tag, reorder the list, or delete a row entirely without invalidating a
-    /// single baked clip. Nothing downstream stores a tag's <em>name</em> — a track (once E3 lands)
-    /// binds a tag's <see cref="TargetTagEntry.stableId"/>, which a rename cannot touch.
+    /// single baked clip. Nothing downstream stores a tag's <em>name</em> — a track binds a tag's
+    /// <see cref="TargetTagEntry.stableId"/>, which a rename cannot touch.
     /// </para>
     /// <para>
     /// <strong>The id is minted, not derived from the name.</strong> Hashing the name would make a
@@ -34,15 +38,73 @@ namespace DotsAnimationToolkit.Authoring
     /// same random-fold generator a rig target's own stable id uses, so a tag id and a target id
     /// share one identity scheme even though they occupy separate namespaces.
     /// </para>
+    /// <para>
+    /// <strong>A project-scoped instance, auto-created on first use — never an asset a person creates
+    /// by hand (amendment E6 Task 1, owner directive 2026-08-23: "I don't want to manually create and
+    /// wire it — it should just exist").</strong> <c>Editor/ClipEditor/Preview/RagdollPreviewScenery.cs</c>
+    /// is this package's precedent for exactly this shape — a <c>ScriptableSingleton&lt;T&gt;</c>
+    /// under <c>ProjectSettings/</c> — but that base class lives in <c>UnityEditor</c> and this type
+    /// cannot inherit it: <c>ClipValidation</c> (architecture section 3.5) takes a
+    /// <see cref="TargetTagRegistry"/> parameter and is documented as having "no editor-assembly
+    /// dependency" so it keeps compiling in a player build, and <see cref="TargetTagRegistry"/> must
+    /// stay a plain <see cref="ScriptableObject"/> for that to hold. <see cref="Instance"/> instead
+    /// reproduces the same contract by hand, entirely inside <c>#if UNITY_EDITOR</c>: a lazily
+    /// created in-memory instance, hydrated from (and saved back to)
+    /// <c>ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset</c> via
+    /// <see cref="EditorJsonUtility"/>, which every predefined and custom assembly's editor-compiled
+    /// variant can reach without an explicit assembly reference. There is deliberately no
+    /// <c>[CreateAssetMenu]</c>, so there is no second, competing instance a person could create by
+    /// mistake — <see cref="Instance"/> is the only way this type is ever obtained in the editor.
+    /// </para>
     /// </remarks>
-    [CreateAssetMenu(
-        fileName = "NewTargetTags",
-        menuName = "DOTS Animation Toolkit/Target Tag Registry",
-        order = 4)]
-    public sealed class TargetTagRegistry : ScriptableObject
+    public sealed class TargetTagRegistry : ScriptableObject, IVocabularyRegistry
     {
         /// <summary>The tags this project defines.</summary>
         public List<TargetTagEntry> entries = new List<TargetTagEntry>();
+
+#if UNITY_EDITOR
+        private const string ProjectSettingsFilePath =
+            "ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset";
+
+        private static TargetTagRegistry projectInstance;
+
+        /// <summary>
+        /// The one, project-wide tag registry. Reading this the first time creates an empty instance
+        /// in memory and, if <c>ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset</c>
+        /// already exists, hydrates it from that file — nothing is written to disk until the first
+        /// row is added and <see cref="PersistChange"/> runs, which is the "zero-setup" contract
+        /// Task 1 asks for: a project that never tags anything never gets a file at all.
+        /// </summary>
+        public static TargetTagRegistry Instance
+        {
+            get
+            {
+                if (projectInstance == null)
+                {
+                    projectInstance = CreateInstance<TargetTagRegistry>();
+                    projectInstance.hideFlags = HideFlags.HideAndDontSave;
+                    if (File.Exists(ProjectSettingsFilePath))
+                    {
+                        string storedJson = File.ReadAllText(ProjectSettingsFilePath);
+                        EditorJsonUtility.FromJsonOverwrite(storedJson, projectInstance);
+                    }
+                }
+                return projectInstance;
+            }
+        }
+
+        /// <summary>
+        /// Persists whatever is currently in <see cref="entries"/> to this project's settings file.
+        /// Every editor surface that mutates a row must call this immediately after the edit — unlike
+        /// a normal asset, this instance has no <see cref="AssetDatabase"/> autosave to fall back on,
+        /// so an edit that never calls this is an edit that is lost the moment the domain reloads.
+        /// </summary>
+        public void PersistChange()
+        {
+            string json = EditorJsonUtility.ToJson(this, true);
+            File.WriteAllText(ProjectSettingsFilePath, json);
+        }
+#endif
 
         /// <summary>
         /// The display name for <paramref name="tagId"/>, or null when the registry does not name
@@ -109,6 +171,44 @@ namespace DotsAnimationToolkit.Authoring
             }
             return candidateId;
         }
+
+        /// <summary>
+        /// Appends a tag named <paramref name="name"/> with a freshly minted id, persists the
+        /// change (editor only), and returns the minted id — the one code path every "add a tag"
+        /// surface (the registry inspector's Add Tag button, the picker's inline "Create tag…") goes
+        /// through, so "another tag, please" can never produce a duplicate id by accident even
+        /// though ids are random.
+        /// </summary>
+        public uint CreateVocabularyEntry(string name)
+        {
+            if (entries == null)
+            {
+                entries = new List<TargetTagEntry>();
+            }
+            uint newTagId = MintTagId();
+            entries.Add(new TargetTagEntry { name = name, stableId = newTagId });
+#if UNITY_EDITOR
+            PersistChange();
+#endif
+            return newTagId;
+        }
+
+        int IVocabularyRegistry.VocabularyEntryCount
+        {
+            get { return entries != null ? entries.Count : 0; }
+        }
+
+        string IVocabularyRegistry.VocabularyEntryName(int entryIndex)
+        {
+            TargetTagEntry entry = entries[entryIndex];
+            return entry != null ? entry.name : null;
+        }
+
+        uint IVocabularyRegistry.VocabularyEntryId(int entryIndex)
+        {
+            TargetTagEntry entry = entries[entryIndex];
+            return entry != null ? entry.stableId : 0u;
+        }
     }
 
     /// <summary>One named target tag in a <see cref="TargetTagRegistry"/>.</summary>
@@ -119,9 +219,9 @@ namespace DotsAnimationToolkit.Authoring
         public string name = string.Empty;
 
         /// <summary>
-        /// The id a rig target's <c>tagId</c> (E2) or a track's tag binding (E3) actually stores.
-        /// Minted once by <see cref="TargetTagRegistry.MintTagId"/>, never derived from
-        /// <see cref="name"/>, and never reassigned by a rename — see the type's remarks.
+        /// The id a rig target's <c>tagId</c> or a track's tag binding actually stores. Minted once
+        /// by <see cref="TargetTagRegistry.MintTagId"/>, never derived from <see cref="name"/>, and
+        /// never reassigned by a rename — see the type's remarks.
         /// </summary>
         public uint stableId;
     }

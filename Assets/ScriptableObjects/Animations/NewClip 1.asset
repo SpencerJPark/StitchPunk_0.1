@@ -19,10 +19,41 @@ MonoBehaviour:
   defaultBlendIn: 0
   defaultBlendOut: 0
   frameRate: 30
-  transformTracks: []
+  transformTracks:
+  - targetId: 495986569
+    tagId: 0
+    blendOp: 0
+    channels: 1
+    keys:
+    - normalizedTime: 0.39360967
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0.13
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   spriteTracks: []
   boneTracks: []
-  events: []
+  events:
+  - normalizedTime: 0.6333334
+    eventKey: 16
+    intParam: 0
+    floatParam: 0
+    windowSeconds: 0
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30

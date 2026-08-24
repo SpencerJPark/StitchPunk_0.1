@@ -148,6 +148,40 @@ freely. **A delete is not** — it produces T3 errors on every clip that used it
 loud, but the registry editor should say how many bindings a tag has before removing it, rather than
 letting a person discover the count from the console afterwards.
 
+### 4.2.3 Numbers are an implementation detail and must never surface (owner directive, 2026-08-24)
+
+**The owner will only ever reference tags and event names by *name* — in the editor and in
+downstream game code. A number must never be something they type, read, or compare.**
+
+This is not in tension with §2's stable ids; it is a statement about *interface* versus *storage*.
+The id exists so a rename cannot repoint a clip. It is not something a person should ever meet.
+
+| Layer | What it uses | Why |
+|---|---|---|
+| Stored in assets | the **id** | A rename must not repoint a clip (§2). Non-negotiable. |
+| Every editor surface | the **name** | Pickers, rig rows, timeline lanes, inspector fields, validation messages. |
+| Downstream game code | a **generated constant** | `AnimEvents.Footstep`, `TargetTags.Jaw`. |
+
+**Generated constants are how code gets names without paying for strings.** `ClipSetAsset` already
+does exactly this — its inspector's *Generate Clip Id Constants* writes a C# file of `public const`
+values so game code says `Clips.Walk` rather than a magic number. The tag registry and the event-name
+registry must each ship the same generator.
+
+**Why not store or compare the string itself at run time:** event consumers live in Burst jobs, and
+Burst cannot compare managed strings. A `uint` compare against a generated constant is the only form
+that is both name-shaped in source and legal inside a job. The string never reaches the runtime at
+all.
+
+**Renaming a tag deliberately breaks compilation, and that is the desired behaviour.** The generated
+constant is renamed with it, so code referencing the old name fails at compile time — loud, located,
+and fixed in seconds. Compare that to the alternative this whole design exists to prevent: a silent
+repoint that animates the wrong part and is noticed weeks later.
+
+**The single permitted exception is an unresolvable id**, where no name exists to show — a dangling
+reference after a tag was deleted (rule T3). Printing `(unresolved 0x1A2B3C4D)` there is correct,
+because the number is the only information that survives and it is what makes the dangling row
+findable. Everywhere a name *can* be resolved, the name is what is shown.
+
 ### 4.3 A track binds by tag **or** by target
 
 A track carries a target id (as now) *or* a tag id. Both resolve to the same dense index at bake, so

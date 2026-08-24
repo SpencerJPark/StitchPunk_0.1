@@ -73,8 +73,16 @@ namespace DotsAnimationToolkit.Editor
 
             // Picks up Undo/Redo and edits made from anywhere else, the same way the anim event key
             // registry and the clip-set roster do - without re-walking the list on every repaint.
+            // The explicit PersistChange() is the reason this callback exists at all for this
+            // asset: TargetTagRegistry lives outside the AssetDatabase (Task 1), so a rename typed
+            // into the bound name field above has nothing else that would ever write it to disk.
             root.TrackSerializedObjectValue(serializedObject, changedObject =>
             {
+                TargetTagRegistry changedRegistry = target as TargetTagRegistry;
+                if (changedRegistry != null)
+                {
+                    changedRegistry.PersistChange();
+                }
                 RefreshRows();
                 RefreshFindings();
             });
@@ -153,19 +161,11 @@ namespace DotsAnimationToolkit.Editor
         {
             TargetTagRegistry registry = (TargetTagRegistry)target;
 
-            Undo.RecordObject(registry, "Add Target Tag");
-            if (registry.entries == null)
-            {
-                registry.entries = new List<TargetTagEntry>();
-            }
+            // CreateVocabularyEntry both mints the id and persists the change (Task 1) - the same
+            // single code path TargetTagPicker's "Create tag..." row uses, so "another tag, please"
+            // never produces a duplicate id or an unsaved row regardless of which surface asked.
+            registry.CreateVocabularyEntry("NewTag");
 
-            registry.entries.Add(new TargetTagEntry
-            {
-                name = "NewTag",
-                stableId = registry.MintTagId()
-            });
-
-            EditorUtility.SetDirty(registry);
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
@@ -205,9 +205,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Undo.RecordObject(registry, "Delete Target Tag");
             registry.entries.RemoveAt(entryIndex);
-            EditorUtility.SetDirty(registry);
+            registry.PersistChange();
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
