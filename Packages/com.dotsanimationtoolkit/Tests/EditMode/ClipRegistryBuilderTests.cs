@@ -3,6 +3,8 @@
 using NUnit.Framework;
 using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
@@ -513,6 +515,144 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 ClipRegistryUtil.TryResolveClip(ref registry, new ClipId(0x10UL), out resolvedIndex),
                 "Resolving against an empty registry must fail rather than read out of bounds.");
             Assert.AreEqual(-1, resolvedIndex, "A failed resolve reports -1.");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // E4: tag-bound track resolution (Phase E target-tags spec §5).
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void Build_ResolvesATagBoundTrack_ToTheDenseIndexOfTheTargetCarryingTheTag()
+        {
+            const uint TagId = 0xAAAAu;
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 9u, 2u, 5u });
+            rig.targets[2].tagId = TagId; // stableId 5u, dense index 1 once sorted (2, 5, 9).
+            ClipAsset clip = assets.CreateClip("Blink", rig, 0x10UL, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = TagId;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
+
+            registryScope.Build(clipSet);
+            ref ClipRegistryBlob registry = ref registryScope.Registry.Value;
+
+            Assert.AreEqual(1, registry.clips[0].transformTracks.Length, "The tag-bound track must be kept.");
+            Assert.AreEqual(
+                1,
+                registry.clips[0].transformTracks[0].targetIndex,
+                "A tag-bound track resolves to the dense index of whichever target carries the tag, " +
+                "ignoring its own (unset) targetId entirely.");
+        }
+
+        [Test]
+        public void Build_ResolvesTheSameTag_ToDifferentDenseIndices_OnDifferentRigs()
+        {
+            const uint SharedTagId = 0xBEEFu;
+
+            // Rig A: three targets, the tag on the one with stableId 1 -> dense index 0 of (1, 4, 8).
+            RigAsset rigA = assets.CreateRig("RigA", 1UL, 1, new uint[] { 8u, 1u, 4u });
+            rigA.targets[1].tagId = SharedTagId; // stableId 1u.
+            ClipAsset clipA = assets.CreateClip("BlinkA", rigA, 0x10UL, 1f);
+            TransformTrack trackA = AuthoringTestAssets.AddTransformTrack(
+                clipA, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            trackA.tagId = SharedTagId;
+            AuthoringTestAssets.AddTransformKey(
+                trackA, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSetA = assets.CreateSet("SetA", rigA, 2UL, clipA);
+
+            // Rig B: two targets, the tag on the one with stableId 30 -> dense index 1 of (5, 30).
+            RigAsset rigB = assets.CreateRig("RigB", 3UL, 1, new uint[] { 5u, 30u });
+            rigB.targets[1].tagId = SharedTagId; // stableId 30u.
+            ClipAsset clipB = assets.CreateClip("BlinkB", rigB, 0x20UL, 1f);
+            TransformTrack trackB = AuthoringTestAssets.AddTransformTrack(
+                clipB, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            trackB.tagId = SharedTagId;
+            AuthoringTestAssets.AddTransformKey(
+                trackB, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSetB = assets.CreateSet("SetB", rigB, 4UL, clipB);
+
+            BlobAssetReferenceScope scopeA = new BlobAssetReferenceScope();
+            BlobAssetReferenceScope scopeB = new BlobAssetReferenceScope();
+            try
+            {
+                scopeA.Build(clipSetA);
+                scopeB.Build(clipSetB);
+                ref ClipRegistryBlob registryA = ref scopeA.Registry.Value;
+                ref ClipRegistryBlob registryB = ref scopeB.Registry.Value;
+
+                Assert.AreEqual(
+                    0,
+                    registryA.clips[0].transformTracks[0].targetIndex,
+                    "On rig A, the shared tag names the target at dense index 0.");
+                Assert.AreEqual(
+                    1,
+                    registryB.clips[0].transformTracks[0].targetIndex,
+                    "On rig B, the same tag names a different target at dense index 1 - this is the " +
+                    "entire payoff of tag-bound tracks (spec §1, §5): one role, resolved per rig.");
+            }
+            finally
+            {
+                scopeA.Dispose();
+                scopeB.Dispose();
+            }
+        }
+
+        [Test]
+        public void Build_SkipsATagBoundTrack_AndLogsAWarning_WhenNoTargetInTheRigCarriesTheTag()
+        {
+            const uint UnclaimedTagId = 0xC0FFEEu;
+            RigAsset rig = assets.CreateRig("Barrel", 1UL, 1, new uint[] { 7u });
+            ClipAsset clip = assets.CreateClip("Reactions", rig, 0x10UL, 1f);
+            TransformTrack unresolved = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            unresolved.tagId = UnclaimedTagId; // No target on this rig carries it (rule T2).
+            AuthoringTestAssets.AddTransformKey(
+                unresolved, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            // An ordinary target-id-bound track on the same clip must still bake normally.
+            AddSingleKeyTrack(clip, 7u, AnimatedChannels.Rotation);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
+
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(
+                "\\[DOTS Animation Toolkit\\].*Transform track 0.*'Reactions'.*0x00C0FFEE.*'Barrel'"));
+
+            registryScope.Build(clipSet);
+            ref ClipRegistryBlob registry = ref registryScope.Registry.Value;
+
+            Assert.AreEqual(
+                1,
+                registry.clips[0].transformTracks.Length,
+                "T2 is a warning, not an error: the bake must succeed and keep the resolvable " +
+                "track, silently dropping only the one whose tag this rig does not carry.");
+            Assert.AreEqual(
+                AnimatedChannels.Rotation,
+                registry.clips[0].transformTracks[0].channels,
+                "The surviving track is the ordinary target-id-bound one, not the unresolved tag-bound one.");
+        }
+
+        [Test]
+        public void Build_StillResolvesATargetIdBoundTrack_WhenTagIdIsTheReservedZero()
+        {
+            // Regression: every clip authored before this field existed deserializes tagId as 0, so
+            // the target-id path (E4's other branch of TryResolveTrackBinding) must behave exactly
+            // as it did before tags existed.
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 9u, 2u, 5u });
+            ClipAsset clip = CreateKeyedClip(rig, "Walk", 0x10UL, 5u);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
+
+            registryScope.Build(clipSet);
+            ref ClipRegistryBlob registry = ref registryScope.Registry.Value;
+
+            Assert.AreEqual(
+                0,
+                clip.transformTracks[0].tagId,
+                "Sanity: the fixture track's tagId is the untouched default.");
+            Assert.AreEqual(
+                1,
+                registry.clips[0].transformTracks[0].targetIndex,
+                "targetId 5u is dense index 1 of the sorted (2, 5, 9) target list, exactly as before " +
+                "tags existed.");
         }
 
         // -----------------------------------------------------------------------------------

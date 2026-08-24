@@ -34,7 +34,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle", "billboard-preview-toggle",
             "ragdoll-preview-toggle", "vat-bake-toggle",
-            "skinned-source-field", "validation-badge-slot",
+            "skinned-source-field", "new-rig-button", "validation-badge-slot",
             // Transport bar: every control that answers "when", docked above the timeline.
             "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
             "step-forward-button", "jump-end-button",
@@ -42,6 +42,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "clip-length-field", "frame-rate-field", "frame-count-label",
             "loop-button", "loop-icon", "playback-speed-field",
             "zoom-slider", "frame-all-button", "frame-selection-button",
+            "add-event-button",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
             "clip-list-pane", "new-clip-button", "delete-clip-button", "clip-list",
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",
@@ -59,7 +60,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "track-header-stack", "track-header-column", "lane-stack", "lane-column",
             // The VAT bake tab's slot. Nothing is built into it until the tab is first opened, so a
             // rename here would present as a toggle that does nothing rather than as a failure.
-            "vat-bake-pane"
+            "vat-bake-pane",
+            // The New Rig flow's slot, covering the dock the same way the VAT bake tab does
+            // (Phase D11). Nothing is built into it until the button is first pressed.
+            "new-rig-pane"
         };
 
         [Test]

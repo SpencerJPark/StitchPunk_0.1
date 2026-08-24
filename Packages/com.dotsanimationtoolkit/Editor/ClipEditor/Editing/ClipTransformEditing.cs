@@ -59,7 +59,15 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         public const float KeyTimeTolerance = 1e-4f;
 
-        /// <summary>The first transform track aimed at a target, or null.</summary>
+        /// <summary>The first transform track aimed at a target by id, or null.</summary>
+        /// <remarks>
+        /// Blind to tag-bound tracks (Phase E target-tags spec §4.3) — a track whose
+        /// <c>tagId</c> is non-zero never matches here regardless of what it resolves to, because
+        /// this overload has no rig to resolve a tag against. Prefer
+        /// <see cref="FindTransformTrack(ClipAsset, RigAsset, uint)"/> wherever a rig is available,
+        /// which is everywhere in the window; this overload remains for tests and callers that
+        /// deliberately want the target-id-only view.
+        /// </remarks>
         public static TransformTrack FindTransformTrack(ClipAsset clip, uint targetId)
         {
             if (clip == null || clip.transformTracks == null)
@@ -70,6 +78,41 @@ namespace DotsAnimationToolkit.Editor
             {
                 TransformTrack track = clip.transformTracks[trackIndex];
                 if (track != null && track.targetId == targetId)
+                {
+                    return track;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The first transform track that animates the rig target <paramref name="targetId"/>,
+        /// whether the track binds it directly or through a tag that resolves to it (Phase E
+        /// target-tags spec §4.3).
+        /// </summary>
+        /// <remarks>
+        /// This is what keeps a tag-bound track discoverable by the one node it currently resolves
+        /// to: without it, every editing and keying path here would find no track for that node,
+        /// key against it anyway, and mint a second, target-id-bound track alongside the one already
+        /// there — the exact "two tracks pose the same node" failure
+        /// <see cref="ClipComponentModel.MigrateBoneTrackToTransform"/> already refuses to create for
+        /// bone tracks, now avoided here for the same reason.
+        /// </remarks>
+        /// <param name="rig">
+        /// The clip's rig, used only to resolve a tag-bound track's <c>tagId</c> to the target it
+        /// currently carries. Null falls back to <see cref="FindTransformTrack(ClipAsset, uint)"/>'s
+        /// target-id-only behaviour.
+        /// </param>
+        public static TransformTrack FindTransformTrack(ClipAsset clip, RigAsset rig, uint targetId)
+        {
+            if (clip == null || clip.transformTracks == null)
+            {
+                return null;
+            }
+            for (int trackIndex = 0; trackIndex < clip.transformTracks.Count; trackIndex++)
+            {
+                TransformTrack track = clip.transformTracks[trackIndex];
+                if (track != null && ClipComponentModel.TrackBindsTarget(track.targetId, track.tagId, targetId, rig))
                 {
                     return track;
                 }

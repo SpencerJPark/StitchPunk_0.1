@@ -47,6 +47,34 @@ namespace DotsAnimationToolkit.Authoring
         /// </summary>
         public MirrorPair[] mirrorPairs = Array.Empty<MirrorPair>();
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// The rigged prefab this rig's Clip Editor preview and VAT bake sample (Phase D11).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Lives here instead of on the Clip Editor window, because a source prefab is a
+        /// property of the rig, not of whichever window happened to have it open.</strong> Before
+        /// this, the toolbar carried a bare <c>GameObject</c> field with nothing behind it — every
+        /// person who opened a rig in a window had to re-pick the same prefab for themselves, and
+        /// nothing on the rig recorded which one that was, so two windows editing the same rig could
+        /// silently disagree. Assigning it here means it is picked once, per rig, and every window
+        /// that loads this rig gets it for free.
+        /// </para>
+        /// <para>
+        /// <strong>Inside <c>UNITY_EDITOR</c>, for the same reason <see cref="SocketDefinition"/>'s
+        /// <c>previewAttachment</c> is.</strong> A bare <c>GameObject</c> field on a
+        /// <c>ScriptableObject</c> is a hard reference, and Unity's build pipeline follows a hard
+        /// reference wherever it points — mesh, materials, everything the prefab drags in. A rig
+        /// asset ships with every actor baked from it, so an unguarded field here would pull the
+        /// rigged prefab into every player build that uses this rig, for a value nothing at runtime
+        /// reads: the VAT bake samples a live scene instance of it and the Clip Editor preview
+        /// instantiates it directly, both editor-time operations.
+        /// </para>
+        /// </remarks>
+        public GameObject sourcePrefab;
+#endif
+
         /// <summary>
         /// Attachment points on this rig. Empty for rigs nothing attaches to — a rig without
         /// sockets bakes no socket blob and its actors carry no socket component.
@@ -356,6 +384,36 @@ namespace DotsAnimationToolkit.Authoring
         {
             get { return new TargetId(stableId); }
         }
+
+        /// <summary>
+        /// The role this target plays, or 0 for untagged (Phase E target-tags spec §4.2): what a
+        /// face-blink clip authored against one character's <c>EyeL</c> needs in order to also play
+        /// on every other rig that tags a target the same way. Resolved against a
+        /// <c>TargetTagRegistry</c>, never against this field alone — the id is the only thing this
+        /// row stores, exactly like <see cref="stableId"/> itself.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Untagged is a legal, ordinary state, not a to-do.</strong> A one-off part that
+        /// exists on only one character has no role to name, and forcing one would mean inventing a
+        /// junk tag per part per character - which makes the registry useless as a shared vocabulary
+        /// (spec §4.3). Most targets in most rigs are expected to stay at 0.
+        /// </para>
+        /// <para>
+        /// <strong><see cref="HideInInspector"/> on purpose.</strong> The default array drawer that
+        /// still renders every other field of this row would otherwise show this as a bare
+        /// <c>uint</c> spinner - free-text-equivalent typing of a number nobody can read - which is
+        /// exactly what spec §4.2.1's "a tag is typed once, in the registry, and selected everywhere
+        /// else" rule exists to prevent. <see cref="RigAssetEditor"/>'s Target Tags section is the
+        /// only surface that writes this field, through <c>TargetTagPicker</c>, which offers nothing
+        /// but the registry's existing tags (plus "(none)" and the in-flow "Create tag…").
+        /// </para>
+        /// <para>
+        /// Unique within the owning rig when non-zero (validation rule T1) - two targets sharing a
+        /// tag would make a tag-bound track's resolution ambiguous once E3 lands.
+        /// </para>
+        /// </remarks>
+        [HideInInspector] public uint tagId;
     }
 
     /// <summary>

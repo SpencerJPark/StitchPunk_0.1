@@ -51,6 +51,7 @@ namespace DotsAnimationToolkit.Editor
         private Button loopButton;
         private FloatField playbackSpeedField;
         private Button quantizeKeysButton;
+        private Button addEventButton;
 
         /// <summary>Guards the readout fields against re-notifying while being written.</summary>
         private bool isSyncingTransport;
@@ -281,6 +282,17 @@ namespace DotsAnimationToolkit.Editor
                     + "setting must not rewrite it without being asked.";
             }
 
+            // Lives in the status row over the key area, not the transport bar (D14) — same reason
+            // Quantize Keys does, above: it edits keys rather than answering "when". Bound here
+            // anyway, same as that one, because BindTransportBar already resolves every control by
+            // name and one place for that beats a binding split across files by which row a control
+            // happens to sit in.
+            addEventButton = rootVisualElement.Q<Button>("add-event-button");
+            if (addEventButton != null)
+            {
+                addEventButton.clicked += AddEventAtPlayhead;
+            }
+
             RegisterTransportShortcuts();
             SyncTransportFromClip();
         }
@@ -328,6 +340,13 @@ namespace DotsAnimationToolkit.Editor
                 if (frameCountLabel != null)
                 {
                     frameCountLabel.text = TransportFrameCount.ToString() + " frames";
+                }
+                if (addEventButton != null)
+                {
+                    addEventButton.SetEnabled(hasClip);
+                    addEventButton.tooltip = hasClip
+                        ? "Add an event marker at the current playhead time."
+                        : "Select a clip to add an event marker.";
                 }
 
                 SyncTransportPlayhead();

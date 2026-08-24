@@ -43,7 +43,11 @@ namespace DotsAnimationToolkit.Editor
         {
             public UnityEngine.Object clipSet;
             public UnityEngine.Object selectedClip;
-            public GameObject skinnedSource;
+
+            // A RigAsset rather than the prefab it used to carry (Phase D11): the toolbar field
+            // now picks the rig, and the rig itself says which prefab the preview loads, so there
+            // is no separate prefab reference to round-trip here any more.
+            public UnityEngine.Object rig;
             public float playheadTime;
             public bool rigEditMode;
             public readonly List<string> selectedNames = new List<string>();

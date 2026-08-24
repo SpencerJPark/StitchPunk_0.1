@@ -340,8 +340,38 @@ namespace DotsAnimationToolkit.Authoring
     [Serializable]
     public sealed class TransformTrack
     {
-        /// <summary>Stable id of the <c>RigTargetDefinition</c> this track animates (validation rule V02).</summary>
+        /// <summary>
+        /// Stable id of the <c>RigTargetDefinition</c> this track animates (validation rule V02).
+        /// Meaningful only when <see cref="tagId"/> is the reserved 0 — see that field's remarks for
+        /// the sentinel convention the two share.
+        /// </summary>
         public uint targetId;
+
+        /// <summary>
+        /// The role this track animates, or 0 to bind by <see cref="targetId"/> instead (Phase E
+        /// target-tags spec §4.3).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Sentinel, not a companion bool.</strong> A non-zero value means "bind by tag" and
+        /// <see cref="targetId"/> is ignored; 0 means "bind by target id", the track's behaviour
+        /// before this field existed. This is the same shape <see cref="SpriteKey.sliceIndex"/>'s
+        /// -1 and <c>SnapSettings.snapSteps</c>'s "&lt; 2" sentinels already use elsewhere in this
+        /// package, rather than a second <c>bool bindsByTag</c> field: a sentinel cannot itself
+        /// disagree with the value it gates, where a bool-plus-id pair could hold
+        /// <c>bindsByTag == true</c> beside a stale <c>tagId == 0</c> and leave a resolver guessing
+        /// which field is the lie. Every clip authored before this field existed deserializes it as
+        /// 0, so it reads back exactly as "bind by target id" — no migration needed.
+        /// </para>
+        /// <para>
+        /// Resolved at bake against the clip's rig (spec §5): the dense index of whichever rig
+        /// target currently carries this tag, or the track is reported and skipped if none does
+        /// (rule T2) or the tag no longer exists in the registry (rule T3). Both target-id and
+        /// tag-bound tracks stay first-class — sharing is opt-in per track, never a migration, so a
+        /// character-specific track with no role to name never has to invent a junk tag (spec §4.3).
+        /// </para>
+        /// </remarks>
+        public uint tagId;
 
         /// <summary>Whether the track replaces its channels or adds onto the composited lower layers.</summary>
         public TrackBlendOp blendOp = TrackBlendOp.Override;
@@ -433,8 +463,20 @@ namespace DotsAnimationToolkit.Authoring
     [Serializable]
     public sealed class SpriteTrack
     {
-        /// <summary>Stable id of the <c>RigTargetDefinition</c> this track animates (validation rule V02).</summary>
+        /// <summary>
+        /// Stable id of the <c>RigTargetDefinition</c> this track animates (validation rule V02).
+        /// Meaningful only when <see cref="tagId"/> is the reserved 0 — see that field's remarks for
+        /// the sentinel convention the two share.
+        /// </summary>
         public uint targetId;
+
+        /// <summary>
+        /// The role this track animates, or 0 to bind by <see cref="targetId"/> instead (Phase E
+        /// target-tags spec §4.3). Same sentinel convention as <see cref="TransformTrack.tagId"/> —
+        /// see its remarks for why a sentinel rather than a companion bool, and how it resolves at
+        /// bake.
+        /// </summary>
+        public uint tagId;
 
         /// <summary>Whether the keys address Texture2DArray slices or atlas rects.</summary>
         public SpriteFrameMode mode = SpriteFrameMode.Slice;

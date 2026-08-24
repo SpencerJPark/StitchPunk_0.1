@@ -295,6 +295,16 @@ namespace DotsAnimationToolkit.Editor
                 header.Add(badge);
             }
 
+            // Only Transform and Flipbook tracks can bind a tag (Phase E target-tags spec §4.3) —
+            // a bone track has no target row to look a tag up on (ClipAsset.boneTracks' own
+            // remarks), and the intrinsic Transform block exists on every object whether or not a
+            // track has been minted for it yet, so the button waits for one to exist.
+            if ((instance.kind == ClipComponentKind.Transform || instance.kind == ClipComponentKind.Flipbook)
+                && instance.HasTrack)
+            {
+                header.Add(BuildTagBindButton(instance));
+            }
+
             // No remove button on the object's own transform. There is no state in which an object
             // has no transform, so a button offering to reach one would be offering something the
             // panel could not then show — and the thing it would really delete is the keys, which
@@ -447,6 +457,132 @@ namespace DotsAnimationToolkit.Editor
                 return null;
             }
             return selectedClip.spriteTracks[instance.index];
+        }
+
+        private TransformTrack ResolveTransformTrack(ClipComponentInstance instance)
+        {
+            if (selectedClip == null || selectedClip.transformTracks == null
+                || instance.index < 0 || instance.index >= selectedClip.transformTracks.Count)
+            {
+                return null;
+            }
+            return selectedClip.transformTracks[instance.index];
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Track tag binding (Phase E target-tags spec §4.3, E3): a Transform or Flipbook track's
+        // header button, opening the E1.5 picker to switch the track between binding by target id
+        // (the object it lives under, as always) and binding by a shared role.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Builds the header button showing whether a Transform or Flipbook track binds by target id
+        /// or by tag, and opening <see cref="TargetTagPicker"/> to change it.
+        /// </summary>
+        /// <remarks>
+        /// The track keeps living under the object it was added to either way — <see cref="targetId"/>
+        /// is never cleared when a tag is chosen (see <see cref="TransformTrack.tagId"/>'s remarks) —
+        /// so this button only changes which id the bake actually resolves against, never where the
+        /// track appears in this tree.
+        /// </remarks>
+        private Button BuildTagBindButton(ClipComponentInstance instance)
+        {
+            uint currentTagId = GetTrackTagId(instance);
+            Button tagButton = new Button();
+            tagButton.text = DescribeTrackTagBindingText(currentTagId);
+            tagButton.clicked += () => OpenTrackTagPicker(instance, tagButton);
+            tagButton.AddToClassList(ComponentBadgeUssClassName);
+            tagButton.tooltip = currentTagId == 0u
+                ? "Bound to this object's own target id. Click to share this track by tag instead, "
+                  + "so the same clip can drive any other rig that tags a part the same way."
+                : "Bound by tag, so this track also plays on any other rig that tags a target the "
+                  + "same way (spec T2: skipped, not failed, on a rig with no such target). Click "
+                  + "to change or clear it.";
+            return tagButton;
+        }
+
+        private uint GetTrackTagId(ClipComponentInstance instance)
+        {
+            if (instance.kind == ClipComponentKind.Transform)
+            {
+                TransformTrack track = ResolveTransformTrack(instance);
+                return track != null ? track.tagId : 0u;
+            }
+            if (instance.kind == ClipComponentKind.Flipbook)
+            {
+                SpriteTrack track = ResolveSpriteTrack(instance);
+                return track != null ? track.tagId : 0u;
+            }
+            return 0u;
+        }
+
+        private string DescribeTrackTagBindingText(uint tagId)
+        {
+            if (tagId == 0u)
+            {
+                return "Target-bound";
+            }
+            string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
+            return tagName != null ? "Tag: " + tagName : "Tag: (unresolved 0x" + tagId.ToString("X8") + ")";
+        }
+
+        private void OpenTrackTagPicker(ClipComponentInstance instance, Button anchor)
+        {
+            // rootVisualElement, not a captured "inspector root" — this is an EditorWindow, not an
+            // Editor, so the whole-window element OpenComponentPicker already anchors against is the
+            // one that exists here.
+            TargetTagPicker.Open(
+                rootVisualElement,
+                anchor,
+                tagRegistry,
+                chosenTagId => ApplyTrackTagBinding(instance, chosenTagId),
+                () =>
+                {
+                    // The registry changed underneath every open track button (a tag renamed or
+                    // newly created), so the whole inspector's labels are re-derived rather than
+                    // just this one's — same discipline as RigAssetEditor.RefreshAllTargetTagButtons.
+                    RebuildInspector();
+                });
+        }
+
+        private void ApplyTrackTagBinding(ClipComponentInstance instance, uint chosenTagId)
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
+
+            Undo.RecordObject(selectedClip, "Set Track Tag Binding");
+
+            if (instance.kind == ClipComponentKind.Transform)
+            {
+                TransformTrack track = ResolveTransformTrack(instance);
+                if (track == null)
+                {
+                    return;
+                }
+                track.tagId = chosenTagId;
+            }
+            else if (instance.kind == ClipComponentKind.Flipbook)
+            {
+                SpriteTrack track = ResolveSpriteTrack(instance);
+                if (track == null)
+                {
+                    return;
+                }
+                track.tagId = chosenTagId;
+            }
+            else
+            {
+                return;
+            }
+
+            EditorUtility.SetDirty(selectedClip);
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(clipSet, tagRegistry);
+            }
+            RebuildInspector();
         }
 
         private BillboardTrack ResolveBillboardTrack(int trackIndex)

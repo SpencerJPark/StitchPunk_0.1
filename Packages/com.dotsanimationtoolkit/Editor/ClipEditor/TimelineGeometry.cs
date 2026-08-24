@@ -268,7 +268,22 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Whether a pointer at <paramref name="x"/> is grabbing a key at that time.</summary>
         public bool HitsKey(float x, float normalizedTime)
         {
-            return Mathf.Abs(x - TimeToX(normalizedTime)) <= KeyHitRadius;
+            return HitsKey(x, normalizedTime, KeyHitRadius);
+        }
+
+        /// <summary>
+        /// Whether a pointer at <paramref name="x"/> is grabbing a key at that time, against a
+        /// caller-supplied grab box rather than the default.
+        /// </summary>
+        /// <remarks>
+        /// A bounding-box test in x alone, not a shape test: the lane's height already bounds y,
+        /// so nothing upstream ever hands this a y to check. That is exactly what lets one shape's
+        /// grab box widen — a pentagon marker's, say — without the two-dimensional hit-testing a
+        /// true polygon test would need.
+        /// </remarks>
+        public bool HitsKey(float x, float normalizedTime, float hitRadius)
+        {
+            return Mathf.Abs(x - TimeToX(normalizedTime)) <= hitRadius;
         }
 
         /// <summary>

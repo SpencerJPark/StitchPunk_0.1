@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: NewClipSet
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipSetAsset
   stableId: 5064367140021010455
-  rig: {fileID: 0}
+  rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
   clips:
   - {fileID: 11400000, guid: 742b47902a7788d4a979fa6aad1dc830, type: 2}
+  - {fileID: 11400000, guid: 37554318e89cd6a44b3b0c4dd7a5263d, type: 2}
   vatTextures: {fileID: 0}
   eventKeys: {fileID: 0}

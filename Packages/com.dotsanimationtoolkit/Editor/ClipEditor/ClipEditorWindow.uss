@@ -150,6 +150,21 @@
 }
 
 /*
+ * Same shape as .clip-editor__vat-bake-pane above, and for the same reason: a TwoPaneSplitView
+ * hidden with display:none is laid out at zero by zero and comes back collapsed with no handle
+ * to drag it open again. Covering the dock with an absolute-positioned pane leaves its geometry
+ * untouched underneath, so closing the New Rig flow costs nothing.
+ */
+.clip-editor__new-rig-pane {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgb(56, 56, 56);
+}
+
+/*
  * Minimums, not sizes. TwoPaneSplitView clamps a drag against the panes' min-width / min-height,
  * so these are what stop a boundary being dragged over a pane and leaving it at zero pixels with
  * no visible handle to drag it back out.

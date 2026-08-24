@@ -37,10 +37,42 @@ clip authored before windows existed behaves exactly as it did.
 
 ## Authoring
 
-On the **Events** lane, double-click to place a marker. Event keys draw larger
-than pose keys and in amber, and a translucent bar behind a marker shows how long
-its window runs — so a hit frame's duration lines up visibly against the poses
-around it.
+On the **Events** lane, double-click to place a marker — or use **Add Event**, in the status row
+above the key area beside Snap and Auto Key, to drop one at the playhead without hunting for the
+lane first. It sits there rather than in the transport bar because it, like Snap and Auto Key,
+answers "what will my next edit do" — a question about the key area, not about time — and that
+question is answered where the editing happens. The button also selects the marker it just added,
+so the inspector fields below are already showing before you have let go of the mouse;
+double-click add does not (it is a retiming gesture as much as an add, and clearing the selection
+there matches every other lane). Both add through the same path, so a marker made either way
+behaves identically from then on. Add Event is disabled with a tooltip when no clip is selected,
+and it works the first time on a clip that has never had an event before — the lane itself is
+keyed off whether the clip *has* an events list at all, not whether that list is non-empty, so
+there is nothing to create first.
+
+Event markers draw as an amber **pin** — flat shoulders tapering to a point at the exact key
+time — rather than a bigger version of the pose-key diamond. The distinct shape is the point: a
+scaled-up copy of the diamond used to read as "a bigger key," not "a different kind of thing,"
+which made an event easy to miss at a glance in a busy clip. Selected, it tints the same blue every
+other selected key does; there is no separate hover treatment beyond that. A translucent bar behind
+a marker shows how long its window runs — so a hit frame's duration lines up visibly against the
+poses around it.
+
+### Several events on one frame
+
+Nothing stops two or more markers from sharing a normalized time — a hit frame that should trigger
+a sound, damage and a camera shake all at once is exactly that: three markers, one time, one event
+key each. They draw as a small **vertical stack** rather than one hiding behind another: each pin
+in the stack offsets a few pixels up or down from lane centre, so the pile is visibly a pile at a
+glance. The x position — the thing that says *when* an event fires — never moves for this; only the
+vertical placement gives, and only within a budget tight enough to stay inside the lane's own row.
+
+Because every marker in a stack sits at the same x, a click there **cycles**: the first click
+selects the first (topmost) marker, and each further click at the same spot selects the next one
+down, wrapping back to the top after the last. The inspector always reflects whichever one is
+currently selected — its own event key, its own Int Param/Float Param, its own window — never the
+first marker at that time regardless of which one you clicked to. Drag a marker after selecting it
+to retime just that one; the rest of the stack stays where it was.
 
 Selecting a marker gives you:
 

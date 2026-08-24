@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
@@ -34,92 +33,32 @@ namespace DotsAnimationToolkit.Editor
     /// down the further you read. Hovering asks for the explanation; the list stays a list.
     /// </para>
     /// <para>
-    /// <strong>An overlay inside the window rather than a dropdown window of its own.</strong> A
-    /// separate <c>EditorWindow</c> would have to convert the button's panel-space rect into screen
-    /// coordinates, which is the kind of arithmetic that is right until someone docks the window
-    /// somewhere new. Living in the same panel means the card is positioned by
-    /// <see cref="VisualElement.WorldToLocal"/> against layout that has already been resolved, and
-    /// the whole thing dies with the panel that owns it.
-    /// </para>
-    /// <para>
     /// <strong>Unavailable kinds are listed, dimmed, with the reason on the card.</strong> A menu
     /// that silently omits what you came looking for reads as a bug, and the reason is usually
     /// actionable.
     /// </para>
+    /// <para>
+    /// <strong>No search field, unlike <see cref="TargetTagPicker"/>.</strong> The kinds this picker
+    /// offers top out at a handful (architecture section 7.1); a filter earns its keep once a list
+    /// can run into the dozens, which is <see cref="TargetTagPicker"/>'s situation once a project has
+    /// accumulated a real tag vocabulary (Phase E target-tags spec §4.2.1), not this one's. The
+    /// overlay chrome — dismiss-on-outside-press, Escape, hover card, panel placement — lives in the
+    /// shared <see cref="PickerOverlay"/> base so the two pickers cannot drift apart on that behaviour
+    /// even though only one of them filters.
+    /// </para>
     /// </remarks>
-    public sealed class ClipComponentPicker : VisualElement
+    public sealed class ClipComponentPicker : PickerOverlay
     {
-        public const string OverlayUssClassName = "clip-editor__picker-overlay";
-        public const string PanelUssClassName = "clip-editor__picker";
-        public const string RowUssClassName = "clip-editor__picker-row";
-        public const string RowUnavailableUssClassName = "clip-editor__picker-row--unavailable";
-        public const string RowHoveredUssClassName = "clip-editor__picker-row--hovered";
-        public const string CardUssClassName = "clip-editor__picker-card";
-        public const string CardTitleUssClassName = "clip-editor__picker-card-title";
-        public const string CardBodyUssClassName = "clip-editor__picker-card-body";
-        public const string CardReasonUssClassName = "clip-editor__picker-card-reason";
-
         private const float PanelWidth = 190f;
         private const float CardWidth = 270f;
-        private const float EdgeMargin = 4f;
 
-        /// <summary>How far the card sits from the panel it explains.</summary>
-        private const float CardGap = 6f;
-
-        private readonly VisualElement listPanel;
-        private readonly VisualElement card;
-        private readonly Label cardTitle;
-        private readonly Label cardBody;
-        private readonly Label cardReason;
         private readonly Action<ClipComponentKind> onPick;
-
-        // Kept rather than read back out of the style, which hands back a StyleLength that has to
-        // be unwrapped twice and means nothing until layout has run. These are the numbers that
-        // were decided; the style is where they were sent.
-        private float panelLeft;
-        private float panelTop;
 
         private ClipComponentPicker(
             IReadOnlyList<ClipComponentPickerEntry> entries, Action<ClipComponentKind> onPick)
+            : base(PanelWidth, CardWidth)
         {
             this.onPick = onPick;
-
-            AddToClassList(OverlayUssClassName);
-            style.position = Position.Absolute;
-            style.left = 0f;
-            style.top = 0f;
-            style.right = 0f;
-            style.bottom = 0f;
-
-            // Closing on a press outside the list, in the trickle-down phase, so the click that
-            // dismisses the picker does not also land on whatever was underneath it. Dismissing a
-            // menu is the whole of that click's meaning.
-            RegisterCallback<PointerDownEvent>(OnOverlayPointerDown, TrickleDown.TrickleDown);
-
-            listPanel = new VisualElement();
-            listPanel.AddToClassList(PanelUssClassName);
-            listPanel.style.position = Position.Absolute;
-            listPanel.style.width = PanelWidth;
-            Add(listPanel);
-
-            card = new VisualElement();
-            card.AddToClassList(CardUssClassName);
-            card.style.position = Position.Absolute;
-            card.style.width = CardWidth;
-            card.style.display = DisplayStyle.None;
-            Add(card);
-
-            cardTitle = new Label();
-            cardTitle.AddToClassList(CardTitleUssClassName);
-            card.Add(cardTitle);
-
-            cardBody = new Label();
-            cardBody.AddToClassList(CardBodyUssClassName);
-            card.Add(cardBody);
-
-            cardReason = new Label();
-            cardReason.AddToClassList(CardReasonUssClassName);
-            card.Add(cardReason);
 
             for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
             {
@@ -145,148 +84,19 @@ namespace DotsAnimationToolkit.Editor
             }
 
             ClipComponentPicker picker = new ClipComponentPicker(entries, onPick);
-            host.Add(picker);
-            picker.PlacePanel(host, anchor);
-
-            // Focusable so Escape reaches it. A menu that can only be dismissed with the mouse is
-            // one the keyboard cannot get out of.
-            picker.focusable = true;
-            picker.RegisterCallback<KeyDownEvent>(picker.OnKeyDown);
-            picker.schedule.Execute(() => picker.Focus());
+            picker.FinalizeOpen(host, anchor);
             return picker;
-        }
-
-        public void Close()
-        {
-            RemoveFromHierarchy();
         }
 
         private VisualElement BuildRow(ClipComponentPickerEntry entry)
         {
-            VisualElement row = new VisualElement();
-            row.AddToClassList(RowUssClassName);
-            row.EnableInClassList(RowUnavailableUssClassName, !entry.isAvailable);
-
-            Label label = new Label(entry.displayName);
-            row.Add(label);
-
-            row.RegisterCallback<PointerEnterEvent>(pointerEvent =>
-            {
-                row.AddToClassList(RowHoveredUssClassName);
-                ShowCard(entry, row);
-            });
-            row.RegisterCallback<PointerLeaveEvent>(pointerEvent =>
-            {
-                row.RemoveFromClassList(RowHoveredUssClassName);
-                HideCard();
-            });
-
-            if (entry.isAvailable)
-            {
-                ClipComponentKind picked = entry.kind;
-                row.RegisterCallback<PointerDownEvent>(pointerEvent =>
-                {
-                    pointerEvent.StopPropagation();
-                    Close();
-                    if (onPick != null)
-                    {
-                        onPick(picked);
-                    }
-                });
-            }
-            else
-            {
-                // Swallowed rather than left to fall through to the overlay: a press on a row you
-                // are being told about should not close the thing telling you.
-                row.RegisterCallback<PointerDownEvent>(
-                    pointerEvent => pointerEvent.StopPropagation());
-            }
-            return row;
-        }
-
-        private void ShowCard(ClipComponentPickerEntry entry, VisualElement row)
-        {
-            cardTitle.text = entry.displayName;
-            cardBody.text = entry.description;
-
-            bool hasReason = !entry.isAvailable && !string.IsNullOrEmpty(entry.unavailableReason);
-            cardReason.text = hasReason ? entry.unavailableReason : string.Empty;
-            cardReason.style.display = hasReason ? DisplayStyle.Flex : DisplayStyle.None;
-
-            card.style.display = DisplayStyle.Flex;
-
-            // Placed against resolved layout: the row is on screen already, so its world rect is
-            // the real one rather than a prediction of where it will end up.
-            Rect rowBounds = this.WorldToLocal(row.worldBound);
-
-            float rightOfPanel = panelLeft + PanelWidth + CardGap;
-            float left = rightOfPanel + CardWidth + EdgeMargin <= layout.width
-                ? rightOfPanel
-                : panelLeft - CardGap - CardWidth;
-            card.style.left = Mathf.Max(EdgeMargin, left);
-            card.style.top = rowBounds.yMin;
-        }
-
-        private void HideCard()
-        {
-            card.style.display = DisplayStyle.None;
-        }
-
-        /// <summary>
-        /// Hangs the panel off the button, pulled back inside the host when it would overhang.
-        /// </summary>
-        /// <remarks>
-        /// The height is not known until the panel has been laid out, so the vertical clamp waits
-        /// for the first geometry pass. Guessing it from the row count would be a second layout
-        /// engine, agreeing with the real one until a style changed.
-        /// </remarks>
-        private void PlacePanel(VisualElement host, VisualElement anchor)
-        {
-            Rect anchorBounds = anchor != null
-                ? host.WorldToLocal(anchor.worldBound)
-                : new Rect(EdgeMargin, EdgeMargin, PanelWidth, 0f);
-
-            float left = Mathf.Max(EdgeMargin, anchorBounds.xMin);
-            if (left + PanelWidth + EdgeMargin > host.layout.width)
-            {
-                left = Mathf.Max(EdgeMargin, host.layout.width - PanelWidth - EdgeMargin);
-            }
-            panelLeft = left;
-            panelTop = anchorBounds.yMax + 2f;
-            listPanel.style.left = panelLeft;
-            listPanel.style.top = panelTop;
-
-            listPanel.RegisterCallback<GeometryChangedEvent>(geometryEvent =>
-            {
-                float overhang = panelTop + listPanel.layout.height + EdgeMargin - layout.height;
-                if (overhang <= 0f)
-                {
-                    return;
-                }
-                panelTop = Mathf.Max(EdgeMargin, panelTop - overhang);
-                listPanel.style.top = panelTop;
-            });
-        }
-
-        private void OnOverlayPointerDown(PointerDownEvent pointerEvent)
-        {
-            VisualElement pressed = pointerEvent.target as VisualElement;
-            if (pressed != null && (pressed == listPanel || listPanel.Contains(pressed)))
-            {
-                return;
-            }
-            pointerEvent.StopPropagation();
-            Close();
-        }
-
-        private void OnKeyDown(KeyDownEvent keyEvent)
-        {
-            if (keyEvent.keyCode != KeyCode.Escape)
-            {
-                return;
-            }
-            keyEvent.StopPropagation();
-            Close();
+            ClipComponentKind picked = entry.kind;
+            return BuildRow(
+                entry.displayName,
+                entry.description,
+                entry.isAvailable,
+                entry.unavailableReason,
+                () => onPick?.Invoke(picked));
         }
     }
 }

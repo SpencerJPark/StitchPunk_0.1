@@ -32,8 +32,8 @@ target with a transform track and a sprite track, keyed on the same timeline.
 add to the part's rest pose; scale multiplies it. A key of "no offset" leaves the
 part exactly where the prefab put it. That is what lets one clip drive several
 characters whose proportions differ, and it is why the Clip Editor's preview
-takes each part's rest pose from the prefab you assign in the **Bone Source**
-field.
+takes each part's rest pose from the **Source Prefab** of the rig you assign in
+the toolbar's **Rig** field.
 
 ---
 

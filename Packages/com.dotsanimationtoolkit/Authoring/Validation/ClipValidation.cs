@@ -8,7 +8,7 @@ namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// The single authoritative implementation of the architecture section 3.5 rule table
-    /// (V01–V32), shared by the inspectors, the clip editor, and the bake so that all three agree on
+    /// (V01–V37), shared by the inspectors, the clip editor, and the bake so that all three agree on
     /// what is legal. Pure static managed code — no editor-assembly dependency, no ECS world, and
     /// no side effects on the assets it inspects.
     /// </summary>
@@ -16,15 +16,16 @@ namespace DotsAnimationToolkit.Authoring
     {
         /// <summary>
         /// Validates a rig against the rules that concern it: V13 (layer count), V05 (target id
-        /// uniqueness), the billboard-root rules V21, V22, V23 and V25 (amendment A44; V25 is the
-        /// ragdoll spec's V-R8), and the ragdoll-body rules V26–V32 (amendment A50, spec §4's
-        /// V-R1–V-R7).
+        /// uniqueness), V34 (target tag uniqueness, Phase E target-tags spec §6 rule T1), the
+        /// billboard-root rules V21, V22, V23 and V25 (amendment A44; V25 is the ragdoll spec's
+        /// V-R8), and the ragdoll-body rules V26–V32 (amendment A50, spec §4's V-R1–V-R7).
         /// </summary>
         /// <param name="rig">The rig to validate. A null rig reports V13, since a set without a rig
         /// has no layers.</param>
         /// <returns>
         /// The findings in discovery order — layer checks (V13) first, then per-target id
-        /// uniqueness (V05) in target-list order, then the billboard roots (V21, V25, V23, V22) in
+        /// uniqueness (V05) and tag uniqueness (V34, rule T1) together in target-list order, then
+        /// the billboard roots (V21, V25, V23, V22) in
         /// billboard-root order, then the ragdoll bodies (V27, V26, V28, V29, V30, V32 per body,
         /// then V31 once for the whole rig) in ragdoll-body order. Deliberately not sorted by rule
         /// number: the inspector and the clip editor list findings in the order the asset reads, so
@@ -39,30 +40,41 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// Validates one clip against the rules that concern a clip in isolation: V01, V02, V03,
-        /// V04, V09, V10, V12, V14, V15 and V16. Set-scoped rules (V05, V06, V07, V08, V11) are
-        /// checked by <see cref="ValidateSet"/>. V16 (duplicate bone name) is a clip-local sibling of
-        /// V05 rather than a V05 case itself: a bone track has no stable id, so its only identity is
-        /// the name, and uniqueness of that name only ever needs judging within one clip — there is
-        /// no set- or rig-scoped notion of "the same bone" the way there is for a <c>ClipId</c> or a
-        /// <c>TargetId</c>.
+        /// V04, V09, V10, V12, V14, V15, V16, V35 and V36. Set-scoped rules (V05, V06, V07, V08,
+        /// V11) are checked by <see cref="ValidateSet"/>; T4 (V37) is a project-wide rule about which
+        /// sets reference a clip, which a single clip or set cannot answer on its own, and is checked
+        /// by the Editor-assembly utility that can see the whole project. V16 (duplicate bone name)
+        /// is a clip-local sibling of V05 rather than a V05 case itself: a bone track has no stable
+        /// id, so its only identity is the name, and uniqueness of that name only ever needs judging
+        /// within one clip — there is no set- or rig-scoped notion of "the same bone" the way there
+        /// is for a <c>ClipId</c> or a <c>TargetId</c>.
         /// </summary>
         /// <param name="clip">The clip to validate.</param>
+        /// <param name="tagRegistry">
+        /// The project's target tag registry, used to judge T3 (V36) — a track's tag id that no
+        /// longer exists anywhere — and to name a tag in a T2 (V35) message instead of showing its
+        /// raw hex id. Optional, mirroring rule V08's own gap (architecture section 3.5): a caller
+        /// with no registry to hand still gets T2 findings (checking a rig's own target list needs
+        /// no registry), it just cannot tell a T2 "not on this rig" apart from a T3 "deleted
+        /// entirely" and reports the milder T2 for both rather than silently passing either.
+        /// </param>
         /// <returns>
         /// The findings in discovery order — the clip-level rules (V01, V10, V12) first, then each
-        /// transform and sprite track in authoring order (V02, V03, V04, V14), then each bone track
-        /// in authoring order (V03, V04, V15, V16), then each event (V04, V09). Deliberately not
-        /// sorted by rule number, so a reader can walk the asset top to bottom. Empty when the clip
-        /// is fully valid.
+        /// transform and sprite track in authoring order (V02/V35/V36, V03, V04, V14), then each
+        /// bone track in authoring order (V03, V04, V15, V16), then each event (V04, V09).
+        /// Deliberately not sorted by rule number, so a reader can walk the asset top to bottom.
+        /// Empty when the clip is fully valid.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="clip"/> is null.</exception>
-        public static List<ValidationMessage> ValidateClip(ClipAsset clip)
+        public static List<ValidationMessage> ValidateClip(
+            ClipAsset clip, TargetTagRegistry tagRegistry = null)
         {
             if (clip == null)
             {
                 throw new ArgumentNullException(nameof(clip));
             }
             List<ValidationMessage> messages = new List<ValidationMessage>();
-            ValidateClipInto(clip, messages);
+            ValidateClipInto(clip, tagRegistry, messages);
             return messages;
         }
 
@@ -85,13 +97,18 @@ namespace DotsAnimationToolkit.Authoring
         /// <see cref="VatTextureSetAsset.sourceHash"/>. Ignored unless
         /// <paramref name="vatSourceHashRecomputed"/> is true.
         /// </param>
+        /// <param name="tagRegistry">
+        /// The project's target tag registry, passed through to each clip's T2/T3 (V35/V36) checks.
+        /// See <see cref="ValidateClip"/> for what a null registry costs.
+        /// </param>
         /// <returns>The findings, rig first and then clip by clip in list order.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="clipSet"/> is null.</exception>
         public static List<ValidationMessage> ValidateSet(
             ClipSetAsset clipSet,
             ValidationStage stage = ValidationStage.Authoring,
             bool vatSourceHashRecomputed = false,
-            ulong recomputedVatSourceHash = 0UL)
+            ulong recomputedVatSourceHash = 0UL,
+            TargetTagRegistry tagRegistry = null)
         {
             if (clipSet == null)
             {
@@ -141,17 +158,29 @@ namespace DotsAnimationToolkit.Authoring
                         clipsByStableId.Add(clip.stableId, clip);
                     }
 
-                    if (clip.rig != clipSet.rig)
+                    // A null clip.rig is exempt (Phase E target-tags spec §1, §4.3): a clip with no
+                    // assigned rig has no target-id-bound track that could be "against the wrong
+                    // rig" in the first place - a track either binds by tag (resolved fresh against
+                    // whichever rig the set being baked actually declares, spec §5) or, on a
+                    // null-rig clip, is unauthored. A clip that still carries a specific clip.rig
+                    // keeps V06 exactly as before: it has committed to that rig as its home, and a
+                    // target-id-bound track on it is only ever meaningful there. This is what makes a
+                    // fully tag-bound clip referenceable from any number of differently-rigged sets
+                    // (the whole point of spec §1's "nothing else is in the way" claim) without
+                    // opening the door to an ordinary, non-shared clip drifting onto the wrong rig by
+                    // accident.
+                    if (clip.rig != null && clip.rig != clipSet.rig)
                     {
                         messages.Add(new ValidationMessage(
                             ValidationSeverity.Error,
                             ValidationCode.V06,
                             clip,
                             "Clip '" + clip.name + "' is authored against a different rig than set '" +
-                            clipSet.name + "'; every clip in a set must share the set's rig."));
+                            clipSet.name + "'; every clip in a set must share the set's rig, unless " +
+                            "the clip has no rig assigned at all (a fully tag-bound, shareable clip)."));
                     }
 
-                    ValidateClipInto(clip, messages);
+                    ValidateClipInto(clip, tagRegistry, messages);
                     ValidateVatCoverageInto(clipSet, clip, messages);
                 }
             }
@@ -195,9 +224,82 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
+        /// <summary>
+        /// Validates a target tag registry against T5 (Phase E target-tags spec §6): every tag id
+        /// is non-zero and unique within the registry.
+        /// </summary>
+        /// <param name="registry">
+        /// The registry to validate. A null registry reports nothing — unlike a null
+        /// <see cref="RigAsset"/> in <see cref="ValidateRig"/>, a target tag registry is optional
+        /// project furniture with no required-presence rule of its own.
+        /// </param>
+        /// <returns>
+        /// The findings in entry order. Empty when every id is non-zero and unique, including when
+        /// <paramref name="registry"/> is null or holds no entries.
+        /// </returns>
+        public static List<ValidationMessage> ValidateTargetTagRegistry(TargetTagRegistry registry)
+        {
+            List<ValidationMessage> messages = new List<ValidationMessage>();
+            ValidateTargetTagRegistryInto(registry, messages);
+            return messages;
+        }
+
         // -----------------------------------------------------------------------------------
         // Rule implementations.
         // -----------------------------------------------------------------------------------
+
+        private static void ValidateTargetTagRegistryInto(
+            TargetTagRegistry registry,
+            List<ValidationMessage> messages)
+        {
+            if (registry == null || registry.entries == null)
+            {
+                return;
+            }
+
+            // Same duplicate-identity shape as ValidateRigInto's V05 pass: a name-keyed map of ids
+            // already seen, walked in entry order so a reader can match a finding back to the row
+            // it names without hunting.
+            Dictionary<uint, string> namesById = new Dictionary<uint, string>();
+            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
+            {
+                TargetTagEntry entry = registry.entries[entryIndex];
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                string label = string.IsNullOrEmpty(entry.name)
+                    ? "Entry " + entryIndex
+                    : "'" + entry.name + "'";
+
+                if (entry.stableId == 0u)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V33,
+                        registry,
+                        label + " has no id (0 is reserved for \"untagged\"); it cannot be " +
+                        "assigned to a rig target or a track."));
+                    continue;
+                }
+
+                string previousName;
+                if (namesById.TryGetValue(entry.stableId, out previousName))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V33,
+                        registry,
+                        "Tags '" + previousName + "' and " + label + " share id " +
+                        entry.stableId.ToString() + " in registry '" + registry.name + "'."));
+                }
+                else
+                {
+                    namesById.Add(entry.stableId, label);
+                }
+            }
+        }
 
         private static void ValidateRigInto(RigAsset rig, List<ValidationMessage> messages)
         {
@@ -227,6 +329,7 @@ namespace DotsAnimationToolkit.Authoring
             // worth checking, and an early return here would make V21–V23 depend on a list they do
             // not concern. A null target list simply resolves no target addresses.
             Dictionary<uint, string> targetNamesById = new Dictionary<uint, string>();
+            Dictionary<uint, string> targetNamesByTagId = new Dictionary<uint, string>();
             int targetCount = rig.targets == null ? 0 : rig.targets.Count;
             for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
             {
@@ -249,6 +352,28 @@ namespace DotsAnimationToolkit.Authoring
                 else
                 {
                     targetNamesById.Add(targetDefinition.stableId, targetDefinition.displayName);
+                }
+
+                // T1 (Phase E target-tags spec §6): a tag appears at most once per rig. 0 ("untagged")
+                // is exempt - it is the ordinary state for most targets, not a shared role.
+                if (targetDefinition.tagId != 0u)
+                {
+                    string previousTaggedTargetName;
+                    if (targetNamesByTagId.TryGetValue(targetDefinition.tagId, out previousTaggedTargetName))
+                    {
+                        messages.Add(new ValidationMessage(
+                            ValidationSeverity.Error,
+                            ValidationCode.V34,
+                            rig,
+                            "Targets '" + previousTaggedTargetName + "' and '" +
+                            targetDefinition.displayName + "' both carry tag id " +
+                            targetDefinition.tagId.ToString("X8") + " in rig '" + rig.name +
+                            "'; a tag-bound track would not know which one to animate."));
+                    }
+                    else
+                    {
+                        targetNamesByTagId.Add(targetDefinition.tagId, targetDefinition.displayName);
+                    }
                 }
             }
 
@@ -916,7 +1041,8 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        private static void ValidateClipInto(ClipAsset clip, List<ValidationMessage> messages)
+        private static void ValidateClipInto(
+            ClipAsset clip, TargetTagRegistry tagRegistry, List<ValidationMessage> messages)
         {
             if (clip.duration < ClipAsset.MinimumDuration)
             {
@@ -966,7 +1092,9 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     continue;
                 }
-                ValidateTargetBindingInto(clip, transformTrack.targetId, "Transform track", trackIndex, messages);
+                ValidateTrackBindingInto(
+                    clip, transformTrack.targetId, transformTrack.tagId, tagRegistry,
+                    "Transform track", trackIndex, messages);
 
                 int keyCount = transformTrack.keys == null ? 0 : transformTrack.keys.Count;
                 float previousKeyTime = float.NegativeInfinity;
@@ -1009,7 +1137,9 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     continue;
                 }
-                ValidateTargetBindingInto(clip, spriteTrack.targetId, "Sprite track", trackIndex, messages);
+                ValidateTrackBindingInto(
+                    clip, spriteTrack.targetId, spriteTrack.tagId, tagRegistry,
+                    "Sprite track", trackIndex, messages);
 
                 int keyCount = spriteTrack.keys == null ? 0 : spriteTrack.keys.Count;
                 float previousKeyTime = float.NegativeInfinity;
@@ -1155,6 +1285,90 @@ namespace DotsAnimationToolkit.Authoring
                 clip,
                 trackKindLabel + " " + trackIndex + " of clip '" + clip.name + "' targets id " +
                 new TargetId(targetId).ToString() + ", which is not defined by " + rigLabel + "."));
+        }
+
+        /// <summary>
+        /// Validates one <see cref="TransformTrack"/> or <see cref="SpriteTrack"/>'s binding (Phase E
+        /// target-tags spec §4.3): by target id when <paramref name="tagId"/> is 0 (today's V02
+        /// path, unchanged), or by tag otherwise (T2/T3, V35/V36).
+        /// </summary>
+        /// <remarks>
+        /// T3 is checked first and, when it fires, T2 is not also evaluated against the same track —
+        /// mirroring this file's existing discipline for V21/V22 and V26/V28: an id that cannot be
+        /// resolved at all (deleted from the registry) is one fault, not a second, unrelated-looking
+        /// one about which rig happens to lack it.
+        /// </remarks>
+        private static void ValidateTrackBindingInto(
+            ClipAsset clip,
+            uint targetId,
+            uint tagId,
+            TargetTagRegistry tagRegistry,
+            string trackKindLabel,
+            int trackIndex,
+            List<ValidationMessage> messages)
+        {
+            if (tagId == 0u)
+            {
+                ValidateTargetBindingInto(clip, targetId, trackKindLabel, trackIndex, messages);
+                return;
+            }
+
+            // T3 (V36): the tag id no longer exists anywhere. Only judged when a registry was
+            // supplied — see ValidateClip's remarks on why an absent registry cannot tell this apart
+            // from T2 and reports the milder finding instead of staying silent.
+            if (tagRegistry != null && !tagRegistry.ContainsId(tagId))
+            {
+                messages.Add(new ValidationMessage(
+                    ValidationSeverity.Error,
+                    ValidationCode.V36,
+                    clip,
+                    trackKindLabel + " " + trackIndex + " of clip '" + clip.name + "' binds tag id 0x" +
+                    tagId.ToString("X8") + ", which no longer exists in registry '" +
+                    tagRegistry.name + "'; this is a dangling reference on every rig it meets."));
+                return;
+            }
+
+            if (RigContainsTagTarget(clip.rig, tagId))
+            {
+                return;
+            }
+
+            // T2 (V35): the tag exists (or its existence could not be judged) but this rig has no
+            // target carrying it. Spec §6.1 requires the message to name all four things — clip,
+            // track, tag name, and rig — without the reader having to open anything else.
+            string tagLabel = tagRegistry != null && tagRegistry.FindName(tagId) != null
+                ? "'" + tagRegistry.FindName(tagId) + "'"
+                : "id 0x" + tagId.ToString("X8");
+            string rigLabel = clip.rig == null ? "no rig (none assigned)" : "rig '" + clip.rig.name + "'";
+            messages.Add(new ValidationMessage(
+                ValidationSeverity.Warning,
+                ValidationCode.V35,
+                clip,
+                trackKindLabel + " " + trackIndex + " of clip '" + clip.name + "' binds tag " +
+                tagLabel + ", which " + rigLabel + " has no target for; the track is skipped " +
+                "when this clip plays on that rig."));
+        }
+
+        /// <summary>
+        /// True when <paramref name="rig"/> declares a target row carrying <paramref name="tagId"/>.
+        /// A null rig, a null row, and the reserved id 0 all answer false — the same shape
+        /// <see cref="RigContainsTarget"/> uses for a target's own id.
+        /// </summary>
+        private static bool RigContainsTagTarget(RigAsset rig, uint tagId)
+        {
+            if (rig == null || rig.targets == null || tagId == 0u)
+            {
+                return false;
+            }
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition targetDefinition = rig.targets[targetIndex];
+                if (targetDefinition != null && targetDefinition.tagId == tagId)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static void ValidateNormalizedTimeInto(

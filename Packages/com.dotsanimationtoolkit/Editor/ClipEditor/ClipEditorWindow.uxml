@@ -5,8 +5,9 @@
             <ui:Label text="Clip Set" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="clip-set-field" class="clip-editor__object-field"/>
             <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
-            <ui:Label text="Bone Source" class="clip-editor__toolbar-label"/>
+            <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
+            <uie:ToolbarButton name="new-rig-button" text="New Rig" class="clip-editor__bar-action"/>
             <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
@@ -41,7 +42,7 @@
                                     <uie:ToolbarToggle name="rig-edit-toggle" text="Edit" class="clip-editor__pane-action clip-editor__rig-edit-toggle"/>
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:Label name="hierarchy-empty-label" text="Assign a prefab to the toolbar's Bone Source field to list its transforms." class="clip-editor__hint"/>
+                            <ui:Label name="hierarchy-empty-label" text="Assign a rig to the toolbar's Rig field to list its transforms." class="clip-editor__hint"/>
                             <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy"/>
                         </ui:VisualElement>
                     </ui:TwoPaneSplitView>
@@ -114,6 +115,7 @@
                         <ui:VisualElement class="clip-editor__status-actions">
                             <uie:ToolbarButton name="quantize-keys-button" text="Quantize Keys" class="clip-editor__bar-action clip-editor__quantize-action"/>
                             <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" class="clip-editor__bar-action clip-editor__status-toggle"/>
+                            <uie:ToolbarButton name="add-event-button" text="Add Event" class="clip-editor__bar-action"/>
                             <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key" class="clip-editor__bar-action clip-editor__status-toggle"/>
                             <ui:DropdownField name="pivot-dropdown" class="clip-editor__status-dropdown"/>
                         </ui:VisualElement>
@@ -132,6 +134,7 @@
                 </ui:VisualElement>
             </ui:TwoPaneSplitView>
             <ui:VisualElement name="vat-bake-pane" class="clip-editor__vat-bake-pane clip-editor--hidden"/>
+            <ui:VisualElement name="new-rig-pane" class="clip-editor__new-rig-pane clip-editor--hidden"/>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

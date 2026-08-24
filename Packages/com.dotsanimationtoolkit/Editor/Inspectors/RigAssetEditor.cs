@@ -85,6 +85,34 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly List<SocketRowElements> socketRows = new List<SocketRowElements>();
 
+        // -----------------------------------------------------------------------------------
+        // Target tags (Phase E target-tags spec §4.2, E2).
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Prefix of the per-asset editor preference that remembers which
+        /// <see cref="TargetTagRegistry"/> this rig's tag column picks from.
+        /// </summary>
+        /// <remarks>
+        /// Same shape as <see cref="BoneNameSourcePreferenceKeyPrefix"/>, and for the same reason: the
+        /// registry is project-scoped furniture (spec §4.1), not a property of any one rig, so storing
+        /// a hard reference to it on <see cref="RigAsset"/> would be a second, redundant place for a
+        /// project to say which registry it uses. An editor preference keyed by the rig's GUID gives
+        /// each rig its own remembered choice without adding a serialized field the bake never reads.
+        /// </remarks>
+        private const string TagRegistryPreferenceKeyPrefix =
+            "DotsAnimationToolkit.RigAssetEditor.tagRegistry.";
+
+        private const string NoTagChoiceLabel = "(none)";
+
+        private ObjectField tagRegistryField;
+        private VisualElement targetTagRowContainer;
+        private VisualElement targetTagBadgeContainer;
+        private TargetTagRegistry tagRegistry;
+
+        private readonly List<TargetTagRowElements> targetTagRows = new List<TargetTagRowElements>();
+        private int builtTargetTagCount = -1;
+
         // Rebuild triggers. Rebuilding the rows on every serialized change would steal focus from
         // whatever text field the user is typing in, so the tracked callback only rebuilds when the
         // shape of the data changed — a socket added or removed, or a target renamed, re-identified,
@@ -123,6 +151,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 inspectorRoot.Add(new PropertyField(targetsProperty, "Targets"));
             }
+
+            inspectorRoot.Add(BuildTargetTagSection());
+
             if (layersProperty != null)
             {
                 inspectorRoot.Add(new PropertyField(layersProperty, "Layers"));
@@ -177,6 +208,294 @@ namespace DotsAnimationToolkit.Editor
             badge.style.marginBottom = 4f;
             badge.style.opacity = 0.7f;
             return badge;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Target tags (Phase E target-tags spec §4.2, E2). "Map the rig, then tag the parts."
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// One row per target: its name, and a button showing its current tag that opens the
+        /// searchable <see cref="TargetTagPicker"/> — this rig's tag column (spec §4.2.1, §4.2).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A separate hand-built section rather than folded into the Targets
+        /// <see cref="PropertyField"/> above.</strong> <see cref="RigTargetDefinition.tagId"/> is
+        /// marked <c>[HideInInspector]</c> specifically so the default array drawer above can never
+        /// render it as a raw <c>uint</c> field — the one thing spec §4.2.1 rules out is a tag ever
+        /// being typed anywhere but the registry. This section is the column that field's default
+        /// rendering would otherwise have been; it exists only to host the picker.
+        /// </para>
+        /// <para>
+        /// Rows are rebuilt only when the target count changes, mirroring
+        /// <see cref="RebuildSocketRows"/>'s reasoning: each row caches a
+        /// <see cref="SerializedProperty"/> handle into the targets array, and inserting or removing
+        /// a target re-points every handle after the edit site.
+        /// </para>
+        /// </remarks>
+        private VisualElement BuildTargetTagSection()
+        {
+            VisualElement section = new VisualElement();
+            section.Add(BuildSectionHeading("Target Tags"));
+
+            Label explanation = new Label(
+                "A tag says what a target is FOR, so a clip can be shared with any other rig that "
+                + "tags a part the same way. Tags are always picked from the registry below, never "
+                + "typed here - open 'Edit tags...' from the picker to add one on the spot.");
+            explanation.style.whiteSpace = WhiteSpace.Normal;
+            explanation.style.opacity = 0.7f;
+            explanation.style.marginBottom = 4f;
+            section.Add(explanation);
+
+            tagRegistry = LoadStoredTagRegistry();
+            tagRegistryField = new ObjectField("Tag Registry")
+            {
+                objectType = typeof(TargetTagRegistry),
+                allowSceneObjects = false,
+                value = tagRegistry,
+                tooltip = "The project's target tag registry the picker below chooses from. "
+                    + "Remembered per rig in editor preferences, not stored in the asset."
+            };
+            tagRegistryField.RegisterValueChangedCallback(OnTagRegistryChanged);
+            section.Add(tagRegistryField);
+
+            targetTagRowContainer = new VisualElement();
+            section.Add(targetTagRowContainer);
+
+            targetTagBadgeContainer = new VisualElement();
+            targetTagBadgeContainer.style.marginTop = 4f;
+            section.Add(targetTagBadgeContainer);
+
+            RebuildTargetTagRows();
+            RefreshTargetTagBadges();
+            return section;
+        }
+
+        private void RebuildTargetTagRows()
+        {
+            targetTagRows.Clear();
+            targetTagRowContainer.Clear();
+
+            if (targetsProperty == null)
+            {
+                builtTargetTagCount = 0;
+                return;
+            }
+
+            builtTargetTagCount = targetsProperty.arraySize;
+
+            if (builtTargetTagCount == 0)
+            {
+                Label emptyNote = new Label("No targets yet. Add one above before tagging it.");
+                emptyNote.style.whiteSpace = WhiteSpace.Normal;
+                emptyNote.style.opacity = 0.7f;
+                targetTagRowContainer.Add(emptyNote);
+                return;
+            }
+
+            for (int targetIndex = 0; targetIndex < builtTargetTagCount; targetIndex++)
+            {
+                TargetTagRowElements row = BuildTargetTagRow(targetIndex);
+                targetTagRows.Add(row);
+                targetTagRowContainer.Add(row.container);
+            }
+        }
+
+        private TargetTagRowElements BuildTargetTagRow(int targetIndex)
+        {
+            SerializedProperty targetProperty = targetsProperty.GetArrayElementAtIndex(targetIndex);
+
+            TargetTagRowElements row = new TargetTagRowElements();
+            row.targetIndex = targetIndex;
+            row.displayNameProperty = targetProperty.FindPropertyRelative("displayName");
+            row.tagIdProperty = targetProperty.FindPropertyRelative("tagId");
+
+            row.container = new VisualElement();
+            row.container.style.flexDirection = FlexDirection.Row;
+            row.container.style.alignItems = Align.Center;
+            row.container.style.marginTop = 2f;
+
+            row.nameLabel = new Label(DescribeTargetRowName(row));
+            row.nameLabel.style.flexGrow = 1f;
+            row.container.Add(row.nameLabel);
+
+            row.tagButton = new Button(() => OpenTargetTagPicker(row)) { text = DescribeTagButtonText(row) };
+            row.tagButton.style.minWidth = 140f;
+            row.container.Add(row.tagButton);
+
+            return row;
+        }
+
+        private static string DescribeTargetRowName(TargetTagRowElements row)
+        {
+            string displayName = row.displayNameProperty != null ? row.displayNameProperty.stringValue : string.Empty;
+            return string.IsNullOrEmpty(displayName) ? UnnamedTargetChoiceLabel : displayName;
+        }
+
+        private string DescribeTagButtonText(TargetTagRowElements row)
+        {
+            uint tagIdValue = row.tagIdProperty != null ? row.tagIdProperty.uintValue : 0u;
+            if (tagIdValue == 0u)
+            {
+                return "Tag: " + NoTagChoiceLabel;
+            }
+            string tagName = tagRegistry != null ? tagRegistry.FindName(tagIdValue) : null;
+            return tagName != null
+                ? "Tag: " + tagName
+                : "Tag: (unresolved 0x" + tagIdValue.ToString("X8") + ")";
+        }
+
+        /// <summary>
+        /// Opens the searchable tag picker anchored to <paramref name="row"/>'s button, the one
+        /// surface allowed to write <see cref="RigTargetDefinition.tagId"/> (spec §4.2.1).
+        /// </summary>
+        private void OpenTargetTagPicker(TargetTagRowElements row)
+        {
+            TargetTagPicker.Open(
+                inspectorRoot,
+                row.tagButton,
+                tagRegistry,
+                chosenTagId =>
+                {
+                    serializedObject.Update();
+                    row.tagIdProperty.uintValue = chosenTagId;
+                    serializedObject.ApplyModifiedProperties();
+                    row.tagButton.text = DescribeTagButtonText(row);
+                    RefreshTargetTagBadges();
+                },
+                () =>
+                {
+                    // The registry changed underneath every row (a tag renamed or newly created via
+                    // "Edit tags..." / "Create tag..."), not just this one's — every button's label
+                    // is re-derived rather than just this row's.
+                    RefreshAllTargetTagButtons();
+                });
+        }
+
+        private void RefreshAllTargetTagButtons()
+        {
+            for (int rowIndex = 0; rowIndex < targetTagRows.Count; rowIndex++)
+            {
+                TargetTagRowElements row = targetTagRows[rowIndex];
+                row.nameLabel.text = DescribeTargetRowName(row);
+                row.tagButton.text = DescribeTagButtonText(row);
+            }
+            RefreshTargetTagBadges();
+        }
+
+        /// <summary>
+        /// Re-runs <see cref="ClipValidation.ValidateRig"/> and redraws one <see cref="HelpBox"/> per
+        /// T1 finding (V34) — the rule a rig's own target list can violate on its own, without
+        /// needing a track or a set to be involved.
+        /// </summary>
+        private void RefreshTargetTagBadges()
+        {
+            if (targetTagBadgeContainer == null)
+            {
+                return;
+            }
+            targetTagBadgeContainer.Clear();
+
+            RigAsset rig = target as RigAsset;
+            if (rig == null)
+            {
+                return;
+            }
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+            {
+                ValidationMessage message = messages[messageIndex];
+                if (message.code != ValidationCode.V34)
+                {
+                    continue;
+                }
+                HelpBox badge = new HelpBox(message.text, HelpBoxMessageType.Error);
+                badge.style.marginTop = 2f;
+                targetTagBadgeContainer.Add(badge);
+            }
+        }
+
+        private string BuildTagRegistryPreferenceKey()
+        {
+            string assetPath = AssetDatabase.GetAssetPath(target);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return string.Empty;
+            }
+            string assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
+            if (string.IsNullOrEmpty(assetGuid))
+            {
+                return string.Empty;
+            }
+            return TagRegistryPreferenceKeyPrefix + assetGuid;
+        }
+
+        private TargetTagRegistry LoadStoredTagRegistry()
+        {
+            string preferenceKey = BuildTagRegistryPreferenceKey();
+            if (string.IsNullOrEmpty(preferenceKey))
+            {
+                return null;
+            }
+            string storedGuid = EditorPrefs.GetString(preferenceKey, string.Empty);
+            if (string.IsNullOrEmpty(storedGuid))
+            {
+                return null;
+            }
+            string storedPath = AssetDatabase.GUIDToAssetPath(storedGuid);
+            if (string.IsNullOrEmpty(storedPath))
+            {
+                return null;
+            }
+            return AssetDatabase.LoadAssetAtPath<TargetTagRegistry>(storedPath);
+        }
+
+        private void StoreTagRegistry()
+        {
+            string preferenceKey = BuildTagRegistryPreferenceKey();
+            if (string.IsNullOrEmpty(preferenceKey))
+            {
+                return;
+            }
+
+            string sourcePath = tagRegistry != null ? AssetDatabase.GetAssetPath(tagRegistry) : string.Empty;
+            string sourceGuid = string.IsNullOrEmpty(sourcePath)
+                ? string.Empty
+                : AssetDatabase.AssetPathToGUID(sourcePath);
+
+            if (string.IsNullOrEmpty(sourceGuid))
+            {
+                EditorPrefs.DeleteKey(preferenceKey);
+                return;
+            }
+            EditorPrefs.SetString(preferenceKey, sourceGuid);
+        }
+
+        private void OnTagRegistryChanged(ChangeEvent<Object> changeEvent)
+        {
+            tagRegistry = changeEvent.newValue as TargetTagRegistry;
+            StoreTagRegistry();
+            RefreshAllTargetTagButtons();
+        }
+
+        /// <summary>
+        /// The visual elements and serialized handles of one target tag row.
+        /// </summary>
+        /// <remarks>
+        /// Same discipline as <see cref="SocketRowElements"/>: the handle is only valid while the
+        /// targets array's shape is unchanged, so <see cref="RebuildTargetTagRows"/> discards every
+        /// row whenever a target is inserted or removed.
+        /// </remarks>
+        private sealed class TargetTagRowElements
+        {
+            public int targetIndex;
+            public SerializedProperty displayNameProperty;
+            public SerializedProperty tagIdProperty;
+            public VisualElement container;
+            public Label nameLabel;
+            public Button tagButton;
         }
 
         // -----------------------------------------------------------------------------------
@@ -868,6 +1187,21 @@ namespace DotsAnimationToolkit.Editor
             // to tell whether this change touched them, and re-validating a handful of rows costs
             // nothing worth guarding.
             RefreshRagdollBadges();
+
+            // Same unconditional placement as the ragdoll badge refresh above, and ahead of the
+            // socket-only early return below: a target's tag can change from Undo/Redo or from the
+            // "Edit tags..." window without this rig's own targets array ever resizing, so there is
+            // no cheap way to tell whether a repaint is needed without just doing the cheap part of
+            // it (a handful of label/button text updates) every time.
+            if (targetsProperty != null && targetsProperty.arraySize != builtTargetTagCount)
+            {
+                RebuildTargetTagRows();
+                RefreshTargetTagBadges();
+            }
+            else
+            {
+                RefreshAllTargetTagButtons();
+            }
 
             if (socketsProperty == null)
             {

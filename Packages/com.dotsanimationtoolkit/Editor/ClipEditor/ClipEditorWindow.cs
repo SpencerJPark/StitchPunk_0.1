@@ -167,6 +167,10 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement vatBakePane;
         private VatBakePanel vatBakePanel;
 
+        /// <summary>The New Rig flow's cover pane, and the panel built into it the first time it is opened.</summary>
+        private VisualElement newRigPane;
+        private NewRigPanel newRigPanel;
+
         private VisualElement trackHeaderColumn;
         private VisualElement laneColumn;
         private VisualElement laneStack;
@@ -189,6 +193,20 @@ namespace DotsAnimationToolkit.Editor
         private Label previewStatusLabel;
         private ValidationBadgeElement validationBadge;
         private ObjectField skinnedSourceField;
+
+        // -----------------------------------------------------------------------------------
+        // Target tags (Phase E target-tags spec §4.2.1, E3). Same shape as RigAssetEditor's own
+        // tag-registry field: an editor preference keyed by the edited asset's GUID, not a
+        // serialized reference, because the registry is project-scoped furniture (spec §4.1) and a
+        // hard reference here would be a second, redundant place for a project to say which
+        // registry it uses.
+        // -----------------------------------------------------------------------------------
+
+        private const string TagRegistryPreferenceKeyPrefix =
+            "DotsAnimationToolkit.ClipEditorWindow.tagRegistry.";
+
+        private TargetTagRegistry tagRegistry;
+        private ObjectField tagRegistryField;
 
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
@@ -468,7 +486,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipSet = clipSet,
                 selectedClip = selectedClip,
-                skinnedSource = LoadedPrefab,
+                rig = clipSet != null ? clipSet.rig : null,
                 playheadTime = playheadTime,
                 rigEditMode = IsRigEditMode
             };
@@ -520,7 +538,10 @@ namespace DotsAnimationToolkit.Editor
             }
             if (skinnedSourceField != null)
             {
-                skinnedSourceField.value = state.skinnedSource;
+                // OnClipSetChanged already synced this field from the carried clip set's own
+                // rig above; this is belt-and-braces for the case a caller ever constructs a
+                // CarriedState whose rig disagrees with its clip set's.
+                skinnedSourceField.value = state.rig;
             }
             if (state.selectedClip is ClipAsset carriedClip)
             {
@@ -633,7 +654,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(clipSet, tagRegistry);
             }
 
             RefreshClipActionButtons();
@@ -751,18 +772,32 @@ namespace DotsAnimationToolkit.Editor
                 });
             }
 
-            // The rigged prefab authored bone tracks pose against (amendment A42, B4). Left empty
-            // for cutout clip sets, which then behave exactly as before — with an empty hierarchy
-            // pane rather than a missing one.
+            // The rig this clip set animates (Phase D11). Picking one here writes clipSet.rig —
+            // it is a real edit to the clip set, not window-local state — and the rig's own
+            // sourcePrefab is what the preview instantiates and the hierarchy pane lists. Left
+            // empty for a clip set with no rig assigned yet, which then behaves exactly as
+            // before: an empty hierarchy pane rather than a missing one.
             skinnedSourceField = rootVisualElement.Q<ObjectField>("skinned-source-field");
             if (skinnedSourceField != null)
             {
-                skinnedSourceField.objectType = typeof(GameObject);
+                skinnedSourceField.objectType = typeof(RigAsset);
                 skinnedSourceField.allowSceneObjects = false;
                 skinnedSourceField.tooltip =
-                    "Rigged prefab for bone tracks. Use the same one the VAT bake samples — "
-                    + "a different skeleton would preview motion the bake never sees.";
+                    "The rig this clip set animates. Its Source Prefab (set on the rig asset "
+                    + "itself) is what the preview instantiates for bone tracks — use New Rig to "
+                    + "create one, or open an existing rig to assign or change its prefab.";
                 skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
+            }
+
+            newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
+            ToolbarButton newRigButton = rootVisualElement.Q<ToolbarButton>("new-rig-button");
+            if (newRigButton != null)
+            {
+                newRigButton.tooltip =
+                    "Create a RigAsset from a prefab: scan its hierarchy for renderer-bearing "
+                    + "nodes, choose which become rig targets, and optionally point this clip set "
+                    + "at the result.";
+                newRigButton.clicked += () => ShowNewRigTab(true);
             }
 
             VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
@@ -770,7 +805,90 @@ namespace DotsAnimationToolkit.Editor
             {
                 validationBadge = new ValidationBadgeElement();
                 badgeSlot.Add(validationBadge);
+
+                // Built in code rather than the UXML, the same way ValidationBadgeElement itself is
+                // parented in code: this field only matters once a clip set is open, and inserting
+                // it here — right before the badge it feeds — needs no layout file change.
+                tagRegistry = LoadStoredTagRegistry();
+                tagRegistryField = new ObjectField
+                {
+                    objectType = typeof(TargetTagRegistry),
+                    allowSceneObjects = false,
+                    value = tagRegistry,
+                    tooltip = "The project's target tag registry, used to name tags in T2/T3 "
+                        + "validation findings below and by the tag picker on Transform and "
+                        + "Flipbook tracks. Remembered per clip set in editor preferences, not "
+                        + "stored in the asset."
+                };
+                tagRegistryField.AddToClassList("clip-editor__tag-registry-field");
+                tagRegistryField.RegisterValueChangedCallback(OnTagRegistryChanged);
+                VisualElement badgeParent = badgeSlot.parent;
+                if (badgeParent != null)
+                {
+                    badgeParent.Insert(badgeParent.IndexOf(badgeSlot), tagRegistryField);
+                }
             }
+        }
+
+        private void OnTagRegistryChanged(ChangeEvent<Object> changeEvent)
+        {
+            tagRegistry = changeEvent.newValue as TargetTagRegistry;
+            StoreTagRegistry();
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(clipSet, tagRegistry);
+            }
+            RebuildInspector();
+        }
+
+        private string BuildTagRegistryPreferenceKey()
+        {
+            string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return string.Empty;
+            }
+            string assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
+            return string.IsNullOrEmpty(assetGuid) ? string.Empty : TagRegistryPreferenceKeyPrefix + assetGuid;
+        }
+
+        private TargetTagRegistry LoadStoredTagRegistry()
+        {
+            string preferenceKey = BuildTagRegistryPreferenceKey();
+            if (string.IsNullOrEmpty(preferenceKey))
+            {
+                return null;
+            }
+            string storedGuid = EditorPrefs.GetString(preferenceKey, string.Empty);
+            if (string.IsNullOrEmpty(storedGuid))
+            {
+                return null;
+            }
+            string storedPath = AssetDatabase.GUIDToAssetPath(storedGuid);
+            return string.IsNullOrEmpty(storedPath)
+                ? null
+                : AssetDatabase.LoadAssetAtPath<TargetTagRegistry>(storedPath);
+        }
+
+        private void StoreTagRegistry()
+        {
+            string preferenceKey = BuildTagRegistryPreferenceKey();
+            if (string.IsNullOrEmpty(preferenceKey))
+            {
+                return;
+            }
+
+            string sourcePath = tagRegistry != null ? AssetDatabase.GetAssetPath(tagRegistry) : string.Empty;
+            string sourceGuid = string.IsNullOrEmpty(sourcePath)
+                ? string.Empty
+                : AssetDatabase.AssetPathToGUID(sourcePath);
+
+            if (string.IsNullOrEmpty(sourceGuid))
+            {
+                EditorPrefs.DeleteKey(preferenceKey);
+                return;
+            }
+            EditorPrefs.SetString(preferenceKey, sourceGuid);
         }
 
         private void BindClipList()
@@ -949,7 +1067,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(clipSet, tagRegistry);
             }
         }
 
@@ -1059,15 +1177,25 @@ namespace DotsAnimationToolkit.Editor
             editPrefabButton.tooltip = canOpen
                 ? "Open this prefab in Unity's prefab mode. Structural edits — parenting, adding "
                     + "parts, moving meshes — belong there, not here."
-                : "Assign a prefab in the toolbar's rig field to edit it.";
+                : "Assign a rig in the toolbar's Rig field, and give that rig a Source Prefab, to edit it.";
         }
 
-        /// <summary>The prefab assigned in the toolbar, which the preview instantiates.</summary>
+        /// <summary>
+        /// The prefab the preview instantiates: the source prefab of the rig assigned in the
+        /// toolbar (Phase D11), not a value the toolbar field holds directly any more.
+        /// </summary>
+        /// <remarks>
+        /// The one place that reads the rig's prefab, so every consumer below follows the rig
+        /// field to the same answer whether the rig is fully set up or was assigned before it had
+        /// a source prefab of its own (see <see cref="ResolveHierarchyEmptyMessage"/> for how that
+        /// second case is surfaced rather than left to look like nothing happened).
+        /// </remarks>
         private GameObject LoadedPrefab
         {
             get
             {
-                return skinnedSourceField != null ? skinnedSourceField.value as GameObject : null;
+                RigAsset rig = skinnedSourceField != null ? skinnedSourceField.value as RigAsset : null;
+                return rig != null ? rig.sourcePrefab : null;
             }
         }
 
@@ -1411,6 +1539,61 @@ namespace DotsAnimationToolkit.Editor
             }
 
             vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        /// <summary>
+        /// Shows or hides the New Rig creation flow over the editor.
+        /// </summary>
+        /// <remarks>
+        /// Covers the dock rather than replacing it, for the same reason <see cref="ShowVatBakeTab"/>
+        /// does — the reasoning is in <c>.clip-editor__new-rig-pane</c>'s USS comment: a
+        /// <c>TwoPaneSplitView</c> hidden with <c>display:none</c> is laid out at zero by zero and
+        /// comes back collapsed with no handle to drag it open again. Covering leaves the dock's
+        /// geometry untouched underneath, so closing the flow costs nothing.
+        /// </remarks>
+        private void ShowNewRigTab(bool isShown)
+        {
+            if (newRigPane == null)
+            {
+                return;
+            }
+
+            if (isShown)
+            {
+                if (newRigPanel == null)
+                {
+                    newRigPanel = new NewRigPanel();
+                    newRigPanel.Closed += () => ShowNewRigTab(false);
+                    newRigPanel.RigCreated += OnNewRigCreated;
+                    newRigPane.Add(newRigPanel);
+                }
+
+                // Reflects the currently open clip set every time the flow opens, rather than
+                // only filling an empty field the way VatBakePanel.OfferClipSet does — New Rig is
+                // a one-shot flow, not a settings panel a session revisits, so there is no held
+                // choice here worth protecting from being overwritten.
+                newRigPanel.OfferClipSet(clipSet);
+            }
+
+            newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        /// <summary>
+        /// Adopts a freshly created rig into this window, when the New Rig flow's own toggle
+        /// asked for it.
+        /// </summary>
+        /// <remarks>
+        /// Routed through <see cref="skinnedSourceField"/>'s value setter rather than writing
+        /// <c>clipSet.rig</c> directly, so there remains exactly one place —
+        /// <see cref="OnSkinnedSourceChanged"/> — that records the undo step and marks the clip set
+        /// dirty, whether the assignment came from a manual pick or from this flow.
+        /// </remarks>
+        private void OnNewRigCreated(RigAsset createdRig, bool assignToOpenClipSet)
+        {
+            if (assignToOpenClipSet && skinnedSourceField != null)
+            {
+                skinnedSourceField.value = createdRig;
+            }
         }
 
         private void ApplyRigEditChrome()
@@ -2934,11 +3117,39 @@ namespace DotsAnimationToolkit.Editor
             wheelEvent.StopPropagation();
         }
 
+        /// <summary>
+        /// Handles a pick in the toolbar's Rig field: writes it into the open clip set and
+        /// refreshes everything downstream of the prefab that rig's <c>sourcePrefab</c> resolves to.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A real edit to the clip set, not window-local state (Phase D11).</strong>
+        /// <c>clipSet.rig</c> is the field this toolbar control stands in for, so picking a rig here
+        /// must be undoable and must mark the asset dirty exactly like editing it any other way
+        /// would — a silent write here would be the one place in the whole window a change to the
+        /// clip set does not appear in the Undo History.
+        /// </para>
+        /// <para>
+        /// Guarded by an equality check so that programmatically resyncing this field — from
+        /// <see cref="OnClipSetChanged"/>, from <see cref="AdoptCarriedState"/> — never opens an
+        /// undo step or dirties an asset for a value that was already there. Only an actual pick,
+        /// by a person or by <see cref="OnNewRigCreated"/>, does either.
+        /// </para>
+        /// </remarks>
         private void OnSkinnedSourceChanged(ChangeEvent<Object> changeEvent)
         {
+            RigAsset newRig = changeEvent.newValue as RigAsset;
+            if (clipSet != null && clipSet.rig != newRig)
+            {
+                Undo.RecordObject(clipSet, "Assign Rig");
+                clipSet.rig = newRig;
+                EditorUtility.SetDirty(clipSet);
+                AssetDatabase.SaveAssetIfDirty(clipSet);
+            }
+
             if (previewController != null)
             {
-                previewController.SetSkinnedSource(changeEvent.newValue as GameObject);
+                previewController.SetSkinnedSource(LoadedPrefab);
             }
             // Cleared before the tree is rebuilt: the old instance's transforms are gone, so the
             // held index now points into a hierarchy that no longer exists.
@@ -2948,12 +3159,16 @@ namespace DotsAnimationToolkit.Editor
             RebuildHierarchy();
             RebuildTimeline();
             RebuildInspector();
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(clipSet, tagRegistry);
+            }
 
-            // The rig field is the only thing Edit Prefab's enabled state depends on, and this is
-            // the only place that field changes. Without this the button was disabled at bind time —
-            // when no rig is assigned yet — and never re-enabled, so assigning a rig left a button
-            // that swallowed clicks in silence. The failure locked itself in: the only other refresh
-            // runs after a prefab round trip, which is the thing the dead button prevented.
+            // LoadedPrefab is what Edit Prefab's enabled state depends on, and a pick here is one
+            // of the places it changes. Without this the button was disabled at bind time — when
+            // no rig is assigned yet — and never re-enabled, so assigning a rig left a button that
+            // swallowed clicks in silence. OnClipSetChanged carries the same refresh now, for the
+            // other place LoadedPrefab can change.
             RefreshPrefabActionState();
         }
 
@@ -3028,8 +3243,36 @@ namespace DotsAnimationToolkit.Editor
 
             if (hierarchyEmptyLabel != null)
             {
+                hierarchyEmptyLabel.text = ResolveHierarchyEmptyMessage();
                 hierarchyEmptyLabel.EnableInClassList(HiddenUssClassName, rootItems.Count > 0);
             }
+        }
+
+        /// <summary>
+        /// What the empty-hierarchy hint should say, given why it is empty (Phase D11).
+        /// </summary>
+        /// <remarks>
+        /// A rig whose <c>sourcePrefab</c> is unset — every clip set built before this phase, the
+        /// moment it loads — used to show nothing here at all: the hierarchy pane went quiet and
+        /// gave no reason why, which reads as broken rather than as a one-time step still owed. This
+        /// is that reason, named specifically enough to act on without opening anything else.
+        /// </remarks>
+        private string ResolveHierarchyEmptyMessage()
+        {
+            if (clipSet == null)
+            {
+                return "Assign a clip set.";
+            }
+            if (clipSet.rig == null)
+            {
+                return "Assign a rig to the toolbar's Rig field.";
+            }
+            if (clipSet.rig.sourcePrefab == null)
+            {
+                return "Rig \"" + clipSet.rig.name + "\" has no Source Prefab assigned yet. Open "
+                    + "the rig asset and assign one to preview and author bone tracks.";
+            }
+            return "This rig's source prefab has no child transforms to show.";
         }
 
         /// <summary>
@@ -3975,6 +4218,30 @@ namespace DotsAnimationToolkit.Editor
             clipSet = changeEvent.newValue as ClipSetAsset;
             SelectClip(null);
 
+            // The tag registry preference is keyed by the clip set's own GUID (E3), so switching
+            // sets switches which registry the picker and the T2/T3 messages below resolve names
+            // against — the same "load the new selection's remembered choice" step
+            // OnTagRegistryChanged's counterpart, RigAssetEditor.OnSelectionChanged, already takes.
+            tagRegistry = LoadStoredTagRegistry();
+            if (tagRegistryField != null)
+            {
+                tagRegistryField.SetValueWithoutNotify(tagRegistry);
+            }
+
+            // Reflects the new set's own rig before anything downstream reads the toolbar field —
+            // the rig lives on the clip set now (Phase D11), so switching sets must switch what
+            // the Rig field shows exactly the way it already switched what the clip list shows.
+            // Without notify: this is loading the set's existing state, not a pick, so it must not
+            // run OnSkinnedSourceChanged's undo/dirty path for a value nobody just chose.
+            if (skinnedSourceField != null)
+            {
+                skinnedSourceField.SetValueWithoutNotify(clipSet != null ? clipSet.rig : null);
+            }
+            if (previewController != null)
+            {
+                previewController.SetSkinnedSource(LoadedPrefab);
+            }
+
             RefreshClipList();
             RefreshClipActionButtons();
 
@@ -3990,8 +4257,13 @@ namespace DotsAnimationToolkit.Editor
             }
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(clipSet, tagRegistry);
             }
+
+            // The Rig field is what Edit Prefab's enabled state depends on, and this is another
+            // place that field's effective value (LoadedPrefab) can change — switching to a set
+            // whose rig has no source prefab, or whose rig differs from the previous set's.
+            RefreshPrefabActionState();
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)
@@ -4116,7 +4388,7 @@ namespace DotsAnimationToolkit.Editor
                 // repaint would make a large set's window crawl.
                 if (validationBadge != null)
                 {
-                    validationBadge.Refresh(clipSet);
+                    validationBadge.Refresh(clipSet, tagRegistry);
                 }
             }
 
@@ -5544,6 +5816,49 @@ namespace DotsAnimationToolkit.Editor
                     break;
                 }
             }
+        }
+
+        /// <summary>
+        /// The Add Event button on the transport bar: places a marker at the playhead and selects
+        /// it, so its inspector fields are already on screen when the button returns control.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Deliberately not the double-click add path with a button in front of it.</strong>
+        /// Double-clicking a lane clears the selection on add (parity with double-click add on
+        /// every other lane kind) because the gesture already has the author looking at the spot
+        /// they clicked. A toolbar button gives no such cue — the whole reason it exists is to let
+        /// someone author an event without first finding the Events lane — so this path selects the
+        /// new marker instead of clearing the selection, which is the one place it and
+        /// <see cref="OnLanePointerDown"/> intentionally disagree.
+        /// </remarks>
+        private void AddEventAtPlayhead()
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
+
+            float insertTime = TimelineGeometry.Snap(playheadTime, SnapFrameCount);
+            BeginUndoGesture("Add Event");
+            InsertKey(TimelineTrackKind.Event, 0, insertTime);
+            EndUndoGesture();
+
+            EditorUtility.SetDirty(selectedClip);
+
+            // Select the marker just added, by the index InsertKey appended it at, before the sort
+            // below can move it — SortTrackKeys remaps whatever is selected through the sort's index
+            // map, so selecting first and sorting after is what lets the selection follow the marker
+            // to wherever it lands rather than pointing at whatever key ends up in its old slot.
+            KeyAddress newAddress = new KeyAddress(
+                TimelineTrackKind.Event, 0, selectedClip.events.Count - 1);
+            selectedKeys.Clear();
+            selectedKeys.Add(newAddress);
+            activeKey = newAddress;
+            hasActiveKey = true;
+
+            SortTrackKeys(TimelineTrackKind.Event, 0);
+            SetPlayheadTime(insertTime);
+            RebuildTimeline();
         }
 
         /// <summary>The event a newly placed marker fires before anyone has chosen one.</summary>
@@ -7643,7 +7958,7 @@ namespace DotsAnimationToolkit.Editor
         private TransformValueState ResolveDisplayedTransform(
             uint targetId, out float3 position, out float3 rotationDegrees, out float3 scale)
         {
-            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, targetId);
+            TransformTrack track = ClipTransformEditing.FindTransformTrack(selectedClip, ActiveRig, targetId);
             bool hasSample = ClipTransformEditing.TryEvaluate(
                 track, playheadTime, out position, out rotationDegrees, out scale);
 
@@ -7724,7 +8039,7 @@ namespace DotsAnimationToolkit.Editor
             RecordClipEdit("Key Transform");
 
             TransformTrack track =
-                ClipTransformEditing.FindTransformTrack(selectedClip, pendingTransformTargetId);
+                ClipTransformEditing.FindTransformTrack(selectedClip, ActiveRig, pendingTransformTargetId);
             if (track == null)
             {
                 // Keying a part with no track yet creates one. Requiring the user to add a track
@@ -7984,7 +8299,10 @@ namespace DotsAnimationToolkit.Editor
             int boneTrackCount = selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0;
             inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
 
-            bool hasHierarchy = skinnedSourceField != null && skinnedSourceField.value != null;
+            // LoadedPrefab, not just whether a rig is assigned: a rig with no sourcePrefab yet
+            // (Phase D11 migration case) has no hierarchy to pick a bone from either, and the
+            // typed fallback below is exactly what that state needs.
+            bool hasHierarchy = LoadedPrefab != null;
             if (hasHierarchy)
             {
                 inspectorPane.Add(MakeHint("Pick a bone in the Hierarchy pane to add or edit its track."));
@@ -7993,8 +8311,8 @@ namespace DotsAnimationToolkit.Editor
 
             TextField boneNameField = new TextField("Bone Name");
             boneNameField.tooltip =
-                "Assign a rigged prefab in the toolbar to pick from the hierarchy instead. "
-                + "Case sensitive — the bake reports a name it cannot resolve.";
+                "Assign a rig with a Source Prefab in the toolbar to pick from the hierarchy "
+                + "instead. Case sensitive — the bake reports a name it cannot resolve.";
             inspectorPane.Add(boneNameField);
             inspectorPane.Add(new Button(() => AddBoneTrack(boneNameField.value))
             {

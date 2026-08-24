@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Authoring
 {
@@ -291,14 +292,17 @@ namespace DotsAnimationToolkit.Authoring
             AllocatorManager.AllocatorHandle allocator)
         {
             // Validation guarantees a rig with 1..8 layers, unique target ids, unique clip ids, and
-            // every track bound to a target the rig actually declares.
+            // every track bound to a target (directly, or by a tag T1 guarantees at most one target
+            // of this rig carries) the rig actually declares.
             RigAsset rig = clipSet.rig;
             List<RigTargetDefinition> canonicalTargets = BuildCanonicalTargets(rig);
             Dictionary<uint, int> denseTargetIndexById = BuildDenseTargetIndexMap(canonicalTargets);
+            Dictionary<uint, int> denseTargetIndexByTagId = BuildDenseTargetIndexByTagId(canonicalTargets, denseTargetIndexById);
             List<ClipAsset> canonicalClips = BuildCanonicalClips(clipSet);
 
             return BuildBlob(
-                clipSet, rig, canonicalTargets, denseTargetIndexById, canonicalClips, allocator);
+                clipSet, rig, canonicalTargets, denseTargetIndexById, denseTargetIndexByTagId,
+                canonicalClips, allocator);
         }
 
         // -----------------------------------------------------------------------------------
@@ -332,6 +336,36 @@ namespace DotsAnimationToolkit.Authoring
                 denseTargetIndexById[canonicalTargets[denseIndex].stableId] = denseIndex;
             }
             return denseTargetIndexById;
+        }
+
+        /// <summary>
+        /// Maps a tag id to the dense index of the one rig target carrying it (Phase E target-tags
+        /// spec §5, point 2) — what lets a track resolve "the target this rig calls EyeL" the same
+        /// way it resolves "the target with this exact stable id", just through the tag instead.
+        /// </summary>
+        /// <remarks>
+        /// Built from <paramref name="canonicalTargets"/> in the same canonical (ascending
+        /// stable-id) order <paramref name="denseTargetIndexById"/> already reflects, so this map's
+        /// values are the same dense indices, just keyed differently — no second sort, no second
+        /// source of truth for what "dense index" means. Rule T1 (validation rule V34) guarantees at
+        /// most one target per rig carries a given non-zero tag id, so this dictionary build cannot
+        /// silently pick a winner between two competing targets the way an unvalidated one might;
+        /// the bake never reaches here for a set that fails T1 (<see cref="ValidateForBakeOrThrow"/>
+        /// runs first).
+        /// </remarks>
+        private static Dictionary<uint, int> BuildDenseTargetIndexByTagId(
+            List<RigTargetDefinition> canonicalTargets, Dictionary<uint, int> denseTargetIndexById)
+        {
+            Dictionary<uint, int> denseTargetIndexByTagId = new Dictionary<uint, int>();
+            for (int denseIndex = 0; denseIndex < canonicalTargets.Count; denseIndex++)
+            {
+                uint tagId = canonicalTargets[denseIndex].tagId;
+                if (tagId != 0u)
+                {
+                    denseTargetIndexByTagId[tagId] = denseTargetIndexById[canonicalTargets[denseIndex].stableId];
+                }
+            }
+            return denseTargetIndexByTagId;
         }
 
         private static List<ClipAsset> BuildCanonicalClips(ClipSetAsset clipSet)
@@ -387,6 +421,7 @@ namespace DotsAnimationToolkit.Authoring
             RigAsset rig,
             List<RigTargetDefinition> canonicalTargets,
             Dictionary<uint, int> denseTargetIndexById,
+            Dictionary<uint, int> denseTargetIndexByTagId,
             List<ClipAsset> canonicalClips,
             AllocatorManager.AllocatorHandle allocator)
         {
@@ -432,8 +467,10 @@ namespace DotsAnimationToolkit.Authoring
                         ref builder,
                         ref clipArray[denseClipIndex],
                         canonicalClips[denseClipIndex],
+                        rig,
                         clipSet.vatTextures,
                         denseTargetIndexById,
+                        denseTargetIndexByTagId,
                         targetBoundsExtents);
                 }
 
@@ -500,8 +537,10 @@ namespace DotsAnimationToolkit.Authoring
             ref BlobBuilder builder,
             ref ClipBlob clipBlob,
             ClipAsset clip,
+            RigAsset rig,
             VatTextureSetAsset vatTextures,
             Dictionary<uint, int> denseTargetIndexById,
+            Dictionary<uint, int> denseTargetIndexByTagId,
             float3[] targetBoundsExtents)
         {
             clipBlob.clipId = clip.stableId;
@@ -522,9 +561,9 @@ namespace DotsAnimationToolkit.Authoring
             clipBlob.defaultBlendOut = math.clamp(clip.defaultBlendOut, 0f, clip.duration);
 
             List<TransformTrackEntry> transformTrackEntries =
-                BuildTransformTrackEntries(clip, denseTargetIndexById);
+                BuildTransformTrackEntries(clip, rig, denseTargetIndexById, denseTargetIndexByTagId);
             List<SpriteTrackEntry> spriteTrackEntries =
-                BuildSpriteTrackEntries(clip, denseTargetIndexById);
+                BuildSpriteTrackEntries(clip, rig, denseTargetIndexById, denseTargetIndexByTagId);
 
             FillTransformTracks(ref builder, ref clipBlob, transformTrackEntries);
             FillSpriteTracks(ref builder, ref clipBlob, spriteTrackEntries);
@@ -582,7 +621,9 @@ namespace DotsAnimationToolkit.Authoring
 
         private static List<TransformTrackEntry> BuildTransformTrackEntries(
             ClipAsset clip,
-            Dictionary<uint, int> denseTargetIndexById)
+            RigAsset rig,
+            Dictionary<uint, int> denseTargetIndexById,
+            Dictionary<uint, int> denseTargetIndexByTagId)
         {
             List<TransformTrackEntry> entries = new List<TransformTrackEntry>();
             if (clip.transformTracks == null)
@@ -596,9 +637,17 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     continue;
                 }
+                int denseTargetIndex;
+                if (!TryResolveTrackBinding(
+                    track.targetId, track.tagId, denseTargetIndexById, denseTargetIndexByTagId,
+                    out denseTargetIndex))
+                {
+                    ReportUnresolvedTrackBinding(clip, rig, track.tagId, "Transform track", authoringIndex);
+                    continue;
+                }
                 entries.Add(new TransformTrackEntry
                 {
-                    denseTargetIndex = denseTargetIndexById[track.targetId],
+                    denseTargetIndex = denseTargetIndex,
                     authoringIndex = authoringIndex,
                     track = track
                 });
@@ -609,7 +658,9 @@ namespace DotsAnimationToolkit.Authoring
 
         private static List<SpriteTrackEntry> BuildSpriteTrackEntries(
             ClipAsset clip,
-            Dictionary<uint, int> denseTargetIndexById)
+            RigAsset rig,
+            Dictionary<uint, int> denseTargetIndexById,
+            Dictionary<uint, int> denseTargetIndexByTagId)
         {
             List<SpriteTrackEntry> entries = new List<SpriteTrackEntry>();
             if (clip.spriteTracks == null)
@@ -623,15 +674,70 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     continue;
                 }
+                int denseTargetIndex;
+                if (!TryResolveTrackBinding(
+                    track.targetId, track.tagId, denseTargetIndexById, denseTargetIndexByTagId,
+                    out denseTargetIndex))
+                {
+                    ReportUnresolvedTrackBinding(clip, rig, track.tagId, "Sprite track", authoringIndex);
+                    continue;
+                }
                 entries.Add(new SpriteTrackEntry
                 {
-                    denseTargetIndex = denseTargetIndexById[track.targetId],
+                    denseTargetIndex = denseTargetIndex,
                     authoringIndex = authoringIndex,
                     track = track
                 });
             }
             entries.Sort(CompareSpriteTrackEntries);
             return entries;
+        }
+
+        /// <summary>
+        /// Resolves one track's binding to a dense target index (Phase E target-tags spec §5): by
+        /// tag when <paramref name="tagId"/> is non-zero, by <paramref name="targetId"/> otherwise —
+        /// the same sentinel <see cref="TransformTrack.tagId"/> and <see cref="SpriteTrack.tagId"/>
+        /// document. The target-id path is looked up rather than indexed directly (unlike the
+        /// pre-Phase-E code this replaces) because rule T2 (V35, a warning) lets a tag-bound track
+        /// reach this method with nothing to resolve to; the plain target-id path stays effectively
+        /// unable to fail in practice, since rule V02 (an error) already stopped the bake for it, but
+        /// it goes through the same lookup so there is exactly one resolution rule, not two.
+        /// </summary>
+        /// <returns>
+        /// True when the binding resolved, with <paramref name="denseTargetIndex"/> set. False when
+        /// neither id resolves — spec §5 point 3, "report and skip the track" — in which case the
+        /// caller must not add an entry for it.
+        /// </returns>
+        private static bool TryResolveTrackBinding(
+            uint targetId,
+            uint tagId,
+            Dictionary<uint, int> denseTargetIndexById,
+            Dictionary<uint, int> denseTargetIndexByTagId,
+            out int denseTargetIndex)
+        {
+            if (tagId != 0u)
+            {
+                return denseTargetIndexByTagId.TryGetValue(tagId, out denseTargetIndex);
+            }
+            return denseTargetIndexById.TryGetValue(targetId, out denseTargetIndex);
+        }
+
+        /// <summary>
+        /// Reports a track whose binding did not resolve (spec §5 point 3), the same "report, never
+        /// silently inert" contract <c>VatTextureBaker</c> already gives an unresolved socket bone
+        /// name. Reached only for a tag-bound track this rig has no target for (rule T2, a warning at
+        /// authoring time already) — the plain target-id path cannot reach here because rule V02
+        /// blocks the bake first.
+        /// </summary>
+        private static void ReportUnresolvedTrackBinding(
+            ClipAsset clip, RigAsset rig, uint tagId, string trackKindLabel, int authoringIndex)
+        {
+            string rigName = rig != null ? rig.name : "(no rig)";
+            string clipName = clip != null ? clip.name : "(no clip)";
+            Debug.LogWarning(
+                "[DOTS Animation Toolkit] " + trackKindLabel + " " + authoringIndex + " of clip '" +
+                clipName + "' binds tag id 0x" + tagId.ToString("X8") + ", which rig '" + rigName +
+                "' has no target for; the track is skipped in this bake (rule T2).");
         }
 
         private static int CompareTransformTrackEntries(TransformTrackEntry left, TransformTrackEntry right)

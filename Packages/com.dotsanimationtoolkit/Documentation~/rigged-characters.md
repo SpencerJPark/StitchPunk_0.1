@@ -129,10 +129,11 @@ Everything about the window itself — selection, keying, the dopesheet, sockets
 and the route into prefab mode — is in [`clip-editor.md`](clip-editor.md). Two
 things there are worth calling out for a rigged character in particular:
 
-- **The rig hierarchy is the bone picker.** Assign your rigged prefab to the
-  toolbar's **Bone Source** field, select a bone in the tree, and the inspector
-  offers **Add Bone Track** for exactly that bone. No typing, so the "name
-  resolved to nothing and the bake froze it at rest" failure cannot happen.
+- **The rig hierarchy is the bone picker.** Pick a `RigAsset` in the toolbar's
+  **Rig** field — or build one on the spot with **New Rig** — set its
+  **Source Prefab**, select a bone in the tree, and the inspector offers
+  **Add Bone Track** for exactly that bone. No typing, so the "name resolved to
+  nothing and the bake froze it at rest" failure cannot happen.
 - **Bone sockets need a bake; rig-target sockets do not.** A bone exists at run
   time only as texels in a texture, so a socket following one has its motion
   captured by the VAT bake. Until that has happened it resolves to the actor's
@@ -141,7 +142,7 @@ things there are worth calling out for a rigged character in particular:
 ---
 
 
-> **Preview limitation, stated plainly:** the Clip Editor poses the real GameObject skeleton with your Bone Source prefab's actual `SkinnedMeshRenderer` attached, so the deformed mesh *is* what you see while scrubbing bone tracks — it is not left at rest. What the preview does **not** exercise is the run-time technique itself: it never samples a baked VAT texture through the actor's shader, so it cannot catch a bake-only defect (a stale bake, a texture-format mismatch, a rig that changed after the last bake). Confirm those by baking and looking at the actor in Play mode, not by trusting the preview alone.
+> **Preview limitation, stated plainly:** the Clip Editor poses the real GameObject skeleton with the rig's Source Prefab's actual `SkinnedMeshRenderer` attached, so the deformed mesh *is* what you see while scrubbing bone tracks — it is not left at rest. What the preview does **not** exercise is the run-time technique itself: it never samples a baked VAT texture through the actor's shader, so it cannot catch a bake-only defect (a stale bake, a texture-format mismatch, a rig that changed after the last bake). Confirm those by baking and looking at the actor in Play mode, not by trusting the preview alone.
 
 ---
 

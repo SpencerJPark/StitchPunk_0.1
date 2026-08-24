@@ -197,6 +197,145 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void V06_DoesNotFire_WhenTheClipHasNoRigAssignedAtAll()
+        {
+            // Phase E target-tags spec §1/§4.3: a clip with no rig assigned has committed to no
+            // specific rig, so it is not "against the wrong one" - this is what lets a fully
+            // tag-bound clip join sets whose rigs differ from each other, the entire point of the
+            // sharing feature. A track naming a real targetId would still fail V02 against "no rig",
+            // so this must be exercised with a clip that carries no target-id-bound tracks at all.
+            RigAsset setRig = CreateValidRig();
+            ClipAsset clip = assets.CreateClip("Shared", null, WalkClipId, 1f);
+            ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, clip);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+
+            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+            {
+                Assert.AreNotEqual(
+                    ValidationCode.V06, messages[messageIndex].code,
+                    "A null clip.rig must never trip V06: " + Describe(messages));
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // V35/V36 (rules T2/T3, Phase E target-tags spec §6): a track bound by tag.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void V35_FiresAsAWarning_WhenATagBoundTrackNamesATagThisRigDoesNotCarry()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+
+            AssertOnlyCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
+        }
+
+        [Test]
+        public void V35_DoesNotFire_WhenATagBoundTrackNamesATagARigTargetCarries()
+        {
+            RigAsset rig = CreateValidRig();
+            rig.targets[0].tagId = 999u;
+            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+
+            Assert.IsEmpty(messages, "A tag every rig target list carries must not fire T2: " + Describe(messages));
+        }
+
+        [Test]
+        public void V35_MessageNames_ClipTrackTagNameAndRig()
+        {
+            RigAsset rig = CreateValidRig();
+            rig.name = "BarrelRig";
+            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            TargetTagRegistry registry = assets.Create<TargetTagRegistry>("Registry");
+            registry.entries.Add(new TargetTagEntry { name = "EyeL", stableId = 999u });
+
+            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip, registry);
+
+            AssertContainsCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
+            StringAssert.Contains("Blink", messages[0].text, "must name the clip");
+            StringAssert.Contains("Transform track", messages[0].text, "must name the track");
+            StringAssert.Contains("EyeL", messages[0].text, "must name the tag");
+            StringAssert.Contains("BarrelRig", messages[0].text, "must name the rig");
+        }
+
+        [Test]
+        public void V36_FiresAsAnError_WhenATagBoundTrackNamesATagDeletedFromTheRegistry()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            // A registry that exists but no longer holds an entry for 999u - the "deleted tag" case.
+            TargetTagRegistry registry = assets.Create<TargetTagRegistry>("Registry");
+            registry.entries.Add(new TargetTagEntry { name = "Other", stableId = 111u });
+
+            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip, registry);
+
+            AssertOnlyCode(messages, ValidationCode.V36, ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V35NotV36_FiresWithNoRegistrySupplied_ForAnUnresolvedTag()
+        {
+            // Spec §6.1: without a registry to consult, an unresolved tag cannot be told apart from
+            // a deleted one, so it must default to the milder T2 finding rather than staying silent
+            // or over-reporting T3.
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+
+            AssertOnlyCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
+        }
+
+        [Test]
+        public void V02_StillFiresForATargetIdBoundTrack_WhenTagIdIsZero()
+        {
+            // Regression: tagId defaults to 0 for every track authored before E3, and 0 must still
+            // mean "bind by target id" exactly as before.
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = assets.CreateClip("Walk", rig, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, 0xBADu, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+
+            AssertOnlyCode(messages, ValidationCode.V02, ValidationSeverity.Error);
+        }
+
+        [Test]
         public void V07_FiresWhenAVatSourcedClipHasNoTextureSetAtAll()
         {
             RigAsset rig;
@@ -583,6 +722,102 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, FirstTargetId });
 
             AssertOnlyCode(ClipValidation.ValidateRig(rig), ValidationCode.V05, ValidationSeverity.Error);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // V34 (rule T1, Phase E target-tags spec §6): a tag appears at most once per rig.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void ValidateRig_ReportsV34_WhenTwoTargetsShareANonZeroTagId()
+        {
+            // Distinct target stableIds, so only the tag collision (V34) can fire - not V05.
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            rig.targets[0].tagId = 999u;
+            rig.targets[1].tagId = 999u;
+
+            AssertOnlyCode(ClipValidation.ValidateRig(rig), ValidationCode.V34, ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void ValidateRig_ReportsNothing_WhenTwoTargetsHaveDistinctNonZeroTagIds()
+        {
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            rig.targets[0].tagId = 111u;
+            rig.targets[1].tagId = 222u;
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+
+            Assert.IsEmpty(messages, "Distinct tags on distinct targets must not collide: " + Describe(messages));
+        }
+
+        [Test]
+        public void ValidateRig_ReportsNothing_WhenMultipleTargetsAreUntagged()
+        {
+            // 0 ("untagged") is exempt from T1 by definition (spec §6): most targets on most rigs
+            // are expected to stay untagged, and treating that as a collision would fire V34 on
+            // almost every rig in a project. tagId is left at its 0 default on every row here.
+            RigAsset rig = assets.CreateRig(
+                "Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId, FirstTargetId + SecondTargetId + 1u });
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+
+            Assert.IsEmpty(messages, "Multiple untagged targets must never be reported as a tag collision: " + Describe(messages));
+        }
+
+        [Test]
+        public void ValidateRig_ReportsV34_ForEachOfThreeTargetsSharingATag_NotJustTheFirstPair()
+        {
+            RigAsset rig = assets.CreateRig(
+                "Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId, FirstTargetId + SecondTargetId + 1u });
+            rig.targets[0].tagId = 999u;
+            rig.targets[1].tagId = 999u;
+            rig.targets[2].tagId = 999u;
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+
+            int v34Count = 0;
+            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+            {
+                if (messages[messageIndex].code == ValidationCode.V34)
+                {
+                    v34Count++;
+                }
+            }
+            Assert.AreEqual(
+                2, v34Count,
+                "Each target after the first to carry a tag already seen reports its own finding: " + Describe(messages));
+        }
+
+        [Test]
+        public void ValidateRig_ReportsV34_ForNames_IdentifyingBothOffendingTargets()
+        {
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            rig.targets[0].displayName = "LeftEye";
+            rig.targets[1].displayName = "RightEye";
+            rig.targets[0].tagId = 999u;
+            rig.targets[1].tagId = 999u;
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+
+            AssertContainsCode(messages, ValidationCode.V34, ValidationSeverity.Error);
+            StringAssert.Contains("LeftEye", messages[0].text);
+            StringAssert.Contains("RightEye", messages[0].text);
+        }
+
+        [Test]
+        public void ValidateRig_ReportsV13ForRig_ReportsV34ForRig_TogetherWithoutInterference()
+        {
+            // A rig broken two ways at once (no layers, and a tag collision) must report both
+            // findings independently - neither rule may swallow the other's evidence.
+            RigAsset rig = assets.CreateRig("Rig", 1UL, 0, new uint[] { FirstTargetId, SecondTargetId });
+            rig.targets[0].tagId = 999u;
+            rig.targets[1].tagId = 999u;
+
+            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
+
+            AssertContainsCode(messages, ValidationCode.V13, ValidationSeverity.Error);
+            AssertContainsCode(messages, ValidationCode.V34, ValidationSeverity.Error);
         }
 
         [Test]

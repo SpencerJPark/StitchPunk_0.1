@@ -375,8 +375,8 @@ namespace DotsAnimationToolkit.Editor
             if (Scope(kind) == ClipComponentScope.Rig && rig == null)
             {
                 unavailableReason = "This clip set's Rig field is empty, and this component is "
-                    + "stored on the rig. Assign a RigAsset there in the Inspector — the toolbar's "
-                    + "Bone Source field is a different thing, the rigged prefab for bone tracks.";
+                    + "stored on the rig. Assign a RigAsset in the toolbar's Rig field, or build "
+                    + "one with New Rig, to give this component somewhere to live.";
                 return false;
             }
 
@@ -898,7 +898,8 @@ namespace DotsAnimationToolkit.Editor
                     for (int trackIndex = 0; trackIndex < clip.transformTracks.Count; trackIndex++)
                     {
                         TransformTrack track = clip.transformTracks[trackIndex];
-                        if (track != null && track.targetId == objectRef.targetId)
+                        if (track != null
+                            && TrackBindsTarget(track.targetId, track.tagId, objectRef.targetId, rig))
                         {
                             instances.Add(new ClipComponentInstance(kind, trackIndex));
                         }
@@ -936,7 +937,8 @@ namespace DotsAnimationToolkit.Editor
                     for (int trackIndex = 0; trackIndex < clip.spriteTracks.Count; trackIndex++)
                     {
                         SpriteTrack track = clip.spriteTracks[trackIndex];
-                        if (track != null && track.targetId == objectRef.targetId)
+                        if (track != null
+                            && TrackBindsTarget(track.targetId, track.tagId, objectRef.targetId, rig))
                         {
                             instances.Add(new ClipComponentInstance(kind, trackIndex));
                         }
@@ -1002,6 +1004,59 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// Whether a <see cref="TransformTrack"/> or <see cref="SpriteTrack"/> animates the rig
+        /// target <paramref name="objectTargetId"/> — directly by <paramref name="trackTargetId"/>,
+        /// or through <paramref name="trackTagId"/> resolving to it (Phase E target-tags spec §4.3).
+        /// </summary>
+        /// <remarks>
+        /// Public because <see cref="ClipTransformEditing.FindTransformTrack(ClipAsset, RigAsset, uint)"/>
+        /// needs the identical resolution — a tag-bound track has to be found by the one node it
+        /// currently resolves to whether the question is "what does this stack show" or "what does
+        /// keying this node write into", and two implementations of that question are two things
+        /// that can disagree about which track a node's edits land on.
+        /// </remarks>
+        /// <param name="rig">
+        /// The rig <paramref name="trackTagId"/> resolves against. Null (or a rig declaring no
+        /// target with that tag) makes a tag-bound track match nothing — the same "report and skip"
+        /// shape the bake takes for rule T2, rather than falling back to matching by
+        /// <paramref name="trackTargetId"/>, which a tag-bound track leaves at 0 (see
+        /// <see cref="TransformTrack.tagId"/>'s remarks).
+        /// </param>
+        public static bool TrackBindsTarget(
+            uint trackTargetId, uint trackTagId, uint objectTargetId, RigAsset rig)
+        {
+            if (trackTagId != 0u)
+            {
+                RigTargetDefinition resolvedTarget = FindTargetByTag(rig, trackTagId);
+                return resolvedTarget != null && resolvedTarget.stableId == objectTargetId;
+            }
+            return trackTargetId == objectTargetId;
+        }
+
+        /// <summary>
+        /// The rig target carrying <paramref name="tagId"/>, or null when none does. A null rig, the
+        /// reserved id 0, or a rig where the tag is not (yet) unique — rule T1 already makes that an
+        /// authoring error, so this simply reports the first match — all fall through the loop and
+        /// return null or the sole candidate respectively.
+        /// </summary>
+        private static RigTargetDefinition FindTargetByTag(RigAsset rig, uint tagId)
+        {
+            if (rig == null || rig.targets == null || tagId == 0u)
+            {
+                return null;
+            }
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition targetDefinition = rig.targets[targetIndex];
+                if (targetDefinition != null && targetDefinition.tagId == tagId)
+                {
+                    return targetDefinition;
+                }
+            }
+            return null;
         }
 
         /// <summary>Whether a socket hangs off this object — the object being its source.</summary>
