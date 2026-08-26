@@ -78,6 +78,7 @@ These were given across a long session and are binding on all future work.
 - **Do not let subagents spawn their own subagents.** Three processes driving one live Unity Editor caused MCP lock contention that spammed `Logs/Editor.log` to 2.2 GB and broke test runs. Phases run sequentially through the gate.
 - **Save in small increments and recompile often.** Several agents were cut off mid-edit by usage limits; one left the package uncompilable.
 - **Features have repeatedly shipped with tooltips and docs describing behaviour that did not work**, passing tests that checked wiring existed rather than that the feature did what it claimed. Every toggle that writes a pose must be asked "does it un-write?"
+- **A test that cannot fail is worse than no test — and the owner does not want volume.** Before keeping a regression test, revert the fix and watch it fail; if it passes either way, delete it. Two per fix is the target: the behaviour the feature exists for, and the regression itself. A guard clause whose behaviour is obvious from reading it needs no fixture. Watch for `LogAssert.NoUnexpectedReceived()` — Unity fails tests only on unexpected *errors*, never warnings, and it checks logs received *before* the call, so it is a common way to write a test that can never fail.
 
 ---
 
@@ -85,7 +86,9 @@ These were given across a long session and are binding on all future work.
 
 **Ragdoll (Amendment A50, phases D0–D14)** — complete except D8. Solver, bake, five runtime systems, Clip Editor component, preview simulation with box handles, optional Unity Physics probe, docs, 0.11.0 bump.
 
-**Target tags (Phase E)** — E0 verified the footprint claim (clip tracks reach the runtime as dense indices only; no blob or runtime change needed). E1 `TargetTagRegistry`. E1.5 shared `VocabularyPicker` + `VocabularyQuickEditWindow` on a `PickerOverlay` base. E2 `RigTargetDefinition.tagId` + rule T1 (`V34`). E3/E4 landed **and are now verified end to end** (see item 1 below): `TransformTrack.tagId` and `SpriteTrack.tagId` with a documented sentinel convention, bake resolution against the set's rig, and T2/T3/T4 as `V35`/`V36`/`V37`. A shareable clip is one whose `rig` is null — that null is the V06 exemption, and it is what lets the clip join sets whose rigs differ.
+**Target tags (Phase E)** — E0 verified the footprint claim (clip tracks reach the runtime as dense indices only; no blob or runtime change needed). E1 `TargetTagRegistry`. E1.5 shared `VocabularyPicker` + `VocabularyQuickEditWindow` on a `PickerOverlay` base. E2 `RigTargetDefinition.tagId` + rule T1 (`V34`). E3/E4 landed **and are now verified end to end**: `TransformTrack.tagId` and `SpriteTrack.tagId` with a documented sentinel convention, bake resolution against the set's rig, and T2/T3/T4 as `V35`/`V36`/`V37`. A shareable clip is one whose `rig` is null — that null is the V06 exemption, and it is what lets the clip join sets whose rigs differ.
+
+**E3/E4 proof (2026-08-25).** `ClipRegistryBuilderTests.Build_ResolvesOneSharedClip_ToDifferentDenseIndices_InTwoSetsWithDifferentRigs` — one `ClipAsset`, one tag-bound track, two sets whose rigs differ in target names, count and stable ids; dense index 0 on one, 1 on the other. Verifying it found a real defect, now fixed: **T2 (V35) was judged against `clip.rig`**, which on a shareable clip is null by design, so every tag-bound track of every shared clip warned always — including on rigs that did carry the tag, the feature's healthy path. Both binding checks now take a `resolutionRig`, the rig the clip will actually play on, which from `ValidateSet` is the **set's** rig. The bake path was always correct (`ClipRegistryBuilder` used `clipSet.rig`), so this was validation noise, never wrong animation. Commit `d65dfc94`.
 
 **Recent recovery:** an agent died mid-refactor having deleted `TargetTagPicker`/`TargetTagQuickEditWindow` after writing generalised replacements. Call sites were repointed at `VocabularyPicker`, `AnimEventKeyRegistry` gained its missing `IVocabularyRegistry.ContainsId`, and the `ProjectSettings/` singleton machinery was moved out of `Authoring/` into `Editor/ClipUtilities/VocabularyRegistryProvider.cs` to satisfy `Conformance_C`.
 
@@ -93,34 +96,17 @@ These were given across a long session and are binding on all future work.
 
 ## What is left, highest value first
 
-1. ~~**Verify E3/E4 actually work end to end.**~~ **Done.** The proof is
-   `ClipRegistryBuilderTests.Build_ResolvesOneSharedClip_ToDifferentDenseIndices_InTwoSetsWithDifferentRigs`
-   — one `ClipAsset` (`rig = null`), one tag-bound track, two sets whose rigs differ in target
-   names, count and stable ids; it resolves to dense index 0 on one and 1 on the other. T2/T3/T4
-   already had permanent EditMode coverage.
+1. **E6 Task 2 — generated name constants.** `ClipSetAsset`'s inspector already has *Generate Clip Id Constants*; read it and ship the same generator for both vocabularies, producing `TargetTags.Jaw` and `AnimEvents.Footstep`. Sanitise names to valid C# identifiers and report ones that cannot be. Note in the generated header *why*: Burst cannot compare managed strings in a job, so a `uint` compare against a generated constant is the only form that is both name-shaped in source and legal at runtime — and renaming a tag renames its constant, so dependent code fails to **compile**, which is the desired loud failure.
 
-   **The verification found a real defect, now fixed.** T2 (V35) was judged against `clip.rig`,
-   but a shareable clip's `rig` is null *by design* — that null is the V06 exemption that lets it
-   join differently-rigged sets. So every tag-bound track of every shared clip warned, always,
-   including on rigs that did carry the tag. §6.1 spends its entire safety argument on T2 being
-   rare enough to read; this made it fire on the feature's healthy path. Both binding checks now
-   take a `resolutionRig` — the rig the clip will actually play on, which from `ValidateSet` is the
-   **set's** rig. Confirmed by reverting the fix and watching
-   `V35_IsJudgedAgainstTheSetsRig_NotTheClipsOwn_ForASharedClip` fail. The bake path was always
-   correct (`ClipRegistryBuilder` already used `clipSet.rig`); this was validation-only, so it
-   produced noise rather than wrong animation.
+2. **E6 Task 4 — sweep raw numbers out of every editor surface.** Event markers in particular still identify by `eventKey`. Show names everywhere a name resolves.
 
-2. **E6 Task 2 — generated name constants.** `ClipSetAsset`'s inspector already has *Generate Clip Id Constants*; read it and ship the same generator for both vocabularies, producing `TargetTags.Jaw` and `AnimEvents.Footstep`. Sanitise names to valid C# identifiers and report ones that cannot be. Note in the generated header *why*: Burst cannot compare managed strings in a job, so a `uint` compare against a generated constant is the only form that is both name-shaped in source and legal at runtime — and renaming a tag renames its constant, so dependent code fails to **compile**, which is the desired loud failure.
+3. **One timeline lane per event name.** Replaces the current vertical stacking. `Footstep` gets a row, `Damage` gets a row; three events on one frame land on three rows automatically. Adding an event with a new name creates its lane.
 
-3. **E6 Task 4 — sweep raw numbers out of every editor surface.** Event markers in particular still identify by `eventKey`. Show names everywhere a name resolves.
+4. **Move tagging onto the rig hierarchy rows**, per the owner's "it should live in the rig setup so I can adjust it directly on the physical rig hierarchy."
 
-4. **One timeline lane per event name.** Replaces the current vertical stacking. `Footstep` gets a row, `Damage` gets a row; three events on one frame land on three rows automatically. Adding an event with a new name creates its lane.
+5. **"Edit Events" button available immediately after adding an event.**
 
-5. **Move tagging onto the rig hierarchy rows**, per the owner's "it should live in the rig setup so I can adjust it directly on the physical rig hierarchy."
-
-6. **"Edit Events" button available immediately after adding an event.**
-
-7. **E5 — docs, CHANGELOG, Amendment A51** into `Phase_B_Architecture.md`. Note amendments run to A50; check `grep -nE "^## Amendment A[0-9]+"` before claiming a number — "A45" was claimed once while taken and had to be renumbered across ~55 places.
+6. **E5 — docs, CHANGELOG, Amendment A51** into `Phase_B_Architecture.md`. Note amendments run to A50; check `grep -nE "^## Amendment A[0-9]+"` before claiming a number — "A45" was claimed once while taken and had to be renumbered across ~55 places.
 
 ---
 
