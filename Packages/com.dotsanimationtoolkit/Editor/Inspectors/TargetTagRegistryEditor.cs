@@ -81,7 +81,7 @@ namespace DotsAnimationToolkit.Editor
                 TargetTagRegistry changedRegistry = target as TargetTagRegistry;
                 if (changedRegistry != null)
                 {
-                    changedRegistry.PersistChange();
+                    VocabularyRegistryProvider.Persist(changedRegistry);
                 }
                 RefreshRows();
                 RefreshFindings();
@@ -206,7 +206,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             registry.entries.RemoveAt(entryIndex);
-            registry.PersistChange();
+            VocabularyRegistryProvider.Persist(registry);
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();

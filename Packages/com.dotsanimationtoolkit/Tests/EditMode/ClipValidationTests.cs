@@ -280,6 +280,62 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void V35_IsJudgedAgainstTheSetsRig_NotTheClipsOwn_ForASharedClip()
+        {
+            // The shared clip is the case Phase E exists for, and it carries no rig of its own (the
+            // V06 exemption). Judging its tags against clip.rig therefore asked a null object
+            // whether it carried the tag, got "no", and warned - always, on every tag-bound track,
+            // however healthy the actual rig was. T2 must ask the rig the clip will play on.
+            RigAsset setRig = CreateValidRig();
+            setRig.targets[0].tagId = 999u;
+            ClipAsset sharedClip = assets.CreateClip("Shared", null, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                sharedClip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, sharedClip);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+
+            Assert.IsEmpty(
+                messages,
+                "A shared clip whose tag the set's rig does carry is entirely healthy: " +
+                Describe(messages));
+        }
+
+        [Test]
+        public void V35_StillFiresForASharedClip_WhenTheSetsRigLacksTheTag_AndNamesThatRig()
+        {
+            // The other half of the same fix: scoping T2 to the set's rig must not blunt it. A
+            // roster member that genuinely lacks the part is exactly what §6.1's lenient rule is
+            // for, and the message has to name the rig that lacks it - the set's - or it points at
+            // nothing actionable.
+            RigAsset setRig = CreateValidRig();
+            setRig.name = "BarrelRig";
+            ClipAsset sharedClip = assets.CreateClip("Shared", null, WalkClipId, 1f);
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                sharedClip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, sharedClip);
+
+            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+
+            AssertContainsCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
+            StringAssert.Contains(
+                "BarrelRig",
+                Describe(messages),
+                "T2 must name the set's rig, the one that actually lacks the tag.");
+            StringAssert.DoesNotContain(
+                "no rig (none assigned)",
+                Describe(messages),
+                "A shared clip's null rig must never reach the reader - it is an implementation " +
+                "detail of sharing, not a fault to report.");
+        }
+
+        [Test]
         public void V36_FiresAsAnError_WhenATagBoundTrackNamesATagDeletedFromTheRegistry()
         {
             RigAsset rig = CreateValidRig();

@@ -59,6 +59,43 @@ namespace DotsAnimationToolkit.Editor
             QuickEditMissingMessage = quickEditMissingMessage;
             DescribeEntryId = describeEntryId;
         }
+
+        /// <summary>
+        /// The target-tag flavour of this config, in one place rather than at each call site.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Two surfaces open a tag picker — the rig inspector's tag column and the Clip Editor's
+        /// track-binding button — and every string they show has to match, or the same control reads
+        /// as two different features depending on where it was opened from. A shared factory is what
+        /// makes that structural rather than a thing two files must remember to keep in step.
+        /// </para>
+        /// <para>
+        /// <strong>The "(none)" row exists here and does not for events.</strong> Untagged is an
+        /// ordinary state for a target (spec §4.2), while an event marker always fires
+        /// <em>some</em> event, so there is nothing for an event picker to clear to.
+        /// </para>
+        /// </remarks>
+        public static VocabularyPickerConfig ForTargetTags(TargetTagRegistry registry)
+        {
+            return new VocabularyPickerConfig(
+                "(none)",
+                "Leave this target untagged. An untagged target is animated by target id only, "
+                    + "so its clips do not travel to another rig.",
+                "tag",
+                "Edit tags…",
+                "Rename, add or remove the project's target tags.",
+                "Target Tags",
+                "No tag registry is available yet.",
+                tagId =>
+                {
+                    // Never the raw number where a name exists (spec §4.2.3). The hex form is the
+                    // one permitted exception: a dangling id after its tag was deleted has no name
+                    // left to show, and the number is what makes that row findable again.
+                    string resolvedName = registry != null ? registry.FindName(tagId) : null;
+                    return resolvedName ?? "(unresolved 0x" + tagId.ToString("X8") + ")";
+                });
+        }
     }
 
     /// <summary>

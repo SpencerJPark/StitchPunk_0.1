@@ -600,6 +600,68 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void Build_ResolvesOneSharedClip_ToDifferentDenseIndices_InTwoSetsWithDifferentRigs()
+        {
+            // The whole of Phase E in one test (spec §1, §5). Not two clips that happen to agree on
+            // a tag - one ClipAsset instance, registered by two sets whose rigs name their parts
+            // differently, baking to a different dense index in each. A clip only travels because it
+            // carries no rig of its own (the V06 exemption, spec §4.3), so `rig` is deliberately
+            // null here; that null is the feature, not an oversight in the fixture.
+            const uint SharedTagId = 0xBEEFu;
+
+            ClipAsset sharedClip = assets.CreateClip("Blink", null, 0x10UL, 1f);
+            TransformTrack sharedTrack = AuthoringTestAssets.AddTransformTrack(
+                sharedClip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            sharedTrack.tagId = SharedTagId;
+            AuthoringTestAssets.AddTransformKey(
+                sharedTrack, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            // Two rigs that agree on the role and on nothing else: differently named targets, a
+            // different number of them, and different stable ids, so a dense index that matched by
+            // luck rather than by tag would have to match twice by luck.
+            RigAsset humanRig = assets.CreateRig("Human", 1UL, 1, new uint[] { 8u, 1u, 4u });
+            humanRig.targets[1].tagId = SharedTagId;   // stableId 1u -> dense index 0 of (1, 4, 8).
+            RigAsset gremlinRig = assets.CreateRig("Gremlin", 3UL, 1, new uint[] { 5u, 30u });
+            gremlinRig.targets[1].tagId = SharedTagId; // stableId 30u -> dense index 1 of (5, 30).
+
+            ClipSetAsset humanSet = assets.CreateSet("HumanSet", humanRig, 2UL, sharedClip);
+            ClipSetAsset gremlinSet = assets.CreateSet("GremlinSet", gremlinRig, 4UL, sharedClip);
+
+            BlobAssetReferenceScope humanScope = new BlobAssetReferenceScope();
+            BlobAssetReferenceScope gremlinScope = new BlobAssetReferenceScope();
+            try
+            {
+                humanScope.Build(humanSet);
+                gremlinScope.Build(gremlinSet);
+                ref ClipRegistryBlob humanRegistry = ref humanScope.Registry.Value;
+                ref ClipRegistryBlob gremlinRegistry = ref gremlinScope.Registry.Value;
+
+                Assert.AreEqual(
+                    1,
+                    humanRegistry.clips[0].transformTracks.Length,
+                    "The shared clip's only track must survive the bake on the human rig.");
+                Assert.AreEqual(
+                    1,
+                    gremlinRegistry.clips[0].transformTracks.Length,
+                    "The same track must survive the bake on the gremlin rig too.");
+                Assert.AreEqual(
+                    0,
+                    humanRegistry.clips[0].transformTracks[0].targetIndex,
+                    "On the human rig the shared tag names the target at dense index 0.");
+                Assert.AreEqual(
+                    1,
+                    gremlinRegistry.clips[0].transformTracks[0].targetIndex,
+                    "The same asset, baked into a second set, resolves to a different dense index - " +
+                    "one authored clip animating whichever part each rig calls by that role.");
+            }
+            finally
+            {
+                humanScope.Dispose();
+                gremlinScope.Dispose();
+            }
+        }
+
+        [Test]
         public void Build_SkipsATagBoundTrack_AndLogsAWarning_WhenNoTargetInTheRigCarriesTheTag()
         {
             const uint UnclaimedTagId = 0xC0FFEEu;

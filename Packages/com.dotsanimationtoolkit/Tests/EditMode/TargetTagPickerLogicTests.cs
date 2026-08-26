@@ -9,7 +9,7 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// Covers the two pure predicates <see cref="TargetTagPicker"/>'s row-building callbacks call
+    /// Covers the two pure predicates <see cref="VocabularyPicker"/>'s row-building callbacks call
     /// (Phase E target-tags spec §4.2.1): the filter match every row is tested against, and the
     /// near-duplicate guard that makes "Create tag..." safe. Neither test touches a
     /// <see cref="UnityEngine.UIElements.VisualElement"/>, an overlay, or a window - both methods
@@ -25,7 +25,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
     /// exactly the half-animated-roster failure this whole phase exists to remove. That is why
     /// <see cref="IsNearDuplicateName"/> gets more fixtures here than <see cref="MatchesFilter"/>.
     /// </remarks>
-    public sealed class TargetTagPickerLogicTests
+    public sealed class VocabularyPickerLogicTests
     {
         private readonly List<Object> createdObjects = new List<Object>();
 
@@ -64,43 +64,43 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void MatchesFilter_IsTrue_ForAnEmptyFilter_RegardlessOfName()
         {
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("Jaw", string.Empty));
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("Jaw", null));
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("Jaw", "   "), "Whitespace-only filters everything too.");
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("Jaw", string.Empty));
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("Jaw", null));
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("Jaw", "   "), "Whitespace-only filters everything too.");
         }
 
         [Test]
         public void MatchesFilter_IsTrue_ForAnExactCaseMatch()
         {
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("EyeL", "EyeL"));
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("EyeL", "EyeL"));
         }
 
         [Test]
         public void MatchesFilter_IsTrue_ForASubstringMatch_AnywhereInTheName()
         {
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("LeftEyeSocket", "Eye"), "A substring in the middle must match.");
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("EyeL", "L"), "A trailing substring must match.");
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("EyeL", "Eye"), "A leading substring must match.");
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("LeftEyeSocket", "Eye"), "A substring in the middle must match.");
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("EyeL", "L"), "A trailing substring must match.");
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("EyeL", "Eye"), "A leading substring must match.");
         }
 
         [Test]
         public void MatchesFilter_IsTrue_ForADifferentlyCasedSubstring()
         {
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("EyeL", "eyel"), "Filtering must be case-insensitive.");
-            Assert.IsTrue(TargetTagPicker.MatchesFilter("eyel", "EYEL"));
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("EyeL", "eyel"), "Filtering must be case-insensitive.");
+            Assert.IsTrue(VocabularyPicker.MatchesFilter("eyel", "EYEL"));
         }
 
         [Test]
         public void MatchesFilter_IsFalse_WhenTheFilterTextDoesNotOccurInTheName()
         {
-            Assert.IsFalse(TargetTagPicker.MatchesFilter("Jaw", "Eye"));
+            Assert.IsFalse(VocabularyPicker.MatchesFilter("Jaw", "Eye"));
         }
 
         [Test]
         public void MatchesFilter_TreatsANullName_AsEmpty()
         {
-            Assert.IsFalse(TargetTagPicker.MatchesFilter(null, "Eye"), "A null name matches nothing but an empty filter.");
-            Assert.IsTrue(TargetTagPicker.MatchesFilter(null, string.Empty));
+            Assert.IsFalse(VocabularyPicker.MatchesFilter(null, "Eye"), "A null name matches nothing but an empty filter.");
+            Assert.IsTrue(VocabularyPicker.MatchesFilter(null, string.Empty));
         }
 
         // -----------------------------------------------------------------------------------
@@ -112,13 +112,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             TargetTagRegistry registry = CreateRegistry();
 
-            Assert.IsFalse(TargetTagPicker.IsNearDuplicateName(registry, "Jaw"));
+            Assert.IsFalse(VocabularyPicker.IsNearDuplicateName(registry, "Jaw"));
         }
 
         [Test]
         public void IsNearDuplicateName_IsFalse_ForANullRegistry()
         {
-            Assert.IsFalse(TargetTagPicker.IsNearDuplicateName(null, "Jaw"));
+            // Cast, because a bare null matches both overloads. This fixture is about the registry
+            // one — a picker opened before any vocabulary asset exists must not claim every name is
+            // taken.
+            Assert.IsFalse(VocabularyPicker.IsNearDuplicateName((IVocabularyRegistry)null, "Jaw"));
         }
 
         [Test]
@@ -126,7 +129,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             TargetTagRegistry registry = CreateRegistry("Jaw");
 
-            Assert.IsTrue(TargetTagPicker.IsNearDuplicateName(registry, "Jaw"));
+            Assert.IsTrue(VocabularyPicker.IsNearDuplicateName(registry, "Jaw"));
         }
 
         [Test]
@@ -135,7 +138,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             TargetTagRegistry registry = CreateRegistry("jaw");
 
             Assert.IsTrue(
-                TargetTagPicker.IsNearDuplicateName(registry, "Jaw"),
+                VocabularyPicker.IsNearDuplicateName(registry, "Jaw"),
                 "Jaw must be rejected as a near-duplicate of an existing jaw.");
         }
 
@@ -145,7 +148,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             TargetTagRegistry registry = CreateRegistry("Jaw");
 
             Assert.IsTrue(
-                TargetTagPicker.IsNearDuplicateName(registry, "jaw"),
+                VocabularyPicker.IsNearDuplicateName(registry, "jaw"),
                 "jaw must be rejected as a near-duplicate of an existing Jaw.");
         }
 
@@ -154,9 +157,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             TargetTagRegistry registry = CreateRegistry("EyeL");
 
-            Assert.IsTrue(TargetTagPicker.IsNearDuplicateName(registry, "eyel"));
-            Assert.IsTrue(TargetTagPicker.IsNearDuplicateName(registry, "EYEL"));
-            Assert.IsTrue(TargetTagPicker.IsNearDuplicateName(registry, "eYeL"));
+            Assert.IsTrue(VocabularyPicker.IsNearDuplicateName(registry, "eyel"));
+            Assert.IsTrue(VocabularyPicker.IsNearDuplicateName(registry, "EYEL"));
+            Assert.IsTrue(VocabularyPicker.IsNearDuplicateName(registry, "eYeL"));
         }
 
         [Test]
@@ -165,7 +168,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             TargetTagRegistry registry = CreateRegistry("Jaw");
 
             Assert.IsTrue(
-                TargetTagPicker.IsNearDuplicateName(registry, "  Jaw  "),
+                VocabularyPicker.IsNearDuplicateName(registry, "  Jaw  "),
                 "The candidate is trimmed before comparison, matching how the filter text itself is trimmed.");
         }
 
@@ -174,7 +177,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             TargetTagRegistry registry = CreateRegistry("Jaw");
 
-            Assert.IsFalse(TargetTagPicker.IsNearDuplicateName(registry, "EyeL"));
+            Assert.IsFalse(VocabularyPicker.IsNearDuplicateName(registry, "EyeL"));
         }
 
         [Test]
@@ -185,7 +188,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // legitimately different tag could never be created.
             TargetTagRegistry registry = CreateRegistry("EyeL");
 
-            Assert.IsFalse(TargetTagPicker.IsNearDuplicateName(registry, "Eye"));
+            Assert.IsFalse(VocabularyPicker.IsNearDuplicateName(registry, "Eye"));
         }
 
         [Test]
@@ -193,8 +196,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             TargetTagRegistry registry = CreateRegistry("EyeL", "EyeR", "Jaw");
 
-            Assert.IsTrue(TargetTagPicker.IsNearDuplicateName(registry, "jaw"));
-            Assert.IsFalse(TargetTagPicker.IsNearDuplicateName(registry, "Ear"));
+            Assert.IsTrue(VocabularyPicker.IsNearDuplicateName(registry, "jaw"));
+            Assert.IsFalse(VocabularyPicker.IsNearDuplicateName(registry, "Ear"));
         }
     }
 }

@@ -352,10 +352,12 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void OpenTargetTagPicker(TargetTagRowElements row)
         {
-            TargetTagPicker.Open(
+            VocabularyPicker.Open(
                 inspectorRoot,
                 row.tagButton,
                 tagRegistry,
+                tagRegistry,
+                VocabularyPickerConfig.ForTargetTags(tagRegistry),
                 chosenTagId =>
                 {
                     serializedObject.Update();

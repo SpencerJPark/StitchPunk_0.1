@@ -325,6 +325,15 @@ namespace DotsAnimationToolkit.Authoring
         /// bury the second inside the noise of the first (spec §6.1).
         /// </para>
         /// <para>
+        /// <strong>"The rig being checked against" is the <em>set's</em> rig, never
+        /// <c>clip.rig</c>.</strong> A shareable clip carries no rig of its own — that null is what
+        /// exempts it from V06 and lets it join sets whose rigs differ — so asking <c>clip.rig</c>
+        /// whether it carries the tag answers "no" for every tag-bound track of every shared clip,
+        /// on the one path this feature exists to serve. A rule that fires on the healthy case is a
+        /// rule nobody reads, and §6.1 spends the whole of its safety argument on T2 being rare
+        /// enough to be worth reading.
+        /// </para>
+        /// <para>
         /// Spec §6.1 makes the message text itself part of the rule: it must name the clip, the
         /// track, the tag's name, and the rig, so the finding is actionable without opening
         /// anything, and it must surface in the Clip Editor's validation badge — not only the bake

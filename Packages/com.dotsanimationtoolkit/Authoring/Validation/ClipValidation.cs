@@ -74,7 +74,7 @@ namespace DotsAnimationToolkit.Authoring
                 throw new ArgumentNullException(nameof(clip));
             }
             List<ValidationMessage> messages = new List<ValidationMessage>();
-            ValidateClipInto(clip, tagRegistry, messages);
+            ValidateClipInto(clip, clip.rig, tagRegistry, messages);
             return messages;
         }
 
@@ -180,7 +180,7 @@ namespace DotsAnimationToolkit.Authoring
                             "the clip has no rig assigned at all (a fully tag-bound, shareable clip)."));
                     }
 
-                    ValidateClipInto(clip, tagRegistry, messages);
+                    ValidateClipInto(clip, clipSet.rig, tagRegistry, messages);
                     ValidateVatCoverageInto(clipSet, clip, messages);
                 }
             }
@@ -1041,8 +1041,21 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
+        /// <param name="resolutionRig">
+        /// The rig this clip's bindings are judged against - the rig it will actually play on. From
+        /// <see cref="ValidateSet"/> that is the <em>set's</em> rig, not <c>clip.rig</c>, and the
+        /// distinction is the whole of Phase E: a shareable clip carries no rig of its own (the V06
+        /// exemption in <see cref="ValidateSet"/>), so judging its tags against <c>clip.rig</c>
+        /// would fire T2 on every tag-bound track of every shareable clip - against a rig that is
+        /// null by design - and drown the one rule §6.1 relies on to catch a mis-picked tag. Null
+        /// when nothing declares a rig at all, in which case a binding cannot be judged and is left
+        /// alone rather than blamed.
+        /// </param>
         private static void ValidateClipInto(
-            ClipAsset clip, TargetTagRegistry tagRegistry, List<ValidationMessage> messages)
+            ClipAsset clip,
+            RigAsset resolutionRig,
+            TargetTagRegistry tagRegistry,
+            List<ValidationMessage> messages)
         {
             if (clip.duration < ClipAsset.MinimumDuration)
             {
@@ -1093,7 +1106,7 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
                 ValidateTrackBindingInto(
-                    clip, transformTrack.targetId, transformTrack.tagId, tagRegistry,
+                    clip, resolutionRig, transformTrack.targetId, transformTrack.tagId, tagRegistry,
                     "Transform track", trackIndex, messages);
 
                 int keyCount = transformTrack.keys == null ? 0 : transformTrack.keys.Count;
@@ -1138,7 +1151,7 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
                 ValidateTrackBindingInto(
-                    clip, spriteTrack.targetId, spriteTrack.tagId, tagRegistry,
+                    clip, resolutionRig, spriteTrack.targetId, spriteTrack.tagId, tagRegistry,
                     "Sprite track", trackIndex, messages);
 
                 int keyCount = spriteTrack.keys == null ? 0 : spriteTrack.keys.Count;
@@ -1269,16 +1282,19 @@ namespace DotsAnimationToolkit.Authoring
 
         private static void ValidateTargetBindingInto(
             ClipAsset clip,
+            RigAsset resolutionRig,
             uint targetId,
             string trackKindLabel,
             int trackIndex,
             List<ValidationMessage> messages)
         {
-            if (RigContainsTarget(clip.rig, targetId))
+            if (RigContainsTarget(resolutionRig, targetId))
             {
                 return;
             }
-            string rigLabel = clip.rig == null ? "no rig (none assigned)" : "rig '" + clip.rig.name + "'";
+            string rigLabel = resolutionRig == null
+                ? "no rig (none assigned)"
+                : "rig '" + resolutionRig.name + "'";
             messages.Add(new ValidationMessage(
                 ValidationSeverity.Error,
                 ValidationCode.V02,
@@ -1300,6 +1316,7 @@ namespace DotsAnimationToolkit.Authoring
         /// </remarks>
         private static void ValidateTrackBindingInto(
             ClipAsset clip,
+            RigAsset resolutionRig,
             uint targetId,
             uint tagId,
             TargetTagRegistry tagRegistry,
@@ -1309,7 +1326,8 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (tagId == 0u)
             {
-                ValidateTargetBindingInto(clip, targetId, trackKindLabel, trackIndex, messages);
+                ValidateTargetBindingInto(
+                    clip, resolutionRig, targetId, trackKindLabel, trackIndex, messages);
                 return;
             }
 
@@ -1328,7 +1346,17 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            if (RigContainsTagTarget(clip.rig, tagId))
+            // No rig to judge against - a shareable clip inspected on its own, outside any set.
+            // T2 asks "does the rig this will play on carry the tag?", and with no rig in hand there
+            // is no answer, only a guess. Staying silent is the same discipline T3 uses for an
+            // absent registry above: report what can be known, never invent a finding out of
+            // missing context. The set-scoped pass judges it properly once a rig is declared.
+            if (resolutionRig == null)
+            {
+                return;
+            }
+
+            if (RigContainsTagTarget(resolutionRig, tagId))
             {
                 return;
             }
@@ -1339,7 +1367,7 @@ namespace DotsAnimationToolkit.Authoring
             string tagLabel = tagRegistry != null && tagRegistry.FindName(tagId) != null
                 ? "'" + tagRegistry.FindName(tagId) + "'"
                 : "id 0x" + tagId.ToString("X8");
-            string rigLabel = clip.rig == null ? "no rig (none assigned)" : "rig '" + clip.rig.name + "'";
+            string rigLabel = "rig '" + resolutionRig.name + "'";
             messages.Add(new ValidationMessage(
                 ValidationSeverity.Warning,
                 ValidationCode.V35,
@@ -1462,7 +1490,8 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
 
-                ValidateTargetBindingInto(clip, track.targetId, "VAT track", trackIndex, messages);
+                ValidateTargetBindingInto(
+                    clip, clipSet.rig, track.targetId, "VAT track", trackIndex, messages);
 
                 if (!HasExactVatTrackRange(clipSet.vatTextures, clip.stableId, track.targetId))
                 {

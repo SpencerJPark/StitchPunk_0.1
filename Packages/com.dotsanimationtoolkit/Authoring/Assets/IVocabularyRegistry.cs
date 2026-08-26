@@ -42,7 +42,7 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>The display name for <paramref name="id"/>, or null when this vocabulary does not name it.</summary>
         string FindName(uint id);
 
-        /// <summary>Whether any row already claims <paramref name="id"/>.</summary>
+        // /// <summary>Whether any row already claims <paramref name="id"/>.</summary>
         bool ContainsId(uint id);
 
         /// <summary>

@@ -1,0 +1,143 @@
+// Copyright (c) 2026 Spencer Park. All rights reserved.
+
+using System.IO;
+using DotsAnimationToolkit.Authoring;
+using UnityEditor;
+using UnityEngine;
+
+namespace DotsAnimationToolkit.Editor
+{
+    /// <summary>
+    /// Owns the project-wide instances of the two authoring vocabularies — target tags and event
+    /// names — and the only code that writes either to disk (amendment E6 Task 1, owner directive
+    /// 2026-08-23: <em>"I don't want to manually create and wire it — it should just exist"</em>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This lives in the Editor assembly, and that placement is the whole point.</strong>
+    /// The first attempt put <c>Instance</c> and <c>PersistChange</c> on the registry types
+    /// themselves, behind <c>#if UNITY_EDITOR</c>. That compiles, but it put the token
+    /// <c>UnityEditor</c> inside <c>Authoring/</c> — an assembly with no platform restriction, which
+    /// therefore ships to players — and <c>Conformance_C</c> caught it. The rule is not a formality:
+    /// <c>ClipValidation</c> takes a registry parameter and is documented as having no
+    /// editor-assembly dependency precisely so it keeps compiling in a player build.
+    /// </para>
+    /// <para>
+    /// A preprocessor guard would have satisfied the compiler while leaving the dependency in the
+    /// source. Moving the machinery is what actually keeps the data types shippable: a
+    /// <see cref="TargetTagRegistry"/> is now a plain <see cref="ScriptableObject"/> holding rows,
+    /// and everything that knows about <c>ProjectSettings/</c>, JSON and file writes is here.
+    /// </para>
+    /// <para>
+    /// <strong>Not a <c>ScriptableSingleton&lt;T&gt;</c>, though that is the shape being
+    /// reproduced.</strong> Inheriting it would force the registry types to derive from a
+    /// <c>UnityEditor</c> base class, which is the very dependency this file exists to avoid — and
+    /// they cannot, since <see cref="ClipSetAsset.eventKeys"/> serializes one as a field. The
+    /// lazy-create-and-hydrate contract is hand-rolled here instead.
+    /// </para>
+    /// <para>
+    /// <strong>Nothing is written until something changes.</strong> Reading a registry the first
+    /// time creates an empty instance in memory and hydrates it from the settings file if one
+    /// exists. The file appears on the first <see cref="Persist(TargetTagRegistry)"/>, which is what
+    /// makes the zero-setup promise true rather than merely convenient — a project that never adds a
+    /// tag carries no tag file.
+    /// </para>
+    /// </remarks>
+    public static class VocabularyRegistryProvider
+    {
+        private const string TargetTagFilePath =
+            "ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset";
+
+        private const string AnimEventKeyFilePath =
+            "ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset";
+
+        private static TargetTagRegistry projectTargetTags;
+        private static AnimEventKeyRegistry projectAnimEventKeys;
+
+        /// <summary>
+        /// The one project-wide target-tag vocabulary. Never null, never assigned by hand.
+        /// </summary>
+        public static TargetTagRegistry TargetTags
+        {
+            get
+            {
+                if (projectTargetTags == null)
+                {
+                    projectTargetTags = LoadOrCreate<TargetTagRegistry>(TargetTagFilePath);
+                }
+                return projectTargetTags;
+            }
+        }
+
+        /// <summary>
+        /// The project-wide event-name vocabulary, used whenever a clip set carries no explicit
+        /// <see cref="ClipSetAsset.eventKeys"/> of its own.
+        /// </summary>
+        /// <remarks>
+        /// <strong>An explicit assignment still wins.</strong> A clip set someone wired by hand
+        /// before this existed keeps working unchanged; this is the fallback for everything else, so
+        /// there is no migration to perform and nothing to break.
+        /// </remarks>
+        public static AnimEventKeyRegistry AnimEventKeys
+        {
+            get
+            {
+                if (projectAnimEventKeys == null)
+                {
+                    projectAnimEventKeys = LoadOrCreate<AnimEventKeyRegistry>(AnimEventKeyFilePath);
+                }
+                return projectAnimEventKeys;
+            }
+        }
+
+        /// <summary>Writes the project target-tag vocabulary to disk.</summary>
+        /// <remarks>
+        /// A no-op for any registry that is not the project instance: an explicitly assigned asset is
+        /// an ordinary <c>AssetDatabase</c> asset and is saved the ordinary way, never through here.
+        /// Every editor surface that mutates a row must call this immediately — unlike an asset,
+        /// the project instance has no autosave, so an edit that skips this is lost on domain reload.
+        /// </remarks>
+        public static void Persist(TargetTagRegistry registry)
+        {
+            if (registry == null || registry != projectTargetTags)
+            {
+                return;
+            }
+            WriteJson(registry, TargetTagFilePath);
+        }
+
+        /// <summary>Writes the project event-name vocabulary to disk. See the tag overload's remarks.</summary>
+        public static void Persist(AnimEventKeyRegistry registry)
+        {
+            if (registry == null || registry != projectAnimEventKeys)
+            {
+                return;
+            }
+            WriteJson(registry, AnimEventKeyFilePath);
+        }
+
+        private static TRegistry LoadOrCreate<TRegistry>(string filePath)
+            where TRegistry : ScriptableObject
+        {
+            TRegistry created = ScriptableObject.CreateInstance<TRegistry>();
+
+            // HideAndDontSave, because this instance belongs to ProjectSettings rather than to the
+            // asset database. Without it Unity would try to save it into whatever scene happens to
+            // be open, which is how a project-wide vocabulary becomes one copy per scene.
+            created.hideFlags = HideFlags.HideAndDontSave;
+
+            if (File.Exists(filePath))
+            {
+                string storedJson = File.ReadAllText(filePath);
+                EditorJsonUtility.FromJsonOverwrite(storedJson, created);
+            }
+            return created;
+        }
+
+        private static void WriteJson(ScriptableObject registry, string filePath)
+        {
+            string json = EditorJsonUtility.ToJson(registry, true);
+            File.WriteAllText(filePath, json);
+        }
+    }
+}

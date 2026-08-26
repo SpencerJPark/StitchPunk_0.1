@@ -65,7 +65,7 @@ namespace DotsAnimationToolkit.Editor
                 AnimEventKeyRegistry changedRegistry = target as AnimEventKeyRegistry;
                 if (changedRegistry != null)
                 {
-                    changedRegistry.PersistChange();
+                    VocabularyRegistryProvider.Persist(changedRegistry);
                 }
                 RefreshFindings();
             });

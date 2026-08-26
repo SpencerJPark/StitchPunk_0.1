@@ -3,10 +3,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_EDITOR
-using System.IO;
-using UnityEditor;
-#endif
 
 namespace DotsAnimationToolkit.Authoring
 {
@@ -32,10 +28,10 @@ namespace DotsAnimationToolkit.Authoring
     /// <para>
     /// <strong>A project-scoped instance, auto-created on first use (amendment E6 Task 1, owner
     /// directive 2026-08-23: "I don't want to manually create and wire it — it should just
-    /// exist").</strong> <see cref="Instance"/> reproduces the same
+    /// exist").</strong> <c>VocabularyRegistryProvider</c> reproduces the same
     /// <c>ProjectSettings/</c>-backed, lazily-created contract <c>RagdollPreviewScenery</c> gets for
     /// free from <c>ScriptableSingleton&lt;T&gt;</c> — but hand-rolled behind <c>#if UNITY_EDITOR</c>
-    /// rather than inherited, because this type cannot derive from a <c>UnityEditor</c> base class:
+    /// rather than inherited, because this type cannot derive from an editor-assembly base class:
     /// <c>ClipValidation</c> (architecture section 3.5) takes an <see cref="AnimEventKeyRegistry"/>
     /// parameter and is documented as having "no editor-assembly dependency" so it keeps compiling
     /// in a player build, and <see cref="ClipSetAsset.eventKeys"/> is a serialized field of this same
@@ -45,7 +41,7 @@ namespace DotsAnimationToolkit.Authoring
     /// <para>
     /// <strong>Back-compat, no migration.</strong> <see cref="ClipSetAsset.eventKeys"/> is untouched
     /// by this change and still wins whenever a clip set carries an explicit assignment — the
-    /// project-scoped <see cref="Instance"/> is only the fallback used when that field is null, so a
+    /// project-scoped <c>VocabularyRegistryProvider</c> is only the fallback used when that field is null, so a
     /// clip set someone previously wired by hand keeps working exactly as before.
     /// </para>
     /// </remarks>
@@ -65,61 +61,6 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>The named keys this project uses.</summary>
         public List<AnimEventKeyEntry> entries = new List<AnimEventKeyEntry>();
 
-#if UNITY_EDITOR
-        private const string ProjectSettingsFilePath =
-            "ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset";
-
-        private static AnimEventKeyRegistry projectInstance;
-
-        /// <summary>
-        /// The one, project-wide event key registry used whenever a clip set has no explicit
-        /// <see cref="ClipSetAsset.eventKeys"/> of its own. Reading this the first time creates an
-        /// empty instance in memory and, if
-        /// <c>ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset</c> already exists,
-        /// hydrates it from that file — nothing is written to disk until the first row is added and
-        /// <see cref="PersistChange"/> runs, which is the "zero-setup" contract Task 1 asks for.
-        /// </summary>
-        public static AnimEventKeyRegistry Instance
-        {
-            get
-            {
-                if (projectInstance == null)
-                {
-                    projectInstance = CreateInstance<AnimEventKeyRegistry>();
-                    projectInstance.hideFlags = HideFlags.HideAndDontSave;
-                    if (File.Exists(ProjectSettingsFilePath))
-                    {
-                        string storedJson = File.ReadAllText(ProjectSettingsFilePath);
-                        EditorJsonUtility.FromJsonOverwrite(storedJson, projectInstance);
-                    }
-                }
-                return projectInstance;
-            }
-        }
-
-        /// <summary>
-        /// Persists whatever is currently in <see cref="entries"/> and
-        /// <see cref="referenceFrameRate"/> to this project's settings file. Every editor surface
-        /// that mutates a row must call this immediately after the edit — unlike a normal asset,
-        /// this instance has no <see cref="AssetDatabase"/> autosave to fall back on, so an edit
-        /// that never calls this is an edit that is lost the moment the domain reloads.
-        /// </summary>
-        /// <remarks>
-        /// A no-op when this instance is <em>not</em> the project singleton — an explicitly assigned
-        /// <see cref="ClipSetAsset.eventKeys"/> asset is a normal <see cref="AssetDatabase"/> asset
-        /// and is persisted the ordinary way (<see cref="EditorUtility.SetDirty"/> plus
-        /// <see cref="AssetDatabase.SaveAssetIfDirty"/>), not through this path.
-        /// </remarks>
-        public void PersistChange()
-        {
-            if (this != projectInstance)
-            {
-                return;
-            }
-            string json = EditorJsonUtility.ToJson(this, true);
-            File.WriteAllText(ProjectSettingsFilePath, json);
-        }
-#endif
 
         /// <summary>
         /// The display name for <paramref name="eventKey"/>, or null when the registry does not
@@ -185,6 +126,8 @@ namespace DotsAnimationToolkit.Authoring
             }
             return false;
         }
+        
+        
 
         /// <summary>
         /// Appends an event named <paramref name="name"/> holding the lowest key nothing else
@@ -211,9 +154,6 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             entries.Add(new AnimEventKeyEntry { name = name, eventKey = freeKey });
-#if UNITY_EDITOR
-            PersistChange();
-#endif
             return freeKey;
         }
 
@@ -232,6 +172,21 @@ namespace DotsAnimationToolkit.Authoring
         {
             AnimEventKeyEntry entry = entries[entryIndex];
             return entry != null ? entry.eventKey : 0u;
+        }
+
+        /// <summary>
+        /// Forwards to <see cref="ContainsKey"/>, which is the same question under this registry's
+        /// own vocabulary: an event's id <em>is</em> its key.
+        /// </summary>
+        /// <remarks>
+        /// Explicit rather than a rename of <see cref="ContainsKey"/>, because that method is public
+        /// API this package already ships and the shared interface is a newer, more general name for
+        /// it. Forwarding costs a call and keeps both callers reading naturally — event code asks
+        /// about a key, vocabulary code asks about an id.
+        /// </remarks>
+        bool IVocabularyRegistry.ContainsId(uint id)
+        {
+            return ContainsKey(id);
         }
     }
 

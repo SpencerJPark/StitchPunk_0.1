@@ -531,10 +531,12 @@ namespace DotsAnimationToolkit.Editor
             // rootVisualElement, not a captured "inspector root" — this is an EditorWindow, not an
             // Editor, so the whole-window element OpenComponentPicker already anchors against is the
             // one that exists here.
-            TargetTagPicker.Open(
+            VocabularyPicker.Open(
                 rootVisualElement,
                 anchor,
                 tagRegistry,
+                tagRegistry,
+                VocabularyPickerConfig.ForTargetTags(tagRegistry),
                 chosenTagId => ApplyTrackTagBinding(instance, chosenTagId),
                 () =>
                 {

@@ -3,10 +3,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_EDITOR
-using System.IO;
-using UnityEditor;
-#endif
 
 namespace DotsAnimationToolkit.Authoring
 {
@@ -43,18 +39,18 @@ namespace DotsAnimationToolkit.Authoring
     /// by hand (amendment E6 Task 1, owner directive 2026-08-23: "I don't want to manually create and
     /// wire it — it should just exist").</strong> <c>Editor/ClipEditor/Preview/RagdollPreviewScenery.cs</c>
     /// is this package's precedent for exactly this shape — a <c>ScriptableSingleton&lt;T&gt;</c>
-    /// under <c>ProjectSettings/</c> — but that base class lives in <c>UnityEditor</c> and this type
+    /// under <c>ProjectSettings/</c> — but that base class lives in the editor assembly and this type
     /// cannot inherit it: <c>ClipValidation</c> (architecture section 3.5) takes a
     /// <see cref="TargetTagRegistry"/> parameter and is documented as having "no editor-assembly
     /// dependency" so it keeps compiling in a player build, and <see cref="TargetTagRegistry"/> must
-    /// stay a plain <see cref="ScriptableObject"/> for that to hold. <see cref="Instance"/> instead
+    /// stay a plain <see cref="ScriptableObject"/> for that to hold. <c>VocabularyRegistryProvider</c> instead
     /// reproduces the same contract by hand, entirely inside <c>#if UNITY_EDITOR</c>: a lazily
     /// created in-memory instance, hydrated from (and saved back to)
     /// <c>ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset</c> via
     /// <see cref="EditorJsonUtility"/>, which every predefined and custom assembly's editor-compiled
     /// variant can reach without an explicit assembly reference. There is deliberately no
     /// <c>[CreateAssetMenu]</c>, so there is no second, competing instance a person could create by
-    /// mistake — <see cref="Instance"/> is the only way this type is ever obtained in the editor.
+    /// mistake — <c>VocabularyRegistryProvider</c> is the only way this type is ever obtained in the editor.
     /// </para>
     /// </remarks>
     public sealed class TargetTagRegistry : ScriptableObject, IVocabularyRegistry
@@ -62,49 +58,6 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>The tags this project defines.</summary>
         public List<TargetTagEntry> entries = new List<TargetTagEntry>();
 
-#if UNITY_EDITOR
-        private const string ProjectSettingsFilePath =
-            "ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset";
-
-        private static TargetTagRegistry projectInstance;
-
-        /// <summary>
-        /// The one, project-wide tag registry. Reading this the first time creates an empty instance
-        /// in memory and, if <c>ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset</c>
-        /// already exists, hydrates it from that file — nothing is written to disk until the first
-        /// row is added and <see cref="PersistChange"/> runs, which is the "zero-setup" contract
-        /// Task 1 asks for: a project that never tags anything never gets a file at all.
-        /// </summary>
-        public static TargetTagRegistry Instance
-        {
-            get
-            {
-                if (projectInstance == null)
-                {
-                    projectInstance = CreateInstance<TargetTagRegistry>();
-                    projectInstance.hideFlags = HideFlags.HideAndDontSave;
-                    if (File.Exists(ProjectSettingsFilePath))
-                    {
-                        string storedJson = File.ReadAllText(ProjectSettingsFilePath);
-                        EditorJsonUtility.FromJsonOverwrite(storedJson, projectInstance);
-                    }
-                }
-                return projectInstance;
-            }
-        }
-
-        /// <summary>
-        /// Persists whatever is currently in <see cref="entries"/> to this project's settings file.
-        /// Every editor surface that mutates a row must call this immediately after the edit — unlike
-        /// a normal asset, this instance has no <see cref="AssetDatabase"/> autosave to fall back on,
-        /// so an edit that never calls this is an edit that is lost the moment the domain reloads.
-        /// </summary>
-        public void PersistChange()
-        {
-            string json = EditorJsonUtility.ToJson(this, true);
-            File.WriteAllText(ProjectSettingsFilePath, json);
-        }
-#endif
 
         /// <summary>
         /// The display name for <paramref name="tagId"/>, or null when the registry does not name
@@ -187,9 +140,6 @@ namespace DotsAnimationToolkit.Authoring
             }
             uint newTagId = MintTagId();
             entries.Add(new TargetTagEntry { name = name, stableId = newTagId });
-#if UNITY_EDITOR
-            PersistChange();
-#endif
             return newTagId;
         }
 
