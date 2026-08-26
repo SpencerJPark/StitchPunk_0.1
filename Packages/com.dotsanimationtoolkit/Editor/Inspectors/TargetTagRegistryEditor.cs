@@ -41,6 +41,7 @@ namespace DotsAnimationToolkit.Editor
         private SerializedProperty entriesProperty;
         private VisualElement rowsContainer;
         private VisualElement findingsContainer;
+        private VocabularyConstantsSection constantsSection;
 
         public override VisualElement CreateInspectorGUI()
         {
@@ -68,6 +69,26 @@ namespace DotsAnimationToolkit.Editor
             findingsContainer.style.marginTop = 8f;
             root.Add(findingsContainer);
 
+            // Task 2's generator. It sits on the registry inspector rather than somewhere in the
+            // Clip Editor because that inspector is also what VocabularyQuickEditWindow hosts, so
+            // "Edit Target Tags..." from any picker reaches it without a second entry point.
+            constantsSection = new VocabularyConstantsSection(
+                target as TargetTagRegistry,
+                target,
+                "Generate Target Tag Constants",
+                "TargetTags",
+                "Target tag",
+                "Tag",
+                () =>
+                {
+                    TargetTagRegistry persistedRegistry = target as TargetTagRegistry;
+                    if (persistedRegistry != null)
+                    {
+                        VocabularyRegistryProvider.Persist(persistedRegistry);
+                    }
+                });
+            root.Add(constantsSection);
+
             RefreshRows();
             RefreshFindings();
 
@@ -85,6 +106,10 @@ namespace DotsAnimationToolkit.Editor
                 }
                 RefreshRows();
                 RefreshFindings();
+                if (constantsSection != null)
+                {
+                    constantsSection.Rebuild();
+                }
             });
 
             return root;

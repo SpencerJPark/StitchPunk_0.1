@@ -58,6 +58,19 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>The tags this project defines.</summary>
         public List<TargetTagEntry> entries = new List<TargetTagEntry>();
 
+        /// <summary>
+        /// Backing store for <see cref="IVocabularyRegistry.GeneratedConstantsPath"/> — see that
+        /// property for why the destination lives with the vocabulary rather than per machine.
+        /// </summary>
+        public string generatedConstantsPath = string.Empty;
+
+        /// <inheritdoc />
+        public string GeneratedConstantsPath
+        {
+            get { return generatedConstantsPath; }
+            set { generatedConstantsPath = value; }
+        }
+
 
         /// <summary>
         /// The display name for <paramref name="tagId"/>, or null when the registry does not name

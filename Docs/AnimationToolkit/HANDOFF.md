@@ -12,7 +12,7 @@ You are continuing work on a sellable UPM package at
 2. `Docs\AnimationToolkit\Phase_E_TargetTags_Spec.md` — the active feature spec (target tags / shared clips). §4.2.1, §4.2.2, §4.2.3, §6.1 are owner directives.
 3. `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` — the finished ragdoll feature, for its §9 gotchas which still apply.
 
-**Current state (verified): EditMode 680/680, PlayMode 240/240, console clean.** The tree compiles.
+**Current state (verified): EditMode 682/682, PlayMode 240/240, console clean.** The tree compiles.
 
 ---
 
@@ -90,23 +90,48 @@ These were given across a long session and are binding on all future work.
 
 **E3/E4 proof (2026-08-25).** `ClipRegistryBuilderTests.Build_ResolvesOneSharedClip_ToDifferentDenseIndices_InTwoSetsWithDifferentRigs` — one `ClipAsset`, one tag-bound track, two sets whose rigs differ in target names, count and stable ids; dense index 0 on one, 1 on the other. Verifying it found a real defect, now fixed: **T2 (V35) was judged against `clip.rig`**, which on a shareable clip is null by design, so every tag-bound track of every shared clip warned always — including on rigs that did carry the tag, the feature's healthy path. Both binding checks now take a `resolutionRig`, the rig the clip will actually play on, which from `ValidateSet` is the **set's** rig. The bake path was always correct (`ClipRegistryBuilder` used `clipSet.rig`), so this was validation noise, never wrong animation. Commit `d65dfc94`.
 
+**E6 Task 2 — generated name constants (2026-08-25).** `ConstantsGenerator`
+(`Editor/ClipUtilities/`) is now the one code path behind all three "Generate … Constants"
+buttons; `ClipSetAssetEditor`'s private copies of the sanitise / unique / keyword-escape /
+XML-escape rules were deleted and repointed at it. `VocabularyConstantsSection` is the shared
+UI block on both registry inspectors — and therefore reachable from any picker's "Edit Target
+Tags…" / "Edit Events…", since `VocabularyQuickEditWindow` hosts those inspectors verbatim.
+The destination is asked for **once** through a save dialog and then remembered on the registry
+itself (`IVocabularyRegistry.GeneratedConstantsPath`, persisted through the existing
+`ProjectSettings/` JSON round-trip), after which the button reads *Regenerate* and rewrites in
+place with no dialog. It is stored with the vocabulary rather than in `EditorPrefs` on purpose:
+re-picking a path per machine is how a project ends up with a second constants file that nobody
+regenerates. The class name is derived from the chosen file name, so `TargetTags.cs` gives
+`TargetTags.Jaw`. Names that cannot be written as C# are logged as warnings naming both forms
+(`'Eye L' … emitted as 'Eye_L'`), because §4.2.3's promise is that the owner works in names.
+
+**Proof it persists (2026-08-25).** Driven through `execute_code` against the live project
+vocabulary: a row and a path were written, the `ProjectSettings/` file was re-read from disk
+into a **fresh** instance, and the generator run off *that* — the constant, its minted id, the
+derived class name and the substitution report all came back correct. Scratch artefacts removed
+and `git status` confirmed clean.
+
+**One doc correction on the way through.** `MakeUniqueName`'s comment claimed a `_2`, `_3`, …
+suffix sequence; the code has always produced `_1`, `_2`, …. The docs were corrected to match
+the code, not the reverse — changing the sequence would rename constants in any project that
+has already generated them. (The logic itself is sound: a row literally named "Foot step 1"
+cannot collide with a generated `Foot_step_1`, in either arrival order.)
+
 **Recent recovery:** an agent died mid-refactor having deleted `TargetTagPicker`/`TargetTagQuickEditWindow` after writing generalised replacements. Call sites were repointed at `VocabularyPicker`, `AnimEventKeyRegistry` gained its missing `IVocabularyRegistry.ContainsId`, and the `ProjectSettings/` singleton machinery was moved out of `Authoring/` into `Editor/ClipUtilities/VocabularyRegistryProvider.cs` to satisfy `Conformance_C`.
 
 ---
 
 ## What is left, highest value first
 
-1. **E6 Task 2 — generated name constants.** `ClipSetAsset`'s inspector already has *Generate Clip Id Constants*; read it and ship the same generator for both vocabularies, producing `TargetTags.Jaw` and `AnimEvents.Footstep`. Sanitise names to valid C# identifiers and report ones that cannot be. Note in the generated header *why*: Burst cannot compare managed strings in a job, so a `uint` compare against a generated constant is the only form that is both name-shaped in source and legal at runtime — and renaming a tag renames its constant, so dependent code fails to **compile**, which is the desired loud failure.
+1. **E6 Task 4 — sweep raw numbers out of every editor surface.** Event markers in particular still identify by `eventKey`. Show names everywhere a name resolves.
 
-2. **E6 Task 4 — sweep raw numbers out of every editor surface.** Event markers in particular still identify by `eventKey`. Show names everywhere a name resolves.
+2. **One timeline lane per event name.** Replaces the current vertical stacking. `Footstep` gets a row, `Damage` gets a row; three events on one frame land on three rows automatically. Adding an event with a new name creates its lane.
 
-3. **One timeline lane per event name.** Replaces the current vertical stacking. `Footstep` gets a row, `Damage` gets a row; three events on one frame land on three rows automatically. Adding an event with a new name creates its lane.
+3. **Move tagging onto the rig hierarchy rows**, per the owner's "it should live in the rig setup so I can adjust it directly on the physical rig hierarchy."
 
-4. **Move tagging onto the rig hierarchy rows**, per the owner's "it should live in the rig setup so I can adjust it directly on the physical rig hierarchy."
+4. **"Edit Events" button available immediately after adding an event.**
 
-5. **"Edit Events" button available immediately after adding an event.**
-
-6. **E5 — docs, CHANGELOG, Amendment A51** into `Phase_B_Architecture.md`. Note amendments run to A50; check `grep -nE "^## Amendment A[0-9]+"` before claiming a number — "A45" was claimed once while taken and had to be renumbered across ~55 places.
+5. **E5 — docs, CHANGELOG, Amendment A51** into `Phase_B_Architecture.md`. Note amendments run to A50; check `grep -nE "^## Amendment A[0-9]+"` before claiming a number — "A45" was claimed once while taken and had to be renumbered across ~55 places.
 
 ---
 

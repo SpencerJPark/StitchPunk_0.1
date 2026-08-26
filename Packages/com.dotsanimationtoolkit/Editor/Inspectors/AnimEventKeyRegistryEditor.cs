@@ -36,6 +36,7 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color CleanColor = new Color(0.45f, 0.78f, 0.48f);
 
         private VisualElement findingsContainer;
+        private VocabularyConstantsSection constantsSection;
 
         public override VisualElement CreateInspectorGUI()
         {
@@ -51,6 +52,33 @@ namespace DotsAnimationToolkit.Editor
             findingsContainer = new VisualElement();
             findingsContainer.style.marginTop = 8f;
             root.Add(findingsContainer);
+
+            // Task 2's generator, the same block the tag registry shows - one control, two
+            // vocabularies, per the standing "no parallel implementations" directive. Persisting is
+            // a no-op for an explicitly assigned override asset, which saves the ordinary
+            // AssetDatabase way; SetDirty is what covers that case here.
+            constantsSection = new VocabularyConstantsSection(
+                target as AnimEventKeyRegistry,
+                target,
+                "Generate Event Name Constants",
+                "AnimEvents",
+                "Event",
+                "Event",
+                () =>
+                {
+                    AnimEventKeyRegistry persistedRegistry = target as AnimEventKeyRegistry;
+                    if (persistedRegistry == null)
+                    {
+                        return;
+                    }
+                    VocabularyRegistryProvider.Persist(persistedRegistry);
+                    if (AssetDatabase.Contains(persistedRegistry))
+                    {
+                        EditorUtility.SetDirty(persistedRegistry);
+                        AssetDatabase.SaveAssetIfDirty(persistedRegistry);
+                    }
+                });
+            root.Add(constantsSection);
 
             RefreshFindings();
 
@@ -68,6 +96,10 @@ namespace DotsAnimationToolkit.Editor
                     VocabularyRegistryProvider.Persist(changedRegistry);
                 }
                 RefreshFindings();
+                if (constantsSection != null)
+                {
+                    constantsSection.Rebuild();
+                }
             });
 
             return root;

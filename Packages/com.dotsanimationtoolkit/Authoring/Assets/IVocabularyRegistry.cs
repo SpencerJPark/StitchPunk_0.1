@@ -53,5 +53,19 @@ namespace DotsAnimationToolkit.Authoring
         /// <param name="name">The row's name, exactly as typed — this is the one place a vocabulary's
         /// name is ever typed (spec §4.2.1); every other surface only selects.</param>
         uint CreateVocabularyEntry(string name);
+
+        /// <summary>
+        /// Where this vocabulary's generated constants file was last written (amendment E6 Task 2),
+        /// project-relative when it sits inside the project. Empty until the first generation.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Stored beside the rows rather than in <c>EditorPrefs</c>, because the destination
+        /// is a project decision and not a per-machine one.</strong> A teammate pressing Regenerate
+        /// must rewrite the file the constants already live in; a per-machine memory would instead
+        /// have them pick again and quietly produce a second copy, at which point half the project
+        /// compiles against constants nobody is regenerating. Keeping it here means it travels with
+        /// the names it describes, through the same round-trip that persists them.
+        /// </remarks>
+        string GeneratedConstantsPath { get; set; }
     }
 }

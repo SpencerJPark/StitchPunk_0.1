@@ -58,22 +58,6 @@ namespace DotsAnimationToolkit.Editor
         private const string GeneratedClassNameSuffix = "ClipIds";
         private const string FallbackSetNameBase = "ClipSet";
         private const string FallbackClipNamePrefix = "Clip";
-        private const string GeneratedFileExtension = "cs";
-
-        // The 77 reserved C# keywords. Contextual keywords (var, async, await, yield, partial,
-        // dynamic, nameof, where, when, ...) are legal identifiers as-is and are deliberately absent.
-        private static readonly HashSet<string> ReservedCSharpKeywords = new HashSet<string>
-        {
-            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
-            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
-            "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
-            "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
-            "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
-            "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
-            "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
-            "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
-            "void", "volatile", "while"
-        };
 
         private SerializedProperty rigProperty;
         private SerializedProperty vatTexturesProperty;
@@ -596,7 +580,8 @@ namespace DotsAnimationToolkit.Editor
 
             string defaultClassName = BuildGeneratedClassName(clipSetAsset.name);
             string chosenFilePath = EditorUtility.SaveFilePanel(
-                "Generate Clip Id Constants", null, defaultClassName, GeneratedFileExtension);
+                "Generate Clip Id Constants", null, defaultClassName,
+                ConstantsGenerator.GeneratedFileExtension);
             if (string.IsNullOrEmpty(chosenFilePath))
             {
                 return;
@@ -618,12 +603,12 @@ namespace DotsAnimationToolkit.Editor
 
         private static string BuildGeneratedClassName(string clipSetName)
         {
-            string sanitizedSetName = SanitizeIdentifier(clipSetName);
+            string sanitizedSetName = ConstantsGenerator.SanitizeIdentifier(clipSetName);
             if (string.IsNullOrEmpty(sanitizedSetName))
             {
                 sanitizedSetName = FallbackSetNameBase;
             }
-            return EscapeReservedKeyword(sanitizedSetName + GeneratedClassNameSuffix);
+            return ConstantsGenerator.EscapeReservedKeyword(sanitizedSetName + GeneratedClassNameSuffix);
         }
 
         /// <summary>
@@ -633,16 +618,19 @@ namespace DotsAnimationToolkit.Editor
         /// <remarks>
         /// <para>
         /// <strong>Every edge case in the clip name is resolved deterministically, not hopefully.</strong>
-        /// A name is first reduced to <c>[A-Za-z0-9_]</c> by <see cref="SanitizeIdentifier"/>
-        /// (punctuation and spaces become underscores, non-ASCII collapses to underscores too - always
-        /// a legal identifier character set, never a guess). A name that sanitizes to nothing (empty,
+        /// A name is first reduced to <c>[A-Za-z0-9_]</c> by
+        /// <see cref="ConstantsGenerator.SanitizeIdentifier"/> (punctuation and spaces become
+        /// underscores, non-ASCII collapses to underscores too - always a legal identifier character
+        /// set, never a guess). A name that sanitizes to nothing (empty,
         /// or entirely punctuation) falls back to <c>Clip&lt;position&gt;</c>, keyed by the clip's
         /// authoring-order position so it can never collide with itself. A name that starts with a
-        /// digit is prefixed with an underscore inside <see cref="SanitizeIdentifier"/>. Two clips
-        /// whose names sanitize to the same identifier - whether they were literal duplicates or only
-        /// became identical after punctuation was stripped - are disambiguated by
-        /// <see cref="MakeUniqueName"/> with a deterministic <c>_2</c>, <c>_3</c>, ... suffix, always
-        /// checked against every name already emitted so a suffix can never itself collide. A name
+        /// digit is prefixed with an underscore inside
+        /// <see cref="ConstantsGenerator.SanitizeIdentifier"/>. Two clips whose names sanitize to the
+        /// same identifier - whether they were literal duplicates or only became identical after
+        /// punctuation was stripped - are disambiguated by
+        /// <see cref="ConstantsGenerator.MakeUniqueName"/> with a deterministic <c>_1</c>, <c>_2</c>,
+        /// ... suffix, always checked against every name already emitted so a suffix can never
+        /// itself collide. A name
         /// that happens to be a reserved word (a clip called "class") is escaped with the verbatim
         /// identifier prefix <c>@</c>, which is always legal C# regardless of which keyword it is.
         /// </para>
@@ -650,8 +638,9 @@ namespace DotsAnimationToolkit.Editor
         /// The clip's original, un-sanitized name still appears as the constant's XML doc summary, so
         /// the mapping from constant back to authored name survives even when they differ - but that
         /// text is scrubbed of line breaks and XML-significant characters first
-        /// (<see cref="EscapeXmlDocText"/>), because an embedded newline would split a single
-        /// <c>///</c> line comment into a second, uncommented line of raw text - which is invalid C#,
+        /// (<see cref="ConstantsGenerator.EscapeXmlDocText"/>), because an embedded newline would
+        /// split a single <c>///</c> line comment into a second, uncommented line of raw text - which
+        /// is invalid C#,
         /// not merely ugly. Doc comments are emitted as <c>///</c> lines rather than a <c>/* */</c>
         /// block specifically so a clip name containing the literal text <c>*/</c> can never
         /// prematurely close the comment.
@@ -662,7 +651,9 @@ namespace DotsAnimationToolkit.Editor
             StringBuilder source = new StringBuilder();
             source.Append("// <auto-generated>\n");
             source.Append("// Generated by the DOTS Animation Toolkit clip set inspector.\n");
-            source.Append("// Source clip set: '" + EscapeXmlDocText(clipSetAsset.name) + "'.\n");
+            source.Append(
+                "// Source clip set: '" + ConstantsGenerator.EscapeXmlDocText(clipSetAsset.name)
+                + "'.\n");
             source.Append("// Regenerating this file overwrites it; do not hand-edit it.\n");
             source.Append("// </auto-generated>\n\n");
 
@@ -680,16 +671,19 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                string baseIdentifierName = SanitizeIdentifier(clip.name);
+                string baseIdentifierName = ConstantsGenerator.SanitizeIdentifier(clip.name);
                 if (string.IsNullOrEmpty(baseIdentifierName))
                 {
                     baseIdentifierName = FallbackClipNamePrefix + (clipIndex + 1).ToString();
                 }
 
-                string uniqueIdentifierName = MakeUniqueName(baseIdentifierName, usedNameCounts);
-                uniqueIdentifierName = EscapeReservedKeyword(uniqueIdentifierName);
+                string uniqueIdentifierName =
+                    ConstantsGenerator.MakeUniqueName(baseIdentifierName, usedNameCounts);
+                uniqueIdentifierName = ConstantsGenerator.EscapeReservedKeyword(uniqueIdentifierName);
 
-                source.Append("    /// <summary>Clip '" + EscapeXmlDocText(clip.name) + "'.</summary>\n");
+                source.Append(
+                    "    /// <summary>Clip '" + ConstantsGenerator.EscapeXmlDocText(clip.name)
+                    + "'.</summary>\n");
                 source.Append(
                     "    public const ulong " + uniqueIdentifierName + " = 0x" +
                     clip.stableId.ToString("X16") + "UL;\n");
@@ -697,90 +691,6 @@ namespace DotsAnimationToolkit.Editor
 
             source.Append("}\n");
             return source.ToString();
-        }
-
-        /// <summary>
-        /// Reduces <paramref name="rawName"/> to a legal C# identifier's character set. Every
-        /// character outside <c>[A-Za-z0-9_]</c> becomes an underscore, and a leading digit is
-        /// prefixed with one - both deterministic, both always producing a syntactically legal
-        /// identifier (or an empty string when nothing survives, left for the caller to fall back on).
-        /// </summary>
-        private static string SanitizeIdentifier(string rawName)
-        {
-            if (string.IsNullOrEmpty(rawName))
-            {
-                return string.Empty;
-            }
-
-            StringBuilder sanitized = new StringBuilder(rawName.Length);
-            for (int charIndex = 0; charIndex < rawName.Length; charIndex++)
-            {
-                char currentCharacter = rawName[charIndex];
-                bool isLegalIdentifierCharacter =
-                    (currentCharacter >= 'a' && currentCharacter <= 'z')
-                    || (currentCharacter >= 'A' && currentCharacter <= 'Z')
-                    || (currentCharacter >= '0' && currentCharacter <= '9')
-                    || currentCharacter == '_';
-                sanitized.Append(isLegalIdentifierCharacter ? currentCharacter : '_');
-            }
-
-            if (sanitized.Length == 0)
-            {
-                return string.Empty;
-            }
-            if (sanitized[0] >= '0' && sanitized[0] <= '9')
-            {
-                sanitized.Insert(0, '_');
-            }
-            return sanitized.ToString();
-        }
-
-        /// <summary>
-        /// Returns <paramref name="baseName"/> unchanged the first time it is seen; every later call
-        /// with the same base gets a <c>_2</c>, <c>_3</c>, ... suffix, incrementing past any suffix
-        /// that a distinct clip already produced, so the returned name is always unused so far.
-        /// </summary>
-        private static string MakeUniqueName(string baseName, Dictionary<string, int> usedNameCounts)
-        {
-            if (!usedNameCounts.ContainsKey(baseName))
-            {
-                usedNameCounts.Add(baseName, 0);
-                return baseName;
-            }
-
-            int suffix = usedNameCounts[baseName];
-            string candidateName;
-            do
-            {
-                suffix++;
-                candidateName = baseName + "_" + suffix.ToString();
-            }
-            while (usedNameCounts.ContainsKey(candidateName));
-
-            usedNameCounts[baseName] = suffix;
-            usedNameCounts.Add(candidateName, 0);
-            return candidateName;
-        }
-
-        private static string EscapeReservedKeyword(string identifierName)
-        {
-            return ReservedCSharpKeywords.Contains(identifierName) ? "@" + identifierName : identifierName;
-        }
-
-        /// <summary>
-        /// Makes raw clip-name text safe to sit inside a single <c>///</c> XML doc comment line: line
-        /// breaks are folded to spaces (an embedded newline would otherwise end the comment mid-name
-        /// and leave the rest as bare, invalid code), and the three XML-significant characters are
-        /// entity-escaped.
-        /// </summary>
-        private static string EscapeXmlDocText(string rawText)
-        {
-            if (string.IsNullOrEmpty(rawText))
-            {
-                return string.Empty;
-            }
-            string singleLineText = rawText.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
-            return singleLineText.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
         }
     }
 }
