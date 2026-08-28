@@ -1573,6 +1573,11 @@ namespace DotsAnimationToolkit.Editor
                 // a one-shot flow, not a settings panel a session revisits, so there is no held
                 // choice here worth protecting from being overwritten.
                 newRigPanel.OfferClipSet(clipSet);
+
+                // The same registry this window's own hierarchy tag buttons and the toolbar's
+                // tag field read from, so a tag picked while creating a rig is the same tag seen
+                // everywhere else in this session rather than a same-named row in a second copy.
+                newRigPanel.OfferTagRegistry(tagRegistry);
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);

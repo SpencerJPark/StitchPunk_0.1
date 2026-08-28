@@ -31,11 +31,13 @@ namespace DotsAnimationToolkit.Editor
     /// place records the undo step and marks the clip set dirty, whichever the pick came from.
     /// </para>
     /// <para>
-    /// <strong>No tag assignment here.</strong> Target tags are Phase E, and the registry they
-    /// bind to does not exist yet (spec <c>Phase_E_TargetTags_Spec.md</c> §8). Every target this
-    /// flow creates gets a freshly minted, unique stable id — correct under both the old scheme and
-    /// the tag design, since sharing is meant to be carried by tags layered on afterwards, never by
-    /// targets that already share an id.
+    /// <strong>Tags are assigned here too (Phase E target-tags spec §8), reusing an existing tag
+    /// wherever a scanned part's role already has one.</strong> Every ticked candidate still gets a
+    /// freshly minted, unique stable id — a tag never replaces that identity, spec §2 — but each
+    /// row also carries an optional tag button opening the same <see cref="VocabularyPicker"/>
+    /// every other tag surface in this package uses, so a rig created through this flow can already
+    /// share clips with an existing rig the moment it exists, rather than needing a second pass
+    /// through the rig inspector afterward.
     /// </para>
     /// </remarks>
     public sealed class NewRigPanel : VisualElement
@@ -45,7 +47,9 @@ namespace DotsAnimationToolkit.Editor
         {
             public string DisplayName;
             public string SourceNodePath;
+            public uint TagId;
             public Toggle ToggleControl;
+            public Button TagButton;
         }
 
         private ObjectField sourcePrefabField;
@@ -53,6 +57,7 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement candidateContainer;
         private Toggle assignToggle;
         private Label resultLabel;
+        private TargetTagRegistry tagRegistry;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
         private ClipSetAsset offeredClipSet;
@@ -152,6 +157,65 @@ namespace DotsAnimationToolkit.Editor
                 : "Assign to open clip set (none open)";
         }
 
+        /// <summary>
+        /// Tells the panel which tag registry each row's tag button should pick from — the same
+        /// registry the host window's own tag surfaces use (spec §8).
+        /// </summary>
+        public void OfferTagRegistry(TargetTagRegistry registry)
+        {
+            tagRegistry = registry;
+            for (int rowIndex = 0; rowIndex < candidateRows.Count; rowIndex++)
+            {
+                RefreshTagButtonText(candidateRows[rowIndex]);
+            }
+        }
+
+        /// <summary>
+        /// Opens the searchable tag picker for one candidate row — the same
+        /// <see cref="VocabularyPicker"/> every other tag surface in this package uses (spec
+        /// §4.2.1), so reusing an existing tag here works exactly as it does on the rig hierarchy.
+        /// </summary>
+        private void OpenRowTagPicker(CandidateRow row, Button anchor)
+        {
+            VocabularyPicker.Open(
+                this,
+                anchor,
+                tagRegistry,
+                tagRegistry,
+                VocabularyPickerConfig.ForTargetTags(tagRegistry),
+                chosenTagId =>
+                {
+                    row.TagId = chosenTagId;
+                    RefreshTagButtonText(row);
+                },
+                () =>
+                {
+                    // The registry changed underneath every open row (a tag renamed or newly
+                    // created), not just this one's.
+                    for (int rowIndex = 0; rowIndex < candidateRows.Count; rowIndex++)
+                    {
+                        RefreshTagButtonText(candidateRows[rowIndex]);
+                    }
+                });
+        }
+
+        private void RefreshTagButtonText(CandidateRow row)
+        {
+            if (row.TagButton == null)
+            {
+                return;
+            }
+            if (row.TagId == 0u)
+            {
+                row.TagButton.text = "Tag: (none)";
+                return;
+            }
+            string tagName = tagRegistry != null ? tagRegistry.FindName(row.TagId) : null;
+            row.TagButton.text = tagName != null
+                ? "Tag: " + tagName
+                : "Tag: (unresolved 0x" + row.TagId.ToString("X8") + ")";
+        }
+
         private static Label BuildHeading(string text)
         {
             Label heading = new Label(text);
@@ -207,14 +271,28 @@ namespace DotsAnimationToolkit.Editor
 
                 Toggle rowToggle = new Toggle(nodePath) { value = preTicked };
                 rowToggle.tooltip = renderer.GetType().Name + " on \"" + rendererTransform.name + "\".";
-                candidateContainer.Add(rowToggle);
+                rowToggle.style.flexGrow = 1f;
+
+                Button tagButton = new Button { text = "Tag: (none)" };
+                tagButton.style.flexShrink = 0f;
+                tagButton.style.minWidth = 90f;
+                tagButton.style.marginLeft = 4f;
+
+                VisualElement rowContainer = new VisualElement();
+                rowContainer.style.flexDirection = FlexDirection.Row;
+                rowContainer.style.alignItems = Align.Center;
+                rowContainer.Add(rowToggle);
+                rowContainer.Add(tagButton);
+                candidateContainer.Add(rowContainer);
 
                 CandidateRow row = new CandidateRow
                 {
                     DisplayName = rendererTransform.name,
                     SourceNodePath = nodePath,
-                    ToggleControl = rowToggle
+                    ToggleControl = rowToggle,
+                    TagButton = tagButton
                 };
+                tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
                 candidateRows.Add(row);
             }
 
@@ -249,7 +327,8 @@ namespace DotsAnimationToolkit.Editor
                 selectedTargets.Add(new RigTargetDefinition
                 {
                     displayName = row.DisplayName,
-                    sourceNodePath = row.SourceNodePath
+                    sourceNodePath = row.SourceNodePath,
+                    tagId = row.TagId
                 });
             }
 
