@@ -11,23 +11,29 @@ Your job is to work down **§4 The queue**, one task at a time, through the gate
 ## 1. Read first, in this order
 
 1. `CLAUDE.md` (repo root) — project conventions.
-2. `Docs\AnimationToolkit\Phase_F_RigCentric_Spec.md` — the active feature spec. Its §10
+2. `Docs\AnimationToolkit\Amendment_A55_EventAuthoring_Spec.md` — the active spec. §2 lists what
+   is already built; the three gap tasks (§4) are what's left, if anything — check §4 of this file
+   for current status before assuming it's still open.
+3. `Docs\AnimationToolkit\Phase_F_RigCentric_Spec.md` — the next spec after A55 closes. Its §10
    decisions are recorded architecture calls; flag disagreement before F1 lands, don't silently
    deviate.
-3. `Docs\AnimationToolkit\Phase_E_TargetTags_Spec.md` — Phase F builds directly on its tag
+4. `Docs\AnimationToolkit\Phase_E_TargetTags_Spec.md` — both A55 and Phase F build on its tag
    rules. §4.2.1, §4.2.2, §4.2.3 and §6.1 are owner directives, not suggestions.
-4. This file's §5 and §6 — standing owner directives, and what you may not decide alone.
+5. This file's §5 and §6 — standing owner directives, and what you may not decide alone.
 
 Read `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` §9 only if you touch ragdoll code.
 Everything else in `Docs\AnimationToolkit\` is closed-phase history — do not read it up front.
 
-**Current state (verified 2026-08-28):** EditMode 680/680, PlayMode 240/240, console clean, tree
-compiles. Last commits: `6b3fd925` (target tags: Project Settings list page),
-`aab4f666` (target tags: picker-created rows persist), `cc06b361` (target tags read only from
-`VocabularyRegistryProvider`), `7e93f896` (New Rig wizard, spec §8). Phase E is closed end to
-end. **Phase F (rig-centric binding) is the chosen next phase** — owner-initiated 2026-08-28:
-the clip-set→rig hierarchy is inverted, actors will state a rig plus a list of rig-agnostic clip
-sets. Spec written, no code started; §4's queue below is Phase F.
+**Current state (2026-08-28):** Amendments A53 (part-tag button moved to the clip inspector), A54
+(vocabulary constants regenerate themselves), and A55 (event authoring reaches tag parity) landed
+on top of Phase E's close. Commits: `3cb8b6fb` (A53+A54), plus A55's implementation (uncommitted as
+of this writing — verify and commit before starting anything else). **None of A53/A54/A55 has had
+a live compile+test pass yet** — the Editor was closed for the sessions that wrote them; static
+review only. Run the full gate in §3 before trusting any of it, and before committing A55.
+
+**Phase F (rig-centric binding) is still the next phase after A55 closes.** It was interrupted
+in-place by an owner directive on 2026-08-28 to take up A55 first — spec written, no F-code started.
+§4's queue below is A55's own closeout, then Phase F.
 
 ## 2. How to work here
 
@@ -82,24 +88,26 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-Phase F — rig-centric binding. Full task definitions in `Phase_F_RigCentric_Spec.md` §11; the
-spec's §3–§8 are the contract each task implements. **No migration paths — the owner is
-re-authoring animation content from scratch.**
+**A55 — event authoring reaches tag parity.** Full task definitions in
+`Amendment_A55_EventAuthoring_Spec.md` §4; §3 is the gap table each task closes.
 
-1. **F1 — Data model.** `ActorAuthoring` gains `rig` + `clipSets` list; `ClipSetAsset.rig` →
-   editor-only `previewRig` (renamed, so every call site is revisited by compile error);
-   `ClipSetAsset.eventKeys` deleted. Compile-fix all references; counts must not drop.
-2. **F2 — Builder + validation.** `ClipRegistryBuilder` builds per (rig, set-list) bind; V06
-   retired, T4 (lenient id-miss at bake) added, V05/V11 judged across the merged union;
-   `SchemaVersion` 9; bind key in the `setKey` slot.
-3. **F3 — Bakers.** `ActorBaker` / `RigTargetBaker` / `startingLayers` read the actor's rig and
-   the merged clip union.
-4. **F4 — Clip Editor.** `previewRig` plumbing; new tracks on tagged targets default to
-   tag-bound. Prove the save path against a real asset (§3 of this file).
-5. **F5 — VAT stamp.** `VatTextureSetAsset.sourceRigKey`, stamped at texture bake, error on
-   rig mismatch at actor bake, 0 passes.
-6. **F6 — Samples + docs.** Both sample builders (compile-check Samples~ via a temp assembly),
-   `sharing-clips.md` rewrite, CHANGELOG, version 0.13.0.
+1. **Task 1 — Add Event opens the picker.** Done: `OpenAddEventPicker`/`AddEventAtPlayhead(uint)`
+   split, `InsertKey` gained `explicitEventKey`, `ResolveNewEventKey`/`FindFirstRegistryEntry`
+   deleted, `ClipEditorTransport` rebound.
+2. **Task 2 — Event registry rows match tag registry rows.** Done: `AnimEventKeyRegistryEditor`
+   hand-builds rows; new `AnimEventBindingUtility`.
+3. **Task 3 — Lane headers become an authoring surface.** Done, minus lane ordering — cut per the
+   spec's own standing decision (`ClipKeyClipboard` threading was judged not worth it; lane
+   position carries no meaning, only the label does).
+4. **Task 4 — Docs.** Done: `Phase_B_Architecture.md`, `CHANGELOG.md`, `animation-events.md`,
+   `clip-editor.md`, this file.
+5. **Task 5 — Visual pass.** **Not done — no live Editor session was available.** The owner must
+   run the eight-step pass in the spec's §4 Task 5 before this closes. Do the verification gate
+   in §3 of this file first; nothing in A53/A54/A55 has had a real compile yet.
+
+Once Task 5 passes and the gate is clean, commit, then resume **Phase F — rig-centric binding**
+(`Phase_F_RigCentric_Spec.md` §11, tasks F1–F6) exactly as it stood when A55 interrupted it — no
+change to that plan.
 
 Work top to bottom. Commit each task separately (stage paths explicitly; never `git add -A`).
 

@@ -10,8 +10,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// EditMode coverage of <c>ClipEditorWindow.AddEventAtPlayhead</c> — the transport bar's Add
-    /// Event button (Phase D13, Task 1).
+    /// EditMode coverage of <c>ClipEditorWindow.AddEventAtPlayhead(uint)</c> — the placement half of
+    /// the transport bar's Add Event button (Phase D13, Task 1; signature changed under amendment
+    /// A55, which moved "which event" from an automatic fallback into the caller's hands via
+    /// <c>OpenAddEventPicker</c>).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -24,12 +26,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
     /// reason, so the call is safe without a window on screen.
     /// </para>
     /// <para>
-    /// The two things worth pinning down are the two things most likely to regress silently: that a
-    /// clip with zero events still gets a marker (the events lane is gated on
-    /// <c>events != null</c>, not <c>events.Count &gt; 0</c>, so this should already work — this test
-    /// is what proves it rather than assumes it), and that the newly added marker's selection
-    /// survives <c>SortTrackKeys</c> when the playhead lands before an existing marker and the sort
-    /// moves it.
+    /// <c>OpenAddEventPicker</c> itself — the button's actual click handler as of A55 — is not
+    /// covered here: it is pure UI wiring (open a <c>VocabularyPicker</c>, hand its choice to this
+    /// method), and every field it touches is null on a bare window the way <c>CreateGUI</c> never
+    /// ran. What is worth pinning down, and stays true regardless of how the key was chosen, is that
+    /// a clip with zero events still gets a marker (the events lane is gated on
+    /// <c>events != null</c>, not <c>events.Count &gt; 0</c>), and that the newly added marker's
+    /// selection survives <c>SortTrackKeys</c> when the playhead lands before an existing marker on
+    /// the same lane and the sort moves it.
     /// </para>
     /// </remarks>
     public sealed class ClipEditorAddEventTests
@@ -44,7 +48,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 SetSelectedClip(window, clip);
                 SetPlayheadTime(window, 0.4f);
 
-                InvokeAddEventAtPlayhead(window);
+                InvokeAddEventAtPlayhead(window, AnimEventMaskKeys.FirstMaskKey);
 
                 Assert.AreEqual(
                     1, clip.events.Count,
@@ -56,8 +60,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                         + "on the playhead.");
                 Assert.AreEqual(
                     AnimEventMaskKeys.FirstMaskKey, clip.events[0].eventKey,
-                    "No clip set is assigned, so the new marker falls back to the first legal user "
-                        + "key, same as the double-click add path.");
+                    "As of A55 the key is the caller's choice, not a fallback this method computes "
+                        + "itself — it must land exactly the key it was given.");
                 Assert.AreEqual(0f, clip.events[0].windowSeconds, "Pulse-only by default.");
 
                 KeyAddress expectedAddress = new KeyAddress(TimelineTrackKind.Event, 0, 0);
@@ -84,10 +88,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             try
             {
-                // No clip set is assigned, so the new marker falls back to AnimEventMaskKeys.FirstMaskKey
-                // (see the first test) — matching the first marker's key here is what puts the new
-                // marker on the SAME lane (E6 Task 2) as an existing one, so its sort is a real
-                // reorder rather than a trivial single-member one.
+                // Passing the same key as the first marker below is what puts the new marker on the
+                // SAME lane (E6 Task 2) as an existing one, so its sort is a real reorder rather than
+                // a trivial single-member one.
                 clip.events.Add(
                     new EventMarker { normalizedTime = 0.2f, eventKey = AnimEventMaskKeys.FirstMaskKey });
                 clip.events.Add(new EventMarker { normalizedTime = 0.8f, eventKey = 21u });
@@ -95,7 +98,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 SetSelectedClip(window, clip);
                 SetPlayheadTime(window, 0.05f);
 
-                InvokeAddEventAtPlayhead(window);
+                InvokeAddEventAtPlayhead(window, AnimEventMaskKeys.FirstMaskKey);
 
                 Assert.AreEqual(3, clip.events.Count);
                 // Each event lane sorts only its own flat slots (E6 Task 2) — the shared-key lane's
@@ -131,7 +134,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             try
             {
                 // selectedClip is left at its default (null) — the state the button is disabled in.
-                InvokeAddEventAtPlayhead(window);
+                InvokeAddEventAtPlayhead(window, AnimEventMaskKeys.FirstMaskKey);
 
                 Assert.IsFalse(
                     GetHasActiveKey(window),
@@ -157,11 +160,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 .SetValue(window, normalizedTime);
         }
 
-        private static void InvokeAddEventAtPlayhead(ClipEditorWindow window)
+        private static void InvokeAddEventAtPlayhead(ClipEditorWindow window, uint eventKey)
         {
             typeof(ClipEditorWindow)
                 .GetMethod("AddEventAtPlayhead", BindingFlags.NonPublic | BindingFlags.Instance)
-                .Invoke(window, null);
+                .Invoke(window, new object[] { eventKey });
         }
 
         private static HashSet<KeyAddress> GetSelectedKeys(ClipEditorWindow window)

@@ -290,7 +290,10 @@ namespace DotsAnimationToolkit.Editor
             addEventButton = rootVisualElement.Q<Button>("add-event-button");
             if (addEventButton != null)
             {
-                addEventButton.clicked += AddEventAtPlayhead;
+                // Amendment A55: opens the event picker rather than guessing which event to place.
+                // addEventButton is kept as a field (rather than captured locally) because the
+                // picker needs it as its anchor.
+                addEventButton.clicked += OpenAddEventPicker;
             }
 
             RegisterTransportShortcuts();
@@ -345,7 +348,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     addEventButton.SetEnabled(hasClip);
                     addEventButton.tooltip = hasClip
-                        ? "Add an event marker at the current playhead time."
+                        ? "Choose an event and place a marker at the playhead."
                         : "Select a clip to add an event marker.";
                 }
 

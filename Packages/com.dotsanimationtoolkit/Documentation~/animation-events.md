@@ -37,18 +37,25 @@ clip authored before windows existed behaves exactly as it did.
 
 ## Authoring
 
-On the **Events** lane, double-click to place a marker — or use **Add Event**, in the status row
-above the key area beside Snap and Auto Key, to drop one at the playhead without hunting for the
-lane first. It sits there rather than in the transport bar because it, like Snap and Auto Key,
-answers "what will my next edit do" — a question about the key area, not about time — and that
-question is answered where the editing happens. The button also selects the marker it just added,
-so the inspector fields below are already showing before you have let go of the mouse;
-double-click add does not (it is a retiming gesture as much as an add, and clearing the selection
-there matches every other lane). Both add through the same path, so a marker made either way
-behaves identically from then on. Add Event is disabled with a tooltip when no clip is selected,
-and it works the first time on a clip that has never had an event before — the lane itself is
-keyed off whether the clip *has* an events list at all, not whether that list is non-empty, so
-there is nothing to create first.
+On the **Events** lane, double-click an existing lane to add another marker of that lane's event —
+or use **Add Event**, in the status row above the key area beside Snap and Auto Key, which opens the
+same searchable event picker every Event field in this package uses. Pick an existing event, or type
+a name and choose **Create event "…"** if this is the first marker of its kind; either way the
+marker lands at the playhead the moment you choose. It sits there rather than in the transport bar
+because it, like Snap and Auto Key, answers "what will my next edit do" — a question about the key
+area, not about time — and that question is answered where the editing happens. The button also
+selects the marker it just added, so the inspector fields below are already showing once the picker
+closes; double-click add does not select (it is a retiming gesture as much as an add, and clearing
+the selection there matches every other lane). Add Event is disabled with a tooltip when no clip is
+selected, and it works the first time on a clip that has never had an event before, even with an
+empty event registry — the lane itself is keyed off whether the clip *has* an events list at all,
+not whether that list is non-empty, and the picker's own **Create…** row is what handles an
+empty registry.
+
+Right-click an event lane's header for **Add marker at playhead** (this lane's own event, no
+picker), **Select all markers**, **Change event…** (re-points every marker on the lane to a
+different event at once — distinct from renaming the event, see below), and **Delete lane**
+(removes every marker on it, behind a confirmation naming how many).
 
 Event markers draw as an amber **pin** — flat shoulders tapering to a point at the exact key
 time — rather than a bigger version of the pose-key diamond. The distinct shape is the point: a
@@ -97,7 +104,11 @@ by hand first: the registry auto-creates under `ProjectSettings/` the moment any
 the same way the target-tag registry does.
 
 Each entry has a name, its key, an optional default window, and a description shown as the picker
-row's hover text.
+row's hover text — and, in the registry inspector itself (**Project Settings → DOTS Animation
+Toolkit → Event Names**, or the picker's **Edit…** button), a row you can rename in place, with a
+**Remove** button behind a confirmation naming how many markers use it. Removing an event is a
+different cost than removing a tag: it cannot fail a bake (see below), so the dialog says the key
+becomes unresolved, not that anything breaks.
 
 The registry is **authoring-only — it is never baked and never read at runtime.**
 The key/bit relationship is arithmetic, so nothing at runtime needs a table to
@@ -105,8 +116,8 @@ interpret a marker. That means renaming an event, reordering the list, or
 deleting the asset entirely cannot invalidate a single baked clip — the name is a label on a number
 that already means what it means. Renaming *does* rename the corresponding generated constant
 (`AnimEvents.Footstep`), so code referring to the old name fails to compile — loud and immediate,
-rather than a silent repoint. Regenerate constants from the registry inspector's **Generate Event
-Name Constants** button after a rename.
+rather than a silent repoint. The constants file regenerates itself the moment a row changes; there
+is no button to press.
 
 **The one exception:** a marker whose key the registry no longer names — because the entry was
 deleted — shows `(unresolved 0x1A2B3C4D)` instead of a name. That is the only place a number ever

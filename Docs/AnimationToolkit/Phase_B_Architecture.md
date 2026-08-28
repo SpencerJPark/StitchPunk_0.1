@@ -2184,3 +2184,40 @@ Project Settings page edits the same registry — including an add or remove, ne
 field to bubble a rename's `FocusOutEvent` from, so the picker had no other way to hear about them.
 
 No data model, bake, or runtime change.
+
+## Amendment A55 (2026-08-28): event authoring reaches tag parity
+
+Full spec: `Amendment_A55_EventAuthoring_Spec.md`. Event authoring had fallen behind target-tag
+authoring (Phase E §4.2): Add Event guessed a key instead of asking, the event registry's inspector
+was one raw `PropertyField` array with no rename row or delete confirmation, and an event lane's
+header did nothing but select. This closes all three gaps by routing events through the exact same
+surfaces tags already use — there is no second way to name an event.
+
+- **Add Event opens the picker.** `ClipEditorWindow.OpenAddEventPicker` (the button's new handler)
+  opens `VocabularyPicker` anchored to the button; the chosen or newly-created key is handed to
+  `AddEventAtPlayhead(uint)`, which places the marker. `ResolveNewEventKey()` and
+  `FindFirstRegistryEntry()` — the "guess the first registry entry, or a bare `FirstMaskKey`" logic
+  that used to run when nothing was chosen — are deleted; there is no longer a code path that guesses.
+  `InsertKey` gained an `explicitEventKey` parameter carrying that choice through to its event case
+  for a toolbar-triggered add (`trackIndex < 0`); a double-click inside an existing lane is unaffected
+  and still reads that lane's own key.
+- **`AnimEventKeyRegistryEditor` now hand-builds its rows**, modelled line-for-line on
+  `TargetTagRegistryEditor`: a `PropertyField` rename, a key + maskable/pulse-only label, an
+  `IntegerField` for `defaultWindowFrames`, a description foldout, and a Remove button behind a
+  confirmation naming how many markers use the key. New `AnimEventBindingUtility` (the
+  `TargetTagBindingUtility` analogue) counts marker and distinct-clip bindings for that dialog. The
+  wording is deliberately different from a tag delete: removing an event cannot fail a bake — the key
+  is arithmetic a marker already carries — so the dialog says the key "shows as unresolved", never
+  "fails validation".
+- **Lane headers are an authoring surface.** Right-click an event lane's header for Add marker at
+  playhead, Select all markers, Change event… (re-points every marker on the lane under one undo
+  gesture, distinct from renaming the registry row), and Delete lane (removes every marker on it,
+  behind a confirmation).
+  - **Lane ordering was cut**, per the spec's own standing decision: registry-stable lane order would
+    have meant threading a preferred-order array into `ClipKeyClipboard`, a static class with no
+    registry access that must agree with the timeline on lane identity or paste lands in the wrong
+    lane. Lane *position* is addressing nobody reads meaning into — only the label does — so lanes
+    stay in first-appearance order, unchanged from before this amendment.
+
+No change to `EventMarker`, the blob, `ClipRegistryBuilder`, or any runtime code. Names are
+authoring-only; a rename or a delete cannot invalidate a baked clip.

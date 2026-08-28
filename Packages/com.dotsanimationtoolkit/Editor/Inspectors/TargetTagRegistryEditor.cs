@@ -16,13 +16,12 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <strong>Rows are hand-built rather than left to the default array drawer.</strong>
-    /// <see cref="AnimEventKeyRegistryEditor"/> gets away with a single
-    /// <see cref="PropertyField"/> over its list because deleting an event key has nothing to warn
-    /// about. Deleting a tag does — §4.2.2 requires the count of bindings a tag has before it is
-    /// removed — and there is no way to intercept the array drawer's own remove button to show
-    /// that count first. Building the rows here, one <see cref="Button"/> per row, is what makes
-    /// the confirmation possible.
+    /// <strong>Rows are hand-built rather than left to the default array drawer</strong>, so a
+    /// delete can be intercepted and show its cost first — §4.2.2 requires the count of bindings a
+    /// tag has before it is removed, and there is no way to get that in front of the array drawer's
+    /// own remove button. <see cref="AnimEventKeyRegistryEditor"/> now builds its rows the same way
+    /// (amendment A55), for the analogous reason on the event registry: a marker count shown before
+    /// its own delete.
     /// </para>
     /// <para>
     /// UI Toolkit only, per section 7 and enforced by

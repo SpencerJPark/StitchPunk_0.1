@@ -4608,7 +4608,8 @@ namespace DotsAnimationToolkit.Editor
             headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
             headerLabel.tooltip = headerText
                 + "\nClick to select every key on this track; "
-                + "shift-click to add them to the selection.";
+                + "shift-click to add them to the selection."
+                + (trackKind == TimelineTrackKind.Event ? "\nRight-click for lane actions." : string.Empty);
             headerRow.Add(headerLabel);
 
             TimelineTrackKind headerTrackKind = trackKind;
@@ -4620,6 +4621,16 @@ namespace DotsAnimationToolkit.Editor
                 SelectAllKeysOnTrack(headerTrackKind, headerTrackIndex, additive);
                 pointerEvent.StopPropagation();
             });
+
+            // Amendment A55 Task 3: an event lane's header is its own authoring surface, not just a
+            // label — the other track kinds have no equivalent menu because none of them names a
+            // project-wide vocabulary entry the way a lane does.
+            if (trackKind == TimelineTrackKind.Event)
+            {
+                headerLabel.AddManipulator(new ContextualMenuManipulator(
+                    menuEvent => BuildEventLaneContextMenu(menuEvent, headerTrackIndex, headerLabel)));
+            }
+
             trackHeaderColumn.Add(headerRow);
 
             AddLane(trackKind, trackIndex, times, rowIndex, false);
@@ -5705,7 +5716,15 @@ namespace DotsAnimationToolkit.Editor
         /// to the origin at zero scale the moment it appeared, which reads as the editor having
         /// broken the animation.
         /// </remarks>
-        private void InsertKey(TimelineTrackKind trackKind, int trackIndex, float normalizedTime)
+        /// <param name="explicitEventKey">
+        /// Amendment A55: the event a toolbar-triggered Add Event should place, chosen through the
+        /// picker before this is even called. Ignored unless <paramref name="trackKind"/> is
+        /// <see cref="TimelineTrackKind.Event"/> and <paramref name="trackIndex"/> is negative — a
+        /// double-click inside an existing lane always uses that lane's own key instead, the same
+        /// as before this amendment.
+        /// </param>
+        private void InsertKey(
+            TimelineTrackKind trackKind, int trackIndex, float normalizedTime, uint explicitEventKey = 0u)
         {
             switch (trackKind)
             {
@@ -5773,16 +5792,17 @@ namespace DotsAnimationToolkit.Editor
                 default:
                 {
                     // trackIndex addresses an existing event lane (E6 Task 2) — double-clicking the
-                    // "Footstep" lane adds another Footstep, not whatever the registry lists first.
-                    // A negative trackIndex (the transport bar's Add Event button, which targets no
-                    // lane) falls back to that default. Never key 0 either way: the struct's default
-                    // is the reserved "invalid" key, so a marker placed and left alone used to fail
-                    // validation rule V09 — the clip broke at bake for having been authored, which
-                    // is the worst possible default.
+                    // "Footstep" lane adds another Footstep, not whatever was chosen elsewhere. A
+                    // negative trackIndex (the transport bar's Add Event button) has no lane to read,
+                    // so it carries the key the picker already chose (amendment A55) instead of
+                    // guessing one. Never key 0 either way: the struct's default is the reserved
+                    // "invalid" key, so a marker placed and left alone used to fail validation rule
+                    // V09 — the clip broke at bake for having been authored, which is the worst
+                    // possible default.
                     List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
                     uint eventKey = trackIndex >= 0 && trackIndex < laneKeys.Count
                         ? laneKeys[trackIndex]
-                        : ResolveNewEventKey();
+                        : explicitEventKey;
                     selectedClip.events.Add(new EventMarker
                     {
                         normalizedTime = normalizedTime,
@@ -5795,8 +5815,33 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The Add Event button on the transport bar: places a marker at the playhead and selects
-        /// it, so its inspector fields are already on screen when the button returns control.
+        /// The Add Event button on the transport bar (amendment A55): opens the event picker
+        /// anchored to the button rather than guessing which event to place. The chosen key is
+        /// handed to <see cref="AddEventAtPlayhead(uint)"/>, which does the actual placing.
+        /// </summary>
+        private void OpenAddEventPicker()
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
+
+            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
+            VocabularyPicker.Open(
+                rootVisualElement,
+                addEventButton,
+                registry,
+                registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey => AddEventAtPlayhead(chosenEventKey),
+                // A Create… mint or an Edit… rename changes what a lane header should read, not
+                // just the marker inspector — the timeline has to rebuild, not just RebuildInspector.
+                RebuildTimeline);
+        }
+
+        /// <summary>
+        /// Places a marker for <paramref name="eventKey"/> at the playhead and selects it, so its
+        /// inspector fields are already on screen once the picker closes.
         /// </summary>
         /// <remarks>
         /// <strong>Deliberately not the double-click add path with a button in front of it.</strong>
@@ -5807,7 +5852,7 @@ namespace DotsAnimationToolkit.Editor
         /// new marker instead of clearing the selection, which is the one place it and
         /// <see cref="OnLanePointerDown"/> intentionally disagree.
         /// </remarks>
-        private void AddEventAtPlayhead()
+        private void AddEventAtPlayhead(uint eventKey)
         {
             if (selectedClip == null)
             {
@@ -5818,9 +5863,9 @@ namespace DotsAnimationToolkit.Editor
             BeginUndoGesture("Add Event");
 
             // -1: this button targets no particular lane, unlike a double-click inside one (E6
-            // Task 2), so InsertKey falls back to the registry's first event rather than reading
-            // laneKeys[-1].
-            InsertKey(TimelineTrackKind.Event, -1, insertTime);
+            // Task 2), so InsertKey carries the key the picker already chose (amendment A55)
+            // instead of reading laneKeys[-1].
+            InsertKey(TimelineTrackKind.Event, -1, insertTime, eventKey);
             EndUndoGesture();
 
             EditorUtility.SetDirty(selectedClip);
@@ -5841,13 +5886,6 @@ namespace DotsAnimationToolkit.Editor
             RebuildTimeline();
         }
 
-        /// <summary>The event a newly placed marker fires before anyone has chosen one.</summary>
-        private uint ResolveNewEventKey()
-        {
-            AnimEventKeyEntry firstEntry = FindFirstRegistryEntry();
-            return firstEntry != null ? firstEntry.eventKey : AnimEventMaskKeys.FirstMaskKey;
-        }
-
         /// <summary>That event's default window, if it has one.</summary>
         private float ResolveDefaultWindowSecondsForKey(uint eventKey)
         {
@@ -5860,22 +5898,136 @@ namespace DotsAnimationToolkit.Editor
             return entry.defaultWindowFrames / ResolveReferenceFrameRate(registry);
         }
 
-        /// <summary>The clip set's first named event, or null when it names none.</summary>
-        private AnimEventKeyEntry FindFirstRegistryEntry()
+        // -------------------------------------------------------------------------------------
+        // Event lane header menu (amendment A55 Task 3).
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Right-click menu for an event lane's header: add another marker to this lane without
+        /// hunting for empty space in it, select every marker on it, re-point the whole lane to a
+        /// different event, or delete it outright.
+        /// </summary>
+        private void BuildEventLaneContextMenu(
+            ContextualMenuPopulateEvent menuEvent, int laneIndex, VisualElement anchor)
         {
+            if (selectedClip == null)
+            {
+                return;
+            }
+            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
+            if (laneIndex < 0 || laneIndex >= laneKeys.Count)
+            {
+                return;
+            }
+            uint laneKey = laneKeys[laneIndex];
+
+            menuEvent.menu.AppendAction(
+                "Add marker at playhead", action => AddEventAtPlayhead(laneKey));
+            menuEvent.menu.AppendAction(
+                "Select all markers",
+                action => SelectAllKeysOnTrack(TimelineTrackKind.Event, laneIndex, false));
+            menuEvent.menu.AppendAction(
+                "Change event…", action => OpenChangeLaneEventPicker(laneIndex, anchor));
+            menuEvent.menu.AppendAction(
+                "Delete lane", action => DeleteEventLane(laneIndex));
+        }
+
+        /// <summary>
+        /// Opens the event picker anchored to a lane header. Unlike the picker a marker's own
+        /// inspector opens (<see cref="OpenEventKeyPicker"/>), the choice here repoints every marker
+        /// on the lane at once — see <see cref="ApplyLaneEventChoice"/>.
+        /// </summary>
+        private void OpenChangeLaneEventPicker(int laneIndex, VisualElement anchor)
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
             AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
-            if (registry == null || registry.entries == null)
+            VocabularyPicker.Open(
+                rootVisualElement,
+                anchor,
+                registry,
+                registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey => ApplyLaneEventChoice(laneIndex, chosenEventKey),
+                RebuildTimeline);
+        }
+
+        /// <summary>
+        /// Re-points every marker in one lane to <paramref name="chosenEventKey"/> under one undo
+        /// gesture — distinct from renaming the registry row, which changes what a key is called
+        /// rather than which key a marker carries.
+        /// </summary>
+        private void ApplyLaneEventChoice(int laneIndex, uint chosenEventKey)
+        {
+            if (selectedClip == null || selectedClip.events == null)
             {
-                return null;
+                return;
             }
-            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
+            List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(selectedClip.events, laneIndex);
+            if (flatIndices.Count == 0)
             {
-                if (registry.entries[entryIndex] != null)
-                {
-                    return registry.entries[entryIndex];
-                }
+                return;
             }
-            return null;
+
+            RecordClipEdit("Change Event");
+            for (int position = 0; position < flatIndices.Count; position++)
+            {
+                EventMarker marker = selectedClip.events[flatIndices[position]];
+                marker.eventKey = chosenEventKey;
+                selectedClip.events[flatIndices[position]] = marker;
+            }
+            CommitClipEdit();
+            RebuildTimeline();
+        }
+
+        /// <summary>
+        /// Removes every marker in one lane, behind a confirmation naming how many — the same
+        /// courtesy a registry-row delete gives (<c>TargetTagRegistryEditor.RemoveEntry</c>,
+        /// <c>AnimEventKeyRegistryEditor.RemoveEntry</c>), but this deletes markers, not a
+        /// vocabulary row.
+        /// </summary>
+        private void DeleteEventLane(int laneIndex)
+        {
+            if (selectedClip == null || selectedClip.events == null)
+            {
+                return;
+            }
+            List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(selectedClip.events, laneIndex);
+            if (flatIndices.Count == 0)
+            {
+                return;
+            }
+
+            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
+            string laneLabel = laneIndex < laneKeys.Count
+                ? DescribeEventName(laneKeys[laneIndex], ResolveEventKeyRegistry())
+                : "this lane";
+
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Delete Event Lane",
+                "Delete lane '" + laneLabel + "'?\n\n" + flatIndices.Count
+                    + " marker(s) on it will be removed.",
+                "Delete", "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            RecordClipEdit("Delete Event Lane");
+            // flatIndices is in ascending flat order (EventLaneAddressing's documented contract);
+            // removing from the back is what keeps the not-yet-removed indices still ahead of it
+            // valid as the list shrinks.
+            for (int position = flatIndices.Count - 1; position >= 0; position--)
+            {
+                selectedClip.events.RemoveAt(flatIndices[position]);
+            }
+            CommitClipEdit();
+
+            selectedKeys.Clear();
+            hasActiveKey = false;
+            RebuildTimeline();
         }
 
         /// <summary>

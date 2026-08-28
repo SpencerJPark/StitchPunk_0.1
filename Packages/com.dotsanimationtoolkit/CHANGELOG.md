@@ -106,6 +106,24 @@ it read-only.
   running 30 times a second off the `EditorApplication.update` tick, it was intermittently stealing
   hot-control from an unrelated field mid-drag.
 
+### Changed — event authoring reaches tag parity (amendment A55)
+
+Event authoring had fallen behind target-tag authoring. Closed the gap by routing events through the
+exact same surfaces tags already use:
+
+- **Add Event opens a searchable picker** instead of guessing which event to place — pick an
+  existing one, or type a name and choose **Create event "…"**. Works correctly on an empty registry
+  for the first time; there is no more `(unresolved 0x…)` lane from a guessed key.
+- **The event registry's inspector now hand-builds its rows**, matching the target-tag registry: an
+  inline rename field, the key shown alongside a maskable/pulse-only note, and a **Remove** button
+  behind a confirmation naming how many markers use it. Unlike a tag delete, this can never fail a
+  bake — the dialog says the key becomes unresolved, not that anything breaks.
+- **Event lane headers gained a right-click menu**: add a marker to that lane at the playhead, select
+  every marker on it, re-point the whole lane to a different event at once, or delete the lane.
+
+No change to `EventMarker`, the blob, `ClipRegistryBuilder`, or any runtime code. Names are
+authoring-only; a rename or delete cannot invalidate a baked clip.
+
 ## [0.11.0] — the ragdoll (amendment A50)
 
 ### Added — ragdolls, authored on the rig hierarchy and falling in the billboard plane
