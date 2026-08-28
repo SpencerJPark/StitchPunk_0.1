@@ -58,26 +58,19 @@ other selected key does; there is no separate hover treatment beyond that. A tra
 a marker shows how long its window runs — so a hit frame's duration lines up visibly against the
 poses around it.
 
-### Several events on one frame
+### One lane per event name
 
-Nothing stops two or more markers from sharing a normalized time — a hit frame that should trigger
-a sound, damage and a camera shake all at once is exactly that: three markers, one time, one event
-key each. They draw as a small **vertical stack** rather than one hiding behind another: each pin
-in the stack offsets a few pixels up or down from lane centre, so the pile is visibly a pile at a
-glance. The x position — the thing that says *when* an event fires — never moves for this; only the
-vertical placement gives, and only within a budget tight enough to stay inside the lane's own row.
-
-Because every marker in a stack sits at the same x, a click there **cycles**: the first click
-selects the first (topmost) marker, and each further click at the same spot selects the next one
-down, wrapping back to the top after the last. The inspector always reflects whichever one is
-currently selected — its own event key, its own Int Param/Float Param, its own window — never the
-first marker at that time regardless of which one you clicked to. Drag a marker after selecting it
-to retime just that one; the rest of the stack stays where it was.
+Every distinct event used in a clip gets its own row — `Footstep` gets a lane, `Damage` gets a
+lane, and adding an event under a new name creates its lane. A hit frame that should trigger a
+sound, damage and a camera shake all at once is three markers, one time, three different names, and
+they draw as three separate pins on three separate rows rather than piling into one. Two markers
+that do share both a lane *and* a time (two `Footstep`s on the same frame, say) still tie for the
+same pixel; clicking there cycles between them the way any tied pair does.
 
 Selecting a marker gives you:
 
-- **Event** — which event this is. A dropdown of names when the clip set has an
-  `AnimEventKeyRegistry`, a raw number when it does not.
+- **Event** — a button naming the event, opening the same searchable picker every tag field in
+  this package uses. Selection only, never typing — see "Naming your events" below.
 - **Window (frames)** — how long the window stays open. **0 makes it
   pulse-only.**
 - **Int Param** / **Float Param** — payload delivered on the pulse. Not carried
@@ -95,19 +88,28 @@ lasts.
 
 ## Naming your events
 
-Event keys are `uint`s. Keys 0–15 are reserved by the package (`ClipFinished`,
-`ClipResolveFailed`); your events start at **16**.
+Event keys are `uint`s, but you never type or read one. **A name is typed in exactly one place:**
+the project's event registry, when the name is defined. Every other surface — the Event field, the
+timeline lane's label — only ever selects from what the registry already lists, through a
+searchable picker with an inline **Create event "…"** row and an **Edit events…** row that opens
+the registry directly. There is nothing to create or assign by hand first: the registry auto-creates
+under `ProjectSettings/` the moment anything asks for it, the same way the target-tag registry does.
 
-Create an **Anim Event Key Registry** (`Create ▸ DOTS Animation Toolkit ▸ Anim
-Event Key Registry`) and assign it to your clip set to pick events by name in the
-Clip Editor instead of by number. Each entry has a name, its key, an optional
-default window, and a description shown as the tooltip.
+Each entry has a name, its key, an optional default window, and a description shown as the picker
+row's hover text.
 
 The registry is **authoring-only — it is never baked and never read at runtime.**
 The key/bit relationship is arithmetic, so nothing at runtime needs a table to
 interpret a marker. That means renaming an event, reordering the list, or
-deleting the asset entirely cannot invalidate a single baked clip. It is a label
-on a number that already means what it means.
+deleting the asset entirely cannot invalidate a single baked clip — the name is a label on a number
+that already means what it means. Renaming *does* rename the corresponding generated constant
+(`AnimEvents.Footstep`), so code referring to the old name fails to compile — loud and immediate,
+rather than a silent repoint. Regenerate constants from the registry inspector's **Generate Event
+Name Constants** button after a rename.
+
+**The one exception:** a marker whose key the registry no longer names — because the entry was
+deleted — shows `(unresolved 0x1A2B3C4D)` instead of a name. That is the only place a number ever
+surfaces.
 
 ### The 64-key maskable range
 

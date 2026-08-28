@@ -145,6 +145,9 @@ And the two references both of them lean on:
 - [`animation-events.md`](animation-events.md) — authoring event markers, the
   pulse-vs-window split, naming keys with a registry, and reading both channels
   from a Burst job.
+- [`sharing-clips.md`](sharing-clips.md) — target tags: binding a track to a
+  project-wide role instead of one rig's part, so a clip authored once plays on
+  every rig that tags a part the same way.
 - [`billboarding.md`](billboarding.md) — billboard roots and inheritance, the
   six modes, snapping and clamping, what an animated rotation means on a
   billboarded node, and reading the resolved frame at runtime.

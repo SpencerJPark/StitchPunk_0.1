@@ -8,6 +8,52 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] — target tags and shared clips (amendment A51)
+
+### Added — clips can now travel between characters that tag their parts the same way
+
+Until now, a clip's tracks bound rig parts by their random per-rig stable id, so a face animation
+authored against one character could never play on another — its ids meant nothing there, and the
+part simply did not animate, with no warning anywhere. A track can now bind by **tag** instead: a
+project-wide vocabulary of roles (`Jaw`, `EyeL`, `WeaponHand`) that any rig's targets can claim, so a
+clip authored once against a role plays on every rig that tags a part the same way.
+
+- **`TargetTagRegistry`** — the project's tag vocabulary, modelled on the existing event-key
+  registry: a stable id that a track binds to, paired with a freely renameable label. Renaming a tag
+  never repoints a clip; deleting one does, loudly (rule T3), because a dangling reference is a
+  different fact from a rig that simply lacks the part (rule T2, a warning, not an error — one
+  "reactions" clip can cover a roster of rigs that genuinely differ).
+- **Zero setup.** Both the tag registry and the event-key registry now auto-create under
+  `ProjectSettings/` the moment anything asks for one — no asset to create, no field to wire up
+  first.
+- **One searchable picker for both vocabularies.** Selection only, never free text: a filtered list,
+  an inline **Create tag "…"** / **Create event "…"** row guarded against case-insensitive
+  near-duplicates, and an **Edit tags…** / **Edit events…** row into the registry itself. A tag or an
+  event name is typed in exactly one place — the registry — and picked everywhere else.
+- **Generated constants.** Each registry's inspector has a **Generate … Constants** button, writing
+  a `public const` C# file so game code says `TargetTags.Jaw` / `AnimEvents.Footstep` rather than a
+  magic number — the same pattern `ClipSetAsset`'s clip-id constants already used. A rename
+  deliberately breaks compilation for anything still referencing the old name: loud and located,
+  instead of a silent repoint.
+- **Tagging lives on the rig hierarchy you're already looking at**, in the Clip Editor, not only in
+  a separate list in the `RigAsset` inspector — map the rig, then tag the parts, without leaving the
+  view you author clips in.
+- **The Events lane is now one lane per event name.** Same-time events with different names used to
+  pile into one row with click-cycling to reach the one you wanted; `Footstep` and `Damage` landing
+  on the same frame now draw as two rows.
+- **No editor surface shows a raw tag id or event key any more**, except one deliberate exception: a
+  dangling reference after its row was deleted renders as `(unresolved 0x1A2B3C4D)`, because that
+  number is the only thing left that makes the row findable.
+- **Bake-time only, no runtime change.** A tag-bound track resolves to the same dense target index a
+  target-bound one always has — the bake decides how a binding is expressed; the runtime never asks.
+  No blob layout change, no new component, no PlayMode archetype change.
+- Validation gains T1 (a tag used twice on one rig), T2 (a tag-bound track whose tag no target on
+  this rig carries — a warning, surfaced in the Clip Editor's validation badge), T3 (a tag id the
+  registry no longer names — an error), T4 (a clip shared by more than one clip set that still binds
+  by target id, so it will not travel — a warning), and T5 (registry tag ids unique and non-zero).
+
+See [`sharing-clips.md`](Documentation~/sharing-clips.md) for the authoring workflow.
+
 ## [0.11.0] — the ragdoll (amendment A50)
 
 ### Added — ragdolls, authored on the rig hierarchy and falling in the billboard plane

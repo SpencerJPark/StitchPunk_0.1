@@ -1966,3 +1966,112 @@ error, so it is not confused with a broken address). Self-collision is
 box-vs-box; contact response is linear; a ragdoll has no timeline. `Spatial3D`
 exists in the solver and the data model but is **not finished**, and the axis
 twist is measured about remains open.
+
+## Amendment A51 (2026-08-28 — product-owner directive): target tags let a clip travel between rigs
+
+Full spec: [`Phase_E_TargetTags_Spec.md`](Phase_E_TargetTags_Spec.md). This
+entry is the closing summary the amendment log requires — the spec is the
+source of truth for anything more detailed than what follows.
+
+### The directive
+
+Clips must be shareable between clip sets: a face animation authored once
+should play on every character that has a face. §3.4's identity scheme
+(random, folded-GUID stable ids, never a name or an enum ordinal) is exactly
+why that did not already work — a `TransformTrack.targetId` is unique *per
+rig*, so a clip built against Character A's ids resolves to nothing on
+Character B, silently. Going back to an enum (the host project's original
+scheme) was never on the table: §3.4 exists specifically to remove the
+failure mode an enum has.
+
+### A tag answers a different question than a target's own id
+
+| Question | Answered by | Scope |
+|---|---|---|
+| Which slot is this? | `RigTargetDefinition.stableId` — random, rename-proof | Unique within one rig |
+| What is this slot *for*? | its tag | Shared across every rig in the project |
+
+Both survive. A target keeps its own stable id exactly as before; a tag is a
+second, optional identity several rigs can agree to share. It is only when a
+tag *replaces* an id that this would become name-binding — the thing §3.4
+forbids — so a track binds by tag **or** by target, never has its target id
+overwritten by one.
+
+`TargetTagRegistry` is `AnimEventKeyRegistry` (§4.3.1) again, one level up:
+a project-scoped vocabulary of `{stable id, renameable label}`, authoring-only
+and never baked, for the identical reason — a project must be able to rename,
+reorder or delete a row without invalidating a single baked clip.
+
+### Numbers are storage; names are the only interface (owner directive)
+
+The owner references tags and event names by name — in the editor and in
+downstream game code — and never types, reads, or compares a number. Every
+project vocabulary this package ships now follows one table:
+
+| Layer | What it uses | Why |
+|---|---|---|
+| Stored in assets | the id | A rename must not repoint a clip |
+| Every editor surface | the name | Pickers, rig rows, timeline lanes, validation messages |
+| Downstream game code | a generated constant | `TargetTags.Jaw`, `AnimEvents.Footstep` — a `uint` compare Burst can do, spelled like a name in source |
+
+The one permitted exception, everywhere: an id the current vocabulary does
+not name — most often a deleted row's dangling reference — renders as
+`(unresolved 0x1A2B3C4D)`, because the number is the only information left
+that makes the row findable. A rename deliberately breaks compilation for any
+constant reference left pointing at the old name: loud and located, the
+opposite of the silent repoint this whole feature exists to prevent.
+
+### The picker is the one place selection happens
+
+`VocabularyPicker` — generalised from an earlier tag-only `TargetTagPicker` —
+is the single searchable overlay every one of these surfaces opens: a rig
+row's tag button, a track's tag-binding button, an event marker's Event
+field. A name is typed exactly once, in the row's own "Create …" entry or in
+the registry inspector opened from the picker's "Edit …" row; everywhere else
+only selects. That is not a convenience — it is the whole safety argument for
+the lenient validation rule below: a wrong pick from a visible list is a
+mistake you can see, where a typo that silently resolves to nothing is not.
+
+### Bake resolution — an authoring change with no runtime footprint
+
+`ClipRegistryBuilder` resolves a track's binding — by target id, unchanged,
+or by tag: find the rig target whose `tagId` matches, then take its dense
+index — to the same `RigPartBinding.targetIndex` either way, before the sort
+that produces `sortedTargetIds`. Whether a binding was expressed by tag or by
+target is a question the bake answers; the runtime never asks. **No blob
+layout change, no new runtime component, no shader contract change** — this
+is what made the feature cheap enough to build without deferring it past 1.0.
+
+### Validation (V34–V37, spec rules T1–T5)
+
+T2 is the rule that costs the most and buys the most: a tag-bound track whose
+tag no target on *this* rig carries is **skipped with a warning, not an
+error** (V35), so one clip can cover a roster of genuinely different rigs.
+That leniency is safe only because of three required mitigations, not
+optional polish — dropdown-only selection (above), a case-insensitive
+duplicate guard on "Create tag …", and a warning that names the clip, track,
+tag and rig, surfaced in the Clip Editor's validation badge rather than only
+the bake console. T3 (V36) — a tag id the registry no longer names — stays an
+error and is reported separately from T2 on purpose: a rig missing a part is
+an ordinary roster fact, a dangling reference to a deleted tag is a broken
+clip regardless of rig, and folding the two together would hide the second
+inside the noise of the first. T1 (V34) guards one tag per rig; T4 (V37) is
+the rule that earns the feature — a clip referenced by more than one clip set
+that still binds by target id will not travel, reported as a warning; T5
+guards the registry's own id uniqueness.
+
+### What this does not solve
+
+Layer conventions (a shared clip's "layer 1" needs every rig to agree what
+layer 1 means, and a `LayerDefinition`'s identity is still its list position)
+and per-character variation over a shared clip (untested whether
+`TrackBlendOp.Additive` composes correctly over a character-specific base).
+Both are real, deliberately out of scope, and the obvious next questions.
+
+### Relationship to the New Rig wizard
+
+The wizard (spec §8) is built *after* this, not before, because "always mint
+fresh ids" is exactly the assumption that would make sharing impossible if it
+shipped first. Built after, its flow assigns tags from the registry as one of
+its steps, reusing existing ones wherever a scanned part's role already has
+one.
