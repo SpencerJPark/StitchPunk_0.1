@@ -139,11 +139,11 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Appends a tag named <paramref name="name"/> with a freshly minted id, persists the
-        /// change (editor only), and returns the minted id — the one code path every "add a tag"
-        /// surface (the registry inspector's Add Tag button, the picker's inline "Create tag…") goes
-        /// through, so "another tag, please" can never produce a duplicate id by accident even
-        /// though ids are random.
+        /// Appends a tag named <paramref name="name"/> with a freshly minted id and returns it — the
+        /// one code path every "add a tag" surface (the registry inspector's Add Tag button, the
+        /// picker's inline "Create tag…") goes through, so "another tag, please" can never produce a
+        /// duplicate id by accident even though ids are random. Does not persist; the editor-side
+        /// caller must.
         /// </summary>
         public uint CreateVocabularyEntry(string name)
         {

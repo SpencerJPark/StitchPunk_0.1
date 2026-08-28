@@ -116,6 +116,28 @@ namespace DotsAnimationToolkit.Editor
             WriteJson(registry, AnimEventKeyFilePath);
         }
 
+        /// <summary>
+        /// Dispatches to the typed <see cref="Persist(TargetTagRegistry)"/>/<see cref="Persist(AnimEventKeyRegistry)"/>
+        /// overload for whichever vocabulary <paramref name="registry"/> is.
+        /// </summary>
+        /// <remarks>
+        /// A distinct name rather than a third <c>Persist(ScriptableObject)</c> overload: callers that
+        /// hold a <see cref="TargetTagRegistry"/> or <see cref="AnimEventKeyRegistry"/> reference would
+        /// silently bind to this one instead of the typed overload under normal overload resolution,
+        /// which defeats the point of having two.
+        /// </remarks>
+        public static void PersistVocabulary(ScriptableObject registry)
+        {
+            if (registry is TargetTagRegistry targetTagRegistry)
+            {
+                Persist(targetTagRegistry);
+            }
+            else if (registry is AnimEventKeyRegistry animEventKeyRegistry)
+            {
+                Persist(animEventKeyRegistry);
+            }
+        }
+
         private static TRegistry LoadOrCreate<TRegistry>(string filePath)
             where TRegistry : ScriptableObject
         {

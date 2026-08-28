@@ -48,7 +48,9 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>
         /// Defines a new row named <paramref name="name"/> with a fresh, collision-free id chosen the
         /// way this vocabulary chooses one (a random fold for a tag, the lowest free maskable slot
-        /// for an event), appends it, persists the change, and returns the minted id.
+        /// for an event), appends it in memory, and returns the minted id. Does not persist — this
+        /// assembly ships to players and cannot write project settings files, so the editor-side
+        /// caller must (<c>VocabularyRegistryProvider.PersistVocabulary</c>).
         /// </summary>
         /// <param name="name">The row's name, exactly as typed — this is the one place a vocabulary's
         /// name is ever typed (spec §4.2.1); every other surface only selects.</param>

@@ -329,6 +329,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             uint newId = registry.CreateVocabularyEntry(entryName);
+            VocabularyRegistryProvider.PersistVocabulary(registryObject);
             onRegistryChanged?.Invoke();
             onPick?.Invoke(newId);
         }

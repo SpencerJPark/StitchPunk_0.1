@@ -113,15 +113,15 @@ namespace DotsAnimationToolkit.Editor
         {
             AnimEventKeyRegistry registry = (AnimEventKeyRegistry)target;
 
-            // CreateVocabularyEntry mints the key (falling back to the lowest free pulse-only key
-            // once every maskable slot is taken - see its remarks) and, for the project singleton,
-            // persists the change itself (Task 1) - the same path the shared vocabulary picker's
-            // "Create event..." row uses. An explicitly assigned override asset is a normal
-            // AssetDatabase asset instead (Task 1's back-compat clause), so it still needs the
-            // ordinary dirty-and-save pair; AssetDatabase.Contains is what tells the two cases apart
-            // without ever calling SaveAssetIfDirty on the singleton, which is not a persistent
-            // AssetDatabase object.
+            // CreateVocabularyEntry only mints the key in memory (falling back to the lowest free
+            // pulse-only key once every maskable slot is taken - see its remarks); it cannot persist
+            // itself. PersistVocabulary writes the project singleton's JSON and is a no-op for an
+            // explicitly assigned override asset (Task 1's back-compat clause), which instead needs
+            // the ordinary dirty-and-save pair; AssetDatabase.Contains is what tells the two cases
+            // apart without ever calling SaveAssetIfDirty on the singleton, which is not a
+            // persistent AssetDatabase object.
             registry.CreateVocabularyEntry("NewEvent");
+            VocabularyRegistryProvider.PersistVocabulary(registry);
             if (AssetDatabase.Contains(registry))
             {
                 EditorUtility.SetDirty(registry);

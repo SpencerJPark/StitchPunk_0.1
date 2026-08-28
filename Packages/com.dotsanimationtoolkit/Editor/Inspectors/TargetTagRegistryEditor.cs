@@ -186,10 +186,12 @@ namespace DotsAnimationToolkit.Editor
         {
             TargetTagRegistry registry = (TargetTagRegistry)target;
 
-            // CreateVocabularyEntry both mints the id and persists the change (Task 1) - the same
-            // single code path TargetTagPicker's "Create tag..." row uses, so "another tag, please"
-            // never produces a duplicate id or an unsaved row regardless of which surface asked.
+            // CreateVocabularyEntry only mints the id in memory; it cannot persist itself
+            // (Authoring/ never references UnityEditor). The explicit PersistVocabulary call is
+            // required here because this mutates the registry directly rather than through
+            // SerializedProperty, so TrackSerializedObjectValue below never fires for it.
             registry.CreateVocabularyEntry("NewTag");
+            VocabularyRegistryProvider.PersistVocabulary(registry);
 
             serializedObject.Update();
             RefreshRows();

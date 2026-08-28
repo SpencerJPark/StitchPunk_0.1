@@ -145,9 +145,9 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>
         /// Appends an event named <paramref name="name"/> holding the lowest key nothing else
         /// claims — falling back to the lowest free pulse-only key above the maskable range once
-        /// every maskable slot is taken — persists the change (editor only), and returns the minted
-        /// key. The one code path every "add an event" surface goes through, so "another event,
-        /// please" cannot produce a duplicate or an unmaskable key by accident.
+        /// every maskable slot is taken — and returns the minted key. The one code path every "add
+        /// an event" surface goes through, so "another event, please" cannot produce a duplicate or
+        /// an unmaskable key by accident. Does not persist; the editor-side caller must.
         /// </summary>
         public uint CreateVocabularyEntry(string name)
         {
