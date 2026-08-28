@@ -671,11 +671,13 @@ namespace DotsAnimationToolkit.Editor
                 default:
                 {
                     List<EventMarker> markers = selectedClip.events;
-                    if (markers == null || address.keyIndex < 0 || address.keyIndex >= markers.Count)
+                    int flatIndex = EventLaneAddressing.ResolveFlatIndex(
+                        markers, address.trackIndex, address.keyIndex);
+                    if (markers == null || flatIndex < 0)
                     {
                         return false;
                     }
-                    normalizedTime = markers[address.keyIndex].normalizedTime;
+                    normalizedTime = markers[flatIndex].normalizedTime;
                     return true;
                 }
             }

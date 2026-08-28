@@ -4612,17 +4612,27 @@ namespace DotsAnimationToolkit.Editor
                     TimelineTrackKind.Bone, trackIndex, times, ref rowIndex);
             }
 
-            if (selectedClip.events != null)
+            if (selectedClip.events != null && selectedClip.events.Count > 0)
             {
-                times.Clear();
-                for (int eventIndex = 0; eventIndex < selectedClip.events.Count; eventIndex++)
+                // One lane per event name (E6 Task 2), not one shared lane with stacking: three
+                // events on one frame land on three rows rather than piling under one. Events stay
+                // visible while focused — they belong to the clip rather than to any one part, so
+                // hiding them would make event authoring impossible the moment anything was selected.
+                AnimEventKeyRegistry eventRegistry = ResolveEventKeyRegistry();
+                List<uint> eventLaneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
+                for (int laneIndex = 0; laneIndex < eventLaneKeys.Count; laneIndex++)
                 {
-                    times.Add(selectedClip.events[eventIndex].normalizedTime);
+                    List<int> laneFlatIndices = EventLaneAddressing.ResolveLaneFlatIndices(
+                        selectedClip.events, laneIndex);
+                    times.Clear();
+                    for (int position = 0; position < laneFlatIndices.Count; position++)
+                    {
+                        times.Add(selectedClip.events[laneFlatIndices[position]].normalizedTime);
+                    }
+                    AddTrackRow(
+                        DescribeEventName(eventLaneKeys[laneIndex], eventRegistry),
+                        TimelineTrackKind.Event, laneIndex, times, ref rowIndex);
                 }
-                // Events stay visible while focused. They belong to the clip rather than to any one
-                // part, so hiding them would make event authoring impossible the moment anything
-                // was selected — and they are one row, not the clutter focus exists to remove.
-                AddTrackRow("Events", TimelineTrackKind.Event, 0, times, ref rowIndex);
             }
 
             if (isFocused)
@@ -4712,14 +4722,15 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Each event marker's window length as a fraction of the clip, for the lane to bar.
+        /// One event lane's window lengths as a fraction of the clip, parallel to that lane's own
+        /// filtered key times — for the lane to bar.
         /// </summary>
         /// <remarks>
         /// Normalized here rather than in the lane because the lane draws in normalized time and
         /// has no idea what the clip's duration is — and the window is authored in seconds, so
         /// something has to divide.
         /// </remarks>
-        private List<float> CollectEventWindowLengths()
+        private List<float> CollectEventWindowLengths(int laneIndex)
         {
             eventWindowLengths.Clear();
             if (selectedClip == null || selectedClip.events == null)
@@ -4727,10 +4738,13 @@ namespace DotsAnimationToolkit.Editor
                 return eventWindowLengths;
             }
 
+            List<int> laneFlatIndices =
+                EventLaneAddressing.ResolveLaneFlatIndices(selectedClip.events, laneIndex);
             float duration = Mathf.Max(selectedClip.duration, ClipAsset.MinimumDuration);
-            for (int eventIndex = 0; eventIndex < selectedClip.events.Count; eventIndex++)
+            for (int position = 0; position < laneFlatIndices.Count; position++)
             {
-                eventWindowLengths.Add(selectedClip.events[eventIndex].windowSeconds / duration);
+                eventWindowLengths.Add(
+                    selectedClip.events[laneFlatIndices[position]].windowSeconds / duration);
             }
             return eventWindowLengths;
         }
@@ -4756,7 +4770,7 @@ namespace DotsAnimationToolkit.Editor
             lane.SetKeyTimes(times);
             if (trackKind == TimelineTrackKind.Event)
             {
-                lane.SetKeyWindows(CollectEventWindowLengths());
+                lane.SetKeyWindows(CollectEventWindowLengths(trackIndex));
             }
             lane.keyPointerDown += OnKeyPointerDown;
             lane.lanePointerDown += OnLanePointerDown;
@@ -5606,6 +5620,15 @@ namespace DotsAnimationToolkit.Editor
         /// Addresses are removed in <em>descending</em> index order. Deleting ascending would shift
         /// the indices of the not-yet-deleted addresses down by one each time, so the second
         /// deletion within any track would silently hit the wrong key.
+        /// <para>
+        /// <strong>Event addresses sort by their flat storage index, not their lane-local one.</strong>
+        /// Every event lane (E6 Task 2) shares one underlying <c>selectedClip.events</c> list, so
+        /// removing one lane's marker can shift a not-yet-processed marker's flat position in a
+        /// <em>different</em> lane — descending lane-local order alone would not protect against
+        /// that the way it does for a track kind where each track owns a separate list. The flat
+        /// index for every event address is resolved once, before any removal begins, so a later
+        /// removal never invalidates an index still waiting to be used.
+        /// </para>
         /// </remarks>
         private void DeleteSelectedKeys()
         {
@@ -5614,41 +5637,52 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            List<KeyAddress> ordered = new List<KeyAddress>(selectedKeys);
-            ordered.Sort((first, second) => second.keyIndex.CompareTo(first.keyIndex));
+            KeyAddress[] ordered = new List<KeyAddress>(selectedKeys).ToArray();
+            int[] removalIndex = new int[ordered.Length];
+            for (int index = 0; index < ordered.Length; index++)
+            {
+                removalIndex[index] = ordered[index].trackKind == TimelineTrackKind.Event
+                    ? EventLaneAddressing.ResolveFlatIndex(
+                        selectedClip.events, ordered[index].trackIndex, ordered[index].keyIndex)
+                    : ordered[index].keyIndex;
+            }
+            System.Array.Sort(removalIndex, ordered);
+            System.Array.Reverse(removalIndex);
+            System.Array.Reverse(ordered);
 
             BeginUndoGesture("Delete Animation Keys");
-            for (int addressIndex = 0; addressIndex < ordered.Count; addressIndex++)
+            for (int addressIndex = 0; addressIndex < ordered.Length; addressIndex++)
             {
                 KeyAddress address = ordered[addressIndex];
+                int flatOrLocalIndex = removalIndex[addressIndex];
                 switch (address.trackKind)
                 {
                     case TimelineTrackKind.Transform:
                         if (address.trackIndex < selectedClip.transformTracks.Count
-                            && address.keyIndex < selectedClip.transformTracks[address.trackIndex].keys.Count)
+                            && flatOrLocalIndex < selectedClip.transformTracks[address.trackIndex].keys.Count)
                         {
-                            selectedClip.transformTracks[address.trackIndex].keys.RemoveAt(address.keyIndex);
+                            selectedClip.transformTracks[address.trackIndex].keys.RemoveAt(flatOrLocalIndex);
                         }
                         break;
                     case TimelineTrackKind.Sprite:
                         if (address.trackIndex < selectedClip.spriteTracks.Count
-                            && address.keyIndex < selectedClip.spriteTracks[address.trackIndex].keys.Count)
+                            && flatOrLocalIndex < selectedClip.spriteTracks[address.trackIndex].keys.Count)
                         {
-                            selectedClip.spriteTracks[address.trackIndex].keys.RemoveAt(address.keyIndex);
+                            selectedClip.spriteTracks[address.trackIndex].keys.RemoveAt(flatOrLocalIndex);
                         }
                         break;
                     case TimelineTrackKind.Bone:
                         if (selectedClip.boneTracks != null
                             && address.trackIndex < selectedClip.boneTracks.Count
-                            && address.keyIndex < selectedClip.boneTracks[address.trackIndex].keys.Count)
+                            && flatOrLocalIndex < selectedClip.boneTracks[address.trackIndex].keys.Count)
                         {
-                            selectedClip.boneTracks[address.trackIndex].keys.RemoveAt(address.keyIndex);
+                            selectedClip.boneTracks[address.trackIndex].keys.RemoveAt(flatOrLocalIndex);
                         }
                         break;
                     default:
-                        if (address.keyIndex < selectedClip.events.Count)
+                        if (flatOrLocalIndex >= 0 && flatOrLocalIndex < selectedClip.events.Count)
                         {
-                            selectedClip.events.RemoveAt(address.keyIndex);
+                            selectedClip.events.RemoveAt(flatOrLocalIndex);
                         }
                         break;
                 }
@@ -5680,7 +5714,10 @@ namespace DotsAnimationToolkit.Editor
                 case TimelineTrackKind.Bone:
                     return selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
                 default:
-                    return selectedClip.events[address.keyIndex].normalizedTime;
+                {
+                    int flatIndex = ResolveEventFlatIndex(address);
+                    return flatIndex >= 0 ? selectedClip.events[flatIndex].normalizedTime : 0f;
+                }
             }
         }
 
@@ -5718,12 +5755,24 @@ namespace DotsAnimationToolkit.Editor
                 }
                 default:
                 {
-                    EventMarker marker = selectedClip.events[address.keyIndex];
+                    int flatIndex = ResolveEventFlatIndex(address);
+                    if (flatIndex < 0)
+                    {
+                        break;
+                    }
+                    EventMarker marker = selectedClip.events[flatIndex];
                     marker.normalizedTime = normalizedTime;
-                    selectedClip.events[address.keyIndex] = marker;
+                    selectedClip.events[flatIndex] = marker;
                     break;
                 }
             }
+        }
+
+        /// <summary>The flat <see cref="selectedClip"/>.events position one event address points to.</summary>
+        private int ResolveEventFlatIndex(KeyAddress address)
+        {
+            return EventLaneAddressing.ResolveFlatIndex(
+                selectedClip.events, address.trackIndex, address.keyIndex);
         }
 
         /// <summary>
@@ -5802,16 +5851,22 @@ namespace DotsAnimationToolkit.Editor
                 }
                 default:
                 {
-                    // Never key 0. The struct's default is the reserved "invalid" key, so a marker
-                    // placed and left alone used to fail validation rule V09 — the clip broke at
-                    // bake for having been authored, which is the worst possible default. A new
-                    // marker takes the clip set's first registered event when there is one, and the
-                    // first legal user key when there is not.
+                    // trackIndex addresses an existing event lane (E6 Task 2) — double-clicking the
+                    // "Footstep" lane adds another Footstep, not whatever the registry lists first.
+                    // A negative trackIndex (the transport bar's Add Event button, which targets no
+                    // lane) falls back to that default. Never key 0 either way: the struct's default
+                    // is the reserved "invalid" key, so a marker placed and left alone used to fail
+                    // validation rule V09 — the clip broke at bake for having been authored, which
+                    // is the worst possible default.
+                    List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
+                    uint eventKey = trackIndex >= 0 && trackIndex < laneKeys.Count
+                        ? laneKeys[trackIndex]
+                        : ResolveNewEventKey();
                     selectedClip.events.Add(new EventMarker
                     {
                         normalizedTime = normalizedTime,
-                        eventKey = ResolveNewEventKey(),
-                        windowSeconds = ResolveNewEventWindowSeconds()
+                        eventKey = eventKey,
+                        windowSeconds = ResolveDefaultWindowSecondsForKey(eventKey)
                     });
                     break;
                 }
@@ -5840,23 +5895,27 @@ namespace DotsAnimationToolkit.Editor
 
             float insertTime = TimelineGeometry.Snap(playheadTime, SnapFrameCount);
             BeginUndoGesture("Add Event");
-            InsertKey(TimelineTrackKind.Event, 0, insertTime);
+
+            // -1: this button targets no particular lane, unlike a double-click inside one (E6
+            // Task 2), so InsertKey falls back to the registry's first event rather than reading
+            // laneKeys[-1].
+            InsertKey(TimelineTrackKind.Event, -1, insertTime);
             EndUndoGesture();
 
             EditorUtility.SetDirty(selectedClip);
 
-            // Select the marker just added, by the index InsertKey appended it at, before the sort
-            // below can move it — SortTrackKeys remaps whatever is selected through the sort's index
-            // map, so selecting first and sorting after is what lets the selection follow the marker
-            // to wherever it lands rather than pointing at whatever key ends up in its old slot.
-            KeyAddress newAddress = new KeyAddress(
-                TimelineTrackKind.Event, 0, selectedClip.events.Count - 1);
+            // Select the marker just added, before the sort below can move it — SortTrackKeys
+            // remaps whatever is selected through the sort's index map, so selecting first and
+            // sorting after is what lets the selection follow the marker to wherever it lands
+            // rather than pointing at whatever key ends up in its old slot.
+            int newFlatIndex = selectedClip.events.Count - 1;
+            KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(newFlatIndex);
             selectedKeys.Clear();
             selectedKeys.Add(newAddress);
             activeKey = newAddress;
             hasActiveKey = true;
 
-            SortTrackKeys(TimelineTrackKind.Event, 0);
+            SortTrackKeys(TimelineTrackKind.Event, newAddress.trackIndex);
             SetPlayheadTime(insertTime);
             RebuildTimeline();
         }
@@ -5869,15 +5928,15 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>That event's default window, if it has one.</summary>
-        private float ResolveNewEventWindowSeconds()
+        private float ResolveDefaultWindowSecondsForKey(uint eventKey)
         {
-            AnimEventKeyEntry firstEntry = FindFirstRegistryEntry();
-            if (firstEntry == null || firstEntry.defaultWindowFrames <= 0)
+            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
+            AnimEventKeyEntry entry = FindRegistryEntryByKey(registry, eventKey);
+            if (entry == null || entry.defaultWindowFrames <= 0)
             {
                 return 0f;
             }
-            return firstEntry.defaultWindowFrames
-                / ResolveReferenceFrameRate(ResolveEventKeyRegistry());
+            return entry.defaultWindowFrames / ResolveReferenceFrameRate(registry);
         }
 
         /// <summary>The clip set's first named event, or null when it names none.</summary>
@@ -5949,13 +6008,39 @@ namespace DotsAnimationToolkit.Editor
                         selectedClip.boneTracks[trackIndex].keys, BoneKeyTime);
                     break;
                 default:
-                    newIndexOfOldIndex = SortKeysTrackingIndices(
-                        selectedClip.events, EventMarkerTime);
+                    newIndexOfOldIndex = SortEventLaneKeys(trackIndex);
                     break;
             }
 
             lastSortIndexMap = newIndexOfOldIndex;
             RemapSelectionAfterSort(trackKind, trackIndex, newIndexOfOldIndex);
+        }
+
+        /// <summary>
+        /// Sorts one event lane's markers by time in place, without disturbing any other lane's
+        /// markers (E6 Task 2). Every lane shares <see cref="ClipAsset.events"/>, so this writes the
+        /// sorted markers back into the exact flat slots this lane's markers already occupied,
+        /// rather than sorting the whole list the way <see cref="SortKeysTrackingIndices{TKey}"/>
+        /// does for a track kind with a list of its own.
+        /// </summary>
+        /// <returns>A LOCAL (lane-relative) index map, in the same shape every other track kind's does.</returns>
+        private int[] SortEventLaneKeys(int laneIndex)
+        {
+            List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(
+                selectedClip.events, laneIndex);
+            List<EventMarker> laneMarkers = new List<EventMarker>(flatIndices.Count);
+            for (int position = 0; position < flatIndices.Count; position++)
+            {
+                laneMarkers.Add(selectedClip.events[flatIndices[position]]);
+            }
+
+            int[] newIndexOfOldIndex = SortKeysTrackingIndices(laneMarkers, EventMarkerTime);
+
+            for (int position = 0; position < flatIndices.Count; position++)
+            {
+                selectedClip.events[flatIndices[position]] = laneMarkers[position];
+            }
+            return newIndexOfOldIndex;
         }
 
         /// <summary>
@@ -6085,7 +6170,9 @@ namespace DotsAnimationToolkit.Editor
             AddTrackKeysToSelection(
                 TimelineTrackKind.Bone,
                 selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0);
-            AddKeysOnTrackToSelection(TimelineTrackKind.Event, 0);
+            AddTrackKeysToSelection(
+                TimelineTrackKind.Event,
+                EventLaneAddressing.ComputeLaneKeys(selectedClip.events).Count);
 
             RepaintLanes();
             RebuildInspector();
@@ -6653,12 +6740,13 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         private void AddSelectedEventMarkerFields(KeyAddress address)
         {
-            if (selectedClip.events == null || address.keyIndex >= selectedClip.events.Count)
+            int flatIndex = ResolveEventFlatIndex(address);
+            if (selectedClip.events == null || flatIndex < 0)
             {
                 return;
             }
 
-            EventMarker marker = selectedClip.events[address.keyIndex];
+            EventMarker marker = selectedClip.events[flatIndex];
             AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
 
             AddEventKeyField(address, marker, registry);
@@ -6732,6 +6820,12 @@ namespace DotsAnimationToolkit.Editor
         private void ApplyEventKeyChoice(
             KeyAddress address, uint chosenEventKey, AnimEventKeyRegistry registry)
         {
+            int flatIndex = ResolveEventFlatIndex(address);
+            if (flatIndex < 0)
+            {
+                return;
+            }
+
             AnimEventKeyEntry chosen = FindRegistryEntryByKey(registry, chosenEventKey);
             EditEventMarker(address, "Change Event Key", editedMarker =>
             {
@@ -6747,7 +6841,32 @@ namespace DotsAnimationToolkit.Editor
                 }
                 return editedMarker;
             });
+
+            // The eventKey just written can move the marker into a different lane (E6 Task 2), so
+            // its selection has to follow — re-resolved from the flat index captured before the
+            // edit rather than trusting the caller's now possibly-stale lane/local pair.
+            KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(flatIndex);
+            if (selectedKeys.Remove(address))
+            {
+                selectedKeys.Add(newAddress);
+            }
+            if (hasActiveKey && activeKey.Equals(address))
+            {
+                activeKey = newAddress;
+            }
+
             RebuildInspector();
+        }
+
+        /// <summary>The lane-local <see cref="KeyAddress"/> for an event marker at a known flat index.</summary>
+        private KeyAddress ResolveEventKeyAddressForFlatIndex(int flatIndex)
+        {
+            uint eventKey = selectedClip.events[flatIndex].eventKey;
+            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
+            int laneIndex = laneKeys.IndexOf(eventKey);
+            int localIndex = EventLaneAddressing
+                .ResolveLaneFlatIndices(selectedClip.events, laneIndex).IndexOf(flatIndex);
+            return new KeyAddress(TimelineTrackKind.Event, laneIndex, localIndex);
         }
 
         /// <summary>How long the marker holds its mask bit, edited in frames.</summary>
@@ -6851,12 +6970,13 @@ namespace DotsAnimationToolkit.Editor
         private void EditEventMarker(
             KeyAddress address, string undoLabel, System.Func<EventMarker, EventMarker> edit)
         {
-            if (selectedClip.events == null || address.keyIndex >= selectedClip.events.Count)
+            int flatIndex = ResolveEventFlatIndex(address);
+            if (selectedClip.events == null || flatIndex < 0)
             {
                 return;
             }
             RecordClipEdit(undoLabel);
-            selectedClip.events[address.keyIndex] = edit(selectedClip.events[address.keyIndex]);
+            selectedClip.events[flatIndex] = edit(selectedClip.events[flatIndex]);
             CommitClipEdit();
             RebuildTimeline();
         }
@@ -8411,11 +8531,12 @@ namespace DotsAnimationToolkit.Editor
                 default:
                 {
                     SerializedProperty events = clipSerializedObject.FindProperty("events");
-                    if (events == null || address.keyIndex >= events.arraySize)
+                    int flatIndex = ResolveEventFlatIndex(address);
+                    if (events == null || flatIndex < 0 || flatIndex >= events.arraySize)
                     {
                         return null;
                     }
-                    return events.GetArrayElementAtIndex(address.keyIndex);
+                    return events.GetArrayElementAtIndex(flatIndex);
                 }
             }
         }

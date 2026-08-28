@@ -363,11 +363,13 @@ namespace DotsAnimationToolkit.Editor
                 }
                 default:
                 {
-                    if (clip.events == null || !HasKeyAt(clip.events, address.keyIndex))
+                    int flatIndex = EventLaneAddressing.ResolveFlatIndex(
+                        clip.events, address.trackIndex, address.keyIndex);
+                    if (clip.events == null || flatIndex < 0)
                     {
                         return false;
                     }
-                    EventMarker marker = clip.events[address.keyIndex];
+                    EventMarker marker = clip.events[flatIndex];
                     keyTime = marker.normalizedTime;
                     eventMarkers.Add(marker);
                     return true;

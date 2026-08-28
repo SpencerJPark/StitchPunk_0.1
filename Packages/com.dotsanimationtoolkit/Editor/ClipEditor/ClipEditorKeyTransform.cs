@@ -258,7 +258,8 @@ namespace DotsAnimationToolkit.Editor
                         && trackIndex >= 0 && trackIndex < selectedClip.boneTracks.Count
                         ? selectedClip.boneTracks[trackIndex].keys.Count : 0;
                 default:
-                    return selectedClip.events != null ? selectedClip.events.Count : 0;
+                    return EventLaneAddressing.ResolveLaneFlatIndices(
+                        selectedClip.events, trackIndex).Count;
             }
         }
 

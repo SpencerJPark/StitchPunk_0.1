@@ -78,13 +78,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void AddEventAtPlayhead_PlayheadBeforeExistingMarkers_SelectionFollowsThroughTheSort()
+        public void AddEventAtPlayhead_PlayheadBeforeExistingMarkerOnTheSameLane_SelectionFollowsThroughTheSort()
         {
             ClipEditorWindow window = ScriptableObject.CreateInstance<ClipEditorWindow>();
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             try
             {
-                clip.events.Add(new EventMarker { normalizedTime = 0.2f, eventKey = 20u });
+                // No clip set is assigned, so the new marker falls back to AnimEventMaskKeys.FirstMaskKey
+                // (see the first test) — matching the first marker's key here is what puts the new
+                // marker on the SAME lane (E6 Task 2) as an existing one, so its sort is a real
+                // reorder rather than a trivial single-member one.
+                clip.events.Add(
+                    new EventMarker { normalizedTime = 0.2f, eventKey = AnimEventMaskKeys.FirstMaskKey });
                 clip.events.Add(new EventMarker { normalizedTime = 0.8f, eventKey = 21u });
 
                 SetSelectedClip(window, clip);
@@ -93,12 +98,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 InvokeAddEventAtPlayhead(window);
 
                 Assert.AreEqual(3, clip.events.Count);
-                // The insert appends, then SortTrackKeys re-sorts ascending — a marker placed before
-                // both existing ones must end up first in the list, not still at the index it was
-                // appended at.
+                // Each event lane sorts only its own flat slots (E6 Task 2) — the shared-key lane's
+                // two markers (originally flat 0 and the newly appended flat 2) swap into ascending
+                // time order, while the other lane's marker (flat 1) is untouched.
                 Assert.AreEqual(0.05f, clip.events[0].normalizedTime, 1e-5f);
-                Assert.AreEqual(0.2f, clip.events[1].normalizedTime, 1e-5f);
-                Assert.AreEqual(0.8f, clip.events[2].normalizedTime, 1e-5f);
+                Assert.AreEqual(0.8f, clip.events[1].normalizedTime, 1e-5f);
+                Assert.AreEqual(0.2f, clip.events[2].normalizedTime, 1e-5f);
 
                 KeyAddress expectedAddress = new KeyAddress(TimelineTrackKind.Event, 0, 0);
                 HashSet<KeyAddress> selectedKeys = GetSelectedKeys(window);
@@ -107,9 +112,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     "Only the new marker should be selected, not whatever was selected before.");
                 Assert.IsTrue(
                     selectedKeys.Contains(expectedAddress),
-                    "AddEventAtPlayhead selects the new marker by the index InsertKey appended it "
-                        + "at, before the sort runs — SortTrackKeys's index remap is what has to "
-                        + "carry that selection to index 0, where the marker actually landed.");
+                    "AddEventAtPlayhead selects the new marker by its lane-local index before the "
+                        + "sort runs — SortTrackKeys's index remap is what has to carry that "
+                        + "selection to local index 0, where the marker actually landed.");
                 Assert.AreEqual(expectedAddress, GetActiveKey(window));
             }
             finally

@@ -64,50 +64,13 @@ namespace DotsAnimationToolkit.Editor
         private const float EventKeyHitRadius = EventMarkerHalfWidth + 2f;
 
         /// <summary>
-        /// Two event times within this many normalized units of each other are the same time for
-        /// stacking and click-cycling purposes (D14, Task 2).
-        /// </summary>
-        /// <remarks>
-        /// Deliberately not <c>ClipEditorWindow</c>'s frame-grid epsilon — that one is scaled by
-        /// frame count because it answers "is this key on a frame boundary." This one answers "did
-        /// the author place these two markers at the same instant," which two independent
-        /// <c>Add Event</c> presses only ever satisfy by writing the identical
-        /// <c>float</c> the playhead already held, not by landing within some fraction of a frame
-        /// of each other. A value far below any frame spacing at a sane rate is what keeps this
-        /// from ever folding two markers together that were placed a frame or more apart.
-        /// </remarks>
-        private const float CoLocatedTimeEpsilon = 1e-5f;
-
-        /// <summary>
-        /// Vertical distance, in pixels, between the drawn centres of adjacent markers in a
-        /// co-located stack — before <see cref="EventStackMaxSpanPixels"/> starts compressing it.
-        /// </summary>
-        private const float EventStackOffsetStep = 3f;
-
-        /// <summary>
-        /// The most a co-located stack is ever allowed to spread vertically, in pixels.
-        /// </summary>
-        /// <remarks>
-        /// The lane is 22px tall and centred on it; a pin is 13.5px of that
-        /// (<see cref="EventMarkerHalfHeight"/> * 2), leaving roughly 4px of slack above and below
-        /// centre before a pin's tip or shoulder would cross the lane's own edge. Capping the
-        /// spread here rather than letting it grow with the group size is what keeps a five-deep
-        /// stack inside its own lane instead of bleeding into the row below it — past the cap,
-        /// additional markers simply overlap more tightly. That is an acceptable trade because a
-        /// click never has to land on a specific one of them: <see cref="ResolveTiedClick"/> cycles
-        /// through the whole group regardless of how little of any one pin is showing.
-        /// </remarks>
-        private const float EventStackMaxSpanPixels = 8f;
-
-        /// <summary>
         /// How much closer one hit-tested key must be than another before OnPointerDown treats them
         /// as genuinely different distances rather than a tie.
         /// </summary>
         /// <remarks>
-        /// Co-located markers share a normalized time and therefore an identical
-        /// <c>TimeToX</c> result, so their distance-to-pointer values come out bit-for-bit equal —
-        /// this exists only to make that comparison robust rather than to widen what counts as
-        /// "the same x" the way <see cref="CoLocatedTimeEpsilon"/> does for time.
+        /// Two keys sharing a normalized time produce an identical <c>TimeToX</c> result and
+        /// therefore bit-for-bit equal distance-to-pointer values — this exists only to make that
+        /// comparison robust.
         /// </remarks>
         private const float PointerTieEpsilonPixels = 0.01f;
 
@@ -310,17 +273,15 @@ namespace DotsAnimationToolkit.Editor
         /// given whichever member (if any) is already selected (D14, Task 2).
         /// </summary>
         /// <remarks>
-        /// Several event markers sharing a time draw at the same x, so a click there always ties
-        /// for nearest between all of them — there is no pixel position that means "the second
-        /// one" the way there is for markers spread out in time, because they are not spread out in
-        /// time; that is the whole scenario. Cycling is what makes each one reachable anyway: the
-        /// first click on a stack lands on its first member, and a click repeated at the same spot
-        /// walks forward through the rest before wrapping back to the start. This is pure — no
-        /// <see cref="VisualElement"/>, no painter — specifically so the cycling policy can be unit
-        /// tested without a viewport; <see cref="OnPointerDown"/> is the only caller and supplies
-        /// the group in draw order (ascending key index), which is also ascending stack slot, so
-        /// "forward" here always means "down the pile" the same way the vertical offset in
-        /// <see cref="OnGenerateVisualContent"/> reads.
+        /// Two keys can still tie for nearest-to-the-pointer within one lane — most often two
+        /// markers sharing a time on the same event, since E6 Task 2 gives every event name its own
+        /// lane and different names can no longer collide on screen. There is no pixel position that
+        /// means "the second one" for keys that share an x, so cycling is what makes each one
+        /// reachable anyway: the first click on a tied group lands on its first member, and a click
+        /// repeated at the same spot walks forward through the rest before wrapping back to the
+        /// start. This is pure — no <see cref="VisualElement"/>, no painter — specifically so the
+        /// cycling policy can be unit tested without a viewport; <see cref="OnPointerDown"/> is the
+        /// only caller and supplies the group in draw order (ascending key index).
         /// </remarks>
         /// <param name="tiedIndices">
         /// The key indices tied for nearest-to-the-pointer, in draw order. Never empty when called
@@ -348,89 +309,6 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
             return tiedIndices[0];
-        }
-
-        /// <summary>
-        /// Groups a sorted list of key times into runs of mutually co-located keys, and reports
-        /// each key's position and group size within its own run (D14, Task 2).
-        /// </summary>
-        /// <remarks>
-        /// Assumes <paramref name="sortedKeyTimes"/> is already ascending — true of every list
-        /// <see cref="OnGenerateVisualContent"/> hands it, because the window keeps a track's own
-        /// key list sorted (architecture section 7, <c>SortTrackKeys</c>) and builds a lane's times
-        /// straight from it. That lets one linear pass find every run: a run only ever breaks when
-        /// the next time has moved past <see cref="CoLocatedTimeEpsilon"/> of the run's first
-        /// member, and nothing later in an ascending list can fall back inside it. Pure and static
-        /// so the grouping — the thing <see cref="OnGenerateVisualContent"/> turns into a vertical
-        /// offset — can be checked directly, without generating a mesh to read it back out of.
-        /// </remarks>
-        /// <param name="sortedKeyTimes">Key times, ascending.</param>
-        /// <returns>One slot per input time, same order and length as the input.</returns>
-        public static CoLocatedSlot[] ComputeCoLocatedSlots(IReadOnlyList<float> sortedKeyTimes)
-        {
-            int keyCount = sortedKeyTimes.Count;
-            CoLocatedSlot[] slots = new CoLocatedSlot[keyCount];
-
-            int groupStart = 0;
-            for (int keyIndex = 1; keyIndex <= keyCount; keyIndex++)
-            {
-                bool endOfGroup = keyIndex == keyCount
-                    || Mathf.Abs(sortedKeyTimes[keyIndex] - sortedKeyTimes[groupStart]) > CoLocatedTimeEpsilon;
-                if (!endOfGroup)
-                {
-                    continue;
-                }
-
-                int groupSize = keyIndex - groupStart;
-                for (int memberIndex = groupStart; memberIndex < keyIndex; memberIndex++)
-                {
-                    slots[memberIndex] = new CoLocatedSlot(memberIndex - groupStart, groupSize);
-                }
-                groupStart = keyIndex;
-            }
-
-            return slots;
-        }
-
-        /// <summary>
-        /// One key's position within its own co-located stack, and how many keys share that stack.
-        /// </summary>
-        public readonly struct CoLocatedSlot
-        {
-            /// <summary>0 for the first key at a time, 1 for the second, and so on.</summary>
-            public readonly int SlotIndex;
-
-            /// <summary>How many keys, including this one, share this key's time.</summary>
-            public readonly int GroupSize;
-
-            public CoLocatedSlot(int slotIndex, int groupSize)
-            {
-                SlotIndex = slotIndex;
-                GroupSize = groupSize;
-            }
-        }
-
-        /// <summary>
-        /// The vertical offset from lane centre a stack member at <paramref name="slotIndex"/> of
-        /// <paramref name="groupSize"/> draws at, in pixels.
-        /// </summary>
-        /// <remarks>
-        /// Symmetric around centre rather than growing downward from it, so a stack's middle always
-        /// sits where a lone marker would — nothing about a track's key count should shift where an
-        /// unrelated single marker on the same lane appears. The span is capped at
-        /// <see cref="EventStackMaxSpanPixels"/> and the step shrinks to fit within it, which is
-        /// what keeps an arbitrarily large stack inside its own lane instead of the step
-        /// (<see cref="EventStackOffsetStep"/>) multiplying out past the lane's edge.
-        /// </remarks>
-        private static float StackOffsetY(int slotIndex, int groupSize)
-        {
-            if (groupSize <= 1)
-            {
-                return 0f;
-            }
-            float span = Mathf.Min(EventStackMaxSpanPixels, EventStackOffsetStep * (groupSize - 1));
-            float step = span / (groupSize - 1);
-            return -span * 0.5f + slotIndex * step;
         }
 
         private void OnGenerateVisualContent(MeshGenerationContext context)
@@ -469,12 +347,6 @@ namespace DotsAnimationToolkit.Editor
             // co-located windows already overlapped before this phase touched marker drawing.
             DrawEventWindows(painter, geometry, rect, centreY);
 
-            // Only every computed for an event lane: it is the one lane kind where two keys can
-            // share a time (D14, Task 2), so it is the only one with a stack to offset.
-            CoLocatedSlot[] eventStacks = trackKind == TimelineTrackKind.Event
-                ? ComputeCoLocatedSlots(keyTimes)
-                : null;
-
             for (int keyIndex = 0; keyIndex < keyTimes.Count; keyIndex++)
             {
                 bool selected = isKeySelected != null
@@ -489,12 +361,7 @@ namespace DotsAnimationToolkit.Editor
 
                 if (trackKind == TimelineTrackKind.Event)
                 {
-                    // The x is the truth about when this fires and never moves for stacking — only
-                    // centreY gives, and only within the tight budget StackOffsetY enforces, so a
-                    // pile of markers is visibly a pile without one of them lying about its time.
-                    CoLocatedSlot stack = eventStacks[keyIndex];
-                    float markerCentreY = centreY + StackOffsetY(stack.SlotIndex, stack.GroupSize);
-                    DrawEventMarker(painter, x, markerCentreY);
+                    DrawEventMarker(painter, x, centreY);
                     continue;
                 }
 
