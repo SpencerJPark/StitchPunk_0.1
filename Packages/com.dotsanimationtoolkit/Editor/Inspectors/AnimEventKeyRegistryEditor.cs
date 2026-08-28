@@ -120,11 +120,19 @@ namespace DotsAnimationToolkit.Editor
             // ordinary AssetDatabase way instead.
             root.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
 
-            // Amendment A54: constants regenerate on their own; see TargetTagRegistryEditor's
-            // identical registration for why FocusOutEvent (not every keystroke) is the trigger.
-            root.RegisterCallback<FocusOutEvent>(focusOutEvent => constantsSection?.RegenerateIfConfigured());
-
             return root;
+        }
+
+        /// <summary>
+        /// Flushes a pending constants regeneration when this inspector goes away. See
+        /// <see cref="TargetTagRegistryEditor.OnDisable"/> for why this replaced a per-<c>FocusOutEvent</c>
+        /// trigger: regenerating on every field blur meant an ordinary rename synchronously forced a
+        /// script recompile — a domain reload — while other windows, including the Clip Editor, could
+        /// be open and in active use.
+        /// </summary>
+        private void OnDisable()
+        {
+            constantsSection?.RegenerateIfConfigured();
         }
 
         /// <summary>
@@ -148,14 +156,10 @@ namespace DotsAnimationToolkit.Editor
             }
             RefreshFindings();
 
-            // A resize (Undo/Redo, or an edit made on a different open copy of this inspector) has
-            // no FocusOutEvent here to trigger off, so it regenerates immediately. An ordinary
-            // rename keystroke does nothing here at all - FocusOutEvent above is what actually
-            // regenerates the file once the edit is done.
-            if (rowCountChanged)
-            {
-                constantsSection?.RegenerateIfConfigured();
-            }
+            // Constants regeneration is deferred to OnDisable, not triggered here (see its remarks):
+            // regenerating immediately on every add/remove/rename forces a script recompile — a
+            // domain reload — synchronously out from under whatever else might be open, which is what
+            // broke the Clip Editor mid-session under the amendment A54 design this replaced.
         }
 
         // -----------------------------------------------------------------------------------
@@ -275,7 +279,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            constantsSection?.RegenerateIfConfigured();
+            // Constants regeneration is deferred to OnDisable — see its remarks.
         }
 
         /// <summary>
@@ -316,7 +320,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            constantsSection?.RegenerateIfConfigured();
+            // Constants regeneration is deferred to OnDisable — see its remarks.
         }
 
         // -----------------------------------------------------------------------------------

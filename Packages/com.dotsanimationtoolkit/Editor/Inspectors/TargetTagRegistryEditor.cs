@@ -104,15 +104,28 @@ namespace DotsAnimationToolkit.Editor
             // into the bound name field above has nothing else that would ever write it to disk.
             root.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
 
-            // Amendment A54: constants regenerate on their own, so there is nothing left to click.
-            // FocusOutEvent bubbles up from whichever row's PropertyField the edit just left, so this
-            // one registration (on root, which survives RefreshRows rebuilding the rows beneath it)
-            // covers every row without per-row wiring. Keystroke-by-keystroke would also work but
-            // would rewrite the file - and call AssetDatabase.Refresh - on every character typed;
-            // firing once when the field is left is what "auto, but not disruptive" actually requires.
-            root.RegisterCallback<FocusOutEvent>(focusOutEvent => constantsSection?.RegenerateIfConfigured());
-
             return root;
+        }
+
+        /// <summary>
+        /// Flushes a pending constants regeneration when this inspector goes away — the window
+        /// closes, the selection changes, or the Project Settings tab is left.
+        /// </summary>
+        /// <remarks>
+        /// Amendment A54 originally regenerated on every <c>FocusOutEvent</c> anywhere in this
+        /// inspector, so simply clicking out of a renamed row's field — the ordinary way to finish a
+        /// rename — rewrote the constants file and called <see cref="AssetDatabase.Refresh"/>
+        /// immediately. Writing a changed <c>.cs</c> file under <c>Assets/</c> makes Unity recompile
+        /// and reload the domain, and doing that synchronously out from under someone renaming a tag
+        /// mid-session — while a separate window like the Clip Editor is open and in active use — is
+        /// what broke it: a domain reload tears down and rebuilds every open window's managed state,
+        /// and a UI Toolkit window does not always survive that cleanly. Regenerating here instead,
+        /// on <c>OnDisable</c>, still keeps the promise that a rename eventually recompiles anything
+        /// referencing the old name, without forcing that recompile mid-keystroke.
+        /// </remarks>
+        private void OnDisable()
+        {
+            constantsSection?.RegenerateIfConfigured();
         }
 
         /// <summary>
@@ -138,17 +151,10 @@ namespace DotsAnimationToolkit.Editor
             }
             RefreshFindings();
 
-            // A resize (Undo/Redo, or an edit made on a different open copy of this inspector) has
-            // no FocusOutEvent here to trigger off, so it regenerates immediately. An ordinary rename
-            // keystroke does nothing here at all: the section's own display (destination path,
-            // missing-file warning) does not depend on row text, so rebuilding it per keystroke was
-            // pure jitter - the button flickering as it was torn down and recreated on every
-            // character - for a section that had nothing to redraw. FocusOutEvent above is what
-            // actually regenerates the file once the edit is done.
-            if (rowCountChanged)
-            {
-                constantsSection?.RegenerateIfConfigured();
-            }
+            // Constants regeneration is deferred to OnDisable, not triggered here (see its remarks):
+            // regenerating immediately on every add/remove/rename forces a script recompile — a
+            // domain reload — synchronously out from under whatever else might be open, which is what
+            // broke the Clip Editor mid-session under the amendment A54 design this replaced.
         }
 
         // -----------------------------------------------------------------------------------
@@ -233,7 +239,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            constantsSection?.RegenerateIfConfigured();
+            // Constants regeneration is deferred to OnDisable — see its remarks.
         }
 
         /// <summary>
@@ -275,7 +281,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            constantsSection?.RegenerateIfConfigured();
+            // Constants regeneration is deferred to OnDisable — see its remarks.
         }
 
         // -----------------------------------------------------------------------------------
