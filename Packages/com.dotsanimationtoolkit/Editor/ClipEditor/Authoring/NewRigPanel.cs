@@ -57,7 +57,6 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement candidateContainer;
         private Toggle assignToggle;
         private Label resultLabel;
-        private TargetTagRegistry tagRegistry;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
         private ClipSetAsset offeredClipSet;
@@ -158,25 +157,13 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Tells the panel which tag registry each row's tag button should pick from — the same
-        /// registry the host window's own tag surfaces use (spec §8).
-        /// </summary>
-        public void OfferTagRegistry(TargetTagRegistry registry)
-        {
-            tagRegistry = registry;
-            for (int rowIndex = 0; rowIndex < candidateRows.Count; rowIndex++)
-            {
-                RefreshTagButtonText(candidateRows[rowIndex]);
-            }
-        }
-
-        /// <summary>
         /// Opens the searchable tag picker for one candidate row — the same
         /// <see cref="VocabularyPicker"/> every other tag surface in this package uses (spec
         /// §4.2.1), so reusing an existing tag here works exactly as it does on the rig hierarchy.
         /// </summary>
         private void OpenRowTagPicker(CandidateRow row, Button anchor)
         {
+            TargetTagRegistry tagRegistry = VocabularyRegistryProvider.TargetTags;
             VocabularyPicker.Open(
                 this,
                 anchor,
@@ -210,6 +197,7 @@ namespace DotsAnimationToolkit.Editor
                 row.TagButton.text = "Tag: (none)";
                 return;
             }
+            TargetTagRegistry tagRegistry = VocabularyRegistryProvider.TargetTags;
             string tagName = tagRegistry != null ? tagRegistry.FindName(row.TagId) : null;
             row.TagButton.text = tagName != null
                 ? "Tag: " + tagName

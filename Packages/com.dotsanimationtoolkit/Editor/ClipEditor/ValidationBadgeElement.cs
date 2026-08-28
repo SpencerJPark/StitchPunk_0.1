@@ -138,16 +138,7 @@ namespace DotsAnimationToolkit.Editor
         /// sixty hertz.
         /// </remarks>
         /// <param name="clipSet">The set to validate. Null clears the badge.</param>
-        /// <param name="tagRegistry">
-        /// The project's target tag registry (Phase E target-tags spec §6.1), threaded into
-        /// <see cref="ClipValidation.ValidateSet"/> so T2 (V35) can name a tag instead of showing its
-        /// raw hex id and T3 (V36) can be judged at all. Optional — a null registry still shows T2,
-        /// just without a name, and never shows T3 (see <see cref="ClipValidation.ValidateClip"/>'s
-        /// remarks). This is also where T4 (V37) enters: §6.1 requires it in this badge, not only
-        /// the bake console, since it is expected to be the most common finding this feature
-        /// produces.
-        /// </param>
-        public void Refresh(ClipSetAsset clipSet, TargetTagRegistry tagRegistry = null)
+        public void Refresh(ClipSetAsset clipSet)
         {
             currentMessages.Clear();
             HasErrors = false;
@@ -164,7 +155,7 @@ namespace DotsAnimationToolkit.Editor
             // Validation throws only on a null set, which is already handled; anything else it finds
             // is data it returns rather than an exception, so no guard is needed here.
             List<ValidationMessage> messages = ClipValidation.ValidateSet(
-                clipSet, tagRegistry: tagRegistry);
+                clipSet, tagRegistry: VocabularyRegistryProvider.TargetTags);
 
             // T4 (V37) is a project-wide fact ClipValidation cannot see on its own (Editor-only
             // AssetDatabase access) — appended here rather than folded into the call above, mirroring

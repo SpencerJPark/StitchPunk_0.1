@@ -194,20 +194,6 @@ namespace DotsAnimationToolkit.Editor
         private ValidationBadgeElement validationBadge;
         private ObjectField skinnedSourceField;
 
-        // -----------------------------------------------------------------------------------
-        // Target tags (Phase E target-tags spec §4.2.1, E3). Same shape as RigAssetEditor's own
-        // tag-registry field: an editor preference keyed by the edited asset's GUID, not a
-        // serialized reference, because the registry is project-scoped furniture (spec §4.1) and a
-        // hard reference here would be a second, redundant place for a project to say which
-        // registry it uses.
-        // -----------------------------------------------------------------------------------
-
-        private const string TagRegistryPreferenceKeyPrefix =
-            "DotsAnimationToolkit.ClipEditorWindow.tagRegistry.";
-
-        private TargetTagRegistry tagRegistry;
-        private ObjectField tagRegistryField;
-
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
         private double previewDirtiedAt;
@@ -654,7 +640,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet, tagRegistry);
+                validationBadge.Refresh(clipSet);
             }
 
             RefreshClipActionButtons();
@@ -805,90 +791,12 @@ namespace DotsAnimationToolkit.Editor
             {
                 validationBadge = new ValidationBadgeElement();
                 badgeSlot.Add(validationBadge);
-
-                // Built in code rather than the UXML, the same way ValidationBadgeElement itself is
-                // parented in code: this field only matters once a clip set is open, and inserting
-                // it here — right before the badge it feeds — needs no layout file change.
-                tagRegistry = LoadStoredTagRegistry();
-                tagRegistryField = new ObjectField
-                {
-                    objectType = typeof(TargetTagRegistry),
-                    allowSceneObjects = false,
-                    value = tagRegistry,
-                    tooltip = "The project's target tag registry, used to name tags in T2/T3 "
-                        + "validation findings below and by the tag picker on Transform and "
-                        + "Flipbook tracks. Remembered per clip set in editor preferences, not "
-                        + "stored in the asset."
-                };
-                tagRegistryField.AddToClassList("clip-editor__tag-registry-field");
-                tagRegistryField.RegisterValueChangedCallback(OnTagRegistryChanged);
-                VisualElement badgeParent = badgeSlot.parent;
-                if (badgeParent != null)
-                {
-                    badgeParent.Insert(badgeParent.IndexOf(badgeSlot), tagRegistryField);
-                }
             }
         }
 
-        private void OnTagRegistryChanged(ChangeEvent<Object> changeEvent)
+        private TargetTagRegistry ResolveTargetTagRegistry()
         {
-            tagRegistry = changeEvent.newValue as TargetTagRegistry;
-            StoreTagRegistry();
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(clipSet, tagRegistry);
-            }
-            RebuildInspector();
-        }
-
-        private string BuildTagRegistryPreferenceKey()
-        {
-            string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
-            if (string.IsNullOrEmpty(assetPath))
-            {
-                return string.Empty;
-            }
-            string assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
-            return string.IsNullOrEmpty(assetGuid) ? string.Empty : TagRegistryPreferenceKeyPrefix + assetGuid;
-        }
-
-        private TargetTagRegistry LoadStoredTagRegistry()
-        {
-            string preferenceKey = BuildTagRegistryPreferenceKey();
-            if (string.IsNullOrEmpty(preferenceKey))
-            {
-                return null;
-            }
-            string storedGuid = EditorPrefs.GetString(preferenceKey, string.Empty);
-            if (string.IsNullOrEmpty(storedGuid))
-            {
-                return null;
-            }
-            string storedPath = AssetDatabase.GUIDToAssetPath(storedGuid);
-            return string.IsNullOrEmpty(storedPath)
-                ? null
-                : AssetDatabase.LoadAssetAtPath<TargetTagRegistry>(storedPath);
-        }
-
-        private void StoreTagRegistry()
-        {
-            string preferenceKey = BuildTagRegistryPreferenceKey();
-            if (string.IsNullOrEmpty(preferenceKey))
-            {
-                return;
-            }
-
-            string sourcePath = tagRegistry != null ? AssetDatabase.GetAssetPath(tagRegistry) : string.Empty;
-            string sourceGuid = string.IsNullOrEmpty(sourcePath)
-                ? string.Empty
-                : AssetDatabase.AssetPathToGUID(sourcePath);
-
-            if (string.IsNullOrEmpty(sourceGuid))
-            {
-                EditorPrefs.DeleteKey(preferenceKey);
-                return;
-            }
-            EditorPrefs.SetString(preferenceKey, sourceGuid);
+            return VocabularyRegistryProvider.TargetTags;
         }
 
         private void BindClipList()
@@ -1067,7 +975,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet, tagRegistry);
+                validationBadge.Refresh(clipSet);
             }
         }
 
@@ -1573,11 +1481,6 @@ namespace DotsAnimationToolkit.Editor
                 // a one-shot flow, not a settings panel a session revisits, so there is no held
                 // choice here worth protecting from being overwritten.
                 newRigPanel.OfferClipSet(clipSet);
-
-                // The same registry this window's own hierarchy tag buttons and the toolbar's
-                // tag field read from, so a tag picked while creating a rig is the same tag seen
-                // everywhere else in this session rather than a same-named row in a second copy.
-                newRigPanel.OfferTagRegistry(tagRegistry);
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -3166,7 +3069,7 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet, tagRegistry);
+                validationBadge.Refresh(clipSet);
             }
 
             // LoadedPrefab is what Edit Prefab's enabled state depends on, and a pick here is one
@@ -3675,6 +3578,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return "Tag: (none)";
             }
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
             string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
             return tagName != null
                 ? "Tag: " + tagName
@@ -3698,6 +3602,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
             VocabularyPicker.Open(
                 rootVisualElement,
                 anchor,
@@ -4343,16 +4248,6 @@ namespace DotsAnimationToolkit.Editor
             clipSet = changeEvent.newValue as ClipSetAsset;
             SelectClip(null);
 
-            // The tag registry preference is keyed by the clip set's own GUID (E3), so switching
-            // sets switches which registry the picker and the T2/T3 messages below resolve names
-            // against — the same "load the new selection's remembered choice" step
-            // OnTagRegistryChanged's counterpart, RigAssetEditor.OnSelectionChanged, already takes.
-            tagRegistry = LoadStoredTagRegistry();
-            if (tagRegistryField != null)
-            {
-                tagRegistryField.SetValueWithoutNotify(tagRegistry);
-            }
-
             // Reflects the new set's own rig before anything downstream reads the toolbar field —
             // the rig lives on the clip set now (Phase D11), so switching sets must switch what
             // the Rig field shows exactly the way it already switched what the clip list shows.
@@ -4382,7 +4277,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet, tagRegistry);
+                validationBadge.Refresh(clipSet);
             }
 
             // The Rig field is what Edit Prefab's enabled state depends on, and this is another
@@ -4513,7 +4408,7 @@ namespace DotsAnimationToolkit.Editor
                 // repaint would make a large set's window crawl.
                 if (validationBadge != null)
                 {
-                    validationBadge.Refresh(clipSet, tagRegistry);
+                    validationBadge.Refresh(clipSet);
                 }
             }
 

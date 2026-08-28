@@ -522,6 +522,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return "Target-bound";
             }
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
             string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
             return tagName != null ? "Tag: " + tagName : "Tag: (unresolved 0x" + tagId.ToString("X8") + ")";
         }
@@ -531,6 +532,7 @@ namespace DotsAnimationToolkit.Editor
             // rootVisualElement, not a captured "inspector root" — this is an EditorWindow, not an
             // Editor, so the whole-window element OpenComponentPicker already anchors against is the
             // one that exists here.
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
             VocabularyPicker.Open(
                 rootVisualElement,
                 anchor,
@@ -582,7 +584,7 @@ namespace DotsAnimationToolkit.Editor
             EditorUtility.SetDirty(selectedClip);
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet, tagRegistry);
+                validationBadge.Refresh(clipSet);
             }
             RebuildInspector();
         }

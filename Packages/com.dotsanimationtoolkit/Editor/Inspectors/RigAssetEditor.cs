@@ -89,26 +89,10 @@ namespace DotsAnimationToolkit.Editor
         // Target tags (Phase E target-tags spec §4.2, E2).
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Prefix of the per-asset editor preference that remembers which
-        /// <see cref="TargetTagRegistry"/> this rig's tag column picks from.
-        /// </summary>
-        /// <remarks>
-        /// Same shape as <see cref="BoneNameSourcePreferenceKeyPrefix"/>, and for the same reason: the
-        /// registry is project-scoped furniture (spec §4.1), not a property of any one rig, so storing
-        /// a hard reference to it on <see cref="RigAsset"/> would be a second, redundant place for a
-        /// project to say which registry it uses. An editor preference keyed by the rig's GUID gives
-        /// each rig its own remembered choice without adding a serialized field the bake never reads.
-        /// </remarks>
-        private const string TagRegistryPreferenceKeyPrefix =
-            "DotsAnimationToolkit.RigAssetEditor.tagRegistry.";
-
         private const string NoTagChoiceLabel = "(none)";
 
-        private ObjectField tagRegistryField;
         private VisualElement targetTagRowContainer;
         private VisualElement targetTagBadgeContainer;
-        private TargetTagRegistry tagRegistry;
 
         private readonly List<TargetTagRowElements> targetTagRows = new List<TargetTagRowElements>();
         private int builtTargetTagCount = -1;
@@ -248,18 +232,6 @@ namespace DotsAnimationToolkit.Editor
             explanation.style.marginBottom = 4f;
             section.Add(explanation);
 
-            tagRegistry = LoadStoredTagRegistry();
-            tagRegistryField = new ObjectField("Tag Registry")
-            {
-                objectType = typeof(TargetTagRegistry),
-                allowSceneObjects = false,
-                value = tagRegistry,
-                tooltip = "The project's target tag registry the picker below chooses from. "
-                    + "Remembered per rig in editor preferences, not stored in the asset."
-            };
-            tagRegistryField.RegisterValueChangedCallback(OnTagRegistryChanged);
-            section.Add(tagRegistryField);
-
             targetTagRowContainer = new VisualElement();
             section.Add(targetTagRowContainer);
 
@@ -340,6 +312,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return "Tag: " + NoTagChoiceLabel;
             }
+            TargetTagRegistry tagRegistry = VocabularyRegistryProvider.TargetTags;
             string tagName = tagRegistry != null ? tagRegistry.FindName(tagIdValue) : null;
             return tagName != null
                 ? "Tag: " + tagName
@@ -352,6 +325,7 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void OpenTargetTagPicker(TargetTagRowElements row)
         {
+            TargetTagRegistry tagRegistry = VocabularyRegistryProvider.TargetTags;
             VocabularyPicker.Open(
                 inspectorRoot,
                 row.tagButton,
@@ -417,69 +391,6 @@ namespace DotsAnimationToolkit.Editor
                 badge.style.marginTop = 2f;
                 targetTagBadgeContainer.Add(badge);
             }
-        }
-
-        private string BuildTagRegistryPreferenceKey()
-        {
-            string assetPath = AssetDatabase.GetAssetPath(target);
-            if (string.IsNullOrEmpty(assetPath))
-            {
-                return string.Empty;
-            }
-            string assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
-            if (string.IsNullOrEmpty(assetGuid))
-            {
-                return string.Empty;
-            }
-            return TagRegistryPreferenceKeyPrefix + assetGuid;
-        }
-
-        private TargetTagRegistry LoadStoredTagRegistry()
-        {
-            string preferenceKey = BuildTagRegistryPreferenceKey();
-            if (string.IsNullOrEmpty(preferenceKey))
-            {
-                return null;
-            }
-            string storedGuid = EditorPrefs.GetString(preferenceKey, string.Empty);
-            if (string.IsNullOrEmpty(storedGuid))
-            {
-                return null;
-            }
-            string storedPath = AssetDatabase.GUIDToAssetPath(storedGuid);
-            if (string.IsNullOrEmpty(storedPath))
-            {
-                return null;
-            }
-            return AssetDatabase.LoadAssetAtPath<TargetTagRegistry>(storedPath);
-        }
-
-        private void StoreTagRegistry()
-        {
-            string preferenceKey = BuildTagRegistryPreferenceKey();
-            if (string.IsNullOrEmpty(preferenceKey))
-            {
-                return;
-            }
-
-            string sourcePath = tagRegistry != null ? AssetDatabase.GetAssetPath(tagRegistry) : string.Empty;
-            string sourceGuid = string.IsNullOrEmpty(sourcePath)
-                ? string.Empty
-                : AssetDatabase.AssetPathToGUID(sourcePath);
-
-            if (string.IsNullOrEmpty(sourceGuid))
-            {
-                EditorPrefs.DeleteKey(preferenceKey);
-                return;
-            }
-            EditorPrefs.SetString(preferenceKey, sourceGuid);
-        }
-
-        private void OnTagRegistryChanged(ChangeEvent<Object> changeEvent)
-        {
-            tagRegistry = changeEvent.newValue as TargetTagRegistry;
-            StoreTagRegistry();
-            RefreshAllTargetTagButtons();
         }
 
         /// <summary>
