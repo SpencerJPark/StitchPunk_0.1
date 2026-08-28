@@ -257,6 +257,21 @@
     color: rgb(110, 140, 160);
 }
 
+/* One recycled tree row: the label plus its target-tag button (E6 Task 4), side by side. */
+.clip-editor__hierarchy-row-container {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+}
+
+.clip-editor__hierarchy-row-tag-button {
+    flex-shrink: 0;
+    min-width: 90px;
+    margin-left: 4px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 /* ------------------------------------------------------------------------------------------- */
 /* Transport bar                                                                                 */
 /* ------------------------------------------------------------------------------------------- */
