@@ -16,13 +16,15 @@ Editor-driven; there is no CLI build for the game.
 - **Compile gate (after every `.cs` change):** save → `mcp__UnityMCP__refresh_unity` → poll `editor_state.isCompiling` until false → `mcp__UnityMCP__read_console` for `error CS####` / Burst `BC####`. Editor closed? Grep the **project-relative** `Logs/Editor.log` and confirm its mtime is newer than your edit — the `%LOCALAPPDATA%` copy is a stub that always greps clean. If it hasn't recompiled, say so and fall back to static review rather than claiming it compiles. Ignore the root `*.csproj` files; Unity regenerates them.
 - **Rebake:** authoring/baker/SO changes need a re-bake — reopen the subscene or re-enter Play mode. "Compile + rebake + play" is the standard verification pass.
 - **Play-test:** user-driven. Main scene `Assets/Scenes/Game.unity`; DOTS sandbox `Assets/Scenes/SubScenes/DOTSTestScene.unity`. Anything on-screen needs the user to look or share a screenshot.
-- **Tests:** EditMode fixtures in `Assets/_Scripts/Tests/`; run via `mcp__UnityMCP__run_tests` (poll `mcp__UnityMCP__get_test_job`). No headless CLI. No PlayMode coverage of the AI spine yet.
+- **Tests:** EditMode fixtures in `Assets/_Scripts/Tests/`; run via `mcp__UnityMCP__run_tests` (poll `mcp__UnityMCP__get_test_job`). No headless CLI. No PlayMode coverage of the AI spine yet. Test only what actually needs testing — real logic, real invariants, real regressions. No coverage-chasing, no fixtures for trivial accessors or for Unity's own behaviour. If you cannot revert the fix and watch the test fail, delete the test.
 
 ## Architecture
 
 `Assets/_Scripts/` splits into `StitchPunk.*` assemblies by folder: `Components/` (data only, no logic), `Authoring/` (MonoBehaviour + nested `Baker`, no game logic), `Data/` (SOs + blob structs), `Systems/` (all gameplay), `MonoBehaviours/` (hybrid bridge), plus `UI/ Core/ Utils/ Editor/ Tests/`. `Core/Unused/` is legacy parking — never reference it.
 
 **Absolute rules** (full set in `RULES.md`): never `var`, never single-letter names — explicit types, names read like docs. Never `.Run()` a job — `.Schedule()` / `.ScheduleParallel()` into `state.Dependency`.
+
+**Names are the documentation.** Be verbose when naming — a long, explicit method or field name that states exactly what it does communicates better than a short one propped up by a comment. Do not write a `<summary>` on every function; most need none, and a summary that just restates the signature is noise. Comment only what the code cannot say: a *why*, a non-obvious constraint, a silent-failure trap. One or two lines, never a multi-paragraph `<remarks>` essay. Code should read like the logic it is.
 
 **Every group is declared in [`Assets/_Scripts/Systems/SystemGroups.cs`](Assets/_Scripts/Systems/SystemGroups.cs)** — the single ordering manifest. Place new systems with `[UpdateInGroup]`, never ad-hoc ordering, and put the file in the folder named after its group. Scene gating is group-level; do not add per-system `RequireForUpdate<GameSceneTag>`.
 
