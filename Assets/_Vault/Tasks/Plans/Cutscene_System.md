@@ -1,6 +1,6 @@
 # Cutscene & Animation Stage System — Design Spec
 
-> **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
+> **Status:** ◐ **half superseded** — Phases 1–3 (the edit-mode Animation Stage) were effectively delivered by the **`com.dotsanimationtoolkit` Clip Editor** (`Editor/ClipEditor/Preview/`, `ClipPreviewController`), which is a real edit-mode preview scene against the toolkit's own clip format. The game's old hybrid stack (`_Scripts/Editor/AnimationEditor/`, `AnimationEditorScene.unity`) still exists and is what the toolkit migration retires. **Phase 4 — the `CutsceneSO` multi-actor runtime — is still unbuilt and still the reason to keep this doc.** Re-read §1A against the toolkit before building anything from it.
 > **Raw source:** [`futureneedsplan.md`](futureneedsplan.md) → "§2 Narrative Event System" / "§3 Cinematic Camera" (multi-actor scripted moments); plus the 2026-07 session decision to retire the play-mode animation preview.
 
 ---

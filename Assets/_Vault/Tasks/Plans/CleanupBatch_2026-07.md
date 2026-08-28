@@ -1,6 +1,6 @@
 # Cleanup Batch — July 2026 — Design Spec
 
-> **Status:** ◐ partially executed (2026-07-03 autonomous pass) — rows 3, 4, 7, 8, 10 done (see per-row notes); **remaining: rows 1, 2, 5, 6** (they need Editor assets, rebake verification, or a decision). Everything from the pass awaits one Editor compile + Test Runner check.
+> **Status:** ◐ partially executed (2026-07-03 autonomous pass) — rows 3, 4, 7, 8, 9, 10 done (see per-row notes; row 9 closed since — `Assets/CLAUDE.md` is 36 lines and pointer-shaped); **remaining: rows 1, 2, 5, 6** — verified still open 2026-08-28: no `Thirst` in `NeedType`, `groundBufferOverride` still authored-but-unconsumed (`RagdollJointAuthoring.cs:21`), `#region` still in `UnitSelectionManager` + `PlayerInputManager` with RULES.md:68 still banning it outright (they need Editor assets, rebake verification, or a decision). Everything from the pass awaits one Editor compile + Test Runner check.
 
 ---
 

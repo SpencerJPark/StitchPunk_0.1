@@ -1,6 +1,6 @@
 # Zombie Conversion System — Design Spec
 
-> **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
+> **Status:** ✅ spec ready — and **both halves it composes now exist**: `SwapBrainRequest` (`SwapBrainSystem`, from Brain Control Split) and `ChangeDesignRequest` (from the CharacterRig/ColorPalette work — `CharacterRigAuthoring.cs:114`). Only the `ZombifyRequest` composer is missing, so this is now a much smaller build than the doc implies.
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #5 — "the vertical-slice payoff of everything just built, and it's nearly free now"
 
 ---

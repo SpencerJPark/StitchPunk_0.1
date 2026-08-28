@@ -1,6 +1,6 @@
 # CharacterRig Finish + Hardening — Design Spec
 
-> **Status:** ◐ partially built (2026-07-03 autonomous pass) — **items 2, 3, 5, 6 landed in code** (bake warnings, palette capacity guard + ceiling comment, `DesignApplyUtilTests` fixture, SortLayers rename); awaiting Editor compile + Test Runner. **Remaining: item 1** (verify-doc rewrite — best done in an Editor session against the live rig) **and item 4** (PartDefId decision — Spencer's call, pair with Direction_System §2).
+> **Status:** ◐ partially built (2026-07-03 autonomous pass) — **items 2, 3, 5, 6 landed in code** (bake warnings, palette capacity guard + ceiling comment, `DesignApplyUtilTests` fixture, SortLayers rename); awaiting Editor compile + Test Runner. **Remaining: item 1** (verify-doc rewrite — `Verification/verify-characterrig.md` still mentions the abandoned `ExplicitTable`/`colorAxis` fields) **and item 4** (the enum shipped as `UnitPartId` in `Data/Enums/PartEnums.cs`, still `Male*`-prefixed — so the variant decision is genuinely unmade; pair it with Direction_System §2).
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #1 — [in-flight]; "nothing below it should start until this closes."
 
 ---
