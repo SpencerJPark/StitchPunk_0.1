@@ -37,13 +37,24 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement findingsContainer;
         private VocabularyConstantsSection constantsSection;
+        private SerializedProperty entriesProperty;
+
+        /// <summary>
+        /// Row count as of the last change seen, mirroring the identical guard on
+        /// <see cref="TargetTagRegistryEditor"/> — see that type's own field for why the distinction
+        /// between a resize and an in-place edit matters here too.
+        /// </summary>
+        private int builtEntryCount = -1;
 
         public override VisualElement CreateInspectorGUI()
         {
             VisualElement root = new VisualElement();
 
+            entriesProperty = serializedObject.FindProperty("entries");
+            builtEntryCount = entriesProperty.arraySize;
+
             root.Add(new PropertyField(serializedObject.FindProperty("referenceFrameRate")));
-            root.Add(new PropertyField(serializedObject.FindProperty("entries")));
+            root.Add(new PropertyField(entriesProperty));
 
             Button addButton = new Button(AddEntry) { text = "Add Event" };
             addButton.style.marginTop = 6f;
@@ -60,7 +71,6 @@ namespace DotsAnimationToolkit.Editor
             constantsSection = new VocabularyConstantsSection(
                 target as AnimEventKeyRegistry,
                 target,
-                "Generate Event Name Constants",
                 "AnimEvents",
                 "Event",
                 "Event",
@@ -96,11 +106,25 @@ namespace DotsAnimationToolkit.Editor
                     VocabularyRegistryProvider.Persist(changedRegistry);
                 }
                 RefreshFindings();
-                if (constantsSection != null)
+
+                // Same guard as TargetTagRegistryEditor: a resize (Undo/Redo, the list drawer's own
+                // remove button, or an edit on a different open copy of this inspector) has no
+                // FocusOutEvent to trigger off, so it regenerates immediately. An ordinary rename
+                // keystroke does nothing here at all - the section's own display does not depend on
+                // row text, so rebuilding it per keystroke was pure jitter for a section that had
+                // nothing to redraw; FocusOutEvent below is what actually regenerates the file.
+                int currentEntryCount = entriesProperty != null ? entriesProperty.arraySize : 0;
+                bool rowCountChanged = currentEntryCount != builtEntryCount;
+                builtEntryCount = currentEntryCount;
+                if (rowCountChanged)
                 {
-                    constantsSection.Rebuild();
+                    constantsSection?.RegenerateIfConfigured();
                 }
             });
+
+            // Amendment A54: constants regenerate on their own; see TargetTagRegistryEditor's
+            // identical registration for why FocusOutEvent (not every keystroke) is the trigger.
+            root.RegisterCallback<FocusOutEvent>(focusOutEvent => constantsSection?.RegenerateIfConfigured());
 
             return root;
         }
@@ -129,7 +153,9 @@ namespace DotsAnimationToolkit.Editor
             }
 
             serializedObject.Update();
+            builtEntryCount = entriesProperty != null ? entriesProperty.arraySize : builtEntryCount;
             RefreshFindings();
+            constantsSection?.RegenerateIfConfigured();
         }
 
         private void RefreshFindings()

@@ -28,11 +28,12 @@ which id the bake resolves against — never where the track appears in the Clip
 
 ## Authoring a shared clip
 
-1. **Map the rig, then tag the parts.** On the rig's hierarchy row in the Clip Editor (or in the
-   `RigAsset` inspector's Target Tags section), click the row's tag button. It opens a searchable
-   picker over the project's tag vocabulary — filter to find an existing tag, or type a name and
-   choose **Create tag "…"** if this is the first rig to need it. Reuse an existing tag whenever the
-   part plays the same role on another rig; that's what makes tracks travel later.
+1. **Map the rig, then tag the parts.** Select a claimed part in the Clip Editor and click the tag
+   button at the right edge of its selection heading in the inspector (or use the `RigAsset`
+   inspector's Target Tags section). It opens a searchable picker over the project's tag vocabulary —
+   filter to find an existing tag, or type a name and choose **Create tag "…"** if this is the first
+   rig to need it. Reuse an existing tag whenever the part plays the same role on another rig; that's
+   what makes tracks travel later.
 2. **Bind a track by tag.** A Transform or Flipbook track's header shows **Target-bound** by default;
    click it to open the same picker and choose a tag instead. The track's label updates to show which
    tag it now travels under.
@@ -44,10 +45,10 @@ which id the bake resolves against — never where the track appears in the Clip
    travel (see the T4 warning below).
 
 Selection only, never typing: a tag's name is typed in exactly one place — the picker's inline
-**Create tag "…"** row, or the registry's own list via the picker's **Edit tags…** row or
-**Project Settings → DOTS Animation Toolkit → Target Tags** — and every other surface only ever
-picks from what's already there. That's deliberate. A wrong pick from a visible list is a mistake
-you can see; a typo that silently resolves to nothing is not.
+**Create tag "…"** row, or the registry's own list via the **Edit…** button beside the picker's
+search field or **Project Settings → DOTS Animation Toolkit → Target Tags** — and every other
+surface only ever picks from what's already there. That's deliberate. A wrong pick from a visible
+list is a mistake you can see; a typo that silently resolves to nothing is not.
 
 ## What "shareable" actually promises
 

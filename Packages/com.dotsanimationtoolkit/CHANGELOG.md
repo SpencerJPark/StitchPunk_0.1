@@ -59,6 +59,53 @@ clip authored once against a role plays on every rig that tags a part the same w
 
 See [`sharing-clips.md`](Documentation~/sharing-clips.md) for the authoring workflow.
 
+### Changed — the part tag moves to the clip inspector; the picker's Edit affordance is now a pinned button
+
+Owner directive, reversing where the previous entry put the part-tag control. Retargeting is
+something you read in the clip inspector, beside the clip's own tracks, not in the structural
+hierarchy tree — so the tag button moves from each hierarchy row onto the far edge of the same
+part's selection heading in the inspector, one per selected part. The hierarchy tree goes back to
+being labels only.
+
+- **`RigAssetEditor`**'s Target Tags section and the searchable tag/event picker are unaffected —
+  same popup, same rig-level `RigTargetDefinition.tagId` it always wrote. Only the hierarchy-row
+  entry point is gone.
+- **The picker's Edit… button is now pinned beside the search field**, not the last row of the
+  list. A long vocabulary used to push it further down the panel with every entry; it is now one
+  fixed target regardless of vocabulary size, and the row list scrolls inside a capped-height area
+  instead of growing the panel past the window.
+
+### Changed — vocabulary constants regenerate automatically; no button, no save dialog (amendment A54)
+
+Owner directive: *"I don't wanna have to barely do that... auto deal with all that stuff for me."*
+The **Generate … Constants** button and its save-file dialog are gone. The first time a row is
+added, removed, or a name field loses focus, the constants file is written to a fixed path under
+`Assets/Generated/DotsAnimationToolkit/` and kept in sync automatically after every such edit from
+then on — nothing to click, nothing to ask where.
+
+- A same-content rewrite is skipped, so an edit that changed nothing does not touch the file's
+  timestamp or trigger an `AssetDatabase.Refresh` on every keystroke.
+- If the fixed destination is ever wrong for a project, set
+  `IVocabularyRegistry.GeneratedConstantsPath` directly on the registry asset — there is no UI for
+  it any more.
+
+### Fixed — a project vocabulary's name field silently refused every keystroke
+
+`VocabularyRegistryProvider`'s auto-created registry instances used `HideFlags.HideAndDontSave`,
+which also marks the object not editable — every bound `PropertyField` rendered but rejected every
+click and keystroke. Changed to `HideFlags.DontSave` (`HideInHierarchy | DontSaveInEditor |
+DontSaveInBuild`), which keeps the instance out of the scene and the asset database without making
+it read-only.
+
+- **`VocabularyPicker`'s row list now stays live** while a separate `VocabularyQuickEditWindow` or
+  the Project Settings page edits the same registry, via a new
+  `VocabularyRegistryProvider.RegistryChanged` event — including an add or remove, which has no
+  field to bubble a rename's `FocusOutEvent` from.
+- **Clip preview render no longer clobbers an in-progress UI Toolkit drag.** `ClipPreviewController`'s
+  render call now saves and restores `GUIUtility.hotControl` around `BeginPreview`/`EndPreview`;
+  running 30 times a second off the `EditorApplication.update` tick, it was intermittently stealing
+  hot-control from an unrelated field mid-drag.
+
 ## [0.11.0] — the ragdoll (amendment A50)
 
 ### Added — ragdolls, authored on the rig hierarchy and falling in the billboard plane

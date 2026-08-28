@@ -1465,9 +1465,19 @@ namespace DotsAnimationToolkit.Editor
             // overwrites BillboardResolveSystem's write at runtime (§9 G1's own shape).
             StepRagdollPreview();
 
+            // BeginPreview/EndPreview are IMGUI-era APIs, called here from an EditorApplication.update
+            // tick rather than from inside an actual OnGUI pass. Off that pipeline they still touch
+            // the global IMGUI hot-control state, and since this runs 30 times a second regardless of
+            // what the user is doing, it was intermittently clobbering an in-progress drag on an
+            // unrelated UI Toolkit field elsewhere in the window (numeric drag-to-scrub still bottoms
+            // out on GUIUtility.hotControl). Saving and restoring it around the render call is free
+            // insurance against that even if some future Unity version changes the exact mechanism.
+            int hotControlBeforeRender = GUIUtility.hotControl;
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
-            return renderUtility.EndPreview();
+            Texture renderedTexture = renderUtility.EndPreview();
+            GUIUtility.hotControl = hotControlBeforeRender;
+            return renderedTexture;
         }
 
         /// <summary>

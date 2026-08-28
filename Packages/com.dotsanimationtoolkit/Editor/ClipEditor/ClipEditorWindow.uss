@@ -257,21 +257,6 @@
     color: rgb(110, 140, 160);
 }
 
-/* One recycled tree row: the label plus its target-tag button (E6 Task 4), side by side. */
-.clip-editor__hierarchy-row-container {
-    flex-direction: row;
-    align-items: center;
-    flex-grow: 1;
-}
-
-.clip-editor__hierarchy-row-tag-button {
-    flex-shrink: 0;
-    min-width: 90px;
-    margin-left: 4px;
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
 /* ------------------------------------------------------------------------------------------- */
 /* Transport bar                                                                                 */
 /* ------------------------------------------------------------------------------------------- */
@@ -786,21 +771,37 @@
     margin-bottom: 4px;
 }
 
-/* Names the object a block of fields belongs to. With several parts selected the inspector is a
-   stack of near-identical blocks, so the rule is a separator as much as a label. */
-.clip-editor__selection-heading {
+/* Names the object a block of fields belongs to, and — at the far edge of the same row — the
+   part's rig-level tag button. With several parts selected the inspector is a stack of
+   near-identical blocks, so the separator rule spans the whole row, not just the text. */
+.clip-editor__selection-heading-row {
+    flex-direction: row;
+    align-items: center;
     margin-top: 10px;
     padding-top: 6px;
     padding-bottom: 2px;
     border-top-width: 1px;
     border-top-color: rgba(0, 0, 0, 0.35);
+}
+
+.clip-editor__selection-heading {
+    flex-grow: 1;
     font-size: 12px;
 }
 
 /* The row the viewport gizmo and outline are on — one of many blocks, but only one of them is
-   being pointed at in the scene. */
+   being pointed at in the scene. Coloured on the label, not the row: it marks the name, not the
+   tag button beside it. */
 .clip-editor__selection-heading--active {
     color: rgb(120, 190, 255);
+}
+
+.clip-editor__selection-heading-tag-button {
+    flex-shrink: 0;
+    min-width: 90px;
+    margin-left: 4px;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* ------------------------------------------------------------------------------------------- */

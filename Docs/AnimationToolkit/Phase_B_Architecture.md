@@ -2109,3 +2109,78 @@ edits against a real asset.
 
 No data model, bake, or runtime change — this closes an editor-wiring gap
 between what A51 specified and what the tree actually did.
+
+## Amendment A53 (2026-08-28 — product-owner directive): the part tag moves from the hierarchy row to the clip inspector
+
+E6 Task 4 (commit `20ee797d`) put the part-tag button on every hierarchy
+tree row, reasoning that tagging should be reachable while looking at the
+part rather than filed in a separate section. The owner has now reversed
+the placement, not the reasoning: *"I want the edit part tag to not show
+in the hierarchy window on the left, but in the same row — opposite side —
+as the hierarchy part name in the clip inspector … I feel like visually it
+makes more sense there."* Retargeting is read in the inspector, beside the
+clip's own tracks, not in the structural tree the hierarchy pane shows.
+
+The button still writes exactly what it always wrote —
+`RigTargetDefinition.tagId`, on the rig, shared by every clip set that uses
+it — through the same `VocabularyPicker` every other tag/event surface
+uses. Only the row it hangs on changed: the hierarchy tree's
+`HierarchyRowElement` wrapper is gone (a row is a bare label again), and the
+selection heading in `BuildComponentStack` is now a row — label grown to
+fill the space, tag button pinned to the far edge, one per selected part.
+`OpenHierarchyRowTagPicker` became `OpenPartTagPicker`, anchored to the
+heading's button instead of a recycled tree row.
+
+**Do not read this as A51/E6 having been wrong.** The hierarchy placement
+worked and shipped; this is a visual-ergonomics call made after living with
+it, not a defect found in it.
+
+A second, unrelated owner complaint landed in the same pass: the picker's
+"Edit …" row used to be appended after every vocabulary entry, so it moved
+farther down the panel as a project accumulated tags — exactly the "hard to
+find" failure a growing list produces. It is now a button pinned beside the
+picker's search field, and the row list scrolls inside a capped-height
+`ScrollView` instead of growing the panel past the window. This applies to
+both vocabularies (`VocabularyPickerConfig` gained `EditButtonLabel`); the
+one-popup-style rule from E6 Task 3 still holds.
+
+No data model, bake, or runtime change.
+
+## Amendment A54 (2026-08-28 — product-owner directive): generated constants regenerate themselves
+
+Each registry inspector's **Generate … Constants** button — a save dialog the first time, a
+Regenerate button after — is gone. The owner: *"I don't wanna have to barely do that... auto deal
+with all that stuff for me."* There is no longer a click in this loop at all: the first time a row
+is added, removed, or a name field loses focus, `VocabularyConstantsSection.RegenerateIfConfigured`
+picks a fixed path under `Assets/Generated/DotsAnimationToolkit/` (if none is stored yet) and writes
+the file, and every subsequent qualifying edit keeps it in sync the same way. A same-content rewrite
+is skipped so an edit that changed nothing does not retrigger `AssetDatabase.Refresh`.
+
+Both registry editors (`TargetTagRegistryEditor`, `AnimEventKeyRegistryEditor`) call
+`RegenerateIfConfigured` from two places: immediately when `TrackSerializedObjectValue` reports the
+entry count changed (add/remove/Undo — nothing to bubble a `FocusOutEvent` from), and from a
+`FocusOutEvent` registered on the inspector root, which fires once when a rename's edit is done
+rather than on every keystroke. The distinction matters for the same reason `RefreshRows` already
+guarded against a per-keystroke rebuild: regenerating a file under `Assets/` on every character typed
+would call `AssetDatabase.Refresh` that often.
+
+**A latent bug surfaced and got fixed in the same pass.** `VocabularyRegistryProvider`'s
+project-singleton registries were created with `HideFlags.HideAndDontSave`, which — beyond keeping
+the instance out of the scene, which is all anyone intended — also marks it not editable, so every
+bound `PropertyField` against it rendered but silently rejected every click and keystroke. This is
+what made a project's tag/event registry name fields appear to not respond to typing; it had nothing
+to do with UI wiring. Changed to `HideFlags.DontSave` (`HideInHierarchy | DontSaveInEditor |
+DontSaveInBuild`), which keeps the same scene/asset-database exclusion without the editability bit.
+
+A second, unrelated fix landed in the same pass: `ClipPreviewController`'s render call now saves and
+restores `GUIUtility.hotControl` around `BeginPreview`/`EndPreview`. Those are IMGUI-era APIs called
+from an `EditorApplication.update` tick 30 times a second, and were intermittently stealing
+hot-control from an unrelated UI Toolkit field mid-drag elsewhere in the window.
+
+`VocabularyRegistryProvider` also gained a `RegistryChanged` event, raised after every
+`Persist(TargetTagRegistry)` / `Persist(AnimEventKeyRegistry)` call. A still-open `VocabularyPicker`
+subscribes to it so its row list stays current while a separate `VocabularyQuickEditWindow` or the
+Project Settings page edits the same registry — including an add or remove, neither of which has a
+field to bubble a rename's `FocusOutEvent` from, so the picker had no other way to hear about them.
+
+No data model, bake, or runtime change.

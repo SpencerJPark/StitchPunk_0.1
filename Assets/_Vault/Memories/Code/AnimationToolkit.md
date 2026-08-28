@@ -46,6 +46,14 @@ events.
 `(unresolved 0x1A2B3C4D)`, and only when the registry cannot name it (a
 dangling reference after a delete). Anywhere else, resolve the name first.
 
+**Two tag buttons live in the same Clip Editor pane — don't conflate them (amendment A53).** The
+*part* tag (`ClipEditorWindow.BindPartTagButton`/`OpenPartTagPicker`, in `ComponentStack.cs`) sits
+at the far edge of the selection heading and writes `RigTargetDefinition.tagId` on the **rig** —
+shared by every clip set that uses it. The *track* tag binding (`BuildTagBindButton`, same file)
+sits in a component block's header and writes the **clip**'s `TransformTrack.tagId`/
+`SpriteTrack.tagId` — whether that one track resolves by target id or by tag. Same
+`VocabularyPicker`, different asset written.
+
 See [`sharing-clips.md`](../../../Packages/com.dotsanimationtoolkit/Documentation~/sharing-clips.md)
 for the target-tag authoring workflow and
 [`animation-events.md`](../../../Packages/com.dotsanimationtoolkit/Documentation~/animation-events.md)

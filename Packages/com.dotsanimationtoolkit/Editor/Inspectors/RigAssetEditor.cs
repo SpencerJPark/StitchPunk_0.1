@@ -226,7 +226,8 @@ namespace DotsAnimationToolkit.Editor
             Label explanation = new Label(
                 "A tag says what a target is FOR, so a clip can be shared with any other rig that "
                 + "tags a part the same way. Tags are always picked from the registry below, never "
-                + "typed here - open 'Edit tags...' from the picker to add one on the spot.");
+                + "typed here - use the picker's 'Edit...' button, beside its search field, to add "
+                + "one on the spot.");
             explanation.style.whiteSpace = WhiteSpace.Normal;
             explanation.style.opacity = 0.7f;
             explanation.style.marginBottom = 4f;

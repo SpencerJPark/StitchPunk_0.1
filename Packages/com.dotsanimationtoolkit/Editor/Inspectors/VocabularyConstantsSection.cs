@@ -4,26 +4,27 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using DotsAnimationToolkit.Authoring;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The "Generate … Constants" block both vocabulary inspectors show (amendment E6 Task 2): a
-    /// destination chosen once, then a Regenerate button that rewrites it in place.
+    /// The generated-constants status line both vocabulary inspectors show (amendment E6 Task 2,
+    /// amendment A54): no button, no dialog, ever. The first time a row is added, removed, or a name
+    /// field loses focus, this picks a destination on its own and writes the file there; every edit
+    /// after that keeps it in sync the same way — see <see cref="RegenerateIfConfigured"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <strong>The destination is asked for exactly once.</strong> A package cannot know — and must
-    /// not guess — which assembly in the host project should own generated constants, so the first
-    /// press opens a save dialog. Asking again on every press would be worse than merely tedious:
-    /// re-picking a path is how a project ends up with two constants files, one of which nobody
-    /// regenerates, so half the code compiles against names that have since been renamed. The chosen
-    /// path is remembered on the registry itself (see
-    /// <see cref="IVocabularyRegistry.GeneratedConstantsPath"/>) and afterwards the button rewrites
-    /// that file with no dialog at all.
+    /// <strong>The destination used to be asked for.</strong> The original design opened a save
+    /// dialog on first use, reasoning that a package cannot know which assembly in the host project
+    /// should own generated constants. The owner rejected that in favour of zero interaction —
+    /// <em>"I don't wanna have to barely do that... auto deal with all that stuff for me"</em> — so
+    /// this now picks a fixed, conventional path itself (<see cref="DefaultDestinationDirectory"/>)
+    /// the first time anything needs generating, and never asks again. If that default is ever wrong
+    /// for a project, the fix is to change <see cref="IVocabularyRegistry.GeneratedConstantsPath"/>
+    /// directly on the registry asset; there is deliberately no UI for it any more.
     /// </para>
     /// <para>
     /// <strong>One class serving both vocabularies rather than a block per inspector.</strong> The
@@ -42,9 +43,11 @@ namespace DotsAnimationToolkit.Editor
     {
         private const string LogPrefix = "[DOTS Animation Toolkit] ";
 
+        /// <summary>Where a destination is picked automatically the first time one is needed.</summary>
+        private const string DefaultDestinationDirectory = "Assets/Generated/DotsAnimationToolkit";
+
         private readonly IVocabularyRegistry registry;
         private readonly UnityEngine.Object registryContext;
-        private readonly string dialogTitle;
         private readonly string defaultFileName;
         private readonly string entryNoun;
         private readonly string fallbackEntryNamePrefix;
@@ -56,9 +59,8 @@ namespace DotsAnimationToolkit.Editor
         /// The same registry as a <see cref="UnityEngine.Object"/>, used only so a console message
         /// about it can be clicked back to its inspector.
         /// </param>
-        /// <param name="dialogTitle">Save-dialog and button text, e.g. "Generate Target Tag Constants".</param>
         /// <param name="defaultFileName">
-        /// Offered in the save dialog without extension, e.g. "TargetTags" — and, because the class
+        /// The generated file's name without extension, e.g. "TargetTags" — and, because the class
         /// name is derived from the file name, this is what makes the owner's
         /// <c>TargetTags.Jaw</c> the default shape without anyone typing a class name.
         /// </param>
@@ -67,12 +69,11 @@ namespace DotsAnimationToolkit.Editor
         /// <param name="persistRegistry">
         /// Called after the remembered path changes. The project vocabularies live outside the asset
         /// database and have no autosave, so a path this block stores and does not persist is lost on
-        /// the next domain reload — and the button silently reverts to asking for a destination.
+        /// the next domain reload.
         /// </param>
         public VocabularyConstantsSection(
             IVocabularyRegistry registry,
             UnityEngine.Object registryContext,
-            string dialogTitle,
             string defaultFileName,
             string entryNoun,
             string fallbackEntryNamePrefix,
@@ -80,7 +81,6 @@ namespace DotsAnimationToolkit.Editor
         {
             this.registry = registry;
             this.registryContext = registryContext;
-            this.dialogTitle = dialogTitle;
             this.defaultFileName = defaultFileName;
             this.entryNoun = entryNoun;
             this.fallbackEntryNamePrefix = fallbackEntryNamePrefix;
@@ -91,8 +91,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Re-reads the remembered path and redraws. Called by the owning inspector whenever the
-        /// registry may have changed underneath it.
+        /// Re-reads the remembered path and redraws — a plain status line, nothing clickable. Called
+        /// by the owning inspector whenever the registry may have changed underneath it.
         /// </summary>
         public void Rebuild()
         {
@@ -105,103 +105,62 @@ namespace DotsAnimationToolkit.Editor
             string storedPath = registry.GeneratedConstantsPath;
             if (string.IsNullOrEmpty(storedPath))
             {
-                Button generateButton = new Button(ChooseDestinationAndGenerate) { text = dialogTitle };
-                generateButton.tooltip =
-                    "Writes a C# file of constants so game code refers to " + entryNoun.ToLowerInvariant()
-                    + "s by name. You will be asked where once; after that this becomes Regenerate.";
-                Add(generateButton);
+                // Nothing has ever needed generating yet - a project that never adds a row here
+                // carries no constants file and shows nothing in this section either.
                 return;
             }
 
             Label pathLabel = new Label("Constants: " + storedPath);
             pathLabel.selection.isSelectable = true;
-            pathLabel.style.opacity = 0.75f;
+            pathLabel.style.opacity = 0.6f;
             pathLabel.style.whiteSpace = WhiteSpace.Normal;
             Add(pathLabel);
 
             if (!File.Exists(storedPath))
             {
                 Label missingLabel = new Label(
-                    "That file is not there any more. Regenerate writes it again, or pick a new "
-                    + "location.");
+                    "That file is not there any more. It reappears the next time a row here changes.");
                 missingLabel.style.whiteSpace = WhiteSpace.Normal;
                 missingLabel.style.color = new Color(0.92f, 0.72f, 0.32f);
                 Add(missingLabel);
             }
-
-            VisualElement buttonRow = new VisualElement();
-            buttonRow.style.flexDirection = FlexDirection.Row;
-            buttonRow.style.marginTop = 2f;
-
-            Button regenerateButton = new Button(RegenerateAtStoredPath) { text = "Regenerate" };
-            regenerateButton.style.flexGrow = 1f;
-            regenerateButton.tooltip =
-                "Rewrites the file above from the current rows. Renaming a row renames its constant, "
-                + "so code using the old name stops compiling - which is the intended warning.";
-            buttonRow.Add(regenerateButton);
-
-            Button relocateButton =
-                new Button(ChooseDestinationAndGenerate) { text = "Change location..." };
-            buttonRow.Add(relocateButton);
-
-            Add(buttonRow);
         }
 
         /// <summary>
-        /// Asks where the constants should live, remembers the answer, and writes them there.
+        /// Rewrites the generated file from the current rows, picking a destination automatically the
+        /// first time one is needed. The owning inspector calls this after every edit that could
+        /// change what the file should say — a row added, removed, or a name field losing focus —
+        /// which is what makes the file self-maintaining with nothing to click (amendment A54).
         /// </summary>
-        /// <remarks>
-        /// An empty return from the dialog means the user cancelled — the documented contract of
-        /// <see cref="EditorUtility.SaveFilePanel"/> — and must leave the remembered path alone, so a
-        /// cancelled relocation does not orphan the file that is already generated.
-        /// </remarks>
-        private void ChooseDestinationAndGenerate()
+        public void RegenerateIfConfigured()
         {
-            string startingDirectory = string.Empty;
-            string storedPath = registry.GeneratedConstantsPath;
-            if (!string.IsNullOrEmpty(storedPath))
-            {
-                string storedDirectory = Path.GetDirectoryName(storedPath);
-                if (!string.IsNullOrEmpty(storedDirectory) && Directory.Exists(storedDirectory))
-                {
-                    startingDirectory = storedDirectory;
-                }
-            }
-
-            string chosenFilePath = EditorUtility.SaveFilePanel(
-                dialogTitle,
-                startingDirectory,
-                string.IsNullOrEmpty(storedPath)
-                    ? defaultFileName
-                    : Path.GetFileNameWithoutExtension(storedPath),
-                ConstantsGenerator.GeneratedFileExtension);
-            if (string.IsNullOrEmpty(chosenFilePath))
+            if (registry == null)
             {
                 return;
             }
 
-            registry.GeneratedConstantsPath = ConstantsGenerator.ToStorablePath(chosenFilePath);
-            if (persistRegistry != null)
-            {
-                persistRegistry();
-            }
-
-            RegenerateAtStoredPath();
-            Rebuild();
-        }
-
-        private void RegenerateAtStoredPath()
-        {
             string storedPath = registry.GeneratedConstantsPath;
             if (string.IsNullOrEmpty(storedPath))
             {
-                return;
+                storedPath = DefaultDestinationDirectory + "/" + defaultFileName + "."
+                    + ConstantsGenerator.GeneratedFileExtension;
+                registry.GeneratedConstantsPath = storedPath;
+                persistRegistry?.Invoke();
             }
 
             List<string> reports = new List<string>();
             string className = ConstantsGenerator.ClassNameFromFilePath(storedPath, defaultFileName);
             string generatedSource = ConstantsGenerator.BuildVocabularyConstantsSource(
                 registry, className, entryNoun, fallbackEntryNamePrefix, reports);
+
+            // This runs on every field blur, not one deliberate button press, and a same-content
+            // rewrite would still touch the file's timestamp and trigger AssetDatabase.Refresh - a
+            // compile-scale cost, since the default destination sits under Assets/ - for a click
+            // that changed nothing. Skipped whenever the bytes would be identical.
+            if (File.Exists(storedPath) && File.ReadAllText(storedPath) == generatedSource)
+            {
+                return;
+            }
 
             ConstantsGenerator.WriteGeneratedFile(storedPath, generatedSource);
 
@@ -214,6 +173,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 Debug.LogWarning(LogPrefix + reports[reportIndex], registryContext);
             }
+
+            // Shows the path now that a destination may have just been picked for the first time,
+            // and clears a stale "file is missing" warning now that the write above recreated it.
+            Rebuild();
         }
     }
 }

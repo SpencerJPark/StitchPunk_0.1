@@ -43,6 +43,13 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement findingsContainer;
         private VocabularyConstantsSection constantsSection;
 
+        /// <summary>
+        /// Row count as of the last <see cref="RefreshRows"/>, so <see cref="OnSerializedObjectChanged"/>
+        /// can tell a resize (rows added/removed elsewhere) from an ordinary keystroke — see that
+        /// method's remarks for why the distinction matters.
+        /// </summary>
+        private int builtEntryCount = -1;
+
         public override VisualElement CreateInspectorGUI()
         {
             entriesProperty = serializedObject.FindProperty("entries");
@@ -75,7 +82,6 @@ namespace DotsAnimationToolkit.Editor
             constantsSection = new VocabularyConstantsSection(
                 target as TargetTagRegistry,
                 target,
-                "Generate Target Tag Constants",
                 "TargetTags",
                 "Target tag",
                 "Tag",
@@ -97,22 +103,53 @@ namespace DotsAnimationToolkit.Editor
             // The explicit PersistChange() is the reason this callback exists at all for this
             // asset: TargetTagRegistry lives outside the AssetDatabase (Task 1), so a rename typed
             // into the bound name field above has nothing else that would ever write it to disk.
-            root.TrackSerializedObjectValue(serializedObject, changedObject =>
-            {
-                TargetTagRegistry changedRegistry = target as TargetTagRegistry;
-                if (changedRegistry != null)
-                {
-                    VocabularyRegistryProvider.Persist(changedRegistry);
-                }
-                RefreshRows();
-                RefreshFindings();
-                if (constantsSection != null)
-                {
-                    constantsSection.Rebuild();
-                }
-            });
+            root.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
+
+            // Amendment A54: constants regenerate on their own, so there is nothing left to click.
+            // FocusOutEvent bubbles up from whichever row's PropertyField the edit just left, so this
+            // one registration (on root, which survives RefreshRows rebuilding the rows beneath it)
+            // covers every row without per-row wiring. Keystroke-by-keystroke would also work but
+            // would rewrite the file - and call AssetDatabase.Refresh - on every character typed;
+            // firing once when the field is left is what "auto, but not disruptive" actually requires.
+            root.RegisterCallback<FocusOutEvent>(focusOutEvent => constantsSection?.RegenerateIfConfigured());
 
             return root;
+        }
+
+        /// <summary>
+        /// Persists every change, but only tears down and rebuilds the rows when the entry count
+        /// itself changed (add/remove/Undo) — not on an ordinary rename keystroke, which is a change
+        /// to the very row it would be destroying. Each <see cref="PropertyField"/> is already bound
+        /// and refreshes its own displayed value; rebuilding it mid-edit only threw away focus and
+        /// the character just typed, so a name was un-typeable a keystroke at a time. Same guard
+        /// <see cref="RigAssetEditor"/>'s own target-tag rows use for the identical reason.
+        /// </summary>
+        private void OnSerializedObjectChanged(SerializedObject changedSerializedObject)
+        {
+            TargetTagRegistry changedRegistry = target as TargetTagRegistry;
+            if (changedRegistry != null)
+            {
+                VocabularyRegistryProvider.Persist(changedRegistry);
+            }
+
+            bool rowCountChanged = entriesProperty != null && entriesProperty.arraySize != builtEntryCount;
+            if (rowCountChanged)
+            {
+                RefreshRows();
+            }
+            RefreshFindings();
+
+            // A resize (Undo/Redo, or an edit made on a different open copy of this inspector) has
+            // no FocusOutEvent here to trigger off, so it regenerates immediately. An ordinary rename
+            // keystroke does nothing here at all: the section's own display (destination path,
+            // missing-file warning) does not depend on row text, so rebuilding it per keystroke was
+            // pure jitter - the button flickering as it was torn down and recreated on every
+            // character - for a section that had nothing to redraw. FocusOutEvent above is what
+            // actually regenerates the file once the edit is done.
+            if (rowCountChanged)
+            {
+                constantsSection?.RegenerateIfConfigured();
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -128,6 +165,7 @@ namespace DotsAnimationToolkit.Editor
             rowsContainer.Clear();
 
             int entryCount = entriesProperty.arraySize;
+            builtEntryCount = entryCount;
             if (entryCount == 0)
             {
                 Label emptyLabel = new Label(
@@ -196,6 +234,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
+            constantsSection?.RegenerateIfConfigured();
         }
 
         /// <summary>
@@ -237,6 +276,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
+            constantsSection?.RegenerateIfConfigured();
         }
 
         // -----------------------------------------------------------------------------------

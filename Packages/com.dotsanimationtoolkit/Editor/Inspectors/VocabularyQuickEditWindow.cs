@@ -27,11 +27,13 @@ namespace DotsAnimationToolkit.Editor
     /// inspector go through one code path.
     /// </para>
     /// <para>
-    /// <strong>Closing calls back rather than the picker polling for a change.</strong> The picker
-    /// that opened this window has usually already closed itself (picking the edit row closes the
-    /// overlay it came from, like every other row), so there is no live picker instance to push a
-    /// refresh into. Whatever opened the picker in the first place is handed the same callback and
-    /// re-reads the registry itself once this window reports it is done.
+    /// <strong>Closing calls back rather than the picker polling for a change.</strong> A still-open
+    /// picker does not need this window to call back while an edit is in progress — it hears about
+    /// every add, remove and rename directly from <see cref="VocabularyRegistryProvider.RegistryChanged"/>,
+    /// which every mutation in the hosted registry editor already goes through (amendment A54).
+    /// <see cref="onClosed"/> is for whatever opened the picker in the first place — usually a
+    /// different inspector than the picker's own — which is handed this callback and re-reads the
+    /// registry once this window reports it is done.
     /// </para>
     /// </remarks>
     public sealed class VocabularyQuickEditWindow : EditorWindow

@@ -106,9 +106,12 @@ namespace DotsAnimationToolkit.Editor
         private const string ReconcileRemapUssClassName = "clip-editor__reconcile-remap";
         private const string ViewportFrameRigEditUssClassName =
             "clip-editor__viewport-frame--rig-edit";
+        private const string SelectionHeadingRowUssClassName = "clip-editor__selection-heading-row";
         private const string SelectionHeadingUssClassName = "clip-editor__selection-heading";
         private const string SelectionHeadingActiveUssClassName =
             "clip-editor__selection-heading--active";
+        private const string SelectionHeadingTagButtonUssClassName =
+            "clip-editor__selection-heading-tag-button";
 
         private ObjectField clipSetField;
         private ListView clipListView;
@@ -3365,34 +3368,7 @@ namespace DotsAnimationToolkit.Editor
 
             RegisterReparentDrag(label);
 
-            // The tag button (E6 Task 4): shown only on a row that names a rig target, hidden by
-            // BindHierarchyRow otherwise. Reads label.item at click time rather than capturing the
-            // item now, because rows are recycled as the tree scrolls (see the manipulator above).
-            Button tagButton = new Button();
-            tagButton.AddToClassList(HierarchyRowTagButtonUssClassName);
-            tagButton.clicked += () => OpenHierarchyRowTagPicker(label, tagButton);
-
-            HierarchyRowElement row = new HierarchyRowElement(label, tagButton);
-            row.AddToClassList(HierarchyRowContainerUssClassName);
-            row.Add(label);
-            row.Add(tagButton);
-            return row;
-        }
-
-        private const string HierarchyRowContainerUssClassName = "clip-editor__hierarchy-row-container";
-        private const string HierarchyRowTagButtonUssClassName = "clip-editor__hierarchy-row-tag-button";
-
-        /// <summary>One recycled tree row: the label the rest of this file already addressed, plus its tag button.</summary>
-        private sealed class HierarchyRowElement : VisualElement
-        {
-            public readonly HierarchyRowLabel label;
-            public readonly Button tagButton;
-
-            public HierarchyRowElement(HierarchyRowLabel label, Button tagButton)
-            {
-                this.label = label;
-                this.tagButton = tagButton;
-            }
+            return label;
         }
 
         /// <summary>
@@ -3522,18 +3498,16 @@ namespace DotsAnimationToolkit.Editor
 
         private void BindHierarchyRow(VisualElement element, int index)
         {
-            HierarchyRowElement row = element as HierarchyRowElement;
-            if (row == null)
+            HierarchyRowLabel label = element as HierarchyRowLabel;
+            if (label == null)
             {
                 return;
             }
-            HierarchyRowLabel label = row.label;
             HierarchyItem item = hierarchyTreeView.GetItemDataForIndex<HierarchyItem>(index);
             label.item = item;
             if (item == null)
             {
                 label.text = string.Empty;
-                row.tagButton.style.display = DisplayStyle.None;
                 return;
             }
             label.text = item.displayName;
@@ -3550,79 +3524,6 @@ namespace DotsAnimationToolkit.Editor
             }
             label.EnableInClassList(AnimatedBoneUssClassName, isAnimated);
             ApplyBillboardIndicator(label, item);
-            BindHierarchyRowTagButton(row, item);
-        }
-
-        /// <summary>
-        /// Shows the target-tag button on a row that names a rig target — mapping a rig, then
-        /// tagging its parts, directly on the hierarchy the owner looks at rather than in a separate
-        /// section (E6 Task 4, spec §4.2). Hidden on a row with no target: an unclaimed prefab node
-        /// has no <see cref="RigTargetDefinition"/> to carry a tag.
-        /// </summary>
-        private void BindHierarchyRowTagButton(HierarchyRowElement row, HierarchyItem item)
-        {
-            RigTargetDefinition target =
-                item.targetId != 0u ? FindRigTargetById(item.targetId) : null;
-            if (target == null)
-            {
-                row.tagButton.style.display = DisplayStyle.None;
-                return;
-            }
-            row.tagButton.style.display = DisplayStyle.Flex;
-            row.tagButton.text = DescribeHierarchyRowTagButtonText(target.tagId);
-        }
-
-        private string DescribeHierarchyRowTagButtonText(uint tagId)
-        {
-            if (tagId == 0u)
-            {
-                return "Tag: (none)";
-            }
-            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
-            string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
-            return tagName != null
-                ? "Tag: " + tagName
-                : "Tag: (unresolved 0x" + tagId.ToString("X8") + ")";
-        }
-
-        /// <summary>
-        /// Opens the searchable tag picker anchored to a hierarchy row's tag button — one popup
-        /// style shared with <see cref="RigAssetEditor"/>'s Target Tags section and the Clip
-        /// Editor's own track-binding button (spec §4.2.1: "the tag-edit popup ... must be the same
-        /// UI, not parallel implementations").
-        /// </summary>
-        private void OpenHierarchyRowTagPicker(HierarchyRowLabel label, Button anchor)
-        {
-            HierarchyItem item = label.item;
-            RigTargetDefinition target = item != null && item.targetId != 0u
-                ? FindRigTargetById(item.targetId)
-                : null;
-            if (target == null || clipSet == null || clipSet.rig == null)
-            {
-                return;
-            }
-
-            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
-            VocabularyPicker.Open(
-                rootVisualElement,
-                anchor,
-                tagRegistry,
-                tagRegistry,
-                VocabularyPickerConfig.ForTargetTags(tagRegistry),
-                chosenTagId =>
-                {
-                    Undo.RecordObject(clipSet.rig, "Set Target Tag");
-                    target.tagId = chosenTagId;
-                    EditorUtility.SetDirty(clipSet.rig);
-                    RefreshHierarchyRows();
-                },
-                () =>
-                {
-                    // The registry changed underneath every open row (a tag renamed or newly
-                    // created via "Edit tags..." / "Create tag..."), not just this one's — every
-                    // row's button label is re-derived rather than just this one's.
-                    RefreshHierarchyRows();
-                });
         }
 
         /// <summary>The rig target with this id, or null.</summary>
@@ -7812,12 +7713,40 @@ namespace DotsAnimationToolkit.Editor
         /// has to say whose numbers it holds. The active marker explains why only one of them has a
         /// gizmo in the viewport.
         /// </remarks>
-        private static Label MakeSelectionHeading(string name, bool isActive)
+        private SelectionHeadingElement MakeSelectionHeading(string name, bool isActive)
         {
-            Label heading = MakeHeading(isActive ? name + "   (active)" : name);
-            heading.AddToClassList(SelectionHeadingUssClassName);
-            heading.EnableInClassList(SelectionHeadingActiveUssClassName, isActive);
-            return heading;
+            Label label = MakeHeading(isActive ? name + "   (active)" : name);
+            label.AddToClassList(SelectionHeadingUssClassName);
+            label.EnableInClassList(SelectionHeadingActiveUssClassName, isActive);
+
+            // Part tag button: shown only when the row names a claimed rig target, bound in
+            // BuildComponentStack once the target is resolved. Built here rather than left null so
+            // the row layout (label grown, button at the far edge) is correct before the caller
+            // fills it in.
+            Button tagButton = new Button();
+            tagButton.AddToClassList(SelectionHeadingTagButtonUssClassName);
+            tagButton.tooltip = "The role this part plays, stored on the rig — shared by every "
+                + "clip in this set. A clip that binds a track to this tag plays on any other rig "
+                + "that tags a part the same way.";
+
+            SelectionHeadingElement row = new SelectionHeadingElement(label, tagButton);
+            row.AddToClassList(SelectionHeadingRowUssClassName);
+            row.Add(label);
+            row.Add(tagButton);
+            return row;
+        }
+
+        /// <summary>One selection heading: the part's name, plus its rig-level tag button at the far edge.</summary>
+        private sealed class SelectionHeadingElement : VisualElement
+        {
+            public readonly Label label;
+            public readonly Button tagButton;
+
+            public SelectionHeadingElement(Label label, Button tagButton)
+            {
+                this.label = label;
+                this.tagButton = tagButton;
+            }
         }
 
         /// <summary>

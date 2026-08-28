@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System;
 using System.IO;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
@@ -90,6 +91,18 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Raised after either project vocabulary is written by <see cref="Persist(TargetTagRegistry)"/>
+        /// or <see cref="Persist(AnimEventKeyRegistry)"/> — every add, remove, and (live, per
+        /// keystroke) rename. A still-open <see cref="VocabularyPicker"/> subscribes to this so its
+        /// row list stays current while a separate <see cref="VocabularyQuickEditWindow"/> is being
+        /// edited, including an add or remove the picker would otherwise have no way to hear about:
+        /// those never touch the field a <c>FocusOutEvent</c> could bubble from (amendment A54).
+        /// Not raised for an explicitly assigned override asset, which is not the project instance —
+        /// see either overload's remarks for why.
+        /// </summary>
+        public static event Action RegistryChanged;
+
         /// <summary>Writes the project target-tag vocabulary to disk.</summary>
         /// <remarks>
         /// A no-op for any registry that is not the project instance: an explicitly assigned asset is
@@ -104,6 +117,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             WriteJson(registry, TargetTagFilePath);
+            RegistryChanged?.Invoke();
         }
 
         /// <summary>Writes the project event-name vocabulary to disk. See the tag overload's remarks.</summary>
@@ -114,6 +128,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             WriteJson(registry, AnimEventKeyFilePath);
+            RegistryChanged?.Invoke();
         }
 
         /// <summary>
@@ -143,10 +158,15 @@ namespace DotsAnimationToolkit.Editor
         {
             TRegistry created = ScriptableObject.CreateInstance<TRegistry>();
 
-            // HideAndDontSave, because this instance belongs to ProjectSettings rather than to the
-            // asset database. Without it Unity would try to save it into whatever scene happens to
-            // be open, which is how a project-wide vocabulary becomes one copy per scene.
-            created.hideFlags = HideFlags.HideAndDontSave;
+            // DontSave, not HideAndDontSave: this instance belongs to ProjectSettings rather than to
+            // the asset database, so it must stay out of the hierarchy and never autosave into
+            // whatever scene happens to be open (HideInHierarchy | DontSaveInEditor |
+            // DontSaveInBuild is exactly that). HideAndDontSave adds NotEditable on top, which is a
+            // different thing entirely: it tells the Inspector/SerializedObject binding the object's
+            // fields cannot be written at all, so every PropertyField bound against this instance
+            // renders but silently refuses every click and keystroke. That flag choice was the actual
+            // cause of "there's no way to type a tag name" - not a UI wiring bug, an editability bit.
+            created.hideFlags = HideFlags.DontSave;
 
             if (File.Exists(filePath))
             {

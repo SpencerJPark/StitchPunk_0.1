@@ -27,7 +27,14 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Singular noun used in "Create &lt;noun&gt; '&lt;text&gt;'", e.g. "tag" or "event".</summary>
         public readonly string CreateRowNoun;
 
-        /// <summary>Label for the always-last row that opens the quick-edit window, e.g. "Edit tags…".</summary>
+        /// <summary>
+        /// Short label for the button pinned beside the search field, e.g. "Edit…". Kept short
+        /// deliberately — <see cref="EditRowLabel"/> carries the longer phrasing as the button's
+        /// tooltip instead, because "Edit tags…" does not fit next to a search field.
+        /// </summary>
+        public readonly string EditButtonLabel;
+
+        /// <summary>Longer phrasing shown only in the edit button's tooltip, e.g. "Edit tags…".</summary>
         public readonly string EditRowLabel;
         public readonly string EditRowDescription;
 
@@ -44,6 +51,7 @@ namespace DotsAnimationToolkit.Editor
             string noneRowLabel,
             string noneRowDescription,
             string createRowNoun,
+            string editButtonLabel,
             string editRowLabel,
             string editRowDescription,
             string quickEditWindowTitle,
@@ -53,6 +61,7 @@ namespace DotsAnimationToolkit.Editor
             NoneRowLabel = noneRowLabel;
             NoneRowDescription = noneRowDescription;
             CreateRowNoun = createRowNoun;
+            EditButtonLabel = editButtonLabel;
             EditRowLabel = editRowLabel;
             EditRowDescription = editRowDescription;
             QuickEditWindowTitle = quickEditWindowTitle;
@@ -83,6 +92,7 @@ namespace DotsAnimationToolkit.Editor
                 "Leave this target untagged. An untagged target is animated by target id only, "
                     + "so its clips do not travel to another rig.",
                 "tag",
+                "Edit…",
                 "Edit tags…",
                 "Rename, add or remove the project's target tags.",
                 "Target Tags",
@@ -108,6 +118,7 @@ namespace DotsAnimationToolkit.Editor
                 null,
                 null,
                 "event",
+                "Edit…",
                 "Edit events…",
                 "Rename, add or remove the project's event names.",
                 "Events",
@@ -138,8 +149,8 @@ namespace DotsAnimationToolkit.Editor
     /// <strong>One picker for both vocabularies, not two.</strong> Originally built as
     /// <c>TargetTagPicker</c> for target tags alone (E1.5), this class was generalised for amendment
     /// E6 Task 3 rather than duplicated for event names: the row content, filtering, "(none)"
-    /// handling, and the "Create…" / "Edit…" bracket rows are identical in shape between a tag and an
-    /// event, differing only in the strings in <see cref="VocabularyPickerConfig"/> and which
+    /// handling, the "Create…" row, and the pinned Edit button are identical in shape between a
+    /// tag and an event, differing only in the strings in <see cref="VocabularyPickerConfig"/> and which
     /// <see cref="IVocabularyRegistry"/> is asked. <see cref="Open"/> takes both an
     /// <see cref="IVocabularyRegistry"/> (the id lookups and minting) and the underlying
     /// <see cref="ScriptableObject"/> (needed only to hand to <see cref="VocabularyQuickEditWindow"/>,
@@ -154,8 +165,12 @@ namespace DotsAnimationToolkit.Editor
     /// </remarks>
     public sealed class VocabularyPicker : PickerOverlay
     {
-        private const float PanelWidth = 220f;
+        private const float PanelWidth = 260f;
         private const float CardWidth = 240f;
+
+        /// <summary>Caps the row list so a long vocabulary scrolls instead of growing the panel
+        /// past the window; the search field and Edit button above it stay pinned in view.</summary>
+        private const float RowsMaxHeight = 240f;
 
         private readonly IVocabularyRegistry registry;
         private readonly ScriptableObject registryObject;
@@ -179,19 +194,53 @@ namespace DotsAnimationToolkit.Editor
             this.onPick = onPick;
             this.onRegistryChanged = onRegistryChanged;
 
+            // Search field and Edit button share a row, Edit fixed at its right edge, so the edit
+            // affordance stays one place to look regardless of how many rows the list holds below
+            // it — the owner's complaint with the old trailing "Edit tags…" row (spec §4.2.2).
+            VisualElement searchRow = new VisualElement();
+            searchRow.style.flexDirection = FlexDirection.Row;
+            searchRow.style.alignItems = Align.Center;
+            listPanel.Add(searchRow);
+
             filterField = new TextField();
+            filterField.style.flexGrow = 1f;
             filterField.style.marginLeft = 4f;
             filterField.style.marginRight = 4f;
             filterField.style.marginTop = 2f;
             filterField.style.marginBottom = 2f;
             // Filtering only ever narrows the list; it never binds anything by itself (spec §4.2.1).
             filterField.RegisterValueChangedCallback(changeEvent => RefreshRows());
-            listPanel.Add(filterField);
+            searchRow.Add(filterField);
+
+            Button editButton = new Button(OpenQuickEditWindow);
+            editButton.text = config.EditButtonLabel;
+            editButton.style.flexShrink = 0f;
+            editButton.style.marginRight = 4f;
+            editButton.style.marginTop = 2f;
+            editButton.style.marginBottom = 2f;
+            // A plain Button gets no hover card of its own (PickerOverlay.BuildRow is what wires
+            // those), so the tooltip is carrying the full explanation the old row label used to.
+            editButton.tooltip = config.EditRowLabel + " " + config.EditRowDescription;
+            searchRow.Add(editButton);
+
+            ScrollView rowsScrollView = new ScrollView(ScrollViewMode.Vertical);
+            rowsScrollView.style.maxHeight = RowsMaxHeight;
+            listPanel.Add(rowsScrollView);
 
             rowsContainer = new VisualElement();
-            listPanel.Add(rowsContainer);
+            rowsScrollView.Add(rowsContainer);
 
             RefreshRows();
+
+            // Amendment A54: a still-open picker's row list stays current while a separate
+            // VocabularyQuickEditWindow (or the Project Settings page) edits the same registry —
+            // including an add or remove, which has no field to bubble a FocusOutEvent from and so
+            // could not be caught any other way. Unsubscribes on DetachFromPanelEvent rather than in
+            // Close() so this stays self-contained without PickerOverlay needing to know about it;
+            // Close() always ends in RemoveFromHierarchy(), which is what raises that event.
+            VocabularyRegistryProvider.RegistryChanged += RefreshRows;
+            RegisterCallback<DetachFromPanelEvent>(
+                detachFromPanelEvent => VocabularyRegistryProvider.RegistryChanged -= RefreshRows);
         }
 
         /// <summary>Opens the picker over <paramref name="host"/>, hung under <paramref name="anchor"/>.</summary>
@@ -199,18 +248,19 @@ namespace DotsAnimationToolkit.Editor
         /// <param name="anchor">The control that opened it; the panel hangs from its lower-left.</param>
         /// <param name="registry">
         /// The vocabulary to pick from. A null or empty registry still opens — the list is then just
-        /// "(none)" (when configured), "Create…" and "Edit…" — because a project with no rows yet is
-        /// exactly when a person most needs the in-flow create-and-edit path.
+        /// "(none)" (when configured) and "Create…", with the Edit button beside the search field
+        /// always available — because a project with no rows yet is exactly when a person most needs
+        /// the in-flow create-and-edit path.
         /// </param>
         /// <param name="registryObject">
-        /// The same registry as a <see cref="ScriptableObject"/>, so the "Edit…" row can hand it to
+        /// The same registry as a <see cref="ScriptableObject"/>, so the Edit button can hand it to
         /// <see cref="VocabularyQuickEditWindow"/>. May be null alongside a null
         /// <paramref name="registry"/>.
         /// </param>
         /// <param name="config">The strings and per-row hover text this vocabulary uses.</param>
         /// <param name="onPick">
         /// Invoked with the chosen row's id, or 0 for "(none)". Not invoked when the picker is
-        /// dismissed without a choice, or when the edit row is chosen.
+        /// dismissed without a choice, or when the Edit button is pressed.
         /// </param>
         /// <param name="onRegistryChanged">
         /// Invoked after a row is minted through "Create…", or after the quick-edit window closes —
@@ -280,13 +330,6 @@ namespace DotsAnimationToolkit.Editor
             {
                 rowsContainer.Add(BuildCreateRow(filterText));
             }
-
-            rowsContainer.Add(BuildRow(
-                config.EditRowLabel,
-                config.EditRowDescription,
-                true,
-                string.Empty,
-                OpenQuickEditWindow));
         }
 
         /// <summary>
@@ -334,10 +377,20 @@ namespace DotsAnimationToolkit.Editor
             onPick?.Invoke(newId);
         }
 
+        /// <summary>
+        /// Opens the registry's quick-edit window. The picker stays open behind it now that Edit is a
+        /// pinned button rather than a self-closing row; its own row list stays current regardless via
+        /// the <see cref="VocabularyRegistryProvider.RegistryChanged"/> subscription taken out in the
+        /// constructor, so this only has to worry about the outer caller's own refresh once the
+        /// quick-edit window actually closes.
+        /// </summary>
         private void OpenQuickEditWindow()
         {
             VocabularyQuickEditWindow.Open(
-                config.QuickEditWindowTitle, registryObject, config.QuickEditMissingMessage, onRegistryChanged);
+                config.QuickEditWindowTitle,
+                registryObject,
+                config.QuickEditMissingMessage,
+                onClosed: onRegistryChanged);
         }
 
         // -----------------------------------------------------------------------------------

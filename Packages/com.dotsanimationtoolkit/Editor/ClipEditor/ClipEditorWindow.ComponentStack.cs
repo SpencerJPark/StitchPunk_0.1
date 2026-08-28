@@ -101,12 +101,13 @@ namespace DotsAnimationToolkit.Editor
         {
             ClipObjectRef objectRef = BuildObjectRef(item);
 
-            Label heading = MakeSelectionHeading(
+            SelectionHeadingElement heading = MakeSelectionHeading(
                 item.kind == HierarchyItemKind.RigTarget
                     ? ResolveTargetDisplayName(item.targetId)
                     : item.displayName,
                 isActive);
-            DescribeSelectedObject(heading, item, objectRef);
+            DescribeSelectedObject(heading.label, item, objectRef);
+            BindPartTagButton(heading, item);
             inspectorPane.Add(heading);
 
             // Keyed off ActiveHierarchyItem directly rather than the isActive parameter: that flag
@@ -188,6 +189,79 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             heading.tooltip = description;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Part tag (Phase E target-tags spec §4.2): the selection heading's tag button, writing
+        // RigTargetDefinition.tagId — "what is this part for", shared across every clip set that
+        // uses this rig. Not to be confused with BuildTagBindButton below, which switches one
+        // track's own binding between target id and tag and writes the clip instead of the rig.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Shows the part-tag button on a claimed rig target's heading, hidden otherwise — an
+        /// unclaimed prefab node has no <see cref="RigTargetDefinition"/> to carry a tag.
+        /// </summary>
+        private void BindPartTagButton(SelectionHeadingElement heading, HierarchyItem item)
+        {
+            RigTargetDefinition target =
+                item.targetId != 0u ? FindRigTargetById(item.targetId) : null;
+            if (target == null)
+            {
+                heading.tagButton.style.display = DisplayStyle.None;
+                return;
+            }
+            heading.tagButton.style.display = DisplayStyle.Flex;
+            heading.tagButton.text = DescribePartTagButtonText(target.tagId);
+            heading.tagButton.clicked += () => OpenPartTagPicker(target, heading.tagButton);
+        }
+
+        private string DescribePartTagButtonText(uint tagId)
+        {
+            if (tagId == 0u)
+            {
+                return "Tag: (none)";
+            }
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
+            string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
+            return tagName != null
+                ? "Tag: " + tagName
+                : "Tag: (unresolved 0x" + tagId.ToString("X8") + ")";
+        }
+
+        /// <summary>
+        /// Opens the searchable tag picker anchored to a part's tag button in the selection
+        /// heading — one popup style shared with <see cref="RigAssetEditor"/>'s Target Tags
+        /// section and <see cref="BuildTagBindButton"/> below (spec §4.2.1).
+        /// </summary>
+        private void OpenPartTagPicker(RigTargetDefinition target, Button anchor)
+        {
+            if (target == null || clipSet == null || clipSet.rig == null)
+            {
+                return;
+            }
+
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
+            VocabularyPicker.Open(
+                rootVisualElement,
+                anchor,
+                tagRegistry,
+                tagRegistry,
+                VocabularyPickerConfig.ForTargetTags(tagRegistry),
+                chosenTagId =>
+                {
+                    Undo.RecordObject(clipSet.rig, "Set Target Tag");
+                    target.tagId = chosenTagId;
+                    EditorUtility.SetDirty(clipSet.rig);
+                    RebuildInspector();
+                },
+                () =>
+                {
+                    // The registry changed underneath every open heading (a tag renamed or newly
+                    // created via "Edit..." / "Create tag..."), so the whole inspector's labels
+                    // are re-derived rather than just this one's.
+                    RebuildInspector();
+                });
         }
 
         /// <summary>
@@ -1329,7 +1403,8 @@ namespace DotsAnimationToolkit.Editor
             ClipBillboardEditing.CollectTracksForRoot(
                 selectedClip, objectRef.billboardRootId, billboardTracks, billboardTrackIndices);
             BillboardTrack track = billboardTracks.Count > 0 ? billboardTracks[0] : null;
-            if (track == null)
+            bool isFirstKey = track == null;
+            if (isFirstKey)
             {
                 if (selectedClip.billboardTracks == null)
                 {
@@ -1343,7 +1418,14 @@ namespace DotsAnimationToolkit.Editor
             ClipBillboardEditing.SetKeyValues(
                 track, playheadTime, angleOffsetDegrees, blendWeight, enabled);
             CommitClipEdit();
-            RebuildInspector();
+
+            // Only the first key rebuilds the panel around the field. It is the one that changes
+            // what the hint says — see AddBillboardFields — and a rebuild on every keystroke would
+            // destroy the field being dragged or typed into (mirrors ApplyBoneEdit).
+            if (isFirstKey)
+            {
+                RebuildInspector();
+            }
         }
 
         // -------------------------------------------------------------------------------------

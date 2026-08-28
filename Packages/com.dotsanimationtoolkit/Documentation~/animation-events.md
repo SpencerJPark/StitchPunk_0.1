@@ -91,9 +91,10 @@ lasts.
 Event keys are `uint`s, but you never type or read one. **A name is typed in exactly one place:**
 the project's event registry, when the name is defined. Every other surface — the Event field, the
 timeline lane's label — only ever selects from what the registry already lists, through a
-searchable picker with an inline **Create event "…"** row and an **Edit events…** row that opens
-the registry directly. There is nothing to create or assign by hand first: the registry auto-creates
-under `ProjectSettings/` the moment anything asks for it, the same way the target-tag registry does.
+searchable picker with an inline **Create event "…"** row and an **Edit…** button, pinned beside
+the picker's search field, that opens the registry directly. There is nothing to create or assign
+by hand first: the registry auto-creates under `ProjectSettings/` the moment anything asks for it,
+the same way the target-tag registry does.
 
 Each entry has a name, its key, an optional default window, and a description shown as the picker
 row's hover text.
