@@ -96,6 +96,28 @@ namespace DotsAnimationToolkit.Editor
                     return resolvedName ?? "(unresolved 0x" + tagId.ToString("X8") + ")";
                 });
         }
+
+        /// <summary>
+        /// The event-name flavour of this config (E6 Task 4). No "(none)" row: unlike a rig target,
+        /// an event marker always fires <em>some</em> event, so there is nothing to clear a binding
+        /// to.
+        /// </summary>
+        public static VocabularyPickerConfig ForEventKeys(AnimEventKeyRegistry registry)
+        {
+            return new VocabularyPickerConfig(
+                null,
+                null,
+                "event",
+                "Edit events…",
+                "Rename, add or remove the project's event names.",
+                "Events",
+                "No event registry is available yet.",
+                eventKey =>
+                {
+                    string resolvedName = registry != null ? registry.FindName(eventKey) : null;
+                    return resolvedName ?? "(unresolved 0x" + eventKey.ToString("X8") + ")";
+                });
+        }
     }
 
     /// <summary>

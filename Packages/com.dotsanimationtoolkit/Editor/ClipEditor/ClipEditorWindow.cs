@@ -4559,7 +4559,7 @@ namespace DotsAnimationToolkit.Editor
                     times.Add(track.keys[keyIndex].normalizedTime);
                 }
                 AddTrackRow(
-                    "T " + track.targetId.ToString() + "  " + track.channels.ToString(),
+                    "T " + ResolveTargetDisplayName(track.targetId) + "  " + track.channels.ToString(),
                     TimelineTrackKind.Transform, trackIndex, times, ref rowIndex);
             }
 
@@ -4582,7 +4582,7 @@ namespace DotsAnimationToolkit.Editor
                     times.Add(track.keys[keyIndex].normalizedTime);
                 }
                 AddTrackRow(
-                    "S " + track.targetId.ToString() + "  " + track.mode.ToString(),
+                    "S " + ResolveTargetDisplayName(track.targetId) + "  " + track.mode.ToString(),
                     TimelineTrackKind.Sprite, trackIndex, times, ref rowIndex);
             }
 
@@ -5877,13 +5877,13 @@ namespace DotsAnimationToolkit.Editor
                 return 0f;
             }
             return firstEntry.defaultWindowFrames
-                / ResolveReferenceFrameRate(clipSet != null ? clipSet.eventKeys : null);
+                / ResolveReferenceFrameRate(ResolveEventKeyRegistry());
         }
 
         /// <summary>The clip set's first named event, or null when it names none.</summary>
         private AnimEventKeyEntry FindFirstRegistryEntry()
         {
-            AnimEventKeyRegistry registry = clipSet != null ? clipSet.eventKeys : null;
+            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
             if (registry == null || registry.entries == null)
             {
                 return null;
@@ -6659,7 +6659,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             EventMarker marker = selectedClip.events[address.keyIndex];
-            AnimEventKeyRegistry registry = clipSet != null ? clipSet.eventKeys : null;
+            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
 
             AddEventKeyField(address, marker, registry);
             AddEventWindowField(address, marker, registry);
@@ -6693,84 +6693,61 @@ namespace DotsAnimationToolkit.Editor
             inspectorPane.Add(floatParamField);
         }
 
-        /// <summary>Which event this marker fires — a named dropdown, or a raw key without a registry.</summary>
+        /// <summary>Which event this marker fires, chosen from the project's event-name vocabulary.</summary>
         private void AddEventKeyField(
             KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
         {
-            if (registry == null || registry.entries == null || registry.entries.Count == 0)
+            Button eventButton = new Button
             {
-                IntegerField rawKeyField = new IntegerField("Event Key");
-                rawKeyField.tooltip =
-                    "Raw event key. Assign an Anim Event Key Registry to the clip set to pick "
-                    + "events by name instead.";
-                rawKeyField.SetValueWithoutNotify((int)marker.eventKey);
-                rawKeyField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    EditEventMarker(address, "Edit Event Key", editedMarker =>
-                    {
-                        editedMarker.eventKey = (uint)Mathf.Max(0, changeEvent.newValue);
-                        return editedMarker;
-                    });
-                });
-                inspectorPane.Add(rawKeyField);
-                inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, null)));
-                return;
-            }
-
-            List<string> choices = new List<string>();
-            int selectedChoice = -1;
-            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
-            {
-                AnimEventKeyEntry entry = registry.entries[entryIndex];
-                if (entry == null)
-                {
-                    continue;
-                }
-                if (entry.eventKey == marker.eventKey)
-                {
-                    selectedChoice = choices.Count;
-                }
-                choices.Add(string.IsNullOrEmpty(entry.name)
-                    ? "<unnamed> (" + entry.eventKey + ")"
-                    : entry.name);
-            }
-
-            // A marker whose key the registry does not list keeps its number and says so, rather
-            // than being silently snapped onto whichever event happens to be first. Repointing an
-            // authored hit frame at a different event is not something a repaint should do.
-            if (selectedChoice < 0)
-            {
-                choices.Add("Unlisted key " + marker.eventKey);
-                selectedChoice = choices.Count - 1;
-            }
-
-            PopupField<string> keyField =
-                new PopupField<string>("Event", choices, selectedChoice);
-            keyField.RegisterValueChangedCallback(changeEvent =>
-            {
-                int choiceIndex = choices.IndexOf(changeEvent.newValue);
-                AnimEventKeyEntry chosen = FindRegistryEntry(registry, choiceIndex);
-                if (chosen == null)
-                {
-                    return;
-                }
-                EditEventMarker(address, "Change Event Key", editedMarker =>
-                {
-                    editedMarker.eventKey = chosen.eventKey;
-
-                    // The registry's default window applies only when the marker has none of its
-                    // own, so re-pointing a hand-tuned six-frame window at another event does not
-                    // quietly reset it to that event's default.
-                    if (editedMarker.windowSeconds <= 0f && chosen.defaultWindowFrames > 0)
-                    {
-                        editedMarker.windowSeconds =
-                            chosen.defaultWindowFrames / ResolveReferenceFrameRate(registry);
-                    }
-                    return editedMarker;
-                });
-            });
-            inspectorPane.Add(keyField);
+                text = "Event: " + DescribeEventName(marker.eventKey, registry)
+            };
+            eventButton.clicked += () => OpenEventKeyPicker(address, registry, eventButton);
+            inspectorPane.Add(eventButton);
             inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, registry)));
+        }
+
+        /// <summary>
+        /// The event's name, or the one exception spec §4.2.3 permits — an unresolved id, when the
+        /// registry does not (or no longer) names it.
+        /// </summary>
+        private static string DescribeEventName(uint eventKey, AnimEventKeyRegistry registry)
+        {
+            string resolvedName = registry != null ? registry.FindName(eventKey) : null;
+            return resolvedName ?? "(unresolved 0x" + eventKey.ToString("X8") + ")";
+        }
+
+        private void OpenEventKeyPicker(
+            KeyAddress address, AnimEventKeyRegistry registry, Button anchor)
+        {
+            VocabularyPicker.Open(
+                rootVisualElement,
+                anchor,
+                registry,
+                registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey => ApplyEventKeyChoice(address, chosenEventKey, registry),
+                RebuildInspector);
+        }
+
+        private void ApplyEventKeyChoice(
+            KeyAddress address, uint chosenEventKey, AnimEventKeyRegistry registry)
+        {
+            AnimEventKeyEntry chosen = FindRegistryEntryByKey(registry, chosenEventKey);
+            EditEventMarker(address, "Change Event Key", editedMarker =>
+            {
+                editedMarker.eventKey = chosenEventKey;
+
+                // The registry's default window applies only when the marker has none of its own,
+                // so re-pointing a hand-tuned six-frame window at another event does not quietly
+                // reset it to that event's default.
+                if (editedMarker.windowSeconds <= 0f && chosen != null && chosen.defaultWindowFrames > 0)
+                {
+                    editedMarker.windowSeconds =
+                        chosen.defaultWindowFrames / ResolveReferenceFrameRate(registry);
+                }
+                return editedMarker;
+            });
+            RebuildInspector();
         }
 
         /// <summary>How long the marker holds its mask bit, edited in frames.</summary>
@@ -6802,49 +6779,55 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>The entry at a dropdown position, skipping the nulls the choice list skipped.</summary>
-        private static AnimEventKeyEntry FindRegistryEntry(
-            AnimEventKeyRegistry registry, int choiceIndex)
+        /// <summary>The entry holding a specific key, or null when the registry does not have it.</summary>
+        private static AnimEventKeyEntry FindRegistryEntryByKey(
+            AnimEventKeyRegistry registry, uint eventKey)
         {
-            if (choiceIndex < 0)
+            if (registry == null || registry.entries == null)
             {
                 return null;
             }
-            int position = 0;
             for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
             {
                 AnimEventKeyEntry entry = registry.entries[entryIndex];
-                if (entry == null)
-                {
-                    continue;
-                }
-                if (position == choiceIndex)
+                if (entry != null && entry.eventKey == eventKey)
                 {
                     return entry;
                 }
-                position++;
             }
             return null;
         }
 
-        /// <summary>The one-line status under the key field: its number, and whether it can hold a window.</summary>
+        /// <summary>The one-line status under the event button: its name, and whether it can hold a window.</summary>
         private static string DescribeEventKey(uint eventKey, AnimEventKeyRegistry registry)
         {
+            string displayName = DescribeEventName(eventKey, registry);
             if (eventKey < (uint)ReservedEventKeys.FirstUserKey)
             {
-                return "Key " + eventKey + " is reserved by the package — this clip will fail "
+                return displayName + " is reserved by the package — this clip will fail "
                     + "validation (V09).";
             }
             if (!AnimEventMaskKeys.IsMaskable(eventKey))
             {
-                return "Key " + eventKey + " · pulse-only (outside the maskable range "
-                    + AnimEventMaskKeys.FirstMaskKey + "–" + AnimEventMaskKeys.LastMaskKey
-                    + ", so a window here would never open).";
+                return displayName
+                    + " · pulse-only (outside the maskable range, so a window here would never open).";
             }
-            string registeredName = registry != null ? registry.FindName(eventKey) : null;
-            string namePrefix = registeredName != null ? registeredName + " · " : string.Empty;
-            return namePrefix + "key " + eventKey + " · mask bit "
-                + (eventKey - AnimEventMaskKeys.FirstMaskKey) + ".";
+            return displayName + " · mask bit " + (eventKey - AnimEventMaskKeys.FirstMaskKey) + ".";
+        }
+
+        /// <summary>
+        /// The clip set's own event registry, falling back to the project-wide one
+        /// (<see cref="VocabularyRegistryProvider.AnimEventKeys"/>) so an event name is always
+        /// pickable without the owner assigning an asset by hand (§5: "I shouldn't have to manually
+        /// assign any assets for this").
+        /// </summary>
+        private AnimEventKeyRegistry ResolveEventKeyRegistry()
+        {
+            if (clipSet != null && clipSet.eventKeys != null)
+            {
+                return clipSet.eventKeys;
+            }
+            return VocabularyRegistryProvider.AnimEventKeys;
         }
 
         /// <summary>The registry's display rate, or the package default when there is no registry.</summary>
@@ -7903,20 +7886,22 @@ namespace DotsAnimationToolkit.Editor
 
         private string ResolveTargetDisplayName(uint targetId)
         {
-            if (clipSet == null || clipSet.rig == null || clipSet.rig.targets == null)
+            if (clipSet != null && clipSet.rig != null && clipSet.rig.targets != null)
             {
-                return "Target " + targetId.ToString();
-            }
-            for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
-            {
-                RigTargetDefinition target = clipSet.rig.targets[targetIndex];
-                if (target != null && target.Id.Value == targetId
-                    && !string.IsNullOrEmpty(target.displayName))
+                for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
                 {
-                    return target.displayName;
+                    RigTargetDefinition target = clipSet.rig.targets[targetIndex];
+                    if (target != null && target.Id.Value == targetId
+                        && !string.IsNullOrEmpty(target.displayName))
+                    {
+                        return target.displayName;
+                    }
                 }
             }
-            return "Target " + targetId.ToString();
+
+            // Same "(unresolved 0x...)" form as a dangling tag or event key (spec §4.2.3) — the
+            // rig has no name for this id, whether because no rig is assigned or the target is gone.
+            return "(unresolved 0x" + targetId.ToString("X8") + ")";
         }
 
         /// <summary>
