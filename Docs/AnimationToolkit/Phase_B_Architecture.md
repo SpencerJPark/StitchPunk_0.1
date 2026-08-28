@@ -2075,3 +2075,37 @@ fresh ids" is exactly the assumption that would make sharing impossible if it
 shipped first. Built after, its flow assigns tags from the registry as one of
 its steps, reusing existing ones wherever a scanned part's role already has
 one.
+
+## Amendment A52 (2026-08-28 — closing A51's own directive): target tags read from the same single source event names already did
+
+§4.1's original text described `TargetTagRegistry` as a `[CreateAssetMenu]`
+project asset "beside the event-key registry." That was never built that
+way, and building it that way now would contradict A51's own "I shouldn't
+have to manually assign any assets for this" directive: every target-tag
+surface (the Clip Editor toolbar, `RigAssetEditor`'s Target Tags section, the
+New Rig wizard) instead read a hand-assigned `ObjectField` remembered in
+`EditorPrefs`, so the field was permanently null until a project happened to
+create and wire one up by hand — target tagging was dead in the editor,
+while the doc's own auto-create claim went unverified against the tree.
+
+Both project vocabularies now read the same way: `TargetTagRegistry` and
+`AnimEventKeyRegistry` are `ProjectSettings/`-scoped, owned exclusively by
+`VocabularyRegistryProvider`, and never assigned by hand anywhere — no
+`ObjectField` of either type exists in this package any more. A row minted
+through a picker's "Create …" row now also persists immediately
+(`VocabularyRegistryProvider.PersistVocabulary`), closing a second gap: the
+registries' own `CreateVocabularyEntry` only ever minted a row in memory,
+since `Authoring/` cannot write `ProjectSettings/` files, and no editor call
+site had been persisting the result on its behalf.
+
+Both vocabularies are also reachable from **Project Settings → DOTS
+Animation Toolkit → Target Tags** / **Event Names** — the Tags & Layers
+analogue, hosting the same `TargetTagRegistryEditor` /
+`AnimEventKeyRegistryEditor` inspector a picker's "Edit …" row already opens
+in `VocabularyQuickEditWindow`, not a third list widget. A rename made there
+is not undoable, the same as Unity's own Tags & Layers page: both registries
+live outside the asset database, and Undo only tracks `SerializedObject`
+edits against a real asset.
+
+No data model, bake, or runtime change — this closes an editor-wiring gap
+between what A51 specified and what the tree actually did.

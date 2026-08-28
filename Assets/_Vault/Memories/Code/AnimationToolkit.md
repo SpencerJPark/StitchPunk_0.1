@@ -15,17 +15,32 @@ closed-phase history; do not read it up front.
 
 ## The vocabulary pattern (target tags, event names)
 
-As of amendment A51 (Phase E), two project-wide vocabularies exist —
-`TargetTagRegistry` and `AnimEventKeyRegistry` — both auto-created under
-`ProjectSettings/` on first use via `VocabularyRegistryProvider`, no asset to
-create by hand. Both follow the same rule: **a name is typed in exactly one
-place, the registry, through `VocabularyPicker`'s inline "Create …" row or its
+As of amendment A52 (Phase E; A51 specified this, A52 closed the gap between
+spec and tree), two project-wide vocabularies exist — `TargetTagRegistry` and
+`AnimEventKeyRegistry` — both auto-created under `ProjectSettings/` on first
+use via `VocabularyRegistryProvider`, no asset to create by hand. **No
+`ObjectField` of either registry type exists anywhere in the package** — every
+surface that used to offer one (the Clip Editor toolbar, `RigAssetEditor`'s
+Target Tags section, the New Rig wizard) now reads `VocabularyRegistryProvider`
+directly. Both follow the same rule: **a name is typed in exactly one place,
+the registry, through `VocabularyPicker`'s inline "Create …" row or its
 "Edit …" row into the registry inspector.** Every other editor surface —
 pickers, rig rows, timeline lanes — only ever selects, never accepts free
-text. If you add a third vocabulary (or extend either of these two), route it
-through `IVocabularyRegistry` and `VocabularyPicker`/`VocabularyPickerConfig`
-rather than building a parallel dropdown — that duplication is exactly what
-amendment E6 Task 3 undid for events.
+text. A row minted through the picker's "Create …" row persists immediately
+via `VocabularyRegistryProvider.PersistVocabulary` — `CreateVocabularyEntry`
+itself only mints in memory, since `Authoring/` cannot write
+`ProjectSettings/` files, so every editor call site that adds a row must
+persist it explicitly or the row is lost on the next domain reload. The
+canonical list for either vocabulary — add, rename, remove — is
+**Project Settings → DOTS Animation Toolkit → Target Tags / Event Names**
+(`VocabularySettingsProvider`), hosting the same registry inspector a
+picker's "Edit …" row opens in a utility window; a rename there is not
+undoable, like Unity's own Tags & Layers page, because the registry lives
+outside the asset database. If you add a third vocabulary (or extend either
+of these two), route it through `IVocabularyRegistry` and
+`VocabularyPicker`/`VocabularyPickerConfig` rather than building a parallel
+dropdown — that duplication is exactly what amendment E6 Task 3 undid for
+events.
 
 **No raw ids in an editor surface.** A tag id or event key is display-only as
 `(unresolved 0x1A2B3C4D)`, and only when the registry cannot name it (a

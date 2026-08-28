@@ -44,9 +44,10 @@ which id the bake resolves against — never where the track appears in the Clip
    travel (see the T4 warning below).
 
 Selection only, never typing: a tag's name is typed in exactly one place — the picker's inline
-**Create tag "…"** row, or the registry's own inspector via the picker's **Edit tags…** row — and
-every other surface only ever picks from what's already there. That's deliberate. A wrong pick from
-a visible list is a mistake you can see; a typo that silently resolves to nothing is not.
+**Create tag "…"** row, or the registry's own list via the picker's **Edit tags…** row or
+**Project Settings → DOTS Animation Toolkit → Target Tags** — and every other surface only ever
+picks from what's already there. That's deliberate. A wrong pick from a visible list is a mistake
+you can see; a typo that silently resolves to nothing is not.
 
 ## What "shareable" actually promises
 

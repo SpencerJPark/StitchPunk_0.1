@@ -87,7 +87,10 @@ Consequences:
 
 ### 4.1 `TargetTagRegistry` (new, `Authoring/Assets/`)
 
-Project asset, `[CreateAssetMenu]` beside the event-key registry. Rows of:
+**Superseded by Amendment A52** (`Phase_B_Architecture.md`): this was never built as a
+`[CreateAssetMenu]` project asset. It is `ProjectSettings/`-scoped and provider-owned, exactly like
+`AnimEventKeyRegistry`, and never assigned by hand anywhere — see the amendment for what actually
+shipped and why. Rows of:
 
 ```
 stableId : uint     // minted once, never derived from the name

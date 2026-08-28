@@ -26,6 +26,11 @@ clip authored once against a role plays on every rig that tags a part the same w
 - **Zero setup.** Both the tag registry and the event-key registry now auto-create under
   `ProjectSettings/` the moment anything asks for one — no asset to create, no field to wire up
   first.
+- **No registry to assign, for either vocabulary.** Every hand-assigned `TargetTagRegistry` field
+  (the Clip Editor toolbar, the rig inspector's Target Tags section, the New Rig wizard) is gone —
+  `VocabularyRegistryProvider`'s project-wide instance is the only source. Add, rename and remove
+  rows from **Project Settings → DOTS Animation Toolkit → Target Tags** / **Event Names**, the same
+  list the picker's own **Edit tags…** / **Edit events…** row opens.
 - **One searchable picker for both vocabularies.** Selection only, never free text: a filtered list,
   an inline **Create tag "…"** / **Create event "…"** row guarded against case-insensitive
   near-duplicates, and an **Edit tags…** / **Edit events…** row into the registry itself. A tag or an

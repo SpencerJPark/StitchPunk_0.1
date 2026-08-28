@@ -5,7 +5,7 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.11.0).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.12.0).
 Your job is to work down **§4 The queue**, one task at a time, through the gate in §3.
 
 ## 1. Read first, in this order
@@ -18,9 +18,12 @@ Your job is to work down **§4 The queue**, one task at a time, through the gate
 Read `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` §9 only if you touch ragdoll code.
 Everything else in `Docs\AnimationToolkit\` is closed-phase history — do not read it up front.
 
-**Current state (verified 2026-08-25):** EditMode 682/682, PlayMode 240/240, console clean, tree
-compiles. Last commits: `d65dfc94` (E3/E4 validation scoping), `f7eb4e72` (E6 Task 2, generated
-name constants).
+**Current state (verified 2026-08-28):** EditMode 680/680, PlayMode 240/240, console clean, tree
+compiles. Last commits: `6b3fd925` (target tags: Project Settings list page),
+`aab4f666` (target tags: picker-created rows persist), `cc06b361` (target tags read only from
+`VocabularyRegistryProvider`), `7e93f896` (New Rig wizard, spec §8). §4's queue below is empty —
+Phase E is closed end to end, including the target-tag-list gap Amendment A52 records. The next
+task is not yet chosen; do not start on any closed-phase doc without asking first.
 
 ## 2. How to work here
 
@@ -75,67 +78,13 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-Work top to bottom. Commit each task separately (stage paths explicitly; never `git add -A`).
+**Empty.** Everything through E6, E5 (close Phase E), the New Rig wizard (spec §8), and the
+target-tag-list gap Amendment A52 records is done and verified against the tree (not just this
+file) as of `6b3fd925`. The next task has not been chosen — do not invent one, and do not start on
+a closed-phase doc without asking first.
 
-### Task 1 — E6 Task 4: no raw numbers in any editor surface
-
-Spec §4.2.3: the owner works in names; ids are storage. The event marker inspector still shows the
-number everywhere.
-
-- `Editor/ClipEditor/ClipEditorWindow.cs` ~6662–6790 — the marker inspector. There is a raw `int`
-  key field (`rawKeyField`, ~6706) writing `eventKey` directly; the dropdown builds
-  `"<unnamed> (" + entry.eventKey + ")"` (~6734) and `"Unlisted key " + marker.eventKey` (~6743).
-- `DescribeEventKey` (~6831) leads with `"Key " + eventKey` in four branches.
-
-Replace with names throughout, selected through the existing `VocabularyPicker` (never free text).
-**The one permitted number** is an id that no longer resolves after a delete, rendered as
-`(unresolved 0x1A2B3C4D)` — copy the form already used at `Editor/Inspectors/RigAssetEditor.cs:346`.
-Then sweep the rest of `Editor/` for the same pattern; do not stop at the marker inspector.
-
-*Done when:* no editor surface shows an event key or tag id except the unresolved case.
-
-### Task 2 — one timeline lane per event name
-
-The owner rejected the current vertical stacking with click-cycling.
-
-- `ClipEditorWindow.cs:4625` — `AddTrackRow("Events", TimelineTrackKind.Event, 0, …)` builds exactly
-  one row. The hardcoded track index `0` recurs at 4757, 5843, 5853, 5859, 6088, 6559, 6589 and is
-  the crux of the change: an event lane must be addressed per event name.
-- `Editor/ClipEditor/TrackLaneElement.cs:474` — `CoLocatedSlot[] eventStacks`, the stacking to
-  remove; event-specific branches at 244, 483, 490, 568.
-
-`Footstep` gets a row, `Damage` gets a row; three events on one frame land on three rows with no
-stacking. Adding an event under a new name creates its lane.
-
-*Done when:* same-time events on different names never overlap, and selection, drag, box-select,
-undo and copy/paste still address the right marker.
-
-### Task 3 — "Edit Events" reachable straight after adding an event
-
-`AddEventAtPlayhead` (`ClipEditorWindow.cs` ~5833) selects the new marker, but nothing offers the
-registry from there. `Editor/Inspectors/VocabularyQuickEditWindow.cs` already takes an
-`"Edit Events"` title and hosts the registry inspector verbatim — wire it, do not write a second
-window.
-
-### Task 4 — tagging moves onto the rig hierarchy rows
-
-Owner: *"it should live in the rig setup so I can adjust it directly on the physical rig hierarchy."*
-Today it is a separate section — `Editor/Inspectors/RigAssetEditor.cs:240` builds a "Target Tags"
-block under the Targets list, rows at 312–364. The hierarchy rows the owner actually looks at are
-`Editor/ClipEditor/Authoring/RigStructureEditor.cs`.
-
-Add/Remove tag must be paired exactly where "Set Tag" appears, through the searchable
-`VocabularyPicker` that can also edit the list. **One popup style** — the tag-edit popup and the
-new-event-name popup must be the same UI, not parallel implementations.
-
-### Task 5 — E5: close Phase E
-
-CHANGELOG entry, a user-facing guide for sharing clips in `Documentation~/`, and **Amendment A51**
-appended to `Docs\AnimationToolkit\Phase_B_Architecture.md`. Amendments currently run to A50 —
-confirm with `grep -nE "^## Amendment A[0-9]+" Docs/AnimationToolkit/Phase_B_Architecture.md`
-before claiming a number. "A45" was once claimed while taken and had to be renumbered in ~55 places.
-
-Then, and only then, the New Rig wizard (spec §8).
+Work top to bottom whenever a new queue lands here. Commit each task separately (stage paths
+explicitly; never `git add -A`).
 
 ## 5. Standing owner directives — binding, do not lose
 
