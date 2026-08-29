@@ -196,11 +196,72 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Which tracks show their per-channel rows, keyed by kind and index.</summary>
         private readonly HashSet<long> expandedTrackKeys = new HashSet<long>();
 
-        private bool hasPendingTransformEdit;
-        private uint pendingTransformTargetId;
-        private float3 pendingPosition;
-        private float3 pendingRotationDegrees;
-        private float3 pendingScale;
+        /// <summary>
+        /// Where the held, unkeyed transform value lives — in an object, so Ctrl+Z can reach it.
+        /// </summary>
+        /// <remarks>
+        /// The reasoning is in <see cref="HeldTransformEdit"/>. The properties below keep every
+        /// reader in this file reading the value the way it always did; which object it sits in is
+        /// how undo gets at it, not a second concept.
+        /// </remarks>
+        private HeldTransformEdit heldTransformEdit;
+
+        private bool hasPendingTransformEdit
+        {
+            get { return heldTransformEdit != null && heldTransformEdit.hasValue; }
+            set { EnsureHeldTransformEdit().hasValue = value; }
+        }
+
+        private uint pendingTransformTargetId
+        {
+            get { return heldTransformEdit != null ? heldTransformEdit.targetId : 0u; }
+            set { EnsureHeldTransformEdit().targetId = value; }
+        }
+
+        private float3 pendingPosition
+        {
+            get { return ToFloat3(heldTransformEdit != null ? heldTransformEdit.position : Vector3.zero); }
+            set { EnsureHeldTransformEdit().position = ToVector3(value); }
+        }
+
+        private float3 pendingRotationDegrees
+        {
+            get
+            {
+                return ToFloat3(
+                    heldTransformEdit != null ? heldTransformEdit.rotationDegrees : Vector3.zero);
+            }
+            set { EnsureHeldTransformEdit().rotationDegrees = ToVector3(value); }
+        }
+
+        private float3 pendingScale
+        {
+            get { return ToFloat3(heldTransformEdit != null ? heldTransformEdit.scale : Vector3.one); }
+            set { EnsureHeldTransformEdit().scale = ToVector3(value); }
+        }
+
+        private HeldTransformEdit EnsureHeldTransformEdit()
+        {
+            if (heldTransformEdit == null)
+            {
+                heldTransformEdit = ScriptableObject.CreateInstance<HeldTransformEdit>();
+                heldTransformEdit.hideFlags = HideFlags.HideAndDontSave;
+            }
+            return heldTransformEdit;
+        }
+
+        /// <summary>
+        /// Opens one undo step for the value a part is about to hold without keying.
+        /// </summary>
+        /// <remarks>
+        /// With Auto Key off this is the <em>only</em> record of the move — the clip has not
+        /// changed, so nothing else on the stack describes it. Recorded before the write, so the
+        /// step holds the value the part is moving away from.
+        /// </remarks>
+        private void RecordHeldTransformEdit(string actionName)
+        {
+            Undo.RecordObject(EnsureHeldTransformEdit(), actionName);
+        }
 
         /// <summary>
         /// A Rig Edit gizmo drag's held value, entirely separate from
@@ -213,6 +274,20 @@ namespace DotsAnimationToolkit.Editor
         private float3 pendingRigPosition;
         private float3 pendingRigRotationDegrees;
         private float3 pendingRigScale;
+
+        /// <summary>
+        /// Whether this window has written the prefab's base pose since it opened, which decides
+        /// how much an undo has to put back.
+        /// </summary>
+        /// <remarks>
+        /// An undo that reverts a base pose changes the prefab asset, and the preview is an instance
+        /// taken from that asset — nothing in the ordinary undo refresh re-reads it, so the viewport
+        /// would keep showing the pose that was just undone. Reloading unconditionally would put a
+        /// preview re-instantiation on every Ctrl+Z in the window, including the clip-key undos that
+        /// have nothing to do with the prefab; this flag is what keeps that cost on the sessions that
+        /// actually did a rig edit.
+        /// </remarks>
+        private bool hasWrittenPrefabPose;
 
         /// <summary>The VAT bake tab, and the panel built into it the first time it is opened.</summary>
         private VisualElement vatBakePane;
@@ -808,6 +883,15 @@ namespace DotsAnimationToolkit.Editor
                 previewController.Dispose();
                 previewController = null;
             }
+
+            // Not saved and owned by nothing else, so it is this window's to destroy. Its undo
+            // entries are left pointing at a dead object, which is inert: the window they described
+            // the held value of has gone with it.
+            if (heldTransformEdit != null)
+            {
+                DestroyImmediate(heldTransformEdit);
+                heldTransformEdit = null;
+            }
         }
 
         /// <summary>
@@ -833,6 +917,19 @@ namespace DotsAnimationToolkit.Editor
             // transport fields both read from those rather than deriving them.
             OnClipTimingChanged();
             RebuildInspector();
+
+            // An undo can put a held, unkeyed move back (HeldTransformEdit) or take one away, and
+            // the gizmo is drawn at the pose that value decides. Left alone it would sit where the
+            // part no longer is.
+            RefreshGizmo();
+
+            // The preview is an instance of the prefab, so an undo that put a base pose back has
+            // changed the asset underneath it and nothing above re-reads that. Gated on the flag
+            // rather than done every time — see hasWrittenPrefabPose.
+            if (hasWrittenPrefabPose)
+            {
+                ReloadAfterPrefabEdit();
+            }
         }
 
         // -------------------------------------------------------------------------------------
@@ -1857,6 +1954,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            hasWrittenPrefabPose = true;
             ReloadAfterPrefabEdit();
         }
 
@@ -2943,6 +3041,15 @@ namespace DotsAnimationToolkit.Editor
                     selectedTargetId, out position, out rotationDegrees, out scale);
             }
 
+            // One step for the whole drag, opened before the first pointer move writes anything —
+            // the same rule the release path follows for a key. Only for a drag that will hold a
+            // clip value: a socket or Rig Edit drag records its own object when it commits, and a
+            // step here would be a "Move Part" that moved nothing.
+            if (selectedSocketId == 0u && !IsRigEditMode)
+            {
+                RecordHeldTransformEdit("Move Part");
+            }
+
             activeGizmoHandle = handle;
             gizmoDragStartPosition = position;
             gizmoDragStartRotation = rotationDegrees;
@@ -3881,6 +3988,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            hasWrittenPrefabPose = true;
             RememberRoundTripState();
             ReloadAfterPrefabEdit();
         }
@@ -9498,6 +9606,15 @@ namespace DotsAnimationToolkit.Editor
                 CommitPendingTransformEdit();
             }
 
+            // The move is the undo step here, not the key it may never become: with Auto Key off
+            // nothing else on the stack describes it. Skipped mid-drag because BeginGizmoDrag has
+            // already opened one step for the whole drag — recording per pointer move would bury
+            // every other step under a few hundred of them.
+            if (activeGizmoHandle == GizmoHandle.None)
+            {
+                RecordHeldTransformEdit("Move Part");
+            }
+
             pendingTransformTargetId = targetId;
             pendingPosition = position;
             pendingRotationDegrees = rotationDegrees;
@@ -9604,6 +9721,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Drops a held edit — used when the playhead or the selection moves off it.</summary>
         private void DiscardPendingTransformEdit()
         {
+            // Recorded like the move it throws away, so Revert is a step you can take back rather
+            // than the one gesture in the block that is final.
+            RecordHeldTransformEdit("Revert Held Move");
             hasPendingTransformEdit = false;
         }
 

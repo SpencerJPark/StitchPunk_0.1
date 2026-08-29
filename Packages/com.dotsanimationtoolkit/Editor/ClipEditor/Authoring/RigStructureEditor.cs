@@ -35,9 +35,21 @@ namespace DotsAnimationToolkit.Editor
     /// system to restore. That is a real limitation, not an oversight: callers should say so at the
     /// point of use, and it is the reason the stage route is preferred whenever a stage exists.
     /// </para>
+    /// <para>
+    /// <strong>A pose edit therefore tries a third route first</strong>
+    /// (<see cref="TryWriteUndoablePose"/>): the asset's own Transform, written through
+    /// <see cref="SerializedObject"/>, which does land on the undo stack. It only suits property
+    /// edits — a reparent is structural and still has the two routes above — and it is verified by
+    /// reading the value back, so a refused write falls through to the load-and-save route rather
+    /// than leaving the part where it was and reporting success.
+    /// </para>
     /// </remarks>
     public static class RigStructureEditor
     {
+        /// <summary>How far the read-back rotation may sit from the one asked for and still count as
+        /// written — a quaternion round-tripped through serialization is not bit-identical.</summary>
+        private const float RotationEpsilonDegrees = 0.01f;
+
         /// <summary>
         /// Sets a transform's local pose on the prefab asset.
         /// </summary>
@@ -77,6 +89,22 @@ namespace DotsAnimationToolkit.Editor
                 Undo.RecordObject(staged, "Edit Rig Base Pose");
                 ApplyPose(staged, localPosition, localEulerAngles, localScale);
                 EditorSceneManager.MarkSceneDirty(openStage.scene);
+                return true;
+            }
+
+            // Tried before the load-and-save route below because it is the only one of the two a
+            // person can undo, and a rig move they cannot take back is the complaint this exists to
+            // answer. Writing the asset's own Transform through the serialization layer puts the
+            // change on Unity's undo stack; the load-and-save route cannot, because the object it
+            // edits is a copy that is thrown away before the stack could ever refer to it.
+            GameObject assetRoot = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            Transform assetTarget = assetRoot != null
+                ? PrefabAuthoringBridge.ResolveByPath(assetRoot.transform, hierarchyPath)
+                : null;
+            if (assetTarget != null
+                && TryWriteUndoablePose(assetTarget, localPosition, localEulerAngles, localScale))
+            {
+                AssetDatabase.SaveAssetIfDirty(assetRoot);
                 return true;
             }
 
@@ -212,6 +240,62 @@ namespace DotsAnimationToolkit.Editor
             target.localPosition = localPosition;
             target.localRotation = Quaternion.Euler(localEulerAngles);
             target.localScale = localScale;
+        }
+
+        /// <summary>
+        /// Writes a pose onto a prefab asset's own Transform through <see cref="SerializedObject"/>,
+        /// which is what makes it undoable. False when the write did not take, leaving the caller to
+        /// fall back to the load-and-save route.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <c>ApplyModifiedProperties</c> is the reason for the detour: it registers the undo step
+        /// itself, where a direct <c>target.localPosition =</c> on an asset would not, and Unity
+        /// treats a prefab asset's objects as read-only to direct assignment in the first place.
+        /// </para>
+        /// <para>
+        /// <strong>The result is read back rather than assumed.</strong> A refused write to an asset
+        /// reports no error, it simply leaves the old value in place — and a rig part that silently
+        /// did not move is a worse outcome than one that moved by the route nobody can undo. Reading
+        /// it back is what lets the caller tell those two apart.
+        /// </para>
+        /// </remarks>
+        private static bool TryWriteUndoablePose(
+            Transform assetTarget,
+            Vector3 localPosition,
+            Vector3 localEulerAngles,
+            Vector3 localScale)
+        {
+            SerializedObject serializedTransform = new SerializedObject(assetTarget);
+            SerializedProperty positionProperty = serializedTransform.FindProperty("m_LocalPosition");
+            SerializedProperty rotationProperty = serializedTransform.FindProperty("m_LocalRotation");
+            SerializedProperty scaleProperty = serializedTransform.FindProperty("m_LocalScale");
+            if (positionProperty == null || rotationProperty == null || scaleProperty == null)
+            {
+                return false;
+            }
+
+            Quaternion localRotation = Quaternion.Euler(localEulerAngles);
+            positionProperty.vector3Value = localPosition;
+            rotationProperty.quaternionValue = localRotation;
+            scaleProperty.vector3Value = localScale;
+
+            // The hint is what the inspector shows and what keeps a 180° rotation from being read
+            // back as -180°. Optional only because it is an internal field, not because a rig that
+            // reads its angles differently after every edit would be acceptable.
+            SerializedProperty eulerHintProperty =
+                serializedTransform.FindProperty("m_LocalEulerAnglesHint");
+            if (eulerHintProperty != null)
+            {
+                eulerHintProperty.vector3Value = localEulerAngles;
+            }
+
+            serializedTransform.ApplyModifiedProperties();
+            Undo.SetCurrentGroupName("Edit Rig Base Pose");
+
+            return assetTarget.localPosition == localPosition
+                && assetTarget.localScale == localScale
+                && Quaternion.Angle(assetTarget.localRotation, localRotation) <= RotationEpsilonDegrees;
         }
 
         /// <summary>

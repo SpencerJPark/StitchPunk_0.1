@@ -676,12 +676,14 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// <para>
-        /// <strong>Scoped to this window, and inert while typing.</strong> Registered on
-        /// <c>rootVisualElement</c> rather than through Unity's global shortcut system, so Space and
-        /// the arrows keep their meaning everywhere else in the Editor. And a key pressed while a
-        /// field has focus is left alone: Space must type a space and the arrows must move the caret
-        /// when someone is editing the frame number, which is a field this very bar puts under their
-        /// cursor.
+        /// <strong>Scoped to this window, and inert while typing — except for undo.</strong>
+        /// Registered on <c>rootVisualElement</c> rather than through Unity's global shortcut
+        /// system, so Space and the arrows keep their meaning everywhere else in the Editor. And a
+        /// key pressed while a field has focus is left alone: Space must type a space and the arrows
+        /// must move the caret when someone is editing the frame number, which is a field this very
+        /// bar puts under their cursor. Ctrl+Z is the exception, and has to be: nothing else in the
+        /// window or the Editor would receive it, so declining it there is not deferring to a better
+        /// handler, it is dropping the key.
         /// </para>
         /// <para>
         /// <c>TrickleDown</c> is deliberately NOT used — the event is handled on the bubble phase so
@@ -700,6 +702,37 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnTransportKeyDown(KeyDownEvent keyEvent)
         {
+            bool commandKey = keyEvent.ctrlKey || keyEvent.commandKey;
+
+            // Undo and redo are answered before the text-entry guard below, and that ordering is
+            // the whole of the fix: a focused UI Toolkit window keeps the keystroke, so a Ctrl+Z
+            // this handler declines is a Ctrl+Z that reaches nothing at all — not the field, which
+            // has no undo of its own, and not the Editor. Declining it because a numeric field
+            // happened to hold focus is what made undo look dead after any value typed into the
+            // inspector, which is exactly when a person reaches for it.
+            bool isRedoKey = commandKey
+                && (keyEvent.keyCode == KeyCode.Y
+                    || (keyEvent.keyCode == KeyCode.Z && keyEvent.shiftKey));
+            if (isRedoKey || (commandKey && keyEvent.keyCode == KeyCode.Z))
+            {
+                // The gesture still gets first refusal, because mid-grab Ctrl+Z means "get me out
+                // of this" rather than a real undo. HandleTransformKeyDown declines every
+                // ctrl-modified key when no gesture is running, so this costs nothing otherwise.
+                if (!HandleTransformKeyDown(keyEvent))
+                {
+                    if (isRedoKey)
+                    {
+                        PerformRedo();
+                    }
+                    else
+                    {
+                        PerformUndo();
+                    }
+                }
+                keyEvent.StopPropagation();
+                return;
+            }
+
             if (IsTextEntryFocused())
             {
                 return;
@@ -715,38 +748,9 @@ namespace DotsAnimationToolkit.Editor
             }
 
             int largeStep = Mathf.Max(1, LargeStepFrames);
-            bool commandKey = keyEvent.ctrlKey || keyEvent.commandKey;
             bool handled = true;
             switch (keyEvent.keyCode)
             {
-                // Undo has to be handled here rather than left to the Editor. Every edit already
-                // records through Undo.RecordObject and the window already refreshes on
-                // undoRedoPerformed — what was missing is that a focused UI Toolkit window keeps
-                // the keystroke, so Ctrl+Z never reached Unity to begin with.
-                case KeyCode.Z:
-                    if (!commandKey)
-                    {
-                        handled = false;
-                    }
-                    else if (keyEvent.shiftKey)
-                    {
-                        PerformRedo();
-                    }
-                    else
-                    {
-                        PerformUndo();
-                    }
-                    break;
-                case KeyCode.Y:
-                    if (commandKey)
-                    {
-                        PerformRedo();
-                    }
-                    else
-                    {
-                        handled = false;
-                    }
-                    break;
                 case KeyCode.Space:
                     SetPlaying(!isPlaying);
                     break;

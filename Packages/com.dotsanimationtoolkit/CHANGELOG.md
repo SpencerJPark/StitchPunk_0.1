@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Ctrl+Z undoes what you just did, in three places it did not
+
+- **Undo was dropped whenever a field had focus.** The window checked "is someone typing?" before
+  it looked at the keystroke, and a focused UI Toolkit window keeps the key — so declining it there
+  was not deferring to a better handler, it was throwing the key away. A UI Toolkit field has no
+  undo of its own, so Ctrl+Z did nothing at all right after any value typed into the inspector,
+  which is exactly when it gets reached for. Undo and redo are now answered before that check. A
+  running grab or scale still claims Ctrl+Z first, where it means "cancel this".
+- **Moving a rig part wrote the prefab where undo could not follow.** With prefab mode closed, the
+  edit went through a copy in a temporary scene that was thrown away before the undo stack could
+  refer to it. A pose edit now writes the asset's own transform through the serialization layer,
+  which does record — verified by reading the value back, so a refused write still falls through to
+  the old route rather than silently leaving the part where it was. The viewport follows the undo
+  too, where before it kept showing the pose that had just been undone.
+- **A move made before keying is on the stack.** With Auto Key off a move is held, not written, so
+  nothing on the undo stack described it and Ctrl+Z could not take it back — the one edit in the
+  window undo could not reach. The held value now lives in an object the undo system can record, so
+  a drag or a typed value is a step like any other, and Revert is one too.
+
 ### Fixed — an event's description is what the event picker shows on hover
 
 Hovering an event in the picker showed the event's name a second time, under the name the row was
