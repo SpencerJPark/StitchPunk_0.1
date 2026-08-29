@@ -40,10 +40,18 @@ now judges the segment after the root, and was re-proved to still catch a plante
 
 **Still outstanding, and not test-visible:** every existing `ActorAuthoring` lost its `clipSet`,
 every `ClipSetAsset` its `rig`, every `ClipAsset` its `rig` — all three fields are gone, and Phase F
-ships no migration by owner decision. Re-point each actor's **Rig** and **Clip Sets**, or re-run the
-migration and smoke builders. `Assets/ScriptableObjects/Animations/NewClipSet.asset` still carries a
-serialized `rig:` pointing at the migration's `HumanoidRig.asset`; that field no longer exists on the
-type and Unity will drop it on the next save.
+ships no migration by owner decision. **Re-point each actor's Rig and Clip Sets by hand.** The
+migration, smoke and shader-demo folders and all seven toolkit scenes were deleted on 2026-08-29
+(owner's call, gate green first), so re-running a builder is no longer an option — recovery is git.
+`Assets/ScriptableObjects/Animations/NewClipSet.asset` still carries a serialized `rig:` pointing at
+the deleted `HumanoidRig.asset`; that field no longer exists on the type, so it resolves to nothing
+and Unity drops it on the next save. `NewRig.asset` beside it is the live rig.
+
+One capability went with the demo folder: **nothing in this project writes `_ToolkitCameraForward`
+any more.** The package declares and reads that global but has never written it — by design, it is
+the host's job — and `ToolkitCameraBinder` was the only writer here. The toolkit's screen-aligned
+billboard mode therefore degrades silently to spherical until a host writer exists. Nothing consumes
+it today (the game's own `BillboardSystem` is a separate path), so this is a gap, not a break.
 
 ## 2. How to work here
 

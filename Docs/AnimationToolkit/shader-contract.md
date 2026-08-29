@@ -415,7 +415,8 @@ of `ToolkitVat.hlsl` itself — `VatBoneSkin` unrolls up to four influences and 
 a full `float4`/`float4` pair instead of the crowd shader's `(v, 0, 0, 0)` padding pattern shown in
 `ToolkitVatCrowdUnlit.shader:87-88`.
 
-**The packing is confirmed in source** — `Assets/AnimationToolkitShaderDemo/Editor/VatTentacleBakeRunner.cs:92-103`:
+**The packing is confirmed in source** — the bake runner that produced the reference demo mesh
+packed `uv1` exactly like this (the demo was removed 2026-08-29; this quote is now the record):
 
 ```csharp
 BoneWeight[] sourceWeights = renderer.sharedMesh.boneWeights;
@@ -546,10 +547,10 @@ these settings will get the exact "renders as noise" failure mode in §6.
 
 **Not verified** (called out inline above, repeated here for visibility):
 
-- ~~`VatTentacleBakeRunner` could not be found.~~ **Resolved.** It is at
-  `Assets/AnimationToolkitShaderDemo/Editor/VatTentacleBakeRunner.cs` and its `uv1` packing is
-  quoted in §4 above. The real finding underneath the false alarm is a *packaging* one: the packer
-  lives in the host demo folder, so the package ships no helper for it.
+- ~~`VatTentacleBakeRunner` could not be found.~~ **Resolved**, then removed with the demo folder
+  on 2026-08-29; its `uv1` packing is quoted verbatim in §4 above. The real finding underneath the
+  false alarm was a *packaging* one and still stands: the packer only ever lived host-side, so the
+  package ships no helper for `uv1` — §4 is the contract you satisfy by hand.
 - The claim that Entities Graphics provides a built-in `URPMaterialPropertyBaseColor` binding for
   `_BaseColor` is sourced from a comment in `ToolkitCompositeExample.shader`, not from reading the
   Entities.Graphics package source itself.

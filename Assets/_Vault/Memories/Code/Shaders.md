@@ -80,8 +80,11 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   include, never in the node.
 
   Two traps worth knowing. `ToolkitBillboardVertex` reads the
-  `_ToolkitCameraForward` global (written by `ToolkitCameraBinder`) rather than
-  exposing a port: screen-aligned billboarding silently degrades to spherical
+  `_ToolkitCameraForward` global rather than exposing a port. **Nothing in this
+  project writes that global any more** — `ToolkitCameraBinder` went with the
+  demo folder on 2026-08-29, and the game's own `BillboardSystem` is a separate
+  path that does not touch it. Anything using the toolkit's screen-aligned mode
+  needs a host writer first. The reason it is a global: screen-aligned billboarding silently degrades to spherical
   when that forward is zero, and a port someone forgot to wire looks exactly
   like a working billboard that curves at the screen edges. And the wrapper
   unwraps `UnityTexture2D.tex` / `UnitySamplerState.samplerstate` before calling

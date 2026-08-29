@@ -71,6 +71,8 @@ than the camera not really moving.
 ### One question I'd like answered from memory
 
 **Did you ever run `AnimationToolkitBillboardDemo.unity` and actually see the quads?**
+(That scene and its builder were deleted on 2026-08-29; `BillboardDemoBuilder` regenerated it
+from nothing, so recovering it means git, not a menu item.)
 
 That scene was built during C5 with the **old** sign. If quads were visible there, the old sign was
 rendering front faces and my reasoning above is wrong somewhere — which would be the single most
@@ -82,8 +84,8 @@ check above settles it either way.
 ## Setup — the gotcha that will waste your time otherwise
 
 - [ ] **Something must write `AnimationToolkitCameraData` every frame, or nothing billboards at
-      all.** The package never reads a `Camera`. `ToolkitCameraBinder`
-      (`Assets/AnimationToolkitShaderDemo/Runtime/`) does it for the demo scenes; the real game will
+      all.** The package never reads a `Camera`. `ToolkitCameraBinder` did it for the demo
+      scenes and was deleted with them on 2026-08-29, so no writer exists now; the real game will
       need its own writer when the toolkit is eventually adopted. Symptom of forgetting: everything
       holds its animated pose and `BillboardResolveSystem` never runs.
 - [ ] **Re-bake.** `ActorBaker` and `RigTargetBaker` both changed. Re-open the subscene or re-enter

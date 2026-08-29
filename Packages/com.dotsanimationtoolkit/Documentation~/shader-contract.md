@@ -393,7 +393,7 @@ Source, verbatim (`ToolkitVatCrowdUnlit.shader:10-16`):
 
 > THE MESH IS AN ORDINARY MESH. Bone influences travel in UV1 rather than through skinning
 > semantics, because a plain MeshRenderer does not bind BLENDINDICES/BLENDWEIGHT — and the whole
-> point of VAT is not to need a SkinnedMeshRenderer. VatTentacleBakeRunner packs them:
+> point of VAT is not to need a SkinnedMeshRenderer. The reference bake runner packs them:
 >
 > `uv1 = (boneIndex0, boneIndex1, weight0, weight1)`
 >

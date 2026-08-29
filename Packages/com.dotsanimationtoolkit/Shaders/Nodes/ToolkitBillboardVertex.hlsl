@@ -15,7 +15,8 @@
 #include "ShaderApiReflectionSupport.hlsl"
 #include "Packages/com.dotsanimationtoolkit/Shaders/Includes/ToolkitBillboard.hlsl"
 
-// Written once per frame by ToolkitCameraBinder. Read here rather than exposed as a port on
+// The host writes this once per frame from the active camera. Read here rather than exposed as
+// a port on
 // purpose: screen-aligned mode silently degrades to spherical when the forward is zero, and a
 // port someone forgot to wire would look exactly like a working billboard that curves at the
 // screen edges. That failure cost real time to diagnose once already.
