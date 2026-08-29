@@ -76,11 +76,15 @@ but named targets and ordered layers.
 
 1. **Assets ▸ Create ▸ DOTS Animation Toolkit ▸ Clip Set Asset.** Name it,
    e.g. `DemoClipSet`.
-2. Set **Rig** to `DemoRig` and add `DemoBob` to **Clips**. Leave
-   **Vat Textures** empty — this walkthrough doesn't use VAT.
+2. Add `DemoBob` to **Clips**. Leave **Vat Textures** empty — this walkthrough
+   doesn't use VAT.
 
-(If your clip needs to reference a rig with more targets/layers, or you're
-adding VAT-sourced clips later, this is also where you'd assign a
+A clip set names no rig, and neither does a clip: they are collections of motion,
+and the rig they play on comes from the actor (see
+[`sharing-clips.md`](sharing-clips.md)). The Clip Editor's own **Rig** picker is
+window state — it decides what you are previewing against, and writes nothing.
+
+(If you add VAT-sourced clips later, this is also where you'd assign a
 `VatTextureSetAsset` produced by **Window ▸ DOTS Animation Toolkit ▸ VAT
 Bake**.)
 
@@ -88,7 +92,8 @@ Bake**.)
 
 1. Create an empty GameObject in the scene (or a prefab), e.g. `DemoActor`.
 2. Add the **DOTS Animation Toolkit ▸ Actor** component (`ActorAuthoring`).
-   Set **Clip Set** to `DemoClipSet`.
+   Set **Rig** to `DemoRig` and add `DemoClipSet` to **Clip Sets**. An actor may
+   name several sets; their clips are merged into one registry.
 3. Under **Starting Layers**, add one entry: `Layer Index = 0`, `Clip =
    DemoBob`, `Speed = 1`.
 4. Add a child GameObject positioned/scaled as your quad (e.g. with a

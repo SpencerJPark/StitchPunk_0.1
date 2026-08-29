@@ -25,9 +25,19 @@
      * These are the numbers that make them agree: the spacer above the headers is exactly the
      * ruler's height, and a header is exactly a lane's height. Declared once so the alignment
      * cannot be broken by editing one of a pair.
+     *
+     * A header row whose name will not fit wraps onto a second line, and a wrapped row is exactly
+     * two lanes tall — never a measured height. That is what keeps the wrap from sliding every row
+     * beneath it out of line with its own keys: there are two row heights, and one class pair sizes
+     * the header and the lane together (--wrapped below).
+     *
+     * The header width is the one size here a user can change: dragging the strip between the two
+     * columns writes it inline, which beats this token by design. It is what an unresized window
+     * starts at, so editing it still moves every window nobody has dragged.
      */
     --clip-editor-ruler-height: 20px;
     --clip-editor-lane-height: 22px;
+    --clip-editor-lane-height-wrapped: 44px;
     --clip-editor-track-header-width: 170px;
 }
 
@@ -265,9 +275,9 @@
  * is dragged small — a transport you cannot read is worse than a shorter timeline.
  *
  * The bar spans the pane rather than hugging its contents in the middle. Centring the bar itself
- * left the groups in one dense clump with dead space either side, and at that width the separators
- * between groups were doing all the work of telling them apart. space-evenly keeps the set centred
- * — the end gaps match the ones between groups — while giving each group room of its own. */
+ * left the groups in one dense clump with dead space either side, and a clump needs rules drawn
+ * between the groups to be read at all. space-evenly keeps the set centred — the end gaps match the
+ * ones between groups — while giving each group room of its own, which is what lets the rules go. */
 .clip-editor__transport {
     flex-direction: row;
     align-items: center;
@@ -282,16 +292,17 @@
     border-bottom-color: rgba(0, 0, 0, 0.35);
 }
 
-/* Groups read left to right: move the playhead, read it, define the grid, set playback. The
- * separators are what stop the bar reading as one undifferentiated row of widgets. */
+/* Groups read left to right: move the playhead, read it, define the grid, set playback. Separated
+ * by space alone — the rules that used to sit between them read as broken table cells rather than
+ * as grouping, and space-evenly on the bar above already spaces the groups further apart than the
+ * controls inside them. The padding stays: the gap is the separator now, so removing it too would
+ * be removing the grouping rather than the line. */
 .clip-editor__transport-group {
     flex-direction: row;
     align-items: center;
     margin-left: 4px;
     margin-right: 4px;
     padding-right: 6px;
-    border-right-width: 1px;
-    border-right-color: rgba(0, 0, 0, 0.25);
 }
 
 .clip-editor__transport-button {
@@ -321,6 +332,12 @@
 
 .clip-editor__transport-field {
     width: 58px;
+}
+
+/* A caption that is also its field's drag handle. The cursor is the only thing that says so, and
+ * it is the same one Unity puts on an inspector field's own label. */
+.clip-editor__transport-label--draggable {
+    cursor: slide-arrow;
 }
 
 /* Derived, not authored. Dimmed so it reads as a readout rather than something to type into. */
@@ -888,17 +905,50 @@
     flex-shrink: 0;
 }
 
+/*
+ * The strip between the name column and the lanes, and the only way to widen a column too narrow
+ * for its names. Five pixels: wide enough to catch without a miss, narrow enough that it costs the
+ * lanes nothing. The cursor is what actually advertises it — a wider bar would only be a wider
+ * nothing — and the rule joins the two columns rather than decorating either.
+ */
+.clip-editor__track-header-resizer {
+    width: 5px;
+    flex-shrink: 0;
+    border-left-width: 1px;
+    border-left-color: rgba(0, 0, 0, 0.35);
+    cursor: resize-horizontal;
+}
+
+.clip-editor__track-header-resizer:hover {
+    background-color: rgba(128, 128, 128, 0.35);
+}
+
+/*
+ * flex-wrap is what lets a name too wide for the column drop its part half onto a second line
+ * instead of being cut off mid-word. The height stays authored either way — see --wrapped below and
+ * the token block's note on why a measured height would break the two columns' alignment.
+ */
 .clip-editor__track-header {
     height: var(--clip-editor-lane-height);
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
     -unity-text-align: middle-left;
     margin-left: 6px;
     overflow: hidden;
 }
 
+/* Paired with .clip-editor__lane--wrapped, which must carry the same height. ClipEditorWindow
+   toggles both from one place so a row and its lane cannot disagree. */
+.clip-editor__track-header--wrapped {
+    height: var(--clip-editor-lane-height-wrapped);
+}
+
+/* Every direct child of a header is exactly one lane tall, so a wrapped row's two lines land on the
+   two lanes beside them rather than floating between them. */
 .clip-editor__track-foldout {
     width: 16px;
+    height: var(--clip-editor-lane-height);
     padding-left: 0;
     padding-right: 0;
     margin-left: 0;
@@ -907,9 +957,72 @@
     margin-bottom: 0;
 }
 
+/*
+ * The tag half of a row, and the half that never yields: the tag is what the clip stores its keys
+ * against, so it keeps the first line to itself and the part half is what moves down to the second.
+ */
 .clip-editor__track-header-label {
+    height: var(--clip-editor-lane-height);
     overflow: hidden;
+    flex-shrink: 0;
     -unity-text-align: middle-left;
+}
+
+/*
+ * The arrow and the part travel as one flex item so a narrow column moves them down together and
+ * the second line reads "→ Part". Wrapping the part on its own would leave the arrow trailing the
+ * tag, pointing at nothing. flex-shrink so that once it is alone on a line it ellipsizes rather
+ * than widening the row.
+ */
+.clip-editor__track-header-part-group {
+    height: var(--clip-editor-lane-height);
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 1;
+}
+
+/*
+ * The rig part the tag lands on. Dimmed by opacity rather than a grey literal so it reads as
+ * secondary on either editor skin, the same way a channel row is dimmed below.
+ */
+.clip-editor__track-header-part {
+    height: var(--clip-editor-lane-height);
+    overflow: hidden;
+    flex-shrink: 1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    opacity: 0.5;
+    -unity-text-align: middle-left;
+}
+
+/*
+ * The arrow between a row's tag and its part (amendment A56): the row's grammar — keys belong to
+ * the tag, the tag lands on the part — drawn rather than implied. Fainter than the part so it
+ * never reads as content, and never a click target. On a wrapped row it is also the second line's
+ * first character, which is what makes that line legible as a continuation.
+ */
+.clip-editor__track-header-arrow {
+    height: var(--clip-editor-lane-height);
+    flex-shrink: 0;
+    margin-left: 4px;
+    margin-right: 4px;
+    opacity: 0.35;
+    -unity-text-align: middle-left;
+}
+
+/*
+ * Either half of a row's binding when it is a picker (amendment A56). The hover tint is the whole
+ * affordance — a bordered button per half would double the row's chrome and halve a 170px column.
+ */
+.clip-editor__track-header-binding {
+    padding-left: 2px;
+    padding-right: 2px;
+    border-radius: 2px;
+}
+
+.clip-editor__track-header-binding:hover {
+    background-color: rgba(128, 128, 128, 0.25);
+    opacity: 1;
 }
 
 /* Indented and dimmed, because a channel row reads the same keys as the track above it. */
@@ -944,6 +1057,13 @@
 .clip-editor__lane {
     height: var(--clip-editor-lane-height);
     flex-grow: 1;
+}
+
+/* The lane belonging to a header that wrapped onto a second line. Paired with
+   .clip-editor__track-header--wrapped above; the two heights must stay equal or every row below
+   this one drifts away from its own keys. */
+.clip-editor__lane--wrapped {
+    height: var(--clip-editor-lane-height-wrapped);
 }
 
 /* The rows below the last track, filling the timeline to its bottom edge. Its height is the one

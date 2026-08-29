@@ -56,6 +56,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // authors no billboard track, so the stream gains only the array's zero length — which is
         // the point: an empty array still has to be in the stream, or a clip that gained its first
         // billboard track would hash identically to the clip that had none.
+        //
+        // NEEDS RE-RECORDING for schema version 9 (Phase F, rig-centric binding). The layout did not
+        // change, but ClipRegistryBlob.setKey — which is in the hash stream — is now the bind key
+        // (rig id XOR every bound set's id) rather than the lone set's id, so the frozen set hashes
+        // to a different, equally correct value. Run this test once and paste the number its failure
+        // message reports; that number is what the assertion below then guards.
         private const ulong ExpectedContentHash = 0x12D592565545DA14UL;
 
         private AuthoringTestAssets assets;
@@ -65,7 +71,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SetUp()
         {
             assets = new AuthoringTestAssets();
-            registryScope = new BlobAssetReferenceScope();
+            registryScope = new BlobAssetReferenceScope(assets);
         }
 
         [TearDown]
@@ -105,7 +111,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset frozenSet = BuildFrozenSet();
 
             Unity.Entities.Hash128 probedHash;
-            bool probed = ClipRegistryBuilder.TryComputeContentHash(frozenSet, out probedHash);
+            bool probed = assets.TryComputeBindHashOf(frozenSet, out probedHash);
             registryScope.Build(frozenSet);
 
             Assert.IsTrue(probed, "A bakeable set must yield a key.");
@@ -132,39 +138,37 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset frozenSet = BuildFrozenSet();
 
             Unity.Entities.Hash128 firstHash;
-            Assert.IsTrue(ClipRegistryBuilder.TryComputeContentHash(frozenSet, out firstHash));
+            Assert.IsTrue(assets.TryComputeBindHashOf(frozenSet, out firstHash));
             for (int probeIndex = 0; probeIndex < 64; probeIndex++)
             {
                 Unity.Entities.Hash128 repeatedHash;
-                Assert.IsTrue(ClipRegistryBuilder.TryComputeContentHash(frozenSet, out repeatedHash));
+                Assert.IsTrue(assets.TryComputeBindHashOf(frozenSet, out repeatedHash));
                 Assert.AreEqual(firstHash, repeatedHash, "Probing must be a pure function of the asset.");
             }
         }
 
         [Test]
-        public void TryComputeContentHash_ReportsFailure_ForANullSetAndForAnInvalidOne()
+        public void TryComputeContentHash_ReportsFailure_ForANullRigAndForAnInvalidBind()
         {
-            // Both false branches. A set that cannot bake has no key, and saying so is what lets a
+            // Both false branches. A bind that cannot bake has no key, and saying so is what lets a
             // baker skip it rather than throw mid-bake.
-            Unity.Entities.Hash128 nullSetHash;
+            Unity.Entities.Hash128 noRigHash;
             Assert.IsFalse(
-                ClipRegistryBuilder.TryComputeContentHash(null, out nullSetHash),
-                "A null set has no key.");
-            Assert.AreEqual(default(Unity.Entities.Hash128), nullSetHash, "A failed probe reports no key.");
+                ClipRegistryBuilder.TryComputeContentHash(null, null, out noRigHash),
+                "A bind with no rig has no key.");
+            Assert.AreEqual(default(Unity.Entities.Hash128), noRigHash, "A failed probe reports no key.");
 
-            // A clip whose track points at a target the rig does not define is a V02 error.
+            // A key outside [0, 1] is a V04 error. Not a dangling target id: since Phase F that is
+            // V38's skip, and a bind carrying one is still perfectly bakeable.
             ClipSetAsset invalidSet = BuildFrozenSet();
-            invalidSet.clips[0].transformTracks.Clear();
-            TransformTrack orphanedTrack = AuthoringTestAssets.AddTransformTrack(
-                invalidSet.clips[0], 0xDEADu, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
-                orphanedTrack, 0f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
-                Interpolation.Linear);
+                invalidSet.clips[0].transformTracks[0], 1.5f, new float3(0f, 0f, 0f), 0f,
+                new float3(1f, 1f, 1f), Interpolation.Linear);
 
             Unity.Entities.Hash128 invalidSetHash;
             Assert.IsFalse(
-                ClipRegistryBuilder.TryComputeContentHash(invalidSet, out invalidSetHash),
-                "A set carrying validation errors is not bakeable, so it has no key.");
+                assets.TryComputeBindHashOf(invalidSet, out invalidSetHash),
+                "A bind carrying validation errors is not bakeable, so it has no key.");
             Assert.AreEqual(default(Unity.Entities.Hash128), invalidSetHash, "A failed probe reports no key.");
         }
 
@@ -178,9 +182,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                8,
+                9,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 8. A bump must be paired " +
+                "The golden value above was recorded under schema version 9. A bump must be paired " +
                 "with a re-recorded constant, never landed on its own.");
         }
 
@@ -201,7 +205,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             rig.targets[0].boundsExtents = new float3(0.5f, 1.25f, 0.25f);
             rig.targets[1].boundsExtents = new float3(0.75f, 0.75f, 0.5f);
 
-            ClipAsset walkClip = assets.CreateClip("GoldenWalk", rig, WalkClipId, 1.25f);
+            ClipAsset walkClip = assets.CreateClip("GoldenWalk", WalkClipId, 1.25f);
             walkClip.defaultLoop = LoopMode.PingPong;
             walkClip.defaultBlendIn = 0.125f;
             walkClip.defaultBlendOut = 0.25f;
@@ -219,7 +223,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddSpriteKey(headSliceTrack, 1f, -1, float4.zero);
             AuthoringTestAssets.AddEvent(walkClip, 0.5f, 16u, -2, 1.5f);
 
-            ClipAsset idleClip = assets.CreateClip("GoldenIdle", rig, IdleClipId, 0.5f);
+            ClipAsset idleClip = assets.CreateClip("GoldenIdle", IdleClipId, 0.5f);
             // Restated rather than inherited from AuthoringTestAssets: these two are in the hashed
             // stream, so leaving them at the shared helper's defaults would let an unrelated edit to
             // that helper move the golden value and demand a schema bump for no real format change.

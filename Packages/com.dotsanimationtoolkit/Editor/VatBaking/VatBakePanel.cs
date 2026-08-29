@@ -37,6 +37,7 @@ namespace DotsAnimationToolkit.Editor
         private ObjectField clipSetField;
         private ObjectField skinnedRendererField;
         private EnumField flavorField;
+        private ObjectField rigField;
         private FloatField sampleRateField;
         private Toggle fullPrecisionField;
         private TextField outputFolderField;
@@ -63,6 +64,18 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "Clips whose ClipAsset names a VAT source clip are baked. Others are skipped."
             };
             root.Add(clipSetField);
+
+            // A set no longer names a rig (Phase F §3), and the bake needs one twice over: to read
+            // the socket rows it samples, and to stamp sourceRigKey so a later bind cannot pair
+            // these textures with another character's mesh (§8, rule V40).
+            rigField = new ObjectField("Rig")
+            {
+                objectType = typeof(RigAsset),
+                allowSceneObjects = false,
+                tooltip = "The rig these textures are baked for. Socket rows come from it, and it " +
+                    "is stamped into the texture set so the wrong rig cannot bind them."
+            };
+            root.Add(rigField);
 
             skinnedRendererField = new ObjectField("Skinned Mesh")
             {
@@ -142,6 +155,20 @@ namespace DotsAnimationToolkit.Editor
             clipSetField.value = clipSet;
         }
 
+        /// <summary>
+        /// Fills the rig field from the Clip Editor's own, when it is still empty — the usual case
+        /// is baking whatever the window is already showing. Never overwrites a rig already chosen
+        /// here: a deliberate cross-rig bake is exactly what the field is for.
+        /// </summary>
+        public void OfferRig(RigAsset rig)
+        {
+            if (rig == null || rigField == null || rigField.value != null)
+            {
+                return;
+            }
+            rigField.value = rig;
+        }
+
         private static Label BuildHeading(string text)
         {
             Label heading = new Label(text);
@@ -156,11 +183,17 @@ namespace DotsAnimationToolkit.Editor
             logView.Clear();
 
             ClipSetAsset clipSet = clipSetField.value as ClipSetAsset;
+            RigAsset rig = rigField.value as RigAsset;
             SkinnedMeshRenderer renderer = skinnedRendererField.value as SkinnedMeshRenderer;
 
             if (clipSet == null)
             {
                 ReportFailure("Assign a Clip Set.");
+                return;
+            }
+            if (rig == null)
+            {
+                ReportFailure("Assign the Rig these textures are baked for.");
                 return;
             }
             if (renderer == null)
@@ -188,7 +221,7 @@ namespace DotsAnimationToolkit.Editor
                 samplesPerSecond = sampleRateField.value,
                 useFullPrecision = fullPrecisionField.value,
                 clips = bakeClips,
-                sockets = CollectBoneSockets(clipSet.rig)
+                sockets = CollectBoneSockets(rig)
             };
 
             VatBakeResult bakeResult;
@@ -223,7 +256,7 @@ namespace DotsAnimationToolkit.Editor
                     + ". Check the bone names on the rig's socket rows.");
             }
 
-            string setPath = SaveResult(clipSet, bakeResult, bakeInput.flavor, renderer);
+            string setPath = SaveResult(clipSet, rig, bakeResult, bakeInput.flavor, renderer);
             ReportSuccess(bakeResult, bakeClips, setPath);
         }
 
@@ -308,6 +341,7 @@ namespace DotsAnimationToolkit.Editor
 
         private string SaveResult(
             ClipSetAsset clipSet,
+            RigAsset rig,
             VatBakeResult bakeResult,
             VatFlavor flavor,
             SkinnedMeshRenderer sourceRenderer)
@@ -342,6 +376,7 @@ namespace DotsAnimationToolkit.Editor
             textureSet.textureWidth = bakeResult.textureWidth;
             textureSet.rowsPerFrame = bakeResult.rowsPerFrame;
             textureSet.sourceHash = bakeResult.sourceHash;
+            textureSet.sourceRigKey = rig.StableId;
             textureSet.clipRanges = bakeResult.clipRanges;
             textureSet.socketTracks = bakeResult.socketTracks;
 

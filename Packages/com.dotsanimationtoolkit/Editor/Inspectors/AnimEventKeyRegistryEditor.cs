@@ -156,10 +156,14 @@ namespace DotsAnimationToolkit.Editor
             }
             RefreshFindings();
 
-            // Constants regeneration is deferred to OnDisable, not triggered here (see its remarks):
-            // regenerating immediately on every add/remove/rename forces a script recompile — a
-            // domain reload — synchronously out from under whatever else might be open, which is what
-            // broke the Clip Editor mid-session under the amendment A54 design this replaced.
+            // A resize (Undo/Redo, or an edit made on a different open copy of this inspector) has
+            // no OnDisable to flush it promptly either -- nothing guarantees this inspector is ever
+            // closed in the same session -- so it still regenerates immediately. An ordinary rename
+            // keystroke does nothing here: OnDisable is what regenerates once that edit is done.
+            if (rowCountChanged)
+            {
+                constantsSection?.RegenerateIfConfigured();
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -246,6 +250,9 @@ namespace DotsAnimationToolkit.Editor
 
             Foldout descriptionFoldout = new Foldout { text = "Description", value = false };
             descriptionFoldout.style.marginLeft = 12f;
+            descriptionFoldout.tooltip =
+                "What this event is for. Shown as the grey wording beside the event's name in the "
+                + "picker, so it is read at the moment someone is choosing which event to fire.";
             PropertyField descriptionField = new PropertyField(descriptionProperty, string.Empty);
             descriptionFoldout.Add(descriptionField);
             rowGroup.Add(descriptionFoldout);
@@ -279,7 +286,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            // Constants regeneration is deferred to OnDisable — see its remarks.
+            constantsSection?.RegenerateIfConfigured();
         }
 
         /// <summary>
@@ -320,7 +327,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            // Constants regeneration is deferred to OnDisable — see its remarks.
+            constantsSection?.RegenerateIfConfigured();
         }
 
         // -----------------------------------------------------------------------------------

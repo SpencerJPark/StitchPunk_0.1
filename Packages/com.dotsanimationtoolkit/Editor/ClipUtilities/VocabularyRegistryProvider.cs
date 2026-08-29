@@ -33,8 +33,8 @@ namespace DotsAnimationToolkit.Editor
     /// <strong>Not a <c>ScriptableSingleton&lt;T&gt;</c>, though that is the shape being
     /// reproduced.</strong> Inheriting it would force the registry types to derive from a
     /// <c>UnityEditor</c> base class, which is the very dependency this file exists to avoid — and
-    /// they cannot, since <see cref="ClipSetAsset.eventKeys"/> serializes one as a field. The
-    /// lazy-create-and-hydrate contract is hand-rolled here instead.
+    /// they cannot, since <c>ClipValidation</c> takes one as a parameter and must keep compiling in
+    /// a player build. The lazy-create-and-hydrate contract is hand-rolled here instead.
     /// </para>
     /// <para>
     /// <strong>Nothing is written until something changes.</strong> Reading a registry the first
@@ -71,14 +71,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The project-wide event-name vocabulary, used whenever a clip set carries no explicit
-        /// <see cref="ClipSetAsset.eventKeys"/> of its own.
+        /// The one project-wide event-name vocabulary. Never null, never assigned by hand — Phase F
+        /// decision D4 removed the per-set override that used to shadow it.
         /// </summary>
-        /// <remarks>
-        /// <strong>An explicit assignment still wins.</strong> A clip set someone wired by hand
-        /// before this existed keeps working unchanged; this is the fallback for everything else, so
-        /// there is no migration to perform and nothing to break.
-        /// </remarks>
         public static AnimEventKeyRegistry AnimEventKeys
         {
             get

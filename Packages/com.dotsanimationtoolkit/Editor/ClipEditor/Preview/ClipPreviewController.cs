@@ -180,6 +180,13 @@ namespace DotsAnimationToolkit.Editor
         private ClipSetAsset boundClipSet;
 
         /// <summary>
+        /// The rig the bound set is being previewed on. Supplied by the window rather than read off
+        /// the set, because a set names no rig — the pairing is the window's, and at run time an
+        /// actor's.
+        /// </summary>
+        private RigAsset boundRig;
+
+        /// <summary>
         /// What the last <see cref="SamplePose"/> was for, so the billboard pass can read the same
         /// clip's keyed channels at the same instant the pose came from.
         /// </summary>
@@ -320,29 +327,18 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         public void SetClipSet(ClipSetAsset clipSet)
         {
-            ReleaseRegistry();
             boundClipSet = clipSet;
-            statusMessage = string.Empty;
+            Refresh();
+        }
 
-            if (clipSet == null)
-            {
-                rigMirror.Dispose();
-                mirrorRootAdded = false;
-                socketMarkers.Dispose();
-                socketRootAdded = false;
-                mirrorRig = null;
-                statusMessage = "No clip set assigned.";
-                return;
-            }
-
-            RebuildMirrorIfRigChanged(clipSet.rig);
-            if (rigMirror.PartCount == 0)
-            {
-                statusMessage = "Clip set's rig declares no targets.";
-                return;
-            }
-
-            RebuildRegistry(clipSet);
+        /// <summary>
+        /// Sets the rig the bound set is previewed on. Independent of <see cref="SetClipSet"/>:
+        /// either can change without the other, exactly as the two toolbar pickers can.
+        /// </summary>
+        public void SetRig(RigAsset rig)
+        {
+            boundRig = rig;
+            Refresh();
         }
 
         /// <summary>
@@ -440,7 +436,18 @@ namespace DotsAnimationToolkit.Editor
             try
             {
                 Unity.Entities.Hash128 contentHash;
-                ClipRegistryBuilder.Build(clipSet, out registry, out contentHash);
+                // The preview binds the one set the window has open to the rig the window is
+                // showing — the same shape an actor's bind has, with a list of one (Phase F §5).
+                ClipRegistryBuilder.Build(
+                    boundRig,
+                    new ClipSetAsset[] { clipSet },
+                    out registry,
+                    out contentHash);
+            }
+            catch (ArgumentNullException)
+            {
+                registry = default(BlobAssetReference<ClipRegistryBlob>);
+                statusMessage = "Assign a rig to the toolbar's Rig field.";
             }
             catch (ClipValidationException)
             {
@@ -658,6 +665,18 @@ namespace DotsAnimationToolkit.Editor
         /// Separate from the rig-mirror rebuild, which is guarded on the rig <em>asset</em> changing
         /// and so would not notice a socket being added to the rig it already holds.
         /// </remarks>
+        /// <summary>Re-places the socket markers without rebuilding them.</summary>
+        /// <remarks>
+        /// What an offset edit actually needs. <see cref="RebuildSockets"/> destroys and recreates
+        /// every marker object and re-fetches their material, which is a heavy thing to do on each
+        /// mouse move of a drag and none of which an offset change invalidates — a marker is placed
+        /// from the socket's numbers every time it is updated, so moving it is the whole job.
+        /// </remarks>
+        public void RefreshSocketPlacement()
+        {
+            socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
+        }
+
         public void RebuildSockets()
         {
             socketMarkers.Rebuild(mirrorRig, AssetDatabase
@@ -1075,23 +1094,41 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         public void Refresh()
         {
-            if (boundClipSet == null)
-            {
-                SetClipSet(null);
-                return;
-            }
-
             ReleaseRegistry();
             statusMessage = string.Empty;
 
-            RebuildMirrorIfRigChanged(boundClipSet.rig);
+            if (boundRig == null)
+            {
+                DisposeMirrors();
+                statusMessage = "Assign a rig in the toolbar's Rig field.";
+                return;
+            }
+
+            RebuildMirrorIfRigChanged(boundRig);
             if (rigMirror.PartCount == 0)
             {
-                statusMessage = "Clip set's rig declares no targets.";
+                statusMessage = "Rig '" + boundRig.name + "' declares no targets.";
+                return;
+            }
+            if (boundClipSet == null)
+            {
+                // A rig with no set is a legitimate half-state, and a useful one: the hierarchy and
+                // the rest pose are the rig's, so the viewport still shows the character standing
+                // there with nothing to play.
+                statusMessage = "No clip set assigned.";
                 return;
             }
 
             RebuildRegistry(boundClipSet);
+        }
+
+        private void DisposeMirrors()
+        {
+            rigMirror.Dispose();
+            mirrorRootAdded = false;
+            socketMarkers.Dispose();
+            socketRootAdded = false;
+            mirrorRig = null;
         }
 
         /// <summary>
@@ -1161,6 +1198,53 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Poses one target from a value that is not in the registry yet.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>This is what makes an unkeyed edit visible.</strong> The registry is built from
+        /// committed keys, so with auto-key off there is nothing in it to sample: dragging a number
+        /// field moved the numbers and left the character standing still, which reads as the field
+        /// being broken rather than as the edit being held.
+        /// </para>
+        /// <para>
+        /// Layered on top of <see cref="SamplePose"/> rather than folded into it, and composed the
+        /// way <c>ClipSampler.ApplyClipToPose</c> composes an Override transform track — position
+        /// and rotation added to the rest pose, scale multiplying it (section 5.11) — so the held
+        /// value lands exactly where the same value would once it is keyed.
+        /// </para>
+        /// </remarks>
+        /// <param name="targetId">The part being held.</param>
+        /// <param name="localPosition">Held position offset from the rest pose.</param>
+        /// <param name="rotationDegrees">Held rotation offset, in the degrees the editor authors in.</param>
+        /// <param name="scale">Held scale factor against the rest scale.</param>
+        public void ApplyHeldTargetPose(
+            uint targetId, in float3 localPosition, in float3 rotationDegrees, in float3 scale)
+        {
+            if (targetId == 0u)
+            {
+                return;
+            }
+
+            RebuildRestPosesIfNeeded();
+            TargetRestPose rest = ResolveRestPose(targetId);
+
+            TargetPose pose;
+            ClipSampler.RestToPose(in rest, out pose);
+            pose.localPosition = rest.localPosition + localPosition;
+            pose.rotation = rest.rotation + math.radians(rotationDegrees);
+            pose.scale = rest.scale * scale;
+
+            // No-ops for a target the mirror does not hold, which is the right answer for an id the
+            // rig no longer has.
+            rigMirror.ApplyPose(targetId, in pose);
+
+            // Same reason SamplePose updates them last: a marker left on the previous pose reads as
+            // the socket lagging the part it follows.
+            socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
+        }
+
+        /// <summary>
         /// The rest pose every part is animated <em>from</em>, taken from the loaded prefab.
         /// </summary>
         /// <remarks>
@@ -1223,7 +1307,7 @@ namespace DotsAnimationToolkit.Editor
             restPosesDirty = false;
             targetRestPoses.Clear();
 
-            if (boundClipSet == null || boundClipSet.rig == null)
+            if (boundRig == null)
             {
                 return;
             }
@@ -1236,7 +1320,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            List<RigTargetDefinition> targets = boundClipSet.rig.targets;
+            List<RigTargetDefinition> targets = boundRig.targets;
             for (int targetIndex = 0; targets != null && targetIndex < targets.Count; targetIndex++)
             {
                 RigTargetDefinition target = targets[targetIndex];
@@ -1465,19 +1549,21 @@ namespace DotsAnimationToolkit.Editor
             // overwrites BillboardResolveSystem's write at runtime (§9 G1's own shape).
             StepRagdollPreview();
 
-            // BeginPreview/EndPreview are IMGUI-era APIs, called here from an EditorApplication.update
-            // tick rather than from inside an actual OnGUI pass. Off that pipeline they still touch
-            // the global IMGUI hot-control state, and since this runs 30 times a second regardless of
-            // what the user is doing, it was intermittently clobbering an in-progress drag on an
-            // unrelated UI Toolkit field elsewhere in the window (numeric drag-to-scrub still bottoms
-            // out on GUIUtility.hotControl). Saving and restoring it around the render call is free
-            // insurance against that even if some future Unity version changes the exact mechanism.
-            int hotControlBeforeRender = GUIUtility.hotControl;
+            // NEVER read-and-restore GUIUtility.hotControl around this render. Amendment A54 wrapped
+            // these three lines in exactly that, as "free insurance" against the render disturbing an
+            // unrelated drag, and it is what broke every button and every drag in the window instead.
+            // hotControl is not an int field with an accessor: assigning it takes or RELEASES the
+            // mouse capture, and UI Toolkit's own pointer capture is synced through it (which is why
+            // UIElements uses SetHotControlWithoutSendingEvents internally rather than this setter).
+            // This method runs on an EditorApplication.update tick 30 times a second, so restoring
+            // the pre-render value — 0, whenever the gesture in flight is a UI Toolkit one — released
+            // the captured pointer within ~33ms of any gesture starting. A Button's Clickable holds
+            // the pointer from PointerDown to PointerUp and fires `clicked` only if it still has it,
+            // so buttons stopped opening their pickers; a slider dragger lost the pointer the moment
+            // it grabbed it, so drags died on the spot.
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
-            Texture renderedTexture = renderUtility.EndPreview();
-            GUIUtility.hotControl = hotControlBeforeRender;
-            return renderedTexture;
+            return renderUtility.EndPreview();
         }
 
         /// <summary>

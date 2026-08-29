@@ -10,11 +10,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Turns a <see cref="ClipSetAsset"/>'s ScriptableObject graph into the single
-    /// <see cref="ClipRegistryBlob"/> the runtime reads (architecture sections 4.2, 4.5, 4.6),
-    /// together with the content hash that keys it in the <c>BlobAssetStore</c>. The same builder
-    /// serves entity baking and the editor's preview, so preview and runtime are structurally
-    /// guaranteed to sample identical data.
+    /// Turns one <em>bind</em> — a <see cref="RigAsset"/> and the <see cref="ClipSetAsset"/>s played
+    /// on it (Phase F §5) — into the single <see cref="ClipRegistryBlob"/> the runtime reads
+    /// (architecture sections 4.2, 4.5, 4.6), together with the content hash that keys it in the
+    /// <c>BlobAssetStore</c>. The same builder serves entity baking and the editor's preview, so
+    /// preview and runtime are structurally guaranteed to sample identical data.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -101,8 +101,16 @@ namespace DotsAnimationToolkit.Authoring
         /// <c>BlobArray</c> whose length and offset are arbitrary bytes is not a survivable misread
         /// the way a stray float is.
         /// </para>
+        /// <para>
+        /// Version 9 (Phase F, rig-centric binding) does not reshape the layout at all, and the gate
+        /// still matters: <see cref="ClipRegistryBlob.setKey"/> now holds a <em>bind</em> key —
+        /// the rig's stable id folded with every bound set's — rather than a lone set's id, and the
+        /// hash stream's clip order is the union across sets rather than one set's list. Same bytes,
+        /// different meaning, which is precisely what the version exists to catch: a version-8 blob
+        /// read as version 9 would answer a dedup probe for a bind it was never built for.
+        /// </para>
         /// </remarks>
-        public const int SchemaVersion = 8;
+        public const int SchemaVersion = 9;
 
         /// <summary>
         /// Number of times <see cref="Build"/> has allocated a persistent blob this session.
@@ -157,10 +165,16 @@ namespace DotsAnimationToolkit.Authoring
 #endif
 
         /// <summary>
-        /// Builds the registry blob for a clip set, together with its <c>BlobAssetStore</c> dedup
-        /// key.
+        /// Builds the registry blob for one bind, together with its <c>BlobAssetStore</c> dedup key.
         /// </summary>
-        /// <param name="clipSet">The set to bake. Must pass validation with no errors.</param>
+        /// <param name="rig">
+        /// The rig the sets are bound to — the actor's own. Every track binding is resolved against
+        /// it, and the canonical targets, dense indices and tag map all come from it.
+        /// </param>
+        /// <param name="clipSets">
+        /// The sets to merge. Nulls and repeated entries are dropped; order is canonicalised away.
+        /// The bind must pass validation with no errors.
+        /// </param>
         /// <param name="registry">
         /// The built blob, allocated with <see cref="Allocator.Persistent"/>. <strong>Ownership
         /// passes to the caller.</strong> In entity baking the caller hands it straight to
@@ -172,50 +186,52 @@ namespace DotsAnimationToolkit.Authoring
         /// </param>
         /// <param name="contentHash">
         /// The <c>BlobAssetStore</c> dedup key of architecture section 4.5: the 64-bit content hash
-        /// in the low two words, the schema version, and the folded set key. Because the folded set
-        /// key is part of the key and <see cref="ClipRegistryBlob.setKey"/> is part of the hashed
-        /// stream, two <em>different</em> sets never dedup onto one blob even when their content is
-        /// identical — deduplication is scoped to one set, which is what makes many actors sharing a
-        /// <see cref="ClipSetAsset"/> share one blob and makes a rebake with unchanged content a
-        /// no-op.
+        /// in the low two words, the schema version, and the folded bind key. Because the fold is
+        /// part of the key and <see cref="ClipRegistryBlob.setKey"/> is part of the hashed stream,
+        /// two <em>different</em> binds never dedup onto one blob even when their content is
+        /// identical — deduplication is scoped to one bind, which is what makes many actors sharing
+        /// a rig and a loadout share one blob and makes a rebake with unchanged content a no-op.
         /// </param>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="clipSet"/> is null.</exception>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="rig"/> is null.</exception>
         /// <exception cref="ClipValidationException">
-        /// Thrown when the set carries any validation error (architecture section 3.5); the
+        /// Thrown when the bind carries any validation error (architecture section 3.5); the
         /// exception lists every offending rule code.
         /// </exception>
         public static void Build(
-            ClipSetAsset clipSet,
+            RigAsset rig,
+            IReadOnlyList<ClipSetAsset> clipSets,
             out BlobAssetReference<ClipRegistryBlob> registry,
             out Unity.Entities.Hash128 contentHash)
         {
-            if (clipSet == null)
+            if (rig == null)
             {
-                throw new ArgumentNullException(nameof(clipSet));
+                throw new ArgumentNullException(nameof(rig));
             }
 
-            ValidateForBakeOrThrow(clipSet);
+            List<ClipSetAsset> canonicalClipSets = BuildCanonicalClipSets(clipSets);
+            ValidateForBakeOrThrow(rig, canonicalClipSets);
 
 #if UNITY_EDITOR
             System.Threading.Interlocked.Increment(ref buildInvocationCount);
 #endif
-            registry = BuildValidatedBlob(clipSet, Allocator.Persistent);
-            contentHash = ComposeDedupKey(HashRegistry(registry), clipSet.stableId);
+            registry = BuildValidatedBlob(rig, canonicalClipSets, Allocator.Persistent);
+            contentHash = ComposeDedupKey(
+                HashRegistry(registry), ComposeBindKey(rig, canonicalClipSets));
         }
 
         /// <summary>
-        /// Computes the <c>BlobAssetStore</c> dedup key of a clip set without handing the caller a
-        /// blob to own, so a baker can probe the store before deciding to build.
+        /// Computes the <c>BlobAssetStore</c> dedup key of a bind without handing the caller a blob
+        /// to own, so a baker can probe the store before deciding to build.
         /// </summary>
         /// <remarks>
         /// <para>
         /// This is what makes the canonical baker pattern expressible:
         /// </para>
         /// <code>
-        /// if (ClipRegistryBuilder.TryComputeContentHash(clipSet, out Unity.Entities.Hash128 hash) &amp;&amp;
+        /// if (ClipRegistryBuilder.TryComputeContentHash(rig, clipSets, out Unity.Entities.Hash128 hash) &amp;&amp;
         ///     !blobAssetStore.TryGet(hash, out BlobAssetReference&lt;ClipRegistryBlob&gt; registry))
         /// {
-        ///     ClipRegistryBuilder.Build(clipSet, out registry, out hash);
+        ///     ClipRegistryBuilder.Build(rig, clipSets, out registry, out hash);
         ///     blobAssetStore.TryAdd(hash, registry);
         /// }
         /// </code>
@@ -227,38 +243,43 @@ namespace DotsAnimationToolkit.Authoring
         /// work <see cref="Build"/> does — but it costs no persistent allocation and no store entry.
         /// </para>
         /// </remarks>
-        /// <param name="clipSet">The set whose dedup key is wanted.</param>
+        /// <param name="rig">The rig of the bind whose dedup key is wanted.</param>
+        /// <param name="clipSets">The sets bound to it.</param>
         /// <param name="contentHash">
         /// The dedup key on success — byte-identical to the one <see cref="Build"/> produces for the
-        /// same asset; <c>default</c> on failure.
+        /// same bind; <c>default</c> on failure.
         /// </param>
         /// <returns>
-        /// True when the key was computed. False when <paramref name="clipSet"/> is null or carries
-        /// validation errors: the set is not bakeable, so it has no key. Call <see cref="Build"/> to
-        /// obtain the <see cref="ClipValidationException"/> naming the offending rules.
+        /// True when the key was computed. False when <paramref name="rig"/> is null or the bind
+        /// carries validation errors: it is not bakeable, so it has no key. Call
+        /// <see cref="Build"/> to obtain the <see cref="ClipValidationException"/> naming the
+        /// offending rules.
         /// </returns>
         public static bool TryComputeContentHash(
-            ClipSetAsset clipSet,
+            RigAsset rig,
+            IReadOnlyList<ClipSetAsset> clipSets,
             out Unity.Entities.Hash128 contentHash)
         {
             contentHash = default;
-            if (clipSet == null)
+            if (rig == null)
             {
                 return false;
             }
 
+            List<ClipSetAsset> canonicalClipSets = BuildCanonicalClipSets(clipSets);
             List<ValidationMessage> validationMessages =
-                ClipValidation.ValidateSet(clipSet, ValidationStage.Bake);
+                ClipValidation.ValidateBind(rig, canonicalClipSets, ValidationStage.Bake);
             if (ClipValidation.HasErrors(validationMessages))
             {
                 return false;
             }
 
             BlobAssetReference<ClipRegistryBlob> probeRegistry =
-                BuildValidatedBlob(clipSet, Allocator.Temp);
+                BuildValidatedBlob(rig, canonicalClipSets, Allocator.Temp);
             try
             {
-                contentHash = ComposeDedupKey(HashRegistry(probeRegistry), clipSet.stableId);
+                contentHash = ComposeDedupKey(
+                    HashRegistry(probeRegistry), ComposeBindKey(rig, canonicalClipSets));
             }
             finally
             {
@@ -267,11 +288,57 @@ namespace DotsAnimationToolkit.Authoring
             return true;
         }
 
+        /// <summary>
+        /// The bind's identity (Phase F §5): the rig's stable id XOR-folded with every bound set's.
+        /// Stamped into <see cref="ClipRegistryBlob.setKey"/> and folded again into the dedup key.
+        /// </summary>
+        /// <remarks>
+        /// XOR is commutative, so set order cannot reach the key — but the list is canonicalised
+        /// before it gets here anyway, because a repeated set would otherwise cancel itself out of
+        /// the fold.
+        /// </remarks>
+        internal static ulong ComposeBindKey(RigAsset rig, List<ClipSetAsset> canonicalClipSets)
+        {
+            ulong bindKey = rig == null ? 0UL : rig.StableId;
+            for (int setIndex = 0; setIndex < canonicalClipSets.Count; setIndex++)
+            {
+                bindKey ^= canonicalClipSets[setIndex].stableId;
+            }
+            return bindKey;
+        }
+
+        /// <summary>
+        /// Canonicalises a bind's set list: nulls dropped, repeats dropped by asset identity, sorted
+        /// ascending by set stable id — so nothing downstream can depend on the order the sets were
+        /// dragged into an inspector list.
+        /// </summary>
+        internal static List<ClipSetAsset> BuildCanonicalClipSets(IReadOnlyList<ClipSetAsset> clipSets)
+        {
+            List<ClipSetAsset> canonicalClipSets = new List<ClipSetAsset>();
+            if (clipSets == null)
+            {
+                return canonicalClipSets;
+            }
+
+            HashSet<ClipSetAsset> seenClipSets = new HashSet<ClipSetAsset>();
+            for (int setIndex = 0; setIndex < clipSets.Count; setIndex++)
+            {
+                ClipSetAsset clipSet = clipSets[setIndex];
+                if (clipSet == null || !seenClipSets.Add(clipSet))
+                {
+                    continue;
+                }
+                canonicalClipSets.Add(clipSet);
+            }
+            canonicalClipSets.Sort(CompareClipSetsByStableId);
+            return canonicalClipSets;
+        }
+
         // -----------------------------------------------------------------------------------
         // Validation gate and blob assembly.
         // -----------------------------------------------------------------------------------
 
-        private static void ValidateForBakeOrThrow(ClipSetAsset clipSet)
+        private static void ValidateForBakeOrThrow(RigAsset rig, List<ClipSetAsset> canonicalClipSets)
         {
             // ValidationStage.Bake names the caller truthfully. It selects the severity of rule V08
             // only, and V08 additionally requires a freshly recomputed VAT source hash to compare
@@ -280,7 +347,7 @@ namespace DotsAnimationToolkit.Authoring
             // architecture section 1.3 forbids Authoring from referencing. V08 is therefore silent
             // at entity bake and is judged in the Editor assembly instead (architecture section 3.5).
             List<ValidationMessage> validationMessages =
-                ClipValidation.ValidateSet(clipSet, ValidationStage.Bake);
+                ClipValidation.ValidateBind(rig, canonicalClipSets, ValidationStage.Bake);
             if (ClipValidation.HasErrors(validationMessages))
             {
                 throw new ClipValidationException(validationMessages);
@@ -288,21 +355,39 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         private static BlobAssetReference<ClipRegistryBlob> BuildValidatedBlob(
-            ClipSetAsset clipSet,
+            RigAsset rig,
+            List<ClipSetAsset> canonicalClipSets,
             AllocatorManager.AllocatorHandle allocator)
         {
-            // Validation guarantees a rig with 1..8 layers, unique target ids, unique clip ids, and
-            // every track bound to a target (directly, or by a tag T1 guarantees at most one target
-            // of this rig carries) the rig actually declares.
-            RigAsset rig = clipSet.rig;
+            // Validation guarantees a rig with 1..8 layers, unique target ids, and clip ids unique
+            // across the whole union. A binding that does not resolve against this rig is not
+            // guaranteed away — rules T2 and T6 make it a skip — so the fill paths below still
+            // handle an unresolved track rather than trusting one.
             List<RigTargetDefinition> canonicalTargets = BuildCanonicalTargets(rig);
             Dictionary<uint, int> denseTargetIndexById = BuildDenseTargetIndexMap(canonicalTargets);
             Dictionary<uint, int> denseTargetIndexByTagId = BuildDenseTargetIndexByTagId(canonicalTargets, denseTargetIndexById);
-            List<ClipAsset> canonicalClips = BuildCanonicalClips(clipSet);
+            List<ClipAsset> canonicalClips = BuildCanonicalClips(canonicalClipSets);
+            VatTextureSetAsset vatTextures = ResolveBindVatTextures(canonicalClipSets);
 
             return BuildBlob(
-                clipSet, rig, canonicalTargets, denseTargetIndexById, denseTargetIndexByTagId,
-                canonicalClips, allocator);
+                rig, canonicalClipSets, vatTextures, canonicalTargets, denseTargetIndexById,
+                denseTargetIndexByTagId, canonicalClips, allocator);
+        }
+
+        /// <summary>
+        /// The one VAT texture set a bind addresses. Rule V39 makes two of them an error, so by the
+        /// time a validated bind reaches here there is at most one to find.
+        /// </summary>
+        private static VatTextureSetAsset ResolveBindVatTextures(List<ClipSetAsset> canonicalClipSets)
+        {
+            for (int setIndex = 0; setIndex < canonicalClipSets.Count; setIndex++)
+            {
+                if (canonicalClipSets[setIndex].vatTextures != null)
+                {
+                    return canonicalClipSets[setIndex].vatTextures;
+                }
+            }
+            return null;
         }
 
         // -----------------------------------------------------------------------------------
@@ -368,22 +453,33 @@ namespace DotsAnimationToolkit.Authoring
             return denseTargetIndexByTagId;
         }
 
-        private static List<ClipAsset> BuildCanonicalClips(ClipSetAsset clipSet)
+        /// <summary>
+        /// The union of every bound set's clips (Phase F §5), deduplicated by asset identity and
+        /// sorted ascending by clip id — the position in that order <em>is</em> the dense clip
+        /// index.
+        /// </summary>
+        private static List<ClipAsset> BuildCanonicalClips(List<ClipSetAsset> canonicalClipSets)
         {
             List<ClipAsset> canonicalClips = new List<ClipAsset>();
             // Dedup by asset identity. UnityEngine.Object overrides Equals/GetHashCode to compare
             // instances, so the set itself carries the identity semantics — no instance-id call.
             HashSet<ClipAsset> seenClips = new HashSet<ClipAsset>();
-            if (clipSet.clips != null)
+            for (int setIndex = 0; setIndex < canonicalClipSets.Count; setIndex++)
             {
-                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
+                List<ClipAsset> clips = canonicalClipSets[setIndex].clips;
+                if (clips == null)
                 {
-                    ClipAsset clip = clipSet.clips[clipIndex];
+                    continue;
+                }
+                for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                {
+                    ClipAsset clip = clips[clipIndex];
                     if (clip == null)
                     {
                         continue;
                     }
-                    // Rule V11: a clip listed twice contributes exactly one baked entry.
+                    // Rule V11: a clip registered twice — in one set or across two — contributes
+                    // exactly one baked entry.
                     if (!seenClips.Add(clip))
                     {
                         continue;
@@ -412,13 +508,19 @@ namespace DotsAnimationToolkit.Authoring
             return left.stableId.CompareTo(right.stableId);
         }
 
+        private static int CompareClipSetsByStableId(ClipSetAsset left, ClipSetAsset right)
+        {
+            return left.stableId.CompareTo(right.stableId);
+        }
+
         // -----------------------------------------------------------------------------------
         // Blob construction (architecture section 4.2).
         // -----------------------------------------------------------------------------------
 
         private static BlobAssetReference<ClipRegistryBlob> BuildBlob(
-            ClipSetAsset clipSet,
             RigAsset rig,
+            List<ClipSetAsset> canonicalClipSets,
+            VatTextureSetAsset vatTextures,
             List<RigTargetDefinition> canonicalTargets,
             Dictionary<uint, int> denseTargetIndexById,
             Dictionary<uint, int> denseTargetIndexByTagId,
@@ -437,10 +539,10 @@ namespace DotsAnimationToolkit.Authoring
             {
                 ref ClipRegistryBlob registryRoot = ref builder.ConstructRoot<ClipRegistryBlob>();
                 registryRoot.schemaVersion = SchemaVersion;
-                registryRoot.setKey = clipSet.stableId;
-                registryRoot.vatSetKey = clipSet.vatTextures == null ? 0UL : clipSet.vatTextures.setKey;
+                registryRoot.setKey = ComposeBindKey(rig, canonicalClipSets);
+                registryRoot.vatSetKey = vatTextures == null ? 0UL : vatTextures.setKey;
                 registryRoot.layerCount = (byte)rig.layers.Count;
-                registryRoot.vatInfo = BuildVatInfo(clipSet.vatTextures);
+                registryRoot.vatInfo = BuildVatInfo(vatTextures);
 
                 BlobBuilderArray<uint> sortedTargetIdArray =
                     builder.Allocate(ref registryRoot.sortedTargetIds, canonicalTargets.Count);
@@ -468,7 +570,7 @@ namespace DotsAnimationToolkit.Authoring
                         ref clipArray[denseClipIndex],
                         canonicalClips[denseClipIndex],
                         rig,
-                        clipSet.vatTextures,
+                        vatTextures,
                         denseTargetIndexById,
                         denseTargetIndexByTagId,
                         targetBoundsExtents);
@@ -642,7 +744,8 @@ namespace DotsAnimationToolkit.Authoring
                     track.targetId, track.tagId, denseTargetIndexById, denseTargetIndexByTagId,
                     out denseTargetIndex))
                 {
-                    ReportUnresolvedTrackBinding(clip, rig, track.tagId, "Transform track", authoringIndex);
+                    ReportUnresolvedTrackBinding(
+                        clip, rig, track.targetId, track.tagId, "Transform track", authoringIndex);
                     continue;
                 }
                 entries.Add(new TransformTrackEntry
@@ -679,7 +782,8 @@ namespace DotsAnimationToolkit.Authoring
                     track.targetId, track.tagId, denseTargetIndexById, denseTargetIndexByTagId,
                     out denseTargetIndex))
                 {
-                    ReportUnresolvedTrackBinding(clip, rig, track.tagId, "Sprite track", authoringIndex);
+                    ReportUnresolvedTrackBinding(
+                        clip, rig, track.targetId, track.tagId, "Sprite track", authoringIndex);
                     continue;
                 }
                 entries.Add(new SpriteTrackEntry
@@ -697,11 +801,10 @@ namespace DotsAnimationToolkit.Authoring
         /// Resolves one track's binding to a dense target index (Phase E target-tags spec §5): by
         /// tag when <paramref name="tagId"/> is non-zero, by <paramref name="targetId"/> otherwise —
         /// the same sentinel <see cref="TransformTrack.tagId"/> and <see cref="SpriteTrack.tagId"/>
-        /// document. The target-id path is looked up rather than indexed directly (unlike the
-        /// pre-Phase-E code this replaces) because rule T2 (V35, a warning) lets a tag-bound track
-        /// reach this method with nothing to resolve to; the plain target-id path stays effectively
-        /// unable to fail in practice, since rule V02 (an error) already stopped the bake for it, but
-        /// it goes through the same lookup so there is exactly one resolution rule, not two.
+        /// document. Both halves are lenient at bake and for the same reason: rule T2 (V35) lets a
+        /// tag-bound track reach here with nothing to resolve to, and Phase F's rule T6 (V38) lets
+        /// an id-bound one do the same, because a set applied to a second rig legitimately carries
+        /// tracks only its home rig declares.
         /// </summary>
         /// <returns>
         /// True when the binding resolved, with <paramref name="denseTargetIndex"/> set. False when
@@ -725,19 +828,27 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>
         /// Reports a track whose binding did not resolve (spec §5 point 3), the same "report, never
         /// silently inert" contract <c>VatTextureBaker</c> already gives an unresolved socket bone
-        /// name. Reached only for a tag-bound track this rig has no target for (rule T2, a warning at
-        /// authoring time already) — the plain target-id path cannot reach here because rule V02
-        /// blocks the bake first.
+        /// name. Names the tag for a tag-bound track (rule T2) and the target id for an id-bound one
+        /// (rule T6), because those are the two different things an author would go and fix.
         /// </summary>
         private static void ReportUnresolvedTrackBinding(
-            ClipAsset clip, RigAsset rig, uint tagId, string trackKindLabel, int authoringIndex)
+            ClipAsset clip,
+            RigAsset rig,
+            uint targetId,
+            uint tagId,
+            string trackKindLabel,
+            int authoringIndex)
         {
             string rigName = rig != null ? rig.name : "(no rig)";
             string clipName = clip != null ? clip.name : "(no clip)";
+            string bindingDescription = tagId != 0u
+                ? "binds tag id 0x" + tagId.ToString("X8") + ", which rig '" + rigName +
+                  "' has no target for; the track is skipped in this bake (rule T2)."
+                : "targets id 0x" + targetId.ToString("X8") + ", which rig '" + rigName +
+                  "' does not declare; the track is skipped in this bake (rule T6).";
             Debug.LogWarning(
                 "[DOTS Animation Toolkit] " + trackKindLabel + " " + authoringIndex + " of clip '" +
-                clipName + "' binds tag id 0x" + tagId.ToString("X8") + ", which rig '" + rigName +
-                "' has no target for; the track is skipped in this bake (rule T2).");
+                clipName + "' " + bindingDescription);
         }
 
         private static int CompareTransformTrackEntries(TransformTrackEntry left, TransformTrackEntry right)
@@ -1122,13 +1233,13 @@ namespace DotsAnimationToolkit.Authoring
         // Content hash (architecture section 4.5 point 3).
         // -----------------------------------------------------------------------------------
 
-        private static Unity.Entities.Hash128 ComposeDedupKey(ulong contentHash64, ulong setKey)
+        private static Unity.Entities.Hash128 ComposeDedupKey(ulong contentHash64, ulong bindKey)
         {
             return new Unity.Entities.Hash128(
                 (uint)contentHash64,
                 (uint)(contentHash64 >> 32),
                 (uint)SchemaVersion,
-                (uint)setKey ^ (uint)(setKey >> 32));
+                (uint)bindKey ^ (uint)(bindKey >> 32));
         }
 
         private static ulong HashRegistry(BlobAssetReference<ClipRegistryBlob> registry)

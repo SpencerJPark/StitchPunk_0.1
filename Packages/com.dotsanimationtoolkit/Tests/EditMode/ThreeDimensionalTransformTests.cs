@@ -26,7 +26,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SetUp()
         {
             assets = new AuthoringTestAssets();
-            registryScope = new BlobAssetReferenceScope();
+            registryScope = new BlobAssetReferenceScope(assets);
         }
 
         [TearDown]
@@ -40,7 +40,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AllThreeRotationAxes_SurviveTheBake_AndConvertToRadians()
         {
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
-            ClipAsset clip = assets.CreateClip("Roll", rig, 0x10UL, 1f);
+            ClipAsset clip = assets.CreateClip("Roll", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
 
@@ -69,7 +69,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void ScaleZ_SurvivesTheBake()
         {
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
-            ClipAsset clip = assets.CreateClip("Squash", rig, 0x10UL, 1f);
+            ClipAsset clip = assets.CreateClip("Squash", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Scale);
             AuthoringTestAssets.AddTransformKey(
@@ -90,7 +90,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SamplingInterpolatesEveryRotationAxisIndependently()
         {
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
-            ClipAsset clip = assets.CreateClip("Tumble", rig, 0x10UL, 1f);
+            ClipAsset clip = assets.CreateClip("Tumble", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation | AnimatedChannels.Scale);
 
@@ -133,7 +133,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void CompositionOffsetsEveryRotationAxisFromRest()
         {
             RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
-            ClipAsset clip = assets.CreateClip("Lean", rig, 0x10UL, 1f);
+            ClipAsset clip = assets.CreateClip("Lean", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
             track.keys.Add(new TransformKey
@@ -171,7 +171,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // The migration path clips authored before rotation was 3D take. It runs on load and is
             // idempotent, so calling it directly is the same thing deserialization does.
-            ClipAsset clip = assets.CreateClip("Legacy", null, 0x10UL, 1f);
+            ClipAsset clip = assets.CreateClip("Legacy", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
             track.keys.Add(new TransformKey
@@ -197,7 +197,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void MigrationLeavesAGenuineThreeDimensionalRotationAlone()
         {
-            ClipAsset clip = assets.CreateClip("Modern", null, 0x10UL, 1f);
+            ClipAsset clip = assets.CreateClip("Modern", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
             track.keys.Add(new TransformKey

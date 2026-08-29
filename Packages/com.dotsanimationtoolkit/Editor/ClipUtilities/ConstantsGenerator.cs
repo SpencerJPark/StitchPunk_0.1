@@ -351,6 +351,9 @@ namespace DotsAnimationToolkit.Editor
         /// someone reorganised a folder is a worse answer than simply recreating it. The write goes
         /// through a plain file API rather than <c>AssetDatabase</c> (the target may legitimately sit
         /// outside the project), so an explicit refresh is what makes Unity notice and compile it.
+        /// That refresh is deferred: every caller is a UI callback, and one of them runs inside an
+        /// <c>Editor.OnDisable</c> raised by <c>DestroyImmediate</c>. Recompiling from there means
+        /// starting a domain reload underneath a stack Unity is still unwinding.
         /// </remarks>
         /// <param name="filePath">Absolute or project-relative destination.</param>
         /// <param name="generatedSource">The full file text.</param>
@@ -363,7 +366,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             File.WriteAllText(filePath, generatedSource);
-            AssetDatabase.Refresh();
+            EditorApplication.delayCall += AssetDatabase.Refresh;
         }
 
         /// <summary>

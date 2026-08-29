@@ -50,9 +50,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             return assets.CreateRig("Rig", RigKey, 2, new uint[] { FirstTargetId, SecondTargetId });
         }
 
-        private ClipAsset CreateValidClip(RigAsset rig, string assetName, ulong clipId)
+        private ClipAsset CreateValidClip(string assetName, ulong clipId)
         {
-            ClipAsset clip = assets.CreateClip(assetName, rig, clipId, 1f);
+            ClipAsset clip = assets.CreateClip(assetName, clipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, FirstTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
@@ -66,7 +66,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private ClipSetAsset CreateValidSet(out RigAsset rig, out ClipAsset clip)
         {
             rig = CreateValidRig();
-            clip = CreateValidClip(rig, "Walk", WalkClipId);
+            clip = CreateValidClip("Walk", WalkClipId);
             return assets.CreateSet("Set", rig, SetKey, clip);
         }
 
@@ -94,7 +94,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip;
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             Assert.IsEmpty(messages, "The baseline fixture must validate clean: " + Describe(messages));
         }
@@ -114,18 +114,21 @@ namespace DotsAnimationToolkit.Tests.EditMode
             clip.defaultBlendIn = 0f;
             clip.defaultBlendOut = 0f;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V01, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V01, ValidationSeverity.Error);
         }
 
         [Test]
-        public void V02_FiresWhenATrackTargetsAnIdTheRigDoesNotDeclare()
+        public void AnIdBoundTrackTheRigDoesNotDeclare_IsAWarning_NotAnError()
         {
+            // Was V02, an error, back when a clip recorded the rig it was authored against. It
+            // records none now, so "this id is wrong" is not a fact anything can establish — only
+            // "this id does not line up with the rig you are playing it on", which is a skip.
             RigAsset rig;
             ClipAsset clip;
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             clip.transformTracks[0].targetId = 999u;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V02, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V38, ValidationSeverity.Warning);
         }
 
         [Test]
@@ -138,7 +141,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddTransformKey(
                 clip.transformTracks[0], 0.5f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V03, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V03, ValidationSeverity.Error);
         }
 
         [Test]
@@ -151,7 +154,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddTransformKey(
                 clip.transformTracks[0], 1.5f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V04, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V04, ValidationSeverity.Error);
         }
 
         // -----------------------------------------------------------------------------------
@@ -162,60 +165,143 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V05_FiresWhenTwoClipsInOneSetShareAClipId()
         {
             RigAsset rig = CreateValidRig();
-            ClipAsset walkClip = CreateValidClip(rig, "Walk", WalkClipId);
-            ClipAsset runClip = CreateValidClip(rig, "Run", WalkClipId);
+            ClipAsset walkClip = CreateValidClip("Walk", WalkClipId);
+            ClipAsset runClip = CreateValidClip("Run", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, walkClip, runClip);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V05, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V05, ValidationSeverity.Error);
         }
 
         [Test]
         public void V05_FiresWhenTwoTargetRowsInOneRigShareATargetId()
         {
             RigAsset rig = assets.CreateRig("Rig", RigKey, 2, new uint[] { FirstTargetId, FirstTargetId });
-            ClipAsset clip = CreateValidClip(rig, "Walk", WalkClipId);
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V05, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V05, ValidationSeverity.Error);
         }
 
         // -----------------------------------------------------------------------------------
-        // V06 - V08: set-scoped references.
+        // V07 - V08: bind-scoped VAT references. (V06 retired in Phase F: a set names no rig.)
+        // -----------------------------------------------------------------------------------
+
+        // -----------------------------------------------------------------------------------
+        // V38 (rule T6, Phase F): a track bound by target id, on a rig that is not its own.
         // -----------------------------------------------------------------------------------
 
         [Test]
-        public void V06_FiresWhenAClipIsAuthoredAgainstADifferentRigThanItsSet()
+        public void V38_FiresAsAWarning_WhenAnIdBoundTrackNamesATargetTheBindRigDoesNotDeclare()
         {
-            RigAsset setRig = CreateValidRig();
-            // The other rig declares the same targets, so only the rig-identity rule can fire.
-            RigAsset otherRig = assets.CreateRig(
-                "OtherRig", RigKey + 1UL, 2, new uint[] { FirstTargetId, SecondTargetId });
-            ClipAsset clip = CreateValidClip(otherRig, "Walk", WalkClipId);
-            ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, clip);
+            // The scenario Phase F exists for: a set played on a rig whose target list only partly
+            // overlaps what its clips name. The track skips; it does not fail the bind.
+            RigAsset partialRig = assets.CreateRig(
+                "PartialRig", RigKey + 1UL, 2, new uint[] { SecondTargetId });
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
+            ClipSetAsset clipSet = assets.CreateSet("Set", partialRig, SetKey, clip);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V06, ValidationSeverity.Error);
+            AssertOnlyCode(
+                assets.ValidateBindOf(clipSet),
+                ValidationCode.V38,
+                ValidationSeverity.Warning);
         }
 
         [Test]
-        public void V06_DoesNotFire_WhenTheClipHasNoRigAssignedAtAll()
+        public void V38_KeepsAMismatchedBindBakeable()
         {
-            // Phase E target-tags spec §1/§4.3: a clip with no rig assigned has committed to no
-            // specific rig, so it is not "against the wrong one" - this is what lets a fully
-            // tag-bound clip join sets whose rigs differ from each other, the entire point of the
-            // sharing feature. A track naming a real targetId would still fail V02 against "no rig",
-            // so this must be exercised with a clip that carries no target-id-bound tracks at all.
-            RigAsset setRig = CreateValidRig();
-            ClipAsset clip = assets.CreateClip("Shared", null, WalkClipId, 1f);
-            ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, clip);
+            // An error here would ban the cross-rig bind outright, so the whole point is that
+            // HasErrors stays false and the bake proceeds with the track dropped.
+            RigAsset partialRig = assets.CreateRig(
+                "PartialRig", RigKey + 1UL, 2, new uint[] { SecondTargetId });
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
+            ClipSetAsset clipSet = assets.CreateSet("Set", partialRig, SetKey, clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+            List<ValidationMessage> messages =
+                assets.ValidateBindOf(clipSet, ValidationStage.Bake);
 
-            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
-            {
-                Assert.AreNotEqual(
-                    ValidationCode.V06, messages[messageIndex].code,
-                    "A null clip.rig must never trip V06: " + Describe(messages));
-            }
+            AssertOnlyCode(messages, ValidationCode.V38, ValidationSeverity.Warning);
+            Assert.IsFalse(
+                ClipValidation.HasErrors(messages),
+                "A cross-rig bind must stay bakeable: " + Describe(messages));
+        }
+
+        // -----------------------------------------------------------------------------------
+        // The merged union: rules that only became reachable once one actor binds several sets.
+        // -----------------------------------------------------------------------------------
+
+        [Test]
+        public void V05_FiresWhenTwoSetsBoundTogetherCarryDistinctClipsSharingAnId()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset walkClip = CreateValidClip("Walk", WalkClipId);
+            ClipAsset runClip = CreateValidClip("Run", WalkClipId);
+            ClipSetAsset firstSet = assets.CreateSet("Walks", rig, SetKey, walkClip);
+            ClipSetAsset secondSet = assets.CreateSet("Runs", rig, SetKey + 1UL, runClip);
+
+            AssertOnlyCode(
+                ClipValidation.ValidateBind(rig, new ClipSetAsset[] { firstSet, secondSet }),
+                ValidationCode.V05,
+                ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V11_FiresWhenOneClipIsRegisteredByTwoSetsBoundTogether()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset sharedClip = CreateValidClip("Walk", WalkClipId);
+            ClipSetAsset firstSet = assets.CreateSet("Walks", rig, SetKey, sharedClip);
+            ClipSetAsset secondSet = assets.CreateSet("Everything", rig, SetKey + 1UL, sharedClip);
+
+            AssertOnlyCode(
+                ClipValidation.ValidateBind(rig, new ClipSetAsset[] { firstSet, secondSet }),
+                ValidationCode.V11,
+                ValidationSeverity.Warning);
+        }
+
+        [Test]
+        public void V39_FiresWhenTwoBoundSetsEachSupplyAVatTextureSet()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset walkClip = CreateValidClip("Walk", WalkClipId);
+            ClipAsset runClip = CreateValidClip("Run", WalkClipId + 1UL);
+            ClipSetAsset firstSet = assets.CreateSet("Walks", rig, SetKey, walkClip);
+            ClipSetAsset secondSet = assets.CreateSet("Runs", rig, SetKey + 1UL, runClip);
+            firstSet.vatTextures = assets.CreateVatTextureSet("VatA", 77UL);
+            secondSet.vatTextures = assets.CreateVatTextureSet("VatB", 78UL);
+
+            AssertOnlyCode(
+                ClipValidation.ValidateBind(rig, new ClipSetAsset[] { firstSet, secondSet }),
+                ValidationCode.V39,
+                ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V40_FiresWhenABoundSetsVatTexturesWereBakedFromAnotherRig()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
+            clipSet.vatTextures = assets.CreateVatTextureSet("Vat", 77UL);
+            clipSet.vatTextures.sourceRigKey = rig.StableId + 1UL;
+
+            AssertOnlyCode(
+                assets.ValidateBindOf(clipSet),
+                ValidationCode.V40,
+                ValidationSeverity.Error);
+        }
+
+        [Test]
+        public void V40_DoesNotFire_WhenTheVatTexturesPredateTheSourceRigKey()
+        {
+            // Key 0 is anything baked before the field existed, and Phase F ships no migration.
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
+            clipSet.vatTextures = assets.CreateVatTextureSet("Vat", 77UL);
+
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
+
+            Assert.IsEmpty(messages, "An unstamped VAT set must bind cleanly: " + Describe(messages));
         }
 
         // -----------------------------------------------------------------------------------
@@ -226,14 +312,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V35_FiresAsAWarning_WhenATagBoundTrackNamesATagThisRigDoesNotCarry()
         {
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            ClipAsset clip = assets.CreateClip("Blink", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
             AuthoringTestAssets.AddTransformKey(
                 track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             AssertOnlyCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
         }
@@ -243,14 +330,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             RigAsset rig = CreateValidRig();
             rig.targets[0].tagId = 999u;
-            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            ClipAsset clip = assets.CreateClip("Blink", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
             AuthoringTestAssets.AddTransformKey(
                 track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             Assert.IsEmpty(messages, "A tag every rig target list carries must not fire T2: " + Describe(messages));
         }
@@ -260,7 +348,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             RigAsset rig = CreateValidRig();
             rig.name = "BarrelRig";
-            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            ClipAsset clip = assets.CreateClip("Blink", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
@@ -269,8 +357,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             TargetTagRegistry registry = assets.Create<TargetTagRegistry>("Registry");
             registry.entries.Add(new TargetTagEntry { name = "EyeL", stableId = 999u });
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip, registry);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet, tagRegistry: registry);
 
             AssertContainsCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
             StringAssert.Contains("Blink", messages[0].text, "must name the clip");
@@ -280,15 +369,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void V35_IsJudgedAgainstTheSetsRig_NotTheClipsOwn_ForASharedClip()
+        public void V35_IsJudgedAgainstTheBindsRig_NotTheClipsOwn_ForASharedClip()
         {
-            // The shared clip is the case Phase E exists for, and it carries no rig of its own (the
-            // V06 exemption). Judging its tags against clip.rig therefore asked a null object
-            // whether it carried the tag, got "no", and warned - always, on every tag-bound track,
-            // however healthy the actual rig was. T2 must ask the rig the clip will play on.
+            // The case Phase E exists for. T2 must ask the rig the clip will actually play on —
+            // no clip records one, and the only wrong answer available is to invent a finding when
+            // no rig is in hand.
             RigAsset setRig = CreateValidRig();
             setRig.targets[0].tagId = 999u;
-            ClipAsset sharedClip = assets.CreateClip("Shared", null, WalkClipId, 1f);
+            ClipAsset sharedClip = assets.CreateClip("Shared", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 sharedClip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
@@ -296,7 +384,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, sharedClip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             Assert.IsEmpty(
                 messages,
@@ -305,7 +393,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void V35_StillFiresForASharedClip_WhenTheSetsRigLacksTheTag_AndNamesThatRig()
+        public void V35_StillFiresForASharedClip_WhenTheBindsRigLacksTheTag_AndNamesThatRig()
         {
             // The other half of the same fix: scoping T2 to the set's rig must not blunt it. A
             // roster member that genuinely lacks the part is exactly what §6.1's lenient rule is
@@ -313,7 +401,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // nothing actionable.
             RigAsset setRig = CreateValidRig();
             setRig.name = "BarrelRig";
-            ClipAsset sharedClip = assets.CreateClip("Shared", null, WalkClipId, 1f);
+            ClipAsset sharedClip = assets.CreateClip("Shared", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 sharedClip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
@@ -321,7 +409,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
             ClipSetAsset clipSet = assets.CreateSet("Set", setRig, SetKey, sharedClip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             AssertContainsCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
             StringAssert.Contains(
@@ -339,7 +427,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V36_FiresAsAnError_WhenATagBoundTrackNamesATagDeletedFromTheRegistry()
         {
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            ClipAsset clip = assets.CreateClip("Blink", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
@@ -349,8 +437,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // A registry that exists but no longer holds an entry for 999u - the "deleted tag" case.
             TargetTagRegistry registry = assets.Create<TargetTagRegistry>("Registry");
             registry.entries.Add(new TargetTagEntry { name = "Other", stableId = 111u });
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip, registry);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet, tagRegistry: registry);
 
             AssertOnlyCode(messages, ValidationCode.V36, ValidationSeverity.Error);
         }
@@ -362,33 +451,58 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // a deleted one, so it must default to the milder T2 finding rather than staying silent
             // or over-reporting T3.
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = assets.CreateClip("Blink", rig, WalkClipId, 1f);
+            ClipAsset clip = assets.CreateClip("Blink", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             track.tagId = 999u;
             AuthoringTestAssets.AddTransformKey(
                 track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             AssertOnlyCode(messages, ValidationCode.V35, ValidationSeverity.Warning);
         }
 
         [Test]
-        public void V02_StillFiresForATargetIdBoundTrack_WhenTagIdIsZero()
+        public void ATagIdOfZero_StillMeansBindByTargetId()
         {
             // Regression: tagId defaults to 0 for every track authored before E3, and 0 must still
-            // mean "bind by target id" exactly as before.
+            // route through the id path — which reports T6 rather than T2 when it does not resolve.
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = assets.CreateClip("Walk", rig, WalkClipId, 1f);
+            ClipAsset clip = assets.CreateClip("Walk", WalkClipId, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0xBADu, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
                 track, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
+
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V38, ValidationSeverity.Warning);
+        }
+
+        [Test]
+        public void ValidateClip_JudgesNoBinding_BecauseAClipNamesNoRig()
+        {
+            // The independence, stated as an assertion. A clip inspected on its own cannot be told
+            // whether its bindings resolve, and guessing is what the old clip.rig field did.
+            RigAsset rig = CreateValidRig();
+            ClipAsset clip = assets.CreateClip("Walk", WalkClipId, 1f);
+            TransformTrack idBoundTrack = AuthoringTestAssets.AddTransformTrack(
+                clip, 0xBADu, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            AuthoringTestAssets.AddTransformKey(
+                idBoundTrack, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+            TransformTrack tagBoundTrack = AuthoringTestAssets.AddTransformTrack(
+                clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            tagBoundTrack.tagId = 999u;
+            AuthoringTestAssets.AddTransformKey(
+                tagBoundTrack, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
 
             List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
 
-            AssertOnlyCode(messages, ValidationCode.V02, ValidationSeverity.Error);
+            Assert.IsEmpty(
+                messages,
+                "Neither binding can be judged without a rig, and neither may be guessed at: " +
+                Describe(messages));
         }
 
         [Test]
@@ -399,7 +513,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             clip.vatSource = NewVatSource();
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V07, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V07, ValidationSeverity.Error);
         }
 
         /// <summary>
@@ -435,7 +549,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             clip.vatSource = new VatClipSource();
 
             Assert.IsEmpty(
-                ClipValidation.ValidateSet(clipSet),
+                assets.ValidateBindOf(clipSet),
                 "A clip that names no source clip has no VAT intent, so a set with no texture set "
                 + "is complete as authored.");
         }
@@ -457,7 +571,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             });
             clipSet.vatTextures = vatTextureSet;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V07, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V07, ValidationSeverity.Error);
         }
 
         [Test]
@@ -468,7 +582,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             clipSet.vatTextures = assets.CreateVatTextureSet("VatSet", VatSetKey);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(
+            List<ValidationMessage> messages = assets.ValidateBindOf(
                 clipSet,
                 ValidationStage.Authoring,
                 true,
@@ -485,7 +599,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             clipSet.vatTextures = assets.CreateVatTextureSet("VatSet", VatSetKey);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(
+            List<ValidationMessage> messages = assets.ValidateBindOf(
                 clipSet,
                 ValidationStage.Bake,
                 true,
@@ -502,7 +616,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             clipSet.vatTextures = assets.CreateVatTextureSet("VatSet", VatSetKey);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+            List<ValidationMessage> messages = assets.ValidateBindOf(clipSet);
 
             Assert.IsEmpty(
                 messages,
@@ -524,7 +638,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             reservedMarker.eventKey = (uint)ReservedEventKeys.ClipFinished;
             clip.events[0] = reservedMarker;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V09, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V09, ValidationSeverity.Error);
         }
 
         [Test]
@@ -537,7 +651,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             negativeWindowMarker.windowSeconds = -0.25f;
             clip.events[0] = negativeWindowMarker;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V19, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V19, ValidationSeverity.Error);
         }
 
         [Test]
@@ -551,7 +665,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             unmaskableMarker.windowSeconds = 0.25f;
             clip.events[0] = unmaskableMarker;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V20, ValidationSeverity.Warning);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V20, ValidationSeverity.Warning);
         }
 
         [Test]
@@ -566,7 +680,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             clip.events[0] = windowedMarker;
 
             Assert.IsEmpty(
-                ClipValidation.ValidateSet(clipSet),
+                assets.ValidateBindOf(clipSet),
                 "A window on a key that owns a mask bit is the ordinary case and must not warn.");
         }
 
@@ -584,28 +698,28 @@ namespace DotsAnimationToolkit.Tests.EditMode
             clip.events[0] = highKeyMarker;
 
             Assert.IsEmpty(
-                ClipValidation.ValidateSet(clipSet),
-                "A pulse-only key with no window is legal: " + Describe(ClipValidation.ValidateSet(clipSet)));
+                assets.ValidateBindOf(clipSet),
+                "A pulse-only key with no window is legal: " + Describe(assets.ValidateBindOf(clipSet)));
         }
 
         [Test]
         public void V10_FiresAsAWarningForAClipWithNoTracksAndNoEvents()
         {
             RigAsset rig = CreateValidRig();
-            ClipAsset emptyClip = assets.CreateClip("Empty", rig, WalkClipId, 1f);
+            ClipAsset emptyClip = assets.CreateClip("Empty", WalkClipId, 1f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, emptyClip);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V10, ValidationSeverity.Warning);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V10, ValidationSeverity.Warning);
         }
 
         [Test]
         public void V11_FiresAsAWarningWhenOneClipIsListedTwiceInASet()
         {
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = CreateValidClip(rig, "Walk", WalkClipId);
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip, clip);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V11, ValidationSeverity.Warning);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V11, ValidationSeverity.Warning);
         }
 
         [Test]
@@ -616,7 +730,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             clip.defaultBlendIn = 2f;
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V12, ValidationSeverity.Warning);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V12, ValidationSeverity.Warning);
         }
 
         [Test]
@@ -627,7 +741,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
             rig.layers.Clear();
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V13, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V13, ValidationSeverity.Error);
         }
 
         [Test]
@@ -635,26 +749,29 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             RigAsset rig = assets.CreateRig(
                 "Rig", RigKey, RigAsset.MaxLayerCount + 1, new uint[] { FirstTargetId, SecondTargetId });
-            ClipAsset clip = CreateValidClip(rig, "Walk", WalkClipId);
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V13, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V13, ValidationSeverity.Error);
         }
 
         [Test]
-        public void V13_FiresWhenTheSetHasNoRigAtAll()
+        public void AnUnboundSet_ReportsNothingThatNeedsARigToAnswer()
         {
+            // A set with no rig is the ordinary state of a set — that independence is the point —
+            // so it must not be reported as broken. Nothing a rig would answer can speak here, and
+            // the rules a set can answer alone still do.
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = CreateValidClip(rig, "Walk", WalkClipId);
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
-            clipSet.rig = null;
-            clip.rig = null;
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(clipSet);
+            List<ValidationMessage> messages =
+                ClipValidation.ValidateBind(null, new ClipSetAsset[] { clipSet });
 
-            // With no rig the clip's own track can no longer name a target either, so V02 rides
-            // along; the point of this fixture is that a missing rig is reported, not swallowed.
-            AssertContainsCode(messages, ValidationCode.V13, ValidationSeverity.Error);
+            Assert.IsEmpty(
+                messages,
+                "An unbound set is not a fault, and no binding rule may guess in a rig's absence: " +
+                Describe(messages));
         }
 
         [Test]
@@ -667,7 +784,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 clip, SecondTargetId, SpriteFrameMode.Slice);
             AuthoringTestAssets.AddSpriteKey(spriteTrack, 0f, -5, float4.zero);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V14, ValidationSeverity.Warning);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V14, ValidationSeverity.Warning);
         }
 
         // -----------------------------------------------------------------------------------
@@ -675,14 +792,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // -----------------------------------------------------------------------------------
 
         [Test]
-        public void ValidateClipAndValidateSet_RejectNullArguments()
+        public void ValidateClip_RejectsNull_WhileValidateBindReportsAnEmptyBind()
         {
             Assert.Throws<ArgumentNullException>(
                 delegate { ClipValidation.ValidateClip(null); },
                 "ValidateClip must reject a null clip rather than return an empty result.");
-            Assert.Throws<ArgumentNullException>(
-                delegate { ClipValidation.ValidateSet(null); },
-                "ValidateSet must reject a null set rather than return an empty result.");
+
+            // ValidateBind requires no asset at all: neither a rig nor a set is a caller error,
+            // just an empty bind with nothing to report. An actor that reaches bake in that state
+            // is ActorBaker's error to raise, not this one's.
+            Assert.IsEmpty(
+                ClipValidation.ValidateBind(null, null),
+                "An empty bind is not a fault.");
         }
 
         [Test]
@@ -691,9 +812,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig;
             ClipAsset clip;
             ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
-            clip.transformTracks[0].targetId = 999u;
+            // A key outside [0, 1] rather than a dangling target id: since Phase F an unresolved
+            // id-bound track is V38's skip, so it no longer blocks a bake and could not exercise
+            // this gate.
+            AuthoringTestAssets.AddTransformKey(
+                clip.transformTracks[0], 1.5f, float3.zero, 0f, new float3(1f, 1f, 1f),
+                Interpolation.Linear);
 
-            BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope();
+            BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope(assets);
             try
             {
                 ClipValidationException thrownException = Assert.Throws<ClipValidationException>(
@@ -701,9 +827,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     "A set with validation errors must not bake.");
 
                 Assert.IsTrue(
-                    thrownException.Message.Contains("V02"),
+                    thrownException.Message.Contains("V04"),
                     "The exception message must name the offending rule codes: " + thrownException.Message);
-                AssertContainsCode(thrownException.Messages, ValidationCode.V02, ValidationSeverity.Error);
+                AssertContainsCode(thrownException.Messages, ValidationCode.V04, ValidationSeverity.Error);
                 Assert.IsFalse(
                     registryScope.Registry.IsCreated,
                     "A rejected bake must not leave a blob behind.");
@@ -715,26 +841,32 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void Build_RejectsANullClipSet()
+        public void Build_RejectsANullRig()
         {
+            // The rig is the one thing a bake cannot proceed without: it supplies the canonical
+            // targets, the dense indices and the tag map. An empty set list is merely an empty
+            // registry, so it is not a caller error and is not rejected here.
             Assert.Throws<ArgumentNullException>(
                 delegate
                 {
-                    BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope();
-                    registryScope.Build(null);
+                    ClipRegistryBuilder.Build(
+                        null,
+                        new ClipSetAsset[0],
+                        out Unity.Entities.BlobAssetReference<ClipRegistryBlob> registry,
+                        out Unity.Entities.Hash128 contentHash);
                 },
-                "Build must reject a null set.");
+                "Build must reject a bind with no rig.");
         }
 
         [Test]
         public void Build_SucceedsWhenOnlyWarningsWereReported()
         {
             RigAsset rig = CreateValidRig();
-            ClipAsset clip = CreateValidClip(rig, "Walk", WalkClipId);
+            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             clip.defaultBlendIn = 5f;
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip, clip);
 
-            BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope();
+            BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope(assets);
             try
             {
                 registryScope.Build(clipSet);
@@ -903,7 +1035,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 negativeTimeTrack, -0.25f, new float3(0f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
                 Interpolation.Linear);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V04, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V04, ValidationSeverity.Error);
         }
 
         [Test]
@@ -924,7 +1056,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 duplicateTimeTrack, 0.5f, new float3(1f, 0f, 0f), 0f, new float3(1f, 1f, 1f),
                 Interpolation.Linear);
 
-            AssertOnlyCode(ClipValidation.ValidateSet(clipSet), ValidationCode.V03, ValidationSeverity.Error);
+            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V03, ValidationSeverity.Error);
         }
 
         [Test]
@@ -940,7 +1072,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             topOfReservedClip.events[0] = topOfReservedMarker;
 
             AssertOnlyCode(
-                ClipValidation.ValidateSet(topOfReservedSet), ValidationCode.V09, ValidationSeverity.Error);
+                assets.ValidateBindOf(topOfReservedSet), ValidationCode.V09, ValidationSeverity.Error);
 
             ClipAsset firstUserKeyClip;
             ClipSetAsset firstUserKeySet = CreateValidSet(out rig, out firstUserKeyClip);
@@ -949,7 +1081,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             firstUserKeyClip.events[0] = firstUserKeyMarker;
 
             AssertNoFindings(
-                ClipValidation.ValidateSet(firstUserKeySet),
+                assets.ValidateBindOf(firstUserKeySet),
                 "The first user key is the lowest key the package does not reserve.");
         }
 
@@ -966,7 +1098,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddSpriteKey(sentinelTrack, 0f, -1, float4.zero);
 
             AssertNoFindings(
-                ClipValidation.ValidateSet(clipSet),
+                assets.ValidateBindOf(clipSet),
                 "-1 means 'no change' on an authored sprite key and must validate cleanly.");
         }
 

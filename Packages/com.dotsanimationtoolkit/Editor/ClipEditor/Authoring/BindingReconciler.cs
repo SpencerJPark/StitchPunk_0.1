@@ -81,14 +81,19 @@ namespace DotsAnimationToolkit.Editor
         /// Collects every binding in <paramref name="clipSet"/> that does not resolve against
         /// <paramref name="availableNames"/>.
         /// </summary>
-        /// <param name="clipSet">The set whose clips and rig are checked.</param>
+        /// <param name="rig">
+        /// The rig the set is being played against. Supplied by the caller, because a set names no
+        /// rig of its own; null checks the set's bone tracks and nothing rig-scoped.
+        /// </param>
+        /// <param name="clipSet">The set whose clips are checked.</param>
         /// <param name="availableNames">
         /// Every transform name present in the prefab. An empty set means no prefab is loaded, in
         /// which case nothing is reported — "you have not assigned a rig" is not a broken binding.
         /// </param>
         /// <param name="findings">Cleared and filled with the broken bindings, in discovery order.</param>
         public static void Collect(
-            ClipSetAsset clipSet, HashSet<string> availableNames, List<BrokenBinding> findings)
+            RigAsset rig, ClipSetAsset clipSet, HashSet<string> availableNames,
+            List<BrokenBinding> findings)
         {
             findings.Clear();
             if (clipSet == null || availableNames == null || availableNames.Count == 0)
@@ -97,7 +102,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             CollectBoneTracks(clipSet, availableNames, findings);
-            CollectRigBindings(clipSet.rig, availableNames, findings);
+            CollectRigBindings(rig, availableNames, findings);
         }
 
         private static void CollectBoneTracks(

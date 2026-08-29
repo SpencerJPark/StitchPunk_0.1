@@ -38,8 +38,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SetUp()
         {
             assets = new AuthoringTestAssets();
-            firstBuild = new BlobAssetReferenceScope();
-            secondBuild = new BlobAssetReferenceScope();
+            firstBuild = new BlobAssetReferenceScope(assets);
+            secondBuild = new BlobAssetReferenceScope(assets);
         }
 
         [TearDown]
@@ -87,7 +87,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // deliberately not shuffled, because architecture section 4.5 makes authoring order the
             // tie-break for two tracks that share a target, and this fixture has none.
             clipSet.clips.Reverse();
-            clipSet.rig.targets.Reverse();
+            assets.RigBoundTo(clipSet).targets.Reverse();
             for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
             {
                 ClipAsset clip = clipSet.clips[clipIndex];
@@ -240,7 +240,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = CreateRichSet("Set", SetKey);
 
             firstBuild.Build(clipSet);
-            clipSet.rig.targets[0].boundsExtents = clipSet.rig.targets[0].boundsExtents + new float3(1f, 0f, 0f);
+            assets.RigBoundTo(clipSet).targets[0].boundsExtents = assets.RigBoundTo(clipSet).targets[0].boundsExtents + new float3(1f, 0f, 0f);
             secondBuild.Build(clipSet);
 
             Assert.AreNotEqual(
@@ -308,15 +308,20 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         /// <summary>
         /// Moves a rig target to a new id and repoints every transform and sprite track that
-        /// referenced the old id, so the set stays valid under rule V02.
+        /// referenced the old id, so every binding still resolves and no track is skipped (T6).
         /// </summary>
-        private static void RetargetRigTarget(ClipSetAsset clipSet, uint oldTargetId, uint newTargetId)
+        /// <remarks>
+        /// An instance method, not static: the rig a set is bound to is fixture state now, because
+        /// no asset records one.
+        /// </remarks>
+        private void RetargetRigTarget(ClipSetAsset clipSet, uint oldTargetId, uint newTargetId)
         {
-            for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
+            RigAsset rig = assets.RigBoundTo(clipSet);
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
             {
-                if (clipSet.rig.targets[targetIndex].stableId == oldTargetId)
+                if (rig.targets[targetIndex].stableId == oldTargetId)
                 {
-                    clipSet.rig.targets[targetIndex].stableId = newTargetId;
+                    rig.targets[targetIndex].stableId = newTargetId;
                 }
             }
             for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
@@ -371,21 +376,22 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // -----------------------------------------------------------------------------------
 
         [Test]
-        public void TheDedupKey_CarriesTheSchemaVersionAndTheFoldedSetKey()
+        public void TheDedupKey_CarriesTheSchemaVersionAndTheFoldedBindKey()
         {
             ClipSetAsset clipSet = CreateRichSet("Set", SetKey);
 
             firstBuild.Build(clipSet);
 
-            uint expectedFoldedSetKey = (uint)SetKey ^ (uint)(SetKey >> 32);
+            ulong bindKey = assets.RigBoundTo(clipSet).StableId ^ SetKey;
+            uint expectedFoldedBindKey = (uint)bindKey ^ (uint)(bindKey >> 32);
             Assert.AreEqual(
                 (uint)ClipRegistryBuilder.SchemaVersion,
                 firstBuild.ContentHash.Value.z,
                 "The dedup key's third word is the schema version, so a layout bump cannot alias.");
             Assert.AreEqual(
-                expectedFoldedSetKey,
+                expectedFoldedBindKey,
                 firstBuild.ContentHash.Value.w,
-                "The dedup key's fourth word is the folded set key.");
+                "The dedup key's fourth word is the folded bind key: the rig folded with its sets.");
             Assert.AreNotEqual(
                 0u,
                 firstBuild.ContentHash.Value.x | firstBuild.ContentHash.Value.y,
@@ -409,7 +415,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             rig.targets[1].boundsExtents = new float3(1f, 1f, 1f);
             rig.targets[2].boundsExtents = new float3(0.75f, 0.25f, 0.5f);
 
-            ClipAsset walkClip = assets.CreateClip("Walk", rig, WalkClipId, 1.5f);
+            ClipAsset walkClip = assets.CreateClip("Walk", WalkClipId, 1.5f);
             walkClip.defaultLoop = LoopMode.PingPong;
             walkClip.defaultBlendIn = 0.25f;
             walkClip.defaultBlendOut = 0.5f;
@@ -446,7 +452,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddEvent(walkClip, 0.1f, 16u, -3, 2.5f);
             AuthoringTestAssets.AddEvent(walkClip, 0.5f, 20u, 0, 0f);
 
-            ClipAsset runClip = assets.CreateClip("Run", rig, RunClipId, 2f);
+            ClipAsset runClip = assets.CreateClip("Run", RunClipId, 2f);
             runClip.defaultLoop = LoopMode.Once;
             runClip.defaultBlendIn = 0f;
             runClip.defaultBlendOut = 0f;
@@ -460,7 +466,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AuthoringTestAssets.AddSpriteKey(
                 bodyAtlasTrack, 0f, -1, new float4(0.5f, 0.5f, 0.25f, 0.75f));
 
-            ClipAsset idleClip = assets.CreateClip("Idle", rig, IdleClipId, 0.5f);
+            ClipAsset idleClip = assets.CreateClip("Idle", IdleClipId, 0.5f);
             idleClip.defaultLoop = LoopMode.Loop;
             idleClip.defaultBlendIn = 0.1f;
             idleClip.defaultBlendOut = 0.1f;

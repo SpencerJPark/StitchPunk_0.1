@@ -89,9 +89,13 @@ namespace DotsAnimationToolkit.Editor
         private readonly HashSet<ClipComponentKind> collapsedComponentKinds =
             new HashSet<ClipComponentKind>();
 
+        /// <summary>
+        /// The rig this window is playing the open set against — window state, picked in the toolbar
+        /// and stored on no asset. Independent of <see cref="clipSet"/> in both directions.
+        /// </summary>
         private RigAsset ActiveRig
         {
-            get { return clipSet != null ? clipSet.rig : null; }
+            get { return activeRig; }
         }
 
         /// <summary>
@@ -236,7 +240,8 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void OpenPartTagPicker(RigTargetDefinition target, Button anchor)
         {
-            if (target == null || clipSet == null || clipSet.rig == null)
+            RigAsset activeRig = ActiveRig;
+            if (target == null || activeRig == null)
             {
                 return;
             }
@@ -248,13 +253,10 @@ namespace DotsAnimationToolkit.Editor
                 tagRegistry,
                 tagRegistry,
                 VocabularyPickerConfig.ForTargetTags(tagRegistry),
-                chosenTagId =>
-                {
-                    Undo.RecordObject(clipSet.rig, "Set Target Tag");
-                    target.tagId = chosenTagId;
-                    EditorUtility.SetDirty(clipSet.rig);
-                    RebuildInspector();
-                },
+                // Not straight to the field: assigning here used to leave rule T1 unenforced (two
+                // parts wearing one tag), leave the timeline showing the binding it had before the
+                // pick, and leave the part's keys behind on the tag it no longer wears.
+                chosenTagId => RetagRigPart(target, chosenTagId),
                 () =>
                 {
                     // The registry changed underneath every open heading (a tag renamed or newly
@@ -567,11 +569,11 @@ namespace DotsAnimationToolkit.Editor
             tagButton.clicked += () => OpenTrackTagPicker(instance, tagButton);
             tagButton.AddToClassList(ComponentBadgeUssClassName);
             tagButton.tooltip = currentTagId == 0u
-                ? "Bound to this object's own target id. Click to share this track by tag instead, "
-                  + "so the same clip can drive any other rig that tags a part the same way."
+                ? "This track predates tags and has none — a row's keys are stored against its "
+                  + "tag. Click to assign one."
                 : "Bound by tag, so this track also plays on any other rig that tags a target the "
                   + "same way (spec T2: skipped, not failed, on a rig with no such target). Click "
-                  + "to change or clear it.";
+                  + "to move the keys to another tag.";
             return tagButton;
         }
 
@@ -594,7 +596,9 @@ namespace DotsAnimationToolkit.Editor
         {
             if (tagId == 0u)
             {
-                return "Target-bound";
+                // Legacy only (A56 D5): creation now always assigns a tag, so a tagless track is
+                // an old asset asking to be fixed, and the button reads as that action.
+                return "Assign tag…";
             }
             TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
             string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
@@ -612,7 +616,8 @@ namespace DotsAnimationToolkit.Editor
                 anchor,
                 tagRegistry,
                 tagRegistry,
-                VocabularyPickerConfig.ForTargetTags(tagRegistry),
+                // No "(none)" row (A56 D5): a keyed track has nothing legal to clear to.
+                VocabularyPickerConfig.ForTrackTagRebind(tagRegistry),
                 chosenTagId => ApplyTrackTagBinding(instance, chosenTagId),
                 () =>
                 {
@@ -623,44 +628,21 @@ namespace DotsAnimationToolkit.Editor
                 });
         }
 
+        /// <summary>
+        /// One retag core for both surfaces (A56 D6): the inspector's tag button and the timeline
+        /// row's tag half route through <see cref="RetagTrack"/>, merge behaviour included, so the
+        /// two cannot disagree about what picking an in-use tag does.
+        /// </summary>
         private void ApplyTrackTagBinding(ClipComponentInstance instance, uint chosenTagId)
         {
-            if (selectedClip == null)
-            {
-                return;
-            }
-
-            Undo.RecordObject(selectedClip, "Set Track Tag Binding");
-
             if (instance.kind == ClipComponentKind.Transform)
             {
-                TransformTrack track = ResolveTransformTrack(instance);
-                if (track == null)
-                {
-                    return;
-                }
-                track.tagId = chosenTagId;
+                RetagTrack(TimelineTrackKind.Transform, instance.index, chosenTagId);
             }
             else if (instance.kind == ClipComponentKind.Flipbook)
             {
-                SpriteTrack track = ResolveSpriteTrack(instance);
-                if (track == null)
-                {
-                    return;
-                }
-                track.tagId = chosenTagId;
+                RetagTrack(TimelineTrackKind.Sprite, instance.index, chosenTagId);
             }
-            else
-            {
-                return;
-            }
-
-            EditorUtility.SetDirty(selectedClip);
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(clipSet);
-            }
-            RebuildInspector();
         }
 
         private BillboardTrack ResolveBillboardTrack(int trackIndex)
@@ -848,6 +830,13 @@ namespace DotsAnimationToolkit.Editor
 
             RecordClipEdit(operationName);
             ClipComponentModel.Add(selectedClip, rig, objectRef, kind, string.Empty);
+
+            // A56 D4: a track kind minted on an untagged part tags the part before the panel ever
+            // shows the row, so no keyed row can exist without the tag that names it.
+            if (kind == ClipComponentKind.Transform || kind == ClipComponentKind.Flipbook)
+            {
+                EnsureClipTrackTagsAssigned(operationName);
+            }
             CommitClipEdit();
 
             if (promotesNode)
@@ -1349,36 +1338,42 @@ namespace DotsAnimationToolkit.Editor
                 track, playheadTime, out angleOffsetDegrees, out blendWeight, out enabled);
 
             FloatField angleField = new FloatField("Angle Offset");
+            Slider blendField = new Slider("Blend Weight", 0f, 1f);
+            Toggle enabledField = new Toggle("Billboarding");
+
+            // Every field writes all three channels, read off the fields themselves. Closing over
+            // the values sampled above would make each edit revert whichever sibling was changed
+            // since the block was built — the block only rebuilds on the first key, so those
+            // captures go stale immediately and stay stale.
+            EventCallback<ChangeEvent<float>> writeFloatChannel = changeEvent =>
+            {
+                ApplyBillboardEdit(
+                    objectRef, angleField.value, blendField.value, enabledField.value);
+            };
+
             angleField.tooltip =
                 "Degrees off the resolved facing, about the billboard frame's own up axis. Added to "
                 + "the root's rest offset rather than replacing it.";
             angleField.SetValueWithoutNotify(angleOffsetDegrees);
-            angleField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyBillboardEdit(objectRef, changeEvent.newValue, blendWeight, enabled);
-            });
+            angleField.RegisterValueChangedCallback(writeFloatChannel);
             parent.Add(angleField);
 
-            Slider blendField = new Slider("Blend Weight", 0f, 1f);
             blendField.tooltip =
                 "How much of the billboard orientation applies against the node's animated pose. "
                 + "1 is fully billboarded; 0 hands the node back to its animation.";
             blendField.showInputField = true;
             blendField.SetValueWithoutNotify(blendWeight);
-            blendField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyBillboardEdit(objectRef, angleOffsetDegrees, changeEvent.newValue, enabled);
-            });
+            blendField.RegisterValueChangedCallback(writeFloatChannel);
             parent.Add(blendField);
 
-            Toggle enabledField = new Toggle("Billboarding");
             enabledField.tooltip =
                 "Held from its key, never eased — an enable flag is an instruction that fires at a "
                 + "moment, not an approximation of anything between two moments.";
             enabledField.SetValueWithoutNotify(enabled);
             enabledField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBillboardEdit(objectRef, angleOffsetDegrees, blendWeight, changeEvent.newValue);
+                ApplyBillboardEdit(
+                    objectRef, angleField.value, blendField.value, enabledField.value);
             });
             parent.Add(enabledField);
 
@@ -1424,7 +1419,7 @@ namespace DotsAnimationToolkit.Editor
             // destroy the field being dragged or typed into (mirrors ApplyBoneEdit).
             if (isFirstKey)
             {
-                RebuildInspector();
+                RequestInspectorRebuild();
             }
         }
 

@@ -9,27 +9,37 @@ namespace DotsAnimationToolkit.Authoring
     /// <summary>
     /// Marks a GameObject as an animated actor root (architecture sections 4.1, 5.2). Bake produces
     /// the actor archetype of section 5.2 from this component: the registry blob built from
-    /// <see cref="clipSet"/>, one <see cref="PlaybackLayer"/> element per rig layer seeded from
-    /// <see cref="startingLayers"/>, the command and event buffers, the binding/visibility/bounds
-    /// enableables, and the actor-space <see cref="ActorRestBounds"/> measured over the child
-    /// <see cref="RigTargetAuthoring"/> parts.
+    /// <see cref="rig"/> and <see cref="clipSets"/> together, one <see cref="PlaybackLayer"/>
+    /// element per rig layer seeded from <see cref="startingLayers"/>, the command and event
+    /// buffers, the binding/visibility/bounds enableables, and the actor-space
+    /// <see cref="ActorRestBounds"/> measured over the child <see cref="RigTargetAuthoring"/> parts.
     /// </summary>
     /// <remarks>
-    /// One actor references exactly one <see cref="ClipSetAsset"/>, and every actor referencing the
-    /// same set shares one baked blob through the <c>BlobAssetStore</c>'s content-hash dedup
-    /// (architecture section 4.5). The rig comes from the set, never from this component, so an
-    /// actor cannot disagree with its own clips about which rig it animates.
+    /// The rig comes from this component and the motion comes from the sets (Phase F §2), so the
+    /// same set plays on any rig whose tags align and a rig can carry different loadouts per actor.
+    /// A blob is built per (rig, set-list) bind and shared by every actor with the same bind through
+    /// the <c>BlobAssetStore</c>'s content-hash dedup (architecture section 4.5).
     /// </remarks>
     [AddComponentMenu("DOTS Animation Toolkit/Actor")]
     [DisallowMultipleComponent]
     public sealed class ActorAuthoring : MonoBehaviour
     {
         /// <summary>
-        /// The clip set this actor plays from. Required: without it the actor bakes to nothing and
-        /// the baker logs an error naming this GameObject.
+        /// The rig this actor animates: its layers, its targets, and the tags a set's tracks resolve
+        /// against. Required — without it the actor bakes to nothing and the baker logs an error
+        /// naming this GameObject.
         /// </summary>
-        [Tooltip("The clip set this actor plays from. Its rig defines the layers and targets.")]
-        public ClipSetAsset clipSet;
+        [Tooltip("The rig this actor animates. Defines its layers, targets and target tags.")]
+        public RigAsset rig;
+
+        /// <summary>
+        /// The clip sets this actor plays from, merged into one registry. Required: at least one
+        /// entry, or the actor bakes to nothing. A track whose tag or target id this actor's rig
+        /// does not carry is skipped with a warning (rules T2 and T6) rather than failing the bake,
+        /// which is what lets one set serve a roster of differing rigs.
+        /// </summary>
+        [Tooltip("The clip sets this actor plays from. Their clips are merged into one registry.")]
+        public List<ClipSetAsset> clipSets = new List<ClipSetAsset>();
 
         /// <summary>
         /// What each playback layer starts holding. An entry names a layer index and the clip that
@@ -91,12 +101,12 @@ namespace DotsAnimationToolkit.Authoring
     [Serializable]
     public sealed class StartingLayerState
     {
-        /// <summary>Index of the playback layer to seed; must be a valid layer of the set's rig.</summary>
-        [Tooltip("Which playback layer this entry seeds. Must be a valid layer index of the set's rig.")]
+        /// <summary>Index of the playback layer to seed; must be a valid layer of the actor's rig.</summary>
+        [Tooltip("Which playback layer this entry seeds. Must be a valid layer index of the actor's rig.")]
         public int layerIndex;
 
-        /// <summary>The clip this layer starts on. Must be a member of the actor's clip set.</summary>
-        [Tooltip("The clip this layer starts on. Must be a member of the actor's clip set.")]
+        /// <summary>The clip this layer starts on. Must be a member of one of the actor's clip sets.</summary>
+        [Tooltip("The clip this layer starts on. Must be a member of one of the actor's clip sets.")]
         public ClipAsset clip;
 
         /// <summary>Starting playback speed; negative values play the clip in reverse.</summary>

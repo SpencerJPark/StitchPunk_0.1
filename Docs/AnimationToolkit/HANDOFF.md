@@ -5,18 +5,17 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.12.0).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.13.0).
 Your job is to work down **§4 The queue**, one task at a time, through the gate in §3.
 
 ## 1. Read first, in this order
 
 1. `CLAUDE.md` (repo root) — project conventions.
-2. `Docs\AnimationToolkit\Amendment_A55_EventAuthoring_Spec.md` — the active spec. §2 lists what
-   is already built; the three gap tasks (§4) are what's left, if anything — check §4 of this file
-   for current status before assuming it's still open.
-3. `Docs\AnimationToolkit\Phase_F_RigCentric_Spec.md` — the next spec after A55 closes. Its §10
-   decisions are recorded architecture calls; flag disagreement before F1 lands, don't silently
-   deviate.
+2. `Docs\AnimationToolkit\Phase_F_RigCentric_Spec.md` — the active spec. Its §10 decisions are
+   recorded architecture calls, and §12 records three amendments raised while building it (the T6
+   rule number, V39, V40). The code is written; **nothing in it has compiled or run yet.**
+3. `Docs\AnimationToolkit\Amendment_A55_EventAuthoring_Spec.md` — closed apart from its §4 Task 5
+   visual pass.
 4. `Docs\AnimationToolkit\Phase_E_TargetTags_Spec.md` — both A55 and Phase F build on its tag
    rules. §4.2.1, §4.2.2, §4.2.3 and §6.1 are owner directives, not suggestions.
 5. This file's §5 and §6 — standing owner directives, and what you may not decide alone.
@@ -24,16 +23,25 @@ Your job is to work down **§4 The queue**, one task at a time, through the gate
 Read `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` §9 only if you touch ragdoll code.
 Everything else in `Docs\AnimationToolkit\` is closed-phase history — do not read it up front.
 
-**Current state (2026-08-28):** Amendments A53 (part-tag button moved to the clip inspector), A54
-(vocabulary constants regenerate themselves), and A55 (event authoring reaches tag parity) landed
-on top of Phase E's close. Commits: `3cb8b6fb` (A53+A54), plus A55's implementation (uncommitted as
-of this writing — verify and commit before starting anything else). **None of A53/A54/A55 has had
-a live compile+test pass yet** — the Editor was closed for the sessions that wrote them; static
-review only. Run the full gate in §3 before trusting any of it, and before committing A55.
+**Current state (2026-08-28):** Phase F (rig-centric binding) is **written but never compiled.**
+The Editor was closed for the session that wrote it, so F1-F6 are static review only — every task in
+`Phase_F_RigCentric_Spec.md` §11 has code in the tree and none of it has been through the gate in §3.
+The same is true of A53, A54, A55, the uncommitted transport-drag work that preceded them, and now
+**A56** (`Amendment_A56_TimelineBinding_Spec.md`, 2026-08-28): the timeline row became the binding
+surface — `tag → part`, both halves pickers, whole-row tag moves with merge, rig re-tagging from
+the row, tags mandatory at track creation, `T `/`S `/`B ` prefixes removed. Also written with the
+Editor closed, deliberately (see the §3 cadence note).
 
-**Phase F (rig-centric binding) is still the next phase after A55 closes.** It was interrupted
-in-place by an owner directive on 2026-08-28 to take up A55 first — spec written, no F-code started.
-§4's queue below is A55's own closeout, then Phase F.
+**Two known, deliberate failures to clear first:**
+
+1. `ContentHashGoldenTests.TheFrozenSet_HashesToItsRecordedGoldenValue` **will fail.** `setKey` is
+   now the bind key, so the frozen set hashes to a different (equally correct) value. Run it once and
+   paste the number its failure message reports into `ExpectedContentHash`; the constant's own
+   comment block says so too.
+2. Every existing `ActorAuthoring` loses its `clipSet`, every `ClipSetAsset` its `rig`, and every
+   `ClipAsset` its `rig` — all three fields are gone, and Phase F ships no migration by owner
+   decision. Re-point each actor's **Rig** and **Clip Sets**, or re-run the migration and smoke
+   builders.
 
 ## 2. How to work here
 
@@ -66,10 +74,16 @@ in-place by an owner directive on 2026-08-28 to take up A55 first — spec writt
   scans raw file text including comments. Editor-only machinery lives in the Editor assembly.
 - An `EnabledRefRW`/`RO` parameter is named *component name* + `Enabled`.
 
-## 3. Verification gate — run after every change
+## 3. Verification gate
 
 Unity MCP only works while the Editor is open. If `mcp__UnityMCP__*` is unreachable, say so and
 stop rather than claiming a change compiles.
+
+**Cadence (owner directive, 2026-08-28): the full suites do NOT run after every edit.** The owner
+closed the Editor over exactly this — sessions re-running ~700 tests per change. Per edit: steps
+1–2 (the compile gate) plus only the fixtures the change touches, by `test_names`/`group_names`.
+Steps 3–4 in full run **once, at the commit point** for the task. And stop growing the suite —
+most UI wiring gets zero tests (§2).
 
 1. `mcp__UnityMCP__refresh_unity` (`compile: "request"`, `wait_for_ready: true`)
 2. `mcp__UnityMCP__read_console` (`types: ["error"]`) — some tests log errors on negative paths
@@ -88,6 +102,28 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A56 — the timeline row is the binding surface.** Written 2026-08-28, never compiled. Tasks and
+decisions in `Amendment_A56_TimelineBinding_Spec.md`; its §5 lists the verification owed: compile
+gate, the two `TimelineBindingLogicTests` fixtures, save/reload proof for auto-tagging and merge,
+then the visual pass (owner's eyes). Verify it together with Phase F below — one Editor session
+covers both.
+
+**Phase F — rig-centric binding.** F1-F6 are written (see the state note in §1). What is left is
+verification, not implementation:
+
+1. **Run the gate in §3.** Expect the golden-hash failure above; nothing else should be red. Counts
+   must not drop — the EditMode suite gained T6/V38, V39, V40, merged-union and creation-default
+   fixtures, and lost the two V06 ones.
+2. **Prove the Clip Editor's rig survives a domain reload and a re-dock**, and that it does *not*
+   reach any asset. It is window state now (`activeRig` / `sessionRig` / `CarriedState.rig`), so the
+   failure to look for is the rig coming back empty after editing a tag — and the other failure is
+   swapping the open clip set changing the rig, which is the bug the owner reported.
+3. **Run the Clip Editor.** Spec §13: ~40 `clipSet.rig` sites moved, mechanically. §9 lesson 2
+   applies — read nothing, run it.
+4. **Compile-check `Samples~`** via a temp assembly; both builders were rewired, and Samples~ is
+   excluded from Unity compilation so it rots silently.
+5. Then commit, task by task, staging paths explicitly.
+
 **A55 — event authoring reaches tag parity.** Full task definitions in
 `Amendment_A55_EventAuthoring_Spec.md` §4; §3 is the gap table each task closes.
 
@@ -105,10 +141,6 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
    run the eight-step pass in the spec's §4 Task 5 before this closes. Do the verification gate
    in §3 of this file first; nothing in A53/A54/A55 has had a real compile yet.
 
-Once Task 5 passes and the gate is clean, commit, then resume **Phase F — rig-centric binding**
-(`Phase_F_RigCentric_Spec.md` §11, tasks F1–F6) exactly as it stood when A55 interrupted it — no
-change to that plan.
-
 Work top to bottom. Commit each task separately (stage paths explicitly; never `git add -A`).
 
 ## 5. Standing owner directives — binding, do not lose
@@ -119,6 +151,10 @@ Work top to bottom. Commit each task separately (stage paths explicitly; never `
 - **"I shouldn't have to manually assign any assets for this."** Both vocabularies auto-create under
   `ProjectSettings/`. No asset creation, no wiring.
 - **The tag and event lists are editable from the clip editor.**
+- **The tag is a keyed track's one identifier (2026-08-28, A56).** A keyed row with no tag must be
+  impossible to create; track creation tags the part automatically. "(no tagged part)" remains a
+  legal display state — a clip may name a tag the open rig doesn't wear — but "(untagged)" may not
+  come back. Kind prefixes (`T `/`S `) stay gone from row names.
 - **New rigs are created fresh — build no migration paths** for old rigs with empty fields.
 - **Events are authored loosely; downstream systems read and redirect.** They will eventually drive
   sound, ragdoll triggers, damage, shader alt-views and dialogue. **Do not build downstream

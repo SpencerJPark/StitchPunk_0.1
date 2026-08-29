@@ -625,6 +625,356 @@ namespace DotsAnimationToolkit.Editor
         /// a billboard root both appear in lists of their own. Ignored by the track kinds, whose
         /// identity is the object they are bound to.
         /// </param>
+        /// <summary>
+        /// The tag a newly created track binds by: the target's own tag when it carries one, 0
+        /// (bind by target id) when it does not.
+        /// </summary>
+        /// <remarks>
+        /// Phase F §7, decision D6. Under the rig-centric model tag-binding is the primary authoring
+        /// intent — it is what lets a set play on a second rig at all — so a track created on a
+        /// tagged target defaults to it. Creation default only: no existing track is rewritten, and
+        /// the header's tag button still flips either way.
+        /// </remarks>
+        public static uint ResolveNewTrackTagId(RigAsset rig, uint targetId)
+        {
+            if (rig == null || rig.targets == null || targetId == 0u)
+            {
+                return 0u;
+            }
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = rig.targets[targetIndex];
+                if (target != null && target.stableId == targetId)
+                {
+                    return target.tagId;
+                }
+            }
+            return 0u;
+        }
+
+        /// <summary>
+        /// Guarantees the target wears a tag (amendment A56 D4), reusing the registry entry named
+        /// like the part when nothing else on this rig wears it, minting <c>Name 2</c>, <c>Name 3</c>…
+        /// otherwise. Returns the tag id, or 0 when the target does not exist on this rig.
+        /// </summary>
+        /// <remarks>
+        /// The registry is a parameter, never fetched from <c>VocabularyRegistryProvider</c> here —
+        /// EditMode tests drive this with an in-memory registry, and a provider call would mint test
+        /// tags into the project's real ProjectSettings vocabulary. The caller persists the registry
+        /// when <paramref name="createdRegistryEntry"/> comes back true, and owns undo on the rig.
+        /// </remarks>
+        public static uint EnsureTargetTagged(
+            RigAsset rig, uint targetId, IVocabularyRegistry tagRegistry,
+            out bool createdRegistryEntry)
+        {
+            createdRegistryEntry = false;
+            if (rig == null || rig.targets == null || targetId == 0u || tagRegistry == null)
+            {
+                return 0u;
+            }
+
+            RigTargetDefinition target = null;
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidate = rig.targets[targetIndex];
+                if (candidate != null && candidate.stableId == targetId)
+                {
+                    target = candidate;
+                    break;
+                }
+            }
+            if (target == null)
+            {
+                return 0u;
+            }
+            if (target.tagId != 0u)
+            {
+                return target.tagId;
+            }
+
+            string baseName = string.IsNullOrEmpty(target.displayName)
+                ? "Part"
+                : target.displayName.Trim();
+            for (int suffix = 1; ; suffix++)
+            {
+                string candidateName = suffix == 1 ? baseName : baseName + " " + suffix.ToString();
+                uint existingTagId = FindVocabularyIdByName(tagRegistry, candidateName);
+                if (existingTagId != 0u)
+                {
+                    // Rule T1: reuse only when no other part on this rig already wears it.
+                    if (FindTargetByTag(rig, existingTagId) == null)
+                    {
+                        target.tagId = existingTagId;
+                        return existingTagId;
+                    }
+                    continue;
+                }
+                uint mintedTagId = tagRegistry.CreateVocabularyEntry(candidateName);
+                createdRegistryEntry = true;
+                target.tagId = mintedTagId;
+                return mintedTagId;
+            }
+        }
+
+        /// <summary>The registry entry whose name matches case-insensitively, or 0.</summary>
+        public static uint FindVocabularyIdByName(IVocabularyRegistry registry, string entryName)
+        {
+            if (registry == null || string.IsNullOrEmpty(entryName))
+            {
+                return 0u;
+            }
+            string trimmedName = entryName.Trim();
+            int entryCount = registry.VocabularyEntryCount;
+            for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+            {
+                string existingName = registry.VocabularyEntryName(entryIndex);
+                if (existingName != null && string.Equals(
+                        existingName.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return registry.VocabularyEntryId(entryIndex);
+                }
+            }
+            return 0u;
+        }
+
+        /// <summary>
+        /// Moves every key of <paramref name="source"/> into <paramref name="destination"/> and
+        /// unions the animated channels — the data half of "move this row to that tag" (A56 D2).
+        /// The caller deletes the source track and owns undo.
+        /// </summary>
+        /// <remarks>
+        /// On a same-time collision (within <see cref="ClipTransformEditing.KeyTimeTolerance"/>) the
+        /// source key wins: the gesture was "put <em>these</em> keys there".
+        /// </remarks>
+        public static void MergeTransformTracks(TransformTrack source, TransformTrack destination)
+        {
+            if (source == null || destination == null || source == destination)
+            {
+                return;
+            }
+            destination.channels |= source.channels;
+            if (source.keys == null || source.keys.Count == 0)
+            {
+                return;
+            }
+            if (destination.keys == null)
+            {
+                destination.keys = new List<TransformKey>();
+            }
+            for (int sourceIndex = 0; sourceIndex < source.keys.Count; sourceIndex++)
+            {
+                TransformKey incomingKey = source.keys[sourceIndex];
+                for (int destinationIndex = destination.keys.Count - 1; destinationIndex >= 0; destinationIndex--)
+                {
+                    if (Math.Abs(destination.keys[destinationIndex].normalizedTime - incomingKey.normalizedTime)
+                        <= ClipTransformEditing.KeyTimeTolerance)
+                    {
+                        destination.keys.RemoveAt(destinationIndex);
+                    }
+                }
+                destination.keys.Add(incomingKey);
+            }
+            destination.keys.Sort(
+                (TransformKey firstKey, TransformKey secondKey) =>
+                    firstKey.normalizedTime.CompareTo(secondKey.normalizedTime));
+        }
+
+        /// <summary>
+        /// Whether two flipbook tracks can merge losslessly: a sprite key's stored number only means
+        /// something beside its track's mode, slice space and base index.
+        /// </summary>
+        public static bool SpriteTracksMergeCompatible(SpriteTrack first, SpriteTrack second)
+        {
+            return first != null && second != null
+                && first.mode == second.mode
+                && first.sliceSpace == second.sliceSpace
+                && first.baseIndex == second.baseIndex;
+        }
+
+        /// <summary>Flipbook counterpart of <see cref="MergeTransformTracks"/>; check
+        /// <see cref="SpriteTracksMergeCompatible"/> first.</summary>
+        public static void MergeSpriteTracks(SpriteTrack source, SpriteTrack destination)
+        {
+            if (source == null || destination == null || source == destination
+                || source.keys == null || source.keys.Count == 0)
+            {
+                return;
+            }
+            if (destination.keys == null)
+            {
+                destination.keys = new List<SpriteKey>();
+            }
+            for (int sourceIndex = 0; sourceIndex < source.keys.Count; sourceIndex++)
+            {
+                SpriteKey incomingKey = source.keys[sourceIndex];
+                for (int destinationIndex = destination.keys.Count - 1; destinationIndex >= 0; destinationIndex--)
+                {
+                    if (Math.Abs(destination.keys[destinationIndex].normalizedTime - incomingKey.normalizedTime)
+                        <= ClipTransformEditing.KeyTimeTolerance)
+                    {
+                        destination.keys.RemoveAt(destinationIndex);
+                    }
+                }
+                destination.keys.Add(incomingKey);
+            }
+            destination.keys.Sort(
+                (SpriteKey firstKey, SpriteKey secondKey) =>
+                    firstKey.normalizedTime.CompareTo(secondKey.normalizedTime));
+        }
+
+        /// <summary>
+        /// What <see cref="MoveTracksToTag"/> did to one clip, for the caller to report.
+        /// </summary>
+        /// <remarks>
+        /// Counted rather than logged because the caller is sweeping a whole clip set: a per-clip
+        /// message would be a wall of them, and the number that matters is the total.
+        /// </remarks>
+        public struct TagMoveOutcome
+        {
+            /// <summary>Rows that simply took the new tag, their keys untouched.</summary>
+            public int movedTrackCount;
+
+            /// <summary>Rows folded into a row the clip already had on the destination tag.</summary>
+            public int mergedTrackCount;
+
+            /// <summary>
+            /// Flipbook rows left where they were because the destination row's frame settings
+            /// differ — a sprite key's number means nothing under another track's mode or base.
+            /// </summary>
+            public int refusedTrackCount;
+
+            public int ChangedTrackCount
+            {
+                get { return movedTrackCount + mergedTrackCount; }
+            }
+        }
+
+        /// <summary>
+        /// Re-tags every row in one clip keyed against <paramref name="fromTagId"/> so its keys
+        /// belong to <paramref name="toTagId"/> instead.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the data half of "the part is called something else now, and its animation comes
+        /// along" — a rig part's tag changing, carried into the clips keyed against the old one. A
+        /// row's tag is its identity, so two rows cannot share one: where the clip already has a row
+        /// on the destination tag, the moving row is merged into it under the same rules the
+        /// timeline's own retag uses (A56 D2 — incoming key wins a same-time collision, a flipbook
+        /// merge is refused outright rather than retuning keys under settings they were not authored
+        /// against).
+        /// </para>
+        /// <para>
+        /// The caller owns undo and dirtying, and must treat any stored track index as invalid
+        /// afterwards when <see cref="TagMoveOutcome.mergedTrackCount"/> is non-zero: a merge
+        /// removes a track, so every index past it moves.
+        /// </para>
+        /// </remarks>
+        public static TagMoveOutcome MoveTracksToTag(ClipAsset clip, uint fromTagId, uint toTagId)
+        {
+            TagMoveOutcome outcome = new TagMoveOutcome();
+            if (clip == null || fromTagId == 0u || toTagId == 0u || fromTagId == toTagId)
+            {
+                return outcome;
+            }
+
+            List<TransformTrack> transformTracks = clip.transformTracks;
+            // Backwards, because a merge removes the track being visited.
+            for (int trackIndex = transformTracks != null ? transformTracks.Count - 1 : -1;
+                trackIndex >= 0; trackIndex--)
+            {
+                TransformTrack track = transformTracks[trackIndex];
+                if (track == null || track.tagId != fromTagId)
+                {
+                    continue;
+                }
+                int destinationIndex = FindTransformTrackIndexByTag(
+                    transformTracks, toTagId, trackIndex);
+                if (destinationIndex < 0)
+                {
+                    track.tagId = toTagId;
+                    outcome.movedTrackCount++;
+                    continue;
+                }
+                MergeTransformTracks(track, transformTracks[destinationIndex]);
+                transformTracks.RemoveAt(trackIndex);
+                outcome.mergedTrackCount++;
+            }
+
+            List<SpriteTrack> spriteTracks = clip.spriteTracks;
+            for (int trackIndex = spriteTracks != null ? spriteTracks.Count - 1 : -1;
+                trackIndex >= 0; trackIndex--)
+            {
+                SpriteTrack track = spriteTracks[trackIndex];
+                if (track == null || track.tagId != fromTagId)
+                {
+                    continue;
+                }
+                int destinationIndex = FindSpriteTrackIndexByTag(spriteTracks, toTagId, trackIndex);
+                if (destinationIndex < 0)
+                {
+                    track.tagId = toTagId;
+                    outcome.movedTrackCount++;
+                    continue;
+                }
+                if (!SpriteTracksMergeCompatible(track, spriteTracks[destinationIndex]))
+                {
+                    outcome.refusedTrackCount++;
+                    continue;
+                }
+                MergeSpriteTracks(track, spriteTracks[destinationIndex]);
+                spriteTracks.RemoveAt(trackIndex);
+                outcome.mergedTrackCount++;
+            }
+
+            return outcome;
+        }
+
+        /// <summary>
+        /// Whether any transform or flipbook row in this clip is keyed against
+        /// <paramref name="tagId"/>.
+        /// </summary>
+        /// <remarks>
+        /// For a caller sweeping a clip set: recording undo on a clip means snapshotting the whole
+        /// asset, so the clips a retag will not touch are worth skipping before that cost, not after.
+        /// </remarks>
+        public static bool ClipHasTrackTagged(ClipAsset clip, uint tagId)
+        {
+            if (clip == null || tagId == 0u)
+            {
+                return false;
+            }
+            return FindTransformTrackIndexByTag(clip.transformTracks, tagId, -1) >= 0
+                || FindSpriteTrackIndexByTag(clip.spriteTracks, tagId, -1) >= 0;
+        }
+
+        private static int FindTransformTrackIndexByTag(
+            List<TransformTrack> tracks, uint tagId, int excludedIndex)
+        {
+            for (int trackIndex = 0; tracks != null && trackIndex < tracks.Count; trackIndex++)
+            {
+                if (trackIndex != excludedIndex && tracks[trackIndex] != null
+                    && tracks[trackIndex].tagId == tagId)
+                {
+                    return trackIndex;
+                }
+            }
+            return -1;
+        }
+
+        private static int FindSpriteTrackIndexByTag(
+            List<SpriteTrack> tracks, uint tagId, int excludedIndex)
+        {
+            for (int trackIndex = 0; tracks != null && trackIndex < tracks.Count; trackIndex++)
+            {
+                if (trackIndex != excludedIndex && tracks[trackIndex] != null
+                    && tracks[trackIndex].tagId == tagId)
+                {
+                    return trackIndex;
+                }
+            }
+            return -1;
+        }
+
         /// <returns>The instance created, or an index of −1 when nothing could be added.</returns>
         public static ClipComponentInstance Add(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
@@ -654,6 +1004,7 @@ namespace DotsAnimationToolkit.Editor
                     EnsureList(ref clip.transformTracks);
                     TransformTrack track = new TransformTrack();
                     track.targetId = targetId;
+                    track.tagId = ResolveNewTrackTagId(rig, targetId);
                     clip.transformTracks.Add(track);
                     return new ClipComponentInstance(kind, clip.transformTracks.Count - 1);
                 }
@@ -670,6 +1021,7 @@ namespace DotsAnimationToolkit.Editor
                     EnsureList(ref clip.spriteTracks);
                     SpriteTrack track = new SpriteTrack();
                     track.targetId = targetId;
+                    track.tagId = ResolveNewTrackTagId(rig, targetId);
                     clip.spriteTracks.Add(track);
                     return new ClipComponentInstance(kind, clip.spriteTracks.Count - 1);
                 }
@@ -1042,7 +1394,7 @@ namespace DotsAnimationToolkit.Editor
         /// authoring error, so this simply reports the first match — all fall through the loop and
         /// return null or the sole candidate respectively.
         /// </summary>
-        private static RigTargetDefinition FindTargetByTag(RigAsset rig, uint tagId)
+        public static RigTargetDefinition FindTargetByTag(RigAsset rig, uint tagId)
         {
             if (rig == null || rig.targets == null || tagId == 0u)
             {

@@ -17,6 +17,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
     {
         private readonly List<Object> createdObjects = new List<Object>();
 
+        /// <summary>
+        /// Which rig each created set is exercised against. Recorded here rather than on the assets,
+        /// because neither a clip nor a set names a rig — the pairing lives in an
+        /// <c>ActorAuthoring</c>, and in a fixture this dictionary plays that part.
+        /// </summary>
+        private readonly Dictionary<ClipSetAsset, RigAsset> bindRigBySet =
+            new Dictionary<ClipSetAsset, RigAsset>();
+
         /// <summary>Creates a rig with <paramref name="layerCount"/> layers and one target row per supplied id.</summary>
         internal RigAsset CreateRig(string assetName, ulong rigStableId, int layerCount, uint[] targetIds)
         {
@@ -45,12 +53,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
             return rig;
         }
 
-        /// <summary>Creates a clip bound to <paramref name="rig"/> with an explicit stable id.</summary>
-        internal ClipAsset CreateClip(string assetName, RigAsset rig, ulong clipStableId, float duration)
+        /// <summary>Creates a clip with an explicit stable id. A clip names no rig.</summary>
+        internal ClipAsset CreateClip(string assetName, ulong clipStableId, float duration)
         {
             ClipAsset clip = Create<ClipAsset>(assetName);
             clip.stableId = clipStableId;
-            clip.rig = rig;
             clip.duration = duration;
             clip.defaultLoop = LoopMode.Loop;
             clip.defaultBlendIn = 0.1f;
@@ -58,18 +65,74 @@ namespace DotsAnimationToolkit.Tests.EditMode
             return clip;
         }
 
-        /// <summary>Creates a clip set holding the supplied clips in the supplied order.</summary>
+        /// <summary>
+        /// Creates a clip set holding the supplied clips in the supplied order, and records
+        /// <paramref name="rig"/> as the rig this fixture binds it to.
+        /// </summary>
+        /// <remarks>
+        /// The rig is written nowhere on the set — a set names none. It is remembered here so
+        /// <see cref="ValidateBindOf"/> and <see cref="BuildBindOf"/> can express the bind a fixture
+        /// almost always wants, without every test restating it.
+        /// </remarks>
         internal ClipSetAsset CreateSet(string assetName, RigAsset rig, ulong setStableId, params ClipAsset[] clips)
         {
             ClipSetAsset clipSet = Create<ClipSetAsset>(assetName);
             clipSet.stableId = setStableId;
-            clipSet.rig = rig;
+            bindRigBySet[clipSet] = rig;
             clipSet.clips.Clear();
             for (int clipIndex = 0; clipIndex < clips.Length; clipIndex++)
             {
                 clipSet.clips.Add(clips[clipIndex]);
             }
             return clipSet;
+        }
+
+        /// <summary>The rig this fixture binds <paramref name="clipSet"/> to, or null.</summary>
+        internal RigAsset RigBoundTo(ClipSetAsset clipSet)
+        {
+            RigAsset rig;
+            if (clipSet != null && bindRigBySet.TryGetValue(clipSet, out rig))
+            {
+                return rig;
+            }
+            return null;
+        }
+
+        /// <summary>Validates one set as the bind this fixture created it in.</summary>
+        internal List<ValidationMessage> ValidateBindOf(
+            ClipSetAsset clipSet,
+            ValidationStage stage = ValidationStage.Authoring,
+            bool vatSourceHashRecomputed = false,
+            ulong recomputedVatSourceHash = 0UL,
+            TargetTagRegistry tagRegistry = null)
+        {
+            return ClipValidation.ValidateBind(
+                RigBoundTo(clipSet),
+                new ClipSetAsset[] { clipSet },
+                stage,
+                vatSourceHashRecomputed,
+                recomputedVatSourceHash,
+                tagRegistry);
+        }
+
+        /// <summary>Builds one set as the bind this fixture created it in.</summary>
+        internal void BuildBindOf(
+            ClipSetAsset clipSet,
+            out Unity.Entities.BlobAssetReference<ClipRegistryBlob> registry,
+            out Unity.Entities.Hash128 contentHash)
+        {
+            ClipRegistryBuilder.Build(
+                RigBoundTo(clipSet), new ClipSetAsset[] { clipSet }, out registry, out contentHash);
+        }
+
+        /// <summary>Probes the dedup key of one set as the bind this fixture created it in.</summary>
+        internal bool TryComputeBindHashOf(
+            ClipSetAsset clipSet, out Unity.Entities.Hash128 contentHash)
+        {
+            return ClipRegistryBuilder.TryComputeContentHash(
+                RigBoundTo(clipSet),
+                clipSet != null ? new ClipSetAsset[] { clipSet } : null,
+                out contentHash);
         }
 
         /// <summary>Creates a VAT texture set carrying the supplied addressing parameters.</summary>
@@ -113,6 +176,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 }
             }
             createdObjects.Clear();
+            bindRigBySet.Clear();
         }
 
         // -----------------------------------------------------------------------------------

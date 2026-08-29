@@ -39,9 +39,11 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Validates one clip against the rules that concern a clip in isolation: V01, V02, V03,
-        /// V04, V09, V10, V12, V14, V15, V16, V35 and V36. Set-scoped rules (V05, V06, V07, V08,
-        /// V11) are checked by <see cref="ValidateSet"/>; T4 (V37) is a project-wide rule about which
+        /// Validates one clip against the rules that concern a clip in isolation: V01, V03,
+        /// V04, V09, V10, V12, V14, V15, V16 and V36. <strong>No binding rule is judged here</strong> —
+        /// a clip names no rig, so nothing can answer whether a tag or a target id resolves; that is
+        /// <see cref="ValidateBind"/>'s question. Bind-scoped rules (V05, V07, V08,
+        /// V11, V39, V40) are checked there too; T4 (V37) is a project-wide rule about which
         /// sets reference a clip, which a single clip or set cannot answer on its own, and is checked
         /// by the Editor-assembly utility that can see the whole project. V16 (duplicate bone name)
         /// is a clip-local sibling of V05 rather than a V05 case itself: a bone track has no stable
@@ -74,18 +76,35 @@ namespace DotsAnimationToolkit.Authoring
                 throw new ArgumentNullException(nameof(clip));
             }
             List<ValidationMessage> messages = new List<ValidationMessage>();
-            ValidateClipInto(clip, clip.rig, tagRegistry, messages);
+            ValidateClipInto(clip, null, tagRegistry, messages);
             return messages;
         }
 
         /// <summary>
-        /// Validates a whole clip set: its rig, every clip it registers, and the set-scoped rules
-        /// V05, V06, V07, V08 and V11.
+        /// Validates one bind — a rig and the clip sets played on it (Phase F §2) — against the rig
+        /// rules, every clip in the merged union, and the bind-scoped rules V05, V07, V08, V11, V39
+        /// and V40.
         /// </summary>
-        /// <param name="clipSet">The set to validate.</param>
+        /// <param name="rig">
+        /// The rig the sets are bound to: an actor's own rig at bake, whichever rig the Clip Editor
+        /// happens to be showing while authoring. Every track binding is resolved against it, and
+        /// nothing on a clip or a set is consulted for it.
+        /// <para>
+        /// <strong>Null means unbound, not broken.</strong> A clip set on its own genuinely has no
+        /// rig — that independence is the point — so a null rig judges everything a set can answer
+        /// alone (V01, V03–V05, V07–V12, V14–V20, V36, V39) and stays silent on every rule that
+        /// needs a rig to answer. An actor that reaches bake with no rig is a different matter and
+        /// is reported by <c>ActorBaker</c>, which will not call this at all.
+        /// </para>
+        /// </param>
+        /// <param name="clipSets">
+        /// The sets bound to that rig. Nulls and repeated entries are ignored; order does not
+        /// matter, since the list is canonicalised by set id before anything is judged.
+        /// </param>
         /// <param name="stage">
         /// Which caller is validating. <see cref="ValidationStage.Bake"/> downgrades V08 to a
-        /// warning, because outdated VAT textures still render (architecture section 3.5).
+        /// warning, because outdated VAT textures still render (architecture section 3.5), and
+        /// stops V02 being judged at all — see <see cref="ValidateTrackBindingInto"/>.
         /// </param>
         /// <param name="vatSourceHashRecomputed">
         /// True when <paramref name="recomputedVatSourceHash"/> holds a freshly recomputed hash of
@@ -101,29 +120,39 @@ namespace DotsAnimationToolkit.Authoring
         /// The project's target tag registry, passed through to each clip's T2/T3 (V35/V36) checks.
         /// See <see cref="ValidateClip"/> for what a null registry costs.
         /// </param>
-        /// <returns>The findings, rig first and then clip by clip in list order.</returns>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="clipSet"/> is null.</exception>
-        public static List<ValidationMessage> ValidateSet(
-            ClipSetAsset clipSet,
+        /// <returns>The findings, rig first and then clip by clip in canonical bind order.</returns>
+        public static List<ValidationMessage> ValidateBind(
+            RigAsset rig,
+            IReadOnlyList<ClipSetAsset> clipSets,
             ValidationStage stage = ValidationStage.Authoring,
             bool vatSourceHashRecomputed = false,
             ulong recomputedVatSourceHash = 0UL,
             TargetTagRegistry tagRegistry = null)
         {
-            if (clipSet == null)
+            List<ValidationMessage> messages = new List<ValidationMessage>();
+            if (rig != null)
             {
-                throw new ArgumentNullException(nameof(clipSet));
+                ValidateRigInto(rig, messages);
             }
 
-            List<ValidationMessage> messages = new List<ValidationMessage>();
-            ValidateRigInto(clipSet.rig, messages);
+            List<ClipSetAsset> canonicalClipSets = ClipRegistryBuilder.BuildCanonicalClipSets(clipSets);
+            VatTextureSetAsset bindVatTextures =
+                ValidateVatTextureSetsInto(rig, canonicalClipSets, messages);
 
             // Dedup by asset identity. UnityEngine.Object overrides Equals/GetHashCode to compare
             // instances, so the set itself carries the identity semantics — no instance-id call.
+            // Both maps span the whole union, not one set: the moment two independently-authored
+            // sets meet on one actor, a clip listed in both (V11) or two distinct clips minted with
+            // the same id (V05) become possible for the first time.
             HashSet<ClipAsset> seenClips = new HashSet<ClipAsset>();
             Dictionary<ulong, ClipAsset> clipsByStableId = new Dictionary<ulong, ClipAsset>();
-            if (clipSet.clips != null)
+            for (int setIndex = 0; setIndex < canonicalClipSets.Count; setIndex++)
             {
+                ClipSetAsset clipSet = canonicalClipSets[setIndex];
+                if (clipSet.clips == null)
+                {
+                    continue;
+                }
                 for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
                 {
                     ClipAsset clip = clipSet.clips[clipIndex];
@@ -137,8 +166,9 @@ namespace DotsAnimationToolkit.Authoring
                             ValidationSeverity.Warning,
                             ValidationCode.V11,
                             clipSet,
-                            "Clip '" + clip.name + "' is listed more than once in set '" +
-                            clipSet.name + "'; the duplicate entry is dropped at bake."));
+                            "Clip '" + clip.name + "' is registered more than once across the sets " +
+                            "bound here (set '" + clipSet.name +
+                            "'); the duplicate entry is dropped at bake."));
                         continue;
                     }
 
@@ -151,43 +181,22 @@ namespace DotsAnimationToolkit.Authoring
                             clip,
                             "Clips '" + clipWithSameId.name + "' and '" + clip.name +
                             "' share clip id " + new ClipId(clip.stableId).ToString() +
-                            " inside set '" + clipSet.name + "'."));
+                            " among the sets bound to rig '" + DescribeRig(rig) +
+                            "'; one of them would be unreachable."));
                     }
                     else
                     {
                         clipsByStableId.Add(clip.stableId, clip);
                     }
 
-                    // A null clip.rig is exempt (Phase E target-tags spec §1, §4.3): a clip with no
-                    // assigned rig has no target-id-bound track that could be "against the wrong
-                    // rig" in the first place - a track either binds by tag (resolved fresh against
-                    // whichever rig the set being baked actually declares, spec §5) or, on a
-                    // null-rig clip, is unauthored. A clip that still carries a specific clip.rig
-                    // keeps V06 exactly as before: it has committed to that rig as its home, and a
-                    // target-id-bound track on it is only ever meaningful there. This is what makes a
-                    // fully tag-bound clip referenceable from any number of differently-rigged sets
-                    // (the whole point of spec §1's "nothing else is in the way" claim) without
-                    // opening the door to an ordinary, non-shared clip drifting onto the wrong rig by
-                    // accident.
-                    if (clip.rig != null && clip.rig != clipSet.rig)
-                    {
-                        messages.Add(new ValidationMessage(
-                            ValidationSeverity.Error,
-                            ValidationCode.V06,
-                            clip,
-                            "Clip '" + clip.name + "' is authored against a different rig than set '" +
-                            clipSet.name + "'; every clip in a set must share the set's rig, unless " +
-                            "the clip has no rig assigned at all (a fully tag-bound, shareable clip)."));
-                    }
-
-                    ValidateClipInto(clip, clipSet.rig, tagRegistry, messages);
-                    ValidateVatCoverageInto(clipSet, clip, messages);
+                    ValidateClipInto(clip, rig, tagRegistry, messages);
+                    ValidateVatCoverageInto(clipSet, clip, rig, messages);
                 }
             }
 
             if (vatSourceHashRecomputed &&
-                clipSet.vatTextures != null &&
-                clipSet.vatTextures.sourceHash != recomputedVatSourceHash)
+                bindVatTextures != null &&
+                bindVatTextures.sourceHash != recomputedVatSourceHash)
             {
                 ValidationSeverity staleBakeSeverity = stage == ValidationStage.Bake
                     ? ValidationSeverity.Warning
@@ -195,12 +204,77 @@ namespace DotsAnimationToolkit.Authoring
                 messages.Add(new ValidationMessage(
                     staleBakeSeverity,
                     ValidationCode.V08,
-                    clipSet.vatTextures,
-                    "VAT texture set '" + clipSet.vatTextures.name +
+                    bindVatTextures,
+                    "VAT texture set '" + bindVatTextures.name +
                     "' was baked from different sources than the ones referenced now; rebake it."));
             }
 
             return messages;
+        }
+
+        /// <summary>
+        /// Judges the VAT texture sets a bind carries — V39 (at most one across the whole bind) and
+        /// V40 (its source rig must be the rig being bound to) — and returns the one texture set the
+        /// registry blob will address, or null when the bind has none.
+        /// </summary>
+        /// <remarks>
+        /// On a V39 collision the first canonical set's textures are returned anyway, so the V07
+        /// coverage checks below still say something useful instead of collapsing into silence
+        /// behind a single error.
+        /// </remarks>
+        private static VatTextureSetAsset ValidateVatTextureSetsInto(
+            RigAsset rig,
+            List<ClipSetAsset> canonicalClipSets,
+            List<ValidationMessage> messages)
+        {
+            VatTextureSetAsset bindVatTextures = null;
+            ClipSetAsset bindVatOwner = null;
+            for (int setIndex = 0; setIndex < canonicalClipSets.Count; setIndex++)
+            {
+                ClipSetAsset clipSet = canonicalClipSets[setIndex];
+                if (clipSet.vatTextures == null)
+                {
+                    continue;
+                }
+
+                if (bindVatTextures == null)
+                {
+                    bindVatTextures = clipSet.vatTextures;
+                    bindVatOwner = clipSet;
+                }
+                else if (clipSet.vatTextures != bindVatTextures)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V39,
+                        clipSet,
+                        "Sets '" + bindVatOwner.name + "' and '" + clipSet.name +
+                        "' each supply a VAT texture set ('" + bindVatTextures.name + "' and '" +
+                        clipSet.vatTextures.name + "'), but an actor addresses exactly one."));
+                }
+
+                // Key 0 is anything baked before sourceRigKey existed; it passes, consistent with
+                // Phase F's no-migration stance.
+                if (rig != null &&
+                    clipSet.vatTextures.sourceRigKey != 0UL &&
+                    clipSet.vatTextures.sourceRigKey != rig.StableId)
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Error,
+                        ValidationCode.V40,
+                        clipSet.vatTextures,
+                        "VAT texture set '" + clipSet.vatTextures.name + "' of set '" +
+                        clipSet.name + "' was baked from a different rig's mesh than '" + rig.name +
+                        "'. A VAT texture cannot retarget, so this would play another character's " +
+                        "vertex motion."));
+                }
+            }
+            return bindVatTextures;
+        }
+
+        private static string DescribeRig(RigAsset rig)
+        {
+            return rig != null ? rig.name : "(none assigned)";
         }
 
         /// <summary>
@@ -897,14 +971,16 @@ namespace DotsAnimationToolkit.Authoring
         /// Validates the clip's billboard tracks (amendment A44): V24, V03 and V04.
         /// </summary>
         /// <remarks>
-        /// V24 is V02's shape against a different id space — a billboard root rather than a rig
+        /// V24 is T6's shape against a different id space — a billboard root rather than a rig
         /// target — so it is checked here rather than folded into the transform-track loop, which
-        /// resolves ids against <c>rig.targets</c> and would report the wrong list.
+        /// resolves ids against <c>rig.targets</c> and would report the wrong list. Like T6 it is
+        /// judged against the rig in hand, and skipped entirely when there is none: a billboard root
+        /// id is minted per rig, so an unbound clip has nothing to check it against.
         /// </remarks>
         private static void ValidateBillboardTracksInto(
-            ClipAsset clip, List<ValidationMessage> messages)
+            ClipAsset clip, RigAsset resolutionRig, List<ValidationMessage> messages)
         {
-            if (clip.billboardTracks == null)
+            if (clip.billboardTracks == null || resolutionRig == null)
             {
                 return;
             }
@@ -917,7 +993,7 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
 
-                if (!RigDeclaresBillboardRoot(clip.rig, track.rootStableId))
+                if (!RigDeclaresBillboardRoot(resolutionRig, track.rootStableId))
                 {
                     messages.Add(new ValidationMessage(
                         ValidationSeverity.Error,
@@ -1042,14 +1118,10 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <param name="resolutionRig">
-        /// The rig this clip's bindings are judged against - the rig it will actually play on. From
-        /// <see cref="ValidateSet"/> that is the <em>set's</em> rig, not <c>clip.rig</c>, and the
-        /// distinction is the whole of Phase E: a shareable clip carries no rig of its own (the V06
-        /// exemption in <see cref="ValidateSet"/>), so judging its tags against <c>clip.rig</c>
-        /// would fire T2 on every tag-bound track of every shareable clip - against a rig that is
-        /// null by design - and drown the one rule §6.1 relies on to catch a mis-picked tag. Null
-        /// when nothing declares a rig at all, in which case a binding cannot be judged and is left
-        /// alone rather than blamed.
+        /// The rig this clip's bindings are judged against — the rig it is being played on. A clip
+        /// has no rig of its own to fall back to, so null means "no rig in hand": every binding rule
+        /// stays silent rather than inventing a finding out of missing context, and the clip-local
+        /// rules are judged as usual.
         /// </param>
         private static void ValidateClipInto(
             ClipAsset clip,
@@ -1106,8 +1178,8 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
                 ValidateTrackBindingInto(
-                    clip, resolutionRig, transformTrack.targetId, transformTrack.tagId, tagRegistry,
-                    "Transform track", trackIndex, messages);
+                    clip, resolutionRig, transformTrack.targetId, transformTrack.tagId,
+                    tagRegistry, "Transform track", trackIndex, messages);
 
                 int keyCount = transformTrack.keys == null ? 0 : transformTrack.keys.Count;
                 float previousKeyTime = float.NegativeInfinity;
@@ -1151,8 +1223,8 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
                 ValidateTrackBindingInto(
-                    clip, resolutionRig, spriteTrack.targetId, spriteTrack.tagId, tagRegistry,
-                    "Sprite track", trackIndex, messages);
+                    clip, resolutionRig, spriteTrack.targetId, spriteTrack.tagId,
+                    tagRegistry, "Sprite track", trackIndex, messages);
 
                 int keyCount = spriteTrack.keys == null ? 0 : spriteTrack.keys.Count;
                 float previousKeyTime = float.NegativeInfinity;
@@ -1216,7 +1288,7 @@ namespace DotsAnimationToolkit.Authoring
 
             ValidateBoneTracksInto(clip, messages);
             ValidateBoneBezierHandlesInto(clip, messages);
-            ValidateBillboardTracksInto(clip, messages);
+            ValidateBillboardTracksInto(clip, resolutionRig, messages);
 
             for (int eventIndex = 0; eventIndex < eventCount; eventIndex++)
             {
@@ -1304,15 +1376,21 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Validates one <see cref="TransformTrack"/> or <see cref="SpriteTrack"/>'s binding (Phase E
-        /// target-tags spec §4.3): by target id when <paramref name="tagId"/> is 0 (today's V02
-        /// path, unchanged), or by tag otherwise (T2/T3, V35/V36).
+        /// Validates one <see cref="TransformTrack"/> or <see cref="SpriteTrack"/>'s binding: by tag
+        /// when <paramref name="tagId"/> is non-zero (T2/T3, V35/V36 — Phase E target-tags spec
+        /// §4.3), by target id otherwise (T6/V38 — Phase F §4).
         /// </summary>
         /// <remarks>
-        /// T3 is checked first and, when it fires, T2 is not also evaluated against the same track —
-        /// mirroring this file's existing discipline for V21/V22 and V26/V28: an id that cannot be
-        /// resolved at all (deleted from the registry) is one fault, not a second, unrelated-looking
-        /// one about which rig happens to lack it.
+        /// <strong>Both halves are warnings, and neither can be an error any more.</strong> A clip
+        /// records no rig, so "this id is wrong" is not a question anything can answer — only "this
+        /// id does not line up with the rig you are playing it on", which is exactly a skip. An
+        /// id-bound track is simply the narrow case that lines up with one rig; a tag-bound one is
+        /// the case that lines up with every rig carrying the tag.
+        /// <para>
+        /// T3 still suppresses T2: an id that cannot be resolved at all (deleted from the registry)
+        /// is one fault, not a second, unrelated-looking one about which rig happens to lack it —
+        /// the same discipline this file uses for V21/V22 and V26/V28.
+        /// </para>
         /// </remarks>
         private static void ValidateTrackBindingInto(
             ClipAsset clip,
@@ -1326,8 +1404,20 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (tagId == 0u)
             {
-                ValidateTargetBindingInto(
-                    clip, resolutionRig, targetId, trackKindLabel, trackIndex, messages);
+                // T6 (V38): this rig does not declare the target the track names. The mirror of T2
+                // below, and lenient for the same reason — with no rig recorded on the clip there
+                // is no "home rig" this could be an error against, only the rig in hand.
+                if (resolutionRig != null && !RigContainsTarget(resolutionRig, targetId))
+                {
+                    messages.Add(new ValidationMessage(
+                        ValidationSeverity.Warning,
+                        ValidationCode.V38,
+                        clip,
+                        trackKindLabel + " " + trackIndex + " of clip '" + clip.name +
+                        "' targets id " + new TargetId(targetId).ToString() + ", which rig '" +
+                        resolutionRig.name + "' does not declare; the track is skipped when this " +
+                        "clip plays on that rig."));
+                }
                 return;
             }
 
@@ -1417,9 +1507,15 @@ namespace DotsAnimationToolkit.Authoring
                 normalizedTime + ", which is outside [0, 1]."));
         }
 
+        /// <param name="rig">
+        /// The rig of the bind. VAT tracks keep the strict V02 against it rather than T6's lenient
+        /// skip: a VAT texture cannot retarget (Phase F §8), so a VAT track naming a target this rig
+        /// does not declare has no correct behaviour to fall back to.
+        /// </param>
         private static void ValidateVatCoverageInto(
             ClipSetAsset clipSet,
             ClipAsset clip,
+            RigAsset rig,
             List<ValidationMessage> messages)
         {
             // Amendment A36: a VAT source counts as present only when it actually names a source
@@ -1491,7 +1587,7 @@ namespace DotsAnimationToolkit.Authoring
                 }
 
                 ValidateTargetBindingInto(
-                    clip, clipSet.rig, track.targetId, "VAT track", trackIndex, messages);
+                    clip, rig, track.targetId, "VAT track", trackIndex, messages);
 
                 if (!HasExactVatTrackRange(clipSet.vatTextures, clip.stableId, track.targetId))
                 {

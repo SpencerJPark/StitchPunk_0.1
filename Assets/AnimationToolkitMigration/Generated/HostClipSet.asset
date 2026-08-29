@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: HostClipSet
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipSetAsset
   stableId: 11644900024282549467
-  rig: {fileID: 11400000, guid: 4a78a19a00d68bf47927ffa2ceba791d, type: 2}
+  rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
   clips:
   - {fileID: 11400000, guid: b0c0a42eb3823224b8797b8b6d716376, type: 2}
   - {fileID: 11400000, guid: ffb90c1262213a043b6cad5a0a5f36a3, type: 2}
@@ -36,3 +36,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4bef055e42d527c49bd8e1ef1c0d9da6, type: 2}
   - {fileID: 11400000, guid: f6208e322e9c46b40b3e04c24ea0a613, type: 2}
   vatTextures: {fileID: 0}
+  eventKeys: {fileID: 0}

@@ -8,6 +8,183 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed — an event's description is what the event picker shows on hover
+
+Hovering an event in the picker showed the event's name a second time, under the name the row was
+already displaying. It now shows the event's **Description** — the free-text note written beside it
+in the registry — which is what that field was for and what the documentation has always said it
+did; nothing read it before. An event with no description written yet says so, and gives its key.
+
+### Changed — New Rig is a toggle, like VAT Bake
+
+The toolbar's **New Rig** button is now a toggle that covers and uncovers the editor exactly as
+**VAT Bake** does, and the panel's **Cancel** button is gone — pressing the toggle again is what
+closes the page.
+
+Nothing is torn down on the way out either: the source prefab you scanned, the nodes you ticked and
+the tags you gave them are still there when you come back, where before every opening started from
+an empty panel. Creating a rig still closes the flow and unticks the toggle.
+
+### Changed — retagging a part in the inspector brings its animation along
+
+Picking a tag on a part in the Clip Inspector's selection heading used to assign straight to the
+field, so the timeline never moved and the part's keys were left on a tag it no longer wore. It is
+now a real edit:
+
+- **The keys follow the tag.** Every row keyed against the part's old tag — in *every clip of the
+  open clip set*, not just the one on screen — moves onto the new tag, so the part keeps its
+  animation under its new name. Where a clip already has a row on the destination tag, the two
+  merge under the same rules the timeline's own retag uses: the arriving key wins a same-time
+  collision, and a flipbook row whose frame settings differ stays put instead of being retuned.
+  The whole sweep is one undo step, and a notification says how many rows moved.
+- **The timeline updates**, so you watch it happen instead of seeing nothing.
+- **A tag stays unique per rig (rule T1).** Giving a part a tag another part already wears now takes
+  it off that part. It was possible to leave two parts wearing one tag, which every "which part
+  wears this tag" lookup in the toolkit resolves by picking whichever it reaches first.
+
+The timeline row's own part half is unchanged and deliberately does not carry keys: there you are
+placing a row's tag on a part, and its keys are already where they belong.
+
+Clip sets *other* than the open one are not rewritten. A second set keyed against the old tag on the
+same rig will read `(no tagged part)` until it is retagged in its own window.
+
+### Changed — the transport bar's groups are separated by space, not by rules
+
+The vertical lines between the transport bar's groups are gone; the spacing is unchanged.
+
+### Changed — the track name column is readable at any width
+
+A row's name no longer has to fit in 170 pixels to be read:
+
+- **Drag the strip between the names and the lanes** to widen or narrow the name column. Where it
+  is left is remembered per user, the way the window's dock splits already are, and a narrowed
+  window borrows width back from the column rather than squeezing the lanes to nothing.
+- **A name too wide for the column wraps** onto a second line, `→ Part` reading as its own line
+  under the tag, instead of being cut off mid-word. A wrapped row is exactly two lanes tall, so its
+  keys stay beside it and every row below it stays on its own lane.
+
+### Changed — the timeline row is the binding surface (amendment A56)
+
+A track header now reads `tag → rig part`, and both halves are pickers rather than labels:
+
+- **Click the tag** to move the whole row — its keys — to another tag. Picking a tag another keyed
+  track of the same kind already binds merges this row into that one (same-time collisions keep the
+  moved key; a flipbook merge is refused when the two tracks' frame settings differ). The
+  inspector's track-tag button routes through the same operation, so the two surfaces agree.
+- **Click the part** to choose which part of the open rig wears the row's tag. This edits the
+  *rig*: the old wearer is untagged (a tag is unique per rig, rule T1) and every clip set sharing
+  the rig follows the keys to the new part.
+- **A keyed row without a tag is no longer possible.** Creating a Transform or Flipbook track on an
+  untagged part now tags the part first — reusing the registry tag named like the part, or minting
+  `Name`, `Name 2`, … — whether the track comes from Add Component, the first key, or a paste.
+  Tracks from older assets that still carry `tagId == 0` read `(assign tag)` and both halves open
+  the tag picker until one is assigned; the track-binding picker's "(none)" row is gone, since a
+  keyed track has nothing legal to clear to. A rig *part* may still be untagged until keyed.
+- The `T `/`S `/`B ` kind prefixes are gone from row names; the kind moved into the row tooltip.
+- Select a track's keys from the row's empty background (binding rows) — the halves now pick.
+
+### Changed — a timeline row is named by its tag, and only keyed tracks get one
+
+The Clip Editor's track headers now read **tag first, rig part second**, the part dimmed beside it:
+the tag is what the clip stores its keys against, and the part is only where that tag lands on the
+rig currently open. A track's channels or flipbook mode moved into the row tooltip to make room.
+
+- A **track with no keys gets no row.** It writes nothing at any time, so it is a component waiting
+  for its first key rather than a curve — make that key from the part's own **Key** button in the
+  inspector, which never needed a lane. The status line counts what is hidden and says so.
+- A tag **no part of the open rig carries** still gets its row and its keys, marked `(no tagged
+  part)` — it plays on a rig that does tag a part that way (rule T2 is skip, not fail).
+- A **target-bound track** (the `tagId == 0` sentinel) keeps its row beside the part it drives.
+  Its keys are real and play, so hiding it would take authored work off screen. (A56 above renamed
+  its tag half from `(untagged)` to `(assign tag)` and made the state impossible to create.)
+- **Focus mode now resolves a tag-bound track through its tag**, via the same
+  `ClipComponentModel.FindTargetByTag` the component stack and keying already share, instead of
+  reading the track's stale `targetId`. Selecting a part whose tag a track binds no longer hides it.
+
+## [0.13.0] — rig-centric binding (Phase F)
+
+**Breaking. There is no migration, and none is planned** — the data hierarchy was upside down and
+this corrects it before real animation content exists. Old serialized `ClipSetAsset.rig` and
+`ClipSetAsset.eventKeys` values silently drop on load, and every actor must be re-pointed by hand.
+
+### Changed — clips, sets and rigs are independent; only an actor pairs them
+
+A clip set used to pin one rig, a clip recorded the rig it was authored against, and an actor derived
+its rig from its one set. All three couplings are gone. An actor names its **rig** directly and a
+**list of clip sets**, and that is the only place in the data model where motion and skeleton meet.
+Which dense target a track drives is resolved at bake against that actor's rig; everywhere else a
+track is simply a tag and some keys.
+
+- **`ActorAuthoring`** gains `rig` (required) and replaces `clipSet` with `clipSets`. Its inspector
+  offers the rig, the set list, and a starting-layer clip dropdown drawn from the merged union.
+- **`ClipSetAsset.rig` is gone, with no editor-only replacement.** A set records nothing about any
+  rig — not even which one it was last opened on.
+- **`ClipAsset.rig` is gone.** A clip records no rig either. It lines up with whatever rig it is
+  played on, by tag.
+- **The Clip Editor's two toolbar pickers are independent.** Its **Rig** is window state, written to
+  no asset and surviving a domain reload and a re-dock the way the open clip set does. Swapping the
+  set no longer swaps the rig, and swapping the rig no longer empties the clip list — pointing one
+  set at a second rig to see which of its tracks line up is now a normal thing to do.
+- **`ClipSetAsset.eventKeys` is gone.** The `ProjectSettings/` vocabulary has been canonical since
+  A52; a per-set override was a second source of truth with no remaining reason.
+- **The registry is built per (rig, set-list) bind**, from the union of every bound set's clips —
+  deduplicated by asset, sorted by clip id, with the set list canonicalised so its order can never
+  matter. `ClipRegistryBlob.setKey` now holds the bind key: the rig's stable id XOR-folded with every
+  bound set's.
+- **`SchemaVersion` → 9.** The layout does not change shape, but a version-8 blob's `setKey` and a
+  version-9 bind key are different identities for the same bytes.
+
+### Changed — an id-bound track that does not resolve is now a skip, not a failure (rule T6)
+
+The exact mirror of T2 on the id-bound half. A set applied to a second rig legitimately carries
+tracks only its home rig declares, so a hard error at bake would ban the scenario this release
+exists for: the track is skipped with a warning naming the clip, the track, the id and the rig
+(**V38**). It cannot be an error: with no rig recorded on a clip, "wrong id" is not a fact anything
+can establish — only "does not line up with the rig in hand".
+
+- **V02 narrows to VAT tracks.** VAT is the one binding that cannot be lenient, because a VAT texture
+  encodes one mesh's vertex motion and cannot retarget, so a VAT track naming a target the bound rig
+  does not declare is still an error.
+- **V24** (billboard tracks) is judged against the bound rig, and skipped when there is none.
+- **`ClipValidation.ValidateClip` judges no binding at all**, and a null rig passed to `ValidateBind`
+  means "unbound", not "broken" — a set inspected on its own reports only what a set can answer
+  alone, because having no rig is its ordinary state.
+- **V06 is retired.** There is no set rig for a clip's rig to disagree with. The rule number is not
+  reused.
+- **V05 and V11 now span the union.** Two independently authored sets meeting on one actor is the
+  first time a clip-id collision across sets is possible; it is an error (V05), and one clip
+  registered by two bound sets is a warning (V11).
+- Phase F's spec calls the new rule "T4"; that name was taken by the existing V37, so it ships as
+  **T6**.
+
+### Changed — new tracks default to tag-bound on a tagged part
+
+Under the rig-centric model tag-binding is the primary authoring intent, so a track created on a part
+that already carries a tag binds by that tag; one created on an untagged part still binds by target
+id. A creation default only — nothing already authored is rewritten, and the binding button still
+flips either way.
+
+### Changed — the Mirror Clip action takes its rig from the Clip Editor
+
+`Create Mirrored Clip` used to read the mirror-pair table off `clip.rig`. It now takes the rig an
+open Clip Editor is showing, and refuses with a message when none is open — mirroring against a rig
+nobody chose rebinds every track to ids that rig does not have, and the result opens, plays, and
+animates nothing.
+
+### Added — VAT textures are stamped with the rig they were baked from
+
+A VAT texture encodes one skinned mesh's vertex motion and cannot retarget, so it is the one thing a
+set cannot share. `VatTextureSetAsset` gains `sourceRigKey`, written by the VAT bake, and the bake
+panel gains an explicit **Rig** field (offered from the Clip Editor's, when one is open) now that no
+asset names one.
+
+- Binding a set whose textures name a different rig is an error (**V40**), not a skip: a wrong-mesh
+  VAT is never wanted, and the failure it causes is invisible to tests and obvious to a player.
+- A key of 0 — anything baked before this field existed — passes, consistent with no migration.
+- Two bound sets each supplying a VAT texture set is an error (**V39**); a registry addresses one.
+
 ## [0.12.0] — target tags and shared clips (amendment A51)
 
 ### Added — clips can now travel between characters that tag their parts the same way
@@ -101,10 +278,62 @@ it read-only.
   the Project Settings page edits the same registry, via a new
   `VocabularyRegistryProvider.RegistryChanged` event — including an add or remove, which has no
   field to bubble a rename's `FocusOutEvent` from.
-- **Clip preview render no longer clobbers an in-progress UI Toolkit drag.** `ClipPreviewController`'s
-  render call now saves and restores `GUIUtility.hotControl` around `BeginPreview`/`EndPreview`;
-  running 30 times a second off the `EditorApplication.update` tick, it was intermittently stealing
-  hot-control from an unrelated field mid-drag.
+- ~~**Clip preview render no longer clobbers an in-progress UI Toolkit drag.** `ClipPreviewController`'s
+  render call now saves and restores `GUIUtility.hotControl` around `BeginPreview`/`EndPreview`.~~
+  **Reverted — this change was itself the bug.** Assigning `GUIUtility.hotControl` releases the mouse
+  capture rather than merely recording a value, and UI Toolkit's pointer capture is synced through
+  it. Restoring the pre-render value 30 times a second dropped the captured pointer within ~33ms of
+  any gesture starting: buttons stopped firing `clicked` (so pickers never opened) and every drag
+  ended the instant it began. See the comment now standing in its place.
+
+### Added — every number on the transport bar scrubs
+
+Length, FPS, Frame, Time and Speed are dragged by their captions: press on the word and pull. The
+captions are standalone labels rather than the fields' own — the bar is a compact strip, and a
+`BaseField` label carries an inspector's width — which meant these five numbers had no drag zone at
+all, since a field's dragger lives on its own label. Each caption is now handed to a real
+`FieldMouseDragger`, so the sensitivity, the acceleration and the shift/alt modifiers are Unity's
+own rather than an imitation, and the caption shows the slide cursor to say so.
+
+- **FPS and Frame step whole numbers.** Frame already did; **FPS is now an `IntegerField`**, which is
+  what the value has always meant — the frame count it defines is rounded to an integer
+  (`ClipAsset.FrameCount`) and a VAT bake turns it into a whole number of texture rows. A clip
+  carrying a fractional rate reads back rounded, and is rounded the first time the field writes it.
+- **Length and FPS keep their delayed typing.** A delayed field's drag writes only the displayed text
+  and commits on release, so `isDelayed` is lifted for the length of a drag and restored after —
+  typing "0.5" still cannot collapse the clip to a millisecond between two keystrokes.
+- **A drag on either is one undo step**, not one per mouse move, and no longer rebuilds the timeline
+  on every move.
+- The Frame and Time readouts no longer overwrite themselves while being typed into.
+
+### Fixed — dragging a number field in the Clip Editor died after about a pixel
+
+A drag on any numeric field's label started, moved once, and stopped; the viewport did not follow it
+until the drag ended; and with auto-key off it never followed at all. Three separate faults, all now
+fixed.
+
+- **The field was being destroyed under the mouse.** A drag handle captures the pointer on the
+  element itself, so removing that element from the panel releases the capture and ends the gesture.
+  Several fields rebuilt the pane they live in from their own value-changed callback — the part and
+  bone transform blocks and the flipbook index fields rebuilt the inspector outright; a socket's
+  offset and layer fields rebuilt the hierarchy, whose selection notification then rebuilt the
+  inspector. Those rebuilds are now refreshes in place where a refresh suffices, and every remaining
+  one is deferred until the gesture ends. The guard is central rather than per-field, so a field
+  added later cannot bring the bug back by forgetting.
+- **The preview could not refresh during a drag.** The registry rebuild was debounced on a trailing
+  edge alone, and a drag re-stamped the timer faster than it could elapse — so the settle never
+  arrived until the drag stopped. It now also refreshes on a max wait, giving a live viewport while
+  still collapsing a finished gesture into one last rebuild.
+- **A held, unkeyed edit reached nothing.** With auto-key off the value is held rather than written,
+  and the preview samples the built registry, which knows only committed keys — so the numbers moved
+  and the character did not. The held pose is now applied on top of the sampled one, composed exactly
+  as an Override transform track composes (section 5.11).
+- **Two stale-capture bugs found alongside.** The billboard block's fields and the transform blocks
+  each closed over sibling values sampled when the block was built, so editing one channel wrote a
+  stale value back over another that had been changed since. Both now read their siblings off the
+  fields on screen.
+- Editing a socket's offset no longer destroys and recreates every socket marker on each mouse move;
+  markers are re-placed, which is all an offset change invalidates.
 
 ### Changed — event authoring reaches tag parity (amendment A55)
 

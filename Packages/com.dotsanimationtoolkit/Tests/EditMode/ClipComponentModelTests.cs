@@ -44,7 +44,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             assets = new AuthoringTestAssets();
             rig = assets.CreateRig("Rig", 1uL, 1, new uint[] { HeadTargetId, HandTargetId });
-            clip = assets.CreateClip("Clip", rig, 2uL, 1f);
+            clip = assets.CreateClip("Clip", 2uL, 1f);
             instances = new List<ClipComponentInstance>();
         }
 
@@ -767,6 +767,30 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void ANewTrackOnATaggedPartBindsByThatTag()
+        {
+            // Phase F decision D6: under the rig-centric model tag-binding is the primary authoring
+            // intent, so a track created on a part that already plays a named role travels by
+            // default. Defaulting to id-bound would quietly produce sets that do not share.
+            rig.targets[0].tagId = 0xBEEFu;
+
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Transform, string.Empty);
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Flipbook, string.Empty);
+
+            Assert.AreEqual(0xBEEFu, clip.transformTracks[0].tagId, "A new transform track binds by the part's tag.");
+            Assert.AreEqual(0xBEEFu, clip.spriteTracks[0].tagId, "So does a new flipbook track.");
+        }
+
+        [Test]
+        public void ANewTrackOnAnUntaggedPartStaysBoundByTargetId()
+        {
+            ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Transform, string.Empty);
+
+            Assert.AreEqual(0u, clip.transformTracks[0].tagId, "An untagged part has no role to bind to.");
+            Assert.AreEqual(HeadTargetId, clip.transformTracks[0].targetId);
+        }
+
+        [Test]
         public void AddingASecondSingletonComponentIsRefused()
         {
             ClipComponentModel.Add(clip, rig, Head, ClipComponentKind.Transform, string.Empty);
@@ -887,6 +911,100 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 0, ClipComponentModel.KeyCount(clip, Head, instances[0]),
                 "The component is present with no track behind it, and −1 must read as empty "
                 + "rather than index the list.");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // MoveTracksToTag — retagging a rig part carries its animation onto the new tag.
+        // -----------------------------------------------------------------------------------
+
+        private const uint OldTagId = 0xA1u;
+        private const uint NewTagId = 0xB2u;
+
+        [Test]
+        public void RetaggingMovesEveryRowKeyedAgainstTheOldTag()
+        {
+            TransformTrack transformTrack = AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            transformTrack.tagId = OldTagId;
+            SpriteTrack spriteTrack = AuthoringTestAssets.AddSpriteTrack(
+                clip, HeadTargetId, SpriteFrameMode.Slice);
+            spriteTrack.tagId = OldTagId;
+
+            ClipComponentModel.TagMoveOutcome outcome =
+                ClipComponentModel.MoveTracksToTag(clip, OldTagId, NewTagId);
+
+            Assert.AreEqual(2, outcome.movedTrackCount);
+            Assert.AreEqual(0, outcome.mergedTrackCount);
+            Assert.AreEqual(NewTagId, clip.transformTracks[0].tagId);
+            Assert.AreEqual(NewTagId, clip.spriteTracks[0].tagId);
+        }
+
+        [Test]
+        public void ARowMovingOntoATagTheClipAlreadyHasMergesIntoIt()
+        {
+            // Two rows cannot share a tag — a tag *is* the row — so the arriving keys join the row
+            // already there rather than producing a second one nothing can tell apart.
+            TransformTrack destination = AuthoringTestAssets.AddTransformTrack(
+                clip, HandTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            destination.tagId = NewTagId;
+            AuthoringTestAssets.AddTransformKey(
+                destination, 0f, float3.zero, 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            TransformTrack source = AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.Rotation);
+            source.tagId = OldTagId;
+            AuthoringTestAssets.AddTransformKey(
+                source, 1f, float3.zero, 90f, new float3(1f, 1f, 1f), Interpolation.Linear);
+
+            ClipComponentModel.TagMoveOutcome outcome =
+                ClipComponentModel.MoveTracksToTag(clip, OldTagId, NewTagId);
+
+            Assert.AreEqual(1, outcome.mergedTrackCount);
+            Assert.AreEqual(1, clip.transformTracks.Count, "The merged row is gone, not duplicated.");
+            Assert.AreEqual(2, clip.transformTracks[0].keys.Count, "Both rows' keys survive.");
+            Assert.AreEqual(
+                AnimatedChannels.PositionXY | AnimatedChannels.Rotation,
+                clip.transformTracks[0].channels,
+                "A merge unions what the two rows animated.");
+        }
+
+        [Test]
+        public void AFlipbookRowWithDifferentFrameSettingsStaysWhereItIs()
+        {
+            // A sprite key's number only means something beside its own track's mode, so forcing
+            // this merge would silently retune every key it moved.
+            SpriteTrack destination = AuthoringTestAssets.AddSpriteTrack(
+                clip, HandTargetId, SpriteFrameMode.Slice);
+            destination.tagId = NewTagId;
+
+            SpriteTrack source = AuthoringTestAssets.AddSpriteTrack(
+                clip, HeadTargetId, SpriteFrameMode.AtlasRect);
+            source.tagId = OldTagId;
+            AuthoringTestAssets.AddSpriteKey(source, 0f, 3, float4.zero);
+
+            ClipComponentModel.TagMoveOutcome outcome =
+                ClipComponentModel.MoveTracksToTag(clip, OldTagId, NewTagId);
+
+            Assert.AreEqual(1, outcome.refusedTrackCount);
+            Assert.AreEqual(0, outcome.ChangedTrackCount);
+            Assert.AreEqual(2, clip.spriteTracks.Count);
+            Assert.AreEqual(
+                OldTagId, source.tagId,
+                "A refused row keeps its tag; it reads as (no tagged part) rather than being retuned.");
+        }
+
+        [Test]
+        public void ClipHasTrackTaggedIsWhatLetsACarrySkipTheClipsItWouldNotTouch()
+        {
+            TransformTrack track = AuthoringTestAssets.AddTransformTrack(
+                clip, HeadTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
+            track.tagId = OldTagId;
+
+            Assert.IsTrue(ClipComponentModel.ClipHasTrackTagged(clip, OldTagId));
+            Assert.IsFalse(ClipComponentModel.ClipHasTrackTagged(clip, NewTagId));
+            Assert.IsFalse(
+                ClipComponentModel.ClipHasTrackTagged(clip, 0u),
+                "The untagged sentinel is not a tag, and a carry never moves rows onto or off it.");
         }
     }
 }

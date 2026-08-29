@@ -103,7 +103,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             clip.name = "Idle";
             clip.stableId = 0x2222000000000001UL;
-            clip.rig = rig;
             clip.duration = 1f;
             // vatSource is deliberately left at its default (null) — the exact authoring state A36
             // silently corrupted on disk.
@@ -111,15 +110,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
             clipSet.name = "Set";
             clipSet.stableId = 0x3333000000000001UL;
-            clipSet.rig = rig;
             clipSet.clips.Add(clip);
 
-            SaveAsset(rig);
+            string rigPath = SaveAsset(rig);
             SaveAsset(clip);
             string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(rig, clip, clipSet);
 
+            RigAsset reloadedRig = AssetDatabase.LoadAssetAtPath<RigAsset>(rigPath);
             ClipSetAsset reloadedSet = AssetDatabase.LoadAssetAtPath<ClipSetAsset>(clipSetPath);
             Assert.IsNotNull(reloadedSet, "The clip set must reload from disk.");
             Assert.AreEqual(1, reloadedSet.clips.Count, "The reloaded set must still register its one clip.");
@@ -136,7 +135,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     "A clip saved with no VAT source must not read back naming a real source clip.");
             }
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(reloadedSet);
+            List<ValidationMessage> messages = ClipValidation.ValidateBind(
+                reloadedRig, new ClipSetAsset[] { reloadedSet });
             foreach (ValidationMessage message in messages)
             {
                 Assert.AreNotEqual(
@@ -151,7 +151,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             try
             {
                 Assert.DoesNotThrow(
-                    () => ClipRegistryBuilder.Build(reloadedSet, out registry, out contentHash),
+                    () => ClipRegistryBuilder.Build(
+                        reloadedRig, new ClipSetAsset[] { reloadedSet }, out registry, out contentHash),
                     "ClipRegistryBuilder.Build must succeed for a set whose only clip has no VAT " +
                     "source, even after a real serialize/deserialize round trip (amendment A36). " +
                     "Before the fix this threw ClipValidationException for every clip set in the " +
@@ -196,17 +197,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             clip.name = "Walk";
             clip.stableId = ClipStableId;
-            clip.rig = rig;
             clip.duration = 1f;
             AuthoringTestAssets.AddTransformTrack(clip, FirstTargetId, TrackBlendOp.Override, AnimatedChannels.PositionXY);
 
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
             clipSet.name = "Set";
             clipSet.stableId = SetStableId;
-            clipSet.rig = rig;
             clipSet.clips.Add(clip);
 
-            SaveAsset(rig);
+            string rigPath = SaveAsset(rig);
             SaveAsset(clip);
             string clipSetPath = SaveAsset(clipSet);
 
@@ -214,7 +213,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             ClipSetAsset reloadedSet = AssetDatabase.LoadAssetAtPath<ClipSetAsset>(clipSetPath);
             Assert.IsNotNull(reloadedSet);
-            RigAsset reloadedRig = reloadedSet.rig;
+            // Reloaded on its own: nothing on the set points at a rig any more, which is exactly
+            // the independence under test — the two assets round-trip without referencing each other.
+            RigAsset reloadedRig = AssetDatabase.LoadAssetAtPath<RigAsset>(rigPath);
+            Assert.IsNotNull(reloadedRig, "The rig must reload from disk.");
             ClipAsset reloadedClip = reloadedSet.clips[0];
 
             Assert.AreEqual(RigStableId, reloadedRig.StableId, "The rig id must survive the round trip, including its high bit.");
@@ -256,7 +258,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             clip.name = "Attack";
             clip.stableId = 0x6666000000000001UL;
-            clip.rig = rig;
             clip.duration = 1f;
             clip.vatSource = new VatClipSource
             {
@@ -268,18 +269,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
             clipSet.name = "Set";
             clipSet.stableId = 0x7777000000000001UL;
-            clipSet.rig = rig;
             clipSet.clips.Add(clip);
             // vatTextures is deliberately left null: the set references no texture set for a clip
             // that names one, so a correctly-detecting reload must fail V07.
 
             SaveAsset(sourceAnimationClip, "SourceAnim.anim");
-            SaveAsset(rig);
+            string rigPath = SaveAsset(rig);
             SaveAsset(clip);
             string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(sourceAnimationClip, rig, clip, clipSet);
 
+            RigAsset reloadedRig = AssetDatabase.LoadAssetAtPath<RigAsset>(rigPath);
             ClipSetAsset reloadedSet = AssetDatabase.LoadAssetAtPath<ClipSetAsset>(clipSetPath);
             Assert.IsNotNull(reloadedSet);
             ClipAsset reloadedClip = reloadedSet.clips[0];
@@ -293,7 +294,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 reloadedClip.vatSource.sourceClip.name,
                 "The reloaded VAT source must still name the same Unity AnimationClip asset.");
 
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(reloadedSet);
+            List<ValidationMessage> messages = ClipValidation.ValidateBind(
+                reloadedRig, new ClipSetAsset[] { reloadedSet });
             bool foundExpectedV07Error = false;
             foreach (ValidationMessage message in messages)
             {
@@ -339,7 +341,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             clip.name = "Idle";
             clip.stableId = 0xAAAA000000000001UL;
-            clip.rig = rig;
             clip.duration = 2f;
             clip.defaultLoop = LoopMode.Loop;
             TransformTrack transformTrack = AuthoringTestAssets.AddTransformTrack(
@@ -352,24 +353,26 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
             clipSet.name = "Set";
             clipSet.stableId = 0xBBBB000000000001UL;
-            clipSet.rig = rig;
             clipSet.clips.Add(clip);
 
             bool computedBeforeSave = ClipRegistryBuilder.TryComputeContentHash(
-                clipSet, out Unity.Entities.Hash128 hashBeforeSave);
+                rig, new ClipSetAsset[] { clipSet }, out Unity.Entities.Hash128 hashBeforeSave);
             Assert.IsTrue(computedBeforeSave, "The set must validate cleanly before it is ever written to disk.");
 
-            SaveAsset(rig);
+            string rigPath = SaveAsset(rig);
             SaveAsset(clip);
             string clipSetPath = SaveAsset(clipSet);
 
             CommitAndForceReload(rig, clip, clipSet);
 
+            RigAsset reloadedRig = AssetDatabase.LoadAssetAtPath<RigAsset>(rigPath);
             ClipSetAsset reloadedSet = AssetDatabase.LoadAssetAtPath<ClipSetAsset>(clipSetPath);
             Assert.IsNotNull(reloadedSet);
 
+            // Both halves of the bind come back off disk, so the hash is compared across a genuine
+            // round trip of the rig as well as of the set.
             bool computedAfterReload = ClipRegistryBuilder.TryComputeContentHash(
-                reloadedSet, out Unity.Entities.Hash128 hashAfterReload);
+                reloadedRig, new ClipSetAsset[] { reloadedSet }, out Unity.Entities.Hash128 hashAfterReload);
             Assert.IsTrue(computedAfterReload, "The reloaded set must still validate cleanly.");
 
             Assert.AreEqual(
@@ -404,7 +407,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
             clip.name = "Swing";
             clip.stableId = 0xDDDD000000000001UL;
-            clip.rig = rig;
             clip.duration = 1f;
 
             TransformTrack transformTrack = AuthoringTestAssets.AddTransformTrack(

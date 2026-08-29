@@ -30,12 +30,9 @@ namespace DotsAnimationToolkit.Authoring
 
         [SerializeField] internal ulong stableId;
 
-        /// <summary>
-        /// The rig this clip is authored against. Every track's <c>targetId</c> must name a target
-        /// of this rig (validation rule V02), and a clip may only join a set whose rig is the same
-        /// asset (validation rule V06).
-        /// </summary>
-        public RigAsset rig;
+        // A clip names no rig. Motion and skeleton are independent assets, paired only where an
+        // ActorAuthoring states both (Phase F §3, owner directive 2026-08-28) — a track lines up by
+        // tag against whatever rig it is played on, and one that does not line up is skipped.
 
         /// <summary>Clip length in seconds. Values below <see cref="MinimumDuration"/> fail validation rule V01.</summary>
         [Min(MinimumDuration)] public float duration = 1f;

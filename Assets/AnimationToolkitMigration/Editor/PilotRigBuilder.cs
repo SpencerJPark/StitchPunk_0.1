@@ -215,7 +215,8 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             actorRoot.transform.position = actorPosition;
 
             ActorAuthoring actorAuthoring = actorRoot.AddComponent<ActorAuthoring>();
-            actorAuthoring.clipSet = clipSet;
+            actorAuthoring.rig = rig;
+            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
 
             // Layer 0 is Base. The host's Direction layer was dropped by amendment A37, so the
             // remaining order is Base, Action, Face, Eyes, Mouth, Override — Base keeps index 0.

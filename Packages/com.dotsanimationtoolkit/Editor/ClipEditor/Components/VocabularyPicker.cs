@@ -44,7 +44,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Message shown in the quick-edit window when no registry object is available yet.</summary>
         public readonly string QuickEditMissingMessage;
 
-        /// <summary>Builds the second line of a row's hover card from that row's id, e.g. "id 0x1A2B3C4D" or "key 42".</summary>
+        /// <summary>
+        /// Builds the grey body of a row's hover card from that row's id — the event's authored
+        /// description where the vocabulary has one, and otherwise whatever the id itself can say
+        /// (e.g. "id 0x1A2B3C4D").
+        /// </summary>
         public readonly Func<uint, string> DescribeEntryId;
 
         public VocabularyPickerConfig(
@@ -108,10 +112,37 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// The tag picker a keyed track's binding opens (amendment A56 D5). Same strings as
+        /// <see cref="ForTargetTags"/> but no "(none)" row: a row's keys are stored against its tag,
+        /// so a keyed track has nothing legal to clear to — only a rig <em>part</em> may be untagged.
+        /// </summary>
+        public static VocabularyPickerConfig ForTrackTagRebind(TargetTagRegistry registry)
+        {
+            VocabularyPickerConfig partConfig = ForTargetTags(registry);
+            return new VocabularyPickerConfig(
+                null,
+                null,
+                partConfig.CreateRowNoun,
+                partConfig.EditButtonLabel,
+                partConfig.EditRowLabel,
+                partConfig.EditRowDescription,
+                partConfig.QuickEditWindowTitle,
+                partConfig.QuickEditMissingMessage,
+                partConfig.DescribeEntryId);
+        }
+
+        /// <summary>
         /// The event-name flavour of this config (E6 Task 4). No "(none)" row: unlike a rig target,
         /// an event marker always fires <em>some</em> event, so there is nothing to clear a binding
         /// to.
         /// </summary>
+        /// <remarks>
+        /// An event's hover text is its own authored description
+        /// (<see cref="AnimEventKeyEntry.description"/>) rather than its name, which the row above
+        /// the card already shows — that note is written in the registry precisely so the person
+        /// choosing an event can read what it does before picking it. Target tags carry no such
+        /// field, so they keep describing themselves by name.
+        /// </remarks>
         public static VocabularyPickerConfig ForEventKeys(AnimEventKeyRegistry registry)
         {
             return new VocabularyPickerConfig(
@@ -125,8 +156,17 @@ namespace DotsAnimationToolkit.Editor
                 "No event registry is available yet.",
                 eventKey =>
                 {
-                    string resolvedName = registry != null ? registry.FindName(eventKey) : null;
-                    return resolvedName ?? "(unresolved 0x" + eventKey.ToString("X8") + ")";
+                    string authoredDescription =
+                        registry != null ? registry.FindDescription(eventKey) : null;
+                    if (!string.IsNullOrEmpty(authoredDescription))
+                    {
+                        return authoredDescription;
+                    }
+
+                    // Nothing written yet: the key is the next most useful thing to say about the
+                    // event, being the number every marker using it actually bakes.
+                    return "Key " + eventKey.ToString()
+                        + " — no description written for this event yet.";
                 });
         }
     }

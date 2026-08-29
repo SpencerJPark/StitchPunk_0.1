@@ -7,7 +7,7 @@
             <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
             <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
-            <uie:ToolbarButton name="new-rig-button" text="New Rig" class="clip-editor__bar-action"/>
+            <uie:ToolbarToggle name="new-rig-toggle" text="New Rig" class="clip-editor__bar-action"/>
             <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
@@ -64,10 +64,10 @@
                 <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
                     <ui:VisualElement name="transport-bar" class="clip-editor__transport">
                         <ui:VisualElement class="clip-editor__transport-group">
-                            <ui:Label text="Length" class="clip-editor__transport-label"/>
+                            <ui:Label name="length-caption" text="Length" class="clip-editor__transport-label"/>
                             <ui:FloatField name="clip-length-field" class="clip-editor__transport-field"/>
-                            <ui:Label text="FPS" class="clip-editor__transport-label"/>
-                            <ui:FloatField name="frame-rate-field" class="clip-editor__transport-field"/>
+                            <ui:Label name="frame-rate-caption" text="FPS" class="clip-editor__transport-label"/>
+                            <ui:IntegerField name="frame-rate-field" class="clip-editor__transport-field"/>
                             <ui:Label name="frame-count-label" text="0 frames" class="clip-editor__transport-label clip-editor__transport-derived"/>
                         </ui:VisualElement>
                         <ui:VisualElement name="PlayHead" class="clip-editor__transport-group">
@@ -81,11 +81,11 @@
                             </ui:Button>
                         </ui:VisualElement>
                         <ui:VisualElement class="clip-editor__transport-group">
-                            <ui:Label text="Frame" class="clip-editor__transport-label"/>
+                            <ui:Label name="frame-caption" text="Frame" class="clip-editor__transport-label"/>
                             <ui:IntegerField name="current-frame-field" class="clip-editor__transport-field"/>
-                            <ui:Label text="Time" class="clip-editor__transport-label"/>
+                            <ui:Label name="seconds-caption" text="Time" class="clip-editor__transport-label"/>
                             <ui:FloatField name="current-seconds-field" class="clip-editor__transport-field"/>
-                            <ui:Label text="Speed" class="clip-editor__transport-label"/>
+                            <ui:Label name="speed-caption" text="Speed" class="clip-editor__transport-label"/>
                             <ui:FloatField name="playback-speed-field" class="clip-editor__transport-field"/>
                         </ui:VisualElement>
                         <ui:VisualElement class="clip-editor__transport-group">
@@ -112,6 +112,7 @@
                                 <ui:VisualElement class="clip-editor__track-header-spacer"/>
                                 <ui:VisualElement name="track-header-column"/>
                             </ui:VisualElement>
+                            <ui:VisualElement name="track-header-resizer" class="clip-editor__track-header-resizer"/>
                             <ui:VisualElement name="lane-stack" focusable="true" class="clip-editor__lane-stack">
                                 <ui:VisualElement name="lane-column"/>
                             </ui:VisualElement>

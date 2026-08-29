@@ -101,7 +101,7 @@ Set `duration`, `defaultLoop`, and `loopSafe` (which appends a duplicate of fram
 
 **Window ▸ DOTS Animation Toolkit ▸ VAT Bake**
 
-Assign the clip set and the scene's `SkinnedMeshRenderer`, choose **Bone Matrix** flavour, set your sample rate, and bake.
+Assign the clip set, the **Rig** the textures are being baked for, and the scene's `SkinnedMeshRenderer`; choose **Bone Matrix** flavour, set your sample rate, and bake. The rig is stamped into the texture set, so binding those textures to a different rig later is an error rather than a silently wrong mesh.
 
 It produces the textures, a `VatTextureSetAsset` holding the per-clip frame ranges, **a runtime mesh** with bone influences packed into `UV1`, and — if your rig declares bone sockets — their baked motion.
 

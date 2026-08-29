@@ -85,6 +85,17 @@ namespace DotsAnimationToolkit.Authoring
         public ulong sourceHash;
 
         /// <summary>
+        /// <see cref="RigAsset.StableId"/> of the rig whose mesh this set was baked from (Phase F
+        /// §8). Binding it to a different rig is validation rule V40, an error.
+        /// </summary>
+        /// <remarks>
+        /// A VAT texture encodes one skinned mesh's vertex motion and cannot retarget, so unlike
+        /// transform and sprite content it pins its set to one rig. 0 means "baked before this field
+        /// existed" and passes, consistent with Phase F's no-migration stance.
+        /// </remarks>
+        public ulong sourceRigKey;
+
+        /// <summary>
         /// Layout version of the generated data, bumped when the baker's output shape changes. This
         /// versions the <em>texture set asset</em>, and is distinct from
         /// <c>ClipRegistryBuilder.SchemaVersion</c>, which versions the baked blob layout. Written

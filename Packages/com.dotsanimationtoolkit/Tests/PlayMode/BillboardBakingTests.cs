@@ -34,7 +34,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         private ClipSetAsset CreateClipSet(out RigAsset rig)
         {
             rig = fixture.CreateRig("Rig");
-            return fixture.CreateClipSet("Set", rig, 0x4400UL);
+            return fixture.CreateClipSet("Set", 0x4400UL);
         }
 
         private static BillboardRootDefinition AddTargetRoot(
@@ -79,7 +79,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void AnActorWhoseRigDeclaresNoRoots_BakesNoBillboardBufferAtAll()
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -103,7 +103,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddTargetRoot(rig, "Torso", ActorBakeFixture.TorsoTargetId, 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -131,7 +131,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             AddTargetRoot(rig, "Left Arm", ActorBakeFixture.LeftArmTargetId, 300u);
             AddPathRoot(rig, "Whole Actor", string.Empty, 100u);
             AddTargetRoot(rig, "Torso", ActorBakeFixture.TorsoTargetId, 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -157,7 +157,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             definition.clampArcDegrees = 90f;
             definition.snapEnabled = true;
             definition.snapSteps = 16;
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -184,7 +184,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             definition.snapSteps = 8;
             definition.clampEnabled = false;
             definition.clampArcDegrees = 90f;
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -206,7 +206,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathRoot(rig, "Whole Actor", string.Empty, 100u);
             AddTargetRoot(rig, "Torso", ActorBakeFixture.TorsoTargetId, 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -231,7 +231,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathRoot(rig, "Whole Actor", string.Empty, 100u);
             AddTargetRoot(rig, "Torso", ActorBakeFixture.TorsoTargetId, 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -249,7 +249,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathRoot(rig, "Whole Actor", string.Empty, 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -270,7 +270,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void TheActorBillboardCheckbox_BecomesOneRootOnTheActorItself()
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
             actorGameObject.GetComponent<ActorAuthoring>().billboardMode = BillboardMode.ScreenAligned;
 
             bakingWorld.Bake(actorGameObject);
@@ -306,7 +306,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathRoot(rig, "Whole Actor", string.Empty, 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
             actorGameObject.GetComponent<ActorAuthoring>().billboardMode = BillboardMode.Upright;
 
             bakingWorld.Bake(actorGameObject);
@@ -328,7 +328,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathRoot(rig, "Nowhere", "Torso/DoesNotExist", 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.ExpectToolkitErrors(1);
             bakingWorld.Bake(actorGameObject);

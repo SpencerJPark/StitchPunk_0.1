@@ -119,7 +119,6 @@ namespace DotsAnimationToolkit.Samples
         private static ClipAsset CreateWaveClip(string outputFolder, RigAsset rig)
         {
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
-            clip.rig = rig;
             clip.duration = 1f;
             clip.defaultLoop = LoopMode.Loop;
 
@@ -176,7 +175,6 @@ namespace DotsAnimationToolkit.Samples
         private static ClipSetAsset CreateClipSet(string outputFolder, RigAsset rig, ClipAsset clip)
         {
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
-            clipSet.rig = rig;
             clipSet.clips = new List<ClipAsset> { clip };
             AssetDatabase.CreateAsset(clipSet, outputFolder + "/QuickStartClipSet.asset");
             return clipSet;
@@ -186,7 +184,8 @@ namespace DotsAnimationToolkit.Samples
         {
             GameObject actorObject = new GameObject("QuickStartActor");
             ActorAuthoring actorAuthoring = actorObject.AddComponent<ActorAuthoring>();
-            actorAuthoring.clipSet = clipSet;
+            actorAuthoring.rig = rig;
+            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
 
             for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
             {

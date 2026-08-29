@@ -51,15 +51,14 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            ClipSetAsset clipSet = DependsOn(actorAuthoring.clipSet);
             RigAsset partRig = DependsOn(authoring.rig);
-            RigAsset actorRig = clipSet != null ? DependsOn(clipSet.rig) : null;
+            RigAsset actorRig = DependsOn(actorAuthoring.rig);
             RigAsset effectiveRig = ResolveEffectiveRig(authoring, partRig, actorRig);
             if (effectiveRig == null)
             {
                 Debug.LogError(
                     MessagePrefix + "Rig target '" + authoring.name +
-                    "' has no rig: neither the component nor the owning actor's clip set names one.",
+                    "' has no rig: neither the component nor the owning actor names one.",
                     authoring);
                 return;
             }
@@ -140,7 +139,7 @@ namespace DotsAnimationToolkit.Authoring
 
             if (targetKind == TargetKind.VatMesh)
             {
-                ValidateVatMaterial(authoring, actorAuthoring, clipSet);
+                ValidateVatMaterial(authoring, actorAuthoring);
             }
         }
 
@@ -213,7 +212,7 @@ namespace DotsAnimationToolkit.Authoring
             {
                 Debug.LogError(
                     MessagePrefix + "Rig target '" + authoring.name + "' quotes its target id against rig '" +
-                    partRig.name + "', but the owning actor's clip set animates rig '" + actorRig.name +
+                    partRig.name + "', but the owning actor animates rig '" + actorRig.name +
                     "'. The actor's rig is used; clear the component's rig field or fix the reference.",
                     authoring);
                 return actorRig;
@@ -391,10 +390,36 @@ namespace DotsAnimationToolkit.Authoring
         // Material ↔ VAT texture set validation (section 4.4). Managed, and therefore here.
         // -----------------------------------------------------------------------------------
 
+        /// <summary>
+        /// The one VAT texture set the owning actor's bind addresses. Rule V39 makes a second one an
+        /// error, so the first set that supplies one is the answer.
+        /// </summary>
+        private VatTextureSetAsset ResolveBindVatTextures(ActorAuthoring actorAuthoring)
+        {
+            List<ClipSetAsset> clipSets = actorAuthoring.clipSets;
+            if (clipSets == null)
+            {
+                return null;
+            }
+            for (int setIndex = 0; setIndex < clipSets.Count; setIndex++)
+            {
+                ClipSetAsset clipSet = clipSets[setIndex];
+                if (clipSet == null)
+                {
+                    continue;
+                }
+                VatTextureSetAsset vatTextures = DependsOn(clipSet.vatTextures);
+                if (vatTextures != null)
+                {
+                    return vatTextures;
+                }
+            }
+            return null;
+        }
+
         private void ValidateVatMaterial(
             RigTargetAuthoring authoring,
-            ActorAuthoring actorAuthoring,
-            ClipSetAsset clipSet)
+            ActorAuthoring actorAuthoring)
         {
             Material material = ResolveMaterialUnderTest(authoring);
             if (material == null)
@@ -404,13 +429,13 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            VatTextureSetAsset vatTextures = clipSet != null ? DependsOn(clipSet.vatTextures) : null;
+            VatTextureSetAsset vatTextures = ResolveBindVatTextures(actorAuthoring);
             if (vatTextures == null)
             {
                 Debug.LogWarning(
                     MessagePrefix + "Rig target '" + authoring.name + "' is a VatMesh part on actor '" +
-                    actorAuthoring.name + "', but its clip set has no VAT texture set, so material '" +
-                    material.name + "' has nothing to be validated against.",
+                    actorAuthoring.name + "', but none of its clip sets supplies a VAT texture set, " +
+                    "so material '" + material.name + "' has nothing to be validated against.",
                     authoring);
                 return;
             }

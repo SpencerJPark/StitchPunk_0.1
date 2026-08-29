@@ -43,7 +43,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             assets = new AuthoringTestAssets();
             rig = assets.CreateRig("Rig", 1uL, 1, new uint[] { HeadTargetId, HandTargetId });
-            clip = assets.CreateClip("Clip", rig, 2uL, 1f);
+            clip = assets.CreateClip("Clip", 2uL, 1f);
             addresses = new List<KeyAddress>();
             destinations = new List<ClipObjectRef>();
             ClipKeyClipboard.Clear();

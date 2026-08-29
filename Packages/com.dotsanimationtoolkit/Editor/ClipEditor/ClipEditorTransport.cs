@@ -31,6 +31,10 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Default for the shift-modified step, in frames.</summary>
         private const int DefaultLargeStepFrames = 10;
 
+        /// <summary>Marks a caption that doubles as its field's drag handle.</summary>
+        private const string DraggableTransportLabelUssClassName =
+            "clip-editor__transport-label--draggable";
+
         /// <summary>
         /// A key closer than this to a frame boundary counts as on-grid. In normalized units it is
         /// well below one frame at any sane rate, and it exists because a key authored at exactly a
@@ -46,7 +50,7 @@ namespace DotsAnimationToolkit.Editor
         private IntegerField currentFrameField;
         private FloatField currentSecondsField;
         private FloatField clipLengthField;
-        private FloatField frameRateField;
+        private IntegerField frameRateField;
         private Label frameCountLabel;
         private Button loopButton;
         private FloatField playbackSpeedField;
@@ -116,6 +120,50 @@ namespace DotsAnimationToolkit.Editor
         // Binding.
         // -----------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Makes a transport caption the drag handle for the field beside it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The bar's captions are standalone labels rather than the fields' own, because a
+        /// <c>BaseField</c>'s label carries an inspector's width and this is a compact strip. The
+        /// cost was that none of these numbers had a drag zone at all — a field's dragger lives on
+        /// its own label, and these fields have none, so there was nothing to take hold of. This
+        /// hands the caption to a real <see cref="FieldMouseDragger{T}"/>, the same object Unity's
+        /// own fields use, so the sensitivity, the acceleration and the shift/alt modifiers are
+        /// Unity's rather than an imitation of them.
+        /// </para>
+        /// <para>
+        /// <strong><c>isDelayed</c> is lifted for the length of the drag, and put back after.</strong>
+        /// A delayed field's drag writes only the displayed text and commits on release — which is
+        /// exactly "the number moves but nothing happens until I let go". It has to come back
+        /// afterwards because typing still needs it, for the reason the fields' own comments give.
+        /// </para>
+        /// </remarks>
+        private static void MakeCaptionDragHandle<TValue>(
+            VisualElement caption, TextValueField<TValue> field)
+        {
+            if (caption == null || field == null)
+            {
+                return;
+            }
+
+            new FieldMouseDragger<TValue>(field).SetDragZone(caption);
+            caption.AddToClassList(DraggableTransportLabelUssClassName);
+
+            if (!field.isDelayed)
+            {
+                return;
+            }
+            caption.RegisterCallback<PointerDownEvent>(downEvent => field.isDelayed = false);
+
+            // PointerCaptureOut rather than PointerUp: the dragger captures the caption, and a
+            // capture lost any other way still has to put the field back, or typing quietly loses
+            // its guard for the rest of the session.
+            caption.RegisterCallback<PointerCaptureOutEvent>(
+                captureOutEvent => field.isDelayed = true);
+        }
+
         private void BindTransportBar()
         {
             playButton = rootVisualElement.Q<Button>("play-toggle");
@@ -158,7 +206,9 @@ namespace DotsAnimationToolkit.Editor
             currentFrameField = rootVisualElement.Q<IntegerField>("current-frame-field");
             if (currentFrameField != null)
             {
-                currentFrameField.tooltip = "The playhead, as a frame number. Editable.";
+                currentFrameField.tooltip =
+                    "The playhead, as a frame number. Editable, and the Frame caption scrubs it a "
+                    + "frame at a time.";
                 currentFrameField.RegisterValueChangedCallback(changeEvent =>
                 {
                     if (isSyncingTransport)
@@ -167,12 +217,15 @@ namespace DotsAnimationToolkit.Editor
                     }
                     SetPlayheadTime(FrameToNormalized(changeEvent.newValue));
                 });
+                MakeCaptionDragHandle(
+                    rootVisualElement.Q<Label>("frame-caption"), currentFrameField);
             }
 
             currentSecondsField = rootVisualElement.Q<FloatField>("current-seconds-field");
             if (currentSecondsField != null)
             {
-                currentSecondsField.tooltip = "The playhead, in seconds. Editable.";
+                currentSecondsField.tooltip =
+                    "The playhead, in seconds. Editable, and the Time caption scrubs it.";
                 currentSecondsField.RegisterValueChangedCallback(changeEvent =>
                 {
                     if (isSyncingTransport)
@@ -181,30 +234,46 @@ namespace DotsAnimationToolkit.Editor
                     }
                     SetPlayheadTime(changeEvent.newValue / TransportDuration);
                 });
+                MakeCaptionDragHandle(
+                    rootVisualElement.Q<Label>("seconds-caption"), currentSecondsField);
             }
 
             clipLengthField = rootVisualElement.Q<FloatField>("clip-length-field");
             if (clipLengthField != null)
             {
-                // Commit on blur or Enter, not per keystroke: "0.5" arrives as "0" first, which the
-                // minimum-duration clamp turns into a value the rest of the number is typed on top of.
+                // Typing commits on blur or Enter, not per keystroke: "0.5" arrives as "0" first,
+                // and the minimum-duration clamp would collapse the clip to a millisecond and
+                // rebuild the timeline around it between two keystrokes. MakeCaptionDragHandle
+                // lifts this for the length of a drag, where every value it passes through is one
+                // the author is deliberately looking at.
                 clipLengthField.isDelayed = true;
                 clipLengthField.tooltip =
-                    "Clip length in seconds. With the frame rate this defines the frame count.";
+                    "Clip length in seconds. With the frame rate this defines the frame count. "
+                    + "Drag the Length caption to scrub it.";
                 clipLengthField.RegisterValueChangedCallback(changeEvent =>
                 {
                     if (isSyncingTransport || selectedClip == null)
                     {
                         return;
                     }
-                    Undo.RecordObject(selectedClip, "Set Clip Length");
+                    // Through the clip's own gesture undo rather than a bare RecordObject, so a
+                    // drag collapses into one step instead of one per mouse move.
+                    RecordClipEdit("Set Clip Length");
                     selectedClip.duration = Mathf.Max(ClipAsset.MinimumDuration, changeEvent.newValue);
-                    EditorUtility.SetDirty(selectedClip);
+                    CommitClipEdit();
                     OnClipTimingChanged();
                 });
+                MakeCaptionDragHandle(
+                    rootVisualElement.Q<Label>("length-caption"), clipLengthField);
             }
 
-            frameRateField = rootVisualElement.Q<FloatField>("frame-rate-field");
+            // An integer field rather than a float one: the rate is whole frames per second here.
+            // The frame count it defines is rounded to an integer anyway (ClipAsset.FrameCount) and
+            // a VAT bake turns it into a whole number of texture rows, so dragging it steps one
+            // frame at a time — the unit the number is actually read in. A clip carrying a
+            // fractional rate from elsewhere reads back rounded, and is rounded the first time this
+            // field writes it.
+            frameRateField = rootVisualElement.Q<IntegerField>("frame-rate-field");
             if (frameRateField != null)
             {
                 frameRateField.isDelayed = true;
@@ -213,18 +282,20 @@ namespace DotsAnimationToolkit.Editor
                     + "VAT bake samples it at — a clip is duration x FPS rows of texture, played "
                     + "back at this rate. Length sets how long the clip lasts; this sets how "
                     + "finely it is cut. Changing it never moves a key, but it does mean re-baking "
-                    + "the VAT set.";
+                    + "the VAT set. Drag the FPS caption to scrub it.";
                 frameRateField.RegisterValueChangedCallback(changeEvent =>
                 {
                     if (isSyncingTransport || selectedClip == null)
                     {
                         return;
                     }
-                    Undo.RecordObject(selectedClip, "Set Frame Rate");
-                    selectedClip.frameRate = Mathf.Max(1f, changeEvent.newValue);
-                    EditorUtility.SetDirty(selectedClip);
+                    RecordClipEdit("Set Frame Rate");
+                    selectedClip.frameRate = Mathf.Max(1, changeEvent.newValue);
+                    CommitClipEdit();
                     OnClipTimingChanged();
                 });
+                MakeCaptionDragHandle(
+                    rootVisualElement.Q<Label>("frame-rate-caption"), frameRateField);
             }
 
             frameCountLabel = rootVisualElement.Q<Label>("frame-count-label");
@@ -269,7 +340,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 playbackSpeedField.value = 1f;
                 playbackSpeedField.tooltip =
-                    "Preview playback multiplier. Negative plays backwards.";
+                    "Preview playback multiplier. Negative plays backwards. Drag the Speed caption "
+                    + "to scrub it.";
+
+                // No value-changed callback: the tick reads this field directly, so there is nothing
+                // for a drag to notify. It still needs the handle, being a number like the rest.
+                MakeCaptionDragHandle(
+                    rootVisualElement.Q<Label>("speed-caption"), playbackSpeedField);
             }
 
             quantizeKeysButton = rootVisualElement.Q<Button>("quantize-keys-button");
@@ -337,7 +414,8 @@ namespace DotsAnimationToolkit.Editor
                     frameRateField.SetEnabled(hasClip);
                     if (!IsBeingEdited(frameRateField))
                     {
-                        frameRateField.SetValueWithoutNotify(hasClip ? selectedClip.frameRate : 30f);
+                        frameRateField.SetValueWithoutNotify(
+                            hasClip ? Mathf.Max(1, Mathf.RoundToInt(selectedClip.frameRate)) : 30);
                     }
                 }
                 if (frameCountLabel != null)
@@ -371,11 +449,16 @@ namespace DotsAnimationToolkit.Editor
             isSyncingTransport = true;
             try
             {
-                if (currentFrameField != null)
+                // Not written into a field being typed in, for the reason SyncTransportFromClip
+                // gives: this runs from the field's own callback, so an unconditional write means
+                // the field fights its own edit and the caret jumps on every keystroke. A caption
+                // drag is deliberately not excluded — the capture is on the caption, not inside the
+                // field — because the write-back is what clamps the readout at the clip's ends.
+                if (currentFrameField != null && !IsBeingEdited(currentFrameField))
                 {
                     currentFrameField.SetValueWithoutNotify(NormalizedToFrame(playheadTime));
                 }
-                if (currentSecondsField != null)
+                if (currentSecondsField != null && !IsBeingEdited(currentSecondsField))
                 {
                     currentSecondsField.SetValueWithoutNotify(playheadTime * TransportDuration);
                 }
@@ -435,7 +518,10 @@ namespace DotsAnimationToolkit.Editor
             }
             SyncTransportFromClip();
             MarkPreviewDirty();
-            RebuildTimeline();
+
+            // Requested: Length and FPS are dragged now, and a full timeline rebuild on every mouse
+            // move of that drag is wasted work at 30 a second.
+            RequestTimelineRebuild();
         }
 
         // -----------------------------------------------------------------------------------

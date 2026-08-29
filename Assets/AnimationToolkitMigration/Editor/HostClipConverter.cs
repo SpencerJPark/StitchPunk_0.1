@@ -87,7 +87,6 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             }
 
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
-            clipSet.rig = rig;
             clipSet.clips.AddRange(converted);
             CreateOrReplaceAsset(clipSet, OutputFolder + "/HostClipSet.asset");
 
@@ -216,7 +215,6 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
             List<SoundType> soundTypesUsed)
         {
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
-            clip.rig = rig;
             clip.duration = math.max(ClipAsset.MinimumDuration, hostClip.duration);
             clip.defaultLoop = hostClip.looping ? LoopMode.Loop : LoopMode.Once;
             clip.defaultBlendIn = hostClip.allowBlendIn ? DefaultBlendSeconds : 0f;
@@ -521,7 +519,7 @@ namespace StitchPunk.AnimationToolkitMigration.Editor
         {
             List<ValidationMessage> messages = new List<ValidationMessage>();
             messages.AddRange(ClipValidation.ValidateRig(rig));
-            messages.AddRange(ClipValidation.ValidateSet(clipSet));
+            messages.AddRange(ClipValidation.ValidateBind(rig, new ClipSetAsset[] { clipSet }));
 
             int errorCount = 0;
             for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)

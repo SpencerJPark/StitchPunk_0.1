@@ -120,14 +120,16 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>The two-clip set the fixture actors reference, listed out of id order on purpose.</summary>
-        internal ClipSetAsset CreateClipSet(string assetName, RigAsset rig, ulong setStableId)
+        /// <remarks>
+        /// Takes no rig: a set names none, and the rig its clips bake against comes from the actor.
+        /// </remarks>
+        internal ClipSetAsset CreateClipSet(string assetName, ulong setStableId)
         {
-            ClipAsset idleClip = CreateClip("Idle", rig, IdleClipStableId, LoopMode.Loop);
-            ClipAsset walkClip = CreateClip("Walk", rig, WalkClipStableId, LoopMode.Loop);
+            ClipAsset idleClip = CreateClip("Idle", IdleClipStableId, LoopMode.Loop);
+            ClipAsset walkClip = CreateClip("Walk", WalkClipStableId, LoopMode.Loop);
 
             ClipSetAsset clipSet = Create<ClipSetAsset>(assetName);
             clipSet.stableId = setStableId;
-            clipSet.rig = rig;
             clipSet.clips.Clear();
             clipSet.clips.Add(idleClip);
             clipSet.clips.Add(walkClip);
@@ -148,11 +150,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             return null;
         }
 
-        private ClipAsset CreateClip(string assetName, RigAsset rig, ulong clipStableId, LoopMode defaultLoop)
+        private ClipAsset CreateClip(string assetName, ulong clipStableId, LoopMode defaultLoop)
         {
             ClipAsset clip = Create<ClipAsset>(assetName);
             clip.stableId = clipStableId;
-            clip.rig = rig;
             clip.duration = 1f;
             clip.defaultLoop = defaultLoop;
             clip.defaultBlendIn = 0.1f;
@@ -230,12 +231,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>Creates a bare actor root with no parts under it.</summary>
-        internal GameObject CreateActorRoot(string name, ClipSetAsset clipSet, bool addDistanceLod)
+        internal GameObject CreateActorRoot(
+            string name, RigAsset rig, ClipSetAsset clipSet, bool addDistanceLod)
         {
             GameObject actorGameObject = new GameObject(name);
             createdObjects.Add(actorGameObject);
             ActorAuthoring actorAuthoring = actorGameObject.AddComponent<ActorAuthoring>();
-            actorAuthoring.clipSet = clipSet;
+            actorAuthoring.rig = rig;
+            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
             actorAuthoring.addDistanceLod = addDistanceLod;
             return actorGameObject;
         }
@@ -244,9 +247,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         /// Creates the canonical three-part actor: torso and head under the root, left arm under the
         /// torso, layer 0 seeded with the walk clip.
         /// </summary>
-        internal GameObject CreateStandardActor(string name, ClipSetAsset clipSet, bool addDistanceLod)
+        internal GameObject CreateStandardActor(
+            string name, RigAsset rig, ClipSetAsset clipSet, bool addDistanceLod)
         {
-            GameObject actorGameObject = CreateActorRoot(name, clipSet, addDistanceLod);
+            GameObject actorGameObject = CreateActorRoot(name, rig, clipSet, addDistanceLod);
             GameObject torso = AddPart(actorGameObject, "Torso", TorsoTargetId, TorsoLocalPosition);
             AddPart(actorGameObject, "Head", HeadTargetId, HeadLocalPosition);
             AddPart(torso, "LeftArm", LeftArmTargetId, LeftArmLocalPosition);

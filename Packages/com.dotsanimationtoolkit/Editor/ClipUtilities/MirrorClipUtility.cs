@@ -97,8 +97,10 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <param name="source">The clip to mirror. Never modified.</param>
         /// <param name="rig">
-        /// The rig supplying the <see cref="MirrorPair"/> table. Must be the rig
-        /// <paramref name="source"/> is authored against.
+        /// The rig supplying the <see cref="MirrorPair"/> table, and the rig whose target ids the
+        /// copy's id-bound tracks will be rebound within. A clip records no rig, so the caller must
+        /// name the one it means — mirroring with a foreign rig's table rebinds every track to ids
+        /// that rig does not have, and the result opens, plays, and animates nothing.
         /// </param>
         /// <param name="destinationAssetPath">
         /// Project-relative path for the new asset, including the <c>.asset</c> extension. Passed
@@ -153,15 +155,9 @@ namespace DotsAnimationToolkit.Editor
                     source);
                 return null;
             }
-            if (!IsClipAuthoredAgainstRig(source, rig))
-            {
-                return null;
-            }
-
             Dictionary<uint, uint> mirroredTargetIds = BuildMirrorPairMap(rig, source);
 
             ClipAsset mirroredClip = ScriptableObject.CreateInstance<ClipAsset>();
-            mirroredClip.rig = source.rig != null ? source.rig : rig;
             mirroredClip.duration = source.duration;
             mirroredClip.defaultLoop = source.defaultLoop;
             mirroredClip.defaultBlendIn = source.defaultBlendIn;
@@ -225,11 +221,6 @@ namespace DotsAnimationToolkit.Editor
                     clip);
                 return;
             }
-            if (!IsClipAuthoredAgainstRig(clip, rig))
-            {
-                return;
-            }
-
             Dictionary<uint, uint> mirroredTargetIds = BuildMirrorPairMap(rig, clip);
 
             Undo.RecordObject(clip, UndoActionName);
@@ -249,8 +240,8 @@ namespace DotsAnimationToolkit.Editor
         /// utility exists for starts with the new clip already open in the inspector. A clip that is
         /// a sub-asset of a <see cref="ClipSetAsset"/> yields a free-standing asset in the set's
         /// folder — this utility deliberately does not add it to the set, because joining a set is a
-        /// registration decision (validation rule V06 constrains it) and silently enlarging a shipped
-        /// registry is not something a "duplicate and flip" action should do behind the user's back.
+        /// registration decision and silently enlarging a shipped registry is not something a
+        /// "duplicate and flip" action should do behind the user's back.
         /// </remarks>
         [MenuItem(MirrorMenuPath, false, MirrorMenuPriority)]
         private static void CreateMirroredClipFromSelection()
@@ -260,11 +251,17 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            if (selectedClip.rig == null)
+            // A clip records no rig, so the pair table has to come from somewhere the user chose:
+            // whichever rig an open Clip Editor is showing. Refused rather than guessed — mirroring
+            // with the wrong rig's table rebinds every track to ids that rig does not have, and the
+            // result opens, plays, and animates nothing.
+            RigAsset mirrorRig = ClipEditorWindow.RigOfOpenWindow;
+            if (mirrorRig == null)
             {
                 Debug.LogError(
-                    LogPrefix + "Clip '" + selectedClip.name + "' has no rig assigned, so there is no " +
-                    "mirror-pair table to mirror it with. Assign the rig it is authored against first.",
+                    LogPrefix + "Mirroring needs a rig's mirror-pair table, and a clip names no rig. " +
+                    "Open the Clip Editor and pick the rig this clip is being authored against, " +
+                    "then run this again.",
                     selectedClip);
                 return;
             }
@@ -281,7 +278,7 @@ namespace DotsAnimationToolkit.Editor
 
             string destinationAssetPath =
                 BuildSiblingAssetPath(sourceAssetPath, selectedClip.name + MirroredNameSuffix);
-            ClipAsset mirroredClip = CreateMirroredCopy(selectedClip, selectedClip.rig, destinationAssetPath);
+            ClipAsset mirroredClip = CreateMirroredCopy(selectedClip, mirrorRig, destinationAssetPath);
             if (mirroredClip == null)
             {
                 return;
@@ -517,29 +514,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Rejects a clip authored against a different rig than the one supplying the pairs.
-        /// </summary>
-        /// <remarks>
-        /// Mirroring with a foreign rig's table would rebind tracks to ids that mean nothing in the
-        /// clip's own rig — the clip would still open, still play, and animate nothing, which is the
-        /// least diagnosable failure this utility could produce. A clip with no rig assigned at all is
-        /// accepted: it is under construction, and the caller has already named the rig explicitly.
-        /// </remarks>
-        private static bool IsClipAuthoredAgainstRig(ClipAsset clip, RigAsset rig)
-        {
-            if (clip.rig == null || clip.rig == rig)
-            {
-                return true;
-            }
-            Debug.LogError(
-                LogPrefix + "Clip '" + clip.name + "' is authored against rig '" + clip.rig.name +
-                "' but was asked to mirror with the pair table of rig '" + rig.name +
-                "'. Mirroring across rigs would rebind its tracks to targets that rig does not have, " +
-                "so nothing was changed.",
-                clip);
-            return false;
-        }
-
         // -------------------------------------------------------------------------------------
         // Copying
         // -------------------------------------------------------------------------------------

@@ -252,7 +252,6 @@ namespace DotsAnimationToolkit.Samples
         private static ClipAsset CreateStrideClip(string outputFolder, RigAsset rig)
         {
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
-            clip.rig = rig;
             clip.duration = 1f;
             clip.defaultLoop = LoopMode.Loop;
 
@@ -340,7 +339,6 @@ namespace DotsAnimationToolkit.Samples
         private static ClipSetAsset CreateClipSet(string outputFolder, RigAsset rig, ClipAsset clip)
         {
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
-            clipSet.rig = rig;
             clipSet.clips = new List<ClipAsset> { clip };
             AssetDatabase.CreateAsset(clipSet, outputFolder + "/CompositeClipSet.asset");
             return clipSet;
@@ -355,7 +353,8 @@ namespace DotsAnimationToolkit.Samples
         {
             GameObject actorObject = new GameObject("CompositeActor");
             ActorAuthoring actorAuthoring = actorObject.AddComponent<ActorAuthoring>();
-            actorAuthoring.clipSet = clipSet;
+            actorAuthoring.rig = rig;
+            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
 
             Vector3[] partPositions =
             {

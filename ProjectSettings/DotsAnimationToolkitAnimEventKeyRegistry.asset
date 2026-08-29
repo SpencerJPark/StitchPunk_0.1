@@ -1,0 +1,30 @@
+{
+    "MonoBehaviour": {
+        "m_Enabled": true,
+        "m_EditorHideFlags": 0,
+        "m_Name": "",
+        "m_EditorClassIdentifier": "DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.AnimEventKeyRegistry",
+        "referenceFrameRate": 60.0,
+        "entries": [
+            {
+                "name": "Sound",
+                "eventKey": 16,
+                "defaultWindowFrames": 0,
+                "description": "Plays Sound"
+            },
+            {
+                "name": "Damage",
+                "eventKey": 17,
+                "defaultWindowFrames": 0,
+                "description": "Applys damage to self"
+            },
+            {
+                "name": "Attack",
+                "eventKey": 18,
+                "defaultWindowFrames": 0,
+                "description": "Trigger Attack on Target"
+            }
+        ],
+        "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimEvents.cs"
+    }
+}

@@ -39,7 +39,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         private ClipSetAsset CreateClipSet(out RigAsset rig)
         {
             rig = fixture.CreateRig("Rig");
-            return fixture.CreateClipSet("Set", rig, 0x4500UL);
+            return fixture.CreateClipSet("Set", 0x4500UL);
         }
 
         private static RagdollBodyDefinition AddTargetBody(
@@ -150,7 +150,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void AnActorWhoseRigDeclaresNoBodies_BakesNoRagdollComponentsAtAll()
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -174,7 +174,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -227,7 +227,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             AddTargetBody(rig, "Left Arm", ActorBakeFixture.LeftArmTargetId, 300u);
             AddPathBody(rig, "Whole Actor", string.Empty, 100u);
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -252,7 +252,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             AddPathBody(rig, "Whole Actor", string.Empty, 100u);
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 200u);
             AddTargetBody(rig, "Left Arm", ActorBakeFixture.LeftArmTargetId, 300u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -279,7 +279,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathBody(rig, "Whole Actor", string.Empty, 100u);
             AddTargetBody(rig, "Left Arm", ActorBakeFixture.LeftArmTargetId, 300u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -302,7 +302,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // a body, so this rig resolves to two independent, disconnected articulations.
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 100u);
             AddTargetBody(rig, "Head", ActorBakeFixture.HeadTargetId, 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -330,7 +330,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             definition.limitMaxDegrees = 60f;
             definition.swingLimitDegrees = 20f;
             definition.twistLimitDegrees = 10f;
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -363,7 +363,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             overriding.linearDamping = 0.9f;
             overriding.angularDamping = 0.8f;
 
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -386,7 +386,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             RagdollBodyDefinition rootBody = AddPathBody(rig, "Whole Actor", string.Empty, 100u);
             rootBody.boxCenter = new float3(0f, 0.5f, 0f);
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
 
@@ -432,7 +432,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             rigSettings.substepHz = 60f;
             rig.ragdollSettings = rigSettings;
 
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -455,7 +455,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void ARagdollWithNoBodies_BakesNoRagdollRigConfigEither()
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -475,7 +475,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddPathBody(rig, "Nowhere", "Torso/DoesNotExist", 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.ExpectToolkitErrors(1);
             bakingWorld.Bake(actorGameObject);
@@ -492,7 +492,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddBoneBody(rig, "Spine", "Spine1", 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -512,7 +512,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             ClipSetAsset clipSet = CreateClipSet(out RigAsset rig);
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 100u);
             AddBoneBody(rig, "Spine", "Spine1", 200u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();

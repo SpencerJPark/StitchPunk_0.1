@@ -46,6 +46,32 @@ MonoBehaviour:
       bezierEndHandle:
         x: 0
         y: 0
+  - targetId: 473712160
+    tagId: 0
+    blendOp: 0
+    channels: 1
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   spriteTracks: []
   boneTracks: []
   events:

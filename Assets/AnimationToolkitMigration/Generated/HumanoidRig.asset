@@ -24,6 +24,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: UpperLeftArm
     stableId: 1369813100
     sourceNodePath: 
@@ -34,6 +35,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 1776794818
   - displayName: UpperRightArm
     stableId: 1535265300
     sourceNodePath: 
@@ -44,6 +46,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LowerLeftArm
     stableId: 4144195230
     sourceNodePath: 
@@ -54,6 +57,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LowerRightArm
     stableId: 473712160
     sourceNodePath: 
@@ -64,6 +68,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LeftHand
     stableId: 4151087213
     sourceNodePath: 
@@ -74,6 +79,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: RightHand
     stableId: 542452871
     sourceNodePath: 
@@ -84,6 +90,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: ItemRightHand
     stableId: 2623282063
     sourceNodePath: 
@@ -94,6 +101,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: ItemLeftHand
     stableId: 296804633
     sourceNodePath: 
@@ -104,6 +112,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Pelvis
     stableId: 3245896405
     sourceNodePath: 
@@ -114,6 +123,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: UpperLeftLeg
     stableId: 3130078484
     sourceNodePath: 
@@ -124,6 +134,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: UpperRightLeg
     stableId: 2155680897
     sourceNodePath: 
@@ -134,6 +145,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LowerLeftLeg
     stableId: 1524753996
     sourceNodePath: 
@@ -144,6 +156,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LowerRightLeg
     stableId: 3459638820
     sourceNodePath: 
@@ -154,6 +167,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LeftFoot
     stableId: 1155747920
     sourceNodePath: 
@@ -164,6 +178,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: RightFoot
     stableId: 2113642582
     sourceNodePath: 
@@ -174,6 +189,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Head
     stableId: 3633909935
     sourceNodePath: 
@@ -184,6 +200,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LeftEyebrow
     stableId: 3686243058
     sourceNodePath: 
@@ -194,6 +211,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: RightEyebrow
     stableId: 4086129200
     sourceNodePath: 
@@ -204,6 +222,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: LeftEye
     stableId: 915970425
     sourceNodePath: LeftEye
@@ -214,6 +233,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: RightEye
     stableId: 4216110445
     sourceNodePath: RightEye
@@ -224,6 +244,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Mouth
     stableId: 4216423581
     sourceNodePath: 
@@ -234,6 +255,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Hair
     stableId: 2407896100
     sourceNodePath: 
@@ -244,6 +266,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Mustache
     stableId: 579426253
     sourceNodePath: 
@@ -254,6 +277,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Nose
     stableId: 1147359481
     sourceNodePath: 
@@ -264,6 +288,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Ear
     stableId: 3626777948
     sourceNodePath: 
@@ -274,6 +299,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Hat
     stableId: 147186507
     sourceNodePath: 
@@ -284,6 +310,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Torso
     stableId: 381404764
     sourceNodePath: 
@@ -294,6 +321,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: JacketLeftSide
     stableId: 2877654713
     sourceNodePath: 
@@ -304,6 +332,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: JacketRightSide
     stableId: 2240726959
     sourceNodePath: 
@@ -314,6 +343,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: JacketInside
     stableId: 1350498048
     sourceNodePath: 
@@ -324,6 +354,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Belt
     stableId: 2451490638
     sourceNodePath: 
@@ -334,6 +365,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: PantFront
     stableId: 275814466
     sourceNodePath: 
@@ -344,6 +376,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: Neck
     stableId: 1778450242
     sourceNodePath: 
@@ -354,6 +387,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: FaceDetails
     stableId: 2592244987
     sourceNodePath: 
@@ -364,6 +398,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   - displayName: FaceWare
     stableId: 3461313679
     sourceNodePath: 
@@ -374,6 +409,7 @@ MonoBehaviour:
       z: 0.1
     framesPerVariant: 1
     facesDirection: 1
+    tagId: 0
   layers:
   - displayName: Base
     defaultActive: 1
@@ -388,6 +424,7 @@ MonoBehaviour:
   - displayName: Override
     defaultActive: 0
   mirrorPairs: []
+  sourcePrefab: {fileID: 0}
   sockets: []
   billboardRoots:
   - displayName: LeftLowerArm

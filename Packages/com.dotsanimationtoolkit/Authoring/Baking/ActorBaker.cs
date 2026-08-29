@@ -38,34 +38,34 @@ namespace DotsAnimationToolkit.Authoring
         /// <inheritdoc />
         public override void Bake(ActorAuthoring authoring)
         {
-            ClipSetAsset clipSet = DependsOn(authoring.clipSet);
-            if (clipSet == null)
-            {
-                Debug.LogError(
-                    MessagePrefix + "Actor '" + authoring.name +
-                    "' has no clip set assigned, so it cannot be baked. Assign a Clip Set Asset.",
-                    authoring);
-                MarkBakeFailed();
-                return;
-            }
-
-            RigAsset rig = DependsOn(clipSet.rig);
-            DependsOnClips(clipSet);
-            VatTextureSetAsset vatTextures = DependsOn(clipSet.vatTextures);
-            DependsOnVatTextures(vatTextures);
+            RigAsset rig = DependsOn(authoring.rig);
+            List<ClipSetAsset> clipSets = DependsOnClipSets(authoring);
+            VatTextureSetAsset vatTextures = DependsOnClipSetContents(clipSets);
             DependsOnStartingClips(authoring);
 
             if (rig == null)
             {
                 Debug.LogError(
-                    MessagePrefix + "Actor '" + authoring.name + "' references clip set '" +
-                    clipSet.name + "', which has no rig assigned. Assign a Rig Asset to the set.",
+                    MessagePrefix + "Actor '" + authoring.name +
+                    "' has no rig assigned, so it cannot be baked. Assign a Rig Asset.",
                     authoring);
                 MarkBakeFailed();
                 return;
             }
 
-            if (!TryAcquireRegistry(authoring, clipSet, out BlobAssetReference<ClipRegistryBlob> registry))
+            if (clipSets.Count == 0)
+            {
+                Debug.LogError(
+                    MessagePrefix + "Actor '" + authoring.name +
+                    "' has no clip sets assigned, so it cannot be baked. Assign at least one Clip " +
+                    "Set Asset.",
+                    authoring);
+                MarkBakeFailed();
+                return;
+            }
+
+            if (!TryAcquireRegistry(
+                    authoring, rig, clipSets, out BlobAssetReference<ClipRegistryBlob> registry))
             {
                 MarkBakeFailed();
                 return;
@@ -75,7 +75,7 @@ namespace DotsAnimationToolkit.Authoring
 
             AddComponent(actorEntity, new ClipRegistry { Value = registry });
             AddSocketRegistry(actorEntity, rig, vatTextures);
-            AddPlaybackLayers(actorEntity, authoring, rig, registry);
+            AddPlaybackLayers(actorEntity, authoring, rig, clipSets, registry);
             AddBuffer<AnimationCommand>(actorEntity);
             AddComponent<AnimationCommandPending>(actorEntity);
             SetComponentEnabled<AnimationCommandPending>(actorEntity, false);
@@ -519,17 +519,50 @@ namespace DotsAnimationToolkit.Authoring
         // Dependencies. Every asset the blob is a function of must retrigger this bake when edited.
         // -----------------------------------------------------------------------------------
 
-        private void DependsOnClips(ClipSetAsset clipSet)
+        /// <summary>
+        /// Registers a dependency on every set the actor names and returns them in canonical bind
+        /// order, nulls and repeats dropped — the same list the builder will see.
+        /// </summary>
+        private List<ClipSetAsset> DependsOnClipSets(ActorAuthoring authoring)
         {
-            List<ClipAsset> clips = clipSet.clips;
-            if (clips == null)
+            List<ClipSetAsset> authoredClipSets = authoring.clipSets;
+            if (authoredClipSets != null)
             {
-                return;
+                for (int setIndex = 0; setIndex < authoredClipSets.Count; setIndex++)
+                {
+                    DependsOn(authoredClipSets[setIndex]);
+                }
             }
-            for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+            return ClipRegistryBuilder.BuildCanonicalClipSets(authoredClipSets);
+        }
+
+        /// <summary>
+        /// Registers a dependency on every clip and VAT texture the bound sets reach, and returns
+        /// the one texture set the bind addresses (rule V39 makes a second one an error).
+        /// </summary>
+        private VatTextureSetAsset DependsOnClipSetContents(List<ClipSetAsset> clipSets)
+        {
+            VatTextureSetAsset bindVatTextures = null;
+            for (int setIndex = 0; setIndex < clipSets.Count; setIndex++)
             {
-                DependsOn(clips[clipIndex]);
+                ClipSetAsset clipSet = clipSets[setIndex];
+                List<ClipAsset> clips = clipSet.clips;
+                if (clips != null)
+                {
+                    for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+                    {
+                        DependsOn(clips[clipIndex]);
+                    }
+                }
+
+                VatTextureSetAsset vatTextures = DependsOn(clipSet.vatTextures);
+                DependsOnVatTextures(vatTextures);
+                if (bindVatTextures == null)
+                {
+                    bindVatTextures = vatTextures;
+                }
             }
+            return bindVatTextures;
         }
 
         private void DependsOnStartingClips(ActorAuthoring authoring)
@@ -607,12 +640,14 @@ namespace DotsAnimationToolkit.Authoring
 
         private bool TryAcquireRegistry(
             ActorAuthoring authoring,
-            ClipSetAsset clipSet,
+            RigAsset rig,
+            List<ClipSetAsset> clipSets,
             out BlobAssetReference<ClipRegistryBlob> registry)
         {
             // The probe computes the dedup key without handing back a blob to own, so a store hit
             // costs no persistent allocation and leaves nothing to dispose.
-            if (ClipRegistryBuilder.TryComputeContentHash(clipSet, out Unity.Entities.Hash128 contentHash) &&
+            if (ClipRegistryBuilder.TryComputeContentHash(
+                    rig, clipSets, out Unity.Entities.Hash128 contentHash) &&
                 TryGetBlobAssetReference(contentHash, out registry))
             {
                 return true;
@@ -620,12 +655,12 @@ namespace DotsAnimationToolkit.Authoring
 
             try
             {
-                ClipRegistryBuilder.Build(clipSet, out registry, out contentHash);
+                ClipRegistryBuilder.Build(rig, clipSets, out registry, out contentHash);
             }
             catch (ClipValidationException validationException)
             {
                 Debug.LogError(
-                    DescribeValidationFailure(clipSet, validationException),
+                    DescribeValidationFailure(rig, clipSets, validationException),
                     authoring);
                 registry = default;
                 return false;
@@ -637,14 +672,17 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         private static string DescribeValidationFailure(
-            ClipSetAsset clipSet,
+            RigAsset rig,
+            List<ClipSetAsset> clipSets,
             ClipValidationException validationException)
         {
             StringBuilder messageBuilder = new StringBuilder();
             messageBuilder.Append(MessagePrefix);
-            messageBuilder.Append("Clip set '");
-            messageBuilder.Append(clipSet.name);
-            messageBuilder.Append("' cannot be baked because it has validation errors:");
+            messageBuilder.Append("Rig '");
+            messageBuilder.Append(rig.name);
+            messageBuilder.Append("' bound to ");
+            messageBuilder.Append(DescribeClipSets(clipSets));
+            messageBuilder.Append(" cannot be baked because it has validation errors:");
             IReadOnlyList<ValidationMessage> validationMessages = validationException.Messages;
             for (int messageIndex = 0; messageIndex < validationMessages.Count; messageIndex++)
             {
@@ -659,6 +697,28 @@ namespace DotsAnimationToolkit.Authoring
             return messageBuilder.ToString();
         }
 
+        /// <summary>Renders a bind's sets as <c>clip sets 'Walks', 'Reactions'</c> for a message.</summary>
+        private static string DescribeClipSets(List<ClipSetAsset> clipSets)
+        {
+            if (clipSets.Count == 0)
+            {
+                return "no clip sets";
+            }
+            StringBuilder messageBuilder = new StringBuilder();
+            messageBuilder.Append(clipSets.Count == 1 ? "clip set " : "clip sets ");
+            for (int setIndex = 0; setIndex < clipSets.Count; setIndex++)
+            {
+                if (setIndex > 0)
+                {
+                    messageBuilder.Append(", ");
+                }
+                messageBuilder.Append('\'');
+                messageBuilder.Append(clipSets[setIndex].name);
+                messageBuilder.Append('\'');
+            }
+            return messageBuilder.ToString();
+        }
+
         // -----------------------------------------------------------------------------------
         // Playback layers.
         // -----------------------------------------------------------------------------------
@@ -667,6 +727,7 @@ namespace DotsAnimationToolkit.Authoring
             Entity actorEntity,
             ActorAuthoring authoring,
             RigAsset rig,
+            List<ClipSetAsset> clipSets,
             BlobAssetReference<ClipRegistryBlob> registry)
         {
             int layerCount = registry.Value.layerCount;
@@ -686,12 +747,13 @@ namespace DotsAnimationToolkit.Authoring
                 };
             }
 
-            SeedStartingLayers(authoring, rig, registry, playbackLayers);
+            SeedStartingLayers(authoring, rig, clipSets, registry, playbackLayers);
         }
 
         private static void SeedStartingLayers(
             ActorAuthoring authoring,
             RigAsset rig,
+            List<ClipSetAsset> clipSets,
             BlobAssetReference<ClipRegistryBlob> registry,
             DynamicBuffer<PlaybackLayer> playbackLayers)
         {
@@ -729,8 +791,8 @@ namespace DotsAnimationToolkit.Authoring
                     Debug.LogError(
                         MessagePrefix + "Actor '" + authoring.name + "' seeds layer " +
                         startingLayer.layerIndex.ToString() + " with clip '" +
-                        startingLayer.clip.name + "', which is not a member of clip set '" +
-                        authoring.clipSet.name + "'. The entry is ignored.",
+                        startingLayer.clip.name + "', which is not a member of " +
+                        DescribeClipSets(clipSets) + ". The entry is ignored.",
                         authoring);
                     continue;
                 }

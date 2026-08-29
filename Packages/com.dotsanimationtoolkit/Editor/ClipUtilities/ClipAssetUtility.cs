@@ -13,16 +13,14 @@ namespace DotsAnimationToolkit.Editor
     /// <para>
     /// <strong>One lifecycle path, several callers.</strong> The clip set's inspector and the clip
     /// editor's Clips pane both offer "new clip", and a clip created from one has to be
-    /// indistinguishable from a clip created from the other — same folder, same rig, same id
+    /// indistinguishable from a clip created from the other — same folder, same id
     /// minting, same undo entry. Two implementations of that would agree on the day they were
     /// written and drift afterwards, and the symptom would be clips that fail validation depending
     /// on which button made them.
     /// </para>
     /// <para>
-    /// <strong>The rig is inherited from the set, not left empty.</strong> Validation rule V06 only
-    /// lets a clip join a set whose rig is the same asset, so a clip created with a null rig is born
-    /// failing validation. Copying the set's rig is what makes a newly created clip immediately
-    /// valid and immediately authorable.
+    /// <strong>The new clip names no rig, because no clip does.</strong> Motion and skeleton are
+    /// independent assets; a clip lines up with whichever rig it is played on, by tag.
     /// </para>
     /// <para>
     /// <strong>The asset write is not undoable, and deliberately is not made so.</strong> Ctrl+Z
@@ -43,8 +41,8 @@ namespace DotsAnimationToolkit.Editor
         private const string RemoveUndoActionName = "Remove Clip From Set";
 
         /// <summary>
-        /// Creates a clip beside <paramref name="clipSet"/> on disk, gives it the set's rig, and
-        /// appends it to the set's clip list.
+        /// Creates a clip beside <paramref name="clipSet"/> on disk and appends it to the set's
+        /// clip list.
         /// </summary>
         /// <returns>The new clip, or null when the set has nowhere to write it.</returns>
         public static ClipAsset CreateClipInSet(ClipSetAsset clipSet)
@@ -78,7 +76,6 @@ namespace DotsAnimationToolkit.Editor
                 containingFolderPath + "/" + NewClipAssetBaseName + AssetExtension);
 
             ClipAsset newClip = ScriptableObject.CreateInstance<ClipAsset>();
-            newClip.rig = clipSet.rig;
 
             // Minted explicitly rather than left to the asset's own Awake/OnValidate, for the reason
             // MirrorClipUtility gives: it is idempotent, costs nothing, and makes the guarantee local
@@ -127,9 +124,9 @@ namespace DotsAnimationToolkit.Editor
         /// nothing to infer a home from and guessing one would scatter sets across a project.
         /// </para>
         /// <para>
-        /// The rig is left null deliberately. There is no rig in scope at creation, and inheriting
-        /// one from whatever the window happened to have open would silently bind a new set to a rig
-        /// nobody chose. Validation reports the empty rig immediately, which is the honest prompt.
+        /// Nothing about a rig is recorded, because a set has nothing about a rig to record. It is
+        /// paired with one where an <c>ActorAuthoring</c> states both, and previewed against one in
+        /// whichever window happens to be open.
         /// </para>
         /// </remarks>
         public static ClipSetAsset CreateClipSet(string assetPath)

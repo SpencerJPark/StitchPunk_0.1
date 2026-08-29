@@ -63,7 +63,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             RigAsset rig;
             ClipSetAsset clipSet = CreateClipSet(out rig);
             AddTargetBody(rig, "Torso", ActorBakeFixture.TorsoTargetId, 100u);
-            GameObject actorGameObject = fixture.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixture.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             bakingWorld.AssertNoUnexpectedToolkitErrors();
@@ -125,7 +125,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         private ClipSetAsset CreateClipSet(out RigAsset rig)
         {
             rig = fixture.CreateRig("Rig");
-            return fixture.CreateClipSet("Set", rig, 0x4800UL);
+            return fixture.CreateClipSet("Set", 0x4800UL);
         }
 
         private static RagdollBodyDefinition AddTargetBody(RigAsset rig, string displayName, uint targetId, uint bodyId)

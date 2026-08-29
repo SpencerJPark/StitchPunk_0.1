@@ -7,18 +7,21 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// The baked registry of one <c>ClipSetAsset</c> (architecture section 4.2): every clip, the
-    /// rig's dense target order, and the VAT addressing metadata. Built once at bake time, owned by
-    /// the BlobAssetStore, shared by every actor referencing the same set, and never manually
-    /// disposed. Textures never live in blobs — only <see cref="vatSetKey"/> plus addressing
-    /// metadata (section 4.4).
+    /// The baked registry of one <em>bind</em> — a rig and the clip sets played on it (architecture
+    /// section 4.2, Phase F §5): every clip of the merged union, the rig's dense target order, and
+    /// the VAT addressing metadata. Built once at bake time, owned by the BlobAssetStore, shared by
+    /// every actor with the same bind, and never manually disposed. Textures never live in blobs —
+    /// only <see cref="vatSetKey"/> plus addressing metadata (section 4.4).
     /// </summary>
     public struct ClipRegistryBlob
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
         public int schemaVersion;
 
-        /// <summary>Stable id of the source <c>ClipSetAsset</c>.</summary>
+        /// <summary>
+        /// The bind's identity: the rig's stable id XOR-folded with every bound set's (Phase F §5).
+        /// A dedup and diagnostic key only — nothing at runtime looks a clip up by it.
+        /// </summary>
         public ulong setKey;
 
         /// <summary>Stable key of the linked <c>VatTextureSetAsset</c>, or 0 when the set has no VAT clips.</summary>

@@ -34,13 +34,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle", "billboard-preview-toggle",
             "ragdoll-preview-toggle", "vat-bake-toggle",
-            "skinned-source-field", "new-rig-button", "validation-badge-slot",
+            "skinned-source-field", "new-rig-toggle", "validation-badge-slot",
             // Transport bar: every control that answers "when", docked above the timeline.
             "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
             "step-forward-button", "jump-end-button",
             "current-frame-field", "current-seconds-field",
             "clip-length-field", "frame-rate-field", "frame-count-label",
             "loop-button", "loop-icon", "playback-speed-field",
+            // The captions are the drag handles for the five numbers beside them
+            // (MakeCaptionDragHandle). A rename here presents as a number that simply stops
+            // scrubbing, with the caption still reading correctly.
+            "length-caption", "frame-rate-caption",
+            "frame-caption", "seconds-caption", "speed-caption",
             "zoom-slider", "frame-all-button", "frame-selection-button",
             "add-event-button",
             "dock-vertical", "dock-columns", "dock-left", "dock-right",
@@ -57,12 +62,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // edits keys rather than answering "when".
             "timeline-pane", "timeline-status", "pivot-dropdown", "quantize-keys-button",
             "timeline-scroll", "timeline-row",
-            "track-header-stack", "track-header-column", "lane-stack", "lane-column",
+            // The strip between the name column and the lanes. A rename presents as a column that
+            // simply cannot be dragged, with the cursor still changing over it.
+            "track-header-stack", "track-header-resizer", "track-header-column",
+            "lane-stack", "lane-column",
             // The VAT bake tab's slot. Nothing is built into it until the tab is first opened, so a
             // rename here would present as a toggle that does nothing rather than as a failure.
             "vat-bake-pane",
             // The New Rig flow's slot, covering the dock the same way the VAT bake tab does
-            // (Phase D11). Nothing is built into it until the button is first pressed.
+            // (Phase D11). Nothing is built into it until the toggle is first switched on.
             "new-rig-pane"
         };
 

@@ -21,16 +21,17 @@ namespace DotsAnimationToolkit.Editor
     /// <para>
     /// <strong>This inspector never decides what is valid — same discipline as
     /// <see cref="ValidationBadgeElement"/>.</strong> Every finding shown here, in the top summary
-    /// and in a clip row's expanded list, comes from a single <see cref="ClipValidation.ValidateSet"/>
+    /// and in a clip row's expanded list, comes from a single <see cref="ClipValidation.ValidateBind"/>
     /// call; nothing here re-implements a rule. The roster's contribution is purely presentational:
     /// it buckets the one authoritative message list by <see cref="ValidationMessage.assetContext"/>
-    /// so a clip's own row shows only what is about that clip, while rig-, set- and VAT-texture-set
-    /// scoped findings (V05's set-level half, V06, V07, V08, V13) surface in an "Other findings"
-    /// block instead of being silently dropped because no clip row exists to hold them.
+    /// so a clip's own row shows only what is about that clip, while set- and VAT-texture-set
+    /// scoped findings (V05's set-level half, V07, V08, V39) surface in an "Other findings"
+    /// block instead of being silently dropped because no clip row exists to hold them. Rules that
+    /// need a rig cannot fire here at all — a set is not bound to one.
     /// </para>
     /// <para>
     /// <strong>Validation runs once per meaningful event, never per repaint.</strong>
-    /// <see cref="ClipValidation.ValidateSet"/> walks the rig, every clip, every track and every key
+    /// <see cref="ClipValidation.ValidateBind"/> walks every clip, every track and every key
     /// in the set; at sixty repaints a second that cost is invisible on a five-clip demo set and
     /// crippling on a real roster. <see cref="RefreshValidation"/> is therefore called exactly from
     /// three places: once when the inspector is built, once from
@@ -59,7 +60,6 @@ namespace DotsAnimationToolkit.Editor
         private const string FallbackSetNameBase = "ClipSet";
         private const string FallbackClipNamePrefix = "Clip";
 
-        private SerializedProperty rigProperty;
         private SerializedProperty vatTexturesProperty;
         private SerializedProperty clipsProperty;
 
@@ -73,7 +73,7 @@ namespace DotsAnimationToolkit.Editor
             new Dictionary<ClipAsset, List<ValidationMessage>>();
 
         // Which clip rows are expanded, keyed by the clip's own identity (UnityEngine.Object equality
-        // is instance-based - the same assumption ClipValidation.ValidateSet and ClipRegistryBuilder
+        // is instance-based - the same assumption ClipValidation.ValidateBind and ClipRegistryBuilder
         // already make of a HashSet<ClipAsset>). Kept across RebuildRoster so revalidating after an
         // edit does not collapse a row the user just opened to read.
         private readonly HashSet<ClipAsset> expandedClips = new HashSet<ClipAsset>();
@@ -85,7 +85,6 @@ namespace DotsAnimationToolkit.Editor
         /// <returns>The root of the inspector's visual tree.</returns>
         public override VisualElement CreateInspectorGUI()
         {
-            rigProperty = serializedObject.FindProperty("rig");
             vatTexturesProperty = serializedObject.FindProperty("vatTextures");
             clipsProperty = serializedObject.FindProperty("clips");
 
@@ -99,10 +98,6 @@ namespace DotsAnimationToolkit.Editor
             summaryContainer.style.marginBottom = 6f;
             inspectorRoot.Add(summaryContainer);
 
-            if (rigProperty != null)
-            {
-                inspectorRoot.Add(new PropertyField(rigProperty, "Rig"));
-            }
             if (vatTexturesProperty != null)
             {
                 inspectorRoot.Add(new PropertyField(vatTexturesProperty, "Vat Textures"));
@@ -122,7 +117,7 @@ namespace DotsAnimationToolkit.Editor
             inspectorRoot.Add(generateConstantsButton);
 
             // Backstop for edits this inspector did not itself trigger: Undo/Redo, a drag onto the
-            // Rig or Vat Textures field, or another window (the clip editor) editing a clip asset.
+            // Vat Textures field, or another window (the clip editor) editing a clip asset.
             inspectorRoot.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
 
             inspectorRoot.Bind(serializedObject);
@@ -167,7 +162,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Runs <see cref="ClipValidation.ValidateSet"/> once, buckets the result by clip, and
+        /// Runs <see cref="ClipValidation.ValidateBind"/> once, buckets the result by clip, and
         /// repaints both the summary and the roster from that one pass.
         /// </summary>
         private void RefreshValidation()
@@ -178,7 +173,11 @@ namespace DotsAnimationToolkit.Editor
             ClipSetAsset clipSetAsset = target as ClipSetAsset;
             if (clipSetAsset != null)
             {
-                List<ValidationMessage> validationMessages = ClipValidation.ValidateSet(clipSetAsset);
+                // Unbound: a set names no rig, so the binding rules have nothing to judge against
+                // and stay silent. What is left is everything a set can answer alone — clip-local
+                // rules, id uniqueness across the set, and VAT coverage.
+                List<ValidationMessage> validationMessages =
+                    ClipValidation.ValidateBind(null, new ClipSetAsset[] { clipSetAsset });
                 for (int messageIndex = 0; messageIndex < validationMessages.Count; messageIndex++)
                 {
                     ValidationMessage message = validationMessages[messageIndex];

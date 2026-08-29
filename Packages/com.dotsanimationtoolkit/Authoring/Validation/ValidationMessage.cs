@@ -29,7 +29,17 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Error: the clip's duration is below <see cref="ClipAsset.MinimumDuration"/>.</summary>
         V01 = 1,
 
-        /// <summary>Error: a track's <c>targetId</c> is not a target of the clip's rig.</summary>
+        /// <summary>
+        /// Error: a <see cref="VatTrack"/>'s <c>targetId</c> is not a target of the rig it is bound
+        /// to.
+        /// </summary>
+        /// <remarks>
+        /// Phase F narrowed this to VAT tracks alone. A clip records no rig, so for transform and
+        /// sprite tracks there is no "wrong id", only an id that does not line up with the rig in
+        /// hand — <see cref="V38"/>'s lenient skip. VAT is the exception because a VAT texture
+        /// encodes one mesh's vertex motion and cannot retarget: a VAT track naming a target this
+        /// rig does not declare has no correct behaviour to fall back to.
+        /// </remarks>
         V02 = 2,
 
         /// <summary>Error: a track's keys are not in strictly ascending <c>normalizedTime</c> order.</summary>
@@ -41,7 +51,11 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Error: two clips in one set share a <see cref="ClipId"/>, or two rig targets share a <see cref="TargetId"/>.</summary>
         V05 = 5,
 
-        /// <summary>Error: a clip in the set is authored against a different rig than the set's.</summary>
+        /// <summary>
+        /// Retired in Phase F: a clip set no longer names a rig, so there is nothing for a clip's
+        /// own rig to disagree with. Never emitted; the number is kept unused rather than reused,
+        /// because closed-phase docs and changelogs still name it.
+        /// </summary>
         V06 = 6,
 
         /// <summary>Error: the set has a VAT-sourced clip but no texture set, or the texture set has no range for that clip.</summary>
@@ -325,13 +339,12 @@ namespace DotsAnimationToolkit.Authoring
         /// bury the second inside the noise of the first (spec §6.1).
         /// </para>
         /// <para>
-        /// <strong>"The rig being checked against" is the <em>set's</em> rig, never
-        /// <c>clip.rig</c>.</strong> A shareable clip carries no rig of its own — that null is what
-        /// exempts it from V06 and lets it join sets whose rigs differ — so asking <c>clip.rig</c>
-        /// whether it carries the tag answers "no" for every tag-bound track of every shared clip,
-        /// on the one path this feature exists to serve. A rule that fires on the healthy case is a
-        /// rule nobody reads, and §6.1 spends the whole of its safety argument on T2 being rare
-        /// enough to be worth reading.
+        /// <strong>"The rig being checked against" is the rig of the <em>bind</em></strong> — the
+        /// actor's rig, or whichever rig the Clip Editor is showing. A clip records none, so there
+        /// is no second candidate to get this wrong with: with no rig in hand the rule stays silent
+        /// rather than guessing, because a rule that fires on the healthy case is a rule nobody
+        /// reads, and §6.1 spends the whole of its safety argument on T2 being rare enough to be
+        /// worth reading.
         /// </para>
         /// <para>
         /// Spec §6.1 makes the message text itself part of the rule: it must name the clip, the
@@ -370,12 +383,57 @@ namespace DotsAnimationToolkit.Authoring
         /// that silent mystery into a message at authoring time, on the clip that is actually shared,
         /// before anyone has to notice the missing motion on screen (spec §6).
         /// </remarks>
-        V37 = 37
+        V37 = 37,
+
+        /// <summary>
+        /// Warning: a <see cref="TransformTrack"/> or <see cref="SpriteTrack"/> is bound by target
+        /// id to a target the rig of this bind does not declare (Phase F §4, rule T6).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The exact mirror of <see cref="V35"/> on the id-bound half. A clip and a rig are
+        /// independent assets, paired only where an <c>ActorAuthoring</c> states both, so a set
+        /// applied to a second rig legitimately carries id-bound tracks that rig never declared.
+        /// A hard error here would ban the scenario Phase F exists for; the bake skips the track and
+        /// moves on. There is no stricter rule hiding behind this one: with no rig recorded on the
+        /// clip, "wrong id" is not a fact anything can establish.
+        /// </para>
+        /// <para>
+        /// Phase F §4 calls this rule "T4"; that name was already taken by <see cref="V37"/>, so it
+        /// is recorded here as T6 (see the Phase F spec's amendment note).
+        /// </para>
+        /// </remarks>
+        V38 = 38,
+
+        /// <summary>
+        /// Error: two or more clip sets bound to one actor each supply a
+        /// <see cref="VatTextureSetAsset"/> (Phase F §8).
+        /// </summary>
+        /// <remarks>
+        /// A registry blob addresses exactly one VAT texture set — one <c>vatSetKey</c>, one
+        /// <c>vatInfo</c> — because a VAT texture encodes one skinned mesh's vertex motion. Two of
+        /// them on one actor have no defined resolution, and picking one by list order would make
+        /// which mesh animates depend on the order sets were dragged into a list.
+        /// </remarks>
+        V39 = 39,
+
+        /// <summary>
+        /// Error: a bound set's <c>vatTextures.sourceRigKey</c> names a different rig than the actor
+        /// is bound to (Phase F §8).
+        /// </summary>
+        /// <remarks>
+        /// A VAT texture cannot retarget — no rule can make it — so a set whose textures were baked
+        /// from another rig's mesh would play that other character's vertex motion. Invisible to
+        /// tests and obvious to a player, which is why it is an error rather than the lenient skip
+        /// that transform and sprite content gets. A <c>sourceRigKey</c> of 0 (anything baked before
+        /// the field existed) passes, consistent with Phase F's no-migration stance.
+        /// </remarks>
+        V40 = 40
     }
 
     /// <summary>
-    /// Which caller is validating (architecture section 3.5). The stage only changes the severity of
-    /// rule V08: a stale VAT bake blocks authoring but not entity baking, where the outdated
+    /// Which caller is validating (architecture section 3.5). The stage only changes the severity
+    /// of rule V08: a stale VAT bake blocks authoring but not entity baking, where the outdated
     /// textures still render.
     /// </summary>
     public enum ValidationStage : byte

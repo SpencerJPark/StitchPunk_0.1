@@ -68,12 +68,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 }
             };
 
+            RigAsset rig = Create<RigAsset>();
             ClipSetAsset clipSet = Create<ClipSetAsset>();
-            clipSet.rig = Create<RigAsset>();
             clipSet.clips = new List<ClipAsset> { clip };
 
             HashSet<string> availableNames = new HashSet<string> { "Root", "Spine_1", "Head" };
-            BindingReconciler.Collect(clipSet, availableNames, findings);
+            BindingReconciler.Collect(rig, clipSet, availableNames, findings);
 
             Assert.AreEqual(1, findings.Count, "The renamed bone must be reported exactly once.");
             Assert.AreEqual(BrokenBindingKind.BoneTrack, findings[0].kind);
@@ -81,10 +81,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(2, findings[0].keyCount, "The panel states what a delete would cost.");
 
             // Remapping is the non-destructive fix, and it must actually re-point the track.
-            Assert.IsTrue(BindingReconciler.Remap(findings[0], clipSet.rig, "Spine_1"));
+            Assert.IsTrue(BindingReconciler.Remap(findings[0], rig, "Spine_1"));
             Assert.AreEqual("Spine_1", clip.boneTracks[0].boneName);
 
-            BindingReconciler.Collect(clipSet, availableNames, findings);
+            BindingReconciler.Collect(rig, clipSet, availableNames, findings);
             Assert.AreEqual(0, findings.Count, "A remapped binding must stop being reported.");
         }
 
@@ -129,12 +129,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
             };
 
             ClipSetAsset clipSet = Create<ClipSetAsset>();
-            clipSet.rig = rig;
             clipSet.clips = new List<ClipAsset> { clip };
 
             // The prefab now calls it something else entirely.
             HashSet<string> availableNames = new HashSet<string> { "Root", "Chest" };
-            BindingReconciler.Collect(clipSet, availableNames, findings);
+            BindingReconciler.Collect(rig, clipSet, availableNames, findings);
 
             Assert.AreEqual(1, findings.Count, "Only the name-bound rest pose breaks.");
             Assert.AreEqual(BrokenBindingKind.RigTargetRestPose, findings[0].kind);
@@ -149,7 +148,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(torsoId, clip.transformTracks[0].targetId);
             Assert.AreEqual(torsoId, clip.spriteTracks[0].targetId);
 
-            BindingReconciler.Collect(clipSet, availableNames, findings);
+            BindingReconciler.Collect(rig, clipSet, availableNames, findings);
             Assert.AreEqual(0, findings.Count);
         }
     }

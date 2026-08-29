@@ -22,22 +22,7 @@ MonoBehaviour:
   transformTracks: []
   spriteTracks: []
   boneTracks: []
-  events:
-  - normalizedTime: 0.36666667
-    eventKey: 16
-    intParam: 0
-    floatParam: 0
-    windowSeconds: 0
-  - normalizedTime: 0.36666667
-    eventKey: 16
-    intParam: 0
-    floatParam: 0
-    windowSeconds: 0
-  - normalizedTime: 0.53333336
-    eventKey: 16
-    intParam: 0
-    floatParam: 0
-    windowSeconds: 0
+  events: []
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30

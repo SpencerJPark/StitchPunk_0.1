@@ -77,8 +77,9 @@ decide how the clip crossfades.
 
 ### 4. Set up the actor
 
-Add `ActorAuthoring` to the prefab root and assign the clip set. Add
-`RigTargetAuthoring` to each part, pointing at its rig target.
+Add `ActorAuthoring` to the prefab root, assign the **Rig**, and add the clip set
+to **Clip Sets** — an actor may carry several. Add `RigTargetAuthoring` to each
+part, pointing at its rig target.
 
 **Put the prefab in a SubScene.** Baking is what turns authoring assets into
 entities; a prefab in a plain scene will not animate.

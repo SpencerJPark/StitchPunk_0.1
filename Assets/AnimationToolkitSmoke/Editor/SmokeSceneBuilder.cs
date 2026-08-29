@@ -131,7 +131,6 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
         private static ClipAsset CreateWaveClip(RigAsset rig)
         {
             ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
-            clip.rig = rig;
             clip.duration = 2f;
             clip.defaultLoop = LoopMode.Loop;
 
@@ -173,7 +172,6 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
         private static ClipSetAsset CreateClipSet(RigAsset rig, ClipAsset clip)
         {
             ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
-            clipSet.rig = rig;
             clipSet.clips.Add(clip);
             CreateOrReplaceAsset(clipSet, GeneratedFolder + "/SmokeClipSet.asset");
             return clipSet;
@@ -213,7 +211,7 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
             List<ValidationMessage> messages = new List<ValidationMessage>();
             messages.AddRange(ClipValidation.ValidateRig(rig));
             messages.AddRange(ClipValidation.ValidateClip(clip));
-            messages.AddRange(ClipValidation.ValidateSet(clipSet));
+            messages.AddRange(ClipValidation.ValidateBind(rig, new ClipSetAsset[] { clipSet }));
 
             bool hasError = false;
             for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
@@ -285,7 +283,8 @@ namespace StitchPunk.AnimationToolkitSmoke.Editor
             GameObject actorRoot = new GameObject("SmokeActor");
 
             ActorAuthoring actorAuthoring = actorRoot.AddComponent<ActorAuthoring>();
-            actorAuthoring.clipSet = clipSet;
+            actorAuthoring.rig = rig;
+            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
 
             StartingLayerState startingLayer = new StartingLayerState();
             startingLayer.layerIndex = 0;

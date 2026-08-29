@@ -142,7 +142,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void RenamingAssetsAndTargets_LeavesEveryStableIdUnchanged()
         {
             RigAsset rig = assets.CreateRig("Rig", 0x1111UL, 2, new uint[] { 7u, 3u });
-            ClipAsset clip = assets.CreateClip("Walk", rig, 0x2222UL, 1f);
+            ClipAsset clip = assets.CreateClip("Walk", 0x2222UL, 1f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 0x3333UL, clip);
 
             rig.name = "RenamedRig";
@@ -162,8 +162,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void ReorderingTargetAndClipLists_LeavesEveryStableIdUnchanged()
         {
             RigAsset rig = assets.CreateRig("Rig", 0x1111UL, 2, new uint[] { 7u, 3u, 9u });
-            ClipAsset walkClip = assets.CreateClip("Walk", rig, 0x2222UL, 1f);
-            ClipAsset runClip = assets.CreateClip("Run", rig, 0x4444UL, 2f);
+            ClipAsset walkClip = assets.CreateClip("Walk", 0x2222UL, 1f);
+            ClipAsset runClip = assets.CreateClip("Run", 0x4444UL, 2f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 0x3333UL, walkClip, runClip);
 
             rig.targets.Reverse();
@@ -232,8 +232,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AfterRenamingAndReordering_TheRebuiltRegistryStillResolvesEveryOriginalId()
         {
             RigAsset rig = assets.CreateRig("Rig", 0x1111UL, 2, new uint[] { 7u, 3u });
-            ClipAsset walkClip = assets.CreateClip("Walk", rig, 0x2222UL, 1f);
-            ClipAsset runClip = assets.CreateClip("Run", rig, 0x4444UL, 2f);
+            ClipAsset walkClip = assets.CreateClip("Walk", 0x2222UL, 1f);
+            ClipAsset runClip = assets.CreateClip("Run", 0x4444UL, 2f);
             AuthoringTestAssets.AddTransformTrack(walkClip, 7u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddTransformKey(
                 walkClip.transformTracks[0], 0f, new float3(1f, 0f, 0f), 0f, new float3(1f, 1f, 1f), Interpolation.Linear);
@@ -247,7 +247,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             rig.targets.Reverse();
             clipSet.clips.Reverse();
 
-            BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope();
+            BlobAssetReferenceScope registryScope = new BlobAssetReferenceScope(assets);
             try
             {
                 registryScope.Build(clipSet);

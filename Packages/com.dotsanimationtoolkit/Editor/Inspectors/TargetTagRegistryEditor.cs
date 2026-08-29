@@ -108,20 +108,17 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Flushes a pending constants regeneration when this inspector goes away — the window
-        /// closes, the selection changes, or the Project Settings tab is left.
+        /// Flushes a pending rename's constants regeneration when this inspector goes away — the
+        /// window closes, the selection changes, or the Project Settings tab is left.
         /// </summary>
         /// <remarks>
         /// Amendment A54 originally regenerated on every <c>FocusOutEvent</c> anywhere in this
         /// inspector, so simply clicking out of a renamed row's field — the ordinary way to finish a
-        /// rename — rewrote the constants file and called <see cref="AssetDatabase.Refresh"/>
-        /// immediately. Writing a changed <c>.cs</c> file under <c>Assets/</c> makes Unity recompile
-        /// and reload the domain, and doing that synchronously out from under someone renaming a tag
-        /// mid-session — while a separate window like the Clip Editor is open and in active use — is
-        /// what broke it: a domain reload tears down and rebuilds every open window's managed state,
-        /// and a UI Toolkit window does not always survive that cleanly. Regenerating here instead,
-        /// on <c>OnDisable</c>, still keeps the promise that a rename eventually recompiles anything
-        /// referencing the old name, without forcing that recompile mid-keystroke.
+        /// rename — rewrote the constants file immediately. A rename has no row-count change for
+        /// <see cref="OnSerializedObjectChanged"/> to catch, so it has nothing else to regenerate on;
+        /// deferring it here instead of to every keystroke's blur is what stops an in-progress rename
+        /// from forcing a recompile mid-edit. An add or remove still regenerates immediately, in
+        /// <see cref="OnSerializedObjectChanged"/> — this is only the rename-only path's backstop.
         /// </remarks>
         private void OnDisable()
         {
@@ -151,10 +148,14 @@ namespace DotsAnimationToolkit.Editor
             }
             RefreshFindings();
 
-            // Constants regeneration is deferred to OnDisable, not triggered here (see its remarks):
-            // regenerating immediately on every add/remove/rename forces a script recompile — a
-            // domain reload — synchronously out from under whatever else might be open, which is what
-            // broke the Clip Editor mid-session under the amendment A54 design this replaced.
+            // A resize (Undo/Redo, or an edit made on a different open copy of this inspector) has
+            // no OnDisable to flush it promptly either -- nothing guarantees this inspector is ever
+            // closed in the same session -- so it still regenerates immediately. An ordinary rename
+            // keystroke does nothing here: OnDisable is what regenerates once that edit is done.
+            if (rowCountChanged)
+            {
+                constantsSection?.RegenerateIfConfigured();
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -239,7 +240,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            // Constants regeneration is deferred to OnDisable — see its remarks.
+            constantsSection?.RegenerateIfConfigured();
         }
 
         /// <summary>
@@ -281,7 +282,7 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RefreshRows();
             RefreshFindings();
-            // Constants regeneration is deferred to OnDisable — see its remarks.
+            constantsSection?.RegenerateIfConfigured();
         }
 
         // -----------------------------------------------------------------------------------

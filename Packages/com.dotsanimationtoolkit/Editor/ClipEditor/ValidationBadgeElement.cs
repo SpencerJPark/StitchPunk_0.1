@@ -137,8 +137,12 @@ namespace DotsAnimationToolkit.Editor
         /// set validation walks every key of every clip, which is fine occasionally and ruinous at
         /// sixty hertz.
         /// </remarks>
+        /// <param name="rig">
+        /// The rig the set is being played against — the window's, not the set's, because a set
+        /// names none. Null is legitimate: the bind rules that need a rig simply stay silent.
+        /// </param>
         /// <param name="clipSet">The set to validate. Null clears the badge.</param>
-        public void Refresh(ClipSetAsset clipSet)
+        public void Refresh(RigAsset rig, ClipSetAsset clipSet)
         {
             currentMessages.Clear();
             HasErrors = false;
@@ -152,10 +156,13 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // Validation throws only on a null set, which is already handled; anything else it finds
-            // is data it returns rather than an exception, so no guard is needed here.
-            List<ValidationMessage> messages = ClipValidation.ValidateSet(
-                clipSet, tagRegistry: VocabularyRegistryProvider.TargetTags);
+            // Validated as the bind the window is showing: this set against whichever rig is
+            // loaded. With no rig loaded the binding rules cannot speak and stay quiet — an unbound
+            // set is a legitimate state, not a fault.
+            List<ValidationMessage> messages = ClipValidation.ValidateBind(
+                rig,
+                new ClipSetAsset[] { clipSet },
+                tagRegistry: VocabularyRegistryProvider.TargetTags);
 
             // T4 (V37) is a project-wide fact ClipValidation cannot see on its own (Editor-only
             // AssetDatabase access) — appended here rather than folded into the call above, mirroring

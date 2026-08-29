@@ -143,8 +143,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void BakingAnActor_ProducesTheSection52RootArchetype()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000501UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000501UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
@@ -261,8 +261,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void BakingAQuadPart_ProducesTheSection52PartArchetype()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000511UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000511UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             EntityManager entityManager = bakingWorld.EntityManager;
@@ -320,8 +320,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // owns the section 6.2 sprite properties. Which of the two a clip drives is a per-track
             // SpriteFrameMode decision, so the part must carry both.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000514UL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000514UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             GameObject flipbookPart = fixtureAssets.AddPart(
                 actorGameObject, "Billboard", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             RigTargetAuthoring flipbookAuthoring = flipbookPart.GetComponent<RigTargetAuthoring>();
@@ -361,8 +361,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // 6.2 binds them to _VatFrameA/_VatFrameB/_VatBlend; a part missing any one of them
             // renders a frozen frame, and nothing in the suite would have said so.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051BUL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000051BUL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             GameObject vatPart = fixtureAssets.AddPart(
                 actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
@@ -403,8 +403,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // flip silently stop working and nothing else in the suite would notice until a
             // shader-level module failed for reasons that look unrelated.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000512UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000512UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             Entity torsoEntity =
@@ -425,9 +425,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // rather than resolved. A23 resolves it in the spec's favour of the code: distance LOD
             // is opt-in per section 5.10, so the baseline archetype does not carry the component.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000502UL);
-            GameObject withoutLod = fixtureAssets.CreateStandardActor("NoLod", clipSet, false);
-            GameObject withLod = fixtureAssets.CreateStandardActor("WithLod", clipSet, true);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000502UL);
+            GameObject withoutLod = fixtureAssets.CreateStandardActor("NoLod", rig, clipSet, false);
+            GameObject withLod = fixtureAssets.CreateStandardActor("WithLod", rig, clipSet, true);
 
             bakingWorld.Bake(withoutLod, withLod);
             EntityManager entityManager = bakingWorld.EntityManager;
@@ -452,7 +452,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // texture. The clamp is the interesting half — a negative rate is a typo, and section
             // 5.6 reads rateHz as "0 means every frame", so an unclamped −10 would be neither.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000518UL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000518UL);
             Texture2D boneTexture = fixtureAssets.CreateTexture("BoneTex");
             Texture2D normalTexture = fixtureAssets.CreateTexture("NormalTex");
             VatTextureSetAsset vatTextures =
@@ -460,10 +460,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             vatTextures.normalTexture = normalTexture;
             clipSet.vatTextures = vatTextures;
 
-            GameObject clampedActor = fixtureAssets.CreateActorRoot("ClampedActor", clipSet, false);
+            GameObject clampedActor = fixtureAssets.CreateActorRoot("ClampedActor", rig, clipSet, false);
             clampedActor.GetComponent<ActorAuthoring>().sampleOverride =
                 new SampleSettings { rateHz = -10f };
-            GameObject ratedActor = fixtureAssets.CreateActorRoot("RatedActor", clipSet, false);
+            GameObject ratedActor = fixtureAssets.CreateActorRoot("RatedActor", rig, clipSet, false);
             ratedActor.GetComponent<ActorAuthoring>().sampleOverride =
                 new SampleSettings { rateHz = 12f };
 
@@ -506,8 +506,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // the no-VAT case must be representable as a value. Default is that value: set key 0
             // matches no blob, and the null texture refs are what section 5.7 checks before binding.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000519UL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000519UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             VatTextureBinding binding = bakingWorld.EntityManager.GetComponentData<VatTextureBinding>(
@@ -523,16 +523,16 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // Spreading sampling load across frames is the entire purpose of phase01, and nothing
             // asserted it. A baker returning a constant would have satisfied every other test.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000513UL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000513UL);
 
             // Both actors live under a container whose own position in the scene never changes, so
             // the rebuilt hierarchy below can reproduce every ancestor name and sibling index the
             // path hash is computed over. Baking them at the scene root instead would make the hash
             // depend on whatever else the test scene happens to contain.
             GameObject phaseRoot = fixtureAssets.CreateContainer("PhaseFixtureRoot");
-            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", rig, clipSet, false);
             ActorBakeFixture.PlaceUnder(firstActor, phaseRoot, 0);
-            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", rig, clipSet, false);
             ActorBakeFixture.PlaceUnder(secondActor, phaseRoot, 1);
 
             bakingWorld.Bake(phaseRoot);
@@ -566,9 +566,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Object.DestroyImmediate(firstActor);
             Object.DestroyImmediate(secondActor);
 
-            GameObject rebuiltFirstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
+            GameObject rebuiltFirstActor = fixtureAssets.CreateStandardActor("FirstActor", rig, clipSet, false);
             ActorBakeFixture.PlaceUnder(rebuiltFirstActor, phaseRoot, 0);
-            GameObject rebuiltSecondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+            GameObject rebuiltSecondActor = fixtureAssets.CreateStandardActor("SecondActor", rig, clipSet, false);
             ActorBakeFixture.PlaceUnder(rebuiltSecondActor, phaseRoot, 1);
 
             using (BakingTestWorld rebakeWorld = new BakingTestWorld("RebakeWorld"))
@@ -598,8 +598,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void BakingAnActor_SeedsTheStartingLayerItWasAuthoredWith()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000503UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000503UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
@@ -651,8 +651,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void BakingAnActor_ActivatesASeededLayer_EvenWhenTheRigDoesNotDefaultItActive()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000507UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000507UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             Assert.IsFalse(
                 rig.layers[1].defaultActive,
@@ -684,8 +684,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void BakingAnActor_ResolvesEveryPartToItsDenseTargetIndex()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000504UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000504UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
@@ -772,9 +772,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void TwoActorsSharingAClipSet_ShareOneRegistryBlob()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000505UL);
-            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
-            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000505UL);
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", rig, clipSet, false);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", rig, clipSet, false);
 
             bakingWorld.Bake(firstActor, secondActor);
             EntityManager entityManager = bakingWorld.EntityManager;
@@ -804,10 +804,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // What the store hit saves is the persistent allocation, which is the part that scales
             // with crowd size in memory.)
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000517UL);
-            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", clipSet, false);
-            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", clipSet, false);
-            GameObject thirdActor = fixtureAssets.CreateStandardActor("ThirdActor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000517UL);
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", rig, clipSet, false);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", rig, clipSet, false);
+            GameObject thirdActor = fixtureAssets.CreateStandardActor("ThirdActor", rig, clipSet, false);
 
             ClipRegistryBuilder.ResetBuildInvocationCount();
             bakingWorld.Bake(firstActor, secondActor, thirdActor);
@@ -824,10 +824,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void TwoActorsOnDifferentClipSets_DoNotShareABlob()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset firstSet = fixtureAssets.CreateClipSet("FirstSet", rig, 0x0000000000000506UL);
-            ClipSetAsset secondSet = fixtureAssets.CreateClipSet("SecondSet", rig, 0x0000000000000507UL);
-            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", firstSet, false);
-            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", secondSet, false);
+            ClipSetAsset firstSet = fixtureAssets.CreateClipSet("FirstSet", 0x0000000000000506UL);
+            ClipSetAsset secondSet = fixtureAssets.CreateClipSet("SecondSet", 0x0000000000000507UL);
+            GameObject firstActor = fixtureAssets.CreateStandardActor("FirstActor", rig, firstSet, false);
+            GameObject secondActor = fixtureAssets.CreateStandardActor("SecondActor", rig, secondSet, false);
 
             bakingWorld.Bake(firstActor, secondActor);
             EntityManager entityManager = bakingWorld.EntityManager;
@@ -849,8 +849,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void BakingAnActor_ProducesActorSpaceRestBounds_ThatContainAFarOffsetPart()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000508UL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000508UL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             AABB restBounds = bakingWorld.EntityManager
@@ -890,8 +890,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // MinMaxAABB.Empty is inverted by construction; converting it unchecked would hand the
             // bounds system nonsense extents rather than an honest empty box.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000509UL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000509UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
 
             bakingWorld.Bake(actorGameObject);
             AABB restBounds = bakingWorld.EntityManager
@@ -911,8 +911,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // not cosmetic: section 5.6 composes animated rotation as an offset from this value, so
             // a wrapped rest rotation spins the part a full turn the wrong way on the first sample.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000515UL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000515UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             GameObject rotatedPart = fixtureAssets.AddPart(
                 actorGameObject, "Torso", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             rotatedPart.transform.localRotation = Quaternion.Euler(0f, 0f, -30f);
@@ -947,8 +947,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // easy thing to "fix" into a real defect, which is why this is pinned rather than left
             // to the reader of ActorBaker's comment.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000051AUL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000051AUL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             fixtureAssets.AddPart(
                 actorGameObject, "Torso", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             GameObject disabledHead = fixtureAssets.AddPart(
@@ -1006,8 +1006,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void APartWithAnUnknownTargetId_IsSkippedWithAnError_AndTheBakeStillSucceeds()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050AUL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000050AUL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
             fixtureAssets.AddPart(
                 actorGameObject, "Stray", ActorBakeFixture.UnknownTargetId, new Vector3(3f, 0f, 0f));
             bakingWorld.ExpectToolkitErrors(1);
@@ -1049,15 +1049,24 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // formatter that reports only the first failure is the likely bug, and a single-error
             // fixture cannot catch it.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000516UL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000516UL);
             ClipAsset walkClip = ActorBakeFixture.FindClip(clipSet, ActorBakeFixture.WalkClipStableId);
             walkClip.duration = 0f;
-            walkClip.transformTracks[0].targetId = ActorBakeFixture.UnknownTargetId;
+            // A key outside [0, 1] rather than an unknown target id: since Phase F an unresolved
+            // id-bound track is rule T6's skip, a warning, so it no longer fails a bake.
+            walkClip.transformTracks[0].keys.Add(new TransformKey
+            {
+                normalizedTime = 1.5f,
+                position = float3.zero,
+                rotation = float3.zero,
+                scale = new float3(1f, 1f, 1f),
+                interpolation = Interpolation.Linear
+            });
 
             // Three parts, deliberately. Each one's binding pass will find an actor entity with no
             // registry on it, and each must stay quiet about that: the actor has already reported
             // the single actionable message, and restating it per part buries it.
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
             bakingWorld.ExpectToolkitErrors(1);
 
             bakingWorld.Bake(actorGameObject);
@@ -1080,9 +1089,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 recordedErrors[0],
                 "The message must name the duration rule.");
             StringAssert.Contains(
-                ValidationCode.V02.ToString(),
+                ValidationCode.V04.ToString(),
                 recordedErrors[0],
-                "The message must name the unknown-target rule too. Listing only the first failure " +
+                "The message must name the key-time rule too. Listing only the first failure " +
                 "sends the user round the loop once per broken clip.");
 
             Assert.IsTrue(
@@ -1112,12 +1121,12 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void AVatPartWhoseMaterialLacksTheTextureSlot_LogsExactlyOneWarning()
         {
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050CUL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000050CUL);
             Texture2D boneTexture = fixtureAssets.CreateTexture("BoneTex");
             clipSet.vatTextures =
                 fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000601UL, boneTexture);
 
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
 
             // The fixture material is a plain unlit material: it has no _VatBoneTex slot, so it
             // cannot display the bone texture the set baked. Catching that at bake is the whole
@@ -1189,13 +1198,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // "declares no such slot", which is a different branch — so without this the specified
             // mismatch had no coverage at all.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050FUL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000050FUL);
             Texture2D bakedTexture = fixtureAssets.CreateTexture("BakedBoneTex");
             Texture2D staleTexture = fixtureAssets.CreateTexture("StaleBoneTex");
             clipSet.vatTextures =
                 fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000603UL, bakedTexture);
 
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             GameObject vatPart = fixtureAssets.AddPart(
                 actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
@@ -1229,12 +1238,12 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // no fixture able to build a CORRECTLY configured VAT material, a validator that warned
             // on every part would have passed the whole suite.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x0000000000000510UL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000510UL);
             Texture2D bakedTexture = fixtureAssets.CreateTexture("BakedBoneTex");
             clipSet.vatTextures =
                 fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000604UL, bakedTexture);
 
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             GameObject vatPart = fixtureAssets.AddPart(
                 actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
@@ -1263,8 +1272,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // second being the unrelated default-active-layer notice — which invites the next
             // reader to "fix" the assertion down to match the name and silently loosen it.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050DUL);
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000050DUL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
 
             GameObject vatPart = fixtureAssets.AddPart(
                 actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
@@ -1291,12 +1300,12 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // check. Left empty there is nothing to compare, and warning anyway would train users
             // to ignore the warning that matters.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050EUL);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000050EUL);
             Texture2D boneTexture = fixtureAssets.CreateTexture("BoneTex");
             clipSet.vatTextures =
                 fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000602UL, boneTexture);
 
-            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", clipSet, false);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
             GameObject vatPart = fixtureAssets.AddPart(
                 actorGameObject, "VatBody", ActorBakeFixture.TorsoTargetId, Vector3.zero);
             RigTargetAuthoring vatPartAuthoring = vatPart.GetComponent<RigTargetAuthoring>();
@@ -1321,8 +1330,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             // A part that could not be resolved contributes no extents — otherwise a typo in one
             // target id would silently inflate every actor's culling box.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
-            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", rig, 0x000000000000050BUL);
-            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", clipSet, false);
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x000000000000050BUL);
+            GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
             fixtureAssets.AddPart(
                 actorGameObject, "Stray", ActorBakeFixture.UnknownTargetId, new Vector3(50f, 0f, 0f));
             bakingWorld.ExpectToolkitErrors(1);

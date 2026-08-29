@@ -34,15 +34,14 @@ namespace DotsAnimationToolkit.Authoring
     /// rather than inherited, because this type cannot derive from an editor-assembly base class:
     /// <c>ClipValidation</c> (architecture section 3.5) takes an <see cref="AnimEventKeyRegistry"/>
     /// parameter and is documented as having "no editor-assembly dependency" so it keeps compiling
-    /// in a player build, and <see cref="ClipSetAsset.eventKeys"/> is a serialized field of this same
-    /// type. There is deliberately no <c>[CreateAssetMenu]</c> any more, so there is no second,
-    /// competing instance a person could create by mistake.
+    /// in a player build. There is deliberately no <c>[CreateAssetMenu]</c> any more, so there is no
+    /// second, competing instance a person could create by mistake.
     /// </para>
     /// <para>
-    /// <strong>Back-compat, no migration.</strong> <see cref="ClipSetAsset.eventKeys"/> is untouched
-    /// by this change and still wins whenever a clip set carries an explicit assignment — the
-    /// project-scoped <c>VocabularyRegistryProvider</c> is only the fallback used when that field is null, so a
-    /// clip set someone previously wired by hand keeps working exactly as before.
+    /// <strong>The project-scoped instance is the only one</strong> since Phase F: the per-set
+    /// <c>ClipSetAsset.eventKeys</c> override is gone (decision D4), because a second source of
+    /// truth for the same vocabulary has no remaining reason once the registry carries its own
+    /// export/import path.
     /// </para>
     /// </remarks>
     public sealed class AnimEventKeyRegistry : ScriptableObject, IVocabularyRegistry
@@ -55,7 +54,7 @@ namespace DotsAnimationToolkit.Authoring
         /// </remarks>
         [Min(1f)] public float referenceFrameRate = DefaultReferenceFrameRate;
 
-        /// <summary>The rate assumed when a clip set has no registry assigned.</summary>
+        /// <summary>The rate assumed when no registry has been created yet.</summary>
         public const float DefaultReferenceFrameRate = 60f;
 
         /// <summary>The named keys this project uses.</summary>
@@ -93,6 +92,29 @@ namespace DotsAnimationToolkit.Authoring
                 if (entry != null && entry.eventKey == eventKey)
                 {
                     return string.IsNullOrEmpty(entry.name) ? null : entry.name;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The free-text note written against <paramref name="eventKey"/>, or null when the event
+        /// has none (or is not in this registry). What the event picker shows under a row's name.
+        /// </summary>
+        /// <param name="eventKey">The key to look up.</param>
+        /// <returns>The entry's description, or null.</returns>
+        public string FindDescription(uint eventKey)
+        {
+            if (entries == null)
+            {
+                return null;
+            }
+            for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                AnimEventKeyEntry entry = entries[entryIndex];
+                if (entry != null && entry.eventKey == eventKey)
+                {
+                    return string.IsNullOrEmpty(entry.description) ? null : entry.description;
                 }
             }
             return null;
@@ -227,7 +249,11 @@ namespace DotsAnimationToolkit.Authoring
         /// </remarks>
         [Min(0)] public int defaultWindowFrames;
 
-        /// <summary>Free-text note shown as the dropdown tooltip; purely documentation.</summary>
+        /// <summary>
+        /// Free-text note on what this event is for. Purely documentation — it is the grey wording
+        /// under the event's name in the picker's hover card, so it is read at the moment someone
+        /// is choosing which event to fire.
+        /// </summary>
         [TextArea(1, 3)] public string description = string.Empty;
     }
 }

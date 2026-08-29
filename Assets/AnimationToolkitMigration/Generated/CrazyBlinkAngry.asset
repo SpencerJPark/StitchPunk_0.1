@@ -21,6 +21,7 @@ MonoBehaviour:
   frameRate: 30
   transformTracks:
   - targetId: 3686243058
+    tagId: 0
     blendOp: 1
     channels: 15
     keys:
@@ -88,6 +89,7 @@ MonoBehaviour:
         x: 0
         y: 0
   - targetId: 4086129200
+    tagId: 0
     blendOp: 1
     channels: 15
     keys:
@@ -155,6 +157,7 @@ MonoBehaviour:
         x: 0
         y: 0
   - targetId: 4216110445
+    tagId: 0
     blendOp: 0
     channels: 1
     keys:
@@ -223,6 +226,7 @@ MonoBehaviour:
         y: 0
   spriteTracks:
   - targetId: 3686243058
+    tagId: 0
     mode: 0
     sliceSpace: 0
     baseIndex: 0
@@ -252,6 +256,7 @@ MonoBehaviour:
         z: 0
         w: 0
   - targetId: 4086129200
+    tagId: 0
     mode: 0
     sliceSpace: 0
     baseIndex: 0
@@ -281,6 +286,7 @@ MonoBehaviour:
         z: 0
         w: 0
   - targetId: 915970425
+    tagId: 0
     mode: 0
     sliceSpace: 0
     baseIndex: 0
@@ -430,6 +436,7 @@ MonoBehaviour:
         z: 0
         w: 0
   - targetId: 4216110445
+    tagId: 0
     mode: 0
     sliceSpace: 0
     baseIndex: 0
@@ -531,11 +538,13 @@ MonoBehaviour:
         z: 0
         w: 0
   - targetId: 4216110445
+    tagId: 0
     mode: 0
     sliceSpace: 0
     baseIndex: 0
     keys: []
   - targetId: 915970425
+    tagId: 0
     mode: 0
     sliceSpace: 0
     baseIndex: 0

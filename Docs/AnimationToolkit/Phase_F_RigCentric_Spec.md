@@ -25,8 +25,8 @@ clip exemption. Phase F inverts the asset spine those tracks hang from.
 
 ```
 RigAsset                     — targets (tagged), layers, sockets, billboards, ragdoll. Unchanged.
-ClipSetAsset                 — clips + vatTextures + editor-only previewRig. No semantic rig.
-ClipAsset                    — unchanged. clip.rig stays the *authoring* rig (null = tag-only).
+ClipSetAsset                 — clips + vatTextures. No rig of any kind (see §12 F-d).
+ClipAsset                    — no rig at all (see §12 F-d). Tracks line up by tag.
 ActorAuthoring               — rig (required) + clipSets (list, at least one entry).
 ```
 
@@ -39,7 +39,10 @@ rig**, never against anything stored on the set.
   `public List<ClipSetAsset> clipSets`. The old "the rig comes from the set, so an actor cannot
   disagree with its clips" remark inverts: the rig comes from the actor, and clips that do not
   align simply skip (§4).
-- **`ClipSetAsset.rig`**: deleted. Replaced by `#if UNITY_EDITOR public RigAsset previewRig` —
+- **`ClipSetAsset.rig`**: deleted. ~~Replaced by `#if UNITY_EDITOR public RigAsset previewRig`~~ —
+  **superseded by §12 F-d: `previewRig` is deleted too; the Clip Editor holds its rig as window
+  state.** The original reasoning follows.
+  Replaced by `#if UNITY_EDITOR public RigAsset previewRig` —
   the rig the set was last authored against, for the Clip Editor to open with. Never a bake
   input, never in a player build (the `RigAsset.sourcePrefab` pattern and reasoning). Renaming
   the field (not just re-meaning it) forces every one of the ~40 `clipSet.rig` call sites to be
@@ -48,9 +51,8 @@ rig**, never against anything stored on the set.
   the per-set override is a second source of truth with no remaining reason. The
   "carries its vocabulary between projects" rationale is served by the registry's own
   export/import path, not by a per-set asset reference.
-- **`ClipAsset.rig`**: kept, same meaning as Phase E left it — the rig the clip was authored
-  against, used by the editor for preview and editor-time V02, and by the Mirror utility.
-  Null remains the fully-shareable tag-only clip.
+- ~~**`ClipAsset.rig`**: kept~~ — **superseded by §12 F-d: deleted.** A clip records no rig, so
+  V02 narrows to VAT tracks and the Mirror utility takes its pair table from an open Clip Editor.
 
 ## 4. Binding resolution rules
 
@@ -61,8 +63,9 @@ rig**, never against anything stored on the set.
   does not declare is **skipped with a warning** naming clip + track + id + rig — the exact
   mirror of T2. Rationale: a set applied to a second rig legitimately carries id-bound tracks
   that only its home rig declares; a hard V02 at bake would ban the scenario this phase exists
-  for. The genuine-authoring-error case (a dangling id on the clip's own rig) still surfaces as
-  an **editor-time V02 error judged against `clip.rig`**, where it was authored.
+  for. ~~The genuine-authoring-error case (a dangling id on the clip's own rig) still surfaces as
+  an editor-time V02 error judged against `clip.rig`.~~ **Superseded by §12 F-d: there is no
+  `clip.rig`, so T6 is the only id-bound rule and V02 covers VAT tracks alone.**
 - **V06 retired** entirely — there is no set rig to match.
 - **T1** (a non-zero tag unique within a rig) unchanged.
 
@@ -95,9 +98,10 @@ rig**, never against anything stored on the set.
 
 ## 7. Clip Editor
 
-- Every `clipSet.rig` read routes to `previewRig` (most already funnel through the
-  `ComponentStack.cs` accessor and a handful of window-level locals). The toolbar rig picker
-  writes `previewRig` with the same undo/dirty handling it gives `clipSet.rig` today.
+- Every `clipSet.rig` read routes to the window's own rig (most already funnel through the
+  `ComponentStack.cs` accessor and a handful of window-level locals). **Per §12 F-d the toolbar rig
+  picker writes no asset at all** — it is window state, carried across a domain reload and a re-dock
+  the way the open clip set is, and switching the open set never changes it.
 - **New-track creation default flips**: a track created on a target that carries a tag defaults
   to **tag-bound**; an untagged target defaults to id-bound. Phase E's "sharing is opt-in per
   track, never a migration" directive concerned existing data, which stays untouched; under the
@@ -135,8 +139,8 @@ make it. So:
   is per-actor by construction; a set list on the rig asset would force one loadout per rig and
   rig duplication to vary it. A "default sets" convenience on the rig can be added later without
   reversing anything.
-- **D2 — `previewRig` is editor-only.** The one thing a set still knows about rigs is which one
-  it was last authored against, and that is workflow state, not semantics.
+- ~~**D2 — `previewRig` is editor-only.**~~ **Reversed by §12 F-d:** a set knows nothing about
+  rigs at all, not even which one it was last opened on. That last-opened rig is the window's.
 - **D3 — T4 is lenient** (skip + warning at bake; error stays editor-time against `clip.rig`).
 - **D4 — `eventKeys` dies** rather than deprecates. No migration burden exists to justify a
   deprecation window.
@@ -154,8 +158,9 @@ make it. So:
   builder tests all pin the old shape — update them **as assertions of the new contract**, never
   by loosening.
 - **F3 — Bakers.** §6. PlayMode acceptance fixtures re-point from set-rig to actor-rig.
-- **F4 — Clip Editor.** §7 `previewRig` plumbing + the creation default. Prove the persist path
-  with a real asset save/reload, per HANDOFF §3.
+- **F4 — Clip Editor.** §7 rig plumbing + the creation default. Since §12 F-d the rig is window
+  state, so what needs proving is that it survives a domain reload and a re-dock — not that it
+  persists to an asset, because it must not.
 - **F5 — VAT stamp.** §8.
 - **F6 — Samples + docs.** Rewire both sample builders (Samples~ is excluded from compilation —
   compile-check via a temp assembly before trusting it), rewrite `sharing-clips.md` around the
@@ -163,7 +168,43 @@ make it. So:
 
 Each task commits separately, paths staged explicitly, full gate between tasks.
 
-## 12. Risks
+## 12. Amendments raised during the build (2026-08-28)
+
+Five things. **F-d is an owner directive that overrides §3 and §10's D2** — the rest are gaps the
+spec did not settle, recorded here rather than resolved silently in code.
+
+- **F-d — clips and rigs are fully independent; nothing but an actor pairs them.** §3 kept
+  `ClipAsset.rig` and moved the set's rig to an editor-only `previewRig`. Both are now **deleted**.
+  A clip records no rig, a set records no rig, and the Clip Editor holds its rig as window state, so
+  swapping the open set no longer swaps the rig (and vice versa). Consequences:
+  - **V02 narrows to VAT tracks only.** Without a recorded authoring rig, "this id is wrong" is not
+    a fact anything can establish — only "this id does not line up with the rig in hand", which is
+    T6/`V38`'s skip. VAT keeps the error because a VAT texture cannot retarget.
+  - **V24** (billboard tracks) is judged against the bind rig, and skipped when unbound.
+  - **`ValidateClip` judges no binding at all.** A clip inspected alone has no rig to be judged
+    against, and guessing is exactly what `clip.rig` used to do.
+  - **A null rig in `ValidateBind` means "unbound", not "broken".** A set on its own is a legitimate
+    state, so `V13` no longer fires for it; an actor reaching bake with no rig is `ActorBaker`'s
+    error to raise.
+  - The Mirror utility's project-browser action takes its pair table from an open Clip Editor's rig
+    and refuses when there is none, rather than reading one off the clip.
+
+- **F-a — the new id-bound rule ships as T6 / `V38`, not T4.** §4 names it "T4", but Phase E already
+  spent that name: T4 is `ValidationCode.V37`, "a clip in more than one set still binds by target
+  id". Reusing the number would make two different rules answer to it in the same table. T5 is also
+  taken (`V33`, tag-registry id uniqueness), so the new rule is **T6**, code `V38`. Nothing about the
+  rule's behaviour changes — lenient skip at bake, V02 stays the editor-time error against
+  `clip.rig`.
+- **F-b — a bind may carry at most one VAT texture set (`V39`, error).** §8 stamps `sourceRigKey` per
+  set, but `ClipRegistryBlob` has exactly one `vatSetKey` and one `vatInfo`, and §5 does not say what
+  a merged bind does when two sets each supply textures. Picking one by list order would make which
+  mesh animates depend on drag order, so two is an error. §8's own reasoning — "only the VAT-driven
+  parts pin the set to its source rig in practice" — implies one VAT-carrying set per actor anyway.
+- **F-c — §8's VAT rig check is a validation rule (`V40`), not baker-local code.** Written as a rule
+  it fires in the Clip Editor's badge and the set inspector as well as at bake, at no extra cost;
+  written in `ActorBaker` it would only ever be a console line after a rebake.
+
+## 13. Risks
 
 - **The Clip Editor is the blast radius** (~40 `clipSet.rig` sites in `ClipEditorWindow` alone).
   Mechanical, but HANDOFF §9 lesson 2 applies: run the window, don't just read the diff.

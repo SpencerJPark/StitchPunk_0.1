@@ -25,10 +25,10 @@ namespace DotsAnimationToolkit.Editor
     /// </para>
     /// <para>
     /// <strong>Decoupled from the window it lives in, like <c>VatBakePanel</c> is.</strong> This
-    /// class never reaches for <c>ClipSetAsset.rig</c> itself; it only reports what it built and
-    /// whether the caller asked to have it assigned. <see cref="ClipEditorWindow.OnNewRigCreated"/>
-    /// does the actual assignment, through the same field the toolbar's own Rig picker uses — one
-    /// place records the undo step and marks the clip set dirty, whichever the pick came from.
+    /// class never touches the window's rig itself; it only reports what it built and whether the
+    /// caller asked to have it loaded. <see cref="ClipEditorWindow.OnNewRigCreated"/> does that,
+    /// through the same field the toolbar's own Rig picker uses — so there is one place that decides
+    /// what loading a rig means, whichever the pick came from.
     /// </para>
     /// <para>
     /// <strong>Tags are assigned here too (Phase E target-tags spec §8), reusing an existing tag
@@ -59,14 +59,13 @@ namespace DotsAnimationToolkit.Editor
         private Label resultLabel;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
-        private ClipSetAsset offeredClipSet;
 
-        /// <summary>Raised when the flow is dismissed, whether by Cancel or after a successful Create.</summary>
+        /// <summary>Raised after a successful Create, so the host can untick its New Rig toggle.</summary>
         public event Action Closed;
 
         /// <summary>
         /// Raised after a rig is created and saved. The second argument is whether the panel's own
-        /// "assign to open clip set" toggle was checked at the time.
+        /// "load this rig into the editor" toggle was checked at the time.
         /// </summary>
         public event Action<RigAsset, bool> RigCreated;
 
@@ -108,52 +107,28 @@ namespace DotsAnimationToolkit.Editor
 
             root.Add(BuildHeading("Create"));
 
-            assignToggle = new Toggle("Assign to open clip set (none open)");
-            assignToggle.SetEnabled(false);
+            // Not gated on a clip set: loading a rig into the window needs no set, exactly as
+            // picking one in the toolbar does not.
+            assignToggle = new Toggle("Load this rig into the editor");
+            assignToggle.value = true;
+            assignToggle.tooltip =
+                "Puts the new rig in the toolbar's Rig field. Window state only — it pairs the rig "
+                + "with nothing, and changes no asset.";
             root.Add(assignToggle);
 
-            VisualElement buttonRow = new VisualElement();
-            buttonRow.style.flexDirection = FlexDirection.Row;
-            buttonRow.style.marginTop = 6f;
-
+            // No Cancel beside it: the toolbar's New Rig toggle is what opens and closes this flow,
+            // the way VAT Bake's does, and a second dismissal that leaves the toggle lit would be a
+            // button that closes a page the toolbar still says is open.
             Button createButton = new Button(Create) { text = "Create Rig" };
             createButton.style.height = 28f;
-            createButton.style.flexGrow = 1f;
-            buttonRow.Add(createButton);
-
-            Button cancelButton = new Button(Cancel) { text = "Cancel" };
-            cancelButton.style.height = 28f;
-            cancelButton.style.marginLeft = 6f;
-            buttonRow.Add(cancelButton);
-
-            root.Add(buttonRow);
+            createButton.style.marginTop = 6f;
+            root.Add(createButton);
 
             resultLabel = new Label(string.Empty);
             resultLabel.style.whiteSpace = WhiteSpace.Normal;
             resultLabel.style.marginTop = 8f;
             resultLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             root.Add(resultLabel);
-        }
-
-        /// <summary>
-        /// Tells the panel which clip set is currently open, so the "assign to open clip set"
-        /// toggle can offer to point it at whatever this flow creates.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <c>VatBakePanel.OfferClipSet</c>, this always overwrites — New Rig is a one-shot
-        /// flow reopened fresh each time (<see cref="ClipEditorWindow.ShowNewRigTab"/> calls this
-        /// on every show), not a settings panel a session revisits, so there is no held choice here
-        /// that overwriting could destroy.
-        /// </remarks>
-        public void OfferClipSet(ClipSetAsset clipSet)
-        {
-            offeredClipSet = clipSet;
-            bool hasClipSet = clipSet != null;
-            assignToggle.SetEnabled(hasClipSet);
-            assignToggle.value = hasClipSet;
-            assignToggle.text = hasClipSet
-                ? "Assign to open clip set \"" + clipSet.name + "\""
-                : "Assign to open clip set (none open)";
         }
 
         /// <summary>
@@ -265,6 +240,9 @@ namespace DotsAnimationToolkit.Editor
                 tagButton.style.flexShrink = 0f;
                 tagButton.style.minWidth = 90f;
                 tagButton.style.marginLeft = 4f;
+                // An unticked node is not becoming a target, so its tag would go nowhere. Greying
+                // the button is what separates the animated parts from the ones just listed.
+                tagButton.SetEnabled(preTicked);
 
                 VisualElement rowContainer = new VisualElement();
                 rowContainer.style.flexDirection = FlexDirection.Row;
@@ -281,6 +259,8 @@ namespace DotsAnimationToolkit.Editor
                     TagButton = tagButton
                 };
                 tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
+                rowToggle.RegisterValueChangedCallback(
+                    changeEvent => tagButton.SetEnabled(changeEvent.newValue));
                 candidateRows.Add(row);
             }
 
@@ -345,19 +325,10 @@ namespace DotsAnimationToolkit.Editor
                 + " target(s).";
             EditorGUIUtility.PingObject(newRig);
 
-            bool assignToClipSet = offeredClipSet != null && assignToggle.value;
             if (RigCreated != null)
             {
-                RigCreated(newRig, assignToClipSet);
+                RigCreated(newRig, assignToggle.value);
             }
-            if (Closed != null)
-            {
-                Closed();
-            }
-        }
-
-        private void Cancel()
-        {
             if (Closed != null)
             {
                 Closed();

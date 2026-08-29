@@ -29,7 +29,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SetUp()
         {
             assets = new AuthoringTestAssets();
-            registryScope = new BlobAssetReferenceScope();
+            registryScope = new BlobAssetReferenceScope(assets);
         }
 
         [TearDown]
@@ -108,7 +108,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AClipWithNoBillboardTracksBakesAnEmptyArray()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
 
             registryScope.Build(BuildSet(rig, clip));
 
@@ -119,7 +119,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AuthoredDegreesAreBakedAsRadians()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0f, 45f, 1f, true, Interpolation.Linear);
 
@@ -136,7 +136,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void TracksAreBakedInAscendingRootIdOrder_WhateverOrderTheyWereAuthoredIn()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddKey(AddBillboardTrack(clip, HeadRootId), 0f, 0f, 1f, true, Interpolation.Linear);
             AddKey(AddBillboardTrack(clip, TorsoRootId), 0f, 0f, 1f, true, Interpolation.Linear);
 
@@ -154,7 +154,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AnEmptyTrackResolvesToTheNeutralValues_SoAddingOneIsANoOp()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddBillboardTrack(clip, TorsoRootId);
 
             registryScope.Build(BuildSet(rig, clip));
@@ -170,7 +170,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void TheContinuousChannelsInterpolateBetweenKeys()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0f, 0f, 1f, true, Interpolation.Linear);
             AddKey(track, 1f, 90f, 0f, true, Interpolation.Linear);
@@ -192,7 +192,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void TheEnableFlagIsHeldFromItsKey_AndNeverBlends()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0f, 0f, 1f, true, Interpolation.Linear);
             AddKey(track, 1f, 0f, 1f, false, Interpolation.Linear);
@@ -214,7 +214,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void StepInterpolationHoldsTheContinuousChannelsToo()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0f, 0f, 1f, true, Interpolation.Step);
             AddKey(track, 1f, 90f, 0f, true, Interpolation.Linear);
@@ -231,7 +231,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void BeforeTheFirstKey_TheFirstKeyHolds()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0.5f, 30f, 0.25f, false, Interpolation.Linear);
 
@@ -248,7 +248,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AnAuthoredBlendWeightOutsideTheUnitRangeIsSaturatedAtBake()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0f, 0f, 4f, true, Interpolation.Linear);
 
@@ -265,7 +265,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V24_FiresWhenATrackNamesNoBillboardRootOfTheRig()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddKey(AddBillboardTrack(clip, 0xDEADu), 0f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(
@@ -276,7 +276,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V24_FiresForTheReservedZeroRootId()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddKey(AddBillboardTrack(clip, 0u), 0f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(
@@ -287,7 +287,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V24_DoesNotFireForADeclaredRoot()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddKey(AddBillboardTrack(clip, TorsoRootId), 0f, 0f, 1f, true, Interpolation.Linear);
 
             List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
@@ -302,7 +302,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V03_FiresWhenBillboardKeysAreOutOfOrder()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             BillboardTrack track = AddBillboardTrack(clip, TorsoRootId);
             AddKey(track, 0.7f, 0f, 1f, true, Interpolation.Linear);
             AddKey(track, 0.2f, 0f, 1f, true, Interpolation.Linear);
@@ -315,7 +315,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void V04_FiresWhenABillboardKeyLeavesTheUnitTimeRange()
         {
             RigAsset rig = CreateRigWithRoots();
-            ClipAsset clip = assets.CreateClip("Clip", rig, ClipKey, 1f);
+            ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddKey(AddBillboardTrack(clip, TorsoRootId), 1.5f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(

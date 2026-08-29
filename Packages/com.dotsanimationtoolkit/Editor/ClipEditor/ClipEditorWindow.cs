@@ -47,6 +47,21 @@ namespace DotsAnimationToolkit.Editor
     {
         private const float PlaybackHertz = 30f;
 
+        /// <summary>How long the preview waits for a gesture to go quiet before rebuilding.</summary>
+        private const double PreviewSettleSeconds = 0.25;
+
+        /// <summary>
+        /// The longest the preview may go without a rebuild while it is dirty.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="PreviewSettleSeconds"/> alone is a trailing edge, and
+        /// <see cref="MarkPreviewDirty"/> re-stamps it on every mouse move: a continuous drag never
+        /// went quiet, so the viewport did not move until the drag ended. This bound is what makes a
+        /// drag live. The tick itself is capped at <see cref="PlaybackHertz"/>, so the real ceiling
+        /// is one rebuild every other tick.
+        /// </remarks>
+        private const double PreviewMaxWaitSeconds = 0.06;
+
         private const string LayoutAssetPath =
             "Packages/com.dotsanimationtoolkit/Editor/ClipEditor/ClipEditorWindow.uxml";
 
@@ -59,6 +74,28 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>Below this a pane is a sliver with nothing readable in it, so it is never stored.</summary>
         private const float MinimumSplitDimension = 60f;
+
+        /// <summary>
+        /// Where a dragged track-name column width is remembered. Alongside the split positions and
+        /// keyed the same way, for the same reason: it is a habit of the person, not of the project.
+        /// </summary>
+        private const string TrackHeaderWidthPrefsKey =
+            "DotsAnimationToolkit.ClipEditor.TrackHeaderWidth";
+
+        /// <summary>Narrow enough to be a deliberate choice, wide enough to still name a row.</summary>
+        private const float MinimumTrackHeaderWidth = 90f;
+
+        /// <summary>
+        /// The ceiling on the name column, and the width the lanes are never dragged below.
+        /// </summary>
+        /// <remarks>
+        /// The second is the one that matters: the column does not shrink, so without a floor for
+        /// the lanes a narrow window would leave the keys with no room at all — and the keys are
+        /// what the window is for. It is applied on every resize, not only while dragging, so
+        /// shrinking the window narrows the column and widening it hands the width back.
+        /// </remarks>
+        private const float MaximumTrackHeaderWidth = 480f;
+        private const float MinimumLaneWidth = 160f;
 
         /// <summary>
         /// How far the pointer may travel between press and release and still count as a click.
@@ -88,6 +125,17 @@ namespace DotsAnimationToolkit.Editor
         private const string BillboardInheritedGlyph = "· ";
         private const string TrackHeaderUssClassName = "clip-editor__track-header";
         private const string TrackHeaderLabelUssClassName = "clip-editor__track-header-label";
+        private const string TrackHeaderPartUssClassName = "clip-editor__track-header-part";
+        private const string TrackHeaderPartGroupUssClassName = "clip-editor__track-header-part-group";
+        private const string TrackHeaderBindingUssClassName = "clip-editor__track-header-binding";
+        private const string TrackHeaderArrowUssClassName = "clip-editor__track-header-arrow";
+
+        /// <summary>
+        /// The pair that keeps a two-line header and its lane the same height. Never applied one
+        /// without the other — see <see cref="SyncTrackHeaderWrap"/>.
+        /// </summary>
+        private const string TrackHeaderWrappedUssClassName = "clip-editor__track-header--wrapped";
+        private const string LaneWrappedUssClassName = "clip-editor__lane--wrapped";
         private const string TrackFoldoutUssClassName = "clip-editor__track-foldout";
         private const string ChannelHeaderUssClassName = "clip-editor__channel-header";
         private const string HeadingUssClassName = "clip-editor__heading";
@@ -174,10 +222,34 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement newRigPane;
         private NewRigPanel newRigPanel;
 
+        /// <summary>
+        /// The toolbar toggle that owns whether the New Rig pane is showing. Held so a close the
+        /// panel asks for itself (after a successful Create) can untick it — the toggle is the one
+        /// thing that drives the pane, so leaving it lit would make the next press hide a pane that
+        /// is already hidden.
+        /// </summary>
+        private ToolbarToggle newRigToggle;
+
         private VisualElement trackHeaderColumn;
         private VisualElement laneColumn;
         private VisualElement laneStack;
         private GhostLaneStripElement ghostLanes;
+
+        /// <summary>
+        /// The name column, its drag strip, and the width the user last asked that column to be.
+        /// </summary>
+        /// <remarks>
+        /// The requested width is kept unclamped by the window's own size so a window narrowed and
+        /// widened again returns the column to where it was left, rather than to whatever the
+        /// narrowest moment allowed. Zero means nobody has ever dragged it and the stylesheet's
+        /// default is still in force.
+        /// </remarks>
+        private VisualElement trackHeaderStack;
+        private VisualElement trackHeaderResizer;
+        private float requestedTrackHeaderWidth;
+        private float appliedTrackHeaderWidth;
+        private float trackHeaderDragStartWidth;
+        private float trackHeaderDragStartPointerX;
 
         /// <summary>
         /// How many rows the last rebuild put in the lane column, tracks and channel rows together.
@@ -200,8 +272,53 @@ namespace DotsAnimationToolkit.Editor
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
         private double previewDirtiedAt;
+        private double previewLastRefreshedAt;
+
+        /// <summary>
+        /// Pane rebuilds a live pointer gesture has postponed, flushed by the tick once it ends.
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="IsPointerGestureInProgress"/> for why a rebuild during a drag is fatal.
+        /// </remarks>
+        private bool inspectorRebuildPending;
+        private bool timelineRebuildPending;
+        private bool hierarchyRebuildPending;
 
         private ClipSetAsset clipSet;
+
+        /// <summary>
+        /// The rig this window is playing the open set against. Window state, stored on no asset —
+        /// a rig and a clip set are independent, and the two toolbar pickers above are independent
+        /// with them.
+        /// </summary>
+        private RigAsset activeRig;
+
+        /// <summary>
+        /// The rig an open Clip Editor is currently showing, or null when none is open or none is
+        /// picked.
+        /// </summary>
+        /// <remarks>
+        /// The one way a rig reaches code outside this window now that no asset records one. Used by
+        /// <c>MirrorClipUtility</c>'s project-browser action, which needs a rig's mirror-pair table
+        /// and has nothing on the clip to read it from.
+        /// </remarks>
+        internal static RigAsset RigOfOpenWindow
+        {
+            get
+            {
+                ClipEditorWindow[] openWindows =
+                    Resources.FindObjectsOfTypeAll<ClipEditorWindow>();
+                for (int windowIndex = 0; windowIndex < openWindows.Length; windowIndex++)
+                {
+                    if (openWindows[windowIndex].activeRig != null)
+                    {
+                        return openWindows[windowIndex].activeRig;
+                    }
+                }
+                return null;
+            }
+        }
+
         private ClipAsset selectedClip;
         private SerializedObject clipSerializedObject;
 
@@ -475,7 +592,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipSet = clipSet,
                 selectedClip = selectedClip,
-                rig = clipSet != null ? clipSet.rig : null,
+                rig = ActiveRig,
                 playheadTime = playheadTime,
                 rigEditMode = IsRigEditMode
             };
@@ -513,40 +630,140 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Adopts the state carried across a re-dock, if there is any waiting.</summary>
-        private void AdoptCarriedState()
+        /// <returns>Whether there was a carried state to adopt.</returns>
+        private bool AdoptCarriedState()
         {
             ClipEditorDocking.CarriedState state = ClipEditorDocking.ConsumePendingState();
             if (state == null)
             {
+                return false;
+            }
+
+            RestoreView(
+                state.clipSet as ClipSetAsset, state.rig as RigAsset,
+                state.selectedClip as ClipAsset, state.rigEditMode,
+                state.playheadTime, state.selectedNames);
+            return true;
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Surviving a domain reload.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>What the window was looking at, kept across a recompile.</summary>
+        /// <remarks>
+        /// <para>
+        /// A domain reload destroys and re-creates this instance, and every plain field on it —
+        /// <see cref="clipSet"/> and <see cref="selectedClip"/> included — comes back at its default.
+        /// Unity then calls <see cref="CreateGUI"/> again, so the window redraws looking perfectly
+        /// healthy while holding nothing: the hierarchy is empty, and every control gated on a clip
+        /// set quietly does nothing when pressed. The part-tag button is the clearest case — it
+        /// returns immediately on a null clip set, so it reads as a dead button rather than as lost
+        /// state.
+        /// </para>
+        /// <para>
+        /// This is not a rare event to shrug at. The toolkit's own vocabulary editors write a
+        /// generated constants file under <c>Assets/</c> whenever a tag or event name changes, which
+        /// makes an ordinary rename a recompile — so before this, editing a tag from inside the Clip
+        /// Editor reliably left the Clip Editor inert.
+        /// </para>
+        /// </remarks>
+        [SerializeField] private ClipSetAsset sessionClipSet;
+        [SerializeField] private RigAsset sessionRig;
+        [SerializeField] private ClipAsset sessionSelectedClip;
+        [SerializeField] private float sessionPlayheadTime;
+        [SerializeField] private bool sessionRigEditMode;
+        [SerializeField] private List<string> sessionSelectedNames = new List<string>();
+        [SerializeField] private bool hasSessionState;
+
+        private void RememberSessionState()
+        {
+            sessionClipSet = clipSet;
+            sessionRig = activeRig;
+            sessionSelectedClip = selectedClip;
+            sessionPlayheadTime = playheadTime;
+            sessionRigEditMode = IsRigEditMode;
+            sessionSelectedNames.Clear();
+            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            {
+                sessionSelectedNames.Add(selectedHierarchyItems[itemIndex].displayName);
+            }
+            hasSessionState = true;
+        }
+
+        private void RestoreSessionState()
+        {
+            if (!hasSessionState)
+            {
                 return;
+            }
+            hasSessionState = false;
+
+            RestoreView(
+                sessionClipSet, sessionRig, sessionSelectedClip, sessionRigEditMode,
+                sessionPlayheadTime, sessionSelectedNames);
+        }
+
+        /// <summary>
+        /// Puts a remembered view back on a tree that has just been built from scratch — the one
+        /// operation a re-dock and a domain reload both need.
+        /// </summary>
+        /// <remarks>
+        /// The clip is selected through the list rather than by calling <see cref="SelectClip"/>, so
+        /// the row is highlighted as well as loaded; the list's own notification is what runs the
+        /// timeline rebuild and the transport sync, exactly as clicking the row would.
+        /// </remarks>
+        private void RestoreView(
+            ClipSetAsset restoredClipSet,
+            RigAsset restoredRig,
+            ClipAsset restoredClip,
+            bool restoredRigEditMode,
+            float restoredPlayheadTime,
+            List<string> restoredSelectionNames)
+        {
+            // The rig first, and with notify: it is what the hierarchy and the preview are built
+            // from, and OnClipSetChanged below deliberately leaves it alone. Restoring it second
+            // would rebuild both panes twice, the first time against no rig at all.
+            if (skinnedSourceField != null)
+            {
+                skinnedSourceField.value = restoredRig;
             }
 
             if (clipSetField != null)
             {
-                clipSetField.value = state.clipSet;
+                // With notify: OnClipSetChanged is what repopulates the clip list, the hierarchy and
+                // the preview from the set.
+                clipSetField.value = restoredClipSet;
             }
-            if (skinnedSourceField != null)
+
+            int restoredClipIndex = restoredClip != null && restoredClipSet != null
+                && restoredClipSet.clips != null
+                ? restoredClipSet.clips.IndexOf(restoredClip)
+                : -1;
+            if (clipListView != null && restoredClipIndex >= 0)
             {
-                // OnClipSetChanged already synced this field from the carried clip set's own
-                // rig above; this is belt-and-braces for the case a caller ever constructs a
-                // CarriedState whose rig disagrees with its clip set's.
-                skinnedSourceField.value = state.rig;
+                clipListView.SetSelection(restoredClipIndex);
+                clipListView.ScrollToItem(restoredClipIndex);
             }
-            if (state.selectedClip is ClipAsset carriedClip)
+            else if (restoredClip != null)
             {
-                SelectClip(carriedClip);
+                // The clip is no longer in the set — deleted, or moved to another set while this
+                // window was down. Loading it anyway would show a timeline the clip list disagrees
+                // with, so the set is all that comes back.
+                SelectClip(null);
             }
+
             if (rigEditToggle != null)
             {
-                rigEditToggle.SetValueWithoutNotify(state.rigEditMode);
+                rigEditToggle.SetValueWithoutNotify(restoredRigEditMode);
                 ApplyRigEditChrome();
             }
 
             // Reuses the round-trip restore, because it is the same problem: put the playhead and
             // the selection back on a tree that has just been rebuilt from scratch.
-            roundTripPlayheadTime = state.playheadTime;
+            roundTripPlayheadTime = restoredPlayheadTime;
             roundTripSelectedNames.Clear();
-            roundTripSelectedNames.AddRange(state.selectedNames);
+            roundTripSelectedNames.AddRange(restoredSelectionNames);
             hasRoundTripState = true;
             RestoreRoundTripState();
         }
@@ -563,6 +780,10 @@ namespace DotsAnimationToolkit.Editor
             PrefabStage.prefabStageClosing += OnPrefabStageClosing;
 
             previewController = new ClipPreviewController();
+
+            // Raised while this instance is still alive and before Unity serializes it, which is the
+            // only moment the state below can still be read. See RememberSessionState.
+            AssemblyReloadEvents.beforeAssemblyReload += RememberSessionState;
         }
 
         private void OnDisable()
@@ -571,6 +792,13 @@ namespace DotsAnimationToolkit.Editor
             EditorApplication.update -= OnEditorTick;
             PrefabStage.prefabSaved -= OnPrefabStageSaved;
             PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
+            AssemblyReloadEvents.beforeAssemblyReload -= RememberSessionState;
+
+            // Again here, so the capture does not depend on Unity raising beforeAssemblyReload
+            // before OnDisable rather than after. Both run before this instance is serialized, and
+            // the second call simply overwrites the first with the same values. On a plain window
+            // close it is written into an instance that is about to be destroyed, and costs nothing.
+            RememberSessionState();
 
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
@@ -611,8 +839,26 @@ namespace DotsAnimationToolkit.Editor
         // Layout. The tree comes from UXML; everything below resolves slots and wires behaviour.
         // -------------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Builds the tree and wires every control to it. Unity's one call per live visual tree —
+        /// including the one it makes again after every domain reload, which is what puts this window
+        /// back together rather than anything in <see cref="OnEnable"/>.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Must run exactly once per tree, and must not be called by hand.</strong> Most of
+        /// what it binds hangs off elements it has just cloned, so a second pass would simply rebind
+        /// the new ones — but <see cref="RegisterTransportShortcuts"/> and
+        /// <see cref="BindKeyTransform"/> register on <c>rootVisualElement</c> itself, which survives
+        /// the <c>Clear()</c> below along with its callback list. Running this twice therefore leaves
+        /// two copies of the transport's <c>KeyDownEvent</c> handler on one element, and
+        /// <c>StopPropagation</c> does not stop the second (only <c>StopImmediatePropagation</c>
+        /// would): Space toggles play twice and so does nothing, an arrow steps two frames, Ctrl+Z
+        /// undoes twice, and G restarts the gesture it just began.
+        /// </remarks>
         private void CreateGUI()
         {
+            rootVisualElement.Clear();
+
             VisualTreeAsset layoutAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(LayoutAssetPath);
             if (layoutAsset == null)
             {
@@ -633,6 +879,14 @@ namespace DotsAnimationToolkit.Editor
             BindViewport();
             BindInspector();
             BindTimeline();
+
+            // After BindTimeline, not with the rest of the toolbar bindings where it used to sit:
+            // the three GeometryChanged handlers that re-apply the view on a resize hang off
+            // laneStack, laneColumn and the scroll viewport, and BindTimeline is what resolves the
+            // first two. Bound before them, those three registrations were skipped every time —
+            // silently, since each is guarded by a null check — and the timeline kept painting at
+            // the pixel scale it had before the pane was dragged to a new size.
+            BindTimelineView();
             BindSplits();
 
             // Sync the preview with the state the window opened in, so the viewport reports "no clip
@@ -643,16 +897,20 @@ namespace DotsAnimationToolkit.Editor
             }
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(activeRig, clipSet);
             }
 
             RefreshClipActionButtons();
             RebuildHierarchy();
             RebuildTimeline();
 
-            // Last, because it drives the fields and the tree this method has only just finished
-            // building. Does nothing unless the window was reopened to be docked.
-            AdoptCarriedState();
+            // Last, because both drive the fields and the tree this method has only just finished
+            // building. A re-dock carries its state in hand and takes precedence; otherwise this is
+            // either a first open, which restores nothing, or the far side of a domain reload.
+            if (!AdoptCarriedState())
+            {
+                RestoreSessionState();
+            }
         }
 
         private void BindToolbar()
@@ -680,7 +938,6 @@ namespace DotsAnimationToolkit.Editor
             // up in would only make them harder to find.
             snapToggle = rootVisualElement.Q<ToolbarToggle>("snap-toggle");
             BindTransportBar();
-            BindTimelineView();
             BindKeyTransform();
 
             ToolbarToggle billboardPreviewToggle =
@@ -761,11 +1018,10 @@ namespace DotsAnimationToolkit.Editor
                 });
             }
 
-            // The rig this clip set animates (Phase D11). Picking one here writes clipSet.rig —
-            // it is a real edit to the clip set, not window-local state — and the rig's own
-            // sourcePrefab is what the preview instantiates and the hierarchy pane lists. Left
-            // empty for a clip set with no rig assigned yet, which then behaves exactly as
-            // before: an empty hierarchy pane rather than a missing one.
+            // The rig this window plays the open set against. Window state only — no asset records
+            // it, and picking one here changes nothing any actor bakes. The rig's own sourcePrefab
+            // is what the preview instantiates and the hierarchy pane lists, so an empty field is
+            // an empty hierarchy pane rather than a missing one.
             skinnedSourceField = rootVisualElement.Q<ObjectField>("skinned-source-field");
             if (skinnedSourceField != null)
             {
@@ -779,14 +1035,15 @@ namespace DotsAnimationToolkit.Editor
             }
 
             newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
-            ToolbarButton newRigButton = rootVisualElement.Q<ToolbarButton>("new-rig-button");
-            if (newRigButton != null)
+            newRigToggle = rootVisualElement.Q<ToolbarToggle>("new-rig-toggle");
+            if (newRigToggle != null)
             {
-                newRigButton.tooltip =
-                    "Create a RigAsset from a prefab: scan its hierarchy for renderer-bearing "
-                    + "nodes, choose which become rig targets, and optionally point this clip set "
-                    + "at the result.";
-                newRigButton.clicked += () => ShowNewRigTab(true);
+                newRigToggle.tooltip =
+                    "Swap the editor for the New Rig flow, and back: scan a prefab's hierarchy for "
+                    + "renderer-bearing nodes, choose which become rig targets, and optionally point "
+                    + "this clip set at the result. Nothing is torn down either way.";
+                newRigToggle.RegisterValueChangedCallback(
+                    changeEvent => ShowNewRigTab(changeEvent.newValue));
             }
 
             VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
@@ -978,7 +1235,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(activeRig, clipSet);
             }
         }
 
@@ -1154,7 +1411,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The previewed node a rig target records as its source, or null when it has none.</summary>
         private Transform ResolveTargetSourceNode(uint targetId, Transform root)
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (rig == null || rig.targets == null || root == null || targetId == 0u)
             {
                 return null;
@@ -1444,9 +1701,11 @@ namespace DotsAnimationToolkit.Editor
                     vatBakePane.Add(vatBakePanel);
                 }
 
-                // Offered, not imposed: the panel keeps a clip set the user chose there. See
-                // VatBakePanel.OfferClipSet.
+                // Offered, not imposed: the panel keeps whatever the user chose there. Both are
+                // offered separately because they are separate — the panel can bake this set's
+                // clips against a different rig on purpose.
                 vatBakePanel.OfferClipSet(clipSet);
+                vatBakePanel.OfferRig(activeRig);
             }
 
             vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1461,6 +1720,9 @@ namespace DotsAnimationToolkit.Editor
         /// <c>TwoPaneSplitView</c> hidden with <c>display:none</c> is laid out at zero by zero and
         /// comes back collapsed with no handle to drag it open again. Covering leaves the dock's
         /// geometry untouched underneath, so closing the flow costs nothing.
+        /// Nothing in the panel is torn down on hide either, matching the VAT bake tab: the prefab,
+        /// the ticked nodes and their tags are where you left them, so stepping out to check
+        /// something and stepping back is two clicks rather than a re-scan.
         /// </remarks>
         private void ShowNewRigTab(bool isShown)
         {
@@ -1469,39 +1731,49 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (isShown)
+            if (isShown && newRigPanel == null)
             {
-                if (newRigPanel == null)
-                {
-                    newRigPanel = new NewRigPanel();
-                    newRigPanel.Closed += () => ShowNewRigTab(false);
-                    newRigPanel.RigCreated += OnNewRigCreated;
-                    newRigPane.Add(newRigPanel);
-                }
-
-                // Reflects the currently open clip set every time the flow opens, rather than
-                // only filling an empty field the way VatBakePanel.OfferClipSet does — New Rig is
-                // a one-shot flow, not a settings panel a session revisits, so there is no held
-                // choice here worth protecting from being overwritten.
-                newRigPanel.OfferClipSet(clipSet);
+                newRigPanel = new NewRigPanel();
+                newRigPanel.Closed += CloseNewRigTab;
+                newRigPanel.RigCreated += OnNewRigCreated;
+                newRigPane.Add(newRigPanel);
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         /// <summary>
-        /// Adopts a freshly created rig into this window, when the New Rig flow's own toggle
-        /// asked for it.
+        /// Closes the New Rig flow at the panel's own request, once it has created a rig.
+        /// </summary>
+        /// <remarks>
+        /// Written through the toggle rather than straight at the pane: the toggle is the only thing
+        /// that drives the pane, so hiding it behind the toggle's back would leave a lit "New Rig"
+        /// whose next press hides what is already hidden.
+        /// </remarks>
+        private void CloseNewRigTab()
+        {
+            if (newRigToggle != null)
+            {
+                newRigToggle.value = false;
+                return;
+            }
+
+            ShowNewRigTab(false);
+        }
+
+        /// <summary>
+        /// Loads a freshly created rig into this window, when the New Rig flow's own toggle asked
+        /// for it.
         /// </summary>
         /// <remarks>
         /// Routed through <see cref="skinnedSourceField"/>'s value setter rather than writing
-        /// <c>clipSet.rig</c> directly, so there remains exactly one place —
-        /// <see cref="OnSkinnedSourceChanged"/> — that records the undo step and marks the clip set
-        /// dirty, whether the assignment came from a manual pick or from this flow.
+        /// <see cref="activeRig"/> directly, so there remains exactly one place —
+        /// <see cref="OnSkinnedSourceChanged"/> — that rebuilds the hierarchy, the preview and the
+        /// badge, whether the rig came from a manual pick or from this flow.
         /// </remarks>
-        private void OnNewRigCreated(RigAsset createdRig, bool assignToOpenClipSet)
+        private void OnNewRigCreated(RigAsset createdRig, bool loadIntoEditor)
         {
-            if (assignToOpenClipSet && skinnedSourceField != null)
+            if (loadIntoEditor && skinnedSourceField != null)
             {
                 skinnedSourceField.value = createdRig;
             }
@@ -1619,7 +1891,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             previewController.CollectHierarchyNames(hierarchyNameCache);
-            BindingReconciler.Collect(clipSet, hierarchyNameCache, brokenBindings);
+            BindingReconciler.Collect(ActiveRig, clipSet, hierarchyNameCache, brokenBindings);
             RebuildReconcilePanel();
         }
 
@@ -1717,7 +1989,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             Object undoTarget = binding.kind == BrokenBindingKind.BoneTrack
                 ? (Object)binding.clip
                 : rig;
@@ -1757,7 +2029,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             Object undoTarget = binding.kind == BrokenBindingKind.BoneTrack
                 ? (Object)binding.clip
                 : rig;
@@ -1896,7 +2168,7 @@ namespace DotsAnimationToolkit.Editor
         private void AppendBillboardMenuActions(
             ContextualMenuPopulateEvent menuEvent, HierarchyItem item)
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (rig == null || item == null)
             {
                 return;
@@ -2123,6 +2395,7 @@ namespace DotsAnimationToolkit.Editor
             statusLabel = rootVisualElement.Q<Label>("timeline-status");
             trackHeaderColumn = rootVisualElement.Q<VisualElement>("track-header-column");
             laneColumn = rootVisualElement.Q<VisualElement>("lane-column");
+            BindTrackHeaderResizer();
 
             // The lane stack owns keyboard focus: shortcuts registered here cannot swallow
             // keystrokes meant for the inspector's own text fields.
@@ -2282,6 +2555,133 @@ namespace DotsAnimationToolkit.Editor
 
             persistedSplitDimensions[prefsKey] = currentDimension;
             EditorPrefs.SetFloat(prefsKey, currentDimension);
+        }
+
+        /// <summary>
+        /// Makes the track-name column draggable, and remembers where it was left.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A drag strip rather than a <c>TwoPaneSplitView</c>.</strong> The split divides its
+        /// own rect between two panes, and this row lives inside the timeline's scroll view where its
+        /// height is whatever the tracks happen to add up to — there would be nothing definite for
+        /// the split to divide, and the lane stack it wrapped would stop reporting the resizes the
+        /// whole timeline converts against.
+        /// </para>
+        /// <para>
+        /// Nothing is written to the width until the strip is actually dragged, so the stylesheet's
+        /// token remains the real default and changing it still moves every window nobody has
+        /// resized. Persisted on release rather than per move: a drag is one decision, not sixty
+        /// registry writes.
+        /// </para>
+        /// </remarks>
+        private void BindTrackHeaderResizer()
+        {
+            trackHeaderStack = rootVisualElement.Q<VisualElement>("track-header-stack");
+            trackHeaderResizer = rootVisualElement.Q<VisualElement>("track-header-resizer");
+            if (trackHeaderStack == null || trackHeaderResizer == null)
+            {
+                return;
+            }
+
+            trackHeaderResizer.tooltip =
+                "Drag to widen the track name column. A name too wide for the column wraps onto a "
+                + "second line rather than being cut off.";
+
+            if (EditorPrefs.HasKey(TrackHeaderWidthPrefsKey))
+            {
+                SetTrackHeaderWidth(
+                    EditorPrefs.GetFloat(TrackHeaderWidthPrefsKey, MinimumTrackHeaderWidth));
+            }
+
+            trackHeaderResizer.RegisterCallback<PointerDownEvent>(pointerEvent =>
+            {
+                if (pointerEvent.button != 0)
+                {
+                    return;
+                }
+                trackHeaderDragStartWidth = trackHeaderStack.resolvedStyle.width;
+                if (float.IsNaN(trackHeaderDragStartWidth))
+                {
+                    return;
+                }
+
+                // Panel coordinates, not the strip's own: the strip travels with the column it is
+                // resizing, so a local x would be measured against a moving origin and the drag
+                // would fight itself.
+                trackHeaderDragStartPointerX = pointerEvent.position.x;
+                trackHeaderResizer.CapturePointer(pointerEvent.pointerId);
+                pointerEvent.StopPropagation();
+            });
+
+            trackHeaderResizer.RegisterCallback<PointerMoveEvent>(pointerEvent =>
+            {
+                if (!trackHeaderResizer.HasPointerCapture(pointerEvent.pointerId))
+                {
+                    return;
+                }
+                SetTrackHeaderWidth(
+                    trackHeaderDragStartWidth
+                        + (pointerEvent.position.x - trackHeaderDragStartPointerX));
+                pointerEvent.StopPropagation();
+            });
+
+            trackHeaderResizer.RegisterCallback<PointerUpEvent>(pointerEvent =>
+            {
+                if (!trackHeaderResizer.HasPointerCapture(pointerEvent.pointerId))
+                {
+                    return;
+                }
+                trackHeaderResizer.ReleasePointer(pointerEvent.pointerId);
+                EditorPrefs.SetFloat(TrackHeaderWidthPrefsKey, requestedTrackHeaderWidth);
+                pointerEvent.StopPropagation();
+            });
+
+            // A narrowed window has to take width back off the column, or the lanes are squeezed to
+            // nothing by a column that does not shrink. Widening hands it back, which is why the
+            // requested width is kept rather than being overwritten by each clamp.
+            VisualElement timelineRow = rootVisualElement.Q<VisualElement>("timeline-row");
+            if (timelineRow != null)
+            {
+                timelineRow.RegisterCallback<GeometryChangedEvent>(
+                    geometryEvent => ApplyTrackHeaderWidth());
+            }
+        }
+
+        /// <summary>Records the width the user is asking for, then fits it to the room available.</summary>
+        private void SetTrackHeaderWidth(float requestedWidth)
+        {
+            requestedTrackHeaderWidth = Mathf.Clamp(
+                requestedWidth, MinimumTrackHeaderWidth, MaximumTrackHeaderWidth);
+            ApplyTrackHeaderWidth();
+        }
+
+        private void ApplyTrackHeaderWidth()
+        {
+            if (trackHeaderStack == null || requestedTrackHeaderWidth <= 0f)
+            {
+                return;
+            }
+
+            float fittedWidth = requestedTrackHeaderWidth;
+            VisualElement timelineRow = trackHeaderStack.parent;
+            if (timelineRow != null && timelineRow.contentRect.width > 1f)
+            {
+                fittedWidth = Mathf.Min(
+                    fittedWidth,
+                    Mathf.Max(
+                        MinimumTrackHeaderWidth,
+                        timelineRow.contentRect.width - MinimumLaneWidth));
+            }
+
+            // Guarded because this also runs from a geometry callback, and writing an unchanged
+            // width would dirty the layout that called it.
+            if (Mathf.Abs(appliedTrackHeaderWidth - fittedWidth) < 0.5f)
+            {
+                return;
+            }
+            appliedTrackHeaderWidth = fittedWidth;
+            trackHeaderStack.style.width = fittedWidth;
         }
 
         // -------------------------------------------------------------------------------------
@@ -2768,7 +3168,7 @@ namespace DotsAnimationToolkit.Editor
         private void CommitSocketDrag()
         {
             SocketDefinition socket = FindSocket(selectedSocketId);
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (socket == null || rig == null || !hasPendingSocketEdit)
             {
                 hasPendingSocketEdit = false;
@@ -3029,37 +3429,29 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Handles a pick in the toolbar's Rig field: writes it into the open clip set and
-        /// refreshes everything downstream of the prefab that rig's <c>sourcePrefab</c> resolves to.
+        /// Handles a pick in the toolbar's Rig field: records it as this window's rig and refreshes
+        /// everything downstream of the prefab that rig's <c>sourcePrefab</c> resolves to.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// <strong>A real edit to the clip set, not window-local state (Phase D11).</strong>
-        /// <c>clipSet.rig</c> is the field this toolbar control stands in for, so picking a rig here
-        /// must be undoable and must mark the asset dirty exactly like editing it any other way
-        /// would — a silent write here would be the one place in the whole window a change to the
-        /// clip set does not appear in the Undo History.
+        /// <strong>Window state, written to no asset.</strong> Nothing in the data model pairs a rig
+        /// with a clip or a set — that pairing exists in exactly one place, an
+        /// <c>ActorAuthoring</c> — so this field records which rig <em>this window</em> is currently
+        /// playing the open set against, and nothing else. There is no undo step because no asset
+        /// changed, and picking a different rig here cannot alter what any actor bakes.
         /// </para>
         /// <para>
-        /// Guarded by an equality check so that programmatically resyncing this field — from
-        /// <see cref="OnClipSetChanged"/>, from <see cref="AdoptCarriedState"/> — never opens an
-        /// undo step or dirties an asset for a value that was already there. Only an actual pick,
-        /// by a person or by <see cref="OnNewRigCreated"/>, does either.
+        /// It survives a domain reload and a re-dock through <see cref="sessionRig"/> and
+        /// <c>CarriedState.rig</c>, the same way the open clip set does.
         /// </para>
         /// </remarks>
         private void OnSkinnedSourceChanged(ChangeEvent<Object> changeEvent)
         {
-            RigAsset newRig = changeEvent.newValue as RigAsset;
-            if (clipSet != null && clipSet.rig != newRig)
-            {
-                Undo.RecordObject(clipSet, "Assign Rig");
-                clipSet.rig = newRig;
-                EditorUtility.SetDirty(clipSet);
-                AssetDatabase.SaveAssetIfDirty(clipSet);
-            }
+            activeRig = changeEvent.newValue as RigAsset;
 
             if (previewController != null)
             {
+                previewController.SetRig(activeRig);
                 previewController.SetSkinnedSource(LoadedPrefab);
             }
             // Cleared before the tree is rebuilt: the old instance's transforms are gone, so the
@@ -3072,7 +3464,7 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(activeRig, clipSet);
             }
 
             // LoadedPrefab is what Edit Prefab's enabled state depends on, and a pick here is one
@@ -3174,13 +3566,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 return "Assign a clip set.";
             }
-            if (clipSet.rig == null)
+            if (ActiveRig == null)
             {
                 return "Assign a rig to the toolbar's Rig field.";
             }
-            if (clipSet.rig.sourcePrefab == null)
+            if (ActiveRig.sourcePrefab == null)
             {
-                return "Rig \"" + clipSet.rig.name + "\" has no Source Prefab assigned yet. Open "
+                return "Rig \"" + ActiveRig.name + "\" has no Source Prefab assigned yet. Open "
                     + "the rig asset and assign one to preview and author bone tracks.";
             }
             return "This rig's source prefab has no child transforms to show.";
@@ -3217,7 +3609,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The rig part claiming a previewed node, or 0 when none does.</summary>
         private uint ResolveNodeTargetId(Transform transformNode)
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             Transform root = previewController != null ? previewController.HierarchyRoot : null;
             if (rig == null || root == null || transformNode == null)
             {
@@ -3243,7 +3635,8 @@ namespace DotsAnimationToolkit.Editor
         {
             List<TreeViewItemData<HierarchyItem>> targetItems =
                 new List<TreeViewItemData<HierarchyItem>>();
-            if (clipSet == null || clipSet.rig == null || clipSet.rig.targets == null)
+            RigAsset rig = ActiveRig;
+            if (rig == null || rig.targets == null)
             {
                 return targetItems;
             }
@@ -3252,9 +3645,9 @@ namespace DotsAnimationToolkit.Editor
                 ? previewController.HierarchyRoot
                 : null;
 
-            for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
             {
-                RigTargetDefinition target = clipSet.rig.targets[targetIndex];
+                RigTargetDefinition target = rig.targets[targetIndex];
                 if (target == null)
                 {
                     continue;
@@ -3309,13 +3702,14 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The socket with this id on the loaded rig, or null.</summary>
         private SocketDefinition FindSocket(uint socketId)
         {
-            if (clipSet == null || clipSet.rig == null || clipSet.rig.sockets == null)
+            RigAsset rig = ActiveRig;
+            if (rig == null || rig.sockets == null)
             {
                 return null;
             }
-            for (int socketIndex = 0; socketIndex < clipSet.rig.sockets.Count; socketIndex++)
+            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
             {
-                SocketDefinition socket = clipSet.rig.sockets[socketIndex];
+                SocketDefinition socket = rig.sockets[socketIndex];
                 if (socket != null && socket.Id.Value == socketId)
                 {
                     return socket;
@@ -3326,13 +3720,14 @@ namespace DotsAnimationToolkit.Editor
 
         private int FindSocketIndex(uint socketId)
         {
-            if (clipSet == null || clipSet.rig == null || clipSet.rig.sockets == null)
+            RigAsset rig = ActiveRig;
+            if (rig == null || rig.sockets == null)
             {
                 return -1;
             }
-            for (int socketIndex = 0; socketIndex < clipSet.rig.sockets.Count; socketIndex++)
+            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
             {
-                SocketDefinition socket = clipSet.rig.sockets[socketIndex];
+                SocketDefinition socket = rig.sockets[socketIndex];
                 if (socket != null && socket.Id.Value == socketId)
                 {
                     return socketIndex;
@@ -3529,7 +3924,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The rig target with this id, or null.</summary>
         private RigTargetDefinition FindRigTargetById(uint targetId)
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (rig == null || rig.targets == null)
             {
                 return null;
@@ -3567,7 +3962,7 @@ namespace DotsAnimationToolkit.Editor
             label.EnableInClassList(BillboardInheritedUssClassName, false);
             label.tooltip = string.Empty;
 
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (rig == null || rig.billboardRoots == null || rig.billboardRoots.Count == 0)
             {
                 return;
@@ -4149,26 +4544,17 @@ namespace DotsAnimationToolkit.Editor
             clipSet = changeEvent.newValue as ClipSetAsset;
             SelectClip(null);
 
-            // Reflects the new set's own rig before anything downstream reads the toolbar field —
-            // the rig lives on the clip set now (Phase D11), so switching sets must switch what
-            // the Rig field shows exactly the way it already switched what the clip list shows.
-            // Without notify: this is loading the set's existing state, not a pick, so it must not
-            // run OnSkinnedSourceChanged's undo/dirty path for a value nobody just chose.
-            if (skinnedSourceField != null)
-            {
-                skinnedSourceField.SetValueWithoutNotify(clipSet != null ? clipSet.rig : null);
-            }
-            if (previewController != null)
-            {
-                previewController.SetSkinnedSource(LoadedPrefab);
-            }
-
+            // The Rig field is deliberately left alone. A clip set names no rig and a rig names no
+            // clips — they are independent assets, paired only where an ActorAuthoring states both —
+            // so swapping the open set must not swap the rig underneath it, any more than swapping
+            // the rig should empty the clip list. Playing this set against the rig already loaded is
+            // the whole point of the window: the tags line up, or they are reported as not lining up.
             RefreshClipList();
             RefreshClipActionButtons();
 
-            // The hierarchy lists the set's rig targets, so it is stale the moment the set changes.
-            // It used to be rebuilt only when the previewed prefab changed, which was enough while
-            // the pane showed nothing but that prefab's transforms.
+            // The hierarchy's rows come from the rig, which has not changed — but which of them a
+            // clip already animates is drawn from the set, so the rows are re-rendered rather than
+            // left showing the previous set's bold.
             SelectHierarchyItem(NothingSelectedItemId);
             RebuildHierarchy();
 
@@ -4178,13 +4564,8 @@ namespace DotsAnimationToolkit.Editor
             }
             if (validationBadge != null)
             {
-                validationBadge.Refresh(clipSet);
+                validationBadge.Refresh(activeRig, clipSet);
             }
-
-            // The Rig field is what Edit Prefab's enabled state depends on, and this is another
-            // place that field's effective value (LoadedPrefab) can change — switching to a set
-            // whose rig has no source prefab, or whose rig differs from the previous set's.
-            RefreshPrefabActionState();
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)
@@ -4240,6 +4621,10 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             lastTickTime = now;
+
+            // Before the pose is advanced: a deferred rebuild is holding stale panes, and scrubbing
+            // over them would refresh values into fields that are about to be replaced.
+            FlushDeferredPaneRebuilds();
 
             if (isPlaying && selectedClip != null)
             {
@@ -4299,9 +4684,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (previewRegistryDirty && now - previewDirtiedAt > 0.25)
+            // Trailing edge OR a max wait. The trailing edge alone never fired during a drag —
+            // MarkPreviewDirty re-stamps previewDirtiedAt faster than the settle time elapses — so
+            // the viewport stood still until the drag ended. The settle time still collapses a
+            // finished gesture into one last rebuild.
+            if (previewRegistryDirty
+                && (now - previewDirtiedAt > PreviewSettleSeconds
+                    || now - previewLastRefreshedAt > PreviewMaxWaitSeconds))
             {
                 previewRegistryDirty = false;
+                previewLastRefreshedAt = now;
                 previewController.Refresh();
 
                 // Revalidated on the same debounced beat as the preview rebuild, for the same
@@ -4309,7 +4701,7 @@ namespace DotsAnimationToolkit.Editor
                 // repaint would make a large set's window crawl.
                 if (validationBadge != null)
                 {
-                    validationBadge.Refresh(clipSet);
+                    validationBadge.Refresh(activeRig, clipSet);
                 }
             }
 
@@ -4334,6 +4726,19 @@ namespace DotsAnimationToolkit.Editor
                 // set that failed to build is the more useful message, and this must not bury it.
                 viewportStatus = "Select a clip to pose the rig.";
             }
+
+            // The held, unkeyed edit is in no registry — the registry is built from committed keys —
+            // so without this a drag with auto-key off moved the numbers and nothing else. Applied
+            // after the sample for the same reason ResolveDisplayedTransform prefers it in the
+            // fields: the held value is what the author is currently looking at.
+            if (hasPendingTransformEdit
+                && !previewController.RagdollPreviewEnabled
+                && previewController.HasRegistry)
+            {
+                previewController.ApplyHeldTargetPose(
+                    pendingTransformTargetId, pendingPosition, pendingRotationDegrees, pendingScale);
+            }
+
             if (previewStatusLabel != null)
             {
                 previewStatusLabel.text = viewportStatus;
@@ -4373,7 +4778,11 @@ namespace DotsAnimationToolkit.Editor
             if (hasPendingTransformEdit && timeIsActuallyMoving)
             {
                 DiscardPendingTransformEdit();
-                RebuildInspector();
+
+                // Requested: every scrubbing gesture in the window reaches here — a key drag, the
+                // ruler, the transport's own Frame and Time captions — and the pane must not be
+                // torn down while one of them holds the pointer.
+                RequestInspectorRebuild();
             }
 
             // Spec §8.4: "Scrubbing while on turns the toggle off first — a ragdoll has no
@@ -4448,6 +4857,12 @@ namespace DotsAnimationToolkit.Editor
             bool isFocused = selectedHierarchyItems.Count > 0;
             int hiddenTrackCount = 0;
 
+            // A track with no keys writes nothing at any time, so it is not a curve yet — it is a
+            // component waiting for its first key, and the place to make that key is the part's own
+            // Key button in the inspector. Counted, because "I added a Transform and no row
+            // appeared" needs an answer on screen rather than in the source.
+            int keylessTrackCount = 0;
+
             statusLabel.text = selectedClip.name
                 + "   duration " + selectedClip.duration.ToString("0.###") + "s"
                 + "   loop " + selectedClip.defaultLoop.ToString()
@@ -4469,7 +4884,13 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                if (isFocused && !IsTargetSelected(track.targetId))
+                if (track.keys == null || track.keys.Count == 0)
+                {
+                    keylessTrackCount++;
+                    continue;
+                }
+                TrackBindingLabel binding = DescribeTrackBinding(track.targetId, track.tagId);
+                if (isFocused && !IsTargetSelected(binding.resolvedTargetId))
                 {
                     hiddenTrackCount++;
                     continue;
@@ -4480,8 +4901,8 @@ namespace DotsAnimationToolkit.Editor
                     times.Add(track.keys[keyIndex].normalizedTime);
                 }
                 AddTrackRow(
-                    "T " + ResolveTargetDisplayName(track.targetId) + "  " + track.channels.ToString(),
-                    TimelineTrackKind.Transform, trackIndex, times, ref rowIndex);
+                    binding.tagText, binding.partText, "Transform · " + track.channels.ToString(),
+                    TimelineTrackKind.Transform, trackIndex, times, true, ref rowIndex);
             }
 
             List<SpriteTrack> spriteTracks = selectedClip.spriteTracks;
@@ -4492,7 +4913,13 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                if (isFocused && !IsTargetSelected(track.targetId))
+                if (track.keys == null || track.keys.Count == 0)
+                {
+                    keylessTrackCount++;
+                    continue;
+                }
+                TrackBindingLabel binding = DescribeTrackBinding(track.targetId, track.tagId);
+                if (isFocused && !IsTargetSelected(binding.resolvedTargetId))
                 {
                     hiddenTrackCount++;
                     continue;
@@ -4503,8 +4930,8 @@ namespace DotsAnimationToolkit.Editor
                     times.Add(track.keys[keyIndex].normalizedTime);
                 }
                 AddTrackRow(
-                    "S " + ResolveTargetDisplayName(track.targetId) + "  " + track.mode.ToString(),
-                    TimelineTrackKind.Sprite, trackIndex, times, ref rowIndex);
+                    binding.tagText, binding.partText, "Flipbook · " + track.mode.ToString(),
+                    TimelineTrackKind.Sprite, trackIndex, times, true, ref rowIndex);
             }
 
             // Bone rows sit between the part rows and the events, so a character's skeleton and its
@@ -4518,6 +4945,11 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
+                if (track.keys == null || track.keys.Count == 0)
+                {
+                    keylessTrackCount++;
+                    continue;
+                }
                 if (isFocused && !IsBoneSelected(track.boneName))
                 {
                     hiddenTrackCount++;
@@ -4528,9 +4960,12 @@ namespace DotsAnimationToolkit.Editor
                 {
                     times.Add(track.keys[keyIndex].normalizedTime);
                 }
+
+                // A bone binds by name, not by tag — there is no tag half to show, so the row keeps
+                // the single-label shape the other kinds have grown out of.
                 AddTrackRow(
-                    "B " + (string.IsNullOrEmpty(track.boneName) ? "<unnamed bone>" : track.boneName),
-                    TimelineTrackKind.Bone, trackIndex, times, ref rowIndex);
+                    string.IsNullOrEmpty(track.boneName) ? "<unnamed bone>" : track.boneName,
+                    null, "Bone", TimelineTrackKind.Bone, trackIndex, times, false, ref rowIndex);
             }
 
             if (selectedClip.events != null && selectedClip.events.Count > 0)
@@ -4552,7 +4987,7 @@ namespace DotsAnimationToolkit.Editor
                     }
                     AddTrackRow(
                         DescribeEventName(eventLaneKeys[laneIndex], eventRegistry),
-                        TimelineTrackKind.Event, laneIndex, times, ref rowIndex);
+                        null, null, TimelineTrackKind.Event, laneIndex, times, false, ref rowIndex);
                 }
             }
 
@@ -4562,6 +4997,12 @@ namespace DotsAnimationToolkit.Editor
                     + (hiddenTrackCount > 0
                         ? " (" + hiddenTrackCount.ToString() + " track(s) hidden — deselect to show all)"
                         : string.Empty);
+            }
+
+            if (keylessTrackCount > 0)
+            {
+                statusLabel.text += "   ·   " + keylessTrackCount.ToString()
+                    + " track(s) with no keys — select the part and press Key to start one";
             }
 
             timelineRowCount = rowIndex;
@@ -4582,9 +5023,25 @@ namespace DotsAnimationToolkit.Editor
         /// key struct into per-channel curves, which changes the blob, the sampler and every baked
         /// clip; it is not something the dopesheet can decide on its own.
         /// </remarks>
+        /// <param name="partText">
+        /// The rig part the tag in <paramref name="headerText"/> currently lands on, drawn after it
+        /// in grey — null for the kinds that bind by something other than a tag. Secondary because
+        /// it is derived from the rig rather than stored in the clip: the keys belong to the tag,
+        /// and this only says where they are landing today.
+        /// </param>
+        /// <param name="detailText">
+        /// The track's kind and channels or mode, for the tooltip only. The name column is
+        /// draggable and a long name wraps, but three things on one row is a row nobody scans.
+        /// </param>
+        /// <param name="hasBindingControls">
+        /// Amendment A56 D1: on a tag-bound kind both halves are pickers — the tag half moves the
+        /// row's keys to another tag, the part half moves the tag to another rig part — and
+        /// selecting the track's keys moves to the row's empty background. Bone and event rows
+        /// keep the old label-click-selects shape.
+        /// </param>
         private void AddTrackRow(
-            string headerText, TimelineTrackKind trackKind, int trackIndex, List<float> times,
-            ref int rowIndex)
+            string headerText, string partText, string detailText, TimelineTrackKind trackKind,
+            int trackIndex, List<float> times, bool hasBindingControls, ref int rowIndex)
         {
             long trackKey = MakeTrackKey(trackKind, trackIndex);
             string[] channelNames = GetChannelNames(trackKind);
@@ -4604,23 +5061,98 @@ namespace DotsAnimationToolkit.Editor
                 headerRow.Add(foldoutButton);
             }
 
+            string rowTooltip = headerText
+                + (string.IsNullOrEmpty(partText) ? string.Empty : "   →   " + partText)
+                + (string.IsNullOrEmpty(detailText) ? string.Empty : "\n" + detailText)
+                + (hasBindingControls
+                    ? "\nClick the tag to move this row's keys to another tag; click the part to "
+                      + "choose which rig part wears the tag.\nClick the row background to select "
+                      + "every key on this track; shift-click adds them to the selection."
+                    : "\nClick to select every key on this track; "
+                      + "shift-click to add them to the selection.")
+                + (trackKind == TimelineTrackKind.Event ? "\nRight-click for lane actions." : string.Empty);
+
             Label headerLabel = new Label(headerText);
             headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
-            headerLabel.tooltip = headerText
-                + "\nClick to select every key on this track; "
-                + "shift-click to add them to the selection."
-                + (trackKind == TimelineTrackKind.Event ? "\nRight-click for lane actions." : string.Empty);
+            headerLabel.tooltip = rowTooltip;
             headerRow.Add(headerLabel);
+
+            VisualElement partGroup = null;
+            Label partLabel = null;
+            if (!string.IsNullOrEmpty(partText))
+            {
+                // Grouped so a column too narrow for both halves moves the arrow and the part down
+                // together and the second line reads "→ Part". Ignored by picking so a press on the
+                // gap between the two halves still reaches the row background, which is what selects
+                // the track's keys.
+                partGroup = new VisualElement();
+                partGroup.AddToClassList(TrackHeaderPartGroupUssClassName);
+                partGroup.pickingMode = PickingMode.Ignore;
+
+                if (hasBindingControls)
+                {
+                    // The arrow is the row's grammar made visible: keys belong to the tag, the tag
+                    // lands on the part. It is not a click target.
+                    Label arrowLabel = new Label("→");
+                    arrowLabel.AddToClassList(TrackHeaderArrowUssClassName);
+                    partGroup.Add(arrowLabel);
+                }
+                partLabel = new Label(partText);
+                partLabel.AddToClassList(TrackHeaderPartUssClassName);
+                partLabel.tooltip = rowTooltip;
+                partGroup.Add(partLabel);
+                headerRow.Add(partGroup);
+            }
 
             TimelineTrackKind headerTrackKind = trackKind;
             int headerTrackIndex = trackIndex;
-            headerLabel.RegisterCallback<PointerDownEvent>(pointerEvent =>
+            EventCallback<PointerDownEvent> selectTrackKeys = pointerEvent =>
             {
                 bool additive = pointerEvent.shiftKey
                     || pointerEvent.ctrlKey || pointerEvent.commandKey;
                 SelectAllKeysOnTrack(headerTrackKind, headerTrackIndex, additive);
                 pointerEvent.StopPropagation();
-            });
+            };
+
+            if (hasBindingControls)
+            {
+                headerLabel.AddToClassList(TrackHeaderBindingUssClassName);
+                headerLabel.RegisterCallback<PointerDownEvent>(pointerEvent =>
+                {
+                    pointerEvent.StopPropagation();
+                    OpenTimelineTrackTagPicker(headerTrackKind, headerTrackIndex, headerLabel);
+                });
+                if (partLabel != null)
+                {
+                    partLabel.AddToClassList(TrackHeaderBindingUssClassName);
+                    partLabel.RegisterCallback<PointerDownEvent>(pointerEvent =>
+                    {
+                        pointerEvent.StopPropagation();
+                        OpenTimelinePartPicker(headerTrackKind, headerTrackIndex, partLabel);
+                    });
+                }
+
+                // Only a press on the row's own background selects — a press on either picker half
+                // stopped propagating above, and the foldout button owns its own click.
+                headerRow.RegisterCallback<PointerDownEvent>(pointerEvent =>
+                {
+                    VisualElement pressed = pointerEvent.target as VisualElement;
+                    if (pressed == headerRow)
+                    {
+                        selectTrackKeys(pointerEvent);
+                    }
+                });
+            }
+            else
+            {
+                headerLabel.RegisterCallback(selectTrackKeys);
+                if (partLabel != null)
+                {
+                    // The part name is half the same row, so clicking it selects the same keys. A
+                    // dead strip beside a live one reads as the row having stopped working.
+                    partLabel.RegisterCallback(selectTrackKeys);
+                }
+            }
 
             // Amendment A55 Task 3: an event lane's header is its own authoring surface, not just a
             // label — the other track kinds have no equivalent menu because none of them names a
@@ -4633,7 +5165,8 @@ namespace DotsAnimationToolkit.Editor
 
             trackHeaderColumn.Add(headerRow);
 
-            AddLane(trackKind, trackIndex, times, rowIndex, false);
+            TrackLaneElement lane = AddLane(trackKind, trackIndex, times, rowIndex, false);
+            BindTrackHeaderWrap(headerRow, partGroup, lane);
             rowIndex++;
 
             if (!isExpanded)
@@ -4681,7 +5214,8 @@ namespace DotsAnimationToolkit.Editor
             return eventWindowLengths;
         }
 
-        private void AddLane(
+        /// <summary>Adds one lane, and hands it back so the header beside it can be paired with it.</summary>
+        private TrackLaneElement AddLane(
             TimelineTrackKind trackKind, int trackIndex, List<float> times, int rowIndex,
             bool isChannelRow)
         {
@@ -4707,6 +5241,40 @@ namespace DotsAnimationToolkit.Editor
             lane.keyPointerDown += OnKeyPointerDown;
             lane.lanePointerDown += OnLanePointerDown;
             laneColumn.Add(lane);
+            return lane;
+        }
+
+        /// <summary>
+        /// Keeps a header that has wrapped onto a second line exactly as tall as its own lane.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The header column and the lane column agree row for row only because a header is exactly
+        /// a lane tall, so a header left to grow with its content would slide every row beneath it
+        /// away from its own keys. The wrap is therefore never a measured height: a header line is
+        /// one lane, a wrapped row is two, and the one class pair sizes both columns together.
+        /// </para>
+        /// <para>
+        /// Watched on the part group rather than on the row, because the row's height is this
+        /// callback's own output and watching it would be watching itself. The group's y <em>is</em>
+        /// the wrap — zero while it sits beside the tag, a lane's height once it has dropped below
+        /// it — and it changes only when the column's width does.
+        /// </para>
+        /// </remarks>
+        private static void BindTrackHeaderWrap(
+            VisualElement headerRow, VisualElement partGroup, TrackLaneElement lane)
+        {
+            if (headerRow == null || partGroup == null || lane == null)
+            {
+                return;
+            }
+
+            partGroup.RegisterCallback<GeometryChangedEvent>(geometryEvent =>
+            {
+                bool isWrapped = partGroup.layout.y > 1f;
+                headerRow.EnableInClassList(TrackHeaderWrappedUssClassName, isWrapped);
+                lane.EnableInClassList(LaneWrappedUssClassName, isWrapped);
+            });
         }
 
         private static long MakeTrackKey(TimelineTrackKind trackKind, int trackIndex)
@@ -5481,7 +6049,7 @@ namespace DotsAnimationToolkit.Editor
                 pasteDestinations.Add(BuildObjectRef(selectedHierarchyItems[itemIndex]));
             }
 
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             if (rig != null)
             {
                 RecordSocketEdit(rig, "Paste Animation Keys");
@@ -5490,6 +6058,10 @@ namespace DotsAnimationToolkit.Editor
             BeginUndoGesture("Paste Animation Keys");
             ClipKeyPasteResult pasteResult =
                 ClipKeyClipboard.Paste(selectedClip, rig, pasteDestinations, playheadTime);
+
+            // A paste can mint a track on an untagged part; A56 D4 says no keyed track goes
+            // tagless, and inside the gesture so one Ctrl+Z undoes the paste and the tagging.
+            EnsureClipTrackTagsAssigned("Paste Animation Keys");
             EndUndoGesture();
 
             if (pasteResult.touchedRig && rig != null)
@@ -6633,15 +7205,131 @@ namespace DotsAnimationToolkit.Editor
             field.SetValueWithoutNotify(value);
         }
 
-        /// <summary>Whether the user currently has focus inside a field.</summary>
+        /// <summary>Whether the user is currently typing in a field, or dragging it.</summary>
+        /// <remarks>
+        /// The capture test is not redundant with the focus test. A field's drag handle captures the
+        /// mouse without focusing the input behind it, so a version that asked only about focus
+        /// stamped the sampled value over a number being dragged — the drag and the refresh fighting
+        /// each other for the same field.
+        /// </remarks>
         private static bool IsBeingEdited(VisualElement field)
         {
             if (field == null || field.panel == null)
             {
                 return false;
             }
+
+            VisualElement capturing =
+                field.panel.GetCapturingElement(PointerId.mousePointerId) as VisualElement;
+            if (capturing != null && (capturing == field || field.Contains(capturing)))
+            {
+                return true;
+            }
+
             VisualElement focused = field.panel.focusController.focusedElement as VisualElement;
             return focused != null && (focused == field || field.Contains(focused));
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Deferred pane rebuilds.
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Whether a pointer gesture inside this window is live, so nothing may be torn down yet.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>This is what makes dragging a number field work.</strong> A field's drag handle
+        /// captures the mouse on the element itself, so removing that element from the panel — which
+        /// every <c>Clear()</c> in a rebuild does — releases the capture and ends the drag. A
+        /// rebuild fired from a value-changed callback therefore kills the very drag that produced
+        /// the value, after roughly one pixel.
+        /// </para>
+        /// <para>
+        /// Guarded here rather than at each call site so a new field cannot reintroduce the bug by
+        /// forgetting. The capture is asked of the whole window, not of one pane: a rebuild of any
+        /// pane during a drag is at best dozens of wasted rebuilds a second, and the panes rebuild
+        /// each other (a hierarchy rebuild notifies its selection, which rebuilds the other two).
+        /// </para>
+        /// </remarks>
+        private bool IsPointerGestureInProgress()
+        {
+            IPanel panel = rootVisualElement != null ? rootVisualElement.panel : null;
+            return panel != null && panel.GetCapturingElement(PointerId.mousePointerId) != null;
+        }
+
+        /// <summary>Rebuilds the inspector, or defers it to the end of a live drag.</summary>
+        private void RequestInspectorRebuild()
+        {
+            if (IsPointerGestureInProgress())
+            {
+                inspectorRebuildPending = true;
+                return;
+            }
+            RebuildInspector();
+        }
+
+        /// <summary>Rebuilds the timeline, or defers it to the end of a live drag.</summary>
+        private void RequestTimelineRebuild()
+        {
+            if (IsPointerGestureInProgress())
+            {
+                timelineRebuildPending = true;
+                return;
+            }
+            RebuildTimeline();
+        }
+
+        /// <summary>Rebuilds the hierarchy, or defers it to the end of a live drag.</summary>
+        private void RequestHierarchyRebuild()
+        {
+            if (IsPointerGestureInProgress())
+            {
+                hierarchyRebuildPending = true;
+                return;
+            }
+            RebuildHierarchy();
+        }
+
+        /// <summary>Runs what a gesture deferred, once the gesture is over.</summary>
+        /// <remarks>
+        /// Driven from the tick rather than from a pointer-capture-out callback because the tick
+        /// already runs at <see cref="PlaybackHertz"/> and needs no element to stay alive to fire —
+        /// a capture released by the element's own removal has no handler left to notify.
+        /// </remarks>
+        private void FlushDeferredPaneRebuilds()
+        {
+            if (!hierarchyRebuildPending && !timelineRebuildPending && !inspectorRebuildPending)
+            {
+                return;
+            }
+            if (IsPointerGestureInProgress())
+            {
+                return;
+            }
+
+            bool rebuildHierarchy = hierarchyRebuildPending;
+            bool rebuildTimeline = timelineRebuildPending;
+            bool rebuildInspector = inspectorRebuildPending;
+            hierarchyRebuildPending = false;
+            timelineRebuildPending = false;
+            inspectorRebuildPending = false;
+
+            // Hierarchy first: rebuilding it notifies its own selection, which usually rebuilds the
+            // other two itself. Not relied on — that notification is suppressed when it reports a
+            // selection already applied — so the other two still run, and at worst repeat work.
+            if (rebuildHierarchy)
+            {
+                RebuildHierarchy();
+            }
+            if (rebuildTimeline)
+            {
+                RebuildTimeline();
+            }
+            if (rebuildInspector)
+            {
+                RebuildInspector();
+            }
         }
 
         private void RebuildInspector()
@@ -7008,17 +7696,11 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// The clip set's own event registry, falling back to the project-wide one
-        /// (<see cref="VocabularyRegistryProvider.AnimEventKeys"/>) so an event name is always
-        /// pickable without the owner assigning an asset by hand (§5: "I shouldn't have to manually
-        /// assign any assets for this").
+        /// The project-wide event registry (<see cref="VocabularyRegistryProvider.AnimEventKeys"/>).
+        /// The per-set override died with Phase F decision D4; this is now the only source.
         /// </summary>
         private AnimEventKeyRegistry ResolveEventKeyRegistry()
         {
-            if (clipSet != null && clipSet.eventKeys != null)
-            {
-                return clipSet.eventKeys;
-            }
             return VocabularyRegistryProvider.AnimEventKeys;
         }
 
@@ -7051,7 +7733,10 @@ namespace DotsAnimationToolkit.Editor
             RecordClipEdit(undoLabel);
             selectedClip.events[flatIndex] = edit(selectedClip.events[flatIndex]);
             CommitClipEdit();
-            RebuildTimeline();
+
+            // Requested: the payload fields are dragged, and a timeline rebuild per mouse move is
+            // wasted work at best.
+            RequestTimelineRebuild();
         }
 
         /// <summary>The selected flipbook key: stored value, mode, and what it resolves to.</summary>
@@ -7079,7 +7764,7 @@ namespace DotsAnimationToolkit.Editor
                 editedKey.sliceIndex = changeEvent.newValue;
                 track.keys[address.keyIndex] = editedKey;
                 CommitClipEdit();
-                RebuildInspector();
+                RequestInspectorRebuild();
             });
             inspectorPane.Add(valueField);
 
@@ -7101,7 +7786,7 @@ namespace DotsAnimationToolkit.Editor
                 RecordClipEdit("Change Flipbook Base Index");
                 track.baseIndex = changeEvent.newValue;
                 CommitClipEdit();
-                RebuildInspector();
+                RequestInspectorRebuild();
             });
             inspectorPane.Add(baseIndexField);
         }
@@ -7351,10 +8036,7 @@ namespace DotsAnimationToolkit.Editor
             positionField.SetEnabled(!isRigEdit);
             positionField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBoneEdit(
-                    boneName,
-                    new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
-                    rotationDegrees, scale);
+                ApplyBoneEditFromFields(binding);
             });
             binding.positionField = positionField;
             transformBlock.Add(positionField);
@@ -7368,10 +8050,7 @@ namespace DotsAnimationToolkit.Editor
                 + "it, converted at the boundary.";
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBoneEdit(
-                    boneName, position,
-                    new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z),
-                    scale);
+                ApplyBoneEditFromFields(binding);
             });
             binding.rotationField = rotationField;
             transformBlock.Add(rotationField);
@@ -7381,9 +8060,7 @@ namespace DotsAnimationToolkit.Editor
             scaleField.SetEnabled(!isRigEdit);
             scaleField.RegisterValueChangedCallback(changeEvent =>
             {
-                ApplyBoneEdit(
-                    boneName, position, rotationDegrees,
-                    new float3(changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z));
+                ApplyBoneEditFromFields(binding);
             });
             binding.scaleField = scaleField;
             transformBlock.Add(scaleField);
@@ -7511,16 +8188,46 @@ namespace DotsAnimationToolkit.Editor
 
             selectedKeys.Clear();
             hasActiveKey = false;
-            RebuildTimeline();
+
+            // Requested, not run: a drag calls this on every mouse move, and rebuilding the timeline
+            // per move is the stutter even where it does not destroy the field outright.
+            RequestTimelineRebuild();
 
             // Only the first key rebuilds the panels around the field. It is the one that changes
             // what they say — the row becomes animated and the component stops reading "not keyed"
             // — and a rebuild on every keystroke would destroy the field being typed into.
             if (isFirstKey)
             {
-                RebuildHierarchy();
-                RebuildInspector();
+                RequestHierarchyRebuild();
+                RequestInspectorRebuild();
             }
+        }
+
+        /// <summary>
+        /// Writes a bone transform block's three fields as one key, then re-states the block.
+        /// </summary>
+        /// <remarks>
+        /// The part block's reasoning applies unchanged here — see
+        /// <see cref="ApplyTransformEditFromFields"/> for why the values come off the fields rather
+        /// than out of the closure.
+        /// </remarks>
+        private void ApplyBoneEditFromFields(LiveTransformBinding binding)
+        {
+            if (binding == null
+                || string.IsNullOrEmpty(binding.boneName)
+                || binding.positionField == null
+                || binding.rotationField == null
+                || binding.scaleField == null)
+            {
+                return;
+            }
+
+            ApplyBoneEdit(
+                binding.boneName,
+                ToFloat3(binding.positionField.value),
+                ToFloat3(binding.rotationField.value),
+                ToFloat3(binding.scaleField.value));
+            RefreshLiveTransformBinding(binding);
         }
 
         // -------------------------------------------------------------------------------------
@@ -7604,7 +8311,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     RecordSocketEdit(rig, "Change Socket Layer");
                     socket.layerIndex = Mathf.Max(0, changeEvent.newValue);
-                    CommitSocketEdit(true);
+                    CommitSocketPlacementEdit();
                 });
                 parent.Add(layerField);
             }
@@ -7619,7 +8326,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 RecordSocketEdit(rig, "Move Socket");
                 socket.localPosition = changeEvent.newValue;
-                CommitSocketEdit(true);
+                CommitSocketPlacementEdit();
             });
             parent.Add(offsetPositionField);
 
@@ -7629,7 +8336,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 RecordSocketEdit(rig, "Rotate Socket");
                 socket.localEulerAngles = changeEvent.newValue;
-                CommitSocketEdit(true);
+                CommitSocketPlacementEdit();
             });
             parent.Add(offsetRotationField);
 
@@ -7800,7 +8507,33 @@ namespace DotsAnimationToolkit.Editor
         /// </param>
         private void CommitSocketEdit(bool rebuildMarkers)
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            CommitSocketEdit(rebuildMarkers, true);
+        }
+
+        /// <summary>
+        /// Persists a socket edit, saying separately whether the hierarchy rows went stale with it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>A socket's numbers are not in any row label, and passing false for
+        /// <paramref name="rebuildRows"/> is what makes them draggable.</strong> A hierarchy rebuild
+        /// notifies its own selection — deliberately not treated as an echo, since a rebuilt tree
+        /// hands out fresh items (see <c>IsHierarchySelectionEcho</c>) — and that notification
+        /// rebuilds the inspector, taking the offset field being dragged with it.
+        /// </para>
+        /// <para>
+        /// The rows do have to come back for a rename, a rebind or a mode change: the label carries
+        /// the binding and the unresolved mark, so it is stale the moment either changes. That is
+        /// what the parameter distinguishes.
+        /// </para>
+        /// </remarks>
+        /// <param name="rebuildMarkers">
+        /// Whether the change moves or rebinds a marker, as opposed to only relabelling it.
+        /// </param>
+        /// <param name="rebuildRows">Whether the change alters what a hierarchy row says.</param>
+        private void CommitSocketEdit(bool rebuildMarkers, bool rebuildRows)
+        {
+            RigAsset rig = ActiveRig;
             if (rig == null)
             {
                 return;
@@ -7812,10 +8545,28 @@ namespace DotsAnimationToolkit.Editor
                 previewController.RebuildSockets();
             }
 
-            // The row label carries the binding and the unresolved mark, so it is stale the moment
-            // either changes.
-            RebuildHierarchy();
+            if (rebuildRows)
+            {
+                RequestHierarchyRebuild();
+            }
             MarkPreviewDirty();
+        }
+
+        /// <summary>
+        /// Persists a socket edit that only moved it: the cheapest refresh a dragged number needs.
+        /// </summary>
+        /// <remarks>
+        /// Neither the markers nor the hierarchy rows are rebuilt. A marker reads the socket's
+        /// numbers every time it is placed, so it only has to be re-placed; a row label carries the
+        /// binding and the unresolved mark, neither of which an offset touches.
+        /// </remarks>
+        private void CommitSocketPlacementEdit()
+        {
+            CommitSocketEdit(false, false);
+            if (previewController != null)
+            {
+                previewController.RefreshSocketPlacement();
+            }
         }
 
         /// <summary>Adds a socket bound to whatever is selected, or to the first part.</summary>
@@ -7826,7 +8577,7 @@ namespace DotsAnimationToolkit.Editor
         /// </remarks>
         private void ConfirmDeleteSocket(SocketDefinition socket)
         {
-            RigAsset rig = clipSet != null ? clipSet.rig : null;
+            RigAsset rig = ActiveRig;
             int socketIndex = FindSocketIndex(socket.Id.Value);
             if (rig == null || socketIndex < 0)
             {
@@ -7984,9 +8735,11 @@ namespace DotsAnimationToolkit.Editor
                 track.baseIndex = changeEvent.newValue;
                 CommitClipEdit();
 
-                // Rebuilt because every relative key's resolved index just moved, and the resolved
-                // index is what the line above shows.
-                RebuildInspector();
+                // Every relative key's resolved index just moved, and the resolved index is what the
+                // line above shows. Refreshed in place first so a drag reads true as it goes; the
+                // rebuild lands when the drag ends and catches the rows this cannot reach.
+                RefreshLiveInspectorValues();
+                RequestInspectorRebuild();
             });
             trackBlock.Add(baseIndexField);
 
@@ -8036,7 +8789,14 @@ namespace DotsAnimationToolkit.Editor
 
             selectedKeys.Clear();
             hasActiveKey = false;
-            RebuildTimeline();
+
+            // Requested: the Index field is dragged, and a per-move timeline rebuild would take the
+            // field with it the moment the first key mints a lane.
+            RequestTimelineRebuild();
+
+            // The resolved "+5 → 12" reading is the one thing on screen this changes, and it is
+            // refreshable without a rebuild.
+            RefreshLiveInspectorValues();
         }
 
         /// <summary>Shows what a key resolves to, in the "+5 → 12" form.</summary>
@@ -8107,11 +8867,12 @@ namespace DotsAnimationToolkit.Editor
 
         private string ResolveTargetDisplayName(uint targetId)
         {
-            if (clipSet != null && clipSet.rig != null && clipSet.rig.targets != null)
+            RigAsset rig = ActiveRig;
+            if (rig != null && rig.targets != null)
             {
-                for (int targetIndex = 0; targetIndex < clipSet.rig.targets.Count; targetIndex++)
+                for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
                 {
-                    RigTargetDefinition target = clipSet.rig.targets[targetIndex];
+                    RigTargetDefinition target = rig.targets[targetIndex];
                     if (target != null && target.Id.Value == targetId
                         && !string.IsNullOrEmpty(target.displayName))
                     {
@@ -8123,6 +8884,530 @@ namespace DotsAnimationToolkit.Editor
             // Same "(unresolved 0x...)" form as a dangling tag or event key (spec §4.2.3) — the
             // rig has no name for this id, whether because no rig is assigned or the target is gone.
             return "(unresolved 0x" + targetId.ToString("X8") + ")";
+        }
+
+        /// <summary>
+        /// How one track's binding reads on its timeline header, and which rig part it drives.
+        /// </summary>
+        private readonly struct TrackBindingLabel
+        {
+            /// <summary>What the clip stores its keys against — the primary half of the header.</summary>
+            public readonly string tagText;
+
+            /// <summary>
+            /// Where that tag lands on the rig currently open. Display only: it is derived from the
+            /// rig, never from the clip, so it changes when the rig does and the keys do not.
+            /// </summary>
+            public readonly string partText;
+
+            /// <summary>The rig target this track drives right now, or 0 when nothing resolves.</summary>
+            public readonly uint resolvedTargetId;
+
+            public TrackBindingLabel(string tagText, string partText, uint resolvedTargetId)
+            {
+                this.tagText = tagText;
+                this.partText = partText;
+                this.resolvedTargetId = resolvedTargetId;
+            }
+        }
+
+        /// <summary>
+        /// Reads a Transform or Flipbook track's binding tag first and its rig part second, because
+        /// the tag is what the clip stores and the part is only where that tag happens to land on
+        /// the rig currently open.
+        /// </summary>
+        private TrackBindingLabel DescribeTrackBinding(uint targetId, uint tagId)
+        {
+            if (tagId == 0u)
+            {
+                // Legacy target-bound track (amendment A56 D5): creation now always assigns a tag,
+                // so this state only survives in assets authored before it. The keys are real and
+                // still play; the tag half reads as the action that fixes it rather than as a
+                // state — "(untagged)" implied a keyed row could legitimately have no identity.
+                return new TrackBindingLabel(
+                    "(assign tag)", ResolveTargetDisplayName(targetId), targetId);
+            }
+
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
+            string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
+            string tagText = tagName ?? "(unresolved 0x" + tagId.ToString("X8") + ")";
+
+            // Rule T1 (V34) makes a tag unique within a rig, so there is at most one part to name.
+            RigTargetDefinition boundTarget = ClipComponentModel.FindTargetByTag(ActiveRig, tagId);
+            if (boundTarget == null)
+            {
+                // The T2 case: nothing on this rig wears the tag, so the track drives nothing here.
+                // Still a row — the keys exist and will play on a rig that does tag a part this way.
+                return new TrackBindingLabel(tagText, "(no tagged part)", 0u);
+            }
+
+            return new TrackBindingLabel(
+                tagText,
+                string.IsNullOrEmpty(boundTarget.displayName)
+                    ? "(unnamed part)"
+                    : boundTarget.displayName,
+                boundTarget.Id.Value);
+        }
+
+        // -------------------------------------------------------------------------------------
+        // Timeline binding surface (amendment A56): a row's tag half moves the row's keys to
+        // another tag (clip edit), its part half moves the tag to another rig part (rig edit).
+        // -------------------------------------------------------------------------------------
+
+        private TransformTrack GetTransformTrackAt(int trackIndex)
+        {
+            if (selectedClip == null || selectedClip.transformTracks == null
+                || trackIndex < 0 || trackIndex >= selectedClip.transformTracks.Count)
+            {
+                return null;
+            }
+            return selectedClip.transformTracks[trackIndex];
+        }
+
+        private SpriteTrack GetSpriteTrackAt(int trackIndex)
+        {
+            if (selectedClip == null || selectedClip.spriteTracks == null
+                || trackIndex < 0 || trackIndex >= selectedClip.spriteTracks.Count)
+            {
+                return null;
+            }
+            return selectedClip.spriteTracks[trackIndex];
+        }
+
+        private uint GetTimelineTrackTagId(TimelineTrackKind trackKind, int trackIndex)
+        {
+            if (trackKind == TimelineTrackKind.Transform)
+            {
+                TransformTrack track = GetTransformTrackAt(trackIndex);
+                return track != null ? track.tagId : 0u;
+            }
+            if (trackKind == TimelineTrackKind.Sprite)
+            {
+                SpriteTrack track = GetSpriteTrackAt(trackIndex);
+                return track != null ? track.tagId : 0u;
+            }
+            return 0u;
+        }
+
+        private void OpenTimelineTrackTagPicker(
+            TimelineTrackKind trackKind, int trackIndex, VisualElement anchor)
+        {
+            if (selectedClip == null)
+            {
+                return;
+            }
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
+            VocabularyPicker.Open(
+                rootVisualElement,
+                anchor,
+                tagRegistry,
+                tagRegistry,
+                VocabularyPickerConfig.ForTrackTagRebind(tagRegistry),
+                chosenTagId => RetagTrack(trackKind, trackIndex, chosenTagId),
+                RebuildTimeline);
+        }
+
+        /// <summary>
+        /// The part half's picker. A legacy row with no tag opens the tag picker instead — the row
+        /// needs its identity before "where does it land" means anything.
+        /// </summary>
+        private void OpenTimelinePartPicker(
+            TimelineTrackKind trackKind, int trackIndex, VisualElement anchor)
+        {
+            uint trackTagId = GetTimelineTrackTagId(trackKind, trackIndex);
+            if (trackTagId == 0u)
+            {
+                OpenTimelineTrackTagPicker(trackKind, trackIndex, anchor);
+                return;
+            }
+            RigAsset rig = ActiveRig;
+            if (rig == null)
+            {
+                ShowNotification(new GUIContent("Assign a rig to place tags on parts."));
+                return;
+            }
+            RigTargetPicker.Open(
+                rootVisualElement, anchor, rig, ResolveTargetTagRegistry(), trackTagId,
+                pickedTargetId => MoveTagToRigPart(trackTagId, pickedTargetId));
+        }
+
+        /// <summary>
+        /// Moves a track — its keys — to a tag (A56 D2). Picking a tag another keyed same-kind
+        /// track already binds merges this row into it and deletes this one, which is what "move
+        /// these keys to that line" means when the line already exists.
+        /// </summary>
+        private void RetagTrack(TimelineTrackKind trackKind, int trackIndex, uint chosenTagId)
+        {
+            if (selectedClip == null || chosenTagId == 0u)
+            {
+                return;
+            }
+
+            if (trackKind == TimelineTrackKind.Transform)
+            {
+                TransformTrack track = GetTransformTrackAt(trackIndex);
+                if (track == null || track.tagId == chosenTagId)
+                {
+                    return;
+                }
+                int destinationIndex = -1;
+                for (int otherIndex = 0; otherIndex < selectedClip.transformTracks.Count; otherIndex++)
+                {
+                    if (otherIndex != trackIndex
+                        && selectedClip.transformTracks[otherIndex] != null
+                        && selectedClip.transformTracks[otherIndex].tagId == chosenTagId)
+                    {
+                        destinationIndex = otherIndex;
+                        break;
+                    }
+                }
+                RecordClipEdit("Move Keys To Tag");
+                if (destinationIndex >= 0)
+                {
+                    ClipComponentModel.MergeTransformTracks(
+                        track, selectedClip.transformTracks[destinationIndex]);
+                    selectedClip.transformTracks.RemoveAt(trackIndex);
+                    OnTrackListChanged();
+                }
+                else
+                {
+                    track.tagId = chosenTagId;
+                }
+            }
+            else if (trackKind == TimelineTrackKind.Sprite)
+            {
+                SpriteTrack track = GetSpriteTrackAt(trackIndex);
+                if (track == null || track.tagId == chosenTagId)
+                {
+                    return;
+                }
+                int destinationIndex = -1;
+                for (int otherIndex = 0; otherIndex < selectedClip.spriteTracks.Count; otherIndex++)
+                {
+                    if (otherIndex != trackIndex
+                        && selectedClip.spriteTracks[otherIndex] != null
+                        && selectedClip.spriteTracks[otherIndex].tagId == chosenTagId)
+                    {
+                        destinationIndex = otherIndex;
+                        break;
+                    }
+                }
+                if (destinationIndex >= 0 && !ClipComponentModel.SpriteTracksMergeCompatible(
+                        track, selectedClip.spriteTracks[destinationIndex]))
+                {
+                    // Refused, not forced: a sprite key's number is meaningless under the other
+                    // track's mode/base, so a silent merge would retune every key it moved.
+                    ShowNotification(new GUIContent(
+                        "That tag's flipbook row uses different frame settings — merge refused."));
+                    return;
+                }
+                RecordClipEdit("Move Keys To Tag");
+                if (destinationIndex >= 0)
+                {
+                    ClipComponentModel.MergeSpriteTracks(
+                        track, selectedClip.spriteTracks[destinationIndex]);
+                    selectedClip.spriteTracks.RemoveAt(trackIndex);
+                    OnTrackListChanged();
+                }
+                else
+                {
+                    track.tagId = chosenTagId;
+                }
+            }
+            else
+            {
+                return;
+            }
+
+            CommitClipEdit();
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(ActiveRig, clipSet);
+            }
+            RebuildTimeline();
+        }
+
+        /// <summary>
+        /// A merge deleted a track, so every stored track index after it points one row off.
+        /// Selection and expansion are addressed by those indices; cheaper to drop than remap.
+        /// </summary>
+        private void OnTrackListChanged()
+        {
+            selectedKeys.Clear();
+            hasActiveKey = false;
+            expandedTrackKeys.Clear();
+        }
+
+        /// <summary>
+        /// Moves <paramref name="tagId"/> onto another rig part (A56 D3). A rig edit, never a clip
+        /// one: the old wearer is cleared (rule T1 keeps a tag unique per rig) and every clip set
+        /// sharing the rig follows the keys to the new part — which is the point of tags.
+        /// </summary>
+        /// <summary>
+        /// Lands an existing row's tag on another rig part: the row is the subject, so its keys are
+        /// already where they belong and only the tag's wearer moves.
+        /// </summary>
+        private void MoveTagToRigPart(uint tagId, uint newTargetId)
+        {
+            RigAsset rig = ActiveRig;
+            if (tagId == 0u
+                || !WriteRigPartTag(rig, FindRigTargetById(newTargetId), tagId, "Move Target Tag"))
+            {
+                return;
+            }
+            FinishRigTagEdit(rig);
+        }
+
+        /// <summary>
+        /// Renames what a rig part is, from the inspector — and brings its animation along.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The mirror image of <see cref="MoveTagToRigPart"/>, and the reason they are not
+        /// one method.</strong> There the row is the subject and the part is being chosen for it, so
+        /// the keys are already on the right tag. Here the <em>part</em> is the subject — "this part
+        /// is the Torso now" — and its keys are expected to follow onto the new tag rather than
+        /// being left on a tag nothing wears any more (owner call, 2026-08-28).
+        /// </para>
+        /// <para>
+        /// The carry is scoped to the open clip set, because that is the set of clips this window
+        /// has. Another clip set keyed against the old tag on this same rig is not opened and not
+        /// rewritten, and its rows will read "(no tagged part)" until it is retagged in its own
+        /// window — which is why the notification says how much moved rather than leaving the sweep
+        /// silent.
+        /// </para>
+        /// </remarks>
+        private void RetagRigPart(RigTargetDefinition wearer, uint chosenTagId)
+        {
+            RigAsset rig = ActiveRig;
+            if (rig == null || wearer == null || wearer.tagId == chosenTagId)
+            {
+                return;
+            }
+            uint previousTagId = wearer.tagId;
+
+            // One group for the rig write and every clip the carry touches, so a single Ctrl+Z puts
+            // all of it back rather than unpicking the sweep one clip at a time.
+            Undo.IncrementCurrentGroup();
+            int tagEditUndoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Set Target Tag");
+
+            if (!WriteRigPartTag(rig, wearer, chosenTagId, "Set Target Tag"))
+            {
+                return;
+            }
+            CarryClipSetKeysToTag(previousTagId, chosenTagId);
+            Undo.CollapseUndoOperations(tagEditUndoGroup);
+
+            FinishRigTagEdit(rig);
+        }
+
+        /// <summary>
+        /// Writes which tag a rig part wears — the one core behind both surfaces that can change it
+        /// (A56 D3): the timeline row's part half, and the inspector's part-tag button.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Rule T1 is enforced here, so it cannot be enforced on one surface and not the
+        /// other.</strong> The inspector's button used to assign straight to the field, which let two
+        /// parts on one rig wear the same tag — a state every "which part wears this tag" lookup in
+        /// the toolkit answers by picking whichever it reaches first.
+        /// </remarks>
+        /// <returns>Whether anything changed; false leaves undo and the refresh to the caller.</returns>
+        private bool WriteRigPartTag(
+            RigAsset rig, RigTargetDefinition wearer, uint tagId, string operationName)
+        {
+            if (rig == null || wearer == null || wearer.tagId == tagId)
+            {
+                return false;
+            }
+
+            Undo.RecordObject(rig, operationName);
+            if (tagId != 0u)
+            {
+                RigTargetDefinition previousWearer = ClipComponentModel.FindTargetByTag(rig, tagId);
+                if (previousWearer != null)
+                {
+                    previousWearer.tagId = 0u;
+                }
+            }
+            wearer.tagId = tagId;
+            EditorUtility.SetDirty(rig);
+            return true;
+        }
+
+        /// <summary>
+        /// Moves every row in the open clip set keyed against <paramref name="fromTagId"/> onto
+        /// <paramref name="toTagId"/>, and says on screen how much moved.
+        /// </summary>
+        /// <remarks>
+        /// Every clip in the set, not only the open one: a part's animation living in four clips
+        /// would otherwise have one clip follow the retag and three left behind, which is a worse
+        /// state than either answer to "should the keys follow" on its own. Nothing is carried onto
+        /// or off the "(none)" tag — a keyed row has no legal tagless state to move to (A56 D5).
+        /// </remarks>
+        private void CarryClipSetKeysToTag(uint fromTagId, uint toTagId)
+        {
+            if (clipSet == null || clipSet.clips == null || fromTagId == 0u || toTagId == 0u)
+            {
+                return;
+            }
+
+            int movedTrackCount = 0;
+            int mergedTrackCount = 0;
+            int refusedTrackCount = 0;
+            int touchedClipCount = 0;
+            bool touchedSelectedClip = false;
+
+            for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
+            {
+                ClipAsset clip = clipSet.clips[clipIndex];
+                if (clip == null || !ClipComponentModel.ClipHasTrackTagged(clip, fromTagId))
+                {
+                    continue;
+                }
+
+                // Recorded before the move, because the snapshot has to predate the edit — which is
+                // also why the clips with nothing to move are skipped above rather than here.
+                Undo.RecordObject(clip, "Set Target Tag");
+                ClipComponentModel.TagMoveOutcome outcome =
+                    ClipComponentModel.MoveTracksToTag(clip, fromTagId, toTagId);
+                movedTrackCount += outcome.movedTrackCount;
+                mergedTrackCount += outcome.mergedTrackCount;
+                refusedTrackCount += outcome.refusedTrackCount;
+                if (outcome.ChangedTrackCount == 0)
+                {
+                    continue;
+                }
+                EditorUtility.SetDirty(clip);
+                touchedClipCount++;
+                touchedSelectedClip |= clip == selectedClip;
+            }
+
+            if (touchedSelectedClip)
+            {
+                // A merge deleted a track, so every stored track index is suspect — and even without
+                // one the open clip's serialized copy and its preview are now behind the asset.
+                OnTrackListChanged();
+                RefreshSerializedClip();
+                MarkPreviewDirty();
+            }
+
+            if (movedTrackCount + mergedTrackCount + refusedTrackCount == 0)
+            {
+                return;
+            }
+            ShowNotification(new GUIContent(DescribeTagCarry(
+                movedTrackCount, mergedTrackCount, refusedTrackCount, touchedClipCount)));
+        }
+
+        private static string DescribeTagCarry(
+            int movedTrackCount, int mergedTrackCount, int refusedTrackCount, int touchedClipCount)
+        {
+            string message = "Moved " + (movedTrackCount + mergedTrackCount).ToString()
+                + " row(s) in " + touchedClipCount.ToString() + " clip(s) to the new tag.";
+            if (mergedTrackCount > 0)
+            {
+                message += "\n" + mergedTrackCount.ToString()
+                    + " merged into a row that tag already had.";
+            }
+            if (refusedTrackCount > 0)
+            {
+                message += "\n" + refusedTrackCount.ToString()
+                    + " flipbook row(s) stayed put — different frame settings.";
+            }
+            return message;
+        }
+
+        private void FinishRigTagEdit(RigAsset rig)
+        {
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(rig, clipSet);
+            }
+
+            // Rebuilds the inspector as its last act, so the button that was just picked re-reads
+            // its own label from here rather than needing a second refresh call beside this one.
+            RebuildTimeline();
+        }
+
+        /// <summary>
+        /// A56 D4: no keyed track goes tagless. Any transform/flipbook track still carrying the
+        /// tagId == 0 sentinel gets its part tagged — reusing the registry tag named like the part,
+        /// minting one otherwise — and binds it. Run after every path that creates tracks; a no-op
+        /// when everything is already tagged, so it is safe inside any open undo group.
+        /// </summary>
+        private void EnsureClipTrackTagsAssigned(string operationName)
+        {
+            RigAsset rig = ActiveRig;
+            TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
+            if (selectedClip == null || rig == null || tagRegistry == null)
+            {
+                return;
+            }
+
+            bool recordedRig = false;
+            bool mintedAnyEntry = false;
+            bool changedAnything = false;
+
+            List<TransformTrack> transformTracks = selectedClip.transformTracks;
+            for (int trackIndex = 0; transformTracks != null && trackIndex < transformTracks.Count; trackIndex++)
+            {
+                TransformTrack track = transformTracks[trackIndex];
+                if (track == null || track.tagId != 0u || track.targetId == 0u)
+                {
+                    continue;
+                }
+                if (!recordedRig)
+                {
+                    Undo.RecordObject(rig, operationName);
+                    recordedRig = true;
+                }
+                bool createdRegistryEntry;
+                uint assignedTagId = ClipComponentModel.EnsureTargetTagged(
+                    rig, track.targetId, tagRegistry, out createdRegistryEntry);
+                mintedAnyEntry |= createdRegistryEntry;
+                if (assignedTagId != 0u)
+                {
+                    track.tagId = assignedTagId;
+                    changedAnything = true;
+                }
+            }
+
+            List<SpriteTrack> spriteTracks = selectedClip.spriteTracks;
+            for (int trackIndex = 0; spriteTracks != null && trackIndex < spriteTracks.Count; trackIndex++)
+            {
+                SpriteTrack track = spriteTracks[trackIndex];
+                if (track == null || track.tagId != 0u || track.targetId == 0u)
+                {
+                    continue;
+                }
+                if (!recordedRig)
+                {
+                    Undo.RecordObject(rig, operationName);
+                    recordedRig = true;
+                }
+                bool createdRegistryEntry;
+                uint assignedTagId = ClipComponentModel.EnsureTargetTagged(
+                    rig, track.targetId, tagRegistry, out createdRegistryEntry);
+                mintedAnyEntry |= createdRegistryEntry;
+                if (assignedTagId != 0u)
+                {
+                    track.tagId = assignedTagId;
+                    changedAnything = true;
+                }
+            }
+
+            if (changedAnything)
+            {
+                EditorUtility.SetDirty(rig);
+                EditorUtility.SetDirty(selectedClip);
+            }
+            if (mintedAnyEntry)
+            {
+                // CreateVocabularyEntry only mints in memory; an unpersisted row is lost on the
+                // next domain reload (vocabulary rule, amendment A52).
+                VocabularyRegistryProvider.PersistVocabulary(tagRegistry);
+            }
         }
 
         /// <summary>
@@ -8227,6 +9512,41 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
+        /// <summary>
+        /// Writes a part transform block's three fields as one edit, then re-states the block.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>The values are read back off the fields, not closed over at build time.</strong>
+        /// The block no longer rebuilds on every change — that rebuild is what killed the drag — so
+        /// a captured value would stay the one the block was built with: dragging Position and then
+        /// Rotation would write the stale position back and silently undo the first drag.
+        /// </para>
+        /// <para>
+        /// The refresh is in place for the same reason. A numeric edit can only make the state chip
+        /// and the block's highlight stale, and
+        /// <see cref="RefreshLiveTransformBinding"/> already knows how to restate exactly those.
+        /// </para>
+        /// </remarks>
+        private void ApplyTransformEditFromFields(LiveTransformBinding binding)
+        {
+            if (binding == null
+                || binding.positionField == null
+                || binding.rotationField == null
+                || binding.scaleField == null)
+            {
+                return;
+            }
+
+            ApplyTransformEdit(
+                binding.targetId,
+                ToFloat3(binding.positionField.value),
+                ToFloat3(binding.rotationField.value),
+                ToFloat3(binding.scaleField.value),
+                false);
+            RefreshLiveTransformBinding(binding);
+        }
+
         /// <summary>Writes the held edit into a key at the playhead, creating the track if needed.</summary>
         private void CommitPendingTransformEdit()
         {
@@ -8257,6 +9577,8 @@ namespace DotsAnimationToolkit.Editor
                 track = new TransformTrack
                 {
                     targetId = pendingTransformTargetId,
+                    tagId = ClipComponentModel.ResolveNewTrackTagId(
+                        ActiveRig, pendingTransformTargetId),
                     keys = new List<TransformKey>()
                 };
                 selectedClip.transformTracks.Add(track);
@@ -8265,12 +9587,18 @@ namespace DotsAnimationToolkit.Editor
             ClipTransformEditing.SetKeyValues(
                 track, playheadTime, pendingPosition, pendingRotationDegrees, pendingScale);
 
+            // A56 D4: keying an untagged part tags it, so the new row is born with its identity.
+            EnsureClipTrackTagsAssigned("Key Transform");
+
             CommitClipEdit();
             hasPendingTransformEdit = false;
 
             selectedKeys.Clear();
             hasActiveKey = false;
-            RebuildTimeline();
+
+            // Auto-key routes every mouse move of a field drag through here, so this is requested
+            // rather than run for the same reason ApplyBoneEdit's is.
+            RequestTimelineRebuild();
         }
 
         /// <summary>Drops a held edit — used when the playhead or the selection moves off it.</summary>
@@ -8334,10 +9662,7 @@ namespace DotsAnimationToolkit.Editor
             positionField.SetEnabled(!isRigEdit);
             positionField.RegisterValueChangedCallback(changeEvent =>
             {
-                float3 edited = new float3(
-                    changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(targetId, edited, rotationDegrees, scale, false);
-                RebuildInspector();
+                ApplyTransformEditFromFields(binding);
             });
             binding.positionField = positionField;
             transformBlock.Add(positionField);
@@ -8351,10 +9676,7 @@ namespace DotsAnimationToolkit.Editor
                 + "A flat rig leaves x and y at zero.";
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
-                float3 edited = new float3(
-                    changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(targetId, position, edited, scale, false);
-                RebuildInspector();
+                ApplyTransformEditFromFields(binding);
             });
             binding.rotationField = rotationField;
             transformBlock.Add(rotationField);
@@ -8364,10 +9686,7 @@ namespace DotsAnimationToolkit.Editor
             scaleField.SetEnabled(!isRigEdit);
             scaleField.RegisterValueChangedCallback(changeEvent =>
             {
-                float3 edited = new float3(
-                    changeEvent.newValue.x, changeEvent.newValue.y, changeEvent.newValue.z);
-                ApplyTransformEdit(targetId, position, rotationDegrees, edited, false);
-                RebuildInspector();
+                ApplyTransformEditFromFields(binding);
             });
             binding.scaleField = scaleField;
             transformBlock.Add(scaleField);
