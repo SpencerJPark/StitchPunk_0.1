@@ -15,7 +15,7 @@ public partial struct UnitGravitySystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<PhysicsWorldSingleton>();
-        state.RequireForUpdate<MovementGridSettings>();
+        state.RequireForUpdate<NavGridSettings>();
     }
 
     [BurstCompile]
@@ -29,7 +29,7 @@ public partial struct UnitGravitySystem : ISystem
         CollisionFilter filter = new CollisionFilter
         {
             BelongsTo    = ~0u,
-            CollidesWith = SystemAPI.GetSingleton<MovementGridSettings>().groundLayerMask,
+            CollidesWith = SystemAPI.GetSingleton<NavGridSettings>().groundLayerMask,
             GroupIndex   = 0,
         };
 

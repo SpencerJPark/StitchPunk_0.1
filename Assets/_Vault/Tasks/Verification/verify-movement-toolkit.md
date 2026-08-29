@@ -22,7 +22,7 @@ still stop and restart movement correctly. Spec + build deviations:
       after Phase 1 and again after Phase 2.
 - [x] Play mode entered/exited with zero console errors/warnings (Phase 1 gate, Game.unity;
       Phase 2 gate, TestArea.unity → DOTSTestScene subscene).
-- [x] `execute_code` confirmed `MovementGridSettings`/`GridSystem.GridConfig` singleton exist at
+- [x] `execute_code` confirmed `NavGridSettings`/`NavGridConfig` singleton exist at
       runtime and a real unit's `Movement.isMoving` reaches `true` under live pathfinding.
 - [ ] Re-open / rebake `DOTSTestScene.unity` from a clean editor session (moved components have
       new stable type hashes — confirm no stale-bake artifacts survive a fresh domain reload).
@@ -52,16 +52,35 @@ still stop and restart movement correctly. Spec + build deviations:
 - [ ] Order-destination markers still show/hide correctly for player-issued group moves
       (`OrderMarkerSystem` now reads the split-out `HordeOrderMarker` instead of `Horde.markerEntity`).
 
+### Nav grid debug view (added 2026-08-29, never seen running)
+- [ ] Set **Debug Display Mode = FullGrid** on the `MovementGridConfig` GameObject's
+      `NavGridAuthoring`, enter Play mode: tiles cover the grid footprint, walls read red,
+      heavy-terrain cells read amber, open floor reads faint green.
+- [ ] The tiles are visible in **both** the Game view and the Scene view, and sit above the
+      ground rather than z-fighting with it (raise `debugHeightOffset` if they shimmer).
+- [ ] **ObstaclesOnly** shows only walls/heavy cells — the open floor disappears.
+- [ ] **Live update:** spawn or destroy a physics obstacle mid-play — the affected cells flash
+      cyan and settle into their new colour. If nothing flashes, check whether the obstacle
+      actually changed physics `NumBodies` (see Notes below) before blaming the view.
+- [ ] **Off** costs nothing: set it back to Off in play, tiles vanish and stay gone.
+- [ ] Outside Play mode, selecting the `MovementGridConfig` GameObject draws the footprint +
+      lattice gizmo, and it lines up with the actual level geometry (the grid is anchored at
+      world origin, not at the GameObject).
+
 ## Notes
 
 - Death/revive and pool-reclaim were verified by code inspection (matching the file's existing
   `WithPresent` pattern for `PathRequest` etc.) and a clean compile/test pass, but **not**
   exercised live in Play mode during the build — flag first if anything in the death/revive
   checklist above misbehaves.
-- The package's Known Issues (D* Lite replan cost, `GridSystem`'s `NumBodies` change-proxy sync,
+- The package's Known Issues (D* Lite replan cost, `NavGridSystem`'s `NumBodies` change-proxy sync,
   flow-field ring-buffer reuse, half-plumbed layer support, per-entity LOS raycasts, several
   dead static helpers) are pre-existing behavior carried over unchanged — see the package
   README, not this checklist, and are explicitly out of scope for this pass.
-- `GridConfigAuthoring` lives on a `MovementGridConfig` GameObject in `DOTSTestScene.unity`. A
-  second consumer scene/subscene needs its own `GridConfigAuthoring` instance — there is
+- The debug view can only be as fresh as the cost map, and `NavGridSystem` rebuilds that only
+  when physics `NumBodies` changes. An obstacle that *moves* without a body being added or
+  removed will not refresh either the cost map or the view — that's the pre-existing change-proxy
+  limitation above, not a debug-view bug.
+- `NavGridAuthoring` lives on a `MovementGridConfig` GameObject in `DOTSTestScene.unity`. A
+  second consumer scene/subscene needs its own `NavGridAuthoring` instance — there is
   (deliberately) no fallback default if one is missing; the toolkit just idles.

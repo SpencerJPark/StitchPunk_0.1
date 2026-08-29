@@ -16,16 +16,16 @@ README** (`Packages/com.dotsmovementtoolkit/README.md`) — a transcription here
 
 ## What moved vs. what stayed
 
-Moved into the package: `GridSystem`, `FlowFieldSystem`, `DStarLiteSystem`,
+Moved into the package: `NavGridSystem` (named `GridSystem` before 2026-08-29), `FlowFieldSystem`, `DStarLiteSystem`,
 `PathfindingCoordinatorSystem`, `PathRequestSystem`, `PathStuckCheckSystem`,
 `FormationOffsetSystem`, `HordeSystem`, `DStarLiteFollowerSystem`, `FlowFieldFollowerSystem`,
 `UnitMoverSystem`, `UnitGravitySystem`, `StairTransitionSystem`,
 `SetupUnitMoverDefaultPositionSystem`, `PathfindingUtils`, `HordeUtils`, the `Movement`/
 `Gravity`/`Horde`/`HordeMembership`/`HordeMemberBuffer`/`PathfindingAgent`/`PathRequest`/
 `StuckDetector`/`DStarLiteFollower`/`FlowFieldFollower`/`HordeRegistry`/`FormationType`/
-`MovementGridSettings`/`MovementStuck` components, and `MovementAuthoring`/
+`NavGridSettings`/`MovementStuck` components, and `MovementAuthoring`/
 `PathfindingAuthoring`/`HordeAuthoring`/`GravityAuthoring`/`HordeRegistryAuthoring`/
-`GridConfigAuthoring`. `MovementSystemGroup` itself (root + `MovementCoordinatorSystemGroup`/
+`NavGridAuthoring`. `MovementSystemGroup` itself (root + `MovementCoordinatorSystemGroup`/
 `MovementRoutingSystemGroup`/`MovementFollowerSystemGroup`/`MovementSteeringSystemGroup`
 (empty, declared slot)/`MovementExecutionSystemGroup`) is declared inside the package, not in
 the game's `SystemGroups.cs`.
@@ -78,11 +78,56 @@ dead units would have been a real regression (it's what assigns the Death animat
 pathfinding jobs (which already excluded dead units via their own follower/request enable
 flags, so gaining the Movement gate too changed nothing observable for them).
 
-## Grid config
+## Nav grid config
 
-`GridConfigAuthoring` is baked in `Assets/Scenes/SubScenes/DOTSTestScene.unity` (the real DOTS
+`NavGridAuthoring` is baked in `Assets/Scenes/SubScenes/DOTSTestScene.unity` (the real DOTS
 sandbox — `Game.unity` itself holds no baked content and is not wired to any subscene; it's
 loaded via `Assets/Scenes/TestArea.unity`'s `SubScene` component instead). Today's values match
 the pre-extraction hardcoded constants: 100×100×1 grid, cellSize 2, layerHeight 3,
 wallLayerMask = Walls (8), heavyLayerMask = PathfindingHeavy (9), groundLayerMask = Ground (3)
 + Structures (7), wallCost 255 / heavyCost 50 / defaultCost 1.
+
+**The grid is anchored at world origin, not at the authoring GameObject's transform** —
+`NavGridSystem.GetWorldCenterPosition` is `x * cellSize`, with no origin offset anywhere in the
+package. Moving the `MovementGridConfig` GameObject does nothing; the only way to shift coverage
+is to move the level. The authoring gizmo is deliberately drawn in world space so this is visible
+in the Scene view rather than discovered from a unit walking through a wall.
+
+## Nav grid rename (2026-08-29)
+
+`Grid*` → `NavGrid*` across the package, and the three runtime components were promoted out of
+`GridSystem`'s nested scope into `Runtime/Components/NavGridComponents.cs`:
+
+| Was | Now |
+|---|---|
+| `GridSystem` | `NavGridSystem` |
+| `GridSystem.GridConfig` | `NavGridConfig` |
+| `GridSystem.GridCostMap` | `NavGridCostMap` |
+| `GridSystem.StairConnection` | `NavGridStairConnection` |
+| `MovementGridSettings` | `NavGridSettings` |
+| `GridConfigAuthoring` | `NavGridAuthoring` |
+| `UpdateCostMapJob` | `UpdateNavGridCostMapJob` |
+
+The `.cs.meta` GUIDs were carried across with `git mv`, so the `MovementGridConfig` GameObject in
+`DOTSTestScene.unity` kept its component and its serialized values — no re-authoring needed. The
+type renames do invalidate the baked entity-scene cache, so the subscene re-bakes on first open.
+
+## Nav grid debug view
+
+`NavGridDebugRenderSystem` (package, `#if UNITY_EDITOR || DEVELOPMENT_BUILD`) draws the live cost
+map as one vertex-coloured mesh via `Graphics.RenderMesh` — Game **and** Scene view, Play mode
+only, since the cost map is built from the physics world at runtime. Turn it on with **Debug View
+> Debug Display Mode** on `NavGridAuthoring`.
+
+Traps worth knowing:
+
+- Settings are **baked**, so a change only reaches the world on a re-bake. With the subscene open
+  for editing, live baking pushes it each frame; with it closed, reopen or re-enter Play mode.
+- The mesh only rebuilds when `NavGridCostMap.costMapVersion` bumps (or a geometry-shaping setting
+  changes). `NavGridSystem` bumps that only when it actually reruns `UpdateNavGridCostMapJob`,
+  which it gates on physics `NumBodies` changing — so an obstacle that *moves* without adding or
+  removing a body will not refresh the cost map or the view. That's a pre-existing limitation of
+  the change proxy (package README, Known Issues), not a bug in the debug view.
+- `FullGrid` over `maxDrawnCells` silently downgrades to `ObstaclesOnly` with one console warning.
+- In a player build `Hidden/DotsMovementToolkit/NavGridDebug` must be in Project Settings >
+  Graphics > Always Included Shaders, or the system logs one warning and draws nothing.

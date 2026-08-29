@@ -3,7 +3,7 @@
   "displayName": "DOTS Movement Toolkit",
   "version": "0.1.0",
   "unity": "6000.5",
-  "description": "DOTS-native grid movement and pathfinding for Unity Entities: shared grid/cost-map infrastructure, D* Lite for individual agents, flow fields for hordes/groups, formation offsets, stair/layer transitions, and a PathRequest-driven API. Baked from one GridConfigAuthoring component with no other project coupling. Internal-quality extraction — decoupled and compiling, not yet a polished sellable toolkit.",
+  "description": "DOTS-native grid movement and pathfinding for Unity Entities: shared grid/cost-map infrastructure, D* Lite for individual agents, flow fields for hordes/groups, formation offsets, stair/layer transitions, and a PathRequest-driven API. Baked from one NavGridAuthoring component with no other project coupling, and shipping an in-editor debug view of the live cost map. Internal-quality extraction — decoupled and compiling, not yet a polished sellable toolkit.",
   "keywords": [
     "dots",
     "entities",

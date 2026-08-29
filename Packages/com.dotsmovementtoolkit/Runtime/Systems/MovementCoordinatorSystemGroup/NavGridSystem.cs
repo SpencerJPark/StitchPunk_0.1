@@ -8,46 +8,13 @@ using Unity.Physics;
 namespace DotsMovementToolkit
 {
 /// <summary>
-/// Shared grid infrastructure used by both FlowFieldSystem and DStarLiteSystem.
-/// Manages the cost map, layers, and provides utility methods for grid operations.
+/// Owns the navigation grid: builds NavGridConfig/NavGridCostMap from the baked NavGridSettings,
+/// then rebuilds the cost map from physics whenever the collision world changes. Also the home of
+/// the package's grid math (world↔cell, index, bounds) that FlowFieldSystem and DStarLiteSystem share.
 /// </summary>
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup), OrderFirst = true)]
-public partial struct GridSystem : ISystem
+public partial struct NavGridSystem : ISystem
 {
-    /// <summary>
-    /// Core grid configuration - shared by all pathfinding systems.
-    /// </summary>
-    public struct GridConfig : IComponentData
-    {
-        public int width;
-        public int height;
-        public int layerCount;
-        public float cellSize;
-        public float layerHeight; // Vertical distance between layers
-    }
-    
-    /// <summary>
-    /// Shared cost map data for all layers.
-    /// Layout: [layerIndex * (width * height) + cellIndex]
-    /// </summary>
-    public struct GridCostMap : IComponentData
-    {
-        public NativeArray<byte> costs;
-    }
-    
-    /// <summary>
-    /// Stair/portal connections between layers.
-    /// </summary>
-    public struct StairConnection : IBufferElementData
-    {
-        public int2 gridPosition;
-        public int fromLayer;
-        public int toLayer;
-        public float3 entryWorldPosition;
-        public float3 exitWorldPosition;
-        public bool bidirectional;
-    }
-    
     private bool isInitialized;
     private bool costMapDirty;
     private int lastPhysicsVersion;
@@ -60,16 +27,16 @@ public partial struct GridSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<MovementGridSettings>();
+        state.RequireForUpdate<NavGridSettings>();
         isInitialized = false;
     }
 
     [BurstCompile]
     public void OnDestroy(ref SystemState state)
     {
-        if (SystemAPI.HasComponent<GridCostMap>(state.SystemHandle))
+        if (SystemAPI.HasComponent<NavGridCostMap>(state.SystemHandle))
         {
-            var costMap = SystemAPI.GetComponent<GridCostMap>(state.SystemHandle);
+            var costMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
             if (costMap.costs.IsCreated) costMap.costs.Dispose();
         }
     }
@@ -79,12 +46,12 @@ public partial struct GridSystem : ISystem
     {
         if (!isInitialized)
         {
-            InitializeFromSettings(ref state, SystemAPI.GetSingleton<MovementGridSettings>());
+            InitializeFromSettings(ref state, SystemAPI.GetSingleton<NavGridSettings>());
             isInitialized = true;
         }
 
-        var gridConfig = SystemAPI.GetComponent<GridConfig>(state.SystemHandle);
-        var gridCostMap = SystemAPI.GetComponent<GridCostMap>(state.SystemHandle);
+        var gridConfig = SystemAPI.GetComponent<NavGridConfig>(state.SystemHandle);
+        var gridCostMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
 
         // Check if physics world changed
         if (SystemAPI.HasSingleton<PhysicsWorldSingleton>())
@@ -105,7 +72,7 @@ public partial struct GridSystem : ISystem
 
                 int cellsPerLayer = gridConfig.width * gridConfig.height;
 
-                var updateCostJob = new UpdateCostMapJob
+                var updateCostJob = new UpdateNavGridCostMapJob
                 {
                     width = gridConfig.width,
                     cellSize = gridConfig.cellSize,
@@ -137,13 +104,16 @@ public partial struct GridSystem : ISystem
 
                 // Complete the job immediately so downstream systems can safely read costs
                 state.CompleteDependency();
+
+                gridCostMap.costMapVersion++;
+                SystemAPI.SetComponent(state.SystemHandle, gridCostMap);
             }
         }
     }
 
-    // One-time setup, run on the first OnUpdate — MovementGridSettings is baked into a
+    // One-time setup, run on the first OnUpdate — NavGridSettings is baked into a
     // subscene, so it does not exist yet when OnCreate runs at world creation.
-    private void InitializeFromSettings(ref SystemState state, MovementGridSettings settings)
+    private void InitializeFromSettings(ref SystemState state, NavGridSettings settings)
     {
         wallCost = settings.wallCost;
         heavyCost = settings.heavyCost;
@@ -154,8 +124,8 @@ public partial struct GridSystem : ISystem
         int cellsPerLayer = settings.width * settings.height;
         int totalCells = cellsPerLayer * settings.layerCount;
 
-        state.EntityManager.AddComponent<GridConfig>(state.SystemHandle);
-        state.EntityManager.SetComponentData(state.SystemHandle, new GridConfig
+        state.EntityManager.AddComponent<NavGridConfig>(state.SystemHandle);
+        state.EntityManager.SetComponentData(state.SystemHandle, new NavGridConfig
         {
             width = settings.width,
             height = settings.height,
@@ -164,7 +134,7 @@ public partial struct GridSystem : ISystem
             layerHeight = settings.layerHeight
         });
 
-        var costMap = new GridCostMap
+        var costMap = new NavGridCostMap
         {
             costs = new NativeArray<byte>(totalCells, Allocator.Persistent)
         };
@@ -175,12 +145,12 @@ public partial struct GridSystem : ISystem
             costMap.costs[i] = settings.defaultCost;
         }
 
-        state.EntityManager.AddComponent<GridCostMap>(state.SystemHandle);
+        state.EntityManager.AddComponent<NavGridCostMap>(state.SystemHandle);
         state.EntityManager.SetComponentData(state.SystemHandle, costMap);
 
         // Create stair connections buffer on a separate entity
         var stairEntity = state.EntityManager.CreateEntity();
-        state.EntityManager.AddBuffer<StairConnection>(stairEntity);
+        state.EntityManager.AddBuffer<NavGridStairConnection>(stairEntity);
 
         costMapDirty = true;
         lastPhysicsVersion = 0;
@@ -298,7 +268,7 @@ public partial struct GridSystem : ISystem
     }
 
     /// <summary>Check if world position is walkable.</summary>
-    public static bool IsWalkable(float3 worldPosition, GridConfig config, NativeArray<byte> costs, byte wallCost)
+    public static bool IsWalkable(float3 worldPosition, NavGridConfig config, NativeArray<byte> costs, byte wallCost)
     {
         int2 gridPos = GetGridPosition(worldPosition, config.cellSize);
         int layer = GetLayer(worldPosition, config.layerHeight);
@@ -334,7 +304,7 @@ public partial struct GridSystem : ISystem
 /// Updates cost map based on physics world (walls, obstacles).
 /// </summary>
 [BurstCompile]
-public struct UpdateCostMapJob : IJobParallelFor
+public struct UpdateNavGridCostMapJob : IJobParallelFor
 {
     [ReadOnly] public int width;
     [ReadOnly] public float cellSize;

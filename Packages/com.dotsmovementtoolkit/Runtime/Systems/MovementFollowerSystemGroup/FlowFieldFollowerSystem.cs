@@ -18,11 +18,11 @@ public partial struct FlowFieldFollowerSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GridSystem.GridConfig>();
-        state.RequireForUpdate<GridSystem.GridCostMap>();
+        state.RequireForUpdate<NavGridConfig>();
+        state.RequireForUpdate<NavGridCostMap>();
         state.RequireForUpdate<FlowFieldSystem.FlowFieldData>();
         state.RequireForUpdate<PhysicsWorldSingleton>();
-        state.RequireForUpdate<MovementGridSettings>();
+        state.RequireForUpdate<NavGridSettings>();
     }
 
     [BurstCompile]
@@ -31,11 +31,11 @@ public partial struct FlowFieldFollowerSystem : ISystem
         // Complete any pending jobs on the cost map before reading
         state.CompleteDependency();
 
-        var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
-        var gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
+        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        var gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
         var flowFieldData = SystemAPI.GetSingleton<FlowFieldSystem.FlowFieldData>();
         var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
-        var gridSettings = SystemAPI.GetSingleton<MovementGridSettings>();
+        var gridSettings = SystemAPI.GetSingleton<NavGridSettings>();
 
         int cellsPerLayer = gridConfig.width * gridConfig.height;
 
@@ -145,21 +145,21 @@ public partial struct FlowFieldFollowerSystem : ISystem
                 return;
             }
 
-            int2 gridPosition = GridSystem.GetGridPosition(localTransform.Position, cellSize);
+            int2 gridPosition = NavGridSystem.GetGridPosition(localTransform.Position, cellSize);
             
             // Bounds check
-            if (!GridSystem.IsValidGridPosition(gridPosition, width, height))
+            if (!NavGridSystem.IsValidGridPosition(gridPosition, width, height))
             {
                 followerEnabled.ValueRW = false;
                 return;
             }
             
-            int localIndex = GridSystem.CalculateIndex(gridPosition, width);
+            int localIndex = NavGridSystem.CalculateIndex(gridPosition, width);
             int globalIndex = follower.flowFieldIndex * cellsPerLayer + localIndex;
             
             // Get flow vector
             float2 flowVector = vectors[globalIndex];
-            float3 moveVector = GridSystem.GetWorldMovementVector(flowVector);
+            float3 moveVector = NavGridSystem.GetWorldMovementVector(flowVector);
 
             // Handle wall cells - use last valid direction
             if (costs[localIndex] == wallCost)
@@ -173,7 +173,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
 
             // Set target position ahead in flow direction
             movement.targetPosition =
-                GridSystem.GetWorldCenterPosition(gridPosition.x, gridPosition.y, cellSize) +
+                NavGridSystem.GetWorldCenterPosition(gridPosition.x, gridPosition.y, cellSize) +
                 moveVector * cellSizeDouble;
 
             // Check if reached final destination

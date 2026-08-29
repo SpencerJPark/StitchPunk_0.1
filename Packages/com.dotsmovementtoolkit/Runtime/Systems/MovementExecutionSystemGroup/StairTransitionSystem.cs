@@ -19,25 +19,25 @@ public partial struct StairTransitionSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GridSystem.GridConfig>();
-        stairConnectionQuery = state.GetEntityQuery(ComponentType.ReadOnly<GridSystem.StairConnection>());
+        state.RequireForUpdate<NavGridConfig>();
+        stairConnectionQuery = state.GetEntityQuery(ComponentType.ReadOnly<NavGridStairConnection>());
     }
     
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
+        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
         
         // Get stair connections
         if (stairConnectionQuery.IsEmpty) return;
         
         var stairEntity = stairConnectionQuery.GetSingletonEntity();
-        var stairConnections = state.EntityManager.GetBuffer<GridSystem.StairConnection>(stairEntity);
+        var stairConnections = state.EntityManager.GetBuffer<NavGridStairConnection>(stairEntity);
         
         if (stairConnections.Length == 0) return;
         
         // Copy to native array for job
-        var stairs = new NativeArray<GridSystem.StairConnection>(stairConnections.Length, Allocator.TempJob);
+        var stairs = new NativeArray<NavGridStairConnection>(stairConnections.Length, Allocator.TempJob);
         for (int i = 0; i < stairConnections.Length; i++)
         {
             stairs[i] = stairConnections[i];
@@ -77,7 +77,7 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
 {
     [ReadOnly] public float cellSize;
     [ReadOnly] public float layerHeight;
-    [ReadOnly] public NativeArray<GridSystem.StairConnection> stairs;
+    [ReadOnly] public NativeArray<NavGridStairConnection> stairs;
     [ReadOnly] public float transitionDistance;
     
     public void Execute(
@@ -86,7 +86,7 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
         ref Movement movement)
     {
         float3 position = localTransform.Position;
-        int2 gridPos = GridSystem.GetGridPosition(position, cellSize);
+        int2 gridPos = NavGridSystem.GetGridPosition(position, cellSize);
         int currentLayer = follower.currentLayer;
         
         // Check if on a stair cell
@@ -135,7 +135,7 @@ public partial struct StairTransitionDStarJob : IJobEntity
 {
     [ReadOnly] public float cellSize;
     [ReadOnly] public float layerHeight;
-    [ReadOnly] public NativeArray<GridSystem.StairConnection> stairs;
+    [ReadOnly] public NativeArray<NavGridStairConnection> stairs;
     [ReadOnly] public float transitionDistance;
     
     public void Execute(
@@ -144,7 +144,7 @@ public partial struct StairTransitionDStarJob : IJobEntity
         ref Movement movement)
     {
         float3 position = localTransform.Position;
-        int2 gridPos = GridSystem.GetGridPosition(position, cellSize);
+        int2 gridPos = NavGridSystem.GetGridPosition(position, cellSize);
         int currentLayer = follower.currentLayer;
         
         // Check if on a stair cell
@@ -198,13 +198,13 @@ public static class StairUtils
         float3 exitWorldPosition,
         bool bidirectional = true)
     {
-        var query = em.CreateEntityQuery(ComponentType.ReadWrite<GridSystem.StairConnection>());
+        var query = em.CreateEntityQuery(ComponentType.ReadWrite<NavGridStairConnection>());
         if (query.IsEmpty) return;
         
         var stairEntity = query.GetSingletonEntity();
-        var buffer = em.GetBuffer<GridSystem.StairConnection>(stairEntity);
+        var buffer = em.GetBuffer<NavGridStairConnection>(stairEntity);
         
-        buffer.Add(new GridSystem.StairConnection
+        buffer.Add(new NavGridStairConnection
         {
             gridPosition = gridPosition,
             fromLayer = fromLayer,
@@ -226,10 +226,10 @@ public static class StairUtils
         float layerHeight,
         bool bidirectional = true)
     {
-        int2 bottomGridPos = GridSystem.GetGridPosition(bottomPosition, cellSize);
-        int2 topGridPos = GridSystem.GetGridPosition(topPosition, cellSize);
-        int bottomLayer = GridSystem.GetLayer(bottomPosition, layerHeight);
-        int topLayer = GridSystem.GetLayer(topPosition, layerHeight);
+        int2 bottomGridPos = NavGridSystem.GetGridPosition(bottomPosition, cellSize);
+        int2 topGridPos = NavGridSystem.GetGridPosition(topPosition, cellSize);
+        int bottomLayer = NavGridSystem.GetLayer(bottomPosition, layerHeight);
+        int topLayer = NavGridSystem.GetLayer(topPosition, layerHeight);
         
         AddStairConnection(em, bottomGridPos, bottomLayer, topLayer, bottomPosition, topPosition, bidirectional);
     }

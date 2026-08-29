@@ -8,7 +8,7 @@ namespace DotsMovementToolkit
 {
 /// <summary>
 /// Calculates flow fields for horde pathfinding.
-/// Uses shared GridSystem for cost map and utilities.
+/// Uses shared NavGridSystem for cost map and utilities.
 /// </summary>
 [UpdateInGroup(typeof(MovementRoutingSystemGroup))]
 public partial struct FlowFieldSystem : ISystem
@@ -56,9 +56,9 @@ public partial struct FlowFieldSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GridSystem.GridConfig>();
-        state.RequireForUpdate<GridSystem.GridCostMap>();
-        state.RequireForUpdate<MovementGridSettings>();
+        state.RequireForUpdate<NavGridConfig>();
+        state.RequireForUpdate<NavGridCostMap>();
+        state.RequireForUpdate<NavGridSettings>();
 
         pendingRequests = new NativeQueue<FlowFieldRequest>(Allocator.Persistent);
         
@@ -82,9 +82,9 @@ public partial struct FlowFieldSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
-        var gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
-        byte wallCost = SystemAPI.GetSingleton<MovementGridSettings>().wallCost;
+        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        var gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
+        byte wallCost = SystemAPI.GetSingleton<NavGridSettings>().wallCost;
 
         // Initialize flow field data on first update
         if (!SystemAPI.HasComponent<FlowFieldData>(state.SystemHandle))
@@ -158,7 +158,7 @@ public partial struct FlowFieldSystem : ISystem
         state.Dependency = flowFieldHandle;
     }
     
-    private void InitializeFlowFieldData(ref SystemState state, GridSystem.GridConfig gridConfig)
+    private void InitializeFlowFieldData(ref SystemState state, NavGridConfig gridConfig)
     {
         int cellsPerLayer = gridConfig.width * gridConfig.height;
         int totalCells = cellsPerLayer * FLOW_FIELD_MAP_COUNT;
@@ -180,7 +180,7 @@ public partial struct FlowFieldSystem : ISystem
         state.EntityManager.SetComponentData(state.SystemHandle, flowFieldData);
     }
     
-    private void CollectRequests(ref SystemState state, GridSystem.GridConfig gridConfig)
+    private void CollectRequests(ref SystemState state, NavGridConfig gridConfig)
     {
         foreach (var (pathRequest, pathRequestEnabled, entity) in
             SystemAPI.Query<
@@ -192,8 +192,8 @@ public partial struct FlowFieldSystem : ISystem
             if (pathRequest.ValueRO.requestedMode != PathfindingMode.FlowField)
                 continue;
 
-            int2 targetGridPos = GridSystem.GetGridPosition(pathRequest.ValueRO.targetPosition, gridConfig.cellSize);
-            int  targetLayer   = GridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig.layerHeight);
+            int2 targetGridPos = NavGridSystem.GetGridPosition(pathRequest.ValueRO.targetPosition, gridConfig.cellSize);
+            int  targetLayer   = NavGridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig.layerHeight);
 
             pathRequestEnabled.ValueRW = false;
 
@@ -291,10 +291,10 @@ public struct CalculateFlowFieldJob : IJob
     public void Execute()
     {
         // Validate target
-        if (!GridSystem.IsValidGridPosition(targetGridPosition, width, height))
+        if (!NavGridSystem.IsValidGridPosition(targetGridPosition, width, height))
             return;
 
-        int targetLocalIndex = GridSystem.CalculateIndex(targetGridPosition, width);
+        int targetLocalIndex = NavGridSystem.CalculateIndex(targetGridPosition, width);
         if (costs[targetLocalIndex] == wallCost)
             return;
         
@@ -317,7 +317,7 @@ public struct CalculateFlowFieldJob : IJob
             int currentLocalIndex = queue[queueHead++];
             if (queueHead >= cellsPerLayer) queueHead = 0;
             
-            int2 currentPos = GridSystem.GetGridPositionFromIndex(currentLocalIndex, width);
+            int2 currentPos = NavGridSystem.GetGridPositionFromIndex(currentLocalIndex, width);
             int currentGlobalIndex = flowFieldIndex * cellsPerLayer + currentLocalIndex;
             int currentBestCost = bestCosts[currentGlobalIndex];
             
@@ -330,10 +330,10 @@ public struct CalculateFlowFieldJob : IJob
                     
                     int2 neighborPos = currentPos + new int2(dx, dy);
                     
-                    if (!GridSystem.IsValidGridPosition(neighborPos, width, height))
+                    if (!NavGridSystem.IsValidGridPosition(neighborPos, width, height))
                         continue;
                     
-                    int neighborLocalIndex = GridSystem.CalculateIndex(neighborPos, width);
+                    int neighborLocalIndex = NavGridSystem.CalculateIndex(neighborPos, width);
                     byte neighborCost = costs[neighborLocalIndex];
                     
                     if (neighborCost == wallCost)

@@ -46,9 +46,9 @@ public partial struct DStarLiteSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GridSystem.GridConfig>();
-        state.RequireForUpdate<GridSystem.GridCostMap>();
-        state.RequireForUpdate<MovementGridSettings>();
+        state.RequireForUpdate<NavGridConfig>();
+        state.RequireForUpdate<NavGridCostMap>();
+        state.RequireForUpdate<NavGridSettings>();
         isInitialized = false;
     }
 
@@ -67,7 +67,7 @@ public partial struct DStarLiteSystem : ISystem
     {
         if (!isInitialized)
         {
-            InitializeFromGridSystem(ref state);
+            InitializeFromNavGrid(ref state);
             isInitialized = true;
         }
 
@@ -75,8 +75,8 @@ public partial struct DStarLiteSystem : ISystem
             return;
 
         DStarLiteData dstarData = SystemAPI.GetComponent<DStarLiteData>(state.SystemHandle);
-        GridSystem.GridCostMap gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
-        byte wallCost = SystemAPI.GetSingleton<MovementGridSettings>().wallCost;
+        NavGridCostMap gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
+        byte wallCost = SystemAPI.GetSingleton<NavGridSettings>().wallCost;
 
         // PathRequestSystem already set agent state and left PathRequest enabled for us.
         // Iterate inline — no separate gather job needed.
@@ -102,7 +102,7 @@ public partial struct DStarLiteSystem : ISystem
     private void ProcessRequest(
         ref SystemState state,
         ref DStarLiteData dstarData,
-        GridSystem.GridCostMap gridCostMap,
+        NavGridCostMap gridCostMap,
         byte wallCost,
         Entity entity,
         float3 currentPos,
@@ -145,9 +145,9 @@ public partial struct DStarLiteSystem : ISystem
         mover.ValueRW.targetPosition = nextWaypoint;
     }
 
-    private void InitializeFromGridSystem(ref SystemState state)
+    private void InitializeFromNavGrid(ref SystemState state)
     {
-        GridSystem.GridConfig gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
         int cellCount = gridConfig.width * gridConfig.height;
 
         DStarLiteData dstarData = new DStarLiteData

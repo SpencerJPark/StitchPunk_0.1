@@ -12,13 +12,13 @@ public partial struct PathfindingCoordinatorSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GridSystem.GridConfig>();
+        state.RequireForUpdate<NavGridConfig>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        GridSystem.GridConfig gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
         float deltaTime = SystemAPI.Time.DeltaTime;
         
         EndSimulationEntityCommandBufferSystem.Singleton ecbSingleton = 

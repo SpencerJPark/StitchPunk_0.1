@@ -3,7 +3,7 @@ using Unity.Entities;
 namespace DotsMovementToolkit
 {
     // The movement toolkit's own group manifest — the package-internal counterpart to the
-    // game's Systems/SystemGroups.cs. Gating: OnCreate requires the baked MovementGridSettings
+    // game's Systems/SystemGroups.cs. Gating: OnCreate requires the baked NavGridSettings
     // singleton (added Phase 2) instead of a game-specific scene tag, so a consumer project
     // with no grid config baked simply never runs this group.
     [UpdateInGroup(typeof(SimulationSystemGroup))]
@@ -12,7 +12,7 @@ namespace DotsMovementToolkit
         protected override void OnCreate()
         {
             base.OnCreate();
-            RequireForUpdate<MovementGridSettings>();
+            RequireForUpdate<NavGridSettings>();
         }
     }
 

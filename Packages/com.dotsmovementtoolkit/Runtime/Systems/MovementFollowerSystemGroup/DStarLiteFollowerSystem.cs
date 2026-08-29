@@ -18,8 +18,8 @@ public partial struct DStarLiteFollowerSystem : ISystem
     {
         state.RequireForUpdate<PhysicsWorldSingleton>();
         state.RequireForUpdate<DStarLiteSystem.DStarLiteData>();
-        state.RequireForUpdate<GridSystem.GridCostMap>();
-        state.RequireForUpdate<MovementGridSettings>();
+        state.RequireForUpdate<NavGridCostMap>();
+        state.RequireForUpdate<NavGridSettings>();
 
         dstarFollowerLookup = state.GetComponentLookup<DStarLiteFollower>(false);
     }
@@ -28,9 +28,9 @@ public partial struct DStarLiteFollowerSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         DStarLiteSystem.DStarLiteData dstarData    = SystemAPI.GetSingleton<DStarLiteSystem.DStarLiteData>();
-        GridSystem.GridCostMap        gridCostMap   = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
+        NavGridCostMap        gridCostMap   = SystemAPI.GetSingleton<NavGridCostMap>();
         PhysicsWorldSingleton         physicsWorld  = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
-        MovementGridSettings          gridSettings  = SystemAPI.GetSingleton<MovementGridSettings>();
+        NavGridSettings          gridSettings  = SystemAPI.GetSingleton<NavGridSettings>();
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSingleton =
             SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
