@@ -175,6 +175,20 @@
 }
 
 /*
+ * The 2D Direction Sets pane. Same shape and same reason as the two above — covering the dock
+ * rather than hiding it is what keeps the timeline, the preview and all three splits exactly where
+ * they were when the toggle goes back off.
+ */
+.clip-editor__direction-sets-pane {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgb(56, 56, 56);
+}
+
+/*
  * Minimums, not sizes. TwoPaneSplitView clamps a drag against the panes' min-width / min-height,
  * so these are what stop a boundary being dragged over a pane and leaving it at zero pixels with
  * no visible handle to drag it back out.

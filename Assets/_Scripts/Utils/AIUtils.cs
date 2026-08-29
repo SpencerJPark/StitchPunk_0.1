@@ -118,15 +118,15 @@ public static class AIUtils
 
     // Directional for free (DirectionFacing_System.md §5): callers resolve clipFacing once via
     // FacingResolver.ResolveClipFacing(unitFacing.current, unitBlob.animationDirections, ...) and
-    // pass it through — this stays a plain slot lookup, mirroring
-    // UnitAnimationAssignmentJob.GetAnimationForAction.
+    // pass it through; ResolveSlot then folds it a second time into what this particular set
+    // actually authored, mirroring UnitAnimationAssignmentJob.GetAnimationForAction.
     public static ClipId GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType, Direction clipFacing)
     {
         ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
         for (int i = 0; i < mappings.Length; i++)
         {
             if (mappings[i].action == actionType)
-                return mappings[i].animation.GetSlot(clipFacing);
+                return mappings[i].animation.ResolveSlot(clipFacing);
         }
         return default;
     }

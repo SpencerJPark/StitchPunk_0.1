@@ -33,7 +33,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "clip-set-field", "new-clip-set-button",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle", "billboard-preview-toggle",
-            "ragdoll-preview-toggle", "vat-bake-toggle",
+            "ragdoll-preview-toggle", "direction-sets-toggle", "vat-bake-toggle",
             "skinned-source-field", "new-rig-toggle", "validation-badge-slot",
             // Transport bar: every control that answers "when", docked above the timeline.
             "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
@@ -71,7 +71,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "vat-bake-pane",
             // The New Rig flow's slot, covering the dock the same way the VAT bake tab does
             // (Phase D11). Nothing is built into it until the toggle is first switched on.
-            "new-rig-pane"
+            "new-rig-pane",
+            // The 2D Direction Sets pane, third of the three cover panes. Same lazily-filled shape,
+            // so a rename here is a toggle that lights and shows nothing.
+            "direction-sets-pane"
         };
 
         [Test]
@@ -129,6 +132,29 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsFalse(
                 ragdollToggle.value,
                 "A ragdoll must start off — spec §8.4 has no 'preview opens already dropped' case.");
+        }
+
+        /// <summary>
+        /// The 2D Direction Sets control clones as a <see cref="ToolbarToggle"/>, defaulting off.
+        /// </summary>
+        /// <remarks>
+        /// It was a <c>ToolbarButton</c> until the pane replaced the standalone window, and
+        /// <c>BindToolbar</c> now resolves it through <c>Q&lt;ToolbarToggle&gt;</c> — reverting the
+        /// UXML element to a button would satisfy the generic name check above while the typed query
+        /// returned null and the callback bound to nothing.
+        /// </remarks>
+        [Test]
+        public void DirectionSetsToggle_ClonesAsAToolbarToggle_DefaultingOff()
+        {
+            VisualElement cloneTarget = CloneLayout();
+            ToolbarToggle directionSetsToggle = cloneTarget.Q<ToolbarToggle>("direction-sets-toggle");
+            Assert.IsNotNull(
+                directionSetsToggle,
+                "direction-sets-toggle must clone as a ToolbarToggle, or BindToolbar's typed Q<> call "
+                    + "finds nothing and the toggle's callback never binds.");
+            Assert.IsFalse(
+                directionSetsToggle.value,
+                "The pane covers the dock, so it must start closed — the window opens on the editor.");
         }
 
         [Test]

@@ -305,6 +305,10 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private ToolbarToggle newRigToggle;
 
+        /// <summary>The 2D Direction Sets pane, and the panel built into it the first time it is opened.</summary>
+        private VisualElement directionSetsPane;
+        private DirectionSetsPanel directionSetsPanel;
+
         private VisualElement trackHeaderColumn;
         private VisualElement laneColumn;
         private VisualElement laneStack;
@@ -583,13 +587,48 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Fired when the toolbar's Direction Sets button is clicked. Direction/AnimationDirections
-        /// are already toolkit vocabulary (see DirectionEnums.cs) — deciding and authoring which
-        /// clip plays for which direction is host-owned, so this package exposes the button and the
-        /// click, never a host type. Null (the default, no button shown) is the packaged-alone case;
-        /// a host hooks this from its own Editor assembly to open its own authoring tool.
+        /// Brings the Clip Editor forward with the 2D Direction Sets pane up and
+        /// <paramref name="directionSet"/> loaded into it. What opening a direction set means.
         /// </summary>
-        public static event System.Action OnDirectionSetsButtonClicked;
+        /// <remarks>
+        /// Driven through the toolbar toggle for the same reason <see cref="FocusWithVatBakeTab"/>
+        /// is: the toggle is the only thing that shows or hides the pane, and reaching past it would
+        /// leave a dark toggle sitting over an open panel. The set is handed over after the toggle
+        /// has raised its callback, so the panel it addresses is the one that callback just built.
+        /// </remarks>
+        public static void FocusDirectionSetsTab(DirectionSetAsset directionSet)
+        {
+            ClipEditorWindow window = FindOpenWindow();
+            if (window == null)
+            {
+                ShowWindow();
+                window = FindOpenWindow();
+            }
+            if (window == null)
+            {
+                return;
+            }
+            window.Focus();
+
+            ToolbarToggle directionSetsToggle = window.rootVisualElement != null
+                ? window.rootVisualElement.Q<ToolbarToggle>("direction-sets-toggle")
+                : null;
+            if (directionSetsToggle != null)
+            {
+                directionSetsToggle.value = true;
+            }
+            else
+            {
+                // No toggle to drive means the layout failed to load, which the window says loudly
+                // on its own. Showing the pane directly is still the better of the two failures.
+                window.Show2DDirectionSetsTab(true);
+            }
+
+            if (window.directionSetsPanel != null && directionSet != null)
+            {
+                window.directionSetsPanel.LoadDirectionSet(directionSet);
+            }
+        }
 
         /// <summary>Brings the Clip Editor forward showing the editor, opening it if it is closed.</summary>
         public static void FocusClipEditing()
@@ -893,6 +932,14 @@ namespace DotsAnimationToolkit.Editor
                 previewController = null;
             }
 
+            // The direction sets panel owns a second preview controller of its own, with the same
+            // Persistent blob to release — plus a synthetic clip set that is not saved to disk.
+            if (directionSetsPanel != null)
+            {
+                directionSetsPanel.Dispose();
+                directionSetsPanel = null;
+            }
+
             // Not saved and owned by nothing else, so it is this window's to destroy. Its undo
             // entries are left pointing at a dead object, which is inert: the window they described
             // the held value of has gone with it.
@@ -1082,16 +1129,17 @@ namespace DotsAnimationToolkit.Editor
                 ragdollPreviewToggle.RegisterValueChangedCallback(OnRagdollPreviewToggleChanged);
             }
 
-            ToolbarButton directionSetsButton = rootVisualElement.Q<ToolbarButton>("direction-sets-button");
-            if (directionSetsButton != null)
+            directionSetsPane = rootVisualElement.Q<VisualElement>("direction-sets-pane");
+            ToolbarToggle directionSetsToggle = rootVisualElement.Q<ToolbarToggle>("direction-sets-toggle");
+            if (directionSetsToggle != null)
             {
-                bool hasHost = OnDirectionSetsButtonClicked != null;
-                directionSetsButton.style.display = hasHost ? DisplayStyle.Flex : DisplayStyle.None;
-                if (hasHost)
-                {
-                    directionSetsButton.tooltip = "Open the host project's direction/facing authoring tool.";
-                    directionSetsButton.clicked += () => OnDirectionSetsButtonClicked?.Invoke();
-                }
+                directionSetsToggle.tooltip =
+                    "Swap the editor for the 2D Direction Sets authoring pane, and back: queue a "
+                    + "clip per east-side facing, then sweep the direction slider to watch the "
+                    + "character turn through the coverage those slots add up to. Nothing is torn "
+                    + "down either way.";
+                directionSetsToggle.RegisterValueChangedCallback(
+                    changeEvent => Show2DDirectionSetsTab(changeEvent.newValue));
             }
 
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
@@ -1858,6 +1906,51 @@ namespace DotsAnimationToolkit.Editor
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        /// <summary>
+        /// Shows or hides the 2D Direction Sets pane over the editor.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Covers the dock rather than replacing it, and tears nothing down on hide — the same shape
+        /// as <see cref="ShowVatBakeTab"/> and <see cref="ShowNewRigTab"/>, for the reason
+        /// <c>.clip-editor__direction-sets-pane</c>'s USS comment gives. It also matters more here
+        /// than for either of those: the panel holds a preview registry and a rig instance, and
+        /// rebuilding those on every toggle would put a visible hitch between checking a clip in the
+        /// editor and checking how it turns.
+        /// </para>
+        /// <para>
+        /// The three cover panes do not close each other, matching how VAT Bake and New Rig already
+        /// coexist. Whichever was opened last is on top, and unticking it reveals the one underneath.
+        /// </para>
+        /// </remarks>
+        private void Show2DDirectionSetsTab(bool isShown)
+        {
+            if (directionSetsPane == null)
+            {
+                return;
+            }
+
+            if (isShown)
+            {
+                if (directionSetsPanel == null)
+                {
+                    directionSetsPanel = new DirectionSetsPanel();
+                    directionSetsPane.Add(directionSetsPanel);
+                }
+
+                // Offered, not imposed — the same contract VAT Bake's panel has. The pane can be
+                // previewing a set against a different rig on purpose, so an offer only fills a
+                // field the user has not filled themselves.
+                directionSetsPanel.OfferRig(activeRig);
+            }
+
+            directionSetsPane.EnableInClassList(HiddenUssClassName, !isShown);
+            if (directionSetsPanel != null)
+            {
+                directionSetsPanel.SetTicking(isShown);
+            }
         }
 
         /// <summary>

@@ -114,10 +114,10 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
             for (int i = 0; i < stances.Length; i++)
             {
                 if (stances[i].stance == stance)
-                    return (isMoving ? stances[i].movingAnimation : stances[i].idleAnimation).GetSlot(clipFacing);
+                    return (isMoving ? stances[i].movingAnimation : stances[i].idleAnimation).ResolveSlot(clipFacing);
             }
         }
-        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).GetSlot(clipFacing);
+        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).ResolveSlot(clipFacing);
     }
 
     private static ClipId GetAnimationForAction(
@@ -130,8 +130,8 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         for (int i = 0; i < mappings.Length; i++)
         {
             if (mappings[i].action == action)
-                return mappings[i].animation.GetSlot(clipFacing);
+                return mappings[i].animation.ResolveSlot(clipFacing);
         }
-        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).GetSlot(clipFacing);
+        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).ResolveSlot(clipFacing);
     }
 }

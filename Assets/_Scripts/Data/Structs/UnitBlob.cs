@@ -23,6 +23,9 @@ public struct UnitDataBlob
     // Authored zombie/conversion form for this unit; None = does not convert.
     public UnitType becomesUnitType;
     public float awarenessRange;
+    // Spawn and maximum health. Stamped onto every unit by UnitHealthInitSystem at spawn, which is
+    // what makes this — not the prefab's HealthAuthoring numbers — the live value.
+    public int maxHealth;
     public AnimationDirections animationDirections;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;

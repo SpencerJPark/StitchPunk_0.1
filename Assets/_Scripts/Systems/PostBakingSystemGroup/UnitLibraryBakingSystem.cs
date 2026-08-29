@@ -55,7 +55,15 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].becomesUnitType      = unitSO.becomesUnitType;
             unitsArray[i].canBePlayerControlled = unitSO.canBePlayerControlled;
             unitsArray[i].awarenessRange       = unitSO.awarenessRange;
+            unitsArray[i].maxHealth            = unitSO.maxHealth;
             unitsArray[i].animationDirections  = unitSO.animationDirections;
+
+            // Validate-only (DirectionSetsPanel_System.md §2b): the prefab's ActorAuthoring stays the
+            // runtime source of truth, so a disagreement is reported here rather than pushed onto the
+            // entity — where it would silently demote what the prefab actually animates on.
+            string rigMismatch = unitSO.DescribeRigMismatch();
+            if (rigMismatch != null)
+                UnityEngine.Debug.LogWarning($"[UnitLibraryBaking] {rigMismatch}", unitSO);
             unitsArray[i].idleAnimation        = DirectionSetBakeUtil.Bake(unitSO.idleAnimation, $"{unitSO.name}.idleAnimation");
             unitsArray[i].movingAnimation      = DirectionSetBakeUtil.Bake(unitSO.movingAnimation, $"{unitSO.name}.movingAnimation");
             unitsArray[i].randomMotivationAmount = unitSO.randomMotivationsTotal;
