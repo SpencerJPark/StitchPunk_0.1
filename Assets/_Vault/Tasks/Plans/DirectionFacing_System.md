@@ -71,6 +71,7 @@ Assigning five clip slots blind in a default inspector is exactly how a set ends
 - **Playback scrub** shared across panes (one time slider, all directions in sync) — this is the check that catches mismatched clip lengths/foot phase between direction variants, the classic directional-art bug.
 - **Not in the tool:** clip *content* editing (that is the Clip Editor's job — the tool links through to it), `PartFacing` view offsets (part-level, authored on `PartDefinitionSO`), and rig editing.
 - [x] **Tool form: standalone `EditorWindow`**, opened from within the toolkit's Clip Editor (not a `DirectionSetSO` custom inspector) — owner wants direction-based clip authoring reachable from the same place as clip content authoring. Stamped 2026-08-29 (build-time).
+  **→ Superseded 2026-08-29 by [`DirectionSetsPanel_System.md`](DirectionSetsPanel_System.md):** the tool becomes an in-Clip-Editor toggle pane ("2D Direction Sets"), the asset moves into the toolkit as `DirectionSetAsset`, and the six-pane grid is replaced by one viewer + a direction slider + a clip queue. Phase 5 of this plan runs through that panel.
 
 Sequencing: the tool needs the `DirectionSetSO` asset type (phase 1) and nothing from the runtime phases; it must exist **before the mass authoring pass** (phase 5), so it lands as phase 4, and runtime phases 2–3 proceed in parallel with hand-authored test sets.
 
