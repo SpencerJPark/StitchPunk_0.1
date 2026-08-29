@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,8 +14,7 @@ using Unity.Entities;
 [UpdateInGroup(typeof(DesignSystemGroup))]
 public partial struct DesignChangeSystem : ISystem
 {
-    private ComponentLookup<ImageIndex>              _imageIndexLookup;
-    private ComponentLookup<AnimationTargetRestPose> _restPoseLookup;
+    private ComponentLookup<TargetRestPose>          _restPoseLookup;
     private ComponentLookup<BodyPartTint>            _baseTintLookup;
     private ComponentLookup<BodyPartSecondaryTint>   _secondaryTintLookup;
     private ComponentLookup<BodyPartTertiaryTint>    _tertiaryTintLookup;
@@ -25,8 +25,7 @@ public partial struct DesignChangeSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<PartLibrary>();
         state.RequireForUpdate<ColorPaletteLibrary>();
-        _imageIndexLookup    = state.GetComponentLookup<ImageIndex>(false);
-        _restPoseLookup      = state.GetComponentLookup<AnimationTargetRestPose>(false);
+        _restPoseLookup      = state.GetComponentLookup<TargetRestPose>(false);
         _baseTintLookup      = state.GetComponentLookup<BodyPartTint>(false);
         _secondaryTintLookup = state.GetComponentLookup<BodyPartSecondaryTint>(false);
         _tertiaryTintLookup  = state.GetComponentLookup<BodyPartTertiaryTint>(false);
@@ -40,14 +39,14 @@ public partial struct DesignChangeSystem : ISystem
         if (!library.library.IsCreated || !colorLibrary.blob.IsCreated)
             return;
 
-        _imageIndexLookup.Update(ref state);
         _restPoseLookup.Update(ref state);
         _baseTintLookup.Update(ref state);
         _secondaryTintLookup.Update(ref state);
         _tertiaryTintLookup.Update(ref state);
 
-        // Main-thread ComponentLookup writes below conflict with UpdateImageIndexJob (reads ImageIndex)
-        // still in flight from a prior frame — complete the input dependency before writing.
+        // Main-thread ComponentLookup writes below conflict with toolkit presentation jobs reading
+        // these same components still in flight from a prior frame — complete the input dependency
+        // before writing.
         state.CompleteDependency();
 
         foreach (var (persistedDesign, palette, changeRequest, parts, entity) in
@@ -74,7 +73,6 @@ public partial struct DesignChangeSystem : ISystem
                 palette.ValueRO,
                 ref library.library.Value,
                 ref colorLibrary.blob.Value,
-                ref _imageIndexLookup,
                 ref _restPoseLookup,
                 ref _baseTintLookup,
                 ref _secondaryTintLookup,

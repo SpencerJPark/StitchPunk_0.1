@@ -99,3 +99,15 @@ public struct ColorPaletteLibraryReference : IComponentData
 }
 
 
+// Animation Toolkit event → sound mapping. Consumed by AnimEventSoundSystem (SoundSystemGroup).
+public struct AnimSoundEventLibrary : IComponentData
+{
+    public BlobAssetReference<AnimSoundEventMappingBlob> blob;
+}
+
+public struct AnimSoundEventLibraryReference : IComponentData
+{
+    public UnityObjectRef<AnimSoundEventMappingSO> library;
+}
+
+

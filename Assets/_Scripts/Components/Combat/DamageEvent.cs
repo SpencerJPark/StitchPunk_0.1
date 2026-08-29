@@ -17,7 +17,7 @@ public struct DamageEvent   // queued value, not a component
     public float        distance;        // for logging/effects
 
     // Death-only knockback — captured into Health.kill* on the lethal event, read by
-    // Ragdoll2DInitSystem. Works even when sourceEntity is Null (thrown items / hazards).
+    // RagdollLaunchInitSystem. Works even when sourceEntity is Null (thrown items / hazards).
     // The ragdoll launch direction comes from sourcePosition (below), which every producer sets.
     public float ragdollForce;           // scales ragdoll violence. 1 = baseline
     public float launchForceY;           // upward launch velocity. 0 = no arc (character just tips over)

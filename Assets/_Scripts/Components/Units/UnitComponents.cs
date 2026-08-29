@@ -26,7 +26,7 @@ public struct Health : IComponentData, IPersist
     public int healthAmount;
     public int healthAmountMax;
     // Snapshot of the killing blow — written by DamageEventSystem on the lethal
-    // DamageEvent, then read by Ragdoll2DInitSystem.
+    // DamageEvent, then read by RagdollLaunchInitSystem.
     public float3 killSourcePosition;
     public float killRagdollForce;
     public float killLaunchForceY;

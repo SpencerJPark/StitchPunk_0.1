@@ -72,17 +72,3 @@ public struct CharacterPalette : IComponentData, IPersist
 // identify rig roots when assembling the BodyPart buffer. [BakingType] → stripped from the runtime world.
 [BakingType]
 public struct CharacterRigConfig : IComponentData { }
-
-// Baking-only carrier for a ragdoll joint's resolved config. Written by RagdollJointAuthoring on
-// each dedicated joint empty (values from its RagdollJointSO, per-placement settle override already
-// applied); read by CharacterRigBakingSystem when stamping Ragdoll2DJoint. Ragdoll config is fully
-// separate from the design pipeline — nothing ragdoll lives on UnitPartSO / the PartLibrary blob.
-// [BakingType] → stripped from the runtime world.
-[BakingType]
-public struct RagdollJointBakeData : IComponentData
-{
-    public float settleSpeed;          // deg/s toward the landing angle (override > 0 already applied)
-    public float segmentLength;        // pendulum length (world units) for the flail
-    public float weight;               // scales inherited motion + landing impulse
-    public float groundBufferOverride; // reserved per-placement ground buffer override
-}

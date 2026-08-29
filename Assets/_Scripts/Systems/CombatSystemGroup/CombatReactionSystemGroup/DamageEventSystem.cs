@@ -11,7 +11,7 @@ using Unity.Entities;
 // Per event: skip already-Dead victims; register threat ONLY when the source is a hostile attacker
 // (v2 faction gate — friendly-fire and environmental/sourceless damage never create a ThreatEntry);
 // apply damage to Health; on the lethal event capture killing-blow knockback into Health.kill* and
-// enable Dead (read later by Ragdoll2DInitSystem).
+// enable Dead (read later by RagdollLaunchInitSystem).
 [BurstCompile]
 [UpdateInGroup(typeof(CombatReactionSystemGroup))]
 public partial struct DamageEventSystem : ISystem
@@ -129,7 +129,7 @@ public partial struct DamageEventSystem : ISystem
 
             if (health.healthAmount <= 0)
             {
-                // Captured for Ragdoll2DInitSystem, which reads Health.kill* after death.
+                // Captured for RagdollLaunchInitSystem, which reads Health.kill* after death.
                 health.killSourcePosition = damageEvent.sourcePosition;
                 health.killRagdollForce   = damageEvent.ragdollForce;
                 health.killLaunchForceY   = damageEvent.launchForceY;

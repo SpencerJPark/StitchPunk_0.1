@@ -4,15 +4,14 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// One per part GameObject in a character rig — quad, ragdoll joint pivot, or item socket. Replaces
+// One per part GameObject in a character rig — quad or item socket. Replaces
 // AnimationTargetAuthoring + AnimationTargetNoIndexAuthoring + BaseParentAuthoring on rig parts:
 //   • bakes BodyPartInfo (self-description: target + partDef + role flags),
 //   • bakes BaseParent so the root can rebuild its BodyPart buffer after Instantiate,
 //   • bakes the animation pose set (rest/animated pose + PostTransformMatrix) for every part,
 //   • adds ImageIndex/ImageIndexOverride only when the GO actually renders (folds the no-index case).
-// DESIGN only — ragdoll physics lives on RagdollJointAuthoring (dedicated joint empties); this baker
-// merely flags the part as a joint in the rig registry when that component sits on the same GO.
-// CharacterRigBakingSystem assembles the root buffer and stamps Ragdoll2D/Ragdoll2DJoint from these.
+// CharacterRigBakingSystem assembles the root's BodyPart buffer from these. Ragdoll bodies are
+// authored directly on the toolkit's RigAsset (Clip Editor) — nothing for this baker to flag.
 public class BodyPartAuthoring : MonoBehaviour
 {
     [Tooltip("Which body part this GameObject is. Stays the single part-identity key everywhere.")]
@@ -49,7 +48,6 @@ public class BodyPartAuthoring : MonoBehaviour
         public override void Bake(BodyPartAuthoring authoring)
         {
             bool hasRenderer = authoring.GetComponent<Renderer>() != null;
-            bool isRagdollJoint = authoring.GetComponent<RagdollJointAuthoring>() != null;
 
             Entity entity = GetEntity(hasRenderer
                 ? TransformUsageFlags.Dynamic | TransformUsageFlags.NonUniformScale
@@ -63,10 +61,9 @@ public class BodyPartAuthoring : MonoBehaviour
             }
 
             BodyPartFlags flags = BodyPartFlags.None;
-            if (hasRenderer)                 flags |= BodyPartFlags.HasQuad;
+            if (hasRenderer)                     flags |= BodyPartFlags.HasQuad;
             if (authoring.unitPartDef != null)   flags |= BodyPartFlags.DesignSlot;
-            if (isRagdollJoint)              flags |= BodyPartFlags.RagdollJoint;
-            if (authoring.isItemSocket)      flags |= BodyPartFlags.ItemSocket;
+            if (authoring.isItemSocket)          flags |= BodyPartFlags.ItemSocket;
 
             AddComponent(entity, new BodyPartInfo
             {

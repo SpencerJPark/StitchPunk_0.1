@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -270,19 +271,18 @@ public static class DesignApplyUtil
     }
 
     // Re-derive and write every design-driven part's image + colours from the stored shape offsets +
-    // the character's active tag per group + rolled colour per palette type. Writes
-    // AnimationTargetRestPose.baseImageIndex (the no-animation source) and ImageIndex so
-    // UpdateImageIndexSystem pushes _ImageIndex to the material, then the three per-instance tint
-    // components (_BaseColor / _SecondaryColor / _TertiaryColor) from the MATCHED design's palette
-    // slots. Unused slots (palette None) leave the baked tint untouched.
+    // the character's active tag per group + rolled colour per palette type. Writes the toolkit's
+    // TargetRestPose.restSliceIndex — sprite tracks authored in RelativeToRest slice space then
+    // retarget to whatever variant this character rolled automatically — then the three
+    // per-instance tint components (_BaseColor / _SecondaryColor / _TertiaryColor) from the MATCHED
+    // design's palette slots. Unused slots (palette None) leave the baked tint untouched.
     public static void ApplyDesign(
         in DynamicBuffer<BodyPart> parts,
         in FixedList512Bytes<DesignSlot> slots,
         in CharacterPalette palette,
         ref PartLibraryBlob library,
         ref ColorPaletteLibraryBlob colorLibrary,
-        ref ComponentLookup<ImageIndex> imageIndexLookup,
-        ref ComponentLookup<AnimationTargetRestPose> restPoseLookup,
+        ref ComponentLookup<TargetRestPose> restPoseLookup,
         ref ComponentLookup<BodyPartTint> baseTintLookup,
         ref ComponentLookup<BodyPartSecondaryTint> secondaryTintLookup,
         ref ComponentLookup<BodyPartTertiaryTint> tertiaryTintLookup)
@@ -304,17 +304,11 @@ public static class DesignApplyUtil
 
             Entity child = part.entity;
 
-            if (slice >= 0)
+            if (slice >= 0 && restPoseLookup.HasComponent(child))
             {
-                if (restPoseLookup.HasComponent(child))
-                {
-                    AnimationTargetRestPose restPose = restPoseLookup[child];
-                    restPose.baseImageIndex = slice;
-                    restPoseLookup[child] = restPose;
-                }
-
-                if (imageIndexLookup.HasComponent(child))
-                    imageIndexLookup[child] = new ImageIndex { index = slice, onUpdate = true };
+                TargetRestPose restPose = restPoseLookup[child];
+                restPose.restSliceIndex = slice;
+                restPoseLookup[child] = restPose;
             }
 
             // Colour axis: the matched design's slots. No matched design (empty pool) = no colours.

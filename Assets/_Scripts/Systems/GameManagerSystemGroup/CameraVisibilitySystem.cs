@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -50,6 +51,25 @@ public partial struct CameraVisibilitySystem : ISystem
             enableRadiusSq = enableRadius * enableRadius,
             disableRadiusSq = disableRadius * disableRadius,
         }.ScheduleParallel(state.Dependency);
+
+        // Toolkit actors additionally carry AnimVisible (opt-in via ActorAuthoring) — mirror the
+        // root's own CameraVisible decision onto it so there is one visibility authority instead of
+        // two. WithAll<AnimVisible> naturally excludes every non-toolkit actor, so this costs nothing
+        // until a rig is authored with the toolkit's ActorAuthoring.
+        state.Dependency = new AnimVisibleMirrorJob().ScheduleParallel(state.Dependency);
+    }
+}
+
+// Keeps the toolkit's per-frame presentation gate in lockstep with the game's own camera-visibility
+// decision, computed above. Runs after CameraVisibilityJob so it reads this frame's result.
+[BurstCompile]
+[WithAll(typeof(AnimVisible))]
+public partial struct AnimVisibleMirrorJob : IJobEntity
+{
+    public void Execute(EnabledRefRO<CameraVisible> cameraVisibleEnabled, EnabledRefRW<AnimVisible> animVisibleEnabled)
+    {
+        if (animVisibleEnabled.ValueRO != cameraVisibleEnabled.ValueRO)
+            animVisibleEnabled.ValueRW = cameraVisibleEnabled.ValueRO;
     }
 }
 

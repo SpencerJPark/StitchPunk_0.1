@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
@@ -20,7 +21,8 @@ using Unity.Entities;
 public partial struct SpawnStateInitSystem : ISystem
 {
     private ComponentLookup<Dead>              _deadLookup;
-    private ComponentLookup<Ragdoll2DLaunch>   _ragdollLaunchLookup;
+    private ComponentLookup<RagdollActor>      _ragdollActorLookup;
+    private ComponentLookup<RagdollLaunch>     _ragdollLaunchLookup;
     private ComponentLookup<Undead>            _undeadLookup;
     private ComponentLookup<Minion>            _minionLookup;
     private ComponentLookup<ReviveRequest>     _reviveLookup;
@@ -32,13 +34,16 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<UtilityBrain>    _utilityBrainV2Lookup;
     private ComponentLookup<Movement>          _movementLookup;
     private ComponentLookup<Gravity>           _gravityLookup;
+    private ComponentLookup<AnimationCommandPending> _animationCommandPendingLookup;
+    private BufferLookup<AnimationCommand>     _animationCommandLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         _deadLookup            = state.GetComponentLookup<Dead>(false);
-        _ragdollLaunchLookup   = state.GetComponentLookup<Ragdoll2DLaunch>(false);
+        _ragdollActorLookup    = state.GetComponentLookup<RagdollActor>(false);
+        _ragdollLaunchLookup   = state.GetComponentLookup<RagdollLaunch>(false);
         _undeadLookup          = state.GetComponentLookup<Undead>(false);
         _minionLookup          = state.GetComponentLookup<Minion>(false);
         _reviveLookup          = state.GetComponentLookup<ReviveRequest>(false);
@@ -50,12 +55,15 @@ public partial struct SpawnStateInitSystem : ISystem
         _utilityBrainV2Lookup  = state.GetComponentLookup<UtilityBrain>(false);
         _movementLookup        = state.GetComponentLookup<Movement>(false);
         _gravityLookup         = state.GetComponentLookup<Gravity>(false);
+        _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
+        _animationCommandLookup = state.GetBufferLookup<AnimationCommand>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         _deadLookup.Update(ref state);
+        _ragdollActorLookup.Update(ref state);
         _ragdollLaunchLookup.Update(ref state);
         _undeadLookup.Update(ref state);
         _minionLookup.Update(ref state);
@@ -68,6 +76,8 @@ public partial struct SpawnStateInitSystem : ISystem
         _utilityBrainV2Lookup.Update(ref state);
         _movementLookup.Update(ref state);
         _gravityLookup.Update(ref state);
+        _animationCommandPendingLookup.Update(ref state);
+        _animationCommandLookup.Update(ref state);
 
         foreach (var (_, entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
@@ -76,7 +86,10 @@ public partial struct SpawnStateInitSystem : ISystem
             if (_deadLookup.HasComponent(entity))
                 _deadLookup.SetComponentEnabled(entity, false);
 
-            // Ragdoll root — disabled until death.
+            // Ragdoll — disabled until death. A pool-reclaimed corpse must drop the ragdoll it was
+            // launched with before it can be handed out as a fresh spawn.
+            if (_ragdollActorLookup.HasComponent(entity))
+                _ragdollActorLookup.SetComponentEnabled(entity, false);
             if (_ragdollLaunchLookup.HasComponent(entity))
                 _ragdollLaunchLookup.SetComponentEnabled(entity, false);
 
@@ -110,6 +123,24 @@ public partial struct SpawnStateInitSystem : ISystem
                 _movementLookup.SetComponentEnabled(entity, true);
             if (_gravityLookup.HasComponent(entity))
                 _gravityLookup.SetComponentEnabled(entity, true);
+
+            // Playback layers — a reclaimed actor may carry stale state from its previous life (a
+            // corpse's finished Death clip, mid-blend Action layer). Hard-stop every layer in the
+            // six-layer convention (§4) so UnitAnimationAssignmentSystem's IsPlaying check reads
+            // false and re-issues the Base idle clip fresh, rather than reading a stale "is playing"
+            // answer from the layer's leftover state.
+            if (_animationCommandPendingLookup.HasComponent(entity) && _animationCommandLookup.HasBuffer(entity))
+            {
+                DynamicBuffer<AnimationCommand> resetCommands = _animationCommandLookup[entity];
+                for (byte layerIndex = 0; layerIndex <= (byte)AnimationToolkitLayer.Mouth; layerIndex++)
+                {
+                    AnimationCommandUtil.Stop(
+                        ref resetCommands,
+                        _animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
+                        layerIndex,
+                        blendDuration: 0f);
+                }
+            }
         }
     }
 }

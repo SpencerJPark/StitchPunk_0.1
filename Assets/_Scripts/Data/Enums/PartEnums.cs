@@ -36,9 +36,8 @@ public enum UnitPartId : short
 [Flags]
 public enum BodyPartFlags : byte
 {
-    None         = 0,
-    HasQuad      = 1 << 0,
-    DesignSlot   = 1 << 1,
-    RagdollJoint = 1 << 2,
-    ItemSocket   = 1 << 3,
+    None       = 0,
+    HasQuad    = 1 << 0,
+    DesignSlot = 1 << 1,
+    ItemSocket = 1 << 3,
 }
