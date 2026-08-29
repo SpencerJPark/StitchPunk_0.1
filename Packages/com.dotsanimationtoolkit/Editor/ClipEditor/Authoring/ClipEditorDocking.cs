@@ -50,6 +50,12 @@ namespace DotsAnimationToolkit.Editor
             public UnityEngine.Object rig;
             public float playheadTime;
             public bool rigEditMode;
+
+            // Which tab was showing, as its underlying int. This type is deliberately free of the
+            // window's own types — it is the handover between an instance being destroyed and one
+            // that does not exist yet — and an int crosses that gap without dragging the enum's
+            // declaring file into every consumer of this one.
+            public int tab;
             public readonly List<string> selectedNames = new List<string>();
         }
 

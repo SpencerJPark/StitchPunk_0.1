@@ -53,14 +53,38 @@
     flex-shrink: 0;
 }
 
-/* Each label heads a pair of fields, so its left margin is the gap between one group and the next
-   rather than the gap between two controls. That is the only spacing in this row that is allowed to
-   be larger than the others, and it is here rather than inline so both labels cannot drift apart. */
-.clip-editor__toolbar-label {
-    -unity-text-align: middle-left;
-    margin-left: 16px;
-    margin-right: 4px;
+/*
+ * The tab run. Deliberately NOT .clip-editor__bar-action: that rule's own comment says it styles
+ * runs of *independent* controls, and these are a radio group — exactly one is on, and clicking the
+ * one that is on does nothing. A held-down state is the whole difference, and bar-action has no
+ * business defining one for the controls it does style.
+ *
+ * Wider padding than a bar action, because a tab is a destination rather than a switch and reads as
+ * one at a glance only if it is bigger than the switches.
+ */
+.clip-editor__tab {
+    padding-left: 14px;
+    padding-right: 14px;
+    margin-left: -1px;
+    margin-right: 0;
+    border-top-width: 0;
+    border-bottom-width: 2px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-color: rgb(32, 32, 32);
 }
+
+/*
+ * The active tab. Two signals rather than one: a lighter ground says "this is the one", and the
+ * accent underline says which content below belongs to it. Applied by SetActiveTab and by nothing
+ * else — the toggle's own checked styling is left alone, because a ToolbarToggle drawn checked and
+ * a tab drawn active are different enough that having both would read as two different states.
+ */
+.clip-editor__tab--active {
+    background-color: rgb(76, 76, 76);
+    border-bottom-color: rgb(88, 148, 216);
+}
+
 
 /*
  * Every button and toggle that joins a run of them — the top bar, and the Snap / Auto Key group at
@@ -1138,7 +1162,7 @@
  * take clicks, which is what makes a finding clickable — so an orbit drag started anywhere the
  * panel is not still reaches the viewport beneath.
  */
-.clip-editor__validation-overlay-slot {
+.clip-editor__viewport-overlay {
     position: absolute;
     left: 0;
     right: 0;
@@ -1150,11 +1174,57 @@
     padding-right: 6px;
     padding-bottom: 6px;
     padding-left: 6px;
-    /* The panel's minimum width is larger than this frame can be dragged down to, so without this
-       a viewport squeezed to its own minimum would push findings out over the inspector beside it.
-       Clipped rather than allowed to escape: this layer's promise is that it never reaches past
-       the 3D area. */
+    /* The findings panel's minimum width is larger than this frame can be dragged down to, so
+       without this a viewport squeezed to its own minimum would push findings out over the
+       inspector beside it. Clipped rather than allowed to escape: this layer's promise is that it
+       never reaches past the 3D area.
+
+       This is also why the layer stays frame-sized rather than hugging its rows. The findings
+       panel's max-width/max-height are percentages, and a percentage resolves against its parent —
+       shrink this to fit the rows and 60% of the viewport quietly becomes 60% of a toolbar. */
     overflow: hidden;
+}
+
+/*
+ * One row of the overlay: the identity controls, or the viewport tools. Right-aligned and growing
+ * right-to-left, so adding a control pushes the run leftward over the scene rather than moving
+ * every control the user already knows the position of.
+ *
+ * Opaque, not translucent. These are controls to be read and hit, not a readout laid over the
+ * picture — and a translucent run would show the rig through its own borders, where the -1px
+ * overlap trick in .clip-editor__bar-action doubles them.
+ */
+.clip-editor__overlay-row {
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-end;
+    margin-bottom: 4px;
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: rgb(56, 56, 56);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: rgb(32, 32, 32);
+}
+
+/* A label inside an overlay row. Smaller left margin than the old toolbar's: the row is a floating
+   island rather than a full-width bar, so the gap that separated groups across a window's width is
+   simply wasted space here. */
+.clip-editor__overlay-label {
+    -unity-text-align: middle-left;
+    margin-left: 8px;
+    margin-right: 4px;
+}
+
+/* Starts a new run inside a row. The -1px overlap in .clip-editor__bar-action makes a run read as
+   one segmented strip, which is right for the three gizmo modes and right for the two preview
+   toggles — but wrong across the join, where it would say those five controls are one group. */
+.clip-editor__overlay-run-break {
+    margin-left: 8px;
 }
 
 /*

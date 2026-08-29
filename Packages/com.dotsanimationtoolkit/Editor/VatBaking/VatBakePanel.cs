@@ -42,6 +42,7 @@ namespace DotsAnimationToolkit.Editor
         private Toggle fullPrecisionField;
         private TextField outputFolderField;
         private Label summaryLabel;
+        private Label sourceBoundHint;
         private ScrollView logView;
 
         public VatBakePanel()
@@ -77,6 +78,17 @@ namespace DotsAnimationToolkit.Editor
             };
             root.Add(rigField);
 
+            // Hidden until a host calls SetSource. In the standalone window the two fields above are
+            // the only way to say what to bake, and a line telling you to change them somewhere else
+            // would be pointing at a window that is not open.
+            sourceBoundHint = new Label(
+                "Clip Set and Rig follow the Clip Editor's own — change them on its Clip Editor tab.");
+            sourceBoundHint.style.whiteSpace = WhiteSpace.Normal;
+            sourceBoundHint.style.display = DisplayStyle.None;
+            root.Add(sourceBoundHint);
+
+            // Not bound to the toolbar with the two above, because it is not the same question: this
+            // is a SkinnedMeshRenderer in an open scene, and the window's Rig field is an asset.
             skinnedRendererField = new ObjectField("Skinned Mesh")
             {
                 objectType = typeof(SkinnedMeshRenderer),
@@ -138,35 +150,40 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Offers a clip set to bake, without overruling one the user has already picked here.
+        /// Binds what is baked to the host's own selection, taking both fields over.
         /// </summary>
         /// <remarks>
-        /// <strong>Only fills an empty field.</strong> A host that pushed its own selection in every
-        /// time would make this field impossible to hold: switch to the tab, correct it, switch away
-        /// to check something, and the correction is gone. Filling the blank is the helpful half of
-        /// the behaviour and the half that cannot destroy an intention.
+        /// <para>
+        /// <strong>This overrules, where the offer it replaced only filled a blank.</strong> The
+        /// earlier behaviour was chosen so a correction made here could be held — and the cost was a
+        /// panel that could sit showing a set the Clip Editor had stopped showing, offering to bake
+        /// it, with nothing on screen admitting the two had diverged. The owner's call (2026-08-29)
+        /// is that the window's selection is the selection: baking something else now means
+        /// switching the window to it first.
+        /// </para>
+        /// <para>
+        /// The fields are disabled rather than removed, and are still the assets themselves rather
+        /// than their names — so they can be clicked through to and pinged, and the hint says where
+        /// to change them. <see cref="VatBakeWindow"/> never calls this and keeps both pickers live;
+        /// baking without a clip open to edit is the reason that window still exists.
+        /// </para>
         /// </remarks>
-        public void OfferClipSet(ClipSetAsset clipSet)
+        public void SetSource(ClipSetAsset clipSet, RigAsset rig)
         {
-            if (clipSet == null || clipSetField == null || clipSetField.value != null)
+            if (clipSetField != null)
             {
-                return;
+                clipSetField.SetValueWithoutNotify(clipSet);
+                clipSetField.SetEnabled(false);
             }
-            clipSetField.value = clipSet;
-        }
-
-        /// <summary>
-        /// Fills the rig field from the Clip Editor's own, when it is still empty — the usual case
-        /// is baking whatever the window is already showing. Never overwrites a rig already chosen
-        /// here: a deliberate cross-rig bake is exactly what the field is for.
-        /// </summary>
-        public void OfferRig(RigAsset rig)
-        {
-            if (rig == null || rigField == null || rigField.value != null)
+            if (rigField != null)
             {
-                return;
+                rigField.SetValueWithoutNotify(rig);
+                rigField.SetEnabled(false);
             }
-            rigField.value = rig;
+            if (sourceBoundHint != null)
+            {
+                sourceBoundHint.style.display = DisplayStyle.Flex;
+            }
         }
 
         private static Label BuildHeading(string text)

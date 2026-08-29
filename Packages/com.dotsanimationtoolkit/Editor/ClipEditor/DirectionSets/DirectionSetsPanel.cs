@@ -38,7 +38,7 @@ namespace DotsAnimationToolkit.Editor
     /// that can show you a pose the player will never see.
     /// </para>
     /// </remarks>
-    public sealed class DirectionSetsPanel : VisualElement, IDisposable
+    public sealed class DirectionSetsPanel : VisualElement
     {
         private const string NoContextChoice = "— none —";
 
@@ -62,7 +62,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         private DirectionSetAsset directionSet;
-        private RigAsset previewRig;
 
         /// <summary>
         /// The actor direction count the slider quantizes at: the active unit context's, when one is
@@ -73,17 +72,44 @@ namespace DotsAnimationToolkit.Editor
         private bool hasContextDirections;
         private AnimationDirections contextDirections = AnimationDirections.Six;
 
-        private readonly ClipPreviewController previewController = new ClipPreviewController();
+        /// <summary>
+        /// The <em>window's</em> preview, not one of this panel's own.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Sharing is what makes the sweep free.</strong> The expensive step is building the
+        /// registry, and the clips this panel queues are members of the open clip set by
+        /// construction (owner directive 2026-08-29) — so they are already in the window's registry
+        /// and a facing change is a different <c>clipId</c> into <c>SamplePose</c>. This panel used
+        /// to own a second controller with a second <c>PreviewRenderUtility</c>, a second
+        /// <c>Persistent</c> blob and a second instantiated rig, kept in step through a synthetic
+        /// clip set it rebuilt whenever the queue changed. All of that was the window's registry with
+        /// extra steps.
+        /// </para>
+        /// <para>
+        /// Safe only because the tabs are exclusive: one controller cannot serve two viewports in one
+        /// frame, and exactly one of them is on screen. Nothing here disposes it — the window owns
+        /// its lifetime.
+        /// </para>
+        /// </remarks>
+        private ClipPreviewController previewController;
+
+        /// <summary>The window's clip set and rig, pushed in by the host. Never picked here.</summary>
+        private ClipSetAsset sourceClipSet;
+        private RigAsset previewRig;
 
         /// <summary>
-        /// The one set the registry is built from — every authored clip of the open direction set, so
-        /// a facing change never needs a rebuild. Never written to disk.
+        /// The camera angle the Clip Editor was orbited to, held while this tab has the camera
+        /// head-on, and given back on the way out.
         /// </summary>
-        private ClipSetAsset syntheticClipSet;
+        private float restoreOrbitYaw;
+        private float restoreOrbitPitch;
+        private bool hasCapturedOrbit;
 
-        /// <summary>What the registry was last built for, so a tick can tell when it went stale.</summary>
-        private readonly List<ClipAsset> registryClips = new List<ClipAsset>();
+        /// <summary>The billboard and ragdoll state to restore when this tab hands the preview back.</summary>
+        private bool restoreBillboardEnabled;
 
+        /// <summary>Per-row warnings, keyed by the clip the row holds.</summary>
         private readonly Dictionary<ClipAsset, string> clipWarnings = new Dictionary<ClipAsset, string>();
 
         /// <summary>Slots the author asked for with Add Clip beyond the target's required ones.</summary>
@@ -106,7 +132,7 @@ namespace DotsAnimationToolkit.Editor
         private bool isTicking;
 
         private ObjectField directionSetField;
-        private ObjectField rigField;
+        private Label sourceLabel;
         private DropdownField unitContextDropdown;
         private List<DirectionSetContextEntry> contextEntries = new List<DirectionSetContextEntry>();
         private DropdownField directionsDropdown;
@@ -138,18 +164,20 @@ namespace DotsAnimationToolkit.Editor
             style.paddingBottom = 6f;
 
             Add(BuildToolbarRow());
-            Add(BuildRigRow());
+            Add(BuildSourceRow());
             Add(BuildBody());
             Add(BuildTransport());
-
-            syntheticClipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
-            syntheticClipSet.hideFlags = HideFlags.HideAndDontSave;
-
-            previewController.BillboardPreviewEnabled = true;
 
             RebuildContextDropdown();
             RebuildQueue();
         }
+
+        /// <summary>Raised when a unit context asks for a different clip set and rig.</summary>
+        /// <remarks>
+        /// The panel no longer owns either, so it asks rather than assigns: the host writes its own
+        /// toolbar fields, and a unit pick then runs the same load path a hand pick does.
+        /// </remarks>
+        public event Action<ClipSetAsset, RigAsset> SelectionRequested;
 
         // -----------------------------------------------------------------------------------------
         // Construction
@@ -189,26 +217,42 @@ namespace DotsAnimationToolkit.Editor
             return row;
         }
 
-        private VisualElement BuildRigRow()
+        /// <summary>
+        /// The read-only line saying what this pane is previewing against.
+        /// </summary>
+        /// <remarks>
+        /// A line rather than two pickers, because the clip set and the rig are the window's and
+        /// this pane only derives from them (owner directive 2026-08-29). Showing them anyway — and
+        /// saying where to change them — beats a pane that silently depends on a selection it never
+        /// mentions.
+        /// </remarks>
+        private VisualElement BuildSourceRow()
         {
-            VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginBottom = 4f;
+            sourceLabel = new Label();
+            sourceLabel.style.whiteSpace = WhiteSpace.Normal;
+            sourceLabel.style.marginBottom = 4f;
+            sourceLabel.style.color = new Color(0.68f, 0.68f, 0.72f);
+            return sourceLabel;
+        }
 
-            rigField = new ObjectField("Preview Rig")
+        private void RefreshSourceLabel()
+        {
+            if (sourceLabel == null)
             {
-                objectType = typeof(RigAsset),
-                allowSceneObjects = false
-            };
-            rigField.style.flexGrow = 1f;
-            rigField.tooltip =
-                "The rig these clips are posed on. Window state — it pairs the rig with nothing and "
-                + "changes no asset. A unit context fills it for you.";
-            rigField.RegisterValueChangedCallback(changeEvent => SetPreviewRig(changeEvent.newValue as RigAsset));
-            row.Add(rigField);
+                return;
+            }
 
-            return row;
+            if (previewRig == null)
+            {
+                sourceLabel.text =
+                    "No rig on the Clip Editor tab — the queue and the coverage readout work "
+                    + "without one, but nothing can be posed.";
+                return;
+            }
+
+            sourceLabel.text =
+                "Previewing " + (sourceClipSet != null ? "'" + sourceClipSet.name + "'" : "no clip set")
+                + " on '" + previewRig.name + "' — both come from the Clip Editor tab.";
         }
 
         private VisualElement BuildBody()
@@ -344,28 +388,37 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Offers the window's rig, taking it only when the panel has none. Offered rather than
-        /// imposed for the reason the VAT bake panel is: previewing a set on a deliberately different
-        /// rig is a real thing to want, and a re-open must not undo it.
+        /// Hands the panel the window's preview, clip set and rig. Called on every tab switch and
+        /// whenever either selection changes while this pane is open.
         /// </summary>
-        public void OfferRig(RigAsset rig)
+        public void SetSource(ClipPreviewController controller, ClipSetAsset clipSet, RigAsset rig)
         {
-            if (previewRig != null || rig == null)
-            {
-                return;
-            }
-            if (rigField != null)
-            {
-                rigField.value = rig;
-                return;
-            }
-            SetPreviewRig(rig);
+            previewController = controller;
+            sourceClipSet = clipSet;
+            previewRig = rig;
+
+            RefreshSourceLabel();
+            RebuildQueue();
         }
 
         /// <summary>
-        /// Starts or stops the per-frame tick with the pane's visibility. Nothing else is torn down —
-        /// the registry and the rig instance survive a close, which is what makes reopening free.
+        /// Starts or stops the per-frame tick with the pane's visibility, and borrows the shared
+        /// preview's camera and billboard state for as long as it has it.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <strong>Borrowed, and given back.</strong> The camera must be head-on here — direction
+        /// comes from the slider, not from orbiting — but the controller is the Clip Editor's too,
+        /// and silently discarding the angle an author had set up there would read as the window
+        /// losing its place. <c>FrameRig</c> is no help: it sets focus and distance and does not
+        /// touch the angles.
+        /// </para>
+        /// <para>
+        /// Billboarding is forced on for the same reason it was on when this panel owned its own
+        /// controller — an unbillboarded facing preview is not what the game shows — and the ragdoll
+        /// is forced off, because a rig that has been dropped cannot demonstrate a facing at all.
+        /// </para>
+        /// </remarks>
         public void SetTicking(bool ticking)
         {
             if (ticking == isTicking)
@@ -373,8 +426,10 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             isTicking = ticking;
+
             if (ticking)
             {
+                BorrowPreviewCamera();
                 lastTickTime = EditorApplication.timeSinceStartup;
                 EditorApplication.update += Tick;
                 RebuildContextDropdown();
@@ -382,18 +437,40 @@ namespace DotsAnimationToolkit.Editor
             else
             {
                 EditorApplication.update -= Tick;
+                ReturnPreviewCamera();
             }
         }
 
-        public void Dispose()
+        private void BorrowPreviewCamera()
         {
-            SetTicking(false);
-            previewController.Dispose();
-            if (syntheticClipSet != null)
+            if (previewController == null || hasCapturedOrbit)
             {
-                UnityEngine.Object.DestroyImmediate(syntheticClipSet);
-                syntheticClipSet = null;
+                return;
             }
+
+            restoreOrbitYaw = previewController.OrbitYaw;
+            restoreOrbitPitch = previewController.OrbitPitch;
+            restoreBillboardEnabled = previewController.BillboardPreviewEnabled;
+            hasCapturedOrbit = true;
+
+            previewController.OrbitYaw = 0f;
+            previewController.OrbitPitch = 0f;
+            previewController.BillboardPreviewEnabled = true;
+            previewController.DisableRagdollPreview();
+            previewController.FrameRig();
+        }
+
+        private void ReturnPreviewCamera()
+        {
+            if (previewController == null || !hasCapturedOrbit)
+            {
+                return;
+            }
+
+            previewController.OrbitYaw = restoreOrbitYaw;
+            previewController.OrbitPitch = restoreOrbitPitch;
+            previewController.BillboardPreviewEnabled = restoreBillboardEnabled;
+            hasCapturedOrbit = false;
         }
 
         // -----------------------------------------------------------------------------------------
@@ -520,7 +597,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             RefreshCoverageLabel();
-            RebuildRegistryIfClipsChanged();
             CaptureObservedState();
             RefreshDirectionReadout();
         }
@@ -598,77 +674,45 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------------
-        // Preview registry
+        // Preview
         // -----------------------------------------------------------------------------------------
 
-        private void SetPreviewRig(RigAsset rig)
-        {
-            previewRig = rig;
-            previewController.SetRig(rig);
-            previewController.SetSkinnedSource(rig != null ? rig.sourcePrefab : null);
-
-            // Framing is left to the controller's own pending-frame flag, which a rig change already
-            // raises. Calling FrameRig here instead would clear that flag against a rig whose two
-            // halves — the part quads and the prefab's mesh — have not both landed yet, and frame
-            // half a character.
-
-            // The bad-clip set is judged against the rig, so it is a different set of rows now.
-            RebuildQueue();
-        }
-
         /// <summary>
-        /// Re-judges every queued clip against the preview rig, so one clip authored for a different
-        /// rig marks its own row instead of taking the whole viewport down with it.
+        /// Marks any queued clip the window's registry does not hold.
         /// </summary>
         /// <remarks>
-        /// Runs through <see cref="ClipValidation.ValidateBind"/> — the same rule table the bake and
-        /// the Clip Editor's badge use — rather than a check of this panel's own, and the offending
-        /// clips are then kept out of the registry so the rest still build.
+        /// <para>
+        /// <strong>The question narrowed when the preview became shared.</strong> This used to run
+        /// every queued clip through <c>ClipValidation.ValidateBind</c> against a rig of its own, to
+        /// keep one clip authored for another rig out of a registry it would have failed to build.
+        /// The window's own validation badge already asks that question of the open set, and the
+        /// clips here are members of that set — so the one thing a row can still be wrong about is
+        /// not being in it.
+        /// </para>
+        /// <para>
+        /// Answered by asking the registry rather than by re-deriving membership from the set's
+        /// list: <c>SamplePose</c> returning false is the same answer the viewer acts on, so a row
+        /// cannot be marked healthy while the viewport shows nothing for it.
+        /// </para>
         /// </remarks>
         private void RefreshClipWarnings()
         {
             clipWarnings.Clear();
-            if (directionSet == null || previewRig == null)
+            if (directionSet == null || previewController == null || !previewController.HasRegistry)
             {
                 return;
             }
 
             List<ClipAsset> queuedClips = CollectQueuedClips();
-            if (queuedClips.Count == 0)
+            for (int clipIndex = 0; clipIndex < queuedClips.Count; clipIndex++)
             {
-                return;
-            }
-
-            ClipSetAsset probeSet = ScriptableObject.CreateInstance<ClipSetAsset>();
-            probeSet.hideFlags = HideFlags.HideAndDontSave;
-            try
-            {
-                probeSet.clips.AddRange(queuedClips);
-                List<ValidationMessage> findings = ClipValidation.ValidateBind(
-                    previewRig, new ClipSetAsset[] { probeSet });
-
-                for (int findingIndex = 0; findingIndex < findings.Count; findingIndex++)
+                ClipAsset queuedClip = queuedClips[clipIndex];
+                if (!previewController.IsClipInRegistry(queuedClip.Id.Value))
                 {
-                    ValidationMessage finding = findings[findingIndex];
-                    if (!finding.IsError)
-                    {
-                        continue;
-                    }
-                    ClipAsset offendingClip = finding.assetContext as ClipAsset;
-                    if (offendingClip == null || !queuedClips.Contains(offendingClip))
-                    {
-                        continue;
-                    }
-
-                    string existing;
-                    clipWarnings[offendingClip] = clipWarnings.TryGetValue(offendingClip, out existing)
-                        ? existing + "\n" + finding.text
-                        : "Does not bind to '" + previewRig.name + "': " + finding.text;
+                    clipWarnings[queuedClip] = "Not in '"
+                        + (sourceClipSet != null ? sourceClipSet.name : "the open clip set")
+                        + "' — it cannot be previewed here. Add it to that set on the Clip Editor tab.";
                 }
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(probeSet);
             }
         }
 
@@ -688,57 +732,6 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
             return queuedClips;
-        }
-
-        /// <summary>
-        /// Rebuilds the one registry, and only when the set of clips in it actually changed.
-        /// </summary>
-        /// <remarks>
-        /// The guard is the whole reason the viewer is built this way. A rebuild re-canonicalises and
-        /// re-validates every clip, which is exactly the hitch that turning the direction slider must
-        /// not have — so membership changes rebuild, and facing changes do not.
-        /// </remarks>
-        private void RebuildRegistryIfClipsChanged()
-        {
-            List<ClipAsset> wantedClips = CollectQueuedClips();
-
-            // Clips that cannot bind to this rig are left out rather than allowed to fail the build:
-            // one bad row must not blank the viewport for the four good ones.
-            for (int clipIndex = wantedClips.Count - 1; clipIndex >= 0; clipIndex--)
-            {
-                if (clipWarnings.ContainsKey(wantedClips[clipIndex]))
-                {
-                    wantedClips.RemoveAt(clipIndex);
-                }
-            }
-
-            if (SameClips(wantedClips, registryClips))
-            {
-                return;
-            }
-
-            registryClips.Clear();
-            registryClips.AddRange(wantedClips);
-
-            syntheticClipSet.clips.Clear();
-            syntheticClipSet.clips.AddRange(wantedClips);
-            previewController.SetClipSet(syntheticClipSet);
-        }
-
-        private static bool SameClips(List<ClipAsset> left, List<ClipAsset> right)
-        {
-            if (left.Count != right.Count)
-            {
-                return false;
-            }
-            for (int index = 0; index < left.Count; index++)
-            {
-                if (left[index] != right[index])
-                {
-                    return false;
-                }
-            }
-            return true;
         }
 
         // -----------------------------------------------------------------------------------------
@@ -791,9 +784,11 @@ namespace DotsAnimationToolkit.Editor
             hasContextDirections = true;
             contextDirections = entry.actorDirections;
 
-            if (entry.previewRig != null && rigField != null)
+            // Asked for, not assigned: the clip set and the rig belong to the window, and routing
+            // the request through it is what makes a unit pick and a hand pick the same load.
+            if (entry.previewRig != null || entry.previewClipSet != null)
             {
-                rigField.value = entry.previewRig;
+                SelectionRequested?.Invoke(entry.previewClipSet, entry.previewRig);
             }
             if (entry.set != null)
             {
@@ -906,6 +901,11 @@ namespace DotsAnimationToolkit.Editor
             double elapsed = now - lastTickTime;
             lastTickTime = now;
 
+            if (previewController == null)
+            {
+                return;
+            }
+
             // An inspector edit or an undo changed the asset under us. Polled rather than subscribed
             // because every route into the asset — the inspector, an undo, another tool — lands here,
             // and five reference comparisons a frame is cheaper than being wrong.
@@ -948,10 +948,10 @@ namespace DotsAnimationToolkit.Editor
             string status = previewController.StatusMessage;
             if (previewRig == null)
             {
-                // Said in this panel's own words: the controller's version points at the Clip
-                // Editor's toolbar, which is not the field the author is looking at here.
-                status = "Assign a Preview Rig to pose these clips — the queue and the coverage "
-                    + "readout work without one.";
+                // In this pane's own words: the controller points at the Clip Editor's Rig field,
+                // which is on a tab the author is not looking at.
+                status = "No rig on the Clip Editor tab — the queue and the coverage readout work "
+                    + "without one, but nothing can be posed.";
             }
             else if (facingClip == null && string.IsNullOrEmpty(status))
             {
@@ -966,7 +966,9 @@ namespace DotsAnimationToolkit.Editor
                 // mismatch this viewer is for.
                 if (!previewController.SamplePose(facingClip.Id.Value, playheadNormalizedTime))
                 {
-                    status = "'" + facingClip.name + "' is not in the built registry.";
+                    status = "'" + facingClip.name + "' is not in '"
+                        + (sourceClipSet != null ? sourceClipSet.name : "the open clip set")
+                        + "' — add it there to preview it.";
                 }
             }
 

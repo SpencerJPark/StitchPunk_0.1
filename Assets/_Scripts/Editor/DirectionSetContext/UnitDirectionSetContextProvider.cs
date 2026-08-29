@@ -36,22 +36,24 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
                 continue;
             }
 
-            RigAsset unitRig = ResolveRig(unit);
+            ActorAuthoring actor = ResolveActor(unit);
+            RigAsset unitRig = actor != null ? actor.rig : null;
+            ClipSetAsset unitClipSet = ResolveClipSet(actor, unit.name);
             if (unitRig == null)
             {
                 unitsWithoutRig.Add(unit.name);
             }
 
-            AddEntry(entries, unit, unitRig, "Idle", unit.idleAnimation);
-            AddEntry(entries, unit, unitRig, "Moving", unit.movingAnimation);
+            AddEntry(entries, unit, unitRig, unitClipSet, "Idle", unit.idleAnimation);
+            AddEntry(entries, unit, unitRig, unitClipSet, "Moving", unit.movingAnimation);
 
             for (int stanceIndex = 0;
                  unit.stanceAnimations != null && stanceIndex < unit.stanceAnimations.Length;
                  stanceIndex++)
             {
                 StanceAnimationMapping stance = unit.stanceAnimations[stanceIndex];
-                AddEntry(entries, unit, unitRig, stance.stance + " Idle", stance.idleAnimation);
-                AddEntry(entries, unit, unitRig, stance.stance + " Moving", stance.movingAnimation);
+                AddEntry(entries, unit, unitRig, unitClipSet, stance.stance + " Idle", stance.idleAnimation);
+                AddEntry(entries, unit, unitRig, unitClipSet, stance.stance + " Moving", stance.movingAnimation);
             }
 
             for (int actionIndex = 0;
@@ -59,7 +61,7 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
                  actionIndex++)
             {
                 ActionAnimationMapping action = unit.actionAnimations[actionIndex];
-                AddEntry(entries, unit, unitRig, action.action.ToString(), action.animation);
+                AddEntry(entries, unit, unitRig, unitClipSet, action.action.ToString(), action.animation);
             }
         }
 
@@ -80,6 +82,7 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
         List<DirectionSetContextEntry> entries,
         UnitSO unit,
         RigAsset unitRig,
+        ClipSetAsset unitClipSet,
         string stateLabel,
         DirectionSetAsset directionSet)
     {
@@ -88,20 +91,49 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
             label = unit.name + " · " + stateLabel,
             set = directionSet,
             previewRig = unitRig,
+            previewClipSet = unitClipSet,
             actorDirections = unit.animationDirections,
         });
     }
 
-    // The prefab is the runtime source of truth for which rig a unit animates on (UnitSO's own rig
-    // field is validate-only), so the preview reads it from the same place the game does.
-    private static RigAsset ResolveRig(UnitSO unit)
+    // The prefab is the runtime source of truth for which rig and clip sets a unit animates on
+    // (UnitSO's own rig/clipSet fields are validate-only), so the preview reads them from the same
+    // place the game does.
+    private static ActorAuthoring ResolveActor(UnitSO unit)
     {
-        if (unit.prefab == null)
+        return unit.prefab != null ? unit.prefab.GetComponentInChildren<ActorAuthoring>(true) : null;
+    }
+
+    // The first set, because the panel previews against one. An actor listing several is legal and
+    // useful at runtime — the registry is their union — but there is no single answer to hand a tool
+    // that shows one, so the choice is stated out loud rather than made silently.
+    private static ClipSetAsset ResolveClipSet(ActorAuthoring actor, string unitName)
+    {
+        if (actor == null || actor.clipSets == null)
         {
             return null;
         }
-        ActorAuthoring actor = unit.prefab.GetComponentInChildren<ActorAuthoring>(true);
-        return actor != null ? actor.rig : null;
+
+        ClipSetAsset firstClipSet = null;
+        int assignedCount = 0;
+        for (int setIndex = 0; setIndex < actor.clipSets.Count; setIndex++)
+        {
+            if (actor.clipSets[setIndex] == null)
+                continue;
+
+            assignedCount++;
+            if (firstClipSet == null)
+                firstClipSet = actor.clipSets[setIndex];
+        }
+
+        if (assignedCount > 1)
+        {
+            Debug.LogWarning(
+                $"[2D Direction Sets] '{unitName}' animates on {assignedCount} clip sets; the panel " +
+                $"previews against the first, '{firstClipSet.name}'. Clips from the others will not " +
+                "pose until that set is opened on the Clip Editor tab.");
+        }
+        return firstClipSet;
     }
 }
 #endif

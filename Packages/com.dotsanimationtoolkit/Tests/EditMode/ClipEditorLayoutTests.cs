@@ -30,11 +30,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private static readonly string[] RequiredElementNames = new string[]
         {
             "clip-editor-root", "clip-editor-toolbar",
-            "clip-set-field", "new-clip-set-button",
+            // The top bar is four tabs and nothing else. Exactly one is lit, and SetActiveTab is
+            // the only writer of that.
+            "tab-clip-editor", "tab-new-rig", "tab-direction-sets", "tab-vat-bake",
             "snap-toggle", "auto-key-toggle",
-            "rig-edit-toggle", "billboard-preview-toggle",
-            "ragdoll-preview-toggle", "direction-sets-toggle", "vat-bake-toggle",
-            "skinned-source-field", "new-rig-toggle", "validation-badge-slot",
+            "rig-edit-toggle",
+            // The floating overlay over the viewport: the shared clip set / rig identity row, and
+            // the row of viewport tools beneath it.
+            "viewport-overlay", "overlay-identity-row", "overlay-tool-row",
+            "clip-set-field", "new-clip-set-button",
+            "skinned-source-field", "validation-badge-slot",
+            "gizmo-move-toggle", "gizmo-rotate-toggle", "gizmo-scale-toggle",
+            "billboard-preview-toggle", "ragdoll-preview-toggle",
             // Transport bar: every control that answers "when", docked above the timeline.
             "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
             "step-forward-button", "jump-end-button",
@@ -53,9 +60,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "hierarchy-pane", "hierarchy-empty-label", "hierarchy-tree",
             "edit-prefab-button",
             "viewport-pane", "viewport-status", "viewport-image",
-            // Where the validation findings hang. Empty in the UXML and filled by the badge, so a
-            // rename here presents as an error button that appears to do nothing.
-            "validation-overlay-slot",
             "inspector-pane", "inspector-content",
             // The status row at the head of the key area: what the next edit will do, plus
             // Quantize Keys, which lives here rather than in the transport bar because it
@@ -135,26 +139,71 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
-        /// The 2D Direction Sets control clones as a <see cref="ToolbarToggle"/>, defaulting off.
+        /// The four tabs clone as <see cref="ToolbarToggle"/>s, with Clip Editor — and only Clip
+        /// Editor — starting lit.
         /// </summary>
         /// <remarks>
-        /// It was a <c>ToolbarButton</c> until the pane replaced the standalone window, and
-        /// <c>BindToolbar</c> now resolves it through <c>Q&lt;ToolbarToggle&gt;</c> — reverting the
-        /// UXML element to a button would satisfy the generic name check above while the typed query
-        /// returned null and the callback bound to nothing.
+        /// Two failures in one test, because they present identically as "the window opened on the
+        /// wrong thing". A tab reverted to a <c>ToolbarButton</c> satisfies the generic name check
+        /// above while <c>BindTab</c>'s typed <c>Q&lt;ToolbarToggle&gt;</c> returns null and the tab
+        /// binds to nothing; and a second tab left at <c>value="true"</c> in the UXML opens the
+        /// window with two lit tabs over one pane.
         /// </remarks>
         [Test]
-        public void DirectionSetsToggle_ClonesAsAToolbarToggle_DefaultingOff()
+        public void Tabs_CloneAsToolbarToggles_WithOnlyClipEditorLit()
         {
             VisualElement cloneTarget = CloneLayout();
-            ToolbarToggle directionSetsToggle = cloneTarget.Q<ToolbarToggle>("direction-sets-toggle");
-            Assert.IsNotNull(
-                directionSetsToggle,
-                "direction-sets-toggle must clone as a ToolbarToggle, or BindToolbar's typed Q<> call "
-                    + "finds nothing and the toggle's callback never binds.");
-            Assert.IsFalse(
-                directionSetsToggle.value,
-                "The pane covers the dock, so it must start closed — the window opens on the editor.");
+
+            string[] tabNames = new string[]
+            {
+                "tab-clip-editor", "tab-new-rig", "tab-direction-sets", "tab-vat-bake"
+            };
+
+            List<string> litTabs = new List<string>();
+            foreach (string tabName in tabNames)
+            {
+                ToolbarToggle tab = cloneTarget.Q<ToolbarToggle>(tabName);
+                Assert.IsNotNull(
+                    tab,
+                    tabName + " must clone as a ToolbarToggle, or BindTab's typed Q<> call finds "
+                        + "nothing and that tab binds to nothing.");
+                if (tab.value)
+                {
+                    litTabs.Add(tabName);
+                }
+            }
+
+            CollectionAssert.AreEqual(
+                new string[] { "tab-clip-editor" }, litTabs,
+                "Exactly one tab starts lit, and it is the Clip Editor — the window opens on the "
+                    + "dock, which the other three are drawn over.");
+        }
+
+        /// <summary>
+        /// The gizmo group clones as three toggles with Move lit, matching
+        /// <c>gizmoMode</c>'s own initializer.
+        /// </summary>
+        /// <remarks>
+        /// The field and the UXML are two declarations of one default that no compiler pairs up.
+        /// Disagreeing, they open the window with a lit Rotate button over a Move gizmo — which
+        /// costs a drag to discover and reads as the gizmo being broken.
+        /// </remarks>
+        [Test]
+        public void GizmoModeToggles_CloneWithMoveLit()
+        {
+            VisualElement cloneTarget = CloneLayout();
+
+            ToolbarToggle moveToggle = cloneTarget.Q<ToolbarToggle>("gizmo-move-toggle");
+            ToolbarToggle rotateToggle = cloneTarget.Q<ToolbarToggle>("gizmo-rotate-toggle");
+            ToolbarToggle scaleToggle = cloneTarget.Q<ToolbarToggle>("gizmo-scale-toggle");
+
+            Assert.IsNotNull(moveToggle, "gizmo-move-toggle must clone as a ToolbarToggle.");
+            Assert.IsNotNull(rotateToggle, "gizmo-rotate-toggle must clone as a ToolbarToggle.");
+            Assert.IsNotNull(scaleToggle, "gizmo-scale-toggle must clone as a ToolbarToggle.");
+
+            Assert.IsTrue(moveToggle.value, "GizmoMode.Move is the window's own default.");
+            Assert.IsFalse(rotateToggle.value, "Only one gizmo mode is lit at a time.");
+            Assert.IsFalse(scaleToggle.value, "Only one gizmo mode is lit at a time.");
         }
 
         [Test]

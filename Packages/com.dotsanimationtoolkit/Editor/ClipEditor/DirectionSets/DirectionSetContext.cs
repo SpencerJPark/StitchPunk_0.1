@@ -27,6 +27,13 @@ namespace DotsAnimationToolkit.Editor
         public RigAsset previewRig;
 
         /// <summary>
+        /// The clip set holding this entry's clips. Picked alongside the rig, because the panel
+        /// previews through the Clip Editor's own registry — an entry that loaded a rig but left the
+        /// clip set behind would offer a queue whose clips nothing can pose.
+        /// </summary>
+        public ClipSetAsset previewClipSet;
+
+        /// <summary>
         /// How many directions the actor turns through — <em>not</em> the set's own coverage. It
         /// drives the direction slider's quantize, so a Two-coverage set on a Six-turning actor
         /// previews the same fold the runtime applies rather than a tidier one.

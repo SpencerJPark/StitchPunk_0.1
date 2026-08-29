@@ -278,6 +278,31 @@ namespace DotsAnimationToolkit.Editor
         private float orbitPitch = 0f;
         private float orbitDistance = DefaultOrbitDistance;
 
+        /// <summary>
+        /// Where the camera is looking from, in degrees. Read/write so a caller that needs a fixed
+        /// angle can take one and give it back.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Deliberately separate from <see cref="FrameRig"/>, which does not touch them.</strong>
+        /// Framing answers "how far back and aimed at what"; these answer "from which side", and a
+        /// view that must be head-on — the 2D Direction Sets viewer, where the direction comes from
+        /// a slider and not from the camera — has to set them itself. It matters because the two
+        /// views share one controller: without a getter as well as a setter, visiting that tab would
+        /// silently discard whatever angle the author had orbited the Clip Editor to.
+        /// </remarks>
+        public float OrbitYaw
+        {
+            get { return orbitYaw; }
+            set { orbitYaw = value; }
+        }
+
+        /// <inheritdoc cref="OrbitYaw"/>
+        public float OrbitPitch
+        {
+            get { return orbitPitch; }
+            set { orbitPitch = value; }
+        }
+
         /// <summary>The point the camera orbits and looks at — the middle of the rig, not the origin.</summary>
         private Vector3 orbitFocus = Vector3.zero;
 
@@ -314,6 +339,32 @@ namespace DotsAnimationToolkit.Editor
         public bool HasRegistry
         {
             get { return registry.IsCreated; }
+        }
+
+        /// <summary>
+        /// Whether the built registry holds a clip id — "would <see cref="SamplePose"/> find this".
+        /// </summary>
+        /// <remarks>
+        /// Exposed so a caller can mark a clip it cannot show <em>before</em> trying to show it,
+        /// rather than inferring it from a failed sample after the fact. The same linear scan
+        /// <see cref="SamplePose"/> runs, against the same array, so the two cannot disagree about
+        /// what is in there.
+        /// </remarks>
+        public bool IsClipInRegistry(ulong clipId)
+        {
+            if (!registry.IsCreated)
+            {
+                return false;
+            }
+            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            for (int index = 0; index < registryBlob.sortedClipIds.Length; index++)
+            {
+                if (registryBlob.sortedClipIds[index] == clipId)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

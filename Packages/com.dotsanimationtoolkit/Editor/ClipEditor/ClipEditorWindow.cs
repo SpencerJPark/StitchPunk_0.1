@@ -107,6 +107,7 @@ namespace DotsAnimationToolkit.Editor
         private const float ClickMovementToleranceSquared = 9f;
 
         private const string HiddenUssClassName = "clip-editor--hidden";
+        private const string TabActiveUssClassName = "clip-editor__tab--active";
         private const string ClipRowUssClassName = "clip-editor__clip-row";
         private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
         private const string AnimatedBoneUssClassName = "clip-editor__hierarchy-row--animated";
@@ -297,17 +298,37 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement newRigPane;
         private NewRigPanel newRigPanel;
 
-        /// <summary>
-        /// The toolbar toggle that owns whether the New Rig pane is showing. Held so a close the
-        /// panel asks for itself (after a successful Create) can untick it — the toggle is the one
-        /// thing that drives the pane, so leaving it lit would make the next press hide a pane that
-        /// is already hidden.
-        /// </summary>
-        private ToolbarToggle newRigToggle;
-
         /// <summary>The 2D Direction Sets pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement directionSetsPane;
         private DirectionSetsPanel directionSetsPanel;
+
+        /// <summary>
+        /// Which view is showing. One field, not a bool per pane: exactly one is true, and four
+        /// bools that must sum to one is how you end up with two lit tabs over one pane.
+        /// </summary>
+        private ClipEditorTab activeTab = ClipEditorTab.ClipEditor;
+
+        /// <summary>
+        /// The four tab toggles, indexed by <see cref="ClipEditorTab"/>. Held rather than re-queried
+        /// because every switch has to write the three that did not change, and a lookup miss would
+        /// leave one lit alongside the new one.
+        /// </summary>
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[4];
+
+        /// <summary>Guards the re-entry a tab switch causes by assigning the other toggles' values.</summary>
+        private bool isApplyingTab;
+
+        /// <summary>
+        /// The floating rows over the viewport: the clip set / rig identity controls, and the gizmo
+        /// and preview toggles. Held so a tab switch can hide the whole stack in one call.
+        /// </summary>
+        private VisualElement viewportOverlay;
+
+        /// <summary>The three gizmo-mode toggles, indexed by <see cref="GizmoMode"/>.</summary>
+        private readonly ToolbarToggle[] gizmoModeToggles = new ToolbarToggle[3];
+
+        /// <summary>Guards the re-entry writing the other two gizmo toggles causes.</summary>
+        private bool isApplyingGizmoMode;
 
         private VisualElement trackHeaderColumn;
         private VisualElement laneColumn;
@@ -591,69 +612,43 @@ namespace DotsAnimationToolkit.Editor
         /// <paramref name="directionSet"/> loaded into it. What opening a direction set means.
         /// </summary>
         /// <remarks>
-        /// Driven through the toolbar toggle for the same reason <see cref="FocusWithVatBakeTab"/>
-        /// is: the toggle is the only thing that shows or hides the pane, and reaching past it would
-        /// leave a dark toggle sitting over an open panel. The set is handed over after the toggle
-        /// has raised its callback, so the panel it addresses is the one that callback just built.
+        /// The set is handed over <em>after</em> <see cref="FocusTab"/> has switched, because the
+        /// pane's panel is built on the first switch to it — addressing it beforehand would be
+        /// addressing a panel that does not exist yet on the first open of a session.
         /// </remarks>
         public static void FocusDirectionSetsTab(DirectionSetAsset directionSet)
         {
-            ClipEditorWindow window = FindOpenWindow();
-            if (window == null)
-            {
-                ShowWindow();
-                window = FindOpenWindow();
-            }
-            if (window == null)
-            {
-                return;
-            }
-            window.Focus();
-
-            ToolbarToggle directionSetsToggle = window.rootVisualElement != null
-                ? window.rootVisualElement.Q<ToolbarToggle>("direction-sets-toggle")
-                : null;
-            if (directionSetsToggle != null)
-            {
-                directionSetsToggle.value = true;
-            }
-            else
-            {
-                // No toggle to drive means the layout failed to load, which the window says loudly
-                // on its own. Showing the pane directly is still the better of the two failures.
-                window.Show2DDirectionSetsTab(true);
-            }
-
-            if (window.directionSetsPanel != null && directionSet != null)
+            ClipEditorWindow window = FocusTab(ClipEditorTab.DirectionSets);
+            if (window != null && window.directionSetsPanel != null && directionSet != null)
             {
                 window.directionSetsPanel.LoadDirectionSet(directionSet);
             }
         }
 
-        /// <summary>Brings the Clip Editor forward showing the editor, opening it if it is closed.</summary>
+        /// <summary>Brings the Clip Editor forward on its Clip Editor tab, opening it if it is closed.</summary>
         public static void FocusClipEditing()
         {
-            FocusWithVatBakeTab(false);
+            FocusTab(ClipEditorTab.ClipEditor);
         }
 
-        /// <summary>Brings the Clip Editor forward showing the VAT bake tab.</summary>
+        /// <summary>Brings the Clip Editor forward on its VAT bake tab.</summary>
         public static void FocusVatBakeSettings()
         {
-            FocusWithVatBakeTab(true);
+            FocusTab(ClipEditorTab.VatBake);
         }
 
         /// <summary>
-        /// The entry points the prefab stage's overlay drives, so the top bar's views are reachable
-        /// from a Scene view the Clip Editor is sitting behind.
+        /// What every "go there, show that" entry point resolves to — the prefab stage overlay's two
+        /// buttons and a double-clicked direction set — so the window is opened, focused and switched
+        /// by one path rather than three.
         /// </summary>
         /// <remarks>
-        /// <strong>The view is switched through the toolbar toggle, not by calling
-        /// <see cref="ShowVatBakeTab"/>.</strong> The toggle is the only thing that drives that
-        /// method, and it has to stay the only thing: reaching past it would let the toggle sit lit
-        /// over the editor, or dark over the bake panel, with no way to tell which was right.
-        /// Assigning <c>value</c> raises the change callback, so one path still does the work.
+        /// <strong>The view is switched through <see cref="SetActiveTab"/>, never by calling a
+        /// <c>Show…Tab</c> method directly.</strong> That is the single writer of
+        /// <see cref="activeTab"/> and of the four toggles' lit state; reaching past it would leave a
+        /// pane showing under a dark tab, with nothing on screen saying which was right.
         /// </remarks>
-        private static void FocusWithVatBakeTab(bool showVatBake)
+        private static ClipEditorWindow FocusTab(ClipEditorTab tab)
         {
             ClipEditorWindow window = FindOpenWindow();
             if (window == null)
@@ -663,22 +658,11 @@ namespace DotsAnimationToolkit.Editor
             }
             if (window == null)
             {
-                return;
+                return null;
             }
             window.Focus();
-
-            ToolbarToggle vatBakeToggle = window.rootVisualElement != null
-                ? window.rootVisualElement.Q<ToolbarToggle>("vat-bake-toggle")
-                : null;
-            if (vatBakeToggle != null)
-            {
-                vatBakeToggle.value = showVatBake;
-                return;
-            }
-
-            // No toggle to drive means the layout failed to load, which the window says loudly on
-            // its own. Switching the view directly is still the better of the two failures.
-            window.ShowVatBakeTab(showVatBake);
+            window.SetActiveTab(tab);
+            return window;
         }
 
         private static ClipEditorWindow FindOpenWindow()
@@ -717,7 +701,8 @@ namespace DotsAnimationToolkit.Editor
                 selectedClip = selectedClip,
                 rig = ActiveRig,
                 playheadTime = playheadTime,
-                rigEditMode = IsRigEditMode
+                rigEditMode = IsRigEditMode,
+                tab = (int)activeTab
             };
             for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
             {
@@ -765,7 +750,7 @@ namespace DotsAnimationToolkit.Editor
             RestoreView(
                 state.clipSet as ClipSetAsset, state.rig as RigAsset,
                 state.selectedClip as ClipAsset, state.rigEditMode,
-                state.playheadTime, state.selectedNames);
+                state.playheadTime, (ClipEditorTab)state.tab, state.selectedNames);
             return true;
         }
 
@@ -796,6 +781,10 @@ namespace DotsAnimationToolkit.Editor
         [SerializeField] private ClipAsset sessionSelectedClip;
         [SerializeField] private float sessionPlayheadTime;
         [SerializeField] private bool sessionRigEditMode;
+
+        // Carried for the same reason the rig and the playhead are: a recompile while authoring a
+        // direction set or a VAT bake should not drop you back on the Clip Editor tab.
+        [SerializeField] private ClipEditorTab sessionTab;
         [SerializeField] private List<string> sessionSelectedNames = new List<string>();
         [SerializeField] private bool hasSessionState;
 
@@ -806,6 +795,7 @@ namespace DotsAnimationToolkit.Editor
             sessionSelectedClip = selectedClip;
             sessionPlayheadTime = playheadTime;
             sessionRigEditMode = IsRigEditMode;
+            sessionTab = activeTab;
             sessionSelectedNames.Clear();
             for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
             {
@@ -824,7 +814,7 @@ namespace DotsAnimationToolkit.Editor
 
             RestoreView(
                 sessionClipSet, sessionRig, sessionSelectedClip, sessionRigEditMode,
-                sessionPlayheadTime, sessionSelectedNames);
+                sessionPlayheadTime, sessionTab, sessionSelectedNames);
         }
 
         /// <summary>
@@ -842,8 +832,14 @@ namespace DotsAnimationToolkit.Editor
             ClipAsset restoredClip,
             bool restoredRigEditMode,
             float restoredPlayheadTime,
+            ClipEditorTab restoredTab,
             List<string> restoredSelectionNames)
         {
+            // First, so everything below lands on the view the user was actually on. Switching last
+            // would rebuild the dock and then cover it, which is the same picture by a slower route
+            // but leaves the panes offered a selection they were not showing at the time.
+            SetActiveTab(restoredTab);
+
             // The rig first, and with notify: it is what the hierarchy and the preview are built
             // from, and OnClipSetChanged below deliberately leaves it alone. Restoring it second
             // would rebuild both panes twice, the first time against no rig at all.
@@ -923,6 +919,17 @@ namespace DotsAnimationToolkit.Editor
             // close it is written into an instance that is about to be destroyed, and costs nothing.
             RememberSessionState();
 
+            // Before the controller it borrows is disposed, and that order is the whole point. The
+            // panel's tick is an EditorApplication.update subscription of its own; left registered
+            // it would go on calling Render on a disposed controller every editor tick, from a
+            // window that has already closed. Dropped rather than disposed afterwards, because it
+            // renders through the window's controller and owns no native resource itself.
+            if (directionSetsPanel != null)
+            {
+                directionSetsPanel.SetTicking(false);
+                directionSetsPanel = null;
+            }
+
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
             // allocation, so disposal here is load-bearing rather than tidy.
@@ -930,14 +937,6 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.Dispose();
                 previewController = null;
-            }
-
-            // The direction sets panel owns a second preview controller of its own, with the same
-            // Persistent blob to release — plus a synthetic clip set that is not saved to disk.
-            if (directionSetsPanel != null)
-            {
-                directionSetsPanel.Dispose();
-                directionSetsPanel = null;
             }
 
             // Not saved and owned by nothing else, so it is this window's to destroy. Its undo
@@ -1130,30 +1129,21 @@ namespace DotsAnimationToolkit.Editor
             }
 
             directionSetsPane = rootVisualElement.Q<VisualElement>("direction-sets-pane");
-            ToolbarToggle directionSetsToggle = rootVisualElement.Q<ToolbarToggle>("direction-sets-toggle");
-            if (directionSetsToggle != null)
-            {
-                directionSetsToggle.tooltip =
-                    "Swap the editor for the 2D Direction Sets authoring pane, and back: queue a "
-                    + "clip per east-side facing, then sweep the direction slider to watch the "
-                    + "character turn through the coverage those slots add up to. Nothing is torn "
-                    + "down either way.";
-                directionSetsToggle.RegisterValueChangedCallback(
-                    changeEvent => Show2DDirectionSetsTab(changeEvent.newValue));
-            }
-
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
-            ToolbarToggle vatBakeToggle = rootVisualElement.Q<ToolbarToggle>("vat-bake-toggle");
-            if (vatBakeToggle != null)
-            {
-                vatBakeToggle.tooltip =
-                    "Swap the editor for the VAT bake settings, and back. Nothing is torn down "
-                    + "either way — the playhead, the selection and the three split positions are "
-                    + "where you left them — so a bake, a look at the result and another bake is "
-                    + "three clicks rather than three windows.";
-                vatBakeToggle.RegisterValueChangedCallback(
-                    changeEvent => ShowVatBakeTab(changeEvent.newValue));
-            }
+            newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
+
+            // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
+            viewportOverlay = rootVisualElement.Q<VisualElement>("viewport-overlay");
+
+            BindGizmoModeToggle(GizmoMode.Move, "gizmo-move-toggle",
+                "Move the selected part, bone or socket. Same as pressing W in the viewport.");
+            BindGizmoModeToggle(GizmoMode.Rotate, "gizmo-rotate-toggle",
+                "Rotate the selection. Same as pressing E in the viewport.");
+            BindGizmoModeToggle(GizmoMode.Scale, "gizmo-scale-toggle",
+                "Scale the selection. Same as pressing R in the viewport.");
+            SetGizmoMode(gizmoMode);
+
+            BindTabs();
 
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
             if (rigEditToggle != null)
@@ -1198,18 +1188,6 @@ namespace DotsAnimationToolkit.Editor
                     + "itself) is what the preview instantiates for bone tracks — use New Rig to "
                     + "create one, or open an existing rig to assign or change its prefab.";
                 skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
-            }
-
-            newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
-            newRigToggle = rootVisualElement.Q<ToolbarToggle>("new-rig-toggle");
-            if (newRigToggle != null)
-            {
-                newRigToggle.tooltip =
-                    "Swap the editor for the New Rig flow, and back: scan a prefab's hierarchy for "
-                    + "renderer-bearing nodes, choose which become rig targets, and optionally point "
-                    + "this clip set at the result. Nothing is torn down either way.";
-                newRigToggle.RegisterValueChangedCallback(
-                    changeEvent => ShowNewRigTab(changeEvent.newValue));
             }
 
             VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
@@ -1837,6 +1815,103 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Binds the four tab toggles as a radio group.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Clicking the lit tab is a no-op, not a toggle-off.</strong> There is nothing
+        /// behind a tab to reveal — Clip Editor <em>is</em> what is behind the other three — so a
+        /// click that wrote <c>false</c> would leave the window showing a pane with no tab claiming
+        /// it. The toggle is put back to <c>true</c> rather than left as the user dropped it, so the
+        /// bar always describes what is on screen.
+        /// </remarks>
+        private void BindTabs()
+        {
+            BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
+                "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
+                + "opens on, and what the other three tabs are drawn over.");
+            BindTab(ClipEditorTab.NewRig, "tab-new-rig",
+                "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
+                + "targets, and optionally point this clip set at the result.");
+            BindTab(ClipEditorTab.DirectionSets, "tab-direction-sets",
+                "Queue a clip per east-side facing, then sweep the direction slider to watch the "
+                + "character turn through the coverage those slots add up to.");
+            BindTab(ClipEditorTab.VatBake, "tab-vat-bake",
+                "Bake the open clip set's VAT textures. Nothing is torn down when you leave, so a "
+                + "bake, a look at the result and another bake is three clicks rather than three "
+                + "windows.");
+
+            ApplyActiveTab();
+        }
+
+        private void BindTab(ClipEditorTab tab, string elementName, string tooltip)
+        {
+            ToolbarToggle toggle = rootVisualElement.Q<ToolbarToggle>(elementName);
+            tabToggles[(int)tab] = toggle;
+            if (toggle == null)
+            {
+                return;
+            }
+
+            toggle.tooltip = tooltip;
+            toggle.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (isApplyingTab)
+                {
+                    return;
+                }
+                SetActiveTab(tab);
+            });
+        }
+
+        /// <summary>
+        /// Switches the window to <paramref name="tab"/>. The single writer of
+        /// <see cref="activeTab"/>, and the only caller of the three <c>Show…Tab</c> methods.
+        /// </summary>
+        /// <remarks>
+        /// Everything that wants to change the view goes through here — the toggles, the Scene
+        /// view's overlay buttons, a double-clicked asset, and the New Rig flow closing itself. One
+        /// writer is what stops a pane being shown behind a dark tab, which is the failure the three
+        /// independent toggles this replaced had by construction.
+        /// </remarks>
+        private void SetActiveTab(ClipEditorTab tab)
+        {
+            activeTab = tab;
+            ApplyActiveTab();
+        }
+
+        private void ApplyActiveTab()
+        {
+            // The assignments below raise change callbacks on three toggles that did not change and
+            // one that did; without this every switch would re-enter SetActiveTab four times.
+            isApplyingTab = true;
+            for (int tabIndex = 0; tabIndex < tabToggles.Length; tabIndex++)
+            {
+                ToolbarToggle toggle = tabToggles[tabIndex];
+                if (toggle == null)
+                {
+                    continue;
+                }
+                bool isActive = tabIndex == (int)activeTab;
+                toggle.SetValueWithoutNotify(isActive);
+                toggle.EnableInClassList(TabActiveUssClassName, isActive);
+            }
+            isApplyingTab = false;
+
+            ShowNewRigTab(activeTab == ClipEditorTab.NewRig);
+            Show2DDirectionSetsTab(activeTab == ClipEditorTab.DirectionSets);
+            ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
+
+            // The identity and tool rows are Clip Editor controls sitting over the Clip Editor's own
+            // viewport. The cover panes are drawn over the whole body, so on any other tab the rows
+            // are underneath them and would only ever be half-visible during a transition.
+            if (viewportOverlay != null)
+            {
+                viewportOverlay.EnableInClassList(
+                    HiddenUssClassName, activeTab != ClipEditorTab.ClipEditor);
+            }
+        }
+
+        /// <summary>
         /// Shows or hides the VAT bake tab over the editor.
         /// </summary>
         /// <remarks>
@@ -1867,11 +1942,7 @@ namespace DotsAnimationToolkit.Editor
                     vatBakePane.Add(vatBakePanel);
                 }
 
-                // Offered, not imposed: the panel keeps whatever the user chose there. Both are
-                // offered separately because they are separate — the panel can bake this set's
-                // clips against a different rig on purpose.
-                vatBakePanel.OfferClipSet(clipSet);
-                vatBakePanel.OfferRig(activeRig);
+                vatBakePanel.SetSource(clipSet, activeRig);
             }
 
             vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1937,13 +2008,11 @@ namespace DotsAnimationToolkit.Editor
                 if (directionSetsPanel == null)
                 {
                     directionSetsPanel = new DirectionSetsPanel();
+                    directionSetsPanel.SelectionRequested += OnDirectionSetsSelectionRequested;
                     directionSetsPane.Add(directionSetsPanel);
                 }
 
-                // Offered, not imposed — the same contract VAT Bake's panel has. The pane can be
-                // previewing a set against a different rig on purpose, so an offer only fills a
-                // field the user has not filled themselves.
-                directionSetsPanel.OfferRig(activeRig);
+                directionSetsPanel.SetSource(previewController, clipSet, activeRig);
             }
 
             directionSetsPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1954,22 +2023,61 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Pushes the window's clip set and rig at whichever pane is open, after one of them
+        /// changed.
+        /// </summary>
+        /// <remarks>
+        /// Both panes read the window's selection rather than holding their own (owner directive
+        /// 2026-08-29), so a change made while a pane is open has to reach it — otherwise VAT Bake
+        /// would sit there offering to bake a set the window stopped showing, which is exactly the
+        /// silent wrong-thing the shared selection was meant to remove.
+        /// </remarks>
+        private void RefreshOpenPaneSource()
+        {
+            if (vatBakePanel != null)
+            {
+                vatBakePanel.SetSource(clipSet, activeRig);
+            }
+            if (directionSetsPanel != null)
+            {
+                directionSetsPanel.SetSource(previewController, clipSet, activeRig);
+            }
+        }
+
+        /// <summary>
+        /// Answers the direction sets pane asking for a different clip set and rig — what picking a
+        /// unit context does.
+        /// </summary>
+        /// <remarks>
+        /// Written through the two toolbar fields rather than at <see cref="clipSet"/> and
+        /// <see cref="activeRig"/> directly, so a unit pick and a hand pick run the same
+        /// <see cref="OnClipSetChanged"/> / <see cref="OnSkinnedSourceChanged"/> path. There is one
+        /// place that decides what loading a set or a rig means, and this is not a second one.
+        /// </remarks>
+        private void OnDirectionSetsSelectionRequested(ClipSetAsset requestedClipSet, RigAsset requestedRig)
+        {
+            if (requestedRig != null && skinnedSourceField != null)
+            {
+                skinnedSourceField.value = requestedRig;
+            }
+            if (requestedClipSet != null && clipSetField != null)
+            {
+                clipSetField.value = requestedClipSet;
+            }
+        }
+
+        /// <summary>
         /// Closes the New Rig flow at the panel's own request, once it has created a rig.
         /// </summary>
         /// <remarks>
-        /// Written through the toggle rather than straight at the pane: the toggle is the only thing
-        /// that drives the pane, so hiding it behind the toggle's back would leave a lit "New Rig"
-        /// whose next press hides what is already hidden.
+        /// Under tabs there is no "closed" for a pane to be — there is only some other tab — so
+        /// finishing the flow lands on the Clip Editor, which is where a freshly created rig is
+        /// meant to be looked at. Written through <see cref="SetActiveTab"/> rather than straight at
+        /// the pane, so the tab bar cannot end up describing a view nobody is on.
         /// </remarks>
         private void CloseNewRigTab()
         {
-            if (newRigToggle != null)
-            {
-                newRigToggle.value = false;
-                return;
-            }
-
-            ShowNewRigTab(false);
+            SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
         /// <summary>
@@ -2554,14 +2662,19 @@ namespace DotsAnimationToolkit.Editor
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
             rigEditBanner = rootVisualElement.Q<Label>("rig-edit-banner");
 
-            // The validation findings are shown over the preview rather than in the top bar, and
-            // only while the bar's summary button asks for them. Attached from here rather than
-            // built here, because the panel and that button are two halves of one control — see
-            // ValidationBadgeElement. BindToolbar has already run, so the badge exists.
+            // The validation findings are shown over the preview, and only while the summary button
+            // asks for them. Attached from here rather than built here, because the panel and that
+            // button are two halves of one control — see ValidationBadgeElement. BindToolbar has
+            // already run, so the badge exists.
+            //
+            // Into the overlay column itself, as its third child below the two control rows, rather
+            // than into a layer of its own. The panel's max-width and max-height are percentages,
+            // and a percentage resolves against the parent — the column is frame-sized precisely so
+            // "60%" keeps meaning 60% of the 3D area, which is what stops a findings list from
+            // eating the space being posed in.
             if (validationBadge != null)
             {
-                validationBadge.AttachMessagePanel(
-                    rootVisualElement.Q<VisualElement>("validation-overlay-slot"));
+                validationBadge.AttachMessagePanel(viewportOverlay);
             }
 
             reconcilePanel = rootVisualElement.Q<VisualElement>("reconcile-panel");
@@ -2928,9 +3041,59 @@ namespace DotsAnimationToolkit.Editor
                     return;
             }
 
-            gizmoMode = requestedMode;
-            RefreshGizmo();
+            SetGizmoMode(requestedMode);
             keyEvent.StopPropagation();
+        }
+
+        /// <summary>
+        /// The single writer of <see cref="gizmoMode"/>, called by the W/E/R keys and by the
+        /// viewport overlay's three buttons.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Both ways in must land here, and the toggles must be written whichever it was.</strong>
+        /// The keys pre-date the buttons by a long way, so the failure to avoid is pressing W and
+        /// leaving Rotate lit — a gizmo describing itself as the mode it is not, which costs a drag
+        /// to discover. Nothing about the gizmo's own behaviour changes: this sets the same field
+        /// the key handler always set and calls the same refresh.
+        /// </remarks>
+        private void SetGizmoMode(GizmoMode mode)
+        {
+            gizmoMode = mode;
+
+            isApplyingGizmoMode = true;
+            for (int modeIndex = 0; modeIndex < gizmoModeToggles.Length; modeIndex++)
+            {
+                ToolbarToggle toggle = gizmoModeToggles[modeIndex];
+                if (toggle != null)
+                {
+                    toggle.SetValueWithoutNotify(modeIndex == (int)mode);
+                }
+            }
+            isApplyingGizmoMode = false;
+
+            RefreshGizmo();
+        }
+
+        private void BindGizmoModeToggle(GizmoMode mode, string elementName, string tooltip)
+        {
+            ToolbarToggle toggle = rootVisualElement.Q<ToolbarToggle>(elementName);
+            gizmoModeToggles[(int)mode] = toggle;
+            if (toggle == null)
+            {
+                return;
+            }
+
+            toggle.tooltip = tooltip;
+            toggle.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (isApplyingGizmoMode)
+                {
+                    return;
+                }
+                // A radio group, like the tabs: clicking the lit mode is a no-op rather than a way
+                // to have no gizmo mode at all.
+                SetGizmoMode(mode);
+            });
         }
 
         /// <summary>
@@ -3694,6 +3857,7 @@ namespace DotsAnimationToolkit.Editor
             // swallowed clicks in silence. OnClipSetChanged carries the same refresh now, for the
             // other place LoadedPrefab can change.
             RefreshPrefabActionState();
+            RefreshOpenPaneSource();
         }
 
         // -------------------------------------------------------------------------------------
@@ -4788,6 +4952,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 validationBadge.Refresh(activeRig, clipSet);
             }
+            RefreshOpenPaneSource();
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)
@@ -4874,7 +5039,16 @@ namespace DotsAnimationToolkit.Editor
 
             // The preview updates every tick, not only while playing — scrubbing a paused clip is
             // the authoring loop this window exists for.
-            UpdatePreview(now);
+            //
+            // But only on this tab. The 2D Direction Sets pane drives the same controller into its
+            // own viewport, and one PreviewRenderUtility cannot serve two of them in a frame: both
+            // would sample and render, and each would show whatever the other posed last. Which one
+            // won would depend on tick order, so it would read as the direction viewer flickering
+            // rather than as two writers.
+            if (activeTab == ClipEditorTab.ClipEditor)
+            {
+                UpdatePreview(now);
+            }
         }
 
         /// <summary>Marks the preview's registry stale; the tick rebuilds it after a short delay.</summary>
