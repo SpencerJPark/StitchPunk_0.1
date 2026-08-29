@@ -1,4 +1,5 @@
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace DotsMovementToolkit
 {
@@ -12,6 +13,11 @@ namespace DotsMovementToolkit
         public int layerCount;
         public float cellSize;
         public float layerHeight;
+
+        // World position of cell (0,0)'s corner. NavGridAuthoring derives it from its own transform,
+        // optionally centring the footprint on it rather than extending only into +X/+Z.
+        public float3 gridOrigin;
+
         public uint wallLayerMask;
         public uint heavyLayerMask;
         public uint groundLayerMask;

@@ -48,6 +48,7 @@ public partial struct StairTransitionSystem : ISystem
         {
             cellSize = gridConfig.cellSize,
             layerHeight = gridConfig.layerHeight,
+            gridOrigin = gridConfig.gridOrigin,
             stairs = stairs,
             transitionDistance = gridConfig.cellSize * 0.5f
         };
@@ -58,6 +59,7 @@ public partial struct StairTransitionSystem : ISystem
         {
             cellSize = gridConfig.cellSize,
             layerHeight = gridConfig.layerHeight,
+            gridOrigin = gridConfig.gridOrigin,
             stairs = stairs,
             transitionDistance = gridConfig.cellSize * 0.5f
         };
@@ -77,6 +79,7 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
 {
     [ReadOnly] public float cellSize;
     [ReadOnly] public float layerHeight;
+    [ReadOnly] public float3 gridOrigin;
     [ReadOnly] public NativeArray<NavGridStairConnection> stairs;
     [ReadOnly] public float transitionDistance;
     
@@ -86,7 +89,7 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
         ref Movement movement)
     {
         float3 position = localTransform.Position;
-        int2 gridPos = NavGridSystem.GetGridPosition(position, cellSize);
+        int2 gridPos = NavGridSystem.GetGridPosition(position, cellSize, gridOrigin);
         int currentLayer = follower.currentLayer;
         
         // Check if on a stair cell
@@ -135,6 +138,7 @@ public partial struct StairTransitionDStarJob : IJobEntity
 {
     [ReadOnly] public float cellSize;
     [ReadOnly] public float layerHeight;
+    [ReadOnly] public float3 gridOrigin;
     [ReadOnly] public NativeArray<NavGridStairConnection> stairs;
     [ReadOnly] public float transitionDistance;
     
@@ -144,7 +148,7 @@ public partial struct StairTransitionDStarJob : IJobEntity
         ref Movement movement)
     {
         float3 position = localTransform.Position;
-        int2 gridPos = NavGridSystem.GetGridPosition(position, cellSize);
+        int2 gridPos = NavGridSystem.GetGridPosition(position, cellSize, gridOrigin);
         int currentLayer = follower.currentLayer;
         
         // Check if on a stair cell
@@ -222,14 +226,13 @@ public static class StairUtils
         EntityManager em,
         float3 bottomPosition,
         float3 topPosition,
-        float cellSize,
-        float layerHeight,
+        in NavGridConfig gridConfig,
         bool bidirectional = true)
     {
-        int2 bottomGridPos = NavGridSystem.GetGridPosition(bottomPosition, cellSize);
-        int2 topGridPos = NavGridSystem.GetGridPosition(topPosition, cellSize);
-        int bottomLayer = NavGridSystem.GetLayer(bottomPosition, layerHeight);
-        int topLayer = NavGridSystem.GetLayer(topPosition, layerHeight);
+        int2 bottomGridPos = NavGridSystem.GetGridPosition(bottomPosition, gridConfig);
+        int2 topGridPos = NavGridSystem.GetGridPosition(topPosition, gridConfig);
+        int bottomLayer = NavGridSystem.GetLayer(bottomPosition, gridConfig);
+        int topLayer = NavGridSystem.GetLayer(topPosition, gridConfig);
         
         AddStairConnection(em, bottomGridPos, bottomLayer, topLayer, bottomPosition, topPosition, bidirectional);
     }

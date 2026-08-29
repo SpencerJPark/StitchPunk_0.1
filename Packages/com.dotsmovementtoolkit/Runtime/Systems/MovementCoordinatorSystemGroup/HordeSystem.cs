@@ -90,8 +90,8 @@ public partial struct HordeSystem : ISystem
                 continue;
             
             // Check if we already have a valid flow field for this target
-            int2 targetGridPos = NavGridSystem.GetGridPosition(horde.ValueRO.targetPosition, gridConfig.cellSize);
-            int targetLayer = NavGridSystem.GetLayer(horde.ValueRO.targetPosition, gridConfig.layerHeight);
+            int2 targetGridPos = NavGridSystem.GetGridPosition(horde.ValueRO.targetPosition, gridConfig);
+            int targetLayer = NavGridSystem.GetLayer(horde.ValueRO.targetPosition, gridConfig);
             int existingIndex = FindExistingFlowField(targetGridPos, targetLayer, flowFieldData);
             
             if (existingIndex >= 0)

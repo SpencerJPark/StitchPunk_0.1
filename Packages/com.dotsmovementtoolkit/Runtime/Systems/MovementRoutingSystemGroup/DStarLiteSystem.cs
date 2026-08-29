@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -17,6 +17,7 @@ public partial struct DStarLiteSystem : ISystem
         public int width;
         public int height;
         public float nodeSize;
+        public float3 gridOrigin;
         public NativeArray<DStarNode> nodes;
         public NativeArray<PathData>  activePaths;
         public int nextPathIndex;
@@ -112,8 +113,8 @@ public partial struct DStarLiteSystem : ISystem
         if (!SystemAPI.HasComponent<Movement>(entity))           return;
         if (!SystemAPI.HasComponent<PathfindingAgent>(entity))   return;
 
-        int2 startGrid = PathfindingUtils.WorldToGrid(currentPos, dstarData.nodeSize);
-        int2 goalGrid  = PathfindingUtils.WorldToGrid(targetPos,  dstarData.nodeSize);
+        int2 startGrid = PathfindingUtils.WorldToGrid(currentPos, dstarData.nodeSize, dstarData.gridOrigin);
+        int2 goalGrid  = PathfindingUtils.WorldToGrid(targetPos,  dstarData.nodeSize, dstarData.gridOrigin);
 
         int pathIndex = FindOrAllocatePathSlot(ref dstarData, entity);
         if (pathIndex < 0) return;
@@ -130,7 +131,7 @@ public partial struct DStarLiteSystem : ISystem
         ComputeDStarLitePath(ref dstarData, pathIndex, gridCostMap.costs, wallCost);
 
         int2  nextNode    = GetNextNodeTowardGoal(ref dstarData, startGrid, gridCostMap.costs, wallCost);
-        float3 nextWaypoint = PathfindingUtils.GridToWorld(nextNode, dstarData.nodeSize);
+        float3 nextWaypoint = PathfindingUtils.GridToWorld(nextNode, dstarData.nodeSize, dstarData.gridOrigin);
 
         RefRW<DStarLiteFollower> follower = SystemAPI.GetComponentRW<DStarLiteFollower>(entity);
         follower.ValueRW.pathDataIndex    = pathIndex;
@@ -155,6 +156,7 @@ public partial struct DStarLiteSystem : ISystem
             width        = gridConfig.width,
             height       = gridConfig.height,
             nodeSize     = gridConfig.cellSize,
+            gridOrigin   = gridConfig.gridOrigin,
             nodes        = new NativeArray<DStarNode>(cellCount, Allocator.Persistent),
             activePaths  = new NativeArray<PathData>(MAX_ACTIVE_PATHS, Allocator.Persistent),
             nextPathIndex = 0

@@ -77,6 +77,7 @@ public partial struct NavGridSystem : ISystem
                     width = gridConfig.width,
                     cellSize = gridConfig.cellSize,
                     cellSizeHalf = gridConfig.cellSize * 0.5f,
+                    gridOrigin = gridConfig.gridOrigin,
                     layerCount = gridConfig.layerCount,
                     layerHeight = gridConfig.layerHeight,
                     cellsPerLayer = cellsPerLayer,
@@ -131,7 +132,8 @@ public partial struct NavGridSystem : ISystem
             height = settings.height,
             layerCount = settings.layerCount,
             cellSize = settings.cellSize,
-            layerHeight = settings.layerHeight
+            layerHeight = settings.layerHeight,
+            gridOrigin = settings.gridOrigin
         });
 
         var costMap = new NavGridCostMap
@@ -189,51 +191,67 @@ public partial struct NavGridSystem : ISystem
         pos = new int2(localIndex % width, localIndex / width);
     }
     
+    // Every world<->grid conversion below takes gridOrigin (NavGridConfig.gridOrigin, the world
+    // position of cell (0,0)'s corner). The NavGridConfig overloads are the ones to reach for;
+    // the loose-parameter versions exist for jobs that carry cellSize/gridOrigin as fields.
+
     /// <summary>Convert world position to grid position (XZ plane). Delegates to PathfindingUtils.WorldToGrid.</summary>
-    public static int2 GetGridPosition(float3 worldPosition, float cellSize)
-        => PathfindingUtils.WorldToGrid(worldPosition, cellSize);
-    
+    public static int2 GetGridPosition(float3 worldPosition, float cellSize, float3 gridOrigin)
+        => PathfindingUtils.WorldToGrid(worldPosition, cellSize, gridOrigin);
+
+    public static int2 GetGridPosition(float3 worldPosition, in NavGridConfig config)
+        => PathfindingUtils.WorldToGrid(worldPosition, config.cellSize, config.gridOrigin);
+
     /// <summary>Get layer index from world Y position.</summary>
-    public static int GetLayer(float3 worldPosition, float layerHeight)
+    public static int GetLayer(float3 worldPosition, float layerHeight, float3 gridOrigin)
     {
-        return math.max(0, (int)math.floor(worldPosition.y / layerHeight));
+        return math.max(0, (int)math.floor((worldPosition.y - gridOrigin.y) / layerHeight));
     }
-    
+
+    public static int GetLayer(float3 worldPosition, in NavGridConfig config)
+        => GetLayer(worldPosition, config.layerHeight, config.gridOrigin);
+
     /// <summary>Get both grid position and layer from world position.</summary>
-    public static void GetGridPositionAndLayer(float3 worldPosition, float cellSize, float layerHeight, 
+    public static void GetGridPositionAndLayer(float3 worldPosition, in NavGridConfig config,
         out int2 gridPos, out int layer)
     {
-        gridPos = GetGridPosition(worldPosition, cellSize);
-        layer = GetLayer(worldPosition, layerHeight);
+        gridPos = GetGridPosition(worldPosition, config);
+        layer = GetLayer(worldPosition, config);
     }
     
     /// <summary>Convert grid position to world position (corner).</summary>
-    public static float3 GetWorldPosition(int x, int y, int layer, float cellSize, float layerHeight)
+    public static float3 GetWorldPosition(int x, int y, int layer, float cellSize, float layerHeight, float3 gridOrigin)
     {
         return new float3(
-            x * cellSize,
-            layer * layerHeight,
-            y * cellSize
+            gridOrigin.x + x * cellSize,
+            gridOrigin.y + layer * layerHeight,
+            gridOrigin.z + y * cellSize
         );
     }
-    
+
+    public static float3 GetWorldPosition(int x, int y, int layer, in NavGridConfig config)
+        => GetWorldPosition(x, y, layer, config.cellSize, config.layerHeight, config.gridOrigin);
+
     /// <summary>Convert grid position to world position (center of cell).</summary>
-    public static float3 GetWorldCenterPosition(int x, int y, int layer, float cellSize, float layerHeight)
+    public static float3 GetWorldCenterPosition(int x, int y, int layer, float cellSize, float layerHeight, float3 gridOrigin)
     {
         return new float3(
-            x * cellSize + cellSize * 0.5f,
-            layer * layerHeight,
-            y * cellSize + cellSize * 0.5f
+            gridOrigin.x + x * cellSize + cellSize * 0.5f,
+            gridOrigin.y + layer * layerHeight,
+            gridOrigin.z + y * cellSize + cellSize * 0.5f
         );
     }
-    
-    /// <summary>Convert grid position to world position (center, single layer).</summary>
-    public static float3 GetWorldCenterPosition(int x, int y, float cellSize)
+
+    public static float3 GetWorldCenterPosition(int x, int y, int layer, in NavGridConfig config)
+        => GetWorldCenterPosition(x, y, layer, config.cellSize, config.layerHeight, config.gridOrigin);
+
+    /// <summary>Convert grid position to world position (center, layer 0).</summary>
+    public static float3 GetWorldCenterPosition(int x, int y, float cellSize, float3 gridOrigin)
     {
         return new float3(
-            x * cellSize + cellSize * 0.5f,
-            0f,
-            y * cellSize + cellSize * 0.5f
+            gridOrigin.x + x * cellSize + cellSize * 0.5f,
+            gridOrigin.y,
+            gridOrigin.z + y * cellSize + cellSize * 0.5f
         );
     }
     
@@ -270,8 +288,8 @@ public partial struct NavGridSystem : ISystem
     /// <summary>Check if world position is walkable.</summary>
     public static bool IsWalkable(float3 worldPosition, NavGridConfig config, NativeArray<byte> costs, byte wallCost)
     {
-        int2 gridPos = GetGridPosition(worldPosition, config.cellSize);
-        int layer = GetLayer(worldPosition, config.layerHeight);
+        int2 gridPos = GetGridPosition(worldPosition, config);
+        int layer = GetLayer(worldPosition, config);
 
         if (!IsValidGridPosition(gridPos, layer, config.width, config.height, config.layerCount))
             return false;
@@ -309,6 +327,7 @@ public struct UpdateNavGridCostMapJob : IJobParallelFor
     [ReadOnly] public int width;
     [ReadOnly] public float cellSize;
     [ReadOnly] public float cellSizeHalf;
+    [ReadOnly] public float3 gridOrigin;
     [ReadOnly] public int layerCount;
     [ReadOnly] public float layerHeight;
     [ReadOnly] public int cellsPerLayer;
@@ -330,9 +349,9 @@ public struct UpdateNavGridCostMapJob : IJobParallelFor
         int y = localIndex / width;
         
         float3 worldPos = new float3(
-            x * cellSize + cellSizeHalf,
-            layer * layerHeight + 0.5f, // Slightly above ground
-            y * cellSize + cellSizeHalf
+            gridOrigin.x + x * cellSize + cellSizeHalf,
+            gridOrigin.y + layer * layerHeight + 0.5f, // Slightly above ground
+            gridOrigin.z + y * cellSize + cellSizeHalf
         );
         
         // Check for walls

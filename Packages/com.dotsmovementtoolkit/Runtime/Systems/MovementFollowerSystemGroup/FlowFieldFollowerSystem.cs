@@ -52,6 +52,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
         {
             cellSize = gridConfig.cellSize,
             cellSizeDouble = gridConfig.cellSize * 2f,
+            gridOrigin = gridConfig.gridOrigin,
             width = gridConfig.width,
             height = gridConfig.height,
             cellsPerLayer = cellsPerLayer,
@@ -114,6 +115,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
     {
         [ReadOnly] public float cellSize;
         [ReadOnly] public float cellSizeDouble;
+        [ReadOnly] public float3 gridOrigin;
         [ReadOnly] public int width;
         [ReadOnly] public int height;
         [ReadOnly] public int cellsPerLayer;
@@ -145,7 +147,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
                 return;
             }
 
-            int2 gridPosition = NavGridSystem.GetGridPosition(localTransform.Position, cellSize);
+            int2 gridPosition = NavGridSystem.GetGridPosition(localTransform.Position, cellSize, gridOrigin);
             
             // Bounds check
             if (!NavGridSystem.IsValidGridPosition(gridPosition, width, height))
@@ -173,7 +175,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
 
             // Set target position ahead in flow direction
             movement.targetPosition =
-                NavGridSystem.GetWorldCenterPosition(gridPosition.x, gridPosition.y, cellSize) +
+                NavGridSystem.GetWorldCenterPosition(gridPosition.x, gridPosition.y, cellSize, gridOrigin) +
                 moveVector * cellSizeDouble;
 
             // Check if reached final destination

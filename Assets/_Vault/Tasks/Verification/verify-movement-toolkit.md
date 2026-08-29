@@ -52,7 +52,19 @@ still stop and restart movement correctly. Spec + build deviations:
 - [ ] Order-destination markers still show/hide correctly for player-issued group moves
       (`OrderMarkerSystem` now reads the split-out `HordeOrderMarker` instead of `Horde.markerEntity`).
 
-### Nav grid debug view (added 2026-08-29, never seen running)
+### Nav grid placement (changed 2026-08-29 — the grid moved, pathfinding coverage changed with it)
+- [ ] Minions can now path across the whole level, including the -X/-Z half that used to be
+      outside the grid entirely. This is the one behaviour-changing item in this pass: the grid
+      footprint went from X/Z 0..200 to -100..100, so cells that were previously off-grid (and
+      therefore un-pathable) now exist.
+- [ ] Nothing regressed in the +X/+Z quadrant that *was* on-grid before.
+
+### Nav grid debug view (added 2026-08-29)
+
+Verified live via `execute_code` in Play mode: `gridOrigin` bakes to `(-100, 0, -100)`, the cost
+map builds (10000 cells, version 1), and the renderer produces a 10004-quad / 80032-vertex mesh
+centred at the origin with the package shader bound. What is *not* verified is how any of it
+actually looks — that is what the items below are for.
 - [ ] Set **Debug Display Mode = FullGrid** on the `MovementGridConfig` GameObject's
       `NavGridAuthoring`, enter Play mode: tiles cover the grid footprint, walls read red,
       heavy-terrain cells read amber, open floor reads faint green.
@@ -62,6 +74,14 @@ still stop and restart movement correctly. Spec + build deviations:
 - [ ] **Live update:** spawn or destroy a physics obstacle mid-play — the affected cells flash
       cyan and settle into their new colour. If nothing flashes, check whether the obstacle
       actually changed physics `NumBodies` (see Notes below) before blaming the view.
+- [ ] **Blocked cells stand out.** They are extruded into blocks
+      (`debugObstacleExtrusionHeight`, default 2) rather than painted flat. Confirm that reads
+      clearly at the game's normal camera angle; drop the height to 0 if it obscures too much.
+- [ ] **The console census is right.** Every cost-map rebuild logs
+      `NavGrid debug: N blocked + M discouraged of C cells. Grid covers X .., Z ..`. Confirm N
+      matches the obstacles actually in the scene. As of this pass it is **1** — only one object
+      in the project is on `PathfindingWalls`. Putting real level geometry on that layer is the
+      content-side work this checklist cannot do for you.
 - [ ] **Off** costs nothing: set it back to Off in play, tiles vanish and stay gone.
 - [ ] Outside Play mode, selecting the `MovementGridConfig` GameObject draws the footprint +
       lattice gizmo, and it lines up with the actual level geometry (the grid is anchored at

@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -192,8 +192,8 @@ public partial struct FlowFieldSystem : ISystem
             if (pathRequest.ValueRO.requestedMode != PathfindingMode.FlowField)
                 continue;
 
-            int2 targetGridPos = NavGridSystem.GetGridPosition(pathRequest.ValueRO.targetPosition, gridConfig.cellSize);
-            int  targetLayer   = NavGridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig.layerHeight);
+            int2 targetGridPos = NavGridSystem.GetGridPosition(pathRequest.ValueRO.targetPosition, gridConfig);
+            int  targetLayer   = NavGridSystem.GetLayer(pathRequest.ValueRO.targetPosition, gridConfig);
 
             pathRequestEnabled.ValueRW = false;
 

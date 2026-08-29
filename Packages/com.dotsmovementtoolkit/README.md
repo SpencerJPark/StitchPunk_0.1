@@ -41,10 +41,12 @@ set:
 | `wallLayerMask` / `heavyLayerMask` / `groundLayerMask` | Physics `LayerMask`s the grid samples against — walls block pathing entirely, "heavy" cells cost more, `groundLayerMask` is what `UnitGravitySystem` raycasts down onto. |
 | `wallCost` / `heavyCost` / `defaultCost` | Byte cost-map values. `wallCost` doubles as the "impassable" sentinel every pathfinding/flow-field comparison in the package checks against — pick a value nothing else would realistically produce (`byte.MaxValue` by default). |
 
-**The grid is anchored at world origin**, not at the authoring GameObject's transform: cell (0,0)
-is world (0,0,0) and the grid extends into +X/+Z. Moving the GameObject changes nothing. The
-Scene-view gizmo is drawn in world space for exactly this reason — check that the footprint
-actually covers your level before wondering why units path into walls at the far edge.
+**The grid is positioned by the authoring GameObject's transform.** With
+`centerGridOnThisTransform` on (the default) the footprint is centred on it; with it off, cell
+(0,0) sits at the transform and the grid extends only into +X/+Z. Either way the resolved corner
+is baked as `NavGridSettings.gridOrigin`, and every world↔cell conversion in the package takes it.
+Check the Scene-view gizmo actually covers your level: a grid that misses most of it looks
+identical to one that works, right up until a unit walks through a wall.
 
 Then add `MovementAuthoring` (+ `GravityAuthoring` if the entity should fall) to any unit, and
 either `PathfindingAuthoring` (individual D* Lite / flow-field agent) or `HordeAuthoring`
@@ -62,6 +64,7 @@ system is compiled out by `#if UNITY_EDITOR || DEVELOPMENT_BUILD`.
 | `debugDisplayMode` | `Off`, `ObstaclesOnly` (only cells whose cost differs from `defaultCost` — walls, heavy terrain, and cells still fading from a recent change), or `FullGrid` (every cell). |
 | `debugLayerToDraw` | Layer index, or `-1` for every layer at its own world height. |
 | `debugHeightOffset` / `debugCellPadding` | Lift above the layer floor, and the gap shrunk from each cell edge so individual tiles read as tiles. |
+| `debugObstacleExtrusionHeight` | Blocked cells are extruded into solid blocks of this height (discouraged cells get half), so obstacles read as volumes from a shallow camera angle instead of paint the floor hides. `0` keeps everything flat. |
 | `debugChangeHighlightSeconds` | How long a cell flashes `debugRecentlyChangedColor` after its cost changes — this is what makes a live obstacle visible as it lands, and a freed cell visible as it clears. `0` disables change tracking entirely (and its two per-cell arrays). |
 | `debugMaxDrawnCells` | Hard budget. A `FullGrid` request over it downgrades to `ObstaclesOnly` with one console warning rather than stalling the editor. |
 | colour fields | Resting colours for walkable / discouraged / blocked, plus the change flash. Costs between `defaultCost` and `wallCost` ramp from walkable toward discouraged, so a multi-tier cost map stays readable. |
@@ -71,7 +74,16 @@ world at runtime — so the authoring falls back to a Scene-view gizmo of the gr
 (`drawBoundsGizmo`), plus the cell lattice while the object is selected
 (`drawLatticeGizmoWhenSelected`).
 
-Two things to know before you file a bug against it:
+On every cost-map rebuild it logs a one-line census — `N blocked + M discouraged of C cells` plus
+the world footprint — and only when that census changes, so it is not per-frame spam. When the
+census is all zeros it upgrades to a warning naming the three things that produce an
+empty-looking view: obstacles outside the footprint, obstacles not baked into a subscene (so they
+never reach the physics `CollisionWorld` the cost map samples), and obstacles whose collider
+`BelongsTo` does not overlap `wallLayerMask`/`heavyLayerMask`. **A debug view that draws the grid
+but never fills a cell is almost always the third one, or simply nothing being on the wall
+layer** — check the census line before suspecting the renderer.
+
+Two more things to know before you file a bug against it:
 
 - The settings are **baked**. With the subscene open for editing, live baking pushes a change
   through each frame; with it closed, reopen it or re-enter Play mode.

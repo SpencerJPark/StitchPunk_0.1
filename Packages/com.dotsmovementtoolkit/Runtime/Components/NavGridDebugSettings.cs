@@ -31,6 +31,12 @@ namespace DotsMovementToolkit
 
         public bool drawCellOutlines;
 
+        /// <summary>
+        /// World height blocked cells are extruded to, so obstacles read as solid volumes instead of
+        /// paint on the floor. Discouraged cells get half of it. 0 keeps everything flat.
+        /// </summary>
+        public float obstacleExtrusionHeight;
+
         /// <summary>How long a cell keeps the "just changed" tint after a cost-map rebuild. 0 disables change tracking.</summary>
         public float changeHighlightSeconds;
 

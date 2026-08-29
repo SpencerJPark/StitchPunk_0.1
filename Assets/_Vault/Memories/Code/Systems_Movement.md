@@ -87,11 +87,17 @@ the pre-extraction hardcoded constants: 100×100×1 grid, cellSize 2, layerHeigh
 wallLayerMask = Walls (8), heavyLayerMask = PathfindingHeavy (9), groundLayerMask = Ground (3)
 + Structures (7), wallCost 255 / heavyCost 50 / defaultCost 1.
 
-**The grid is anchored at world origin, not at the authoring GameObject's transform** —
-`NavGridSystem.GetWorldCenterPosition` is `x * cellSize`, with no origin offset anywhere in the
-package. Moving the `MovementGridConfig` GameObject does nothing; the only way to shift coverage
-is to move the level. The authoring gizmo is deliberately drawn in world space so this is visible
-in the Scene view rather than discovered from a unit walking through a wall.
+**Grid placement (fixed 2026-08-29, second pass).** The grid used to be hard-anchored at world
+origin extending only into +X/+Z, so with a 100×100 grid at cellSize 2 it covered X/Z 0..200 while
+the level spans roughly -50..+50 — three quarters of the level was off-grid and three quarters of
+the grid was empty space. `NavGridSettings`/`NavGridConfig` now carry `gridOrigin` (world position
+of cell (0,0)'s corner), baked from the authoring transform and centred on it by default
+(`centerGridOnThisTransform`). Every world↔cell conversion in the package takes it — the loose
+`cellSize` overloads were kept for jobs, but each also takes `gridOrigin`, so a missed call site is
+a compile error rather than a silent off-by-a-hundred-metres.
+
+Current baked value for `MovementGridConfig` (at world origin): `gridOrigin = (-100, 0, -100)`,
+footprint X -100..100, Z -100..100.
 
 ## Nav grid rename (2026-08-29)
 
@@ -128,6 +134,15 @@ Traps worth knowing:
   which it gates on physics `NumBodies` changing — so an obstacle that *moves* without adding or
   removing a body will not refresh the cost map or the view. That's a pre-existing limitation of
   the change proxy (package README, Known Issues), not a bug in the debug view.
+- Blocked cells are extruded into blocks (`debugObstacleExtrusionHeight`, discouraged cells get
+  half) — flat tiles are near-invisible under this game's shallow camera angle.
+- On each cost-map rebuild it logs a census (`N blocked + M discouraged of C cells` + footprint),
+  only when the numbers change. An all-zero census escalates to a warning listing the three causes
+  of an empty-looking view. **Read that line first** — as of this pass exactly one object in the
+  project sits on the `PathfindingWalls` layer (a 1-unit sphere at ~(37.6, 0, 15.8) in
+  `DOTSTestScene`), so "no tiles fill in" was mostly "there is nothing to fill in", not a renderer
+  bug. The census is what makes that distinguishable without reading code.
 - `FullGrid` over `maxDrawnCells` silently downgrades to `ObstaclesOnly` with one console warning.
+  There is also a hard internal ceiling of 60k quads, since an extruded cell costs five.
 - In a player build `Hidden/DotsMovementToolkit/NavGridDebug` must be in Project Settings >
   Graphics > Always Included Shaders, or the system logs one warning and draws nothing.

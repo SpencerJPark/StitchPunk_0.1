@@ -9,10 +9,11 @@ using UnityEngine.Rendering;
 namespace DotsMovementToolkit
 {
     /// <summary>
-    /// Renders the live nav-grid cost map as a single vertex-coloured mesh: one tile per cell,
-    /// tinted by traversal cost, with cells that changed in the last cost-map rebuild flashed so
-    /// moving obstacles are visible as they land. Drawn with Graphics.RenderMesh, so it appears in
-    /// both the Game and Scene views without touching anything the game itself renders.
+    /// Renders the live nav-grid cost map as a single vertex-coloured mesh: walkable cells as flat
+    /// tiles, blocked and discouraged cells extruded into solid blocks, and any cell whose cost
+    /// changed in the last rebuild flashed so moving obstacles are visible as they land. Drawn with
+    /// Graphics.RenderMesh, so it appears in both the Game and Scene views without touching anything
+    /// the game itself renders.
     /// </summary>
     // OrderLast so it reads the cost map after NavGridSystem (OrderFirst) has rebuilt it this frame.
     [UpdateInGroup(typeof(MovementCoordinatorSystemGroup), OrderLast = true)]
@@ -22,16 +23,24 @@ namespace DotsMovementToolkit
 
         // Outlines share the fill's corner positions but get their own vertex block, so they can
         // carry a brighter, more opaque colour — one material, two submeshes, one draw call each.
-        private const float OutlineAlphaBoost = 3f;
+        private const float OutlineAlphaBoost = 2.5f;
         private const float OutlineBrightnessBoost = 1.4f;
+
+        // Extruded sides are shaded down so a block reads as a volume rather than a flat silhouette.
+        private const float ExtrudedSideShade = 0.7f;
+        private const float DiscouragedExtrusionFraction = 0.5f;
+
         private const int VerticesPerQuad = 4;
-        private const int FillIndicesPerQuad = 6;
-        private const int OutlineIndicesPerQuad = 8;
+
+        // maxDrawnCells budgets *cells*, but an extruded cell costs five quads. This is the backstop
+        // that keeps a grid of nothing but walls from building a million-vertex mesh.
+        private const int MaxQuads = 60000;
 
         private Mesh debugMesh;
         private Material debugMaterial;
         private bool hasReportedMissingShader;
         private bool hasReportedCellBudgetDowngrade;
+        private bool hasReportedQuadCeiling;
 
         private NativeArray<byte> previousCosts;
         private NativeArray<double> cellLastChangedTime;
@@ -40,11 +49,18 @@ namespace DotsMovementToolkit
         private double changeHighlightExpiryTime;
         private bool wasChangeHighlightActive;
 
-        private readonly List<int> drawnCellIndices = new List<int>();
-        private Vector3[] meshVertices = System.Array.Empty<Vector3>();
-        private Color[] meshColors = System.Array.Empty<Color>();
-        private int[] fillIndices = System.Array.Empty<int>();
-        private int[] outlineIndices = System.Array.Empty<int>();
+        private int lastReportedBlockedCells = -1;
+        private int lastReportedDiscouragedCells = -1;
+
+        private readonly List<Vector3> meshVertices = new List<Vector3>();
+        private readonly List<Color> meshColors = new List<Color>();
+        private readonly List<int> fillIndices = new List<int>();
+        private readonly List<int> outlineIndices = new List<int>();
+
+        // One entry per quad, parallel: which cost-map cell it belongs to, and how much to shade it.
+        // Recolouring walks these instead of re-deriving geometry.
+        private readonly List<int> quadCellIndices = new List<int>();
+        private readonly List<float> quadShades = new List<float>();
 
         private bool hasBuiltGeometry;
         private bool outlinesInCurrentMesh;
@@ -83,6 +99,7 @@ namespace DotsMovementToolkit
             {
                 lastSeenCostMapVersion = costMap.costMapVersion;
                 RecordChangedCells(costMap.costs, debugSettings, now);
+                ReportCostMapContents(gridConfig, gridSettings, costMap.costs);
             }
 
             // The frame a flash expires needs a full rebuild, not just a recolour: it both settles
@@ -110,7 +127,7 @@ namespace DotsMovementToolkit
                 RefreshColours(gridSettings, debugSettings, costMap.costs, now);
             }
 
-            if (drawnCellIndices.Count == 0) return;
+            if (quadCellIndices.Count == 0) return;
 
             RenderParams renderParams = new RenderParams(debugMaterial)
             {
@@ -123,6 +140,43 @@ namespace DotsMovementToolkit
             Graphics.RenderMesh(renderParams, debugMesh, 0, Matrix4x4.identity);
             if (outlinesInCurrentMesh)
                 Graphics.RenderMesh(renderParams, debugMesh, 1, Matrix4x4.identity);
+        }
+
+        // A grid whose footprint misses the level, or obstacles that never reach the physics world,
+        // both look identical from the outside: an empty-looking debug view. Say which it is.
+        private void ReportCostMapContents(NavGridConfig gridConfig, NavGridSettings gridSettings, NativeArray<byte> costs)
+        {
+            int blockedCells = 0;
+            int discouragedCells = 0;
+            for (int cellIndex = 0; cellIndex < costs.Length; cellIndex++)
+            {
+                byte cost = costs[cellIndex];
+                if (cost >= gridSettings.wallCost) blockedCells++;
+                else if (cost > gridSettings.defaultCost) discouragedCells++;
+            }
+
+            if (blockedCells == lastReportedBlockedCells && discouragedCells == lastReportedDiscouragedCells) return;
+            lastReportedBlockedCells = blockedCells;
+            lastReportedDiscouragedCells = discouragedCells;
+
+            float3 gridMax = gridConfig.gridOrigin
+                + new float3(gridConfig.width * gridConfig.cellSize, 0f, gridConfig.height * gridConfig.cellSize);
+            string footprint =
+                $"X {gridConfig.gridOrigin.x:0.#}..{gridMax.x:0.#}, Z {gridConfig.gridOrigin.z:0.#}..{gridMax.z:0.#}";
+
+            if (blockedCells + discouragedCells > 0)
+            {
+                Debug.Log($"NavGrid debug: {blockedCells} blocked + {discouragedCells} discouraged of " +
+                          $"{costs.Length} cells. Grid covers {footprint}.");
+                return;
+            }
+
+            Debug.LogWarning(
+                $"NavGrid debug: the cost map has no blocked or discouraged cells at all ({costs.Length} cells, " +
+                $"all at defaultCost), so nothing will fill in. The grid covers {footprint} — check that your " +
+                "obstacles (1) sit inside that footprint, (2) are baked into a subscene so they exist in the " +
+                "physics CollisionWorld at all, and (3) carry a collider whose BelongsTo overlaps wallLayerMask " +
+                $"0x{gridSettings.wallLayerMask:X} or heavyLayerMask 0x{gridSettings.heavyLayerMask:X}.");
         }
 
         // Stamps "changed at" times so RefreshColours can fade a freshly blocked (or freshly freed)
@@ -180,74 +234,69 @@ namespace DotsMovementToolkit
             int cellsPerLayer = gridConfig.width * gridConfig.height;
             int cellBudget = math.max(1, debugSettings.maxDrawnCells);
 
-            drawnCellIndices.Clear();
-            for (int layer = firstLayer; layer <= lastLayer && drawnCellIndices.Count < cellBudget; layer++)
+            outlinesInCurrentMesh = debugSettings.drawCellOutlines;
+            meshVertices.Clear();
+            fillIndices.Clear();
+            outlineIndices.Clear();
+            quadCellIndices.Clear();
+            quadShades.Clear();
+
+            float halfExtent = gridConfig.cellSize * (0.5f - math.clamp(debugSettings.cellPadding, 0f, 0.45f));
+            int drawnCells = 0;
+            bool hitQuadCeiling = false;
+
+            for (int layer = firstLayer; layer <= lastLayer && drawnCells < cellBudget && !hitQuadCeiling; layer++)
             {
                 for (int localIndex = 0; localIndex < cellsPerLayer; localIndex++)
                 {
                     int cellIndex = layer * cellsPerLayer + localIndex;
                     if (cellIndex >= costs.Length) break;
-                    if (!ShouldDrawCell(costs[cellIndex], cellIndex, gridSettings, debugSettings, effectiveMode, now)) continue;
 
-                    drawnCellIndices.Add(cellIndex);
-                    if (drawnCellIndices.Count >= cellBudget) break;
+                    byte cost = costs[cellIndex];
+                    if (!ShouldDrawCell(cost, cellIndex, gridSettings, debugSettings, effectiveMode, now)) continue;
+
+                    AppendCellGeometry(cellIndex, cost, gridConfig, gridSettings, debugSettings, halfExtent);
+
+                    drawnCells++;
+                    if (quadCellIndices.Count >= MaxQuads) { hitQuadCeiling = true; break; }
+                    if (drawnCells >= cellBudget) break;
                 }
             }
 
-            outlinesInCurrentMesh = debugSettings.drawCellOutlines;
-            int drawnCells = drawnCellIndices.Count;
-            EnsureMesh();
-            EnsureMeshBuffers(drawnCells, outlinesInCurrentMesh);
+            if (hitQuadCeiling && !hasReportedQuadCeiling)
+            {
+                hasReportedQuadCeiling = true;
+                Debug.LogWarning(
+                    $"NavGrid debug: hit the internal ceiling of {MaxQuads} quads after {drawnCells} cells and " +
+                    "stopped building. Extruded cells cost five quads each — lower maxDrawnCells, switch to " +
+                    "ObstaclesOnly, or set the obstacle extrusion height to 0.");
+            }
 
-            if (drawnCells == 0)
+            EnsureMesh();
+
+            int quadCount = quadCellIndices.Count;
+            if (quadCount == 0)
             {
                 debugMesh.Clear();
                 return;
             }
 
-            float paddedHalfExtent = gridConfig.cellSize * (0.5f - math.clamp(debugSettings.cellPadding, 0f, 0.45f));
-            int outlineVertexBase = drawnCells * VerticesPerQuad;
-
-            for (int drawIndex = 0; drawIndex < drawnCells; drawIndex++)
+            // The outline block is a positional copy of the fill vertices, so it can carry its own
+            // brighter colours while reusing every corner the fill already computed.
+            int fillVertexCount = quadCount * VerticesPerQuad;
+            if (outlinesInCurrentMesh)
             {
-                int cellIndex = drawnCellIndices[drawIndex];
-                NavGridSystem.GetPositionFromIndex(cellIndex, gridConfig.width, gridConfig.height, out int2 cell, out int layer);
+                for (int vertex = 0; vertex < fillVertexCount; vertex++)
+                    meshVertices.Add(meshVertices[vertex]);
 
-                float3 cellCentre = NavGridSystem.GetWorldCenterPosition(
-                    cell.x, cell.y, layer, gridConfig.cellSize, gridConfig.layerHeight);
-                float tileHeight = cellCentre.y + debugSettings.heightOffset;
-
-                int fillVertex = drawIndex * VerticesPerQuad;
-                meshVertices[fillVertex + 0] = new Vector3(cellCentre.x - paddedHalfExtent, tileHeight, cellCentre.z - paddedHalfExtent);
-                meshVertices[fillVertex + 1] = new Vector3(cellCentre.x + paddedHalfExtent, tileHeight, cellCentre.z - paddedHalfExtent);
-                meshVertices[fillVertex + 2] = new Vector3(cellCentre.x + paddedHalfExtent, tileHeight, cellCentre.z + paddedHalfExtent);
-                meshVertices[fillVertex + 3] = new Vector3(cellCentre.x - paddedHalfExtent, tileHeight, cellCentre.z + paddedHalfExtent);
-
-                int triangleStart = drawIndex * FillIndicesPerQuad;
-                fillIndices[triangleStart + 0] = fillVertex + 0;
-                fillIndices[triangleStart + 1] = fillVertex + 2;
-                fillIndices[triangleStart + 2] = fillVertex + 1;
-                fillIndices[triangleStart + 3] = fillVertex + 0;
-                fillIndices[triangleStart + 4] = fillVertex + 3;
-                fillIndices[triangleStart + 5] = fillVertex + 2;
-
-                if (!outlinesInCurrentMesh) continue;
-
-                int outlineVertex = outlineVertexBase + fillVertex;
-                meshVertices[outlineVertex + 0] = meshVertices[fillVertex + 0];
-                meshVertices[outlineVertex + 1] = meshVertices[fillVertex + 1];
-                meshVertices[outlineVertex + 2] = meshVertices[fillVertex + 2];
-                meshVertices[outlineVertex + 3] = meshVertices[fillVertex + 3];
-
-                int lineStart = drawIndex * OutlineIndicesPerQuad;
-                outlineIndices[lineStart + 0] = outlineVertex + 0;
-                outlineIndices[lineStart + 1] = outlineVertex + 1;
-                outlineIndices[lineStart + 2] = outlineVertex + 1;
-                outlineIndices[lineStart + 3] = outlineVertex + 2;
-                outlineIndices[lineStart + 4] = outlineVertex + 2;
-                outlineIndices[lineStart + 5] = outlineVertex + 3;
-                outlineIndices[lineStart + 6] = outlineVertex + 3;
-                outlineIndices[lineStart + 7] = outlineVertex + 0;
+                for (int quad = 0; quad < quadCount; quad++)
+                {
+                    int outlineVertex = fillVertexCount + quad * VerticesPerQuad;
+                    outlineIndices.Add(outlineVertex + 0); outlineIndices.Add(outlineVertex + 1);
+                    outlineIndices.Add(outlineVertex + 1); outlineIndices.Add(outlineVertex + 2);
+                    outlineIndices.Add(outlineVertex + 2); outlineIndices.Add(outlineVertex + 3);
+                    outlineIndices.Add(outlineVertex + 3); outlineIndices.Add(outlineVertex + 0);
+                }
             }
 
             FillColours(gridSettings, debugSettings, costs, now);
@@ -264,13 +313,80 @@ namespace DotsMovementToolkit
             settingsColoursWereBuiltWith = debugSettings;
         }
 
+        // A walkable cell is one flat tile; anything costlier becomes a block, so obstacles read as
+        // volumes from a shallow camera angle instead of paint that the floor hides.
+        private void AppendCellGeometry(
+            int cellIndex,
+            byte cost,
+            NavGridConfig gridConfig,
+            NavGridSettings gridSettings,
+            NavGridDebugSettings debugSettings,
+            float halfExtent)
+        {
+            NavGridSystem.GetPositionFromIndex(cellIndex, gridConfig.width, gridConfig.height, out int2 cell, out int layer);
+            float3 cellCentre = NavGridSystem.GetWorldCenterPosition(cell.x, cell.y, layer, gridConfig);
+
+            float floorY = cellCentre.y + debugSettings.heightOffset;
+            float extrusion = 0f;
+            if (debugSettings.obstacleExtrusionHeight > 0f)
+            {
+                if (cost >= gridSettings.wallCost) extrusion = debugSettings.obstacleExtrusionHeight;
+                else if (cost > gridSettings.defaultCost) extrusion = debugSettings.obstacleExtrusionHeight * DiscouragedExtrusionFraction;
+            }
+            float topY = floorY + extrusion;
+
+            float xMin = cellCentre.x - halfExtent;
+            float xMax = cellCentre.x + halfExtent;
+            float zMin = cellCentre.z - halfExtent;
+            float zMax = cellCentre.z + halfExtent;
+
+            AppendQuad(
+                new Vector3(xMin, topY, zMin), new Vector3(xMax, topY, zMin),
+                new Vector3(xMax, topY, zMax), new Vector3(xMin, topY, zMax),
+                cellIndex, 1f);
+
+            if (extrusion <= 0f) return;
+
+            AppendQuad(
+                new Vector3(xMin, floorY, zMin), new Vector3(xMax, floorY, zMin),
+                new Vector3(xMax, topY, zMin), new Vector3(xMin, topY, zMin),
+                cellIndex, ExtrudedSideShade);
+            AppendQuad(
+                new Vector3(xMax, floorY, zMin), new Vector3(xMax, floorY, zMax),
+                new Vector3(xMax, topY, zMax), new Vector3(xMax, topY, zMin),
+                cellIndex, ExtrudedSideShade);
+            AppendQuad(
+                new Vector3(xMax, floorY, zMax), new Vector3(xMin, floorY, zMax),
+                new Vector3(xMin, topY, zMax), new Vector3(xMax, topY, zMax),
+                cellIndex, ExtrudedSideShade);
+            AppendQuad(
+                new Vector3(xMin, floorY, zMax), new Vector3(xMin, floorY, zMin),
+                new Vector3(xMin, topY, zMin), new Vector3(xMin, topY, zMax),
+                cellIndex, ExtrudedSideShade);
+        }
+
+        private void AppendQuad(Vector3 corner0, Vector3 corner1, Vector3 corner2, Vector3 corner3, int cellIndex, float shade)
+        {
+            int baseVertex = meshVertices.Count;
+            meshVertices.Add(corner0);
+            meshVertices.Add(corner1);
+            meshVertices.Add(corner2);
+            meshVertices.Add(corner3);
+
+            fillIndices.Add(baseVertex + 0); fillIndices.Add(baseVertex + 2); fillIndices.Add(baseVertex + 1);
+            fillIndices.Add(baseVertex + 0); fillIndices.Add(baseVertex + 3); fillIndices.Add(baseVertex + 2);
+
+            quadCellIndices.Add(cellIndex);
+            quadShades.Add(shade);
+        }
+
         private void RefreshColours(
             NavGridSettings gridSettings,
             NavGridDebugSettings debugSettings,
             NativeArray<byte> costs,
             double now)
         {
-            if (drawnCellIndices.Count == 0 || debugMesh == null) return;
+            if (quadCellIndices.Count == 0 || debugMesh == null) return;
             FillColours(gridSettings, debugSettings, costs, now);
             debugMesh.SetColors(meshColors);
             settingsColoursWereBuiltWith = debugSettings;
@@ -282,27 +398,32 @@ namespace DotsMovementToolkit
             NativeArray<byte> costs,
             double now)
         {
-            int drawnCells = drawnCellIndices.Count;
-            int outlineVertexBase = drawnCells * VerticesPerQuad;
+            int quadCount = quadCellIndices.Count;
+            int fillVertexCount = quadCount * VerticesPerQuad;
 
-            for (int drawIndex = 0; drawIndex < drawnCells; drawIndex++)
+            meshColors.Clear();
+            if (meshColors.Capacity < meshVertices.Count) meshColors.Capacity = meshVertices.Count;
+            for (int vertex = 0; vertex < meshVertices.Count; vertex++) meshColors.Add(default);
+
+            for (int quad = 0; quad < quadCount; quad++)
             {
-                int cellIndex = drawnCellIndices[drawIndex];
+                int cellIndex = quadCellIndices[quad];
+                float shade = quadShades[quad];
                 float4 cellColour = ResolveCellColour(costs[cellIndex], cellIndex, gridSettings, debugSettings, now);
 
-                Color fillColour = new Color(cellColour.x, cellColour.y, cellColour.z, cellColour.w);
+                Color fillColour = new Color(cellColour.x * shade, cellColour.y * shade, cellColour.z * shade, cellColour.w);
                 Color outlineColour = new Color(
                     math.min(1f, cellColour.x * OutlineBrightnessBoost),
                     math.min(1f, cellColour.y * OutlineBrightnessBoost),
                     math.min(1f, cellColour.z * OutlineBrightnessBoost),
                     math.min(1f, cellColour.w * OutlineAlphaBoost));
 
-                int fillVertex = drawIndex * VerticesPerQuad;
+                int fillVertex = quad * VerticesPerQuad;
                 for (int corner = 0; corner < VerticesPerQuad; corner++)
                 {
                     meshColors[fillVertex + corner] = fillColour;
                     if (outlinesInCurrentMesh)
-                        meshColors[outlineVertexBase + fillVertex + corner] = outlineColour;
+                        meshColors[fillVertexCount + fillVertex + corner] = outlineColour;
                 }
             }
         }
@@ -379,29 +500,11 @@ namespace DotsMovementToolkit
             {
                 hasReportedCellBudgetDowngrade = true;
                 Debug.LogWarning(
-                    $"NavGrid debug view: FullGrid would draw {candidateCells} cells, over the maxDrawnCells " +
+                    $"NavGrid debug: FullGrid would draw {candidateCells} cells, over the maxDrawnCells " +
                     $"budget of {debugSettings.maxDrawnCells}. Falling back to ObstaclesOnly. Raise the budget " +
                     "on NavGridAuthoring, or pick a single layer, if you need the whole grid.");
             }
             return NavGridDebugDisplayMode.ObstaclesOnly;
-        }
-
-        private void EnsureMeshBuffers(int drawnCells, bool withOutlines)
-        {
-            int requiredVertices = drawnCells * VerticesPerQuad * (withOutlines ? 2 : 1);
-            if (meshVertices.Length != requiredVertices)
-            {
-                meshVertices = new Vector3[requiredVertices];
-                meshColors = new Color[requiredVertices];
-            }
-
-            int requiredFillIndices = drawnCells * FillIndicesPerQuad;
-            if (fillIndices.Length != requiredFillIndices)
-                fillIndices = new int[requiredFillIndices];
-
-            int requiredOutlineIndices = withOutlines ? drawnCells * OutlineIndicesPerQuad : 0;
-            if (outlineIndices.Length != requiredOutlineIndices)
-                outlineIndices = new int[requiredOutlineIndices];
         }
 
         private void EnsureMesh()
@@ -436,7 +539,12 @@ namespace DotsMovementToolkit
         {
             if (!hasBuiltGeometry) return;
             hasBuiltGeometry = false;
-            drawnCellIndices.Clear();
+            meshVertices.Clear();
+            meshColors.Clear();
+            fillIndices.Clear();
+            outlineIndices.Clear();
+            quadCellIndices.Clear();
+            quadShades.Clear();
             if (debugMesh != null) debugMesh.Clear();
             DisposeChangeTracking();
         }
@@ -474,6 +582,7 @@ namespace DotsMovementToolkit
                 && left.maxDrawnCells == right.maxDrawnCells
                 && left.heightOffset.Equals(right.heightOffset)
                 && left.cellPadding.Equals(right.cellPadding)
+                && left.obstacleExtrusionHeight.Equals(right.obstacleExtrusionHeight)
                 && left.changeHighlightSeconds.Equals(right.changeHighlightSeconds);
         }
 
@@ -491,7 +600,8 @@ namespace DotsMovementToolkit
                 && left.height == right.height
                 && left.layerCount == right.layerCount
                 && left.cellSize.Equals(right.cellSize)
-                && left.layerHeight.Equals(right.layerHeight);
+                && left.layerHeight.Equals(right.layerHeight)
+                && left.gridOrigin.Equals(right.gridOrigin);
         }
     }
 }

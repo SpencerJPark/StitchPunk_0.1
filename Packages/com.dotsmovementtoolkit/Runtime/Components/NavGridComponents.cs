@@ -16,6 +16,12 @@ namespace DotsMovementToolkit
         public int layerCount;
         public float cellSize;
         public float layerHeight; // Vertical distance between layers
+
+        /// <summary>
+        /// World position of cell (0,0)'s corner, and of layer 0's floor. The grid extends into
+        /// +X/+Z from here, so a grid centred on the authoring transform has a negative origin.
+        /// </summary>
+        public float3 gridOrigin;
     }
 
     /// <summary>

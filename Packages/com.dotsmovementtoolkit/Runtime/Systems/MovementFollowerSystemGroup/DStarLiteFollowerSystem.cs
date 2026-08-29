@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -43,6 +43,7 @@ public partial struct DStarLiteFollowerSystem : ISystem
         state.Dependency = new UpdateFollowersJob
         {
             nodeSize    = dstarData.nodeSize,
+            gridOrigin  = dstarData.gridOrigin,
             width       = dstarData.width,
             height      = dstarData.height,
             nodes       = dstarData.nodes,
@@ -73,6 +74,7 @@ public partial struct DStarLiteFollowerSystem : ISystem
 public partial struct UpdateFollowersJob : IJobEntity
 {
     public float nodeSize;
+    public float3 gridOrigin;
     public int   width;
     public int   height;
 
@@ -119,9 +121,9 @@ public partial struct UpdateFollowersJob : IJobEntity
                 return;
             }
 
-            int2   currentGrid  = PathfindingUtils.WorldToGrid(currentPos, nodeSize);
+            int2   currentGrid  = PathfindingUtils.WorldToGrid(currentPos, nodeSize, gridOrigin);
             int2   nextNode     = GetNextNodeTowardGoal(currentGrid);
-            float3 newWaypoint  = PathfindingUtils.GridToWorld(nextNode, nodeSize);
+            float3 newWaypoint  = PathfindingUtils.GridToWorld(nextNode, nodeSize, gridOrigin);
 
             follower.nextWaypoint     = newWaypoint;
             follower.currentNodeIndex = PathfindingUtils.CalculateIndex(currentGrid, width);

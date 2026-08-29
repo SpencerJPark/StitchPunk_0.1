@@ -15,38 +15,42 @@ public static class PathfindingUtils
     // GRID UTILITIES (shared by both algorithms)
     // ============================================
     
+    // gridOrigin is the world position of cell (0,0)'s corner — NavGridConfig.gridOrigin, baked from
+    // NavGridAuthoring. It is a required argument rather than an optional one on purpose: a call site
+    // that forgets it silently reads the wrong cell, which is invisible until a unit walks into a wall.
+
     /// <summary>
     /// Convert world position to grid coordinates.
     /// </summary>
-    public static int2 WorldToGrid(float3 worldPos, float gridNodeSize)
+    public static int2 WorldToGrid(float3 worldPos, float gridNodeSize, float3 gridOrigin)
     {
         return new int2(
-            (int)math.floor(worldPos.x / gridNodeSize),
-            (int)math.floor(worldPos.z / gridNodeSize)
+            (int)math.floor((worldPos.x - gridOrigin.x) / gridNodeSize),
+            (int)math.floor((worldPos.z - gridOrigin.z) / gridNodeSize)
         );
     }
     
     /// <summary>
     /// Convert grid coordinates to world position (cell center).
     /// </summary>
-    public static float3 GridToWorld(int2 gridPos, float gridNodeSize)
+    public static float3 GridToWorld(int2 gridPos, float gridNodeSize, float3 gridOrigin)
     {
         return new float3(
-            gridPos.x * gridNodeSize + gridNodeSize * 0.5f,
-            0f,
-            gridPos.y * gridNodeSize + gridNodeSize * 0.5f
+            gridOrigin.x + gridPos.x * gridNodeSize + gridNodeSize * 0.5f,
+            gridOrigin.y,
+            gridOrigin.z + gridPos.y * gridNodeSize + gridNodeSize * 0.5f
         );
     }
     
     /// <summary>
     /// Convert grid coordinates to world position (cell corner).
     /// </summary>
-    public static float3 GridToWorldCorner(int2 gridPos, float gridNodeSize)
+    public static float3 GridToWorldCorner(int2 gridPos, float gridNodeSize, float3 gridOrigin)
     {
         return new float3(
-            gridPos.x * gridNodeSize,
-            0f,
-            gridPos.y * gridNodeSize
+            gridOrigin.x + gridPos.x * gridNodeSize,
+            gridOrigin.y,
+            gridOrigin.z + gridPos.y * gridNodeSize
         );
     }
     
@@ -79,9 +83,9 @@ public static class PathfindingUtils
     /// <summary>
     /// Check if a world position maps to a valid grid cell.
     /// </summary>
-    public static bool IsValidWorldPosition(float3 worldPos, int width, int height, float gridNodeSize)
+    public static bool IsValidWorldPosition(float3 worldPos, int width, int height, float gridNodeSize, float3 gridOrigin)
     {
-        int2 gridPos = WorldToGrid(worldPos, gridNodeSize);
+        int2 gridPos = WorldToGrid(worldPos, gridNodeSize, gridOrigin);
         return IsValidPosition(gridPos, width, height);
     }
     
@@ -98,9 +102,9 @@ public static class PathfindingUtils
     /// Check if a world position is walkable.
     /// </summary>
     public static bool IsWalkable(float3 worldPos, int width, int height,
-        NativeArray<byte> costMap, float gridNodeSize, byte wallCost)
+        NativeArray<byte> costMap, float gridNodeSize, float3 gridOrigin, byte wallCost)
     {
-        int2 gridPos = WorldToGrid(worldPos, gridNodeSize);
+        int2 gridPos = WorldToGrid(worldPos, gridNodeSize, gridOrigin);
         if (!IsValidPosition(gridPos, width, height))
             return false;
         return IsWalkable(gridPos, width, costMap, wallCost);
@@ -171,12 +175,12 @@ public static class PathfindingUtils
     /// Get the flow direction at a world position for a specific flow field.
     /// </summary>
     public static float2 GetFlowDirection(float3 worldPos, int gridIndex, int width, int height,
-        int cellCount, float gridNodeSize, NativeArray<float2> vectors, NativeArray<bool> isValid)
+        int cellCount, float gridNodeSize, float3 gridOrigin, NativeArray<float2> vectors, NativeArray<bool> isValid)
     {
         if (!isValid[gridIndex])
             return float2.zero;
             
-        int2 gridPos = WorldToGrid(worldPos, gridNodeSize);
+        int2 gridPos = WorldToGrid(worldPos, gridNodeSize, gridOrigin);
         if (!IsValidPosition(gridPos, width, height))
             return float2.zero;
             
@@ -190,10 +194,10 @@ public static class PathfindingUtils
     /// Get the flow direction as a world-space vector (XZ plane).
     /// </summary>
     public static float3 GetFlowDirectionWorld(float3 worldPos, int gridIndex, int width, int height,
-        int cellCount, float gridNodeSize, NativeArray<float2> vectors, NativeArray<bool> isValid)
+        int cellCount, float gridNodeSize, float3 gridOrigin, NativeArray<float2> vectors, NativeArray<bool> isValid)
     {
         float2 flow = GetFlowDirection(worldPos, gridIndex, width, height, 
-            cellCount, gridNodeSize, vectors, isValid);
+            cellCount, gridNodeSize, gridOrigin, vectors, isValid);
         return new float3(flow.x, 0f, flow.y);
     }
     
@@ -201,7 +205,7 @@ public static class PathfindingUtils
     /// Sample flow field with bilinear interpolation for smoother movement.
     /// </summary>
     public static float2 GetFlowDirectionSmooth(float3 worldPos, int gridIndex, int width, int height,
-        int cellCount, float gridNodeSize, NativeArray<float2> vectors, NativeArray<bool> isValid,
+        int cellCount, float gridNodeSize, float3 gridOrigin, NativeArray<float2> vectors, NativeArray<bool> isValid,
         NativeArray<byte> costMap, byte wallCost)
     {
         if (!isValid[gridIndex])
@@ -421,10 +425,10 @@ public static class PathfindingUtils
     /// Check line of sight using world positions.
     /// </summary>
     public static bool HasLineOfSight(float3 fromWorld, float3 toWorld,
-        int width, int height, float gridNodeSize, NativeArray<byte> costMap, byte wallCost)
+        int width, int height, float gridNodeSize, float3 gridOrigin, NativeArray<byte> costMap, byte wallCost)
     {
-        int2 from = WorldToGrid(fromWorld, gridNodeSize);
-        int2 to = WorldToGrid(toWorld, gridNodeSize);
+        int2 from = WorldToGrid(fromWorld, gridNodeSize, gridOrigin);
+        int2 to = WorldToGrid(toWorld, gridNodeSize, gridOrigin);
         return HasLineOfSight(from, to, width, height, costMap, wallCost);
     }
 }
