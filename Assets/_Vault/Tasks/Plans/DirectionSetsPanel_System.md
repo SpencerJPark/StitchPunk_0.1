@@ -61,17 +61,27 @@ Lives in `Packages/com.dotsanimationtoolkit/Editor/ClipEditor/DirectionSets/` (n
 ```
 ┌ toolbar: [Direction Set (ObjectField)] [Unit Context ▾] [New Set]        ┐
 ├──────────────────────────────┬────────────────────────────────────────────┤
+│  Directions: [Six ▾] (1/2/4/6/8)   Coverage: Four — missing: S, N         │
 │  Clip Queue                  │   Viewer (single ClipPreviewController)    │
 │  ┌ row: [ClipAsset] [Slot ▾] │                                            │
 │  │      serves: SE + SW(mirror) [Open in Clip Editor] [×]                 │
 │  ├ row: …                    │   (mirrorX rendered as Image scale(-1,1))  │
 │  └ [+ Add Clip]              │                                            │
-│  Coverage: Six  (or the invalid-fill warning, same text as bake)          │
 ├──────────────────────────────┴────────────────────────────────────────────┤
 │  Direction:  ◄──────●──────►  0–360°   → "NorthEast (mirrored → NW)"      │
 │  [▶/❚❚]  scrub ────────────────────────  time                             │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
+
+### 3b-i. Directions dropdown (owner-requested, added 2026-08-29)
+
+An `AnimationDirections` dropdown (One / Two / Four / Six / Eight) above the queue — the set's **target directions**. It cannot *declare* effective coverage (stamped: coverage is derived from filled slots, never declared — the bake keeps using `TryGetEffectiveDirections`), so it does three things instead:
+
+- **Scaffolds the queue:** picking Six shows the four required slots (SE, NE, S, N) as rows immediately — filled ones with their clip, unfilled ones as empty placeholder rows — so "what do I still need to author" is visible at a glance. "+ Add Clip" fills the next empty required slot first.
+- **Gap readout:** while fill ≠ target, the coverage label reads e.g. `Coverage: Four — missing: S, N`; when fill matches, plain `Coverage: Six`. Invalid patterns keep the shared bake-warning text.
+- **Drives the slider quantize:** the direction slider quantizes at the target count (overridden by an active unit context's `animationDirections`), so you can preview how a partially-filled set folds — a Six target with only SE filled visibly degrades to left/right mirroring, exactly what runtime does.
+
+Opening a set initializes the dropdown to its derived coverage. ← DECISION: keep the target panel-local (resets per session), or persist it on `DirectionSetAsset` as an editor-only `targetDirections` field so the *bake* can also warn "authored below target"? (recommend: persist on the asset — it's authoring intent, not runtime data; the bake warning is the whole value)
 
 ### 3c. Clip queue (authoring surface over the five slots)
 
@@ -85,7 +95,7 @@ Lives in `Packages/com.dotsanimationtoolkit/Editor/ClipEditor/DirectionSets/` (n
 - **One** `ClipPreviewController` (not one per direction). Rig comes from the unit context (§4) when set, else a manual `RigAsset` field with the existing "assign a rig to pose" hint.
 - **Direction slider:** 0–360°, with a label showing the quantized `Direction` and whether the shown clip is a mirror. Pipeline per change — exactly the runtime path:
   1. angle → facing-space vector `(cos, sin)`;
-  2. `FacingResolver.FromMovement(vector, actorDirections, currentFacing)` where `actorDirections` = the unit context's `animationDirections`, else the set's own effective count ← DECISION: confirm that fallback (recommend: set's own effective count — the slider then steps through exactly the members the set has);
+  2. `FacingResolver.FromMovement(vector, actorDirections, currentFacing)` where `actorDirections` = the unit context's `animationDirections` when a context is active, else the **Directions dropdown** (§3b-i);
   3. snap into the set's coverage + `ToAuthoredSide` → east-side slot + `mirrorX`;
   4. bind that slot's clip to the controller; `mirrorX` renders as `Image` `scale(-1,1)` (same trick as the old window — identical to runtime `PartFacing.mirrorX`, no second pipeline).
 - A Six set therefore visibly turns through all six members as the slider sweeps; a South-only (One) set plays head-on at every angle — both owner-stated acceptance cases.
@@ -129,6 +139,7 @@ The toolkit cannot know `UnitSO`/`ActionType`, so the "set the enum, see the cha
 - Clip Editor toolbar shows **2D Direction Sets** as a toggle; on toggles the pane over the dock, off restores the editor exactly (dock geometry untouched); VAT Bake still toggles independently.
 - Double-clicking a `DirectionSetAsset` opens the Clip Editor with the pane up and that set loaded.
 - Queue: adding a clip to SouthEast shows "SE + SW (mirror)" and Coverage: Two; adding NorthEast flips coverage to Four live; an invalid pattern (e.g. North only) shows the same warning text the bake logs.
+- Directions dropdown: picking Six on an SE-only set shows three empty placeholder rows (NE, S, N) and `Coverage: Two — missing: NE, S, N`; the slider still sweeps six stops but the preview only mirrors left/right; filling the slots clears the gap readout and the sweep turns through all six members.
 - Viewer with a Six-coverage set + rig: press play, sweep the direction slider — the character turns through all six members, west-side angles visibly mirrored, playhead continuous across the swap. With a South-only set the same sweep changes nothing.
 - Unit Context: pick "<Unit> · Moving" — set, rig, and turn granularity load in one click and match what Play mode shows for that unit walking.
 - `UnitSO.maxHealth` change → rebake → spawned unit's `Health` matches the blob value, not the old prefab number; a `UnitSO.rig` that disagrees with the prefab's `ActorAuthoring` warns at bake naming the unit.
@@ -143,6 +154,6 @@ The toolkit cannot know `UnitSO`/`ActionType`, so the "set the enum, see the cha
 - [ ] CreateAssetMenu path: toolkit-only, or keep a game-side alias? (recommend toolkit-only)
 - [ ] Health override: blob always wins vs. non-zero `HealthAuthoring` overrides? (recommend blob always wins)
 - [ ] `UnitSO.rig`/`clipSet`: validate-only v1 confirmed? (recommend yes)
-- [ ] Slider quantize fallback with no unit context: set's own effective count? (recommend yes)
+- [ ] Directions-dropdown target: persist as editor-only `targetDirections` on `DirectionSetAsset` (bake warns "authored below target"), or panel-local only? (recommend persist)
 - [ ] Per-direction grid view cut for v1? (recommend yes — slider replaces it)
 - [ ] Extra `Window/…` menu entry for the pane? (recommend no)
