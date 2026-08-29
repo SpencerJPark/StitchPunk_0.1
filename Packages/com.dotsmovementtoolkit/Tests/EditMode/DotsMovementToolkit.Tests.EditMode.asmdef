@@ -1,0 +1,29 @@
+{
+    "name": "DotsMovementToolkit.Tests.EditMode",
+    "rootNamespace": "DotsMovementToolkit.Tests.EditMode",
+    "references": [
+        "DotsMovementToolkit.Runtime",
+        "DotsMovementToolkit.Authoring",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Unity.Entities",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Burst"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

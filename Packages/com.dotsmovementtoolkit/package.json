@@ -1,0 +1,28 @@
+{
+  "name": "com.dotsmovementtoolkit",
+  "displayName": "DOTS Movement Toolkit",
+  "version": "0.1.0",
+  "unity": "6000.5",
+  "description": "DOTS-native grid movement and pathfinding for Unity Entities: shared grid/cost-map infrastructure, D* Lite for individual agents, flow fields for hordes/groups, formation offsets, stair/layer transitions, and a PathRequest-driven API. Baked from one GridConfigAuthoring component with no other project coupling. Internal-quality extraction — decoupled and compiling, not yet a polished sellable toolkit.",
+  "keywords": [
+    "dots",
+    "entities",
+    "ecs",
+    "pathfinding",
+    "movement",
+    "burst",
+    "flowfield",
+    "dstarlite"
+  ],
+  "author": {
+    "name": "Spencer Park",
+    "email": "spencerjamespark@gmail.com"
+  },
+  "dependencies": {
+    "com.unity.entities": "6.5.0",
+    "com.unity.burst": "1.8.29",
+    "com.unity.collections": "6.5.0",
+    "com.unity.mathematics": "1.4.0",
+    "com.unity.physics": "6.5.0"
+  }
+}

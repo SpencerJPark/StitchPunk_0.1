@@ -84,6 +84,7 @@ Building1.blend
 # tracks), so nothing looked wrong, but any NEW file added to the package would have been
 # silently dropped from every commit.
 !/Packages/com.dotsanimationtoolkit/
+!/Packages/com.dotsmovementtoolkit/
 
 # Disk round-trip test scratch assets. TearDown deletes these, but an Editor crash
 # mid-test leaves them inside the package folder — and this package is shipped, so a
