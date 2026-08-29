@@ -1,7 +1,7 @@
 # Phase B Architecture — DOTS Animation Toolkit
 
 **Repo:** `C:\Users\spenc\Documents\GitHub\Stitch_Punk` · **Date:** 2026-07-26 · **Author:** Architect agent (Phase B)
-**Inputs honored:** `Docs/AnimationToolkit/Phase_A_Audit.md` (approved), `Docs/AnimationToolkit/Phase_A_Review.md`, `Assets/_Vault/Memories/Code/RULES.md`, `Assets/CLAUDE.md`, `Assets/_Scripts/Systems/SystemGroups.cs`.
+**Inputs honored:** the Phase A audit and review (approved; removed in the 2026-08-29 doc cleanup, recoverable from git history), `Assets/_Vault/Memories/Code/RULES.md`, `Assets/CLAUDE.md`, `Assets/_Scripts/Systems/SystemGroups.cs`.
 
 This document is self-contained: a build agent implements any module from its contract (§8) plus the referenced sections without reading the audit or the host codebase. Where the audit's preserve/absorb/replace verdicts are overruled, the overrule is stated inline and collected in §10.
 

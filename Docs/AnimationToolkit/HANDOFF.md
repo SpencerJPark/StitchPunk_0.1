@@ -21,7 +21,8 @@ Your job is to work down **§4 The queue**, one task at a time, through the gate
 5. This file's §5 and §6 — standing owner directives, and what you may not decide alone.
 
 Read `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` §9 only if you touch ragdoll code.
-Everything else in `Docs\AnimationToolkit\` is closed-phase history — do not read it up front.
+The Phase A/B/C review docs were deleted in the 2026-08-29 cleanup — closed history, recoverable
+from git if a decision ever needs tracing. What remains in `Docs\AnimationToolkit\` is live.
 
 **Current state (2026-08-28):** Phase F (rig-centric binding) is **written but never compiled.**
 The Editor was closed for the session that wrote it, so F1-F6 are static review only — every task in
@@ -198,8 +199,8 @@ it agrees with your code. That habit sank three earlier gates.
 - The ±45° default hinge limits on ragdoll bodies were invented by an agent and never judged by eye.
   Prime suspect if a drop looks wrong.
 - Restart the Editor to rotate `Logs/Editor.log` if it has grown huge.
-- Uncommitted in the working tree: `Assets/AnimationToolkitMigration/Generated/CrazyBlinkAngry.asset`
-  — host migration content, unrelated to the package.
+- `Docs/AnimationToolkit/shader-contract.md` and `Documentation~/shader-contract.md` are near-identical
+  mirrors that differ only in host-specific paths. They will drift; neither is marked authoritative.
 
 ## 8. Not yet judged by eye
 
