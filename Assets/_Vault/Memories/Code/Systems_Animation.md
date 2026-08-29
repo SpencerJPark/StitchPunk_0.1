@@ -31,18 +31,25 @@ separate, ongoing task — nothing here assumes real assets exist yet.
   `FacingResolver.FromMovement`, with an aim override (to-target direction) while `unitAction.current`
   is an attack and `CombatTarget` is enabled. On change it pushes `PartFacing { viewOffset, mirrorX }`
   onto every `BodyPart` that carries one, view offset read from `PartLibraryBlob.PartDef.GetViewOffset`.
-  `DirectionSetSO` (`Data/SOs/`) replaces bare `ClipAsset` on every clip-mapping field that should turn
-  (`UnitSO.idleAnimation`/`movingAnimation`, `StanceAnimationMapping`, `ActionAnimationMapping`) — five
-  east-side slots, effective `AnimationDirections` **derived** from which are filled
-  (`DirectionSetSO.TryGetEffectiveDirections`, shared by the bake-time warning and the editor tool's
-  live readout — never re-derive this elsewhere). `AIUtils.GetAnimationByAction` and
-  `UnitAnimationAssignmentJob`'s two resolvers all take a `Direction clipFacing` resolved once via
-  `FacingResolver.ResolveClipFacing(unitFacing.current, blob.animationDirections, ...)` — `PlayerAttackSystem`
-  and the `PlayActionAnimation` behavior command get directionality "for free" this way, no extra
-  decision logic. The game's own `Direction`/`AnimationDirections` enums and `DirectionUtils` are
-  **deleted** — everything uses the toolkit's `DotsAnimationToolkit.Direction`/`AnimationDirections`
-  now. Authoring tool: `Assets/_Scripts/Editor/DirectionSetEditor/DirectionSetEditorWindow.cs` (see
-  [[Editor]]). Phase 5 (real Six-direction art) is still owner-pending — see the spec's status header.
+  `DirectionSetAsset` (**toolkit-side** since 2026-08-29, `DotsAnimationToolkit.Authoring`) replaces
+  bare `ClipAsset` on every clip-mapping field that should turn (`UnitSO.idleAnimation`/`movingAnimation`,
+  `StanceAnimationMapping`, `ActionAnimationMapping`) — five east-side slots, effective
+  `AnimationDirections` **derived** from which are filled (`TryGetEffectiveDirections`, shared by the
+  bake-time warning and the panel's live readout — never re-derive this elsewhere).
+  **The clip pick folds twice, and both folds matter.** `FacingResolver.ResolveClipFacing(unitFacing.current,
+  blob.animationDirections, ...)` quantizes at the ACTOR's turn granularity, then
+  `DirectionSetBlob.ResolveSlot` folds that again into what THIS set actually authored. Calling the
+  raw `GetSlot` instead returns an empty `ClipId` for any facing the set never drew — which reads on
+  screen as the unit freezing whenever it faces that way, not as a missing clip. (That second fold was
+  missing until 2026-08-29 even though `effectiveDirections` was already being baked for it; pinned by
+  `DirectionSetBlobFoldTests`.) `AIUtils.GetAnimationByAction` and `UnitAnimationAssignmentJob`'s two
+  resolvers all go through it — `PlayerAttackSystem` and the `PlayActionAnimation` behavior command get
+  directionality "for free" this way, no extra decision logic. The game's own `Direction`/
+  `AnimationDirections` enums and `DirectionUtils` are **deleted** — everything uses the toolkit's
+  `DotsAnimationToolkit.Direction`/`AnimationDirections` now. Authoring tool: the Clip Editor's
+  **2D Direction Sets** toggle pane (`Packages/com.dotsanimationtoolkit/Editor/ClipEditor/DirectionSets/`),
+  fed the game's units through `UnitDirectionSetContextProvider` (see [[Editor]]). Phase 5 (real
+  Six-direction art) is still owner-pending — see the spec's status header.
 - **The command seam** — every write site issues `AnimationCommandUtil.Play`/`Stop` against
   `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
   `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem` (`PlayAnimation`/

@@ -23,7 +23,7 @@ single-character names, explicit types everywhere.
 | Path | What it is |
 |---|---|
 | `TexturePacker/` | **Texture Channel Packer** — node-graph window that packs greyscale images into RGBA channels (see below). |
-| `DirectionSetEditor/DirectionSetEditorWindow.cs` | Standalone `EditorWindow` for authoring `DirectionSetSO`s (built 2026-08-29, `DirectionFacing_System.md` §6a). One `ClipPreviewController` instance per direction pane (reuses the toolkit's own preview machinery — never a second pipeline); west-side panes mirror via UI Toolkit `style.scale = (-1,1)` on the rendered `Image`, not a second render. Opens via `Window ▸ Stitch Punk ▸ Direction Set Editor`, `[OnOpenAsset]` double-click, or the "Direction Sets" button the toolkit's Clip Editor toolbar now carries (see the hook note below). |
+| `DirectionSetContext/UnitDirectionSetContextProvider.cs` | The game's half of the toolkit's direction-set context seam (`DirectionSetsPanel_System.md` §4, 2026-08-29). `[InitializeOnLoad]` registers it with `DirectionSetsPanel.SetContextProvider`; it flattens every `UnitSO`'s idle/moving/stance/action mappings into `"<Unit> · <state>"` entries carrying the set, the rig resolved from the prefab's `ActorAuthoring`, and the unit's `animationDirections`. **The direction-set authoring tool itself is no longer game-side** — it is the toolkit's 2D Direction Sets pane inside the Clip Editor. |
 | `DialogueEditor/` | `DialogueSequenceEditorWindow` (GraphView node editor for `DialogueSequenceSO`) + `DialogueSequenceSOEditor`. |
 | `AnimationEditor/` | Hybrid preview-scene animation tooling: `AnimationClipEditorWindow`, `AnimationPreviewController(+Editor)`, `EditorAnimationSystem`, `EditorApplyAnimatedPoseSystem`, `AnimationClipUtilities`. |
 | `NarrativeEditor/` | `NarrativeEventSOEditor` custom inspector. |
@@ -37,19 +37,28 @@ single-character names, explicit types everywhere.
 
 ---
 
-## Pattern: hooking a host tool into the Clip Editor toolbar without coupling the package
+## Pattern: feeding host data into a toolkit tool without coupling the package
 
-`PackagingConformanceTests` (d) forbids any `com.dotsanimationtoolkit` file from naming `StitchPunk` or
-a host `Assets/` folder, so a game-side "open my tool" button can't be added by referencing game types
-from the package. The fix used for `DirectionSetEditorWindow` (2026-08-29): the package exposes a bare
-`public static event System.Action OnDirectionSetsButtonClicked` on `ClipEditorWindow`, adds a
-`ToolbarButton` in `ClipEditorWindow.uxml` that only shows when the event has a subscriber, and invokes
-it on click. The game's window subscribes from a `static` constructor **decorated with
-`[InitializeOnLoad]`** — a bare `static` ctor only runs the first time something touches the type, so
-without the attribute the button silently never appeared until a user manually opened
-`DirectionSetEditorWindow` once (found 2026-08-29: the button was missing from the toolbar entirely on
-a fresh domain load). Reuse this shape for any future "toolkit toolbar → host tool" link, and don't
-drop the attribute.
+`PackagingConformanceTests` (d) forbids any `com.dotsanimationtoolkit` file from naming `StitchPunk`
+or a host `Assets/` folder, so a toolkit panel can never reference a game type. Two shapes have been
+used for the seam, and the second replaced the first:
+
+- **Event-shaped (retired 2026-08-29).** The package exposed `public static event System.Action
+  OnDirectionSetsButtonClicked` and a `ToolbarButton` that only showed when it had a subscriber; the
+  host opened its own window from the click. Gone with `DirectionSetEditorWindow`.
+- **Data-shaped (current).** The package declares an interface —
+  `IDirectionSetContextProvider` + `DirectionSetContextEntry { label, set, previewRig,
+  actorDirections }` — and the host registers an implementation via
+  `DirectionSetsPanel.SetContextProvider`. The tool stays *in* the toolkit and works standalone
+  (no provider = the dropdown hides); the host supplies only pre-labelled strings and toolkit
+  assets. Prefer this shape: it keeps the sellable tool sellable instead of making the package a
+  launcher for a game-side one.
+
+**Whichever shape, the host's registration must sit in a `static` constructor decorated with
+`[InitializeOnLoad]`.** A bare `static` ctor only runs the first time something touches the type,
+and nothing ever touches a registration class — so without the attribute the hook silently never
+happens on a fresh domain load (found 2026-08-29: the old toolbar button was missing entirely until
+the window was opened by hand once). Do not drop the attribute.
 
 ## Pattern: GraphView node windows
 

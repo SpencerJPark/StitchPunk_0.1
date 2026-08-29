@@ -112,6 +112,21 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**2D Direction Sets — new pane, landed 2026-08-29, owner visual pass owed.** The package gained
+`DirectionSetAsset` (`Authoring/Assets/`, promoted out of the host game) and the Clip Editor gained
+a third cover pane beside VAT Bake and New Rig, driven by the `direction-sets-toggle`
+`ToolbarToggle`. Code in `Editor/ClipEditor/DirectionSets/`. What it is: a clip queue over a
+direction set's five east-side slots, one viewport, and a 0–360° slider that turns the character
+through `FacingResolver` — the runtime path, not an imitation of it. The one design point worth
+knowing before touching it: **there is exactly one `ClipPreviewController` over one synthetic
+`ClipSetAsset` holding every clip in the set**, so changing facing is a different `clipId` into
+`SamplePose` and never a registry rebuild. Rebuild only on clip membership or rig change — the
+guard in `RebuildRegistryIfClipsChanged` is what keeps a slider sweep from hitching. Hosts feed it
+units through `IDirectionSetContextProvider`; with no provider registered the Unit Context dropdown
+hides and the pane works standalone. **Owed: the owner's eyes on it** — the acceptance cases are in
+`Assets/_Vault/Tasks/Verification/verify-directionsetspanel.md`. `DirectionSetCoverageTests` and
+the two new `ClipEditorLayoutTests` cases are green.
+
 **A56 — the timeline row is the binding surface.** Written 2026-08-28, never compiled. Tasks and
 decisions in `Amendment_A56_TimelineBinding_Spec.md`; its §5 lists the verification owed: compile
 gate, the two `TimelineBindingLogicTests` fixtures, save/reload proof for auto-tagging and merge,

@@ -1,6 +1,6 @@
 # 2D Direction Sets Panel — editor rework + unit data layer
 
-> **Status:** ✅ spec ready — foundational decisions stamped 2026-08-29 (owner Q&A); build-time `← DECISION` markers remain below.
+> **Status:** 🔨 **BUILT 2026-08-29** — all six phases. Every remaining `← DECISION` below went the recommended way; they are stamped in [`verify-directionsetspanel.md`](verify-directionsetspanel.md), which also records one deliberate out-of-spec runtime change (the per-set clip fold). Awaiting the owner's play-test.
 > **Supersedes:** `DirectionFacing_System.md` §6a's *tool form* decision only ("standalone `EditorWindow`, launched from the Clip Editor"). The runtime facing model, the five-slot mirror-closed data shape, and derived coverage are all **kept** — this plan reworks the *tool* and moves the asset type, it does not reopen the facing architecture.
 > **Depends on:** DirectionFacing phases 1–4 (built 2026-08-29). Phase 5 of that plan (owner art proof) should run **through this panel** once built.
 
