@@ -53,6 +53,7 @@
                                         <uie:ToolbarToggle name="gizmo-move-toggle" text="Move" value="true" class="clip-editor__bar-action"/>
                                         <uie:ToolbarToggle name="gizmo-rotate-toggle" text="Rotate" class="clip-editor__bar-action"/>
                                         <uie:ToolbarToggle name="gizmo-scale-toggle" text="Scale" class="clip-editor__bar-action"/>
+                                        <uie:ToolbarButton name="reset-camera-button" text="Reset Camera" class="clip-editor__bar-action clip-editor__overlay-run-break"/>
                                         <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action clip-editor__overlay-run-break"/>
                                         <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
                                     </ui:VisualElement>

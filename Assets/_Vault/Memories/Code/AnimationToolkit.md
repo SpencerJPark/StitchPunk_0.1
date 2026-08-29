@@ -176,6 +176,37 @@ composing the way `ClipSampler.ApplyClipToPose` composes an Override track — p
 added to the rest pose, scale multiplying it (§5.11). Without it, an unkeyed drag moves the numbers
 and nothing else.
 
+## The viewport camera is an orbit rig with no position of its own (2026-08-29)
+
+`ClipPreviewController` stores **`orbitFocus` + yaw/pitch + `orbitDistance`**, and derives the camera
+position from them (`CameraOrbitPosition`). Everything the Scene view can do is expressed against that
+one rig, in `ClipEditorWindow.CameraNavigation.cs`:
+
+| Gesture | Method | What it moves |
+|---|---|---|
+| Left-drag (**existing**, no modifier needed) | `Orbit` | yaw/pitch, focus fixed |
+| Middle-drag | `Pan` | focus, sideways/up |
+| Right-drag | `LookAround` | yaw/pitch **about the camera**, then focus is recomputed ahead of it |
+| Alt + right-drag, wheel | `Dolly` / `Zoom` | distance |
+| Right-drag + `WASD`/`QE` | `Fly` | focus, along the camera's axes |
+| `F`, Reset Camera, double-click | `FrameSelection` / `ResetView` | focus + distance |
+
+Three traps, all of them silent:
+
+- **A look is not an orbit with a different sign** — it is the same rotation about a different pivot.
+  With no stored camera position, `LookAround` has to capture the position *first*, rotate, then put
+  `orbitFocus` back `orbitDistance` ahead of it. Skipping that swings the camera around the rig.
+- **`Pan` must be handed the viewport's pixel height.** The controller is given a size a render at a
+  time and never keeps one, so any fixed rate drifts under the cursor as soon as the pane is resized.
+- **Fly is stepped on the editor tick, never on `KeyDownEvent`.** Key repeat is an OS setting; moving
+  per key event makes the fly speed a property of the user's control panel.
+
+**Alt + left is deliberately *not* a gesture of `ResolveCameraGesture`.** Alt/Shift + *click* is the
+pick-cycle modifier (`isPickCycleRequested`), and a camera gesture is exclusive — claiming Alt + left
+would orbit correctly and kill cycling. The plain left-drag path already tells a drag from a click by
+travel distance, so it gets both. Same reason `PointerCaptureOutEvent` ends the gesture: a capture
+lost without a release leaves the viewport in fly mode, silently eating every keystroke.
+
 ## Verification gate
 
 Unity MCP only works while the Editor is open. After a `.cs` change:

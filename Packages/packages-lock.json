@@ -52,6 +52,18 @@
         "com.unity.render-pipelines.universal": "17.5.0"
       }
     },
+    "com.dotsmovementtoolkit": {
+      "version": "file:com.dotsmovementtoolkit",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.entities": "6.5.0",
+        "com.unity.burst": "1.8.29",
+        "com.unity.collections": "6.5.0",
+        "com.unity.mathematics": "1.4.0",
+        "com.unity.physics": "6.5.0"
+      }
+    },
     "com.unity.ai.inference": {
       "version": "2.6.1",
       "depth": 0,

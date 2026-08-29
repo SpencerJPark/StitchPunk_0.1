@@ -61,6 +61,28 @@ namespace DotsAnimationToolkit.Editor
         private const float MinimumOrbitDistance = 1f;
         private const float MaximumOrbitDistance = 60f;
 
+        /// <summary>Degrees a pixel of drag is worth, orbiting or looking around.</summary>
+        private const float DegreesPerDragPixel = 0.4f;
+
+        /// <summary>How fast RMB + WASD flies, in world units a second, before Shift.</summary>
+        private const float FlySpeedUnitsPerSecond = 4f;
+
+        /// <summary>Shift's multiplier on the fly speed, matching the Scene view's own accelerator.</summary>
+        private const float FlyFastMultiplier = 4f;
+
+        /// <summary>
+        /// What fraction of the current distance one pixel of Alt + RMB drag closes.
+        /// </summary>
+        /// <remarks>
+        /// A fraction rather than a fixed step, so a dolly covers ground when the camera is backed
+        /// off a vehicle and creeps when it is up against a hand — the same drag reads as the same
+        /// gesture at both.
+        /// </remarks>
+        private const float DollyFractionPerPixel = 0.005f;
+
+        /// <summary>How much bigger than a joint marker the frame around a bone is.</summary>
+        private const float BonelessFrameRadiusMultiplier = 4f;
+
         /// <summary>Must match the camera's own field of view, or framing overshoots or crops.</summary>
         private const float FrameFieldOfViewDegrees = 45f;
 
@@ -1416,8 +1438,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Orbits the preview camera by a pointer delta, in pixels.</summary>
         public void Orbit(Vector2 pixelDelta)
         {
-            orbitYaw += pixelDelta.x * 0.4f;
-            orbitPitch = Mathf.Clamp(orbitPitch + pixelDelta.y * 0.4f, -85f, 85f);
+            orbitYaw += pixelDelta.x * DegreesPerDragPixel;
+            orbitPitch = Mathf.Clamp(
+                orbitPitch + pixelDelta.y * DegreesPerDragPixel, -85f, 85f);
         }
 
         /// <summary>Zooms the preview camera. Positive zooms out.</summary>
@@ -1428,18 +1451,141 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Slides the camera sideways and up without turning it — the Scene view's middle-drag pan.
+        /// </summary>
+        /// <remarks>
+        /// <strong>The viewport's height has to come from the caller.</strong> A pan only tracks the
+        /// pointer if a pixel of drag is worth exactly the world distance a pixel spans at the focus,
+        /// and that depends on how tall the rendered image currently is — which this controller is
+        /// handed a render at a time and never keeps. Any fixed rate instead would drift under the
+        /// cursor the moment the pane was resized.
+        /// </remarks>
+        public void Pan(Vector2 pixelDelta, float viewportHeightPixels)
+        {
+            if (viewportHeightPixels < 1f)
+            {
+                return;
+            }
+
+            float halfFieldOfViewRadians = FrameFieldOfViewDegrees * 0.5f * Mathf.Deg2Rad;
+            float worldUnitsPerPixel =
+                2f * orbitDistance * Mathf.Tan(halfFieldOfViewRadians) / viewportHeightPixels;
+
+            // Negated in x and not in y because the world moves with the pointer while UI Toolkit's
+            // y runs down the screen: dragging right pushes the scene right, so the camera goes left.
+            orbitFocus += OrbitRotation * new Vector3(
+                -pixelDelta.x * worldUnitsPerPixel, pixelDelta.y * worldUnitsPerPixel, 0f);
+        }
+
+        /// <summary>
+        /// Turns the camera about its own position rather than about the rig — the Scene view's
+        /// right-drag look, and the steering half of fly mode.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Looking and orbiting are the same rotation about different pivots.</strong> This
+        /// rig has no camera position of its own to store — the position is derived from the focus —
+        /// so a look has to hold the position still and move the focus to wherever the new direction
+        /// puts it, <see cref="orbitDistance"/> ahead. That is also what makes a later orbit pivot on
+        /// the point you turned to face, exactly as the Scene view does.
+        /// </remarks>
+        public void LookAround(Vector2 pixelDelta)
+        {
+            Vector3 heldCameraPosition = CameraOrbitPosition;
+
+            orbitYaw += pixelDelta.x * DegreesPerDragPixel;
+            orbitPitch = Mathf.Clamp(
+                orbitPitch + pixelDelta.y * DegreesPerDragPixel, -85f, 85f);
+
+            orbitFocus = heldCameraPosition + OrbitRotation * new Vector3(0f, 0f, orbitDistance);
+        }
+
+        /// <summary>
+        /// Dollies in and out by a drag rather than by the wheel — the Scene view's Alt + right-drag.
+        /// Dragging right or up moves in.
+        /// </summary>
+        public void Dolly(Vector2 pixelDelta)
+        {
+            float pixelsTowardsSubject = pixelDelta.x - pixelDelta.y;
+            Zoom(-pixelsTowardsSubject * orbitDistance * DollyFractionPerPixel);
+        }
+
+        /// <summary>
+        /// Flies the camera through the scene along its own axes, keeping its direction — the WASD /
+        /// QE half of fly mode.
+        /// </summary>
+        /// <param name="localDirection">
+        /// Movement in camera space: +Z forward, +X right, +Y up. Length is ignored; it is
+        /// normalised so a diagonal is not faster than a straight line.
+        /// </param>
+        /// <remarks>
+        /// Moves the focus, which carries the camera with it because the camera's position is derived
+        /// from it. The distance between them is untouched on purpose: after a flight the orbit pivot
+        /// sits the same way ahead of the camera as it did before, so orbiting still works where you
+        /// flew to instead of swinging back around wherever you took off from.
+        /// </remarks>
+        public void Fly(Vector3 localDirection, float deltaSeconds, bool fast)
+        {
+            if (localDirection.sqrMagnitude < Mathf.Epsilon || deltaSeconds <= 0f)
+            {
+                return;
+            }
+
+            float speed = FlySpeedUnitsPerSecond * (fast ? FlyFastMultiplier : 1f);
+            orbitFocus += OrbitRotation * localDirection.normalized * speed * deltaSeconds;
+        }
+
+        /// <summary>
         /// Returns the camera to the pose the window opens with: head-on, framing the rig.
         /// </summary>
         /// <remarks>
         /// Needed precisely because the viewport now lives independently of selection. An orbit that
         /// wandered off the rig used to be fixed by selecting something else and forcing a rebuild;
-        /// with the camera persisting across every selection change, there has to be a way back.
+        /// with the camera persisting across every selection change, there has to be a way back —
+        /// and since panning and flying move the focus itself, that way back now has to restore
+        /// <em>where</em> the camera looks as well as from which side. <see cref="FrameRig"/> does,
+        /// because it recomputes the focus from the rig's current bounds rather than nudging it.
         /// </remarks>
         public void ResetView()
         {
             orbitYaw = 0f;
             orbitPitch = 0f;
             FrameRig();
+        }
+
+        /// <summary>
+        /// Frames whatever is selected, or the whole rig when nothing is — the F key.
+        /// </summary>
+        /// <remarks>
+        /// Aims where the selection actually is, with no <see cref="MinimumFocusHeight"/> lift:
+        /// that lift exists so a rig laid out around the origin is not framed on the floor, and
+        /// applying it to a deliberate pick would aim a metre above a selected foot.
+        /// </remarks>
+        public void FrameSelection()
+        {
+            Transform selectedTransform = ResolveSelectedTransform();
+            if (selectedTransform == null)
+            {
+                FrameRig();
+                return;
+            }
+
+            Bounds selectionBounds = new Bounds(selectedTransform.position, Vector3.zero);
+            bool hasAny = false;
+            EncapsulateRenderers(selectedTransform.gameObject, ref selectionBounds, ref hasAny);
+            if (!hasAny)
+            {
+                // A bone or a bare grouping transform draws no geometry. Framing "nothing" would
+                // slam to the minimum distance, so frame the joint marker that was clicked instead.
+                float markerRadius = BoneHandleRadius * BonelessFrameRadiusMultiplier;
+                selectionBounds = new Bounds(
+                    selectedTransform.position,
+                    new Vector3(markerRadius, markerRadius, markerRadius));
+            }
+
+            framePending = false;
+            orbitFocus = selectionBounds.center;
+            orbitDistance = DistanceThatFrames(
+                Mathf.Max(selectionBounds.extents.magnitude, MinimumFrameRadius));
         }
 
         /// <summary>
@@ -1485,8 +1631,18 @@ namespace DotsAnimationToolkit.Editor
             float radius = Mathf.Max(
                 rigBounds.extents.magnitude + Vector3.Distance(rigBounds.center, framedFocus),
                 MinimumFrameRadius);
+            orbitDistance = DistanceThatFrames(radius);
+        }
+
+        /// <summary>
+        /// How far back a sphere of <paramref name="radius"/> has to be seen from to fit the frame,
+        /// clamped to the range <see cref="Zoom"/> allows — framing must never put the camera
+        /// somewhere the user cannot zoom back out of.
+        /// </summary>
+        private static float DistanceThatFrames(float radius)
+        {
             float halfFieldOfViewRadians = FrameFieldOfViewDegrees * 0.5f * Mathf.Deg2Rad;
-            orbitDistance = Mathf.Clamp(
+            return Mathf.Clamp(
                 radius / Mathf.Tan(halfFieldOfViewRadians) * FramePadding,
                 MinimumOrbitDistance,
                 MaximumOrbitDistance);
@@ -1929,12 +2085,26 @@ namespace DotsAnimationToolkit.Editor
             return rootIndex < 0 ? quaternion.identity : resolvedRoots[rootIndex].node.rotation;
         }
 
+        /// <summary>
+        /// The camera's orientation for the current yaw and pitch. The one place the orbit angles
+        /// become a rotation, so posing, panning, looking and flying cannot disagree about which way
+        /// the camera is pointing.
+        /// </summary>
+        private Quaternion OrbitRotation
+        {
+            get { return Quaternion.Euler(orbitPitch, orbitYaw, 0f); }
+        }
+
+        /// <summary>Where the orbit rig puts the camera — the focus, backed off along the view.</summary>
+        private Vector3 CameraOrbitPosition
+        {
+            get { return orbitFocus + OrbitRotation * new Vector3(0f, 0f, -orbitDistance); }
+        }
+
         private void ApplyCameraPose()
         {
-            Quaternion orbitRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
-            renderUtility.camera.transform.position =
-                orbitFocus + orbitRotation * new Vector3(0f, 0f, -orbitDistance);
-            renderUtility.camera.transform.rotation = orbitRotation;
+            renderUtility.camera.transform.position = CameraOrbitPosition;
+            renderUtility.camera.transform.rotation = OrbitRotation;
         }
 
         /// <summary>
@@ -2003,21 +2173,26 @@ namespace DotsAnimationToolkit.Editor
         /// outline has to follow the posed skeleton as the playhead scrubs, not sit where the object
         /// was when it was clicked.
         /// </remarks>
-        private void UpdateSelectionMarker()
+        /// <summary>
+        /// The preview transform the current selection points at, or null. Shared by the outline and
+        /// by <see cref="FrameSelection"/>, so the F key always frames the thing that is outlined.
+        /// </summary>
+        private Transform ResolveSelectedTransform()
         {
-            Transform selectedTransform;
             if (selectedSocketId != 0u)
             {
-                selectedTransform = socketMarkers.GetMarker(selectedSocketId);
+                return socketMarkers.GetMarker(selectedSocketId);
             }
-            else if (selectedTargetId != 0u)
+            if (selectedTargetId != 0u)
             {
-                selectedTransform = rigMirror.GetPartTransform(selectedTargetId);
+                return rigMirror.GetPartTransform(selectedTargetId);
             }
-            else
-            {
-                selectedTransform = skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
-            }
+            return skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
+        }
+
+        private void UpdateSelectionMarker()
+        {
+            Transform selectedTransform = ResolveSelectedTransform();
             if (selectedTransform == null)
             {
                 sceneGizmos.HideSelection();

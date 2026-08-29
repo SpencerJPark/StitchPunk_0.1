@@ -1147,6 +1147,22 @@ namespace DotsAnimationToolkit.Editor
                 "Scale the selection. Same as pressing R in the viewport.");
             SetGizmoMode(gizmoMode);
 
+            // A command rather than a mode, so its own run in the strip. See
+            // ClipEditorWindow.CameraNavigation for the gestures it undoes.
+            ToolbarButton resetCameraButton =
+                rootVisualElement.Q<ToolbarButton>("reset-camera-button");
+            if (resetCameraButton != null)
+            {
+                resetCameraButton.tooltip =
+                    "Put the camera back where the window opened it: head-on, centred on this rig "
+                    + "and backed off to fit it. Undoes any orbit, pan or flight. Same as "
+                    + "double-clicking the viewport.\n\n"
+                    + "Viewport camera: drag to orbit, middle-drag to pan, right-drag to look "
+                    + "around, right-drag + W/A/S/D and Q/E to fly (Shift for faster), "
+                    + "Alt + right-drag or the wheel to zoom, F to frame the selection.";
+                resetCameraButton.clicked += ResetViewportCamera;
+            }
+
             BindTabs();
 
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
@@ -2739,13 +2755,21 @@ namespace DotsAnimationToolkit.Editor
             }
             previewImage.scaleMode = ScaleMode.ScaleToFit;
 
-            // Focusable so W/E/R reach the viewport rather than the window's other shortcuts.
+            // Focusable so W/E/R — and the fly keys they double as — reach the viewport rather than
+            // the window's other shortcuts.
             previewImage.focusable = true;
             previewImage.RegisterCallback<KeyDownEvent>(OnViewportKeyDown);
+            previewImage.RegisterCallback<KeyUpEvent>(OnViewportKeyUp);
             previewImage.RegisterCallback<PointerDownEvent>(OnPreviewPointerDown);
             previewImage.RegisterCallback<PointerMoveEvent>(OnPreviewPointerMove);
             previewImage.RegisterCallback<PointerUpEvent>(OnPreviewPointerUp);
             previewImage.RegisterCallback<WheelEvent>(OnPreviewWheel);
+
+            // A capture lost without a release — a domain reload, a modal dialog, another element
+            // taking it — would otherwise leave a camera gesture running forever. See
+            // EndCameraGesture: the stuck state is fly mode, which swallows every keystroke.
+            previewImage.RegisterCallback<PointerCaptureOutEvent>(
+                captureEvent => EndCameraGesture());
         }
 
         private void BindInspector()
@@ -3060,9 +3084,29 @@ namespace DotsAnimationToolkit.Editor
         /// <em>applied</em> on release, and only if this turned out to be a click rather than an
         /// orbit — see <see cref="OnPreviewPointerUp"/>.
         /// </remarks>
-        /// <summary>W / E / R switch the gizmo mode, matching every other 3D tool.</summary>
+        /// <summary>
+        /// W / E / R switch the gizmo mode, matching every other 3D tool — unless the right button
+        /// is down, where the same keys fly the camera, matching the Scene view. F frames.
+        /// </summary>
         private void OnViewportKeyDown(KeyDownEvent keyEvent)
         {
+            // First: while flying, no key is a gizmo shortcut. See TryHandleFlyKeyDown.
+            if (TryHandleFlyKeyDown(keyEvent))
+            {
+                keyEvent.StopPropagation();
+                return;
+            }
+
+            // F frames here as it does over the timeline (OnTimelineKeyDown), and means the same
+            // thing in both: fit what this pane is for around the selection. The panes own separate
+            // focus, so which one is under the cursor decides which framing you get.
+            if (keyEvent.keyCode == KeyCode.F)
+            {
+                FrameViewportSelection();
+                keyEvent.StopPropagation();
+                return;
+            }
+
             GizmoMode requestedMode;
             switch (keyEvent.keyCode)
             {
@@ -3222,16 +3266,24 @@ namespace DotsAnimationToolkit.Editor
             isPickPending = false;
 
             // Double click reframes. With the camera persisting across every selection change, an
-            // orbit that wandered off the rig would otherwise have no way back.
-            if (pointerEvent.clickCount >= 2 && previewController != null)
+            // orbit that wandered off the rig would otherwise have no way back. Left button only:
+            // the other two are camera gestures whose second press is not a second click at all.
+            if (pointerEvent.clickCount >= 2 && pointerEvent.button == 0)
             {
-                previewController.ResetView();
+                ResetViewportCamera();
                 return;
             }
             previewImage.CapturePointer(pointerEvent.pointerId);
             previewImage.Focus();
 
             if (previewController == null)
+            {
+                return;
+            }
+
+            // Before the handles and before the pick: a camera gesture is exclusive, and Alt + left
+            // in particular must orbit rather than grab whichever gizmo handle it started over.
+            if (TryBeginCameraGesture(pointerEvent))
             {
                 return;
             }
@@ -3278,6 +3330,11 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (activeCameraGesture != CameraGesture.None)
+            {
+                ContinueCameraGesture(moveEvent.deltaPosition);
+                return;
+            }
             if (activeRagdollBoxHandle != RagdollBoxHandle.None)
             {
                 ContinueRagdollBoxDrag(moveEvent.localPosition, moveEvent.shiftKey);
@@ -3699,6 +3756,12 @@ namespace DotsAnimationToolkit.Editor
         private void OnPreviewPointerUp(PointerUpEvent upEvent)
         {
             previewImage.ReleasePointer(upEvent.pointerId);
+
+            if (activeCameraGesture != CameraGesture.None)
+            {
+                EndCameraGesture();
+                return;
+            }
 
             if (activeRagdollBoxHandle != RagdollBoxHandle.None)
             {
@@ -5074,6 +5137,11 @@ namespace DotsAnimationToolkit.Editor
                 }
                 SetPlayheadTime(advanced);
             }
+
+            // Before the render, so a held fly key has moved the camera by the time this frame is
+            // drawn. Integrated against the real elapsed time rather than counted in key repeats —
+            // see ClipEditorWindow.CameraNavigation.
+            StepCameraFly((float)elapsed);
 
             // The preview updates every tick, not only while playing — scrubbing a paused clip is
             // the authoring loop this window exists for.

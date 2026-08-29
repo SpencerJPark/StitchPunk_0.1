@@ -43,6 +43,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // the controls that only mean anything while looking at the 3D area.
             "viewport-overlay", "overlay-tool-row",
             "gizmo-move-toggle", "gizmo-rotate-toggle", "gizmo-scale-toggle",
+            "reset-camera-button",
             "billboard-preview-toggle", "ragdoll-preview-toggle",
             // Transport bar: every control that answers "when", docked above the timeline.
             "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
@@ -207,6 +208,31 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsTrue(moveToggle.value, "GizmoMode.Move is the window's own default.");
             Assert.IsFalse(rotateToggle.value, "Only one gizmo mode is lit at a time.");
             Assert.IsFalse(scaleToggle.value, "Only one gizmo mode is lit at a time.");
+        }
+
+        /// <summary>
+        /// Reset Camera clones as a <see cref="ToolbarButton"/>, the type the window resolves it as.
+        /// </summary>
+        /// <remarks>
+        /// Same failure the ragdoll toggle's test guards, and the same reason:
+        /// <c>BindToolbar</c> resolves this through <c>Q&lt;ToolbarButton&gt;("reset-camera-button")</c>
+        /// and subscribes to <c>clicked</c> on the result, so a plain <c>ui:Button</c> in the UXML
+        /// would pass the generic name sweep above, look almost right in the strip, and never bind —
+        /// a Reset Camera that visibly exists and does nothing. It cannot be a
+        /// <c>ToolbarToggle</c> either: resetting is a command, and a lit "camera is reset" state
+        /// would be a lie the moment the next orbit began.
+        /// </remarks>
+        [Test]
+        public void ResetCameraButton_ClonesAsAToolbarButton()
+        {
+            VisualElement cloneTarget = CloneLayout();
+
+            ToolbarButton resetCameraButton = cloneTarget.Q<ToolbarButton>("reset-camera-button");
+
+            Assert.IsNotNull(
+                resetCameraButton,
+                "reset-camera-button must clone as a ToolbarButton, or BindToolbar's typed Q<> call "
+                    + "finds nothing and the click handler never binds.");
         }
 
         [Test]

@@ -13,16 +13,46 @@ MonoBehaviour:
   m_Name: NewClip
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipAsset
   stableId: 10139577885715315585
-  rig: {fileID: 0}
   duration: 1
   defaultLoop: 1
   defaultBlendIn: 0
   defaultBlendOut: 0
   frameRate: 30
-  transformTracks: []
+  transformTracks:
+  - targetId: 1369813100
+    tagId: 1776794818
+    blendOp: 0
+    channels: 1
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   spriteTracks: []
   boneTracks: []
-  events: []
+  events:
+  - normalizedTime: 0.23333333
+    eventKey: 16
+    intParam: 15
+    floatParam: 0
+    windowSeconds: 0.016666668
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30
