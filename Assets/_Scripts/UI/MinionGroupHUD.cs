@@ -1,3 +1,4 @@
+using DotsMovementToolkit;
 using UnityEngine;
 using Unity.Entities;
 using Rive.Components;

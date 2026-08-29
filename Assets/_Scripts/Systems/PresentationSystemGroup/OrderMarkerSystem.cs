@@ -1,3 +1,4 @@
+using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
@@ -29,9 +30,10 @@ public partial struct OrderMarkerSystem : ISystem
         playerControlledLookup.Update(ref state);
         localTransformLookup.Update(ref state);
 
-        foreach (RefRO<Horde> horde in SystemAPI.Query<RefRO<Horde>>())
+        foreach ((RefRO<Horde> horde, RefRO<HordeOrderMarker> orderMarker) in
+            SystemAPI.Query<RefRO<Horde>, RefRO<HordeOrderMarker>>())
         {
-            Entity markerEntity = horde.ValueRO.markerEntity;
+            Entity markerEntity = orderMarker.ValueRO.markerEntity;
             if (markerEntity == Entity.Null) continue;
             if (!localTransformLookup.HasComponent(markerEntity)) continue;
 

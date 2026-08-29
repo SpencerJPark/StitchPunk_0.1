@@ -1,3 +1,4 @@
+using DotsMovementToolkit;
 using Unity.Entities;
 
 // ============================================================================================
@@ -98,25 +99,10 @@ public partial class ItemSystemGroup : GameSceneSystemGroup { }
         [UpdateAfter(typeof(ItemEquipSystemGroup))]
         public partial class ThrownItemSystemGroup : ComponentSystemGroup { }
 
-[UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateBefore(typeof(BuildingsSystemGroup))]
-public partial class MovementSystemGroup : GameSceneSystemGroup { }
-
-        [UpdateInGroup(typeof(MovementSystemGroup))]
-        [UpdateBefore(typeof(MovementRoutingSystemGroup))]
-        public partial class MovementCoordinatorSystemGroup : ComponentSystemGroup { }
-
-        [UpdateInGroup(typeof(MovementSystemGroup))]
-        [UpdateBefore(typeof(MovementFollowerSystemGroup))]
-        public partial class MovementRoutingSystemGroup : ComponentSystemGroup { }
-
-        [UpdateInGroup(typeof(MovementSystemGroup))]
-        [UpdateBefore(typeof(MovementExecutionSystemGroup))]
-        public partial class MovementFollowerSystemGroup : ComponentSystemGroup { }
-
-        [UpdateInGroup(typeof(MovementSystemGroup))]
-        public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }
-
+// MovementSystemGroup itself (and its four sub-groups) now lives in the DOTS Movement
+// Toolkit package (DotsMovementToolkit.MovementSystemGroup) — see the `using` above. A
+// package group can't derive from this file's GameSceneSystemGroup or carry attributes
+// declared from game code, so the game-relative edges below live on ITEM/BUILDINGS instead.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(MovementSystemGroup))]
 [UpdateBefore(typeof(CombatSystemGroup))]

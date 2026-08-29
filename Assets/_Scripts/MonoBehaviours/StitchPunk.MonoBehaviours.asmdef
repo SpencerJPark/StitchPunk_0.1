@@ -16,7 +16,8 @@
         "GUID:f1045488f3cb5c5428ccaf14e6d565d4",
         "GUID:f6d3133ab89495c40a933922769e2c5c",
         "GUID:6055be8ebefd69e48b49212b09b47b2f",
-        "GUID:f51ebe6a0ceec4240a699833d6309b23"
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "DotsMovementToolkit.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

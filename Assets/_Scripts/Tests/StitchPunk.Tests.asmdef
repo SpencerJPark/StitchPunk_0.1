@@ -15,6 +15,7 @@
         "GUID:0a82aeb665886483c867b7d137563619",
         "GUID:4d624505c28284c90a482e4d6ec34ada",
         "GUID:8819f35a0fc84499b990e90a4ca1911f",
+        "DotsMovementToolkit.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

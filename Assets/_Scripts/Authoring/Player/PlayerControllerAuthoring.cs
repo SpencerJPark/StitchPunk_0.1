@@ -1,3 +1,4 @@
+using DotsMovementToolkit;
 using Unity.Entities;
 using UnityEngine;
 
@@ -164,9 +165,8 @@ public class PlayerControllerAuthoring : MonoBehaviour
                     memberCount    = 0,
                     isActive       = true,
                     needsPathUpdate = false,
-                    behaviorFlags  = 0,
-                    markerEntity   = markerEntity,
                 });
+                AddComponent(hordeEntity, new HordeOrderMarker { markerEntity = markerEntity });
                 AddBuffer<HordeMemberBuffer>(hordeEntity);
                 hordeSlots.Add(new PlayerHordeSlot { hordeEntity = hordeEntity });
             }

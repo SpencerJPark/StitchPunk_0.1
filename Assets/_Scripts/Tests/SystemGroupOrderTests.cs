@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DotsMovementToolkit;
 using NUnit.Framework;
 using Unity.Entities;
 
