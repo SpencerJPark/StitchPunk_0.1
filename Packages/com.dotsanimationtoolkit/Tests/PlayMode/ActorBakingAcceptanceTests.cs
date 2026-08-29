@@ -1284,7 +1284,9 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             bakingWorld.Bake(actorGameObject);
 
-            AssertToolkitWarningsMatching(1, "has no VAT texture set");
+            // Phase F made the binding plural, and the warning with it ("none of its clip
+            // sets supplies..."), so the old "has no VAT texture set" substring matched nothing.
+            AssertToolkitWarningsMatching(1, "supplies a VAT texture set");
             AssertToolkitWarnings(2, null);
 
             Assert.IsTrue(

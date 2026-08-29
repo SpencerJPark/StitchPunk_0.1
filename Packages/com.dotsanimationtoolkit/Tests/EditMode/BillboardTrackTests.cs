@@ -269,7 +269,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AddKey(AddBillboardTrack(clip, 0xDEADu), 0f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(
-                ClipValidation.ValidateClip(clip), ValidationCode.V24, ValidationSeverity.Error);
+                ValidateAgainst(rig, clip), ValidationCode.V24, ValidationSeverity.Error);
         }
 
         [Test]
@@ -280,7 +280,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AddKey(AddBillboardTrack(clip, 0u), 0f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(
-                ClipValidation.ValidateClip(clip), ValidationCode.V24, ValidationSeverity.Error);
+                ValidateAgainst(rig, clip), ValidationCode.V24, ValidationSeverity.Error);
         }
 
         [Test]
@@ -290,7 +290,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipAsset clip = assets.CreateClip("Clip", ClipKey, 1f);
             AddKey(AddBillboardTrack(clip, TorsoRootId), 0f, 0f, 1f, true, Interpolation.Linear);
 
-            List<ValidationMessage> messages = ClipValidation.ValidateClip(clip);
+            List<ValidationMessage> messages = ValidateAgainst(rig, clip);
 
             for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
             {
@@ -308,7 +308,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AddKey(track, 0.2f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(
-                ClipValidation.ValidateClip(clip), ValidationCode.V03, ValidationSeverity.Error);
+                ValidateAgainst(rig, clip), ValidationCode.V03, ValidationSeverity.Error);
         }
 
         [Test]
@@ -319,7 +319,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AddKey(AddBillboardTrack(clip, TorsoRootId), 1.5f, 0f, 1f, true, Interpolation.Linear);
 
             AssertContainsCode(
-                ClipValidation.ValidateClip(clip), ValidationCode.V04, ValidationSeverity.Error);
+                ValidateAgainst(rig, clip), ValidationCode.V04, ValidationSeverity.Error);
+        }
+
+        // Billboard rules are judged against the rig in hand, and since Phase F a clip no longer
+        // carries one -- so these have to go through the bind-scoped entry point or V24/V03/V04
+        // are skipped and the assertions pass on an empty list.
+        private List<ValidationMessage> ValidateAgainst(RigAsset rig, ClipAsset clip)
+        {
+            return ClipValidation.ValidateBind(
+                rig, new ClipSetAsset[] { assets.CreateSet("Set", rig, SetKey, clip) });
         }
 
         private static void AssertContainsCode(

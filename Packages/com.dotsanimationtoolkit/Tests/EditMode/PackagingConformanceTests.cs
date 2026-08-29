@@ -367,9 +367,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.12.0 is target tags and shared
-            // clips (amendment A51), on top of 0.11.0's ragdoll (amendment A50).
-            Assert.AreEqual("0.12.0", manifest.version, "Version tracks the shipped feature set; 0.12.0 is target tags and shared clips on top of 0.11.0's ragdoll.");
+            // -- not drift because someone edited the manifest. 0.13.0 is rig-centric binding
+            // (Phase F) with event authoring and the timeline binding surface (amendments A55,
+            // A56), on top of 0.12.0's target tags and shared clips (amendment A51).
+            Assert.AreEqual("0.13.0", manifest.version, "Version tracks the shipped feature set; 0.13.0 is rig-centric binding with event authoring and the timeline binding surface.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

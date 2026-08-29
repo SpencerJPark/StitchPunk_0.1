@@ -57,12 +57,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // the point: an empty array still has to be in the stream, or a clip that gained its first
         // billboard track would hash identically to the clip that had none.
         //
-        // NEEDS RE-RECORDING for schema version 9 (Phase F, rig-centric binding). The layout did not
-        // change, but ClipRegistryBlob.setKey — which is in the hash stream — is now the bind key
+        // Re-recorded 2026-08-29 for schema version 9 (Phase F, rig-centric binding). The layout did
+        // not change, but ClipRegistryBlob.setKey — which is in the hash stream — is now the bind key
         // (rig id XOR every bound set's id) rather than the lone set's id, so the frozen set hashes
-        // to a different, equally correct value. Run this test once and paste the number its failure
-        // message reports; that number is what the assertion below then guards.
-        private const ulong ExpectedContentHash = 0x12D592565545DA14UL;
+        // to a different, equally correct value.
+        private const ulong ExpectedContentHash = 0x4B73A9A2BB6C17F8UL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -161,8 +160,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // A key outside [0, 1] is a V04 error. Not a dangling target id: since Phase F that is
             // V38's skip, and a bind carrying one is still perfectly bakeable.
             ClipSetAsset invalidSet = BuildFrozenSet();
+            // By stable id, not by index: the set is authored highest-id-first and canonicalised
+            // downstream, so clips[0] is the idle clip, which carries no transform track at all.
+            ClipAsset walkClip = invalidSet.clips.Find(
+                candidateClip => candidateClip.stableId == WalkClipId);
             AuthoringTestAssets.AddTransformKey(
-                invalidSet.clips[0].transformTracks[0], 1.5f, new float3(0f, 0f, 0f), 0f,
+                walkClip.transformTracks[0], 1.5f, new float3(0f, 0f, 0f), 0f,
                 new float3(1f, 1f, 1f), Interpolation.Linear);
 
             Unity.Entities.Hash128 invalidSetHash;
