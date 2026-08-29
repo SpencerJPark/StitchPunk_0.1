@@ -56,6 +56,17 @@ public enum BehaviorCommandType : byte
     // Emits a one-shot PlaySound following the unit (a behaviour-level audio cue, e.g. a yell on Flee).
     // IntParam = (int)SoundType. Fire-and-advance. Append-only — never reorder existing values.
     PlaySound,
+
+    // Blocking — completes the frame the unit's AnimEventOutput carries key IntParam (cast to
+    // uint; see AnimEvents generated constants) on layer LayerIndex. Duration = timeout seconds
+    // (0 = none); on timeout, completes anyway with a warning so a clip missing its event can
+    // never hang a behavior forever. Gated on AnimEventsPending — event-less frames cost nothing.
+    WaitForAnimEvent,
+
+    // Blocking — completes on ReservedEventKeys.ClipFinished for layer LayerIndex; also completes
+    // on ClipResolveFailed for that layer (a missing clip must not hang a behavior forever — same
+    // missing-data-completes philosophy as WaitForAnimEvent). Duration = timeout seconds (0 = none).
+    WaitForClipFinished,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).

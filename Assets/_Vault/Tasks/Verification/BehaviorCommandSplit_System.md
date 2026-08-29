@@ -1,6 +1,6 @@
 # Behavior Command Split — Design Spec
 
-> **Status:** 🔨 built 2026-08-29 — spec retired here, checklist at [`../Verification/verify-behaviorcommandsplit.md`](verify-behaviorcommandsplit.md). Builds **before** `../NewPlans/AnimationEventTiming_System.md` (its two new commands land in the split-out layout).
+> **Status:** 🔨 built 2026-08-29 — spec retired here, checklist at [`../Verification/verify-behaviorcommandsplit.md`](verify-behaviorcommandsplit.md). Built **before** [`AnimationEventTiming_System.md`](AnimationEventTiming_System.md) (its two new commands land in the split-out layout) — that plan is now also built, same day.
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #9 — "do it as the first commit of RangedCombat, or immediately before"
 
 ## 0. Currency check (2026-08-29) — what changed since drafting

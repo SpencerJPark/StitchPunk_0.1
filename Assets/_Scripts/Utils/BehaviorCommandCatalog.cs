@@ -26,6 +26,8 @@ public static class BehaviorCommandCatalog
             case BehaviorCommandType.PlayActionAnimation:
             case BehaviorCommandType.RequestSocialResponse:
             case BehaviorCommandType.PlaySound:
+            case BehaviorCommandType.WaitForAnimEvent:
+            case BehaviorCommandType.WaitForClipFinished:
                 return true;
             default:
                 // SpawnEntity / ModifyStat / StartDialogue / ApplyForce — declared, not implemented.
@@ -42,6 +44,8 @@ public static class BehaviorCommandCatalog
         return commandType == BehaviorCommandType.Approach
             || commandType == BehaviorCommandType.WaitTime
             || commandType == BehaviorCommandType.FleeFromTarget
-            || commandType == BehaviorCommandType.LoopUntil;
+            || commandType == BehaviorCommandType.LoopUntil
+            || commandType == BehaviorCommandType.WaitForAnimEvent
+            || commandType == BehaviorCommandType.WaitForClipFinished;
     }
 }

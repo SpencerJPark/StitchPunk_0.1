@@ -29,15 +29,16 @@ MonoBehaviour:
     Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0
-    Looping: 1
-  - type: 5
+    Looping: 0
+  - type: 18
     IntParam: 0
     FloatParam: 0
-    Duration: 1
+    Duration: 0
     Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0
     Looping: 0
+    LayerIndex: 1
   - type: 8
     IntParam: 0
     FloatParam: 0

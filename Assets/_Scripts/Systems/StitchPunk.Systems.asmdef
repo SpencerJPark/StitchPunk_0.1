@@ -16,7 +16,8 @@
         "GUID:f6d3133ab89495c40a933922769e2c5c",
         "DotsMovementToolkit.Runtime",
         "DotsAnimationToolkit.Runtime",
-        "DotsAnimationToolkit.Authoring"
+        "DotsAnimationToolkit.Authoring",
+        "StitchPunk.Generated"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

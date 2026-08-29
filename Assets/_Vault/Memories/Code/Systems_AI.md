@@ -78,12 +78,56 @@ assets baked into the enum-indexed `BehaviorLibrary` blob). `BehaviorExecutionSy
 thin job shell (phase machine, command-index advance, dispatch switch) — **per-command logic lives
 in `Utils/BehaviorCommands/*.cs`** (2026-08-29 split, one static handler class per family:
 `MovementCommands`, `WaitLoopCommands`, `AnimationCommands`, `ItemCommands`, `RequestCommands`,
-`MiscCommands`, plus the `BehaviorCommandContext` struct bundling lookups/ECB/blob refs). Add a new
-`BehaviorCommandType` arm there, not inline in the switch. Blocking commands: Approach, WaitTime,
-FleeFromTarget, LoopUntil (each owns its own `CurrentCommandIndex`/timer advancement). Fire-and-advance:
+`MiscCommands`, `WaitForAnimEventCommand`, `WaitForClipFinishedCommand`, plus the `BehaviorCommandContext`
+struct bundling lookups/ECB/blob refs). Add a new `BehaviorCommandType` arm there, not inline in the
+switch. Blocking commands: Approach, WaitTime, FleeFromTarget, LoopUntil, WaitForAnimEvent,
+WaitForClipFinished (each owns its own `CurrentCommandIndex`/timer advancement). Fire-and-advance:
 PlayAnimation, PlayActionAnimation, RequestAttack, RequestPickup, ModifyMotivation, ReleaseInteraction,
 StopAnimation, RequestSocialResponse, PlaySound. `BehaviorInterruptSystem.RunCleanupCommand` reuses the
 `ModifyMotivation`/`ReleaseInteraction`/`StopAnimation` handlers directly (no more duplicated bodies).
+
+### Animation event timing (2026-08-29, `AnimationEventTiming_System.md`)
+
+Authored `AnimEventOutput` events (toolkit, `com.dotsanimationtoolkit`) are the timing source for AI/combat
+durations that used to be hand timers guessing at a clip's length — retiming a clip in the Clip Editor now
+retimes the gameplay for free.
+
+- **1-frame latency contract, accepted permanently:** `AnimationToolkitSystemGroup` runs *after*
+  `StateMachineSystemGroup`/`CombatSystemGroup`, and `EventEmissionSystem` clears+re-emits `AnimEventOutput`
+  during its own update — so `BehaviorExecutionSystem`/`AttackRequestSystem` (earlier in the frame) always
+  read last frame's events. 16ms at 60fps is invisible; do not reorder groups to "fix" this.
+- **`WaitForAnimEvent { IntParam = eventKey, LayerIndex }`** — completes when the unit's `AnimEventOutput`
+  buffer holds `(uint)IntParam` on `LayerIndex` this frame (gated on `AnimEventsPending`, so event-less
+  frames cost nothing). Event keys are the project's generated `AnimEvents.*` constants
+  (`Assets/Generated/DotsAnimationToolkit/AnimEvents.cs`, sourced from the
+  `ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset` registry — edit names/add rows there,
+  then regenerate; never hand-author a raw key number in a new behavior). `Assets/Generated/` has no
+  asmdef of its own by default — game code referencing `AnimEvents`/`TargetTags` needs the assembly it's
+  compiled into referenced from the consumer's asmdef; `Assets/Generated/DotsAnimationToolkit/StitchPunk.Generated.asmdef`
+  (added 2026-08-29, first real consumer) covers both generated files and is referenced by
+  `StitchPunk.Systems.asmdef`.
+- **`WaitForClipFinished { LayerIndex }`** — completes on `ReservedEventKeys.ClipFinished` for that layer;
+  also completes on `ClipResolveFailed` (a missing clip can't hang a behavior). The clip on that layer must
+  be `LoopMode.Once` — a looping clip never fires `ClipFinished`.
+- Both carry `Duration` as a timeout (0 = none) — same safety-rail pattern as `WaitTime`/`LoopUntil`; on
+  timeout they complete anyway with a warning log.
+- **Pickup converted** (`PickupBehaviour.asset`): `PlayActionAnimation` (now `Looping: 0`) →
+  `WaitForClipFinished(LayerIndex: Action)` → `RequestPickup` → `StopAnimation`. Talk/Sit deliberately did
+  **not** convert — their `WaitTime` durations are a design choice (Sit's 8s), not clip cover.
+- **Combat Hit trigger** (`AttackRequestSystem`): fires the `DamageBus` enqueue on `AnimEvents.Hit` (Action
+  layer) instead of a fixed `elapsed >= hitTime`. `AttackBlob.hitTime` is now the fallback/timeout ceiling —
+  races against the event each frame (`elapsed += deltaTime`; either the event or `elapsed >= hitTime` fires
+  first, `hitFired` guards a double-fire). A clip with no `Hit` event authored always lands damage via the
+  timeout; a clip that has one should keep `hitTime` comfortably above the event's real time so the event
+  decides, not the timer. **Temporary dual path** — delete `hitTime`-as-trigger once every attack clip has a
+  `Hit` event authored (one milestone out; do not let this drift into a permanent second vocabulary).
+  `PlayerAttackSystem`'s cooldown uses the authored `cooldown` value only now — the old
+  `max(cooldown, hitTime + 0.05)` floor is gone (cooldown is game feel, not clip sync).
+- **Assignment shrink deferred:** `UnitAnimationAssignmentSystem`'s Action-layer auto-assign (drives the
+  clip from `unitAction.current` when no behavior command owns the layer) is still load-bearing —
+  `FleeBehaviour` has no explicit `PlayActionAnimation`/`StopAnimation` and depends on it. The plan's "shrink
+  to Base-layer-only" is NOT done; it only becomes safe once every behavior explicitly owns its Action-layer
+  clip the way Pickup and MeleeSingle/MeleeContinuous already do.
 
 - **Approach**: paths to `targetEntity` (waypoint scatter, moving-target repath) — or, when
   `targetEntity == Null && hasTargetPosition`, paths once to the raw `targetPosition` (no repath).
@@ -141,8 +185,8 @@ present-but-disabled, keeps `in/ref UtilityBrain` readable): `BehaviorExecutionS
 
 ## Item pickup flow (Phase 3, current)
 
-`ItemAwareness` option → PickupBehaviour (`Approach 1.5 → PlayActionAnimation → WaitTime 1s →
-RequestPickup → StopAnimation`) → item gets `PickupRequest`:
+`ItemAwareness` option → PickupBehaviour (`Approach 1.5 → PlayActionAnimation (Once) →
+WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets `PickupRequest`:
 - `ItemConsumeSystem` (ItemEquipSystemGroup, **before** ItemEquipSystem): Consumable category →
   `HealRequest` (EffectType.Healing) or `MotivationChangeRequest` per effect behaviour on the
   owner, disables both requests, destroys the item via ECB.

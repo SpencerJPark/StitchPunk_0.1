@@ -33,5 +33,9 @@ public struct BehaviorCommand
 
     // PlayAnimation only: the clip to play on the Action layer. Default (id 0) = invalid/none.
     public ClipId AnimationClip;
+
+    // WaitForAnimEvent / WaitForClipFinished: the playback layer to watch (AnimationToolkitLayer,
+    // 0 = Base, 1 = Action, ...).
+    public byte LayerIndex;
 }
 

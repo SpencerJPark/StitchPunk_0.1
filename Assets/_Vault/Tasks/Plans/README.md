@@ -35,7 +35,7 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 | System | Doc | Status |
 |---|---|---|
 | **Animation Toolkit Game Migration** (legacy AnimationSystemGroup → com.dotsanimationtoolkit; ClipId vocabulary, command seam, tag-bound face-layer reuse, toolkit ragdoll adoption, design/sound/visibility seams, deletion pass) | [AnimationToolkitMigration_System.md](../NewPlans/AnimationToolkitMigration_System.md) | ✅ decisions locked — ready to build (phase 0 prereqs first) |
-| **Animation Event Timing** (AnimEvents replace hitTime/WaitTime timers; WaitForAnimEvent/WaitForClipFinished commands; needs Migration + BehaviorCommandSplit first) | [AnimationEventTiming_System.md](../NewPlans/AnimationEventTiming_System.md) | 📝 spec drafted — decisions await owner |
+| **Animation Event Timing** (AnimEvents replace hitTime/WaitTime timers; WaitForAnimEvent/WaitForClipFinished commands; Pickup converted, combat Hit-trigger wired) | [AnimationEventTiming_System.md](../Verification/AnimationEventTiming_System.md) | ◐ built 2026-08-29, awaiting play-test — [verify-animationeventtiming.md](../Verification/verify-animationeventtiming.md) (assignment shrink deferred; Hit event not yet authored on any clip) |
 | **Player Attack** (melee swing → AttackRequest; separate CombatTarget; revives PlayerAttackSystem) | [PlayerAttack_System.md](../Completed/PlayerAttack_System.md) | ✔️ done |
 | **Sound** (SFX / ambient loops / layered music) | [Sound_System.md](../Completed/Sound_System.md) | ✔️ done — built + verified |
 | **DamageEvent** (attack/damage refactor → one-frame signal entity, deletes Hurt buffer) | [DamageEvent_System.md](../Completed/DamageEvent_System.md) | ✔️ done — superseded by v2 |

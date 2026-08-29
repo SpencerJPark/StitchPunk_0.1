@@ -20,6 +20,8 @@ public struct BehaviorCommandContext
     public ComponentLookup<StateMachine>            stateMachineLookup;
     public NativeParallelMultiHashMap<int2, Entity> waypointCells;
     public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
+    public BufferLookup<AnimEventOutput>            animEventOutputLookup;
+    public ComponentLookup<AnimEventsPending>       animEventsPendingLookup;
 
     // Write lookups — each entity is owned by at most one executing behavior at a time, so no two
     // handler calls ever write the same entity's data (matches the job's own field annotations).

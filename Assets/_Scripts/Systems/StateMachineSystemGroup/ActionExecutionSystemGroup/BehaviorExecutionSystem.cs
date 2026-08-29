@@ -29,6 +29,8 @@ public partial struct BehaviorExecutionSystem : ISystem
     private BufferLookup<Motivation>            _motivationLookup;
     private ComponentLookup<StateMachine>       _stateMachineLookup;
     private ComponentLookup<SocialInvite>       _socialInviteLookup;
+    private BufferLookup<AnimEventOutput>       _animEventOutputLookup;
+    private ComponentLookup<AnimEventsPending>  _animEventsPendingLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -51,6 +53,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _motivationLookup        = state.GetBufferLookup<Motivation>(true);
         _stateMachineLookup      = state.GetComponentLookup<StateMachine>(true);
         _socialInviteLookup      = state.GetComponentLookup<SocialInvite>(true);
+        _animEventOutputLookup   = state.GetBufferLookup<AnimEventOutput>(true);
+        _animEventsPendingLookup = state.GetComponentLookup<AnimEventsPending>(true);
     }
 
     [BurstCompile]
@@ -70,6 +74,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _motivationLookup.Update(ref state);
         _stateMachineLookup.Update(ref state);
         _socialInviteLookup.Update(ref state);
+        _animEventOutputLookup.Update(ref state);
+        _animEventsPendingLookup.Update(ref state);
 
         BehaviorLibrary      behaviorLib  = SystemAPI.GetSingleton<BehaviorLibrary>();
         SpatialHashRegistry  registry     = SystemAPI.GetSingleton<SpatialHashRegistry>();
@@ -101,6 +107,8 @@ public partial struct BehaviorExecutionSystem : ISystem
             motivationLookup         = _motivationLookup,
             stateMachineLookup       = _stateMachineLookup,
             socialInviteLookup       = _socialInviteLookup,
+            animEventOutputLookup    = _animEventOutputLookup,
+            animEventsPendingLookup  = _animEventsPendingLookup,
             waypointCells            = registry.waypointCells,
             deltaTime                = deltaTime,
             ecb                      = ecb,
@@ -127,6 +135,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
     [ReadOnly] public ComponentLookup<Dead>                          deadLookup;
     [ReadOnly] public BufferLookup<Motivation>                       motivationLookup;
     [ReadOnly] public ComponentLookup<SocialInvite>                  socialInviteLookup;
+    [ReadOnly] public BufferLookup<AnimEventOutput>                  animEventOutputLookup;
+    [ReadOnly] public ComponentLookup<AnimEventsPending>             animEventsPendingLookup;
 
     // Read-only lookup aliases the StateMachine this job writes by ref. Safe: qualifier checks only
     // read OTHER units' StateMachine (the target's), and each unit writes only its own.
@@ -233,6 +243,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
             motivationLookup              = motivationLookup,
             socialInviteLookup            = socialInviteLookup,
             stateMachineLookup            = stateMachineLookup,
+            animEventOutputLookup         = animEventOutputLookup,
+            animEventsPendingLookup       = animEventsPendingLookup,
             waypointCells                 = waypointCells,
             unitLibrary                   = unitLibrary,
             attackRequestLookup           = attackRequestLookup,
@@ -268,6 +280,14 @@ public partial struct BehaviorExecutionJob : IJobEntity
             case BehaviorCommandType.LoopUntil:
                 WaitLoopCommands.RunLoopUntil(ref context, unit, ref stateMachine, in cmd, in transform);
                 return; // owns its advancement
+
+            case BehaviorCommandType.WaitForAnimEvent:
+                WaitForAnimEventCommand.Run(ref context, unit, ref stateMachine, in cmd);
+                return; // blocking — owns its advancement
+
+            case BehaviorCommandType.WaitForClipFinished:
+                WaitForClipFinishedCommand.Run(ref context, unit, ref stateMachine, in cmd);
+                return; // blocking — owns its advancement
 
             case BehaviorCommandType.RequestAttack:
                 RequestCommands.RunRequestAttack(ref context, unit, ref stateMachine, in availableAttacks);

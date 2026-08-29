@@ -26,6 +26,8 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.PlayActionAnimation,
                 BehaviorCommandType.RequestSocialResponse,
                 BehaviorCommandType.PlaySound,
+                BehaviorCommandType.WaitForAnimEvent,
+                BehaviorCommandType.WaitForClipFinished,
             };
 
         private static readonly HashSet<BehaviorCommandType> ExpectedBlocking =
@@ -35,6 +37,8 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.WaitTime,
                 BehaviorCommandType.FleeFromTarget,
                 BehaviorCommandType.LoopUntil,
+                BehaviorCommandType.WaitForAnimEvent,
+                BehaviorCommandType.WaitForClipFinished,
             };
 
         [Test]
@@ -74,7 +78,7 @@ namespace StitchPunk.Tests
         }
 
         [Test]
-        public void BlockingSet_IsExactlyTheFourBlockingCommands()
+        public void BlockingSet_MatchesThePinnedBlockingCommands()
         {
             foreach (BehaviorCommandType commandType in Enum.GetValues(typeof(BehaviorCommandType)))
             {

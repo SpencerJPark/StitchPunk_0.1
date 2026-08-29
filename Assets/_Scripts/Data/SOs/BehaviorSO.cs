@@ -9,7 +9,7 @@ public class BehaviorCommandAuthoring
 {
     public BehaviorCommandType type;
 
-    [Tooltip("Faction id, dialogue node id, etc. (meaning depends on type). LoopUntil: jump-back command index.")]
+    [Tooltip("Faction id, dialogue node id, etc. (meaning depends on type). LoopUntil: jump-back command index. WaitForAnimEvent: the event key to watch for (see the generated AnimEvents constants; cast to uint at runtime).")]
     public int IntParam;
 
     [Tooltip("Damage amount, cash value, dash speed, etc. (meaning depends on type). LoopUntil: range for TargetOutOfRange.")]
@@ -32,6 +32,9 @@ public class BehaviorCommandAuthoring
 
     [Tooltip("PlayAnimation: the clip to play on the Action layer.")]
     public ClipAsset AnimationClip;
+
+    [Tooltip("WaitForAnimEvent / WaitForClipFinished: the playback layer to watch (0 = Base, 1 = Action).")]
+    public AnimationToolkitLayer LayerIndex;
 }
 
 // A reusable executed sequence ("verb") — e.g. MeleeSwing, Wander. Bound to a UtilityActionSO and

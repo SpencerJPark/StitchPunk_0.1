@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -10,6 +11,8 @@ public partial struct AttackRequestSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
     private ComponentLookup<Dead>          deadLookup;
+    private BufferLookup<AnimEventOutput>      animEventOutputLookup;
+    private ComponentLookup<AnimEventsPending> animEventsPendingLookup;
 
     public void OnCreate(ref SystemState state)
     {
@@ -19,12 +22,16 @@ public partial struct AttackRequestSystem : ISystem
 
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
         deadLookup      = state.GetComponentLookup<Dead>(true);
+        animEventOutputLookup   = state.GetBufferLookup<AnimEventOutput>(true);
+        animEventsPendingLookup = state.GetComponentLookup<AnimEventsPending>(true);
     }
 
     public void OnUpdate(ref SystemState state)
     {
         transformLookup.Update(ref state);
         deadLookup.Update(ref state);
+        animEventOutputLookup.Update(ref state);
+        animEventsPendingLookup.Update(ref state);
 
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
@@ -53,6 +60,8 @@ public partial struct AttackRequestSystem : ISystem
             logEcb          = logEcb,
             loggingEnabled  = loggingEnabled,
             timestamp       = SystemAPI.Time.ElapsedTime,
+            animEventOutputLookup   = animEventOutputLookup,
+            animEventsPendingLookup = animEventsPendingLookup,
         }.ScheduleParallel(state.Dependency);
 
         // Manual dependency wiring — a NativeQueue through a singleton bypasses ECS auto-tracking,
@@ -73,6 +82,8 @@ public partial struct AttackRequestJob : IJobEntity
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
     [ReadOnly] public ComponentLookup<Dead>           deadLookup;
+    [ReadOnly] public BufferLookup<AnimEventOutput>      animEventOutputLookup;
+    [ReadOnly] public ComponentLookup<AnimEventsPending> animEventsPendingLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
     public float                                    deltaTime;
     public NativeQueue<DamageEvent>.ParallelWriter  damageWriter;
@@ -95,13 +106,42 @@ public partial struct AttackRequestJob : IJobEntity
             return;
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
-        // Hit timing is self-contained and delta-time driven: elapsed is reset to 0 at the
-        // start of each swing (FireAction / PlayerAttackSystem) and advances here. This is
-        // frame-rate-correct and independent of system ordering. Using >= fires correctly
-        // even when a large deltaTime skips past hitTime.
+        // Hit timing: the swing's clip is the source of truth — fire the instant the attacker's
+        // AnimEventOutput carries AnimEvents.Hit on the Action layer, so retiming the clip retimes
+        // the damage moment for free. attackBlob.hitTime is the fallback/timeout ceiling: elapsed
+        // is reset to 0 at the start of each swing (FireAction / PlayerAttackSystem) and advances
+        // here, frame-rate-correct and independent of system ordering. A clip with no Hit event
+        // authored always lands damage via this timeout; one that has it should keep hitTime
+        // comfortably above the authored event's time so the event — not the timeout — decides.
         attackRequest.elapsed += deltaTime;
-        if (attackRequest.elapsed < attackBlob.hitTime)
+
+        bool hitEventFired = false;
+        if (animEventsPendingLookup.HasComponent(attackerEntity)
+            && animEventsPendingLookup.IsComponentEnabled(attackerEntity)
+            && animEventOutputLookup.HasBuffer(attackerEntity))
+        {
+            DynamicBuffer<AnimEventOutput> attackerEvents = animEventOutputLookup[attackerEntity];
+            for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
+            {
+                if (attackerEvents[eventIndex].eventKey == AnimEvents.Hit
+                    && attackerEvents[eventIndex].layerIndex == (byte)AnimationToolkitLayer.Action)
+                {
+                    hitEventFired = true;
+                    break;
+                }
+            }
+        }
+
+        bool timedOut = attackRequest.elapsed >= attackBlob.hitTime;
+        if (!hitEventFired && !timedOut)
             return;
+
+        if (timedOut && !hitEventFired && loggingEnabled)
+        {
+            LogUtil.Log(ref logEcb, sortKey,
+                $"[Attack] Hit event never arrived for attacker {attackerEntity.Index} — falling back to hitTime",
+                LogLevel.Warning, timestamp, category: LogCategory.Combat);
+        }
 
         Entity victim = attackRequest.targetEntity;
 

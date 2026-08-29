@@ -1,6 +1,6 @@
 # Animation Event Timing — Design Spec (StateMachine/AI simplification)
 
-> **Status:** ✅ decisions stamped 2026-08-29 (owner-approved) — ready to build
+> **Status:** 🔨 built 2026-08-29 — spec retired here, checklist at [`verify-animationeventtiming.md`](verify-animationeventtiming.md). Assignment shrink (§5) deferred — see that checklist's Notes.
 > **Raw source:** [`../Claude/Systems_Gap_Audit_2026-08.md`](../Claude/Systems_Gap_Audit_2026-08.md) area 2
 > **Prerequisites:** [`AnimationToolkitMigration_System.md`](AnimationToolkitMigration_System.md) phases 1–5 (events only exist on toolkit actors), and [`../Verification/BehaviorCommandSplit_System.md`](../Verification/BehaviorCommandSplit_System.md) — **built** 2026-08-29 — new command arms land in `Utils/BehaviorCommands/WaitLoopCommands.cs` (the Wait/Loop family file), not the monolith switch.
 

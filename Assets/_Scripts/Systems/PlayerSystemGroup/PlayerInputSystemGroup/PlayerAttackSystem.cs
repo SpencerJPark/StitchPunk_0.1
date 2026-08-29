@@ -122,9 +122,10 @@ public partial struct PlayerAttackSystem : ISystem
                     loop: LoopMode.Once);
             }
 
-            // Start cooldown — guarantee the hit (at hitTime) lands before the next swing.
+            // Start cooldown — the authored value is game feel, not clip sync (the Hit event
+            // trigger no longer needs a hitTime floor to guarantee the swing lands first).
             RefRW<AttackCooldown> attackCooldown = SystemAPI.GetComponentRW<AttackCooldown>(selfEntity);
-            attackCooldown.ValueRW.remaining = math.max(attackBlob.cooldown, attackBlob.hitTime + 0.05f);
+            attackCooldown.ValueRW.remaining = attackBlob.cooldown;
             SystemAPI.SetComponentEnabled<AttackCooldown>(selfEntity, true);
         }
     }
