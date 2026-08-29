@@ -24,25 +24,25 @@ Read `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` §9 only if you touch ragdo
 The Phase A/B/C review docs were deleted in the 2026-08-29 cleanup — closed history, recoverable
 from git if a decision ever needs tracing. What remains in `Docs\AnimationToolkit\` is live.
 
-**Current state (2026-08-28):** Phase F (rig-centric binding) is **written but never compiled.**
-The Editor was closed for the session that wrote it, so F1-F6 are static review only — every task in
-`Phase_F_RigCentric_Spec.md` §11 has code in the tree and none of it has been through the gate in §3.
-The same is true of A53, A54, A55, the uncommitted transport-drag work that preceded them, and now
-**A56** (`Amendment_A56_TimelineBinding_Spec.md`, 2026-08-28): the timeline row became the binding
-surface — `tag → part`, both halves pickers, whole-row tag moves with merge, rig re-tagging from
-the row, tags mandatory at track creation, `T `/`S `/`B ` prefixes removed. Also written with the
-Editor closed, deliberately (see the §3 cadence note).
+**Current state (2026-08-29):** Phase F, A53, A54, A55 and A56 have **compiled and passed the
+gate** — the first real compile of any of it, all having been written with the Editor closed.
+**Zero compile errors. EditMode 696/697, PlayMode 240/240**, discovered counts holding at 697/240.
+A56 (`Amendment_A56_TimelineBinding_Spec.md`) made the timeline row the binding surface: `tag →
+part`, both halves pickers, whole-row tag moves with merge, rig re-tagging from the row, tags
+mandatory at track creation, `T `/`S `/`B ` prefixes removed.
 
-**Two known, deliberate failures to clear first:**
+The golden hash has been re-recorded, and four fixtures that outlived the change were repaired
+(see commit `ad8c90cc` for which and why). **The one remaining red test is deliberate:**
+`Conformance_D` is escalated as `Amendment_A57_ConformanceD_HostPathScan.md` and needs an owner
+decision — it bans the literal `Assets/` in any package file, which cannot tell the host's folders
+from the consumer project root the generated-constants destination has to name.
 
-1. `ContentHashGoldenTests.TheFrozenSet_HashesToItsRecordedGoldenValue` **will fail.** `setKey` is
-   now the bind key, so the frozen set hashes to a different (equally correct) value. Run it once and
-   paste the number its failure message reports into `ExpectedContentHash`; the constant's own
-   comment block says so too.
-2. Every existing `ActorAuthoring` loses its `clipSet`, every `ClipSetAsset` its `rig`, and every
-   `ClipAsset` its `rig` — all three fields are gone, and Phase F ships no migration by owner
-   decision. Re-point each actor's **Rig** and **Clip Sets**, or re-run the migration and smoke
-   builders.
+**Still outstanding, and not test-visible:** every existing `ActorAuthoring` lost its `clipSet`,
+every `ClipSetAsset` its `rig`, every `ClipAsset` its `rig` — all three fields are gone, and Phase F
+ships no migration by owner decision. Re-point each actor's **Rig** and **Clip Sets**, or re-run the
+migration and smoke builders. `Assets/ScriptableObjects/Animations/NewClipSet.asset` still carries a
+serialized `rig:` pointing at the migration's `HumanoidRig.asset`; that field no longer exists on the
+type and Unity will drop it on the next save.
 
 ## 2. How to work here
 
@@ -109,12 +109,10 @@ gate, the two `TimelineBindingLogicTests` fixtures, save/reload proof for auto-t
 then the visual pass (owner's eyes). Verify it together with Phase F below — one Editor session
 covers both.
 
-**Phase F — rig-centric binding.** F1-F6 are written (see the state note in §1). What is left is
-verification, not implementation:
+**Phase F — rig-centric binding.** F1-F6 are written and the gate is green (§1). What is left is
+the part no test can reach:
 
-1. **Run the gate in §3.** Expect the golden-hash failure above; nothing else should be red. Counts
-   must not drop — the EditMode suite gained T6/V38, V39, V40, merged-union and creation-default
-   fixtures, and lost the two V06 ones.
+1. ~~**Run the gate in §3.**~~ Done 2026-08-29 — see §1.
 2. **Prove the Clip Editor's rig survives a domain reload and a re-dock**, and that it does *not*
    reach any asset. It is window state now (`activeRig` / `sessionRig` / `CarriedState.rig`), so the
    failure to look for is the rig coming back empty after editing a tag — and the other failure is
