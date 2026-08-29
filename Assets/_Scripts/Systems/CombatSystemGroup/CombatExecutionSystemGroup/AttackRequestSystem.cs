@@ -107,15 +107,15 @@ public partial struct AttackRequestJob : IJobEntity
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
         // Hit timing: the swing's clip is the source of truth — fire the instant the attacker's
-        // AnimEventOutput carries AnimEvents.Hit on the Action layer, so retiming the clip retimes
+        // AnimEventOutput carries AnimEvents.Attack on the Action layer, so retiming the clip retimes
         // the damage moment for free. attackBlob.hitTime is the fallback/timeout ceiling: elapsed
         // is reset to 0 at the start of each swing (FireAction / PlayerAttackSystem) and advances
-        // here, frame-rate-correct and independent of system ordering. A clip with no Hit event
+        // here, frame-rate-correct and independent of system ordering. A clip with no Attack event
         // authored always lands damage via this timeout; one that has it should keep hitTime
         // comfortably above the authored event's time so the event — not the timeout — decides.
         attackRequest.elapsed += deltaTime;
 
-        bool hitEventFired = false;
+        bool attackEventFired = false;
         if (animEventsPendingLookup.HasComponent(attackerEntity)
             && animEventsPendingLookup.IsComponentEnabled(attackerEntity)
             && animEventOutputLookup.HasBuffer(attackerEntity))
@@ -123,23 +123,23 @@ public partial struct AttackRequestJob : IJobEntity
             DynamicBuffer<AnimEventOutput> attackerEvents = animEventOutputLookup[attackerEntity];
             for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
             {
-                if (attackerEvents[eventIndex].eventKey == AnimEvents.Hit
+                if (attackerEvents[eventIndex].eventKey == AnimEvents.Attack
                     && attackerEvents[eventIndex].layerIndex == (byte)AnimationToolkitLayer.Action)
                 {
-                    hitEventFired = true;
+                    attackEventFired = true;
                     break;
                 }
             }
         }
 
         bool timedOut = attackRequest.elapsed >= attackBlob.hitTime;
-        if (!hitEventFired && !timedOut)
+        if (!attackEventFired && !timedOut)
             return;
 
-        if (timedOut && !hitEventFired && loggingEnabled)
+        if (timedOut && !attackEventFired && loggingEnabled)
         {
             LogUtil.Log(ref logEcb, sortKey,
-                $"[Attack] Hit event never arrived for attacker {attackerEntity.Index} — falling back to hitTime",
+                $"[Attack] Attack event never arrived for attacker {attackerEntity.Index} — falling back to hitTime",
                 LogLevel.Warning, timestamp, category: LogCategory.Combat);
         }
 

@@ -22,13 +22,7 @@
                 "name": "Attack",
                 "eventKey": 18,
                 "defaultWindowFrames": 0,
-                "description": "Trigger Attack on Target"
-            },
-            {
-                "name": "Hit",
-                "eventKey": 19,
-                "defaultWindowFrames": 0,
-                "description": "The frame damage should land. AttackRequestSystem enqueues the DamageBus event on this (Action layer); hitTime is the timeout fallback when a clip has no Hit event."
+                "description": "The frame damage should land. AttackRequestSystem enqueues the DamageBus event on this (Action layer); hitTime is the timeout fallback when a clip has no Attack event."
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimEvents.cs"

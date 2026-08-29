@@ -34,10 +34,10 @@ public class AttackSO : ScriptableObject
     public float launchForceX = 0f;
 
     [Header("Hit Timing")]
-    [Tooltip("Fallback/timeout only: the swing's clip fires damage on its authored 'Hit' anim event " +
-             "(AttackRequestSystem, Action layer). This is the timer used only when the clip has no Hit " +
+    [Tooltip("Fallback/timeout only: the swing's clip fires damage on its authored 'Attack' anim event " +
+             "(AttackRequestSystem, Action layer). This is the timer used only when the clip has no Attack " +
              "event, and the timeout ceiling when it does — keep it comfortably above the event's real time " +
-             "so the event decides, not this timer. Temporary: deleted once every attack clip has a Hit event.")]
+             "so the event decides, not this timer. Temporary: deleted once every attack clip has an Attack event.")]
     public float hitTime = 0.3f;
 
     [Header("Attack Rate")]

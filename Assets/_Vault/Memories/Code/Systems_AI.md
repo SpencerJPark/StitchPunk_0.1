@@ -114,13 +114,14 @@ retimes the gameplay for free.
 - **Pickup converted** (`PickupBehaviour.asset`): `PlayActionAnimation` (now `Looping: 0`) →
   `WaitForClipFinished(LayerIndex: Action)` → `RequestPickup` → `StopAnimation`. Talk/Sit deliberately did
   **not** convert — their `WaitTime` durations are a design choice (Sit's 8s), not clip cover.
-- **Combat Hit trigger** (`AttackRequestSystem`): fires the `DamageBus` enqueue on `AnimEvents.Hit` (Action
-  layer) instead of a fixed `elapsed >= hitTime`. `AttackBlob.hitTime` is now the fallback/timeout ceiling —
+- **Combat Hit trigger** (`AttackRequestSystem`): fires the `DamageBus` enqueue on `AnimEvents.Attack`
+  (key 18, Action layer — the registry's pre-existing `Attack` entry; do not add a second `Hit` key, this
+  is it) instead of a fixed `elapsed >= hitTime`. `AttackBlob.hitTime` is now the fallback/timeout ceiling —
   races against the event each frame (`elapsed += deltaTime`; either the event or `elapsed >= hitTime` fires
-  first, `hitFired` guards a double-fire). A clip with no `Hit` event authored always lands damage via the
+  first, `hitFired` guards a double-fire). A clip with no `Attack` event authored always lands damage via the
   timeout; a clip that has one should keep `hitTime` comfortably above the event's real time so the event
-  decides, not the timer. **Temporary dual path** — delete `hitTime`-as-trigger once every attack clip has a
-  `Hit` event authored (one milestone out; do not let this drift into a permanent second vocabulary).
+  decides, not the timer. **Temporary dual path** — delete `hitTime`-as-trigger once every attack clip has
+  an `Attack` event authored (one milestone out; do not let this drift into a permanent second vocabulary).
   `PlayerAttackSystem`'s cooldown uses the authored `cooldown` value only now — the old
   `max(cooldown, hitTime + 0.05)` floor is gone (cooldown is game feel, not clip sync).
 - **Assignment shrink deferred:** `UnitAnimationAssignmentSystem`'s Action-layer auto-assign (drives the
