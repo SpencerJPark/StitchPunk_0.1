@@ -34,7 +34,7 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 
 | System | Doc | Status |
 |---|---|---|
-| **Animation Toolkit Game Migration** (legacy AnimationSystemGroup → com.dotsanimationtoolkit; ClipId vocabulary, command seam, design/sound/visibility seams, deletion pass) | [AnimationToolkitMigration_System.md](../NewPlans/AnimationToolkitMigration_System.md) | 📝 spec drafted — decisions await owner |
+| **Animation Toolkit Game Migration** (legacy AnimationSystemGroup → com.dotsanimationtoolkit; ClipId vocabulary, command seam, tag-bound face-layer reuse, toolkit ragdoll adoption, design/sound/visibility seams, deletion pass) | [AnimationToolkitMigration_System.md](../NewPlans/AnimationToolkitMigration_System.md) | ✅ decisions locked — ready to build (phase 0 prereqs first) |
 | **Animation Event Timing** (AnimEvents replace hitTime/WaitTime timers; WaitForAnimEvent/WaitForClipFinished commands; needs Migration + BehaviorCommandSplit first) | [AnimationEventTiming_System.md](../NewPlans/AnimationEventTiming_System.md) | 📝 spec drafted — decisions await owner |
 | **Player Attack** (melee swing → AttackRequest; separate CombatTarget; revives PlayerAttackSystem) | [PlayerAttack_System.md](../Completed/PlayerAttack_System.md) | ✔️ done |
 | **Sound** (SFX / ambient loops / layered music) | [Sound_System.md](../Completed/Sound_System.md) | ✔️ done — built + verified |

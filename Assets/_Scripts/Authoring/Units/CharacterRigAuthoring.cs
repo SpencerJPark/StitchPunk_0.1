@@ -6,27 +6,14 @@ using UnityEngine.Serialization;
 
 // Root of a character rig. Replaces AnimatorAuthoring + Ragdoll2DAuthoring (root config) +
 // DesignAuthoring in a single component on the body root:
-//   • starting animation layers → AnimationLayer buffer + SetAnimation buffer + AnimationRequest,
 //   • ragdoll root config → Ragdoll2DConfig + Ragdoll2DLaunch (joint parts flag themselves via BodyPartAuthoring),
 //   • design state → RandomizeDesign + PersistedDesign + CharacterPalette + ChangeDesignRequest,
 //   • an empty BodyPart buffer that CharacterRigBakingSystem / BodyPartInitSystem fill from descendants.
+// Animation baking (starting layers, AnimationCommand buffer) is the toolkit's own ActorAuthoring
+// component, added directly to the rig root alongside this one — see the Animation Toolkit
+// Migration spec. Not this baker's job: the toolkit resolves its own layers from its own RigAsset.
 public class CharacterRigAuthoring : MonoBehaviour
 {
-    [Header("Starting Animations")]
-    public List<StartingLayer> startingLayers = new()
-    {
-        new StartingLayer { layer = AnimationLayerType.Base, animation = AnimationType.Idle, speed = 1f, looping = true },
-    };
-
-    [System.Serializable]
-    public class StartingLayer
-    {
-        public AnimationLayerType layer = AnimationLayerType.Base;
-        public AnimationType animation = AnimationType.Idle;
-        public float speed = 1f;
-        public bool looping = true;
-    }
-
     [Header("Design")]
     [Tooltip("Pre-placed (subscene-baked) units never pass through the runtime spawner, so the design " +
              "pipeline never runs on them. Check this to enable NewlySpawned at bake so they roll + apply " +
@@ -77,26 +64,6 @@ public class CharacterRigAuthoring : MonoBehaviour
         public override void Bake(CharacterRigAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
-
-            // --- Animation ---
-            DynamicBuffer<AnimationLayer> layers = AddBuffer<AnimationLayer>(entity);
-            foreach (StartingLayer startingLayer in authoring.startingLayers)
-            {
-                layers.Add(new AnimationLayer
-                {
-                    layer     = startingLayer.layer,
-                    animation = startingLayer.animation,
-                    time      = 0f,
-                    speed     = startingLayer.speed,
-                    active    = true,
-                    looping   = startingLayer.looping,
-                });
-            }
-            SortLayers(ref layers);
-
-            AddBuffer<SetAnimation>(entity);
-            AddComponent<AnimationRequest>(entity);
-            SetComponentEnabled<AnimationRequest>(entity, false);
 
             // --- Unified body-part registry (assembled by CharacterRigBakingSystem / BodyPartInitSystem) ---
             AddBuffer<BodyPart>(entity);
@@ -155,22 +122,6 @@ public class CharacterRigAuthoring : MonoBehaviour
                     tiltOffsetBackward   = authoring.tiltOffsetBackward,
                     fallSpeed            = authoring.bodyFallSpeed,
                 });
-            }
-        }
-
-        private static void SortLayers(ref DynamicBuffer<AnimationLayer> layers)
-        {
-            for (int sortPass = 0; sortPass < layers.Length - 1; sortPass++)
-            {
-                for (int compareIndex = 0; compareIndex < layers.Length - 1 - sortPass; compareIndex++)
-                {
-                    if ((int)layers[compareIndex].layer > (int)layers[compareIndex + 1].layer)
-                    {
-                        AnimationLayer swapTemp = layers[compareIndex];
-                        layers[compareIndex] = layers[compareIndex + 1];
-                        layers[compareIndex + 1] = swapTemp;
-                    }
-                }
             }
         }
     }

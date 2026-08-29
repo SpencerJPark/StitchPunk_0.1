@@ -3,6 +3,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using UnityEngine.Serialization;
+using DotsAnimationToolkit.Authoring;
 
 [CreateAssetMenu(fileName = "Unit", menuName = "Units/Unit")]
 public class UnitSO : ScriptableObject
@@ -36,8 +37,8 @@ public class UnitSO : ScriptableObject
     [Header("Animations")]
     public ActionAnimationMapping[] actionAnimations;
     public StanceAnimationMapping[] stanceAnimations;
-    [SearchableEnum] public AnimationType idleAnimation;
-    [SearchableEnum] public AnimationType movingAnimation;
+    public ClipAsset idleAnimation;
+    public ClipAsset movingAnimation;
 
     [Header("Combat")]
     [SearchableEnum] public FactionType[] attackFactions;
@@ -53,7 +54,7 @@ public class UnitSO : ScriptableObject
     // public float progressMax;
     // public Sprite sprite;
 
-    public AnimationType GetAnimation(ActionType actionType, bool isMoving)
+    public ClipAsset GetAnimation(ActionType actionType, bool isMoving)
     {
         for (int i = 0; i < actionAnimations.Length; i++)
         {
@@ -78,7 +79,7 @@ public struct MotivationDecayConfig
 public struct ActionAnimationMapping
 {
     [SearchableEnum] public ActionType action;
-    [SearchableEnum] public AnimationType animation;
+    public ClipAsset animation;
 }
 
 [Serializable]
@@ -92,7 +93,7 @@ public struct AttackActionMapping
 public struct StanceAnimationMapping
 {
     public StanceType stance;
-    [SearchableEnum] public AnimationType idleAnimation;
-    [SearchableEnum] public AnimationType movingAnimation;
+    public ClipAsset idleAnimation;
+    public ClipAsset movingAnimation;
 }
 

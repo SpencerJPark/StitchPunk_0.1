@@ -12,7 +12,8 @@
         "GUID:8dfb72a3ac2144b4e9a720c0c1008aab",
         "GUID:0a82aeb665886483c867b7d137563619",
         "GUID:4d624505c28284c90a482e4d6ec34ada",
-        "GUID:8819f35a0fc84499b990e90a4ca1911f"
+        "GUID:8819f35a0fc84499b990e90a4ca1911f",
+        "DotsAnimationToolkit.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

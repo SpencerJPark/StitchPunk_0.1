@@ -1,8 +1,13 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Entities;
 using Unity.Burst;
 using Unity.Collections;
 
+// Decides which clip each layer should be playing and issues AnimationCommands only on change —
+// commands are requests, not state, so re-issuing Play every frame would restart the clip's
+// crossfade/queue machinery for no reason. PlaybackQuery answers "what's actually playing" against
+// the toolkit's own PlaybackLayer buffer instead of tracking a shadow copy here.
 [BurstCompile]
 [UpdateInGroup(typeof(AnimationAssignmentSystemGroup))]
 public partial struct UnitAnimationAssignmentSystem : ISystem
@@ -32,7 +37,9 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> library;
 
     public void Execute(
-        ref DynamicBuffer<AnimationLayer> layers,
+        ref DynamicBuffer<AnimationCommand>   commands,
+        EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+        in DynamicBuffer<PlaybackLayer>       playbackLayers,
         in UnitData         unitData,
         in Movement         movement,
         in UnitAction       unitAction,
@@ -45,36 +52,41 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         ref UnitDataBlob unitBlob = ref library.Value.units[unitIndex];
 
         // Base layer always reflects locomotion/stance
-        AnimationType baseAnimation = GetBaseAnimation(ref unitBlob, locomotionStance.stance, movement.isMoving);
-        if (!AnimationUtils.IsCurrentLayer(ref layers, AnimationLayerType.Base, baseAnimation))
-            AnimationUtils.SetLayer(ref layers, AnimationLayerType.Base, baseAnimation);
+        ClipId baseClip = GetBaseAnimation(ref unitBlob, locomotionStance.stance, movement.isMoving);
+        if (baseClip.IsValid
+            && !PlaybackQuery.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Base, baseClip))
+        {
+            AnimationCommandUtil.Play(ref commands, commandPendingEnabled,
+                (byte)AnimationToolkitLayer.Base, baseClip, loop: LoopMode.Loop);
+        }
 
-        // Action layer: a non-looping clip (e.g. attack) owns this layer until it finishes.
-        // AnimationRequestSystem runs first this frame and sets active=true, looping=false;
-        // AnimationTimeSystem clears active when the clip ends, returning control here.
-        if (!HasActiveNonLoopingLayer(ref layers, AnimationLayerType.Action))
+        // Action layer: a non-looping clip (e.g. attack) owns this layer until it finishes — the
+        // toolkit deactivates a LoopMode.Once layer on completion, so IsLayerActive answers false
+        // and control returns here.
+        if (!IsLayerActive(playbackLayers, (byte)AnimationToolkitLayer.Action))
         {
             if (IsIdleAction(unitAction.current))
             {
-                AnimationUtils.ClearLayer(ref layers, AnimationLayerType.Action);
+                // Nothing to stop — an inactive layer needs no Stop command.
             }
             else
             {
-                AnimationType actionAnimation = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving);
-                if (!AnimationUtils.IsCurrentLayerActive(ref layers, AnimationLayerType.Action, actionAnimation))
-                    AnimationUtils.SetLayer(ref layers, AnimationLayerType.Action, actionAnimation, 1f, true);
+                ClipId actionClip = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving);
+                if (actionClip.IsValid
+                    && !PlaybackQuery.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Action, actionClip))
+                {
+                    AnimationCommandUtil.Play(ref commands, commandPendingEnabled,
+                        (byte)AnimationToolkitLayer.Action, actionClip, loop: LoopMode.Once);
+                }
             }
         }
     }
 
-    private static bool HasActiveNonLoopingLayer(ref DynamicBuffer<AnimationLayer> layers, AnimationLayerType layerType)
+    private static bool IsLayerActive(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex)
     {
-        for (int i = 0; i < layers.Length; i++)
-        {
-            if (layers[i].layer == layerType)
-                return layers[i].active && !layers[i].looping;
-        }
-        return false;
+        if (layerIndex >= layers.Length)
+            return false;
+        return (layers[layerIndex].flags & PlaybackFlags.Active) != 0;
     }
 
     private static bool IsIdleAction(ActionType action)
@@ -82,7 +94,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         return action == ActionType.Idle;
     }
 
-    private static AnimationType GetBaseAnimation(
+    private static ClipId GetBaseAnimation(
         ref UnitDataBlob unitBlob,
         StanceType stance,
         bool isMoving)
@@ -99,7 +111,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         return isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation;
     }
 
-    private static AnimationType GetAnimationForAction(
+    private static ClipId GetAnimationForAction(
         ActionType action,
         ref UnitDataBlob unitBlob,
         bool isMoving)

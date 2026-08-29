@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
 using UnityEngine;
 
 // Authoring mirror of BehaviorCommand (StateMachineComponents.cs). A plain serializable class is
@@ -8,7 +9,7 @@ public class BehaviorCommandAuthoring
 {
     public BehaviorCommandType type;
 
-    [Tooltip("Animation hash, faction id, dialogue node id, etc. (meaning depends on type). LoopUntil: jump-back command index.")]
+    [Tooltip("Faction id, dialogue node id, etc. (meaning depends on type). LoopUntil: jump-back command index.")]
     public int IntParam;
 
     [Tooltip("Damage amount, cash value, dash speed, etc. (meaning depends on type). LoopUntil: range for TargetOutOfRange.")]
@@ -28,6 +29,9 @@ public class BehaviorCommandAuthoring
 
     [Tooltip("PlayAnimation: loop the clip until stopped (StopAnimation or interrupt cleanup)")]
     public bool Looping;
+
+    [Tooltip("PlayAnimation: the clip to play on the Action layer.")]
+    public ClipAsset AnimationClip;
 }
 
 // A reusable executed sequence ("verb") — e.g. MeleeSwing, Wander. Bound to a UtilityActionSO and

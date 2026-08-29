@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Entities;
 
 public struct UnitLibraryBlob
@@ -30,14 +31,14 @@ public struct UnitDataBlob
     public BlobArray<AttackActionMappingBlob> attacks;
     public BlobArray<ActionAnimationMappingBlob> actionAnimations;
     public BlobArray<StanceAnimationBlob> stanceAnimations;
-    public AnimationType idleAnimation;
-    public AnimationType movingAnimation;
+    public ClipId idleAnimation;
+    public ClipId movingAnimation;
 }
 
 public struct ActionAnimationMappingBlob
 {
     public ActionType action;
-    public AnimationType animation;
+    public ClipId animation;
 }
 
 public struct AttackActionMappingBlob
@@ -49,6 +50,6 @@ public struct AttackActionMappingBlob
 public struct StanceAnimationBlob
 {
     public StanceType stance;
-    public AnimationType idleAnimation;
-    public AnimationType movingAnimation;
+    public ClipId idleAnimation;
+    public ClipId movingAnimation;
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Collections;
 using Unity.Entities;
@@ -279,20 +280,34 @@ public class NarrativeEventManager : MonoBehaviour
     {
         if (!TryGetEntity(action.targetEntityId, out Entity entity)) return;
 
-        if (!_entityManager.HasBuffer<AnimationLayer>(entity))
+        if (action.animationClip == null)
         {
-            Debug.LogWarning($"NarrativeEventManager: Entity {entity} has no AnimationLayer buffer.");
+            Debug.LogWarning("NarrativeEventManager: PlayAnimationAction has no animationClip assigned.");
             return;
         }
 
-        DynamicBuffer<AnimationLayer> layers = _entityManager.GetBuffer<AnimationLayer>(entity);
-        AnimationUtils.SetLayer(ref layers, action.layer, action.animationType,
-            looping: action.looping);
+        if (!_entityManager.HasBuffer<AnimationCommand>(entity)
+            || !_entityManager.HasComponent<AnimationCommandPending>(entity))
+        {
+            Debug.LogWarning($"NarrativeEventManager: Entity {entity} has no AnimationCommand buffer.");
+            return;
+        }
+
+        byte layerIndex = (byte)action.layer;
+        _entityManager.GetBuffer<AnimationCommand>(entity).Add(new AnimationCommand
+        {
+            kind          = CommandKind.Play,
+            layerIndex    = layerIndex,
+            clip          = action.animationClip.Id,
+            speed         = 1f,
+            loop          = action.looping ? LoopMode.Loop : LoopMode.Once,
+            blendDuration = float.NaN,
+        });
+        _entityManager.SetComponentEnabled<AnimationCommandPending>(entity, true);
 
         if (action.waitForCompletion)
         {
-            AnimationLayerType targetLayer = action.layer;
-            await UniTask.WaitUntil(() => IsLayerInactive(entity, targetLayer),
+            await UniTask.WaitUntil(() => IsLayerInactive(entity, layerIndex),
                 cancellationToken: ct);
         }
         else if (action.duration > 0f)
@@ -302,18 +317,14 @@ public class NarrativeEventManager : MonoBehaviour
         }
     }
 
-    private bool IsLayerInactive(Entity entity, AnimationLayerType layerType)
+    private bool IsLayerInactive(Entity entity, byte layerIndex)
     {
         if (!_entityManager.Exists(entity)) return true;
-        if (!_entityManager.HasBuffer<AnimationLayer>(entity)) return true;
+        if (!_entityManager.HasBuffer<PlaybackLayer>(entity)) return true;
 
-        DynamicBuffer<AnimationLayer> layers = _entityManager.GetBuffer<AnimationLayer>(entity);
-        for (int i = 0; i < layers.Length; i++)
-        {
-            if (layers[i].layer == layerType)
-                return !layers[i].active;
-        }
-        return true;
+        DynamicBuffer<PlaybackLayer> layers = _entityManager.GetBuffer<PlaybackLayer>(entity);
+        if (layerIndex >= layers.Length) return true;
+        return (layers[layerIndex].flags & PlaybackFlags.Active) == 0;
     }
 
     private void ExecuteEnableComponent(EnableComponentAction action)

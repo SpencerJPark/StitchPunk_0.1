@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -31,6 +32,8 @@ public partial struct PlayerAttackSystem : ISystem
             SystemAPI.GetSingleton<AttackLibrary>().library;
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
+        ComponentLookup<AnimationCommandPending> animationCommandPendingLookup =
+            SystemAPI.GetComponentLookup<AnimationCommandPending>(false);
 
         foreach ((EnabledRefRW<OnAttackPlayerInput> attackInputEnabled, Entity selfEntity) in
             SystemAPI.Query<EnabledRefRW<OnAttackPlayerInput>>()
@@ -105,16 +108,19 @@ public partial struct PlayerAttackSystem : ISystem
             SystemAPI.SetComponentEnabled<AttackRequest>(selfEntity, true);
 
             // Swing animation on the Action layer.
-            AnimationType animationType = AIUtils.GetAnimationByAction(ref unitBlob, actionType);
-            DynamicBuffer<SetAnimation> setAnimations = SystemAPI.GetBuffer<SetAnimation>(selfEntity);
-            setAnimations.Add(new SetAnimation
+            ClipId animationClip = AIUtils.GetAnimationByAction(ref unitBlob, actionType);
+            if (animationClip.IsValid && SystemAPI.HasBuffer<AnimationCommand>(selfEntity)
+                && animationCommandPendingLookup.HasComponent(selfEntity))
             {
-                layer     = AnimationLayerType.Action,
-                animation = animationType,
-                speed     = 1f,
-                looping   = false,
-            });
-            SystemAPI.SetComponentEnabled<AnimationRequest>(selfEntity, true);
+                DynamicBuffer<AnimationCommand> animationCommands =
+                    SystemAPI.GetBuffer<AnimationCommand>(selfEntity);
+                AnimationCommandUtil.Play(
+                    ref animationCommands,
+                    animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(selfEntity),
+                    (byte)AnimationToolkitLayer.Action,
+                    animationClip,
+                    loop: LoopMode.Once);
+            }
 
             // Start cooldown — guarantee the hit (at hitTime) lands before the next swing.
             RefRW<AttackCooldown> attackCooldown = SystemAPI.GetComponentRW<AttackCooldown>(selfEntity);

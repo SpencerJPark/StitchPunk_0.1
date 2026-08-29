@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Entities;
 using Unity.Collections;
 
@@ -54,8 +55,8 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].becomesUnitType      = unitSO.becomesUnitType;
             unitsArray[i].canBePlayerControlled = unitSO.canBePlayerControlled;
             unitsArray[i].awarenessRange       = unitSO.awarenessRange;
-            unitsArray[i].idleAnimation        = unitSO.idleAnimation;
-            unitsArray[i].movingAnimation      = unitSO.movingAnimation;
+            unitsArray[i].idleAnimation        = unitSO.idleAnimation != null ? unitSO.idleAnimation.Id : default;
+            unitsArray[i].movingAnimation      = unitSO.movingAnimation != null ? unitSO.movingAnimation.Id : default;
             unitsArray[i].randomMotivationAmount = unitSO.randomMotivationsTotal;
 
             int motivationCount = unitSO.motivations?.Length ?? 0;
@@ -92,7 +93,9 @@ public partial struct UnitLibraryBakingSystem : ISystem
             for (int j = 0; j < mappingCount; j++)
             {
                 mappingsArray[j].action    = unitSO.actionAnimations[j].action;
-                mappingsArray[j].animation = unitSO.actionAnimations[j].animation;
+                mappingsArray[j].animation = unitSO.actionAnimations[j].animation != null
+                    ? unitSO.actionAnimations[j].animation.Id
+                    : default;
             }
 
             int stanceCount = unitSO.stanceAnimations?.Length ?? 0;
@@ -101,8 +104,12 @@ public partial struct UnitLibraryBakingSystem : ISystem
             for (int j = 0; j < stanceCount; j++)
             {
                 stanceArray[j].stance         = unitSO.stanceAnimations[j].stance;
-                stanceArray[j].idleAnimation   = unitSO.stanceAnimations[j].idleAnimation;
-                stanceArray[j].movingAnimation = unitSO.stanceAnimations[j].movingAnimation;
+                stanceArray[j].idleAnimation   = unitSO.stanceAnimations[j].idleAnimation != null
+                    ? unitSO.stanceAnimations[j].idleAnimation.Id
+                    : default;
+                stanceArray[j].movingAnimation = unitSO.stanceAnimations[j].movingAnimation != null
+                    ? unitSO.stanceAnimations[j].movingAnimation.Id
+                    : default;
             }
         }
 

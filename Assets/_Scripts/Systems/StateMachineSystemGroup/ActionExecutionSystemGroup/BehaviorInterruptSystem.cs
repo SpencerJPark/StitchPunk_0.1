@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Collections;
@@ -16,8 +17,8 @@ using Unity.Entities;
 public partial struct BehaviorInterruptSystem : ISystem
 {
     private ComponentLookup<AttackRequest>    _attackRequestLookup;
-    private ComponentLookup<AnimationRequest> _animationRequestLookup;
-    private BufferLookup<SetAnimation>        _setAnimationLookup;
+    private ComponentLookup<AnimationCommandPending> _animationCommandPendingLookup;
+    private BufferLookup<AnimationCommand>    _animationCommandLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -25,16 +26,16 @@ public partial struct BehaviorInterruptSystem : ISystem
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BehaviorLibrary>();
         _attackRequestLookup    = state.GetComponentLookup<AttackRequest>(false);
-        _animationRequestLookup = state.GetComponentLookup<AnimationRequest>(false);
-        _setAnimationLookup     = state.GetBufferLookup<SetAnimation>(false);
+        _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
+        _animationCommandLookup = state.GetBufferLookup<AnimationCommand>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         _attackRequestLookup.Update(ref state);
-        _animationRequestLookup.Update(ref state);
-        _setAnimationLookup.Update(ref state);
+        _animationCommandPendingLookup.Update(ref state);
+        _animationCommandLookup.Update(ref state);
 
         BehaviorLibrary behaviorLib = SystemAPI.GetSingleton<BehaviorLibrary>();
         EntityCommandBuffer.ParallelWriter ecb = SystemAPI
@@ -49,8 +50,8 @@ public partial struct BehaviorInterruptSystem : ISystem
         {
             behaviorLib            = behaviorLib.blob,
             attackRequestLookup    = _attackRequestLookup,
-            animationRequestLookup = _animationRequestLookup,
-            setAnimationLookup     = _setAnimationLookup,
+            animationCommandPendingLookup = _animationCommandPendingLookup,
+            animationCommandLookup = _animationCommandLookup,
             ecb                    = ecb,
             timestamp              = SystemAPI.Time.ElapsedTime,
             loggingEnabled         = loggingEnabled,
@@ -71,8 +72,8 @@ public partial struct BehaviorInterruptJob : IJobEntity
     // NativeDisableParallelForRestriction is safe: each lookup write targets the executing
     // unit itself, so no two threads write to the same component.
     [NativeDisableParallelForRestriction] public ComponentLookup<AttackRequest>    attackRequestLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<AnimationRequest> animationRequestLookup;
-    [NativeDisableParallelForRestriction] public BufferLookup<SetAnimation>        setAnimationLookup;
+    [NativeDisableParallelForRestriction] public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
+    [NativeDisableParallelForRestriction] public BufferLookup<AnimationCommand>    animationCommandLookup;
 
     public EntityCommandBuffer.ParallelWriter ecb;
     public double timestamp;
@@ -202,16 +203,14 @@ public partial struct BehaviorInterruptJob : IJobEntity
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                if (animationRequestLookup.HasComponent(unit) && setAnimationLookup.HasBuffer(unit))
+                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit))
                 {
-                    setAnimationLookup[unit].Add(new SetAnimation
-                    {
-                        layer     = AnimationLayerType.Action,
-                        animation = AnimationType.None,
-                        speed     = 1f,
-                        looping   = false,
-                    });
-                    animationRequestLookup.SetComponentEnabled(unit, true);
+                    DynamicBuffer<AnimationCommand> stopCommands = animationCommandLookup[unit];
+                    AnimationCommandUtil.Stop(
+                        ref stopCommands,
+                        animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
+                        (byte)AnimationToolkitLayer.Action,
+                        blendDuration: 0f);
                 }
                 break;
 

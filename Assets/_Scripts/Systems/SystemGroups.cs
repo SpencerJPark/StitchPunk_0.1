@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Entities;
 
@@ -131,7 +132,11 @@ public partial class HealthSystemGroup : GameSceneSystemGroup { }
 [UpdateBefore(typeof(AnimationSystemGroup))]
 public partial class DesignSystemGroup : GameSceneSystemGroup { }
 
+// AnimationToolkitSystemGroup lives in the DOTS Animation Toolkit package (no ordering edges of
+// its own — see DotsAnimationToolkit.AnimationToolkitSystemGroup's remarks). The game orders
+// against it here so commands this group issues this frame apply this frame.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateBefore(typeof(AnimationToolkitSystemGroup))]
 public partial class AnimationSystemGroup : GameSceneSystemGroup { }
 
         [UpdateInGroup(typeof(AnimationSystemGroup), OrderFirst = true)]

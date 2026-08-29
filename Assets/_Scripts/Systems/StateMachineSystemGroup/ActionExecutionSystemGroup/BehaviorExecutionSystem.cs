@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
@@ -23,8 +24,8 @@ public partial struct BehaviorExecutionSystem : ISystem
     private ComponentLookup<UnitEquip>          _unitEquipLookup;
     private ComponentLookup<NavigationWaypoint> _waypointLookup;
     private ComponentLookup<Dead>               _deadLookup;
-    private ComponentLookup<AnimationRequest>   _animationRequestLookup;
-    private BufferLookup<SetAnimation>          _setAnimationLookup;
+    private ComponentLookup<AnimationCommandPending> _animationCommandPendingLookup;
+    private BufferLookup<AnimationCommand>      _animationCommandLookup;
     private BufferLookup<Motivation>            _motivationLookup;
     private ComponentLookup<StateMachine>       _stateMachineLookup;
     private ComponentLookup<SocialInvite>       _socialInviteLookup;
@@ -45,8 +46,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _unitEquipLookup         = state.GetComponentLookup<UnitEquip>(true);
         _waypointLookup          = state.GetComponentLookup<NavigationWaypoint>(true);
         _deadLookup              = state.GetComponentLookup<Dead>(true);
-        _animationRequestLookup  = state.GetComponentLookup<AnimationRequest>(false);
-        _setAnimationLookup      = state.GetBufferLookup<SetAnimation>(false);
+        _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
+        _animationCommandLookup  = state.GetBufferLookup<AnimationCommand>(false);
         _motivationLookup        = state.GetBufferLookup<Motivation>(true);
         _stateMachineLookup      = state.GetComponentLookup<StateMachine>(true);
         _socialInviteLookup      = state.GetComponentLookup<SocialInvite>(true);
@@ -64,8 +65,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _unitEquipLookup.Update(ref state);
         _waypointLookup.Update(ref state);
         _deadLookup.Update(ref state);
-        _animationRequestLookup.Update(ref state);
-        _setAnimationLookup.Update(ref state);
+        _animationCommandPendingLookup.Update(ref state);
+        _animationCommandLookup.Update(ref state);
         _motivationLookup.Update(ref state);
         _stateMachineLookup.Update(ref state);
         _socialInviteLookup.Update(ref state);
@@ -95,8 +96,8 @@ public partial struct BehaviorExecutionSystem : ISystem
             unitEquipLookup          = _unitEquipLookup,
             waypointLookup           = _waypointLookup,
             deadLookup               = _deadLookup,
-            animationRequestLookup   = _animationRequestLookup,
-            setAnimationLookup       = _setAnimationLookup,
+            animationCommandPendingLookup = _animationCommandPendingLookup,
+            animationCommandLookup   = _animationCommandLookup,
             motivationLookup         = _motivationLookup,
             stateMachineLookup       = _stateMachineLookup,
             socialInviteLookup       = _socialInviteLookup,
@@ -139,8 +140,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
     [NativeDisableParallelForRestriction] public ComponentLookup<EquipBy>           equipByLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<AttachedTo>        attachedToLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<AttachItemRequest> attachItemRequestLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<AnimationRequest>  animationRequestLookup;
-    [NativeDisableParallelForRestriction] public BufferLookup<SetAnimation>         setAnimationLookup;
+    [NativeDisableParallelForRestriction] public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
+    [NativeDisableParallelForRestriction] public BufferLookup<AnimationCommand>     animationCommandLookup;
 
     public float  deltaTime;
     public double timestamp;
@@ -337,37 +338,38 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 break;
 
             case BehaviorCommandType.PlayAnimation:
-                if (animationRequestLookup.HasComponent(unit) && setAnimationLookup.HasBuffer(unit))
+                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit)
+                    && cmd.AnimationClip.IsValid)
                 {
-                    setAnimationLookup[unit].Add(new SetAnimation
-                    {
-                        layer     = AnimationLayerType.Action,
-                        animation = (AnimationType)cmd.IntParam,
-                        speed     = cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
-                        looping   = cmd.Looping,
-                    });
-                    animationRequestLookup.SetComponentEnabled(unit, true);
+                    DynamicBuffer<AnimationCommand> playCommands = animationCommandLookup[unit];
+                    AnimationCommandUtil.Play(
+                        ref playCommands,
+                        animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
+                        (byte)AnimationToolkitLayer.Action,
+                        cmd.AnimationClip,
+                        speed: cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
+                        loop: cmd.Looping ? LoopMode.Loop : LoopMode.Once);
                 }
                 break;
 
             case BehaviorCommandType.PlayActionAnimation:
-                if (animationRequestLookup.HasComponent(unit) && setAnimationLookup.HasBuffer(unit))
+                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit))
                 {
                     int unitIndex = unitLibrary.Value.FindByUnitType(brain.unitType);
-                    AnimationType actionAnimation = unitIndex >= 0
+                    ClipId actionAnimation = unitIndex >= 0
                         ? AIUtils.GetAnimationByAction(ref unitLibrary.Value.units[unitIndex], stateMachine.action)
-                        : AnimationType.None;
+                        : default;
 
-                    if (actionAnimation != AnimationType.None)
+                    if (actionAnimation.IsValid)
                     {
-                        setAnimationLookup[unit].Add(new SetAnimation
-                        {
-                            layer     = AnimationLayerType.Action,
-                            animation = actionAnimation,
-                            speed     = cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
-                            looping   = cmd.Looping,
-                        });
-                        animationRequestLookup.SetComponentEnabled(unit, true);
+                        DynamicBuffer<AnimationCommand> playCommands = animationCommandLookup[unit];
+                        AnimationCommandUtil.Play(
+                            ref playCommands,
+                            animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
+                            (byte)AnimationToolkitLayer.Action,
+                            actionAnimation,
+                            speed: cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
+                            loop: cmd.Looping ? LoopMode.Loop : LoopMode.Once);
                     }
                 }
                 break;
@@ -386,16 +388,14 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                if (animationRequestLookup.HasComponent(unit) && setAnimationLookup.HasBuffer(unit))
+                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit))
                 {
-                    setAnimationLookup[unit].Add(new SetAnimation
-                    {
-                        layer     = AnimationLayerType.Action,
-                        animation = AnimationType.None,
-                        speed     = 1f,
-                        looping   = false,
-                    });
-                    animationRequestLookup.SetComponentEnabled(unit, true);
+                    DynamicBuffer<AnimationCommand> stopCommands = animationCommandLookup[unit];
+                    AnimationCommandUtil.Stop(
+                        ref stopCommands,
+                        animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
+                        (byte)AnimationToolkitLayer.Action,
+                        blendDuration: 0f);
                 }
                 break;
 

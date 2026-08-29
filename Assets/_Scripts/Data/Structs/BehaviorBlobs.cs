@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Entities;
 
 // Runtime form of one BehaviorSO. Lives in the BehaviorLibrary blob, indexed by (int)behaviorType.
@@ -20,7 +21,7 @@ public struct BehaviorCommand
     public BehaviorCommandType type;
 
     // Generic layout parameters used depending on the Type
-    public int IntParam;      // Animation Hash, Faction ID, Dialogue Node ID; LoopUntil: jump-back command index
+    public int IntParam;      // Faction ID, Dialogue Node ID; LoopUntil: jump-back command index
     public float FloatParam;  // Damage amount, Cash value, Dash speed; LoopUntil: range for TargetOutOfRange
     public float Duration;    // How long this specific step takes before the next one runs; LoopUntil: loop timeout (0 = default)
 
@@ -28,6 +29,9 @@ public struct BehaviorCommand
     public LoopQualifier Qualifier;
     public int           QualifierIntParam;   // MotivationSatisfied: (int)NeedType
     public float         QualifierFloatParam; // MotivationSatisfied: motivation threshold
-    public bool          Looping;             // PlayAnimation: SetAnimation.looping
+    public bool          Looping;             // PlayAnimation: AnimationCommand loop mode (true = Loop, false = Once)
+
+    // PlayAnimation only: the clip to play on the Action layer. Default (id 0) = invalid/none.
+    public ClipId AnimationClip;
 }
 

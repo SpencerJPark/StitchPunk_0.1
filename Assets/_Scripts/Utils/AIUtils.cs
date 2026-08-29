@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -115,7 +116,7 @@ public static class AIUtils
         return ActionType.Idle;
     }
 
-    public static AnimationType GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType)
+    public static ClipId GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType)
     {
         ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
         for (int i = 0; i < mappings.Length; i++)
@@ -123,7 +124,7 @@ public static class AIUtils
             if (mappings[i].action == actionType)
                 return mappings[i].animation;
         }
-        return AnimationType.None;
+        return default;
     }
 
     public static void SetMotivationValue(

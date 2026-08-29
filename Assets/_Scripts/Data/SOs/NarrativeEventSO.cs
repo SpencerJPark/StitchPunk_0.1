@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
 using UnityEngine;
 
 /// <summary>
@@ -97,11 +98,11 @@ public class MoveNPCAction : NarrativeActionBase
 [Serializable]
 public class PlayAnimationAction : NarrativeActionBase
 {
-    [Tooltip("Which animation to play.")]
-    public AnimationType animationType;
+    [Tooltip("Which clip to play.")]
+    public ClipAsset animationClip;
 
-    [Tooltip("Which animation layer to set. Use Override to take full control during cutscenes.")]
-    public AnimationLayerType layer;
+    [Tooltip("Which playback layer to set. Use Override to take full control during cutscenes.")]
+    public AnimationToolkitLayer layer;
 
     [Tooltip("When true, the group waits until the animation clip finishes playing before advancing. " +
              "Works only for non-looping clips — the AnimationTimeSystem sets the layer inactive on completion. " +

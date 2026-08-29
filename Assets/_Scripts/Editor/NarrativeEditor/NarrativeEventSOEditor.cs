@@ -173,7 +173,7 @@ public class NarrativeEventSOEditor : Editor
                 return $"Move #{m.targetEntityId} → #{m.waypointEntityId}";
             case PlayAnimationAction p:
                 string wait = p.waitForCompletion ? " ⏳" : p.duration > 0f ? $" {p.duration}s" : "";
-                return $"{p.animationType} [{p.layer}]{wait}";
+                return $"{(p.animationClip != null ? p.animationClip.name : "(none)")} [{p.layer}]{wait}";
             case DialogueTriggerAction d:
                 return $"Dialogue: {d.sequence?.name ?? "(none)"}";
             case EnableComponentAction e:
@@ -202,7 +202,7 @@ public class NarrativeEventSOEditor : Editor
                 DrawFieldRelative(actionProp, "waypointEntityId");
                 break;
             case PlayAnimationAction _:
-                DrawFieldRelative(actionProp, "animationType");
+                DrawFieldRelative(actionProp, "animationClip");
                 DrawFieldRelative(actionProp, "layer");
                 DrawFieldRelative(actionProp, "waitForCompletion");
                 DrawFieldRelative(actionProp, "duration");
