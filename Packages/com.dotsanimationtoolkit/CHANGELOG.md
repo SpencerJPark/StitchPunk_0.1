@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene data model (Phase G1)
+
+`CutsceneAsset` (`Authoring/Assets/CutsceneAsset.cs`): named actor/prop slots, clip blocks, root
+motion and facing-override keys, tag-addressed per-part keyed tracks, a camera lane, an event
+lane, hold markers, and per-scene GameObject bindings. Data model only — no editor UI, no bake, no
+runtime player yet; those are Phase G's later steps (`Docs/AnimationToolkit/Phase_G_Cutscene_Spec.md`).
+
 ### Fixed — Ctrl+Z undoes what you just did, in three places it did not
 
 - **Undo was dropped whenever a field had focus.** The window checked "is someone typing?" before

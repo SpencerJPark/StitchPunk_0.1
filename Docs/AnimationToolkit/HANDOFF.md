@@ -112,6 +112,32 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Phase G — Cutscene Editor. Specced 2026-08-29; G1 built and gated the same day (owner directed
+"do the spec" — read as sign-off).** The `tab-cutscene-editor` placeholder becomes a multi-actor,
+scene-hosted cutscene timeline (clip blocks + keyframes, camera and event lanes, hold points) baked
+to a blob with an ECS runtime player. Full owner Q&A and the G1–G7 build order are in
+`Phase_G_Cutscene_Spec.md` — §2–§4 are owner product calls, §7 the recorded delegated decisions.
+
+**G1 — data model — done.** `CutsceneAsset` (`Authoring/Assets/CutsceneAsset.cs`): named
+actor/prop slots (stable 32-bit `slotId`, same generator RigAsset rows use), clip blocks, a
+`CutsceneTransformKey` (a `TransformKey` reshaped to absolute seconds rather than a clip's
+normalized duration fraction — a cutscene's length is elastic, so nothing here does
+`time * frameRate` math), facing-angle override keys (decision G-D3), tag-addressed per-part
+keyed tracks (no raw-target-id fallback — a slot can be recast to a different rig, spec §5), a
+camera lane (keys + cut markers), an event lane (`CutsceneEventMarker` is a class, not a struct
+like `EventMarker`, specifically so its `fireOnSkip` field initializer can default it *on*, per
+G-D4), hold markers, and per-scene string-keyed GameObject bindings (Conformance_C: `Authoring/`
+stays `UnityEditor`-free). **G-D5 decided**: hold ids are a plain `string`, not an
+`IVocabularyRegistry` vocabulary — nothing resolves a hold id against a shared, dense-indexed
+vocabulary the way a tag or event key is; a host compares it for equality exactly once, against a
+control component it wrote itself, so the registry machinery (dropdown-only selection, duplicate
+guard, codegen) would be pure overhead. Compile gate green, zero errors/warnings. Proved via a
+real disk round-trip (`execute_code`, scratch asset created/saved/reloaded/deleted, every lane
+type checked, `git status` clean after) rather than an in-memory fixture — the class this
+package's own lessons (§9 point 4) warn an in-memory suite cannot catch.
+`EnsureStableIds`/`RigAsset`'s exact "public because code-built assets hit no lifecycle hook
+between populating a list and saving it" contract carries over unchanged. **G2 — the tab — next.**
+
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says
 so), `tab-new-rig`, `tab-direction-sets`, `tab-vat-bake` — sitting beside the clip set and rig
