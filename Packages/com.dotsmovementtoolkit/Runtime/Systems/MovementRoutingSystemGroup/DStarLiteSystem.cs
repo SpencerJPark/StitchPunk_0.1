@@ -48,6 +48,7 @@ public partial struct DStarLiteSystem : ISystem
     {
         state.RequireForUpdate<GridSystem.GridConfig>();
         state.RequireForUpdate<GridSystem.GridCostMap>();
+        state.RequireForUpdate<MovementGridSettings>();
         isInitialized = false;
     }
 
@@ -75,6 +76,7 @@ public partial struct DStarLiteSystem : ISystem
 
         DStarLiteData dstarData = SystemAPI.GetComponent<DStarLiteData>(state.SystemHandle);
         GridSystem.GridCostMap gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
+        byte wallCost = SystemAPI.GetSingleton<MovementGridSettings>().wallCost;
 
         // PathRequestSystem already set agent state and left PathRequest enabled for us.
         // Iterate inline — no separate gather job needed.
@@ -88,7 +90,7 @@ public partial struct DStarLiteSystem : ISystem
             if (pathRequest.ValueRO.requestedMode != PathfindingMode.DStarLite)
                 continue;
 
-            ProcessRequest(ref state, ref dstarData, gridCostMap, entity,
+            ProcessRequest(ref state, ref dstarData, gridCostMap, wallCost, entity,
                 transform.ValueRO.Position, pathRequest.ValueRO.targetPosition);
 
             pathRequestEnabled.ValueRW = false;
@@ -101,6 +103,7 @@ public partial struct DStarLiteSystem : ISystem
         ref SystemState state,
         ref DStarLiteData dstarData,
         GridSystem.GridCostMap gridCostMap,
+        byte wallCost,
         Entity entity,
         float3 currentPos,
         float3 targetPos)
@@ -124,9 +127,9 @@ public partial struct DStarLiteSystem : ISystem
         pathData.km            = 0;
         dstarData.activePaths[pathIndex] = pathData;
 
-        ComputeDStarLitePath(ref dstarData, pathIndex, gridCostMap.costs);
+        ComputeDStarLitePath(ref dstarData, pathIndex, gridCostMap.costs, wallCost);
 
-        int2  nextNode    = GetNextNodeTowardGoal(ref dstarData, startGrid, gridCostMap.costs);
+        int2  nextNode    = GetNextNodeTowardGoal(ref dstarData, startGrid, gridCostMap.costs, wallCost);
         float3 nextWaypoint = PathfindingUtils.GridToWorld(nextNode, dstarData.nodeSize);
 
         RefRW<DStarLiteFollower> follower = SystemAPI.GetComponentRW<DStarLiteFollower>(entity);
@@ -175,7 +178,7 @@ public partial struct DStarLiteSystem : ISystem
         state.EntityManager.SetComponentData(state.SystemHandle, dstarData);
     }
 
-    private void ComputeDStarLitePath(ref DStarLiteData dstarData, int pathIndex, NativeArray<byte> costMap)
+    private void ComputeDStarLitePath(ref DStarLiteData dstarData, int pathIndex, NativeArray<byte> costMap, byte wallCost)
     {
         PathData pathData = dstarData.activePaths[pathIndex];
         int cellCount = dstarData.width * dstarData.height;
@@ -193,7 +196,7 @@ public partial struct DStarLiteSystem : ISystem
         if (!PathfindingUtils.IsValidPosition(pathData.startPosition, dstarData.width, dstarData.height)) return;
 
         int goalIndex = PathfindingUtils.CalculateIndex(pathData.goalPosition, dstarData.width);
-        if (costMap[goalIndex] == ConstGameData.WALL_COST) return;
+        if (costMap[goalIndex] == wallCost) return;
 
         DStarNode goalNode = dstarData.nodes[goalIndex];
         goalNode.rhs      = 0;
@@ -241,14 +244,14 @@ public partial struct DStarLiteSystem : ISystem
             {
                 currentNode.g = currentNode.rhs;
                 dstarData.nodes[currentIndex] = currentNode;
-                UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap);
+                UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap, wallCost);
             }
             else
             {
                 currentNode.g = float.MaxValue;
                 dstarData.nodes[currentIndex] = currentNode;
-                UpdateVertex(ref dstarData, currentIndex, ref openSet, pathData, costMap);
-                UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap);
+                UpdateVertex(ref dstarData, currentIndex, ref openSet, pathData, costMap, wallCost);
+                UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap, wallCost);
             }
         }
 
@@ -260,7 +263,7 @@ public partial struct DStarLiteSystem : ISystem
 
     private void UpdatePredecessors(
         ref DStarLiteData dstarData, int nodeIndex,
-        ref NativeList<int> openSet, PathData pathData, NativeArray<byte> costMap)
+        ref NativeList<int> openSet, PathData pathData, NativeArray<byte> costMap, byte wallCost)
     {
         int2 pos = dstarData.nodes[nodeIndex].position;
 
@@ -274,16 +277,16 @@ public partial struct DStarLiteSystem : ISystem
                 if (!PathfindingUtils.IsValidPosition(neighborPos, dstarData.width, dstarData.height)) continue;
 
                 int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, dstarData.width);
-                if (costMap[neighborIndex] == ConstGameData.WALL_COST) continue;
+                if (costMap[neighborIndex] == wallCost) continue;
 
-                UpdateVertex(ref dstarData, neighborIndex, ref openSet, pathData, costMap);
+                UpdateVertex(ref dstarData, neighborIndex, ref openSet, pathData, costMap, wallCost);
             }
         }
     }
 
     private void UpdateVertex(
         ref DStarLiteData dstarData, int nodeIndex,
-        ref NativeList<int> openSet, PathData pathData, NativeArray<byte> costMap)
+        ref NativeList<int> openSet, PathData pathData, NativeArray<byte> costMap, byte wallCost)
     {
         DStarNode node     = dstarData.nodes[nodeIndex];
         int2      pos      = node.position;
@@ -303,7 +306,7 @@ public partial struct DStarLiteSystem : ISystem
                     if (!PathfindingUtils.IsValidPosition(neighborPos, dstarData.width, dstarData.height)) continue;
 
                     int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, dstarData.width);
-                    if (costMap[neighborIndex] == ConstGameData.WALL_COST) continue;
+                    if (costMap[neighborIndex] == wallCost) continue;
 
                     DStarNode neighborNode = dstarData.nodes[neighborIndex];
                     float cost             = PathfindingUtils.CalculateMoveCost(dx, dy, costMap[neighborIndex]);
@@ -339,7 +342,7 @@ public partial struct DStarLiteSystem : ISystem
         dstarData.nodes[nodeIndex] = node;
     }
 
-    private int2 GetNextNodeTowardGoal(ref DStarLiteData dstarData, int2 currentPos, NativeArray<byte> costMap)
+    private int2 GetNextNodeTowardGoal(ref DStarLiteData dstarData, int2 currentPos, NativeArray<byte> costMap, byte wallCost)
     {
         float bestScore    = float.MaxValue;
         int2  bestNeighbor = currentPos;
@@ -354,7 +357,7 @@ public partial struct DStarLiteSystem : ISystem
                 if (!PathfindingUtils.IsValidPosition(neighborPos, dstarData.width, dstarData.height)) continue;
 
                 int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, dstarData.width);
-                if (costMap[neighborIndex] == ConstGameData.WALL_COST) continue;
+                if (costMap[neighborIndex] == wallCost) continue;
 
                 DStarNode neighborNode = dstarData.nodes[neighborIndex];
                 if (neighborNode.g >= float.MaxValue * 0.5f) continue;

@@ -7,7 +7,14 @@ namespace DotsMovementToolkit
     // singleton (added Phase 2) instead of a game-specific scene tag, so a consumer project
     // with no grid config baked simply never runs this group.
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    public partial class MovementSystemGroup : ComponentSystemGroup { }
+    public partial class MovementSystemGroup : ComponentSystemGroup
+    {
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+            RequireForUpdate<MovementGridSettings>();
+        }
+    }
 
     [UpdateInGroup(typeof(MovementSystemGroup))]
     [UpdateBefore(typeof(MovementRoutingSystemGroup))]

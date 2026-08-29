@@ -56,6 +56,9 @@ namespace DotsMovementToolkit.Authoring
                 SetComponentEnabled<PathRequest>(entity, false);
 
                 AddComponent(entity, new StuckDetector());
+
+                AddComponent(entity, new MovementStuck());
+                SetComponentEnabled<MovementStuck>(entity, false);
             }
         }
     }

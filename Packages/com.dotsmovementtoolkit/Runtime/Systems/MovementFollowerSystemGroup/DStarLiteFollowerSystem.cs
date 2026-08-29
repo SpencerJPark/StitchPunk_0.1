@@ -19,6 +19,7 @@ public partial struct DStarLiteFollowerSystem : ISystem
         state.RequireForUpdate<PhysicsWorldSingleton>();
         state.RequireForUpdate<DStarLiteSystem.DStarLiteData>();
         state.RequireForUpdate<GridSystem.GridCostMap>();
+        state.RequireForUpdate<MovementGridSettings>();
 
         dstarFollowerLookup = state.GetComponentLookup<DStarLiteFollower>(false);
     }
@@ -29,6 +30,7 @@ public partial struct DStarLiteFollowerSystem : ISystem
         DStarLiteSystem.DStarLiteData dstarData    = SystemAPI.GetSingleton<DStarLiteSystem.DStarLiteData>();
         GridSystem.GridCostMap        gridCostMap   = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
         PhysicsWorldSingleton         physicsWorld  = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+        MovementGridSettings          gridSettings  = SystemAPI.GetSingleton<MovementGridSettings>();
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSingleton =
             SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
@@ -46,6 +48,7 @@ public partial struct DStarLiteFollowerSystem : ISystem
             nodes       = dstarData.nodes,
             activePaths = dstarData.activePaths,
             costs       = gridCostMap.costs,
+            wallCost    = gridSettings.wallCost,
             ecb         = ecb
         }.ScheduleParallel(state.Dependency);
 
@@ -53,7 +56,8 @@ public partial struct DStarLiteFollowerSystem : ISystem
         state.Dependency = new DStarLineOfSightJob
         {
             collisionWorld      = physicsWorld.CollisionWorld,
-            dstarFollowerLookup = dstarFollowerLookup
+            dstarFollowerLookup = dstarFollowerLookup,
+            wallLayerMask       = gridSettings.wallLayerMask
         }.ScheduleParallel(state.Dependency);
 
         // 3. Apply current waypoint to Movement
@@ -75,6 +79,7 @@ public partial struct UpdateFollowersJob : IJobEntity
     [ReadOnly] public NativeArray<DStarLiteSystem.DStarNode> nodes;
     [ReadOnly] public NativeArray<DStarLiteSystem.PathData>  activePaths;
     [ReadOnly] public NativeArray<byte>                      costs;
+    [ReadOnly] public byte                                   wallCost;
 
     public EntityCommandBuffer.ParallelWriter ecb;
 
@@ -148,7 +153,7 @@ public partial struct UpdateFollowersJob : IJobEntity
                 if (!PathfindingUtils.IsValidPosition(neighborPos, width, height)) continue;
 
                 int neighborIndex = PathfindingUtils.CalculateIndex(neighborPos, width);
-                if (costs[neighborIndex] == ConstGameData.WALL_COST) continue;
+                if (costs[neighborIndex] == wallCost) continue;
 
                 DStarLiteSystem.DStarNode neighborNode = nodes[neighborIndex];
                 if (neighborNode.g >= float.MaxValue * 0.5f) continue;
@@ -181,6 +186,7 @@ public partial struct DStarLineOfSightJob : IJobEntity
     public ComponentLookup<DStarLiteFollower> dstarFollowerLookup;
 
     [ReadOnly] public CollisionWorld collisionWorld;
+    [ReadOnly] public uint wallLayerMask;
 
     public void Execute(
         in LocalTransform localTransform,
@@ -196,7 +202,7 @@ public partial struct DStarLineOfSightJob : IJobEntity
             Filter = new CollisionFilter
             {
                 BelongsTo   = ~0u,
-                CollidesWith = 1u << ConstGameData.WALLS_LAYER,
+                CollidesWith = wallLayerMask,
                 GroupIndex  = 0
             }
         };

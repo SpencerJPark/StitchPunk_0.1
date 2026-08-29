@@ -88,22 +88,22 @@ public static class PathfindingUtils
     /// <summary>
     /// Check if a grid cell is walkable (not a wall).
     /// </summary>
-    public static bool IsWalkable(int2 pos, int width, NativeArray<byte> costMap)
+    public static bool IsWalkable(int2 pos, int width, NativeArray<byte> costMap, byte wallCost)
     {
         int index = CalculateIndex(pos, width);
-        return costMap[index] != ConstGameData.WALL_COST;
+        return costMap[index] != wallCost;
     }
-    
+
     /// <summary>
     /// Check if a world position is walkable.
     /// </summary>
-    public static bool IsWalkable(float3 worldPos, int width, int height, 
-        NativeArray<byte> costMap, float gridNodeSize)
+    public static bool IsWalkable(float3 worldPos, int width, int height,
+        NativeArray<byte> costMap, float gridNodeSize, byte wallCost)
     {
         int2 gridPos = WorldToGrid(worldPos, gridNodeSize);
         if (!IsValidPosition(gridPos, width, height))
             return false;
-        return IsWalkable(gridPos, width, costMap);
+        return IsWalkable(gridPos, width, costMap, wallCost);
     }
     
     /// <summary>
@@ -202,44 +202,44 @@ public static class PathfindingUtils
     /// </summary>
     public static float2 GetFlowDirectionSmooth(float3 worldPos, int gridIndex, int width, int height,
         int cellCount, float gridNodeSize, NativeArray<float2> vectors, NativeArray<bool> isValid,
-        NativeArray<byte> costMap)
+        NativeArray<byte> costMap, byte wallCost)
     {
         if (!isValid[gridIndex])
             return float2.zero;
-        
+
         // Get fractional position within cell
         float fx = worldPos.x / gridNodeSize;
         float fz = worldPos.z / gridNodeSize;
-        
+
         int x0 = (int)math.floor(fx);
         int y0 = (int)math.floor(fz);
-        
+
         float tx = fx - x0;
         float tz = fz - y0;
-        
+
         // Sample 4 corners
-        float2 v00 = SampleFlowSafe(x0, y0, gridIndex, width, height, cellCount, vectors, costMap);
-        float2 v10 = SampleFlowSafe(x0 + 1, y0, gridIndex, width, height, cellCount, vectors, costMap);
-        float2 v01 = SampleFlowSafe(x0, y0 + 1, gridIndex, width, height, cellCount, vectors, costMap);
-        float2 v11 = SampleFlowSafe(x0 + 1, y0 + 1, gridIndex, width, height, cellCount, vectors, costMap);
-        
+        float2 v00 = SampleFlowSafe(x0, y0, gridIndex, width, height, cellCount, vectors, costMap, wallCost);
+        float2 v10 = SampleFlowSafe(x0 + 1, y0, gridIndex, width, height, cellCount, vectors, costMap, wallCost);
+        float2 v01 = SampleFlowSafe(x0, y0 + 1, gridIndex, width, height, cellCount, vectors, costMap, wallCost);
+        float2 v11 = SampleFlowSafe(x0 + 1, y0 + 1, gridIndex, width, height, cellCount, vectors, costMap, wallCost);
+
         // Bilinear interpolation
         float2 v0 = math.lerp(v00, v10, tx);
         float2 v1 = math.lerp(v01, v11, tx);
-        
+
         return math.normalizesafe(math.lerp(v0, v1, tz));
     }
-    
+
     private static float2 SampleFlowSafe(int x, int y, int gridIndex, int width, int height,
-        int cellCount, NativeArray<float2> vectors, NativeArray<byte> costMap)
+        int cellCount, NativeArray<float2> vectors, NativeArray<byte> costMap, byte wallCost)
     {
         if (x < 0 || x >= width || y < 0 || y >= height)
             return float2.zero;
-            
+
         int localIndex = x + y * width;
-        if (costMap[localIndex] == ConstGameData.WALL_COST)
+        if (costMap[localIndex] == wallCost)
             return float2.zero;
-            
+
         return vectors[gridIndex * cellCount + localIndex];
     }
     
@@ -329,48 +329,48 @@ public static class PathfindingUtils
     /// <summary>
     /// Get all valid neighbor positions (8-directional).
     /// </summary>
-    public static void GetNeighbors(int2 pos, int width, int height, 
-        NativeArray<byte> costMap, ref NativeList<int2> neighbors)
+    public static void GetNeighbors(int2 pos, int width, int height,
+        NativeArray<byte> costMap, ref NativeList<int2> neighbors, byte wallCost)
     {
         neighbors.Clear();
-        
+
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
                 if (dx == 0 && dy == 0) continue;
-                
+
                 int2 neighborPos = pos + new int2(dx, dy);
                 if (!IsValidPosition(neighborPos, width, height))
                     continue;
-                    
-                if (costMap[CalculateIndex(neighborPos, width)] == ConstGameData.WALL_COST)
+
+                if (costMap[CalculateIndex(neighborPos, width)] == wallCost)
                     continue;
-                    
+
                 neighbors.Add(neighborPos);
             }
         }
     }
-    
+
     /// <summary>
     /// Get cardinal neighbors only (4-directional).
     /// </summary>
     public static void GetCardinalNeighbors(int2 pos, int width, int height,
-        NativeArray<byte> costMap, ref NativeList<int2> neighbors)
+        NativeArray<byte> costMap, ref NativeList<int2> neighbors, byte wallCost)
     {
         neighbors.Clear();
-        
+
         int2[] offsets = { new int2(-1, 0), new int2(1, 0), new int2(0, -1), new int2(0, 1) };
-        
+
         for (int i = 0; i < 4; i++)
         {
             int2 neighborPos = pos + offsets[i];
             if (!IsValidPosition(neighborPos, width, height))
                 continue;
-                
-            if (costMap[CalculateIndex(neighborPos, width)] == ConstGameData.WALL_COST)
+
+            if (costMap[CalculateIndex(neighborPos, width)] == wallCost)
                 continue;
-                
+
             neighbors.Add(neighborPos);
         }
     }
@@ -383,22 +383,22 @@ public static class PathfindingUtils
     /// Check if there's a clear line of sight between two grid positions (no walls).
     /// Uses Bresenham's line algorithm.
     /// </summary>
-    public static bool HasLineOfSight(int2 from, int2 to, int width, int height, NativeArray<byte> costMap)
+    public static bool HasLineOfSight(int2 from, int2 to, int width, int height, NativeArray<byte> costMap, byte wallCost)
     {
         int dx = math.abs(to.x - from.x);
         int dy = math.abs(to.y - from.y);
         int sx = from.x < to.x ? 1 : -1;
         int sy = from.y < to.y ? 1 : -1;
         int err = dx - dy;
-        
+
         int2 current = from;
-        
+
         while (current.x != to.x || current.y != to.y)
         {
             if (!IsValidPosition(current, width, height))
                 return false;
-                
-            if (costMap[CalculateIndex(current, width)] == ConstGameData.WALL_COST)
+
+            if (costMap[CalculateIndex(current, width)] == wallCost)
                 return false;
             
             int e2 = 2 * err;
@@ -420,12 +420,12 @@ public static class PathfindingUtils
     /// <summary>
     /// Check line of sight using world positions.
     /// </summary>
-    public static bool HasLineOfSight(float3 fromWorld, float3 toWorld, 
-        int width, int height, float gridNodeSize, NativeArray<byte> costMap)
+    public static bool HasLineOfSight(float3 fromWorld, float3 toWorld,
+        int width, int height, float gridNodeSize, NativeArray<byte> costMap, byte wallCost)
     {
         int2 from = WorldToGrid(fromWorld, gridNodeSize);
         int2 to = WorldToGrid(toWorld, gridNodeSize);
-        return HasLineOfSight(from, to, width, height, costMap);
+        return HasLineOfSight(from, to, width, height, costMap, wallCost);
     }
 }
 }

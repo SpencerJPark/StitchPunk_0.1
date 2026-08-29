@@ -30,6 +30,8 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<FlowFieldFollower> _flowFieldLookup;
     private ComponentLookup<HordeMembership>   _hordeLookup;
     private ComponentLookup<UtilityBrain>    _utilityBrainV2Lookup;
+    private ComponentLookup<Movement>          _movementLookup;
+    private ComponentLookup<Gravity>           _gravityLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -46,6 +48,8 @@ public partial struct SpawnStateInitSystem : ISystem
         _flowFieldLookup       = state.GetComponentLookup<FlowFieldFollower>(false);
         _hordeLookup           = state.GetComponentLookup<HordeMembership>(false);
         _utilityBrainV2Lookup  = state.GetComponentLookup<UtilityBrain>(false);
+        _movementLookup        = state.GetComponentLookup<Movement>(false);
+        _gravityLookup         = state.GetComponentLookup<Gravity>(false);
     }
 
     [BurstCompile]
@@ -62,6 +66,8 @@ public partial struct SpawnStateInitSystem : ISystem
         _flowFieldLookup.Update(ref state);
         _hordeLookup.Update(ref state);
         _utilityBrainV2Lookup.Update(ref state);
+        _movementLookup.Update(ref state);
+        _gravityLookup.Update(ref state);
 
         foreach (var (_, entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
@@ -97,6 +103,13 @@ public partial struct SpawnStateInitSystem : ISystem
             // v2 utility brain — enabled on spawn so the new pipeline starts immediately.
             if (_utilityBrainV2Lookup.HasComponent(entity))
                 _utilityBrainV2Lookup.SetComponentEnabled(entity, true);
+
+            // Movement/Gravity — disabled by a previous death; a reclaimed pool unit must
+            // start able to move and fall again.
+            if (_movementLookup.HasComponent(entity))
+                _movementLookup.SetComponentEnabled(entity, true);
+            if (_gravityLookup.HasComponent(entity))
+                _gravityLookup.SetComponentEnabled(entity, true);
         }
     }
 }

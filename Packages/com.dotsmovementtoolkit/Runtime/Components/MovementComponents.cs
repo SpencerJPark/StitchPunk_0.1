@@ -3,7 +3,7 @@ using Unity.Mathematics;
 
 namespace DotsMovementToolkit
 {
-    public struct Movement : IComponentData
+    public struct Movement : IComponentData, IEnableableComponent
     {
         public float moveSpeed;
         public float runSpeed;
@@ -13,7 +13,7 @@ namespace DotsMovementToolkit
         public bool isRunning;
     }
 
-    public struct Gravity : IComponentData
+    public struct Gravity : IComponentData, IEnableableComponent
     {
         public float fallSpeed;
         public float verticalVelocity;

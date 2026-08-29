@@ -1,3 +1,4 @@
+using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
 
@@ -50,6 +51,8 @@ public partial struct ReviveRequestSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(Dead))]
 [WithPresent(typeof(Undead))]
+[WithPresent(typeof(Movement))]
+[WithPresent(typeof(Gravity))]
 public partial struct ReviveJob : IJobEntity
 {
     public ComponentLookup<PlayerUnitBrain>        playerBrainLookup;
@@ -66,7 +69,9 @@ public partial struct ReviveJob : IJobEntity
         ref UnitAction unitAction,
         EnabledRefRW<ReviveRequest> reviveEnabled,
         EnabledRefRW<Undead>        undeadEnabled,
-        EnabledRefRW<Dead>          deadEnabled)
+        EnabledRefRW<Dead>          deadEnabled,
+        EnabledRefRW<Movement>      movementEnabled,
+        EnabledRefRW<Gravity>       gravityEnabled)
     {
         // Only a corpse with a declared converted form (becomesUnitType) can be revived. With no
         // zombie form there is nothing to reanimate into — consume the request and stay dead.
@@ -84,6 +89,8 @@ public partial struct ReviveJob : IJobEntity
         // Dead disabled = alive. Disabling it also drops this entity from the [WithAll(Dead)]
         // filter next frame, so the revive runs exactly once.
         deadEnabled.ValueRW   = false;
+        movementEnabled.ValueRW = true;
+        gravityEnabled.ValueRW  = true;
 
         // Alive again — no longer a reviver target (DeathSystem re-enables this on re-kill).
         if (playerInteractableLookup.HasComponent(entity))

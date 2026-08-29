@@ -20,7 +20,6 @@ public partial struct FormationOffsetSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         membershipLookup = state.GetComponentLookup<HordeMembership>(false);
         followerLookup   = state.GetComponentLookup<FlowFieldFollower>(false);
     }

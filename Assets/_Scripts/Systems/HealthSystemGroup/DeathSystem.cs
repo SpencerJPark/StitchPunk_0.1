@@ -69,6 +69,8 @@ public partial struct DeathSystem : ISystem
 [WithPresent(typeof(DStarLiteFollower))]
 [WithPresent(typeof(FlowFieldFollower))]
 [WithPresent(typeof(HordeMembership))]
+[WithPresent(typeof(Movement))]
+[WithPresent(typeof(Gravity))]
 public partial struct DeathJob : IJobEntity
 {
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
@@ -92,7 +94,9 @@ public partial struct DeathJob : IJobEntity
         EnabledRefRW<PathRequest>      pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarEnabled,
         EnabledRefRW<FlowFieldFollower> flowFieldEnabled,
-        EnabledRefRW<HordeMembership>  hordeMembershipEnabled)
+        EnabledRefRW<HordeMembership>  hordeMembershipEnabled,
+        EnabledRefRW<Movement>         movementEnabled,
+        EnabledRefRW<Gravity>          gravityEnabled)
     {
         // Guard: only run the first-death-frame work once. The job itself sets
         // unitAction.current = Death below, so this self-latches; subsequent frames the
@@ -108,6 +112,9 @@ public partial struct DeathJob : IJobEntity
         dStarEnabled.ValueRW           = false;
         flowFieldEnabled.ValueRW       = false;
         hordeMembershipEnabled.ValueRW = false;
+        // Movement/Gravity disabled on death — Ragdoll2DSystem drives the corpse from here.
+        movementEnabled.ValueRW        = false;
+        gravityEnabled.ValueRW         = false;
 
         // 2. Stop movement and snap target
         mover.isMoving       = false;

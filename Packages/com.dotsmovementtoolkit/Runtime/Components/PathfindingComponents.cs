@@ -40,6 +40,14 @@ namespace DotsMovementToolkit
         public float  sampleTimer;
     }
 
+    // Fired by PathStuckCheckSystem when a unit has an active PathRequest but is not making
+    // progress. Package-owned so it carries no game-specific meaning; a consumer maps it to
+    // whatever "cancel the current action" concept its own game uses (see the game's
+    // MovementStuckBridgeSystem for this project's mapping to ActionInterruptRequest).
+    public struct MovementStuck : IComponentData, IEnableableComponent
+    {
+    }
+
     public struct DStarLiteFollower : IComponentData, IEnableableComponent
     {
         public int currentNodeIndex;

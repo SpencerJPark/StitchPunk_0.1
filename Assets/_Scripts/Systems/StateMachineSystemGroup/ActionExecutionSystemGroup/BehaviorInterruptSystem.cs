@@ -105,7 +105,7 @@ public partial struct BehaviorInterruptJob : IJobEntity
                 RunCleanupCommand(entityIndex, unit, ref cmd, ref stateMachine, ref recentInteractions);
             }
 
-            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
+            MovementAPI.HaltPathing(ref pathRequest, pathRequestEnabled);
 
             if (attackRequestLookup.HasComponent(unit))
                 attackRequestLookup.SetComponentEnabled(unit, false);

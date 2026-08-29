@@ -22,6 +22,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
         state.RequireForUpdate<GridSystem.GridCostMap>();
         state.RequireForUpdate<FlowFieldSystem.FlowFieldData>();
         state.RequireForUpdate<PhysicsWorldSingleton>();
+        state.RequireForUpdate<MovementGridSettings>();
     }
 
     [BurstCompile]
@@ -29,21 +30,23 @@ public partial struct FlowFieldFollowerSystem : ISystem
     {
         // Complete any pending jobs on the cost map before reading
         state.CompleteDependency();
-        
+
         var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
         var gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
         var flowFieldData = SystemAPI.GetSingleton<FlowFieldSystem.FlowFieldData>();
         var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
-        
+        var gridSettings = SystemAPI.GetSingleton<MovementGridSettings>();
+
         int cellsPerLayer = gridConfig.width * gridConfig.height;
-        
+
         // First: Check if entities can move straight to target (line of sight optimization)
         var lineOfSightJob = new FlowFieldLineOfSightJob
         {
-            collisionWorld = physicsWorld.CollisionWorld
+            collisionWorld = physicsWorld.CollisionWorld,
+            wallLayerMask = gridSettings.wallLayerMask
         };
         state.Dependency = lineOfSightJob.ScheduleParallel(state.Dependency);
-        
+
         // Second: Update movement targets from flow field for entities still following
         var followJob = new FlowFieldFollowJob
         {
@@ -54,6 +57,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             cellsPerLayer = cellsPerLayer,
             vectors = flowFieldData.vectors,
             costs = gridCostMap.costs,
+            wallCost = gridSettings.wallCost,
             targets = flowFieldData.targets
         };
         state.Dependency = followJob.ScheduleParallel(state.Dependency);
@@ -68,6 +72,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
     public partial struct FlowFieldLineOfSightJob : IJobEntity
     {
         [ReadOnly] public CollisionWorld collisionWorld;
+        [ReadOnly] public uint wallLayerMask;
 
         public void Execute(
             in LocalTransform localTransform,
@@ -86,7 +91,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
                 Filter = new CollisionFilter
                 {
                     BelongsTo = ~0u,
-                    CollidesWith = 1u << ConstGameData.WALLS_LAYER,
+                    CollidesWith = wallLayerMask,
                     GroupIndex = 0
                 }
             };
@@ -114,6 +119,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
         [ReadOnly] public int cellsPerLayer;
         [ReadOnly] public NativeArray<float2> vectors;
         [ReadOnly] public NativeArray<byte> costs;
+        [ReadOnly] public byte wallCost;
         [ReadOnly] public NativeArray<FlowFieldSystem.FlowFieldTarget> targets;
 
         public void Execute(
@@ -156,7 +162,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             float3 moveVector = GridSystem.GetWorldMovementVector(flowVector);
 
             // Handle wall cells - use last valid direction
-            if (costs[localIndex] == ConstGameData.WALL_COST)
+            if (costs[localIndex] == wallCost)
             {
                 moveVector = follower.lastMoveVector;
             }

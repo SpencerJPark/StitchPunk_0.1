@@ -58,7 +58,8 @@ public partial struct FlowFieldSystem : ISystem
     {
         state.RequireForUpdate<GridSystem.GridConfig>();
         state.RequireForUpdate<GridSystem.GridCostMap>();
-        
+        state.RequireForUpdate<MovementGridSettings>();
+
         pendingRequests = new NativeQueue<FlowFieldRequest>(Allocator.Persistent);
         
         // Flow field data will be created once we have grid config
@@ -83,7 +84,8 @@ public partial struct FlowFieldSystem : ISystem
     {
         var gridConfig = SystemAPI.GetSingleton<GridSystem.GridConfig>();
         var gridCostMap = SystemAPI.GetSingleton<GridSystem.GridCostMap>();
-        
+        byte wallCost = SystemAPI.GetSingleton<MovementGridSettings>().wallCost;
+
         // Initialize flow field data on first update
         if (!SystemAPI.HasComponent<FlowFieldData>(state.SystemHandle))
         {
@@ -134,6 +136,7 @@ public partial struct FlowFieldSystem : ISystem
                 cellsPerLayer = cellsPerLayer,
                 targetGridPosition = request.targetGridPosition,
                 costs = gridCostMap.costs,
+                wallCost = wallCost,
                 bestCosts = flowFieldData.bestCosts,
                 vectors = flowFieldData.vectors
             };
@@ -277,21 +280,22 @@ public struct CalculateFlowFieldJob : IJob
     [ReadOnly] public int2 targetGridPosition;
     
     [ReadOnly] public NativeArray<byte> costs;
-    
+    [ReadOnly] public byte wallCost;
+
     [NativeDisableParallelForRestriction]
     public NativeArray<int> bestCosts;
-    
+
     [NativeDisableParallelForRestriction]
     public NativeArray<float2> vectors;
-    
+
     public void Execute()
     {
         // Validate target
         if (!GridSystem.IsValidGridPosition(targetGridPosition, width, height))
             return;
-            
+
         int targetLocalIndex = GridSystem.CalculateIndex(targetGridPosition, width);
-        if (costs[targetLocalIndex] == ConstGameData.WALL_COST)
+        if (costs[targetLocalIndex] == wallCost)
             return;
         
         // BFS queue (ring buffer)
@@ -332,7 +336,7 @@ public struct CalculateFlowFieldJob : IJob
                     int neighborLocalIndex = GridSystem.CalculateIndex(neighborPos, width);
                     byte neighborCost = costs[neighborLocalIndex];
                     
-                    if (neighborCost == ConstGameData.WALL_COST)
+                    if (neighborCost == wallCost)
                         continue;
                     
                     // Diagonal costs more

@@ -15,6 +15,7 @@ public partial struct UnitGravitySystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<PhysicsWorldSingleton>();
+        state.RequireForUpdate<MovementGridSettings>();
     }
 
     [BurstCompile]
@@ -28,8 +29,7 @@ public partial struct UnitGravitySystem : ISystem
         CollisionFilter filter = new CollisionFilter
         {
             BelongsTo    = ~0u,
-            CollidesWith = (1u << ConstGameData.GROUND_LAYER) |
-                           (1u << ConstGameData.STRUCTURES_LAYER),
+            CollidesWith = SystemAPI.GetSingleton<MovementGridSettings>().groundLayerMask,
             GroupIndex   = 0,
         };
 
@@ -48,7 +48,6 @@ public partial struct UnitGravitySystem : ISystem
 
 [BurstCompile]
 [WithNone(typeof(Parent))]  // only roots, not visual children
-[WithNone(typeof(Dead))]    // dead units are driven by Ragdoll2DSystem / Ragdoll2DLaunch
 public partial struct UnitGravityJob : IJobEntity
 {
     public float deltaTime;

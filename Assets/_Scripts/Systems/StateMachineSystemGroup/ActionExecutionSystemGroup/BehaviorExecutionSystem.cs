@@ -497,14 +497,14 @@ public partial struct BehaviorExecutionJob : IJobEntity
             stateMachine.currentStance = StanceType.Running;
             // Swap aggressor for chosen waypoint so PushRecent logs the destination on complete.
             stateMachine.targetEntity  = bestWaypoint;
-            AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, dest.Position, 0.5f);
+            MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled, dest.Position, 0.5f);
         }
 
         // Blocking: wait until arrival.
         const float ARRIVE_SQ = 0.25f;
         if (math.distancesq(transform.Position, pathRequest.targetPosition) <= ARRIVE_SQ)
         {
-            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
+            MovementAPI.HaltPathing(ref pathRequest, pathRequestEnabled);
             stateMachine.CurrentCommandIndex++;
             stateMachine.CommandTimer = 0f;
         }
@@ -553,7 +553,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
             if (!pathRequestEnabled.ValueRO)
             {
                 stateMachine.currentStance = (StanceType)stanceIntParam;
-                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled,
+                MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled,
                     stateMachine.targetPosition, stoppingDist);
             }
         }
@@ -591,7 +591,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
             }
 
             stateMachine.currentStance = (StanceType)stanceIntParam;
-            AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetPos, stoppingDist);
+            MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetPos, stoppingDist);
         }
 
         // Moving targets (units): re-path when the target drifts from the pathed point, and
@@ -608,14 +608,14 @@ public partial struct BehaviorExecutionJob : IJobEntity
             if (pathRequestEnabled.ValueRO
                 && math.distancesq(livePos.Position, pathRequest.targetPosition) > REPATH_THRESHOLD_SQ)
             {
-                AIUtils.BeginPathRequest(ref pathRequest, pathRequestEnabled, livePos.Position, stoppingDist);
+                MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled, livePos.Position, stoppingDist);
             }
         }
 
         float arrivalSq = stoppingDist * stoppingDist;
         if (math.distancesq(transform.Position, arrivalPoint) <= arrivalSq)
         {
-            AIUtils.HaltPathing(ref pathRequest, pathRequestEnabled);
+            MovementAPI.HaltPathing(ref pathRequest, pathRequestEnabled);
             stateMachine.CurrentCommandIndex++;
             stateMachine.CommandTimer = 0f;
         }

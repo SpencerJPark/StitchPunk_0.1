@@ -26,6 +26,7 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
 }
 
 [BurstCompile]
+[WithPresent(typeof(Movement))] // must still assign the Death animation after Movement is disabled
 public partial struct UnitAnimationAssignmentJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> library;

@@ -48,56 +48,22 @@ public partial struct GridSystem : ISystem
         public bool bidirectional;
     }
     
+    private bool isInitialized;
     private bool costMapDirty;
     private int lastPhysicsVersion;
-    
+    private byte wallCost;
+    private byte heavyCost;
+    private byte defaultCost;
+    private uint wallLayerMask;
+    private uint heavyLayerMask;
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        // Default grid configuration
-        int width = 100;
-        int height = 100;
-        int layerCount = 1;
-        float cellSize = 2f;
-        float layerHeight = 3f;
-        
-        int cellsPerLayer = width * height;
-        int totalCells = cellsPerLayer * layerCount;
-        
-        // Create grid config
-        state.EntityManager.AddComponent<GridConfig>(state.SystemHandle);
-        state.EntityManager.SetComponentData(state.SystemHandle, new GridConfig
-        {
-            width = width,
-            height = height,
-            layerCount = layerCount,
-            cellSize = cellSize,
-            layerHeight = layerHeight
-        });
-        
-        // Create cost map
-        var costMap = new GridCostMap
-        {
-            costs = new NativeArray<byte>(totalCells, Allocator.Persistent)
-        };
-        
-        // Initialize to default walkable
-        for (int i = 0; i < totalCells; i++)
-        {
-            costMap.costs[i] = ConstGameData.DEFAULT_COST;
-        }
-        
-        state.EntityManager.AddComponent<GridCostMap>(state.SystemHandle);
-        state.EntityManager.SetComponentData(state.SystemHandle, costMap);
-        
-        // Create stair connections buffer on a separate entity
-        var stairEntity = state.EntityManager.CreateEntity();
-        state.EntityManager.AddBuffer<StairConnection>(stairEntity);
-        
-        costMapDirty = true;
-        lastPhysicsVersion = 0;
+        state.RequireForUpdate<MovementGridSettings>();
+        isInitialized = false;
     }
-    
+
     [BurstCompile]
     public void OnDestroy(ref SystemState state)
     {
@@ -107,32 +73,38 @@ public partial struct GridSystem : ISystem
             if (costMap.costs.IsCreated) costMap.costs.Dispose();
         }
     }
-    
+
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        if (!isInitialized)
+        {
+            InitializeFromSettings(ref state, SystemAPI.GetSingleton<MovementGridSettings>());
+            isInitialized = true;
+        }
+
         var gridConfig = SystemAPI.GetComponent<GridConfig>(state.SystemHandle);
         var gridCostMap = SystemAPI.GetComponent<GridCostMap>(state.SystemHandle);
-        
+
         // Check if physics world changed
         if (SystemAPI.HasSingleton<PhysicsWorldSingleton>())
         {
             var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
             int currentPhysicsVersion = physicsWorld.PhysicsWorld.NumBodies;
-            
+
             if (currentPhysicsVersion != lastPhysicsVersion)
             {
                 costMapDirty = true;
                 lastPhysicsVersion = currentPhysicsVersion;
             }
-            
+
             // Update cost map from physics
             if (costMapDirty)
             {
                 costMapDirty = false;
-                
+
                 int cellsPerLayer = gridConfig.width * gridConfig.height;
-                
+
                 var updateCostJob = new UpdateCostMapJob
                 {
                     width = gridConfig.width,
@@ -143,27 +115,75 @@ public partial struct GridSystem : ISystem
                     cellsPerLayer = cellsPerLayer,
                     collisionWorld = physicsWorld.CollisionWorld,
                     costs = gridCostMap.costs,
+                    wallCost = wallCost,
+                    heavyCost = heavyCost,
+                    defaultCost = defaultCost,
                     wallFilter = new CollisionFilter
                     {
                         BelongsTo = ~0u,
-                        CollidesWith = 1u << ConstGameData.WALLS_LAYER,
+                        CollidesWith = wallLayerMask,
                         GroupIndex = 0
                     },
                     heavyFilter = new CollisionFilter
                     {
                         BelongsTo = ~0u,
-                        CollidesWith = 1u << ConstGameData.PATHFINDING_HEAVY_LAYER,
+                        CollidesWith = heavyLayerMask,
                         GroupIndex = 0
                     }
                 };
-                
+
                 state.Dependency = updateCostJob.Schedule(
                     gridConfig.layerCount * cellsPerLayer, 64, state.Dependency);
-                
+
                 // Complete the job immediately so downstream systems can safely read costs
                 state.CompleteDependency();
             }
         }
+    }
+
+    // One-time setup, run on the first OnUpdate — MovementGridSettings is baked into a
+    // subscene, so it does not exist yet when OnCreate runs at world creation.
+    private void InitializeFromSettings(ref SystemState state, MovementGridSettings settings)
+    {
+        wallCost = settings.wallCost;
+        heavyCost = settings.heavyCost;
+        defaultCost = settings.defaultCost;
+        wallLayerMask = settings.wallLayerMask;
+        heavyLayerMask = settings.heavyLayerMask;
+
+        int cellsPerLayer = settings.width * settings.height;
+        int totalCells = cellsPerLayer * settings.layerCount;
+
+        state.EntityManager.AddComponent<GridConfig>(state.SystemHandle);
+        state.EntityManager.SetComponentData(state.SystemHandle, new GridConfig
+        {
+            width = settings.width,
+            height = settings.height,
+            layerCount = settings.layerCount,
+            cellSize = settings.cellSize,
+            layerHeight = settings.layerHeight
+        });
+
+        var costMap = new GridCostMap
+        {
+            costs = new NativeArray<byte>(totalCells, Allocator.Persistent)
+        };
+
+        // Initialize to default walkable
+        for (int i = 0; i < totalCells; i++)
+        {
+            costMap.costs[i] = settings.defaultCost;
+        }
+
+        state.EntityManager.AddComponent<GridCostMap>(state.SystemHandle);
+        state.EntityManager.SetComponentData(state.SystemHandle, costMap);
+
+        // Create stair connections buffer on a separate entity
+        var stairEntity = state.EntityManager.CreateEntity();
+        state.EntityManager.AddBuffer<StairConnection>(stairEntity);
+
+        costMapDirty = true;
+        lastPhysicsVersion = 0;
     }
     
     // ============================================
@@ -262,39 +282,39 @@ public partial struct GridSystem : ISystem
     public static float3 GetWorldMovementVector(float2 vector) => new float3(vector.x, 0f, vector.y);
     
     /// <summary>Check if a cell is a wall.</summary>
-    public static bool IsWall(int index, NativeArray<byte> costs)
+    public static bool IsWall(int index, NativeArray<byte> costs, byte wallCost)
     {
-        return costs[index] == ConstGameData.WALL_COST;
+        return costs[index] == wallCost;
     }
-    
-    public static bool IsWall(int2 pos, int width, NativeArray<byte> costs)
+
+    public static bool IsWall(int2 pos, int width, NativeArray<byte> costs, byte wallCost)
     {
-        return costs[CalculateIndex(pos, width)] == ConstGameData.WALL_COST;
+        return costs[CalculateIndex(pos, width)] == wallCost;
     }
-    
-    public static bool IsWall(int2 pos, int layer, int width, int height, NativeArray<byte> costs)
+
+    public static bool IsWall(int2 pos, int layer, int width, int height, NativeArray<byte> costs, byte wallCost)
     {
-        return costs[CalculateIndex(pos, layer, width, height)] == ConstGameData.WALL_COST;
+        return costs[CalculateIndex(pos, layer, width, height)] == wallCost;
     }
-    
+
     /// <summary>Check if world position is walkable.</summary>
-    public static bool IsWalkable(float3 worldPosition, GridConfig config, NativeArray<byte> costs)
+    public static bool IsWalkable(float3 worldPosition, GridConfig config, NativeArray<byte> costs, byte wallCost)
     {
         int2 gridPos = GetGridPosition(worldPosition, config.cellSize);
         int layer = GetLayer(worldPosition, config.layerHeight);
-        
+
         if (!IsValidGridPosition(gridPos, layer, config.width, config.height, config.layerCount))
             return false;
-            
+
         int index = CalculateIndex(gridPos, layer, config.width, config.height);
-        return costs[index] != ConstGameData.WALL_COST;
+        return costs[index] != wallCost;
     }
-    
+
     /// <summary>Get movement cost between two adjacent cells.</summary>
-    public static float GetMovementCost(int dx, int dy, byte cellCost)
+    public static float GetMovementCost(int dx, int dy, byte cellCost, byte wallCost)
     {
-        if (cellCost == ConstGameData.WALL_COST) return float.MaxValue;
-        
+        if (cellCost == wallCost) return float.MaxValue;
+
         // Diagonal movement costs more
         float baseCost = (dx != 0 && dy != 0) ? 1.414f : 1f;
         return baseCost * cellCost;
@@ -325,7 +345,10 @@ public struct UpdateCostMapJob : IJobParallelFor
     [ReadOnly] public CollisionWorld collisionWorld;
     [ReadOnly] public CollisionFilter wallFilter;
     [ReadOnly] public CollisionFilter heavyFilter;
-    
+    [ReadOnly] public byte wallCost;
+    [ReadOnly] public byte heavyCost;
+    [ReadOnly] public byte defaultCost;
+
     [NativeDisableParallelForRestriction]
     public NativeArray<byte> costs;
     
@@ -346,7 +369,7 @@ public struct UpdateCostMapJob : IJobParallelFor
         var wallHits = new NativeList<DistanceHit>(Allocator.Temp);
         if (collisionWorld.OverlapSphere(worldPos, cellSizeHalf * 0.9f, ref wallHits, wallFilter))
         {
-            costs[index] = ConstGameData.WALL_COST;
+            costs[index] = wallCost;
             wallHits.Dispose();
             return;
         }
@@ -356,14 +379,14 @@ public struct UpdateCostMapJob : IJobParallelFor
         var heavyHits = new NativeList<DistanceHit>(Allocator.Temp);
         if (collisionWorld.OverlapSphere(worldPos, cellSizeHalf * 0.9f, ref heavyHits, heavyFilter))
         {
-            costs[index] = ConstGameData.HEAVY_COST;
+            costs[index] = heavyCost;
             heavyHits.Dispose();
             return;
         }
         heavyHits.Dispose();
-        
+
         // Default walkable
-        costs[index] = ConstGameData.DEFAULT_COST;
+        costs[index] = defaultCost;
     }
 }
 }

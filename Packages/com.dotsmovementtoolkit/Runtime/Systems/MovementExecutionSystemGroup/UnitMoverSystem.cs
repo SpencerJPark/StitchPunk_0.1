@@ -43,7 +43,6 @@ public partial struct UnitMoverSystem : ISystem
 /// Moves entities toward their target position with collision handling.
 /// </summary>
 [BurstCompile]
-[WithNone(typeof(Dead))]
 public partial struct UnitMoverJob : IJobEntity
 {
     public float deltaTime;

@@ -10,12 +10,6 @@ namespace DotsMovementToolkit
 public partial struct PathRequestSystem : ISystem
 {
     [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        state.RequireForUpdate<GameSceneTag>();
-    }
-
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         state.Dependency = new PathRequestJob().ScheduleParallel(state.Dependency);

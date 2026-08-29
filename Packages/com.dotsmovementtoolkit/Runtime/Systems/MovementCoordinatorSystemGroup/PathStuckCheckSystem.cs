@@ -7,18 +7,12 @@ using Unity.Transforms;
 namespace DotsMovementToolkit
 {
 // Detects units that have an active PathRequest but are not making progress.
-// Fires ActionInterruptRequest after STUCK_TIMEOUT seconds of consecutive non-movement,
-// letting the existing interrupt pipeline cancel whatever action owns the path.
+// Enables MovementStuck after STUCK_TIMEOUT seconds of consecutive non-movement — a
+// consumer maps that onto whatever "cancel the current action" concept it uses.
 [BurstCompile]
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]
 public partial struct PathStuckCheckSystem : ISystem
 {
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        state.RequireForUpdate<GameSceneTag>();
-    }
-
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
@@ -31,7 +25,7 @@ public partial struct PathStuckCheckSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(PathRequest))]
-[WithDisabled(typeof(ActionInterruptRequest))]
+[WithDisabled(typeof(MovementStuck))]
 public partial struct PathStuckCheckJob : IJobEntity
 {
     private const float SAMPLE_INTERVAL = 1.0f;
@@ -41,10 +35,10 @@ public partial struct PathStuckCheckJob : IJobEntity
     public float deltaTime;
 
     public void Execute(
-        in LocalTransform                    transform,
-        in PathRequest                       pathRequest,
-        ref StuckDetector                    stuckDetector,
-        EnabledRefRW<ActionInterruptRequest> interruptEnabled)
+        in LocalTransform            transform,
+        in PathRequest               pathRequest,
+        ref StuckDetector            stuckDetector,
+        EnabledRefRW<MovementStuck>  movementStuckEnabled)
     {
         // Intentionally stationary (e.g. attacking in range, where the melee action halts
         // pathing every frame) — not stuck. Only units actively pathing can be stuck.
@@ -82,7 +76,7 @@ public partial struct PathStuckCheckJob : IJobEntity
         stuckDetector.stuckAccumulator += SAMPLE_INTERVAL;
         if (stuckDetector.stuckAccumulator >= STUCK_TIMEOUT)
         {
-            interruptEnabled.ValueRW       = true;
+            movementStuckEnabled.ValueRW   = true;
             stuckDetector.stuckAccumulator = 0f;
         }
     }
