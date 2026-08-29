@@ -23,7 +23,7 @@ single-character names, explicit types everywhere.
 | Path | What it is |
 |---|---|
 | `TexturePacker/` | **Texture Channel Packer** — node-graph window that packs greyscale images into RGBA channels (see below). |
-| `DirectionSetContext/UnitDirectionSetContextProvider.cs` | The game's half of the toolkit's direction-set context seam (`DirectionSetsPanel_System.md` §4, 2026-08-29). `[InitializeOnLoad]` registers it with `DirectionSetsPanel.SetContextProvider`; it flattens every `UnitSO`'s idle/moving/stance/action mappings into `"<Unit> · <state>"` entries carrying the set, the rig resolved from the prefab's `ActorAuthoring`, and the unit's `animationDirections`. **The direction-set authoring tool itself is no longer game-side** — it is the toolkit's 2D Direction Sets pane inside the Clip Editor. |
+| `DirectionSetContext/UnitDirectionSetContextProvider.cs` | The game's half of the toolkit's direction-set context seam (`DirectionSetsPanel_System.md` §4, 2026-08-29). `[InitializeOnLoad]` registers it with `DirectionSetsPanel.SetContextProvider`; it flattens every `UnitSO`'s idle/moving/stance/action mappings into `"<Unit> · <state>"` entries carrying the set, plus the rig **and clip set** resolved from the prefab's `ActorAuthoring` (first set, warning when there are several), and the unit's `animationDirections`. **The direction-set authoring tool itself is no longer game-side** — it is a tab of the toolkit's Clip Editor. |
 | `DialogueEditor/` | `DialogueSequenceEditorWindow` (GraphView node editor for `DialogueSequenceSO`) + `DialogueSequenceSOEditor`. |
 | `AnimationEditor/` | Hybrid preview-scene animation tooling: `AnimationClipEditorWindow`, `AnimationPreviewController(+Editor)`, `EditorAnimationSystem`, `EditorApplyAnimatedPoseSystem`, `AnimationClipUtilities`. |
 | `NarrativeEditor/` | `NarrativeEventSOEditor` custom inspector. |
@@ -53,6 +53,11 @@ used for the seam, and the second replaced the first:
   (no provider = the dropdown hides); the host supplies only pre-labelled strings and toolkit
   assets. Prefer this shape: it keeps the sellable tool sellable instead of making the package a
   launcher for a game-side one.
+
+The panel it feeds is a **tab** of the Clip Editor, not a toggled cover pane — since 2026-08-29 the
+toolkit's top bar is four exclusive tabs and `SetActiveTab` is their only writer. If a host ever
+needs to open one, the entry points are `ClipEditorWindow.FocusClipEditing` /
+`FocusVatBakeSettings` / `FocusDirectionSetsTab(asset)`; do not reach for a `Show…Tab` method.
 
 **Whichever shape, the host's registration must sit in a `static` constructor decorated with
 `[InitializeOnLoad]`.** A bare `static` ctor only runs the first time something touches the type,

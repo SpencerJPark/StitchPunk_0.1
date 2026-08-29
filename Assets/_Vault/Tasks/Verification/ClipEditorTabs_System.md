@@ -1,6 +1,6 @@
 # Clip Editor tabs + floating viewport overlay
 
-> **Status:** ✅ spec ready — the four shape decisions were stamped by owner Q&A 2026-08-29; build-time `← DECISION` markers remain below.
+> **Status:** 🔨 **BUILT 2026-08-29** — all seven phases. The four remaining `← DECISION` markers below went the recommended way; they are stamped in [`verify-clipeditortabs.md`](verify-clipeditortabs.md), which also records two things the build found that this spec did not have: `VatBakePanel`'s second host (`VatBakeWindow`, which forced a bound mode rather than deleting its fields) and both ticks driving one shared preview controller in the same frame. Awaiting the owner's play-test.
 > **Supersedes:** the cover-pane *switching model* only. `ShowVatBakeTab` / `ShowNewRigTab` / `Show2DDirectionSetsTab` keep their absolute-cover geometry and their "tear nothing down on hide" contract — this plan replaces the three independent `ToolbarToggle`s that drive them with one exclusive tab bar, and moves what is left of the top bar off it.
 > **Also supersedes:** `VatBakePanel.OfferClipSet`/`OfferRig`'s "only fills an empty field" doctrine, and `DirectionSetsPanel.OfferRig`'s. The owner has decided both panes read the window's selection outright. Their doc comments defend the old rule and must be rewritten, not deleted silently.
 > **Depends on:** `DirectionSetsPanel_System.md` (built 2026-08-29) — §5 here rewrites that panel's viewer.

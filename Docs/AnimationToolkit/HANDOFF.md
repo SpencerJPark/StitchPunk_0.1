@@ -112,6 +112,28 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar is
+now four exclusive tabs (`tab-clip-editor` · `tab-new-rig` · `tab-direction-sets` · `tab-vat-bake`)
+and nothing else, with `SetActiveTab(ClipEditorTab)` the single writer of both the enum and the four
+toggles' lit state — never call a `Show…Tab` method directly. Everything that used to share the top
+bar (clip set, rig, New Set, Edit Prefab, the validation badge) plus Billboard, Ragdoll and new
+Move/Rotate/Scale buttons now live in `viewport-overlay`, a frame-sized `picking-mode: Ignore` column
+inside `viewport-frame`. Four things to know before touching it:
+
+- **The overlay container must stay frame-sized.** The findings panel's `max-width`/`max-height` are
+  percentages resolving against it — shrink it to hug its rows and 60% of the viewport becomes 60% of
+  a toolbar. It absorbed the old `validation-overlay-slot`, which is gone.
+- **`UpdatePreview` is gated on `activeTab == ClipEditor`.** The 2D Direction Sets pane drives the
+  *same* `ClipPreviewController` into its own `Image`, and one `PreviewRenderUtility` cannot serve
+  two viewports in a frame.
+- **The direction pane borrows the camera and gives it back** (`OrbitYaw`/`OrbitPitch`, new
+  properties). `FrameRig()` sets focus and distance and does **not** touch the angles, so without
+  this the Clip Editor's orbit follows you into a viewer that is supposed to be fixed front-on.
+- **`SetGizmoMode` is the single writer of `gizmoMode`**, called by both W/E/R and the three buttons.
+
+`VatBakePanel` gained a bound mode (`SetSource`) rather than losing its Clip Set and Rig fields:
+`VatBakeWindow` is its second host and would otherwise have had no way to say what to bake.
+
 **2D Direction Sets — new pane, landed 2026-08-29, owner visual pass owed.** The package gained
 `DirectionSetAsset` (`Authoring/Assets/`, promoted out of the host game) and the Clip Editor gained
 a third cover pane beside VAT Bake and New Rig, driven by the `direction-sets-toggle`
