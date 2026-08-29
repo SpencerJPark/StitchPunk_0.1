@@ -1,29 +1,36 @@
 {
-    "name": "StitchPunk.Utils",
-    "rootNamespace": "",
+    "name": "StitchPunk.Tests.PlayMode",
+    "rootNamespace": "StitchPunk.Tests.PlayMode",
     "references": [
+        "GUID:f1045488f3cb5c5428ccaf14e6d565d4",
+        "GUID:f6d3133ab89495c40a933922769e2c5c",
+        "GUID:7ff523084e6eb6a4bab4fb71b3b9fcb3",
+        "GUID:8dfb72a3ac2144b4e9a720c0c1008aab",
         "GUID:734d92eba21c94caba915361bd5ac177",
         "GUID:2665a8d13d1b3f18800f46e256720795",
         "GUID:63afb046c8423dd448ae7aba042ea63d",
         "GUID:d8b63aba1907145bea998dd612889d6b",
         "GUID:e0cd26848372d4e5c891c569017e11f1",
         "GUID:a5baed0c9693541a5bd947d336ec7659",
-        "GUID:7ff523084e6eb6a4bab4fb71b3b9fcb3",
-        "GUID:8dfb72a3ac2144b4e9a720c0c1008aab",
         "GUID:0a82aeb665886483c867b7d137563619",
         "GUID:4d624505c28284c90a482e4d6ec34ada",
         "GUID:8819f35a0fc84499b990e90a4ca1911f",
-        "GUID:6df075a5896f0b74686d0aa5033bab69",
+        "DotsMovementToolkit.Runtime",
         "DotsAnimationToolkit.Runtime",
-        "DotsMovementToolkit.Runtime"
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
     "versionDefines": [],
     "noEngineReferences": false
 }

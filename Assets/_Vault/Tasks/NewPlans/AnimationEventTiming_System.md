@@ -2,7 +2,7 @@
 
 > **Status:** ✅ decisions stamped 2026-08-29 (owner-approved) — ready to build
 > **Raw source:** [`../Claude/Systems_Gap_Audit_2026-08.md`](../Claude/Systems_Gap_Audit_2026-08.md) area 2
-> **Prerequisites:** [`AnimationToolkitMigration_System.md`](AnimationToolkitMigration_System.md) phases 1–5 (events only exist on toolkit actors), and `Plans/BehaviorCommandSplit_System.md` (spec ready) built **first** — new command arms land in the split-out command classes, not the monolith switch.
+> **Prerequisites:** [`AnimationToolkitMigration_System.md`](AnimationToolkitMigration_System.md) phases 1–5 (events only exist on toolkit actors), and [`../Verification/BehaviorCommandSplit_System.md`](../Verification/BehaviorCommandSplit_System.md) — **built** 2026-08-29 — new command arms land in `Utils/BehaviorCommands/WaitLoopCommands.cs` (the Wait/Loop family file), not the monolith switch.
 
 ---
 

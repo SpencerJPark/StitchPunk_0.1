@@ -2,7 +2,7 @@
 
 > **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #8 — last unbuilt phase of the behavior-recreation queue; currently **zero code**.
-> **Prerequisites (hard):** [Despawn_System.md](Despawn_System.md) built (projectile pooling), [BehaviorCommandSplit_System.md](BehaviorCommandSplit_System.md) done (don't inflate the monolith), [MinionOrderRobustness_System.md](MinionOrderRobustness_System.md) (ordering ranged minions), BehaviorBakeValidation catalog (SpawnEntity gets un-flagged when its arm lands).
+> **Prerequisites (hard):** [Despawn_System.md](Despawn_System.md) built (projectile pooling), [`../Verification/BehaviorCommandSplit_System.md`](../Verification/BehaviorCommandSplit_System.md) — **built** 2026-08-29 (don't inflate the monolith; new arms land in `Utils/BehaviorCommands/`), [MinionOrderRobustness_System.md](MinionOrderRobustness_System.md) (ordering ranged minions), BehaviorBakeValidation catalog (SpawnEntity gets un-flagged when its arm lands).
 
 ---
 

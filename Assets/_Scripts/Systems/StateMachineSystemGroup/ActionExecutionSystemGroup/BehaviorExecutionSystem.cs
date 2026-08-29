@@ -224,197 +224,85 @@ public partial struct BehaviorExecutionJob : IJobEntity
         ref BehaviorCommand cmd =
             ref behavior.executionSequence[stateMachine.CurrentCommandIndex];
 
+        BehaviorCommandContext context = new BehaviorCommandContext
+        {
+            transformLookup               = transformLookup,
+            unitEquipLookup               = unitEquipLookup,
+            waypointLookup                = waypointLookup,
+            deadLookup                    = deadLookup,
+            motivationLookup              = motivationLookup,
+            socialInviteLookup            = socialInviteLookup,
+            stateMachineLookup            = stateMachineLookup,
+            waypointCells                 = waypointCells,
+            unitLibrary                   = unitLibrary,
+            attackRequestLookup           = attackRequestLookup,
+            pickupRequestLookup           = pickupRequestLookup,
+            equipByLookup                 = equipByLookup,
+            attachedToLookup              = attachedToLookup,
+            attachItemRequestLookup       = attachItemRequestLookup,
+            animationCommandPendingLookup = animationCommandPendingLookup,
+            animationCommandLookup        = animationCommandLookup,
+            ecb                           = ecb,
+            entityIndex                   = entityIndex,
+            deltaTime                     = deltaTime,
+            timestamp                     = timestamp,
+            loggingEnabled                = loggingEnabled,
+        };
+
         switch (cmd.type)
         {
             case BehaviorCommandType.Approach:
-                RunApproach(entityIndex, ref stateMachine, ref pathRequest, pathRequestEnabled,
-                    in transform, cmd.FloatParam, cmd.IntParam);
-                return; // blocking
+                MovementCommands.RunApproach(ref context, ref stateMachine, ref pathRequest,
+                    pathRequestEnabled, in transform, cmd.FloatParam, cmd.IntParam);
+                return; // blocking — owns its advancement
 
             case BehaviorCommandType.WaitTime:
-            {
-                stateMachine.CommandTimer += deltaTime;
-
-                // Qualifier-as-early-exit: any ticked flag ends the wait before Duration
-                // (e.g. Talk's WaitTime exits when the partner dies or disengages).
-                bool earlyExit = cmd.Qualifier != LoopQualifier.None
-                    && BehaviorQualifiers.Evaluate(unit, in cmd, in stateMachine,
-                        in transform, in transformLookup, in deadLookup,
-                        in motivationLookup, in stateMachineLookup);
-
-                if (stateMachine.CommandTimer >= cmd.Duration || earlyExit)
-                {
-                    stateMachine.CurrentCommandIndex++;
-                    stateMachine.CommandTimer = 0f;
-                }
-                return; // blocking
-            }
+                WaitLoopCommands.RunWaitTime(ref context, unit, ref stateMachine, in cmd, in transform);
+                return; // blocking — owns its advancement
 
             case BehaviorCommandType.FleeFromTarget:
-                RunFlee(ref stateMachine, ref pathRequest, pathRequestEnabled,
-                    in transform, ref recentWaypoints);
-                return; // blocking
+                MovementCommands.RunFlee(ref context, ref stateMachine, ref pathRequest, pathRequestEnabled,
+                    in transform, InteractionSpatialHashSystem.GetCell(transform.Position), ref recentWaypoints);
+                return; // blocking — owns its advancement
 
             case BehaviorCommandType.LoopUntil:
-            {
-                bool qualified = BehaviorQualifiers.Evaluate(unit, in cmd, in stateMachine,
-                    in transform, in transformLookup, in deadLookup,
-                    in motivationLookup, in stateMachineLookup);
-
-                // Safety guards — always armed, regardless of ticked qualifiers.
-                float timeout    = cmd.Duration > 0f ? cmd.Duration : BehaviorQualifiers.DEFAULT_LOOP_TIMEOUT;
-                bool  timedOut   = stateMachine.LoopTimer >= timeout;
-                bool  capReached = stateMachine.LoopIterations >= BehaviorQualifiers.MAX_LOOP_ITERATIONS;
-
-                if (qualified || timedOut || capReached)
-                {
-                    if (!qualified && loggingEnabled)
-                    {
-                        int timedOutFlag = timedOut ? 1 : 0; // hoisted: Burst forbids control flow inside format arguments (BC1352)
-                        LogUtil.Log(ref ecb, entityIndex,
-                            $"[BehaviorExecution] LoopUntil guard fired in {stateMachine.activeBehavior.Name()} (timedOut: {timedOutFlag}, iterations: {stateMachine.LoopIterations})",
-                            LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
-                    }
-
-                    stateMachine.CurrentCommandIndex++;
-                    stateMachine.LoopTimer      = 0f;
-                    stateMachine.LoopIterations = 0;
-                }
-                else
-                {
-                    stateMachine.CurrentCommandIndex =
-                        math.clamp(cmd.IntParam, 0, stateMachine.CurrentCommandIndex);
-                    stateMachine.LoopIterations++;
-                }
-
-                stateMachine.CommandTimer = 0f;
+                WaitLoopCommands.RunLoopUntil(ref context, unit, ref stateMachine, in cmd, in transform);
                 return; // owns its advancement
-            }
 
             case BehaviorCommandType.RequestAttack:
-                // AttackRequestSystem reads targetEntity/damageSource and the swing timer, so a fresh
-                // request must be written each swing — enabling alone would reuse stale hitFired/elapsed.
-                if (attackRequestLookup.HasComponent(unit))
-                {
-                    DamageSource damageSource = DamageSource.None;
-                    for (int i = 0; i < availableAttacks.Length; i++)
-                    {
-                        if (availableAttacks[i].actionType != stateMachine.action) continue;
-                        damageSource = availableAttacks[i].damageSource;
-                        break;
-                    }
-
-                    if (damageSource != DamageSource.None && stateMachine.targetEntity != Entity.Null)
-                    {
-                        attackRequestLookup[unit] = new AttackRequest
-                        {
-                            targetEntity = stateMachine.targetEntity,
-                            damageSource = damageSource,
-                            hitFired     = false,
-                            elapsed      = 0f,
-                        };
-                        attackRequestLookup.SetComponentEnabled(unit, true);
-                    }
-                    else if (loggingEnabled)
-                    {
-                        LogUtil.Log(ref ecb, entityIndex,
-                            $"[BehaviorExecution] RequestAttack skipped — no attack mapped to {stateMachine.action.Name()} or no target",
-                            LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
-                    }
-                }
+                RequestCommands.RunRequestAttack(ref context, unit, ref stateMachine, in availableAttacks);
                 break;
 
             case BehaviorCommandType.RequestPickup:
-                RunRequestPickup(unit, ref stateMachine);
+                ItemCommands.RunRequestPickup(ref context, unit, ref stateMachine);
                 break;
 
             case BehaviorCommandType.ModifyMotivation:
-                ecb.AppendToBuffer(entityIndex, unit, new MotivationChangeRequest
-                {
-                    needType   = (NeedType)cmd.IntParam,
-                    changeType = MotivationChangeType.Add,
-                    value      = cmd.FloatParam,
-                });
+                RequestCommands.RunModifyMotivation(ecb, entityIndex, unit, in cmd);
                 break;
 
             case BehaviorCommandType.PlayAnimation:
-                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit)
-                    && cmd.AnimationClip.IsValid)
-                {
-                    DynamicBuffer<AnimationCommand> playCommands = animationCommandLookup[unit];
-                    AnimationCommandUtil.Play(
-                        ref playCommands,
-                        animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-                        (byte)AnimationToolkitLayer.Action,
-                        cmd.AnimationClip,
-                        speed: cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
-                        loop: cmd.Looping ? LoopMode.Loop : LoopMode.Once);
-                }
+                AnimationCommands.RunPlayAnimation(ref context, unit, in cmd);
                 break;
 
             case BehaviorCommandType.PlayActionAnimation:
-                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit))
-                {
-                    int unitIndex = unitLibrary.Value.FindByUnitType(brain.unitType);
-                    ClipId actionAnimation = unitIndex >= 0
-                        ? AIUtils.GetAnimationByAction(ref unitLibrary.Value.units[unitIndex], stateMachine.action)
-                        : default;
-
-                    if (actionAnimation.IsValid)
-                    {
-                        DynamicBuffer<AnimationCommand> playCommands = animationCommandLookup[unit];
-                        AnimationCommandUtil.Play(
-                            ref playCommands,
-                            animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-                            (byte)AnimationToolkitLayer.Action,
-                            actionAnimation,
-                            speed: cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
-                            loop: cmd.Looping ? LoopMode.Loop : LoopMode.Once);
-                    }
-                }
+                AnimationCommands.RunPlayActionAnimation(ref context, unit, in cmd, in stateMachine, in brain);
                 break;
 
             case BehaviorCommandType.RequestSocialResponse:
-                // Written via ECB, not a lookup: multiple initiators may target the same invitee
-                // in one frame, so the "one owner" rule that makes the other lookups safe doesn't
-                // hold. SocialResponseSystem consumes the invite next frame.
-                if (stateMachine.targetEntity != Entity.Null
-                    && socialInviteLookup.HasComponent(stateMachine.targetEntity))
-                {
-                    ecb.SetComponent(entityIndex, stateMachine.targetEntity,
-                        new SocialInvite { initiator = unit });
-                    ecb.SetComponentEnabled<SocialInvite>(entityIndex, stateMachine.targetEntity, true);
-                }
+                RequestCommands.RunRequestSocialResponse(ref context, unit, in stateMachine);
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit))
-                {
-                    DynamicBuffer<AnimationCommand> stopCommands = animationCommandLookup[unit];
-                    AnimationCommandUtil.Stop(
-                        ref stopCommands,
-                        animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-                        (byte)AnimationToolkitLayer.Action,
-                        blendDuration: 0f);
-                }
+                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, unit);
                 break;
 
             case BehaviorCommandType.ReleaseInteraction:
-                if (stateMachine.targetEntity != Entity.Null)
-                {
-                    float cooldownEnd = (float)timestamp + (cmd.FloatParam > 0f ? cmd.FloatParam : 30f);
-                    if (recentInteractions.Length >= 8) recentInteractions.RemoveAt(0);
-                    recentInteractions.Add(new RecentInteraction
-                    {
-                        entity          = stateMachine.targetEntity,
-                        cooldownEndTime = cooldownEnd,
-                    });
-                }
+                MiscCommands.RunReleaseInteraction(timestamp, in cmd, stateMachine.targetEntity, ref recentInteractions);
                 break;
 
             case BehaviorCommandType.PlaySound:
-                // Behaviour-level audio cue (e.g. a yell when Flee starts). Fire-and-advance.
-                SoundUtil.PlayOn(ref ecb, entityIndex, (SoundType)cmd.IntParam, unit);
+                MiscCommands.RunPlaySound(ref context, unit, in cmd);
                 break;
 
             default:
@@ -433,204 +321,9 @@ public partial struct BehaviorExecutionJob : IJobEntity
         stateMachine.CommandTimer = 0f;
     }
 
-    // Scans nearby waypoints and paths at Running speed toward the one farthest from the aggressor.
-    // stateMachine.targetEntity must be the aggressor. On first frame: picks waypoint and starts path.
-    // On subsequent frames: waits for arrival. On arrival: replaces targetEntity with the waypoint
-    // (so PushRecent logs the destination, not the aggressor) and advances.
-    private void RunFlee(
-        ref StateMachine          stateMachine,
-        ref PathRequest           pathRequest,
-        EnabledRefRW<PathRequest> pathRequestEnabled,
-        in LocalTransform         transform,
-        ref DynamicBuffer<RecentWaypoint> recentWaypoints)
-    {
-        if (!pathRequestEnabled.ValueRO)
-        {
-            // Pick waypoint farthest from aggressor.
-            float3 unitPos      = transform.Position;
-            float3 aggressorPos = unitPos; // fallback if aggressor has no transform
-            if (stateMachine.targetEntity != Entity.Null)
-                transformLookup.TryGetComponent(stateMachine.targetEntity, out LocalTransform aggressorXf);
-
-            // Reread after TryGet — use a local variable to avoid the ref issue.
-            if (stateMachine.targetEntity != Entity.Null
-                && transformLookup.TryGetComponent(stateMachine.targetEntity, out LocalTransform agXf))
-                aggressorPos = agXf.Position;
-
-            int2   centerCell = InteractionSpatialHashSystem.GetCell(unitPos);
-            int    cellRange  = 2; // 2 × 20m cells = 40m search radius
-
-            Entity bestWaypoint  = Entity.Null;
-            float  bestDistSq    = float.MinValue;
-
-            for (int x = -cellRange; x <= cellRange; x++)
-            {
-                for (int z = -cellRange; z <= cellRange; z++)
-                {
-                    int2 cell = centerCell + new int2(x, z);
-                    if (!waypointCells.TryGetFirstValue(cell, out Entity waypoint,
-                            out NativeParallelMultiHashMapIterator<int2> it))
-                        continue;
-                    do
-                    {
-                        if (IsRecent(waypoint, recentWaypoints)) continue;
-                        if (!transformLookup.TryGetComponent(waypoint, out LocalTransform wpXf)) continue;
-
-                        // Score = distance from aggressor; higher = safer.
-                        float distSq = math.distancesq(aggressorPos, wpXf.Position);
-                        if (distSq <= bestDistSq) continue;
-                        bestDistSq  = distSq;
-                        bestWaypoint = waypoint;
-                    }
-                    while (waypointCells.TryGetNextValue(out waypoint, ref it));
-                }
-            }
-
-            if (bestWaypoint == Entity.Null
-                || !transformLookup.TryGetComponent(bestWaypoint, out LocalTransform dest))
-            {
-                // No valid flee waypoint found — give up and let scoring re-evaluate.
-                stateMachine.currentPhase = BehaviorPhase.Complete;
-                return;
-            }
-
-            stateMachine.currentStance = StanceType.Running;
-            // Swap aggressor for chosen waypoint so PushRecent logs the destination on complete.
-            stateMachine.targetEntity  = bestWaypoint;
-            MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled, dest.Position, 0.5f);
-        }
-
-        // Blocking: wait until arrival.
-        const float ARRIVE_SQ = 0.25f;
-        if (math.distancesq(transform.Position, pathRequest.targetPosition) <= ARRIVE_SQ)
-        {
-            MovementAPI.HaltPathing(ref pathRequest, pathRequestEnabled);
-            stateMachine.CurrentCommandIndex++;
-            stateMachine.CommandTimer = 0f;
-        }
-    }
-
-    private void RunRequestPickup(Entity unit, ref StateMachine stateMachine)
-    {
-        Entity item = stateMachine.targetEntity;
-        if (item == Entity.Null || !pickupRequestLookup.HasComponent(item)) return;
-
-        // Re-validate: another unit may have claimed the item during the approach.
-        if (equipByLookup.HasComponent(item)
-            && equipByLookup[item].owner != Entity.Null
-            && equipByLookup[item].owner != unit)
-            return;
-
-        if (equipByLookup.HasComponent(item))
-            equipByLookup[item] = new EquipBy { owner = unit };
-
-        Entity socket = Entity.Null;
-        if (unitEquipLookup.TryGetComponent(unit, out UnitEquip unitEquip))
-            socket = unitEquip.socketEntity;
-
-        if (attachedToLookup.HasComponent(item))
-            attachedToLookup[item] = new AttachedTo { socket = socket };
-
-        pickupRequestLookup.SetComponentEnabled(item, true);
-
-        if (attachItemRequestLookup.HasComponent(item))
-            attachItemRequestLookup.SetComponentEnabled(item, true);
-    }
-
-    private void RunApproach(
-        int                       entityIndex,
-        ref StateMachine          stateMachine,
-        ref PathRequest           pathRequest,
-        EnabledRefRW<PathRequest> pathRequestEnabled,
-        in LocalTransform         transform,
-        float                     stoppingDist,
-        int                       stanceIntParam)
-    {
-        // Raw position target (player move orders): no entity to track — path once and wait
-        // for arrival. The moving-target block below degrades safely (lookups miss on Null).
-        if (stateMachine.targetEntity == Entity.Null && stateMachine.hasTargetPosition)
-        {
-            if (!pathRequestEnabled.ValueRO)
-            {
-                stateMachine.currentStance = (StanceType)stanceIntParam;
-                MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled,
-                    stateMachine.targetPosition, stoppingDist);
-            }
-        }
-        else if (stateMachine.targetEntity == Entity.Null)
-        {
-            stateMachine.currentPhase = BehaviorPhase.Complete;
-            return;
-        }
-        else if (!pathRequestEnabled.ValueRO)
-        {
-            // Dead target — give up immediately rather than pathing to a corpse.
-            if (deadLookup.TryGetComponent(stateMachine.targetEntity, out Dead dead)
-                && deadLookup.IsComponentEnabled(stateMachine.targetEntity))
-            {
-                stateMachine.currentPhase = BehaviorPhase.Complete;
-                return;
-            }
-
-            if (!transformLookup.TryGetComponent(stateMachine.targetEntity, out LocalTransform tgt))
-            {
-                stateMachine.currentPhase = BehaviorPhase.Complete;
-                return;
-            }
-
-            // Apply radius scatter for waypoint targets so wandering looks natural.
-            float3 targetPos = tgt.Position;
-            if (waypointLookup.TryGetComponent(stateMachine.targetEntity, out NavigationWaypoint waypoint)
-                && waypoint.radius > 0f)
-            {
-                Unity.Mathematics.Random rng = new Unity.Mathematics.Random(
-                    (uint)(entityIndex + 1) * (uint)(timestamp * 1000f + 1f));
-                float angle = rng.NextFloat(0f, math.PI * 2f);
-                float dist  = rng.NextFloat(0f, waypoint.radius);
-                targetPos  += new float3(math.cos(angle) * dist, 0f, math.sin(angle) * dist);
-            }
-
-            stateMachine.currentStance = (StanceType)stanceIntParam;
-            MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled, targetPos, stoppingDist);
-        }
-
-        // Moving targets (units): re-path when the target drifts from the pathed point, and
-        // measure ARRIVAL against the live target — the pathed point is stale by up to the
-        // repath threshold, and checking against it deadlocks when both units stand close but
-        // the stale point sits just out of stopping range (neither arrival nor re-path fires).
-        const float REPATH_THRESHOLD_SQ = 1f;
-        float3 arrivalPoint = pathRequest.targetPosition;
-        if (!waypointLookup.HasComponent(stateMachine.targetEntity)
-            && transformLookup.TryGetComponent(stateMachine.targetEntity, out LocalTransform livePos))
-        {
-            arrivalPoint = livePos.Position;
-
-            if (pathRequestEnabled.ValueRO
-                && math.distancesq(livePos.Position, pathRequest.targetPosition) > REPATH_THRESHOLD_SQ)
-            {
-                MovementAPI.BeginPathRequest(ref pathRequest, pathRequestEnabled, livePos.Position, stoppingDist);
-            }
-        }
-
-        float arrivalSq = stoppingDist * stoppingDist;
-        if (math.distancesq(transform.Position, arrivalPoint) <= arrivalSq)
-        {
-            MovementAPI.HaltPathing(ref pathRequest, pathRequestEnabled);
-            stateMachine.CurrentCommandIndex++;
-            stateMachine.CommandTimer = 0f;
-        }
-    }
-
     private static void PushRecent(ref DynamicBuffer<RecentWaypoint> buf, Entity entity)
     {
         if (buf.Length >= 4) buf.RemoveAt(0);
         buf.Add(new RecentWaypoint { entity = entity });
-    }
-
-    private static bool IsRecent(Entity entity, in DynamicBuffer<RecentWaypoint> recent)
-    {
-        for (int i = 0; i < recent.Length; i++)
-            if (recent[i].entity == entity) return true;
-        return false;
     }
 }

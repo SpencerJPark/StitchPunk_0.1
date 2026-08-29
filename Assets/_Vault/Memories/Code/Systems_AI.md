@@ -74,9 +74,16 @@ activePriority, and `pending*` mirrors (incl. pendingTargetPosition/pendingHasTa
 ## Execution — BehaviorExecutionSystem
 
 Walks the active behavior's `executionSequence` (`BlobArray<BehaviorCommand>` from `BehaviorSO`
-assets baked into the enum-indexed `BehaviorLibrary` blob). Blocking commands: Approach, WaitTime,
-FleeFromTarget, LoopUntil. Fire-and-advance: PlayAnimation, PlayActionAnimation, RequestAttack,
-RequestPickup, ModifyMotivation, ReleaseInteraction, StopAnimation, RequestSocialResponse.
+assets baked into the enum-indexed `BehaviorLibrary` blob). `BehaviorExecutionSystem.cs` is now a
+thin job shell (phase machine, command-index advance, dispatch switch) — **per-command logic lives
+in `Utils/BehaviorCommands/*.cs`** (2026-08-29 split, one static handler class per family:
+`MovementCommands`, `WaitLoopCommands`, `AnimationCommands`, `ItemCommands`, `RequestCommands`,
+`MiscCommands`, plus the `BehaviorCommandContext` struct bundling lookups/ECB/blob refs). Add a new
+`BehaviorCommandType` arm there, not inline in the switch. Blocking commands: Approach, WaitTime,
+FleeFromTarget, LoopUntil (each owns its own `CurrentCommandIndex`/timer advancement). Fire-and-advance:
+PlayAnimation, PlayActionAnimation, RequestAttack, RequestPickup, ModifyMotivation, ReleaseInteraction,
+StopAnimation, RequestSocialResponse, PlaySound. `BehaviorInterruptSystem.RunCleanupCommand` reuses the
+`ModifyMotivation`/`ReleaseInteraction`/`StopAnimation` handlers directly (no more duplicated bodies).
 
 - **Approach**: paths to `targetEntity` (waypoint scatter, moving-target repath) — or, when
   `targetEntity == Null && hasTargetPosition`, paths once to the raw `targetPosition` (no repath).
@@ -160,8 +167,10 @@ RequestPickup → StopAnimation`) → item gets `PickupRequest`:
    (Motivation ratio = `(value+100)/200`, 1 = satisfied → use inverse curves for needs).
 4. Add behavior to `_BehaviorLibrary.asset`, action to the relevant Brain asset.
 5. Emit options from an awareness system (set actionDefIndex, skip when < 0).
-6. New command types go in `BehaviorCommandType` + `BehaviorExecutionSystem.RunExecute` switch
-   (+ `BehaviorInterruptSystem.RunCleanupCommand` if legal in cleanup).
+6. New command types go in `BehaviorCommandType` + a static handler in `Utils/BehaviorCommands/`
+   (join an existing family file or add one) + the `BehaviorExecutionSystem.RunExecute` switch case
+   that calls it (+ `BehaviorInterruptSystem.RunCleanupCommand` if legal in cleanup — reuse the same
+   handler rather than re-inlining it) + `BehaviorCommandCatalog.IsImplemented`/`IsBlocking`.
 
 ## Key Files
 
@@ -177,4 +186,7 @@ RequestPickup → StopAnimation`) → item gets `PickupRequest`:
 | `Systems/MinionActionSelectionSystemGroup/MinionSelfDefenceAwarenessSystem.cs` | minion self-defence when uncommanded |
 | `Systems/ItemSystemGroup/ItemEquipSystemGroup/ItemConsumeSystem.cs` | consumable branch |
 | `Utils/BrainBlobUtils.cs`, `Utils/BehaviorQualifiers.cs`, `Utils/AIUtils.cs` | helpers |
+| `Utils/BehaviorCommands/*.cs` | per-family command handlers + `BehaviorCommandContext` (2026-08-29 split) |
+| `Utils/BehaviorCommandCatalog.cs` | `IsImplemented`/`IsBlocking` — the one source of truth both bake validation and the interpreter consult |
 | `Data/SOs/BehaviorSO.cs`, `Data/SOs/UtilityActionSO.cs`, `Data/SOs/BrainSO.cs` | authoring SOs |
+| `Tests/PlayMode/BehaviorExecutionSystemTests.cs` | first PlayMode World fixture over the interpreter — command-index progression |

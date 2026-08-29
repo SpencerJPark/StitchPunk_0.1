@@ -171,6 +171,8 @@ public partial struct BehaviorInterruptJob : IJobEntity
 
     // Cleanup runs in one frame, so only non-blocking commands are legal here. Bake validation
     // (BehaviorLibraryBakingSystem) flags blocking types at author time; this is the runtime guard.
+    // Reuses the same handlers BehaviorExecutionSystem's interpreter calls (Utils/BehaviorCommands) —
+    // this used to duplicate their bodies verbatim.
     private void RunCleanupCommand(
         int                                  entityIndex,
         Entity                               unit,
@@ -181,37 +183,15 @@ public partial struct BehaviorInterruptJob : IJobEntity
         switch (cmd.type)
         {
             case BehaviorCommandType.ModifyMotivation:
-                ecb.AppendToBuffer(entityIndex, unit, new MotivationChangeRequest
-                {
-                    needType   = (NeedType)cmd.IntParam,
-                    changeType = MotivationChangeType.Add,
-                    value      = cmd.FloatParam,
-                });
+                RequestCommands.RunModifyMotivation(ecb, entityIndex, unit, in cmd);
                 break;
 
             case BehaviorCommandType.ReleaseInteraction:
-                if (stateMachine.targetEntity != Entity.Null)
-                {
-                    float cooldownEnd = (float)timestamp + (cmd.FloatParam > 0f ? cmd.FloatParam : 30f);
-                    if (recentInteractions.Length >= 8) recentInteractions.RemoveAt(0);
-                    recentInteractions.Add(new RecentInteraction
-                    {
-                        entity          = stateMachine.targetEntity,
-                        cooldownEndTime = cooldownEnd,
-                    });
-                }
+                MiscCommands.RunReleaseInteraction(timestamp, in cmd, stateMachine.targetEntity, ref recentInteractions);
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                if (animationCommandPendingLookup.HasComponent(unit) && animationCommandLookup.HasBuffer(unit))
-                {
-                    DynamicBuffer<AnimationCommand> stopCommands = animationCommandLookup[unit];
-                    AnimationCommandUtil.Stop(
-                        ref stopCommands,
-                        animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-                        (byte)AnimationToolkitLayer.Action,
-                        blendDuration: 0f);
-                }
+                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, unit);
                 break;
 
             default:
