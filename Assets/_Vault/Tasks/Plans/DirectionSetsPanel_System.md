@@ -102,6 +102,17 @@ Opening a set initializes the dropdown to its derived coverage. ← DECISION: ke
 - **Playback:** play/pause toggle looping the clip (tick on `EditorApplication.update`, advance normalized time by `deltaTime / clipDuration` so differing clip lengths play at true speed — sliding direction mid-play is the mismatched-foot-phase check), plus the scrub slider for frame-stepping. Facing changes mid-play keep the playhead (normalized), mirroring how runtime swap-on-facing-change behaves.
 - The old per-direction pane grid is **not** kept in v1 — the slider replaces it. ← DECISION: if side-by-side comparison is missed during the art pass, a "grid" view toggle can return as a follow-up; confirm cut for v1.
 
+### 3e. Viewer mechanics (gap round 2, stamped 2026-08-29)
+
+- **One registry, all clips.** The registry rebuild (`SetClipSet` → `ClipRegistryBuilder.Build`) is the expensive step, so the viewer builds **one** synthetic `ClipSetAsset` containing *all* authored clips of the open direction set. A direction change is then just a different `clipId` into `SamplePose` — no rebuild, no hitch mid-turn. (The old window's one-controller-one-clip-per-pane pattern does not carry over.) Rebuild only when the queue's clip membership or the rig changes.
+- **Fixed front-on camera** — stamped (owner Q&A): `BillboardPreviewEnabled = true`, `FrameRig()` once on load/rig change, no orbit/zoom input. Direction comes from the slider, not the camera — the view matches what the game camera sees.
+- **Playback controls: play/pause + scrub only** — stamped (owner Q&A): looping play/pause at true clip speed (`ClipAsset.duration` seconds) plus the scrub slider. No speed dropdown, no loop toggle in v1.
+- **External-edit refresh:** `Undo.undoRedoPerformed` + asset-modification on the open set refresh the queue and (when membership changed) the registry — inspector edits and undo can't leave the panel showing stale slots.
+- **Mismatched-rig clip:** a queued clip that fails registry validation against the preview rig gets a per-row inline warning naming the clip; the other clips keep previewing. The whole viewport never goes silently dead over one bad row.
+- **New Set:** save-file dialog → creates the asset → loads it with the Directions dropdown at Six (roster default), empty required-slot rows scaffolded.
+- **Unit-context robustness:** the provider skips units with no prefab / no `ActorAuthoring` (one consolidated console warning), and lists mappings whose set is null as disabled "unassigned" entries. Write-back ("pick a set to wire it here") is a follow-up, not v1.
+- **Out of scope for the viewer:** design/palette variants (the rig's source prefab renders with its authored default look) and preview scenery selection — both stay whatever the Clip Editor's preview substrate defaults to.
+
 ## 4. Host unit-context seam (toolkit ↔ game, no dependency)
 
 The toolkit cannot know `UnitSO`/`ActionType`, so the "set the enum, see the character run" flow crosses via a provider interface — the same one-way seam philosophy as the deleted static event, but data-shaped:
@@ -140,7 +151,9 @@ The toolkit cannot know `UnitSO`/`ActionType`, so the "set the enum, see the cha
 - Double-clicking a `DirectionSetAsset` opens the Clip Editor with the pane up and that set loaded.
 - Queue: adding a clip to SouthEast shows "SE + SW (mirror)" and Coverage: Two; adding NorthEast flips coverage to Four live; an invalid pattern (e.g. North only) shows the same warning text the bake logs.
 - Directions dropdown: picking Six on an SE-only set shows three empty placeholder rows (NE, S, N) and `Coverage: Two — missing: NE, S, N`; the slider still sweeps six stops but the preview only mirrors left/right; filling the slots clears the gap readout and the sweep turns through all six members.
-- Viewer with a Six-coverage set + rig: press play, sweep the direction slider — the character turns through all six members, west-side angles visibly mirrored, playhead continuous across the swap. With a South-only set the same sweep changes nothing.
+- Viewer with a Six-coverage set + rig: press play, sweep the direction slider — the character turns through all six members, west-side angles visibly mirrored, playhead continuous across the swap **with no hitch** (single registry, §3e). With a South-only set the same sweep changes nothing.
+- Edit a slot in the Inspector while the panel is open, then undo — the queue and viewer track both changes without reopening the set.
+- Queue a clip from a different rig — that row warns inline naming the clip; the other rows keep previewing.
 - Unit Context: pick "<Unit> · Moving" — set, rig, and turn granularity load in one click and match what Play mode shows for that unit walking.
 - `UnitSO.maxHealth` change → rebake → spawned unit's `Health` matches the blob value, not the old prefab number; a `UnitSO.rig` that disagrees with the prefab's `ActorAuthoring` warns at bake naming the unit.
 - Toolkit `PackagingConformanceTests` green; toolkit fill-pattern fixture green in the package suite.
@@ -151,6 +164,8 @@ The toolkit cannot know `UnitSO`/`ActionType`, so the "set the enum, see the cha
 - [x] Enum picker: **existing `ActionType`/stance mappings via host-context seam** — stamped 2026-08-29.
 - [x] Queue: **UI over the five east-side slots; data shape unchanged** — stamped 2026-08-29.
 - [x] Unit data layer: **extend `UnitSO`** — stamped 2026-08-29.
+- [x] Viewer camera: **fixed front-on, billboard mode, no orbit/zoom** — stamped 2026-08-29 (gap round 2).
+- [x] Playback controls: **play/pause + scrub only** (no speed/loop toggles in v1) — stamped 2026-08-29 (gap round 2).
 - [ ] CreateAssetMenu path: toolkit-only, or keep a game-side alias? (recommend toolkit-only)
 - [ ] Health override: blob always wins vs. non-zero `HealthAuthoring` overrides? (recommend blob always wins)
 - [ ] `UnitSO.rig`/`clipSet`: validate-only v1 confirmed? (recommend yes)
