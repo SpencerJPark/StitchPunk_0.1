@@ -1,6 +1,6 @@
 # Animation Event Timing — Design Spec (StateMachine/AI simplification)
 
-> **Status:** 📝 spec drafted — decisions open, awaiting owner edit
+> **Status:** ✅ decisions stamped 2026-08-29 (owner-approved) — ready to build
 > **Raw source:** [`../Claude/Systems_Gap_Audit_2026-08.md`](../Claude/Systems_Gap_Audit_2026-08.md) area 2
 > **Prerequisites:** [`AnimationToolkitMigration_System.md`](AnimationToolkitMigration_System.md) phases 1–5 (events only exist on toolkit actors), and `Plans/BehaviorCommandSplit_System.md` (spec ready) built **first** — new command arms land in the split-out command classes, not the monolith switch.
 
@@ -26,7 +26,17 @@ Re-time a clip in the Clip Editor and none of these follow. This plan makes auth
 
 `StateMachineSystemGroup` and `CombatSystemGroup` run **before** `AnimationToolkitSystemGroup` in the frame; the toolkit clears and re-emits `AnimEventOutput` during its own update. Consumers ordered earlier therefore read events **one frame late** — the toolkit documents this as its contract.
 
-**Accept the frame.** 16ms at 60fps is invisible on a swing; reordering animation before combat would break the "state machine decides → animation obeys" direction of every other system. Consequence: an event emitted on the toolkit's frame N is acted on at frame N+1, and the buffer is valid until the toolkit's next update — earlier-in-frame consumers read it safely. Record this in `Systems_AI.md` so a future session doesn't "fix" the order. ← DECISION (accepting is the recommendation; the alternative — a second command-apply pass after the toolkit — buys 16ms for real ordering complexity).
+**Accept the frame.** 16ms at 60fps is invisible on a swing; reordering animation before combat would break the "state machine decides → animation obeys" direction of every other system. Consequence: an event emitted on the toolkit's frame N is acted on at frame N+1, and the buffer is valid until the toolkit's next update — earlier-in-frame consumers read it safely. Record this in `Systems_AI.md` so a future session doesn't "fix" the order. ✅ DECIDED 2026-08-29: accept the 1-frame contract (the alternative — a second command-apply pass after the toolkit — buys 16ms for real ordering complexity).
+
+## 2b. Consumption architecture — decided, do not redesign
+
+Evaluated 2026-08-29 against a central event-entity spawner/recycler and a single dispatcher system; both rejected. **No new event infrastructure exists in this plan.** The toolkit's `EventEmissionSystem` is the sole producer; consumption stays decentralized:
+
+- **Pulse ("X just happened") → read the actor's `AnimEventOutput` buffer**, gated on `AnimEventsPending` (chunk-level skip for event-less actors). Consumers only read; `CommandApplySystem` owns the clear — that split is what makes the buffer multi-consumer for free. `AnimEventSoundSystem` is the template; a new consumer is one new small system in its own group, nothing else changes.
+- **Window ("X is happening now") → `AnimEventMask`** (stateless, rebuilt per frame — interrupts close windows for free).
+- **Cross-actor aggregation / must outlive the emitter → a NativeQueue bus** (`DamageBus` is the pattern; single consumer, consume-once).
+
+The Hit flow chains pulse → bus: the buffer event on the attacker *triggers* the existing `DamageBus.raw` enqueue; the bus stays the transport. Event entities are wrong here because a one-frame pulse about a known actor pays their full cost (structural changes, cleanup pass, `ComponentLookup` indirection back to the emitter) for none of their benefit (multi-frame lifetime, own component set); a central dispatcher is wrong because it must be edited for every new consumer domain, forfeiting the enableable-gate chunk skip along the way.
 
 ## 3. New behavior commands
 
@@ -43,8 +53,8 @@ Both carry a **timeout float baked from the SO (0 = none)** as the safety rail; 
 
 `AttackRequestSystem` keeps its shape (armed `AttackRequest`, range/alive re-check, `DamageBus.raw` enqueue) but the trigger changes: instead of `elapsed >= attackBlob.hitTime`, it fires when the attacker's `AnimEventOutput` carries `AnimEvents.Hit` (layer = Action). Player attacks get the same for free — `PlayerAttackSystem` only *starts* swings.
 
-- **Fallback:** if the attack's clip has no Hit event authored (or the unit has no toolkit actor), the `hitTime` timer path remains — `hitTime` becomes the documented fallback, with a bake-time warning when an attack clip lacks the event. ← DECISION: keep-fallback-forever vs delete `hitTime` once all attack clips carry events. *Recommendation: keep it one milestone, then delete — permanent dual paths are how the two vocabularies drifted last time.*
-- **Cooldown:** `PlayerAttackSystem`'s `hitTime + 0.05` floor becomes "cooldown starts at `ClipFinished`" or simply keeps the authored cooldown — ← DECISION, recommend the latter (cooldown is game feel, not sync).
+- **Fallback:** if the attack's clip has no Hit event authored (or the unit has no toolkit actor), the `hitTime` timer path remains — `hitTime` becomes the documented fallback, with a bake-time warning when an attack clip lacks the event. ✅ DECIDED 2026-08-29: **temporary** — keep the fallback one milestone, then delete `hitTime`; permanent dual paths are how the two vocabularies drifted last time.
+- **Cooldown:** ✅ DECIDED 2026-08-29: `PlayerAttackSystem` keeps the **authored cooldown value** (cooldown is game feel, not sync); only the `hitTime + 0.05` floor coupling goes away with the event trigger.
 - Multi-hit attacks (future combos) fall out free: two Hit events on one clip = two enqueues — the `intParam` payload can carry a damage-scale index later.
 
 ## 5. What shrinks
@@ -77,6 +87,9 @@ Both carry a **timeout float baked from the SO (0 = none)** as the safety rail; 
 
 ## Open decisions
 
-- [ ] §2 latency: accept the 1-frame contract (recommended)
-- [ ] §4 hitTime fallback: temporary (recommended) vs permanent
-- [ ] §4 player cooldown source: authored value (recommended) vs ClipFinished
+All stamped 2026-08-29 (owner approved the recommendations; consumption-architecture evaluation in §2b):
+
+- [x] §2 latency: **accept the 1-frame contract** — earlier-in-frame consumers read last frame's events; record in `Systems_AI.md`
+- [x] §4 hitTime fallback: **temporary** — one milestone as documented fallback, then delete
+- [x] §4 player cooldown source: **authored value** — cooldown is game feel, not clip sync
+- [x] §2b consumption pattern: **per-domain consumers on the actor's buffer** — no event entities, no central dispatcher; `AnimEventSoundSystem` is the template
