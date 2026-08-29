@@ -25,17 +25,18 @@ The Phase A/B/C review docs were deleted in the 2026-08-29 cleanup — closed hi
 from git if a decision ever needs tracing. What remains in `Docs\AnimationToolkit\` is live.
 
 **Current state (2026-08-29):** Phase F, A53, A54, A55 and A56 have **compiled and passed the
-gate** — the first real compile of any of it, all having been written with the Editor closed.
-**Zero compile errors. EditMode 696/697, PlayMode 240/240**, discovered counts holding at 697/240.
-A56 (`Amendment_A56_TimelineBinding_Spec.md`) made the timeline row the binding surface: `tag →
-part`, both halves pickers, whole-row tag moves with merge, rig re-tagging from the row, tags
-mandatory at track creation, `T `/`S `/`B ` prefixes removed.
+gate fully green** — the first real compile of any of it, all having been written with the Editor
+closed. **Zero compile errors. EditMode 697/697, PlayMode 240/240.** A56
+(`Amendment_A56_TimelineBinding_Spec.md`) made the timeline row the binding surface: `tag → part`,
+both halves pickers, whole-row tag moves with merge, rig re-tagging from the row, tags mandatory at
+track creation, `T `/`S `/`B ` prefixes removed.
 
-The golden hash has been re-recorded, and four fixtures that outlived the change were repaired
-(see commit `ad8c90cc` for which and why). **The one remaining red test is deliberate:**
-`Conformance_D` is escalated as `Amendment_A57_ConformanceD_HostPathScan.md` and needs an owner
-decision — it bans the literal `Assets/` in any package file, which cannot tell the host's folders
-from the consumer project root the generated-constants destination has to name.
+The golden hash has been re-recorded, and four fixtures that outlived the change were repaired (see
+commit `ad8c90cc` for which and why — one of them, `V24_DoesNotFireForADeclaredRoot`, had been
+passing vacuously on an empty list). `Conformance_D` was narrowed under
+`Amendment_A57_ConformanceD_HostPathScan.md`: it banned the literal `Assets/`, which is every Unity
+project's root and not this game's, so the generated-constants destination could not be spelled. It
+now judges the segment after the root, and was re-proved to still catch a planted host path.
 
 **Still outstanding, and not test-visible:** every existing `ActorAuthoring` lost its `clipSet`,
 every `ClipSetAsset` its `rig`, every `ClipAsset` its `rig` — all three fields are gone, and Phase F

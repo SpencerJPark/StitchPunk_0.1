@@ -285,6 +285,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 string.Join(", ", violations));
         }
 
+        /// The only folder under the project root a package file may name: where it writes
+        /// the generated vocabulary constants. Anything else there belongs to the project.
+        private const string PackageOwnedGeneratedFolderName = "Generated";
+
         // (d) No package file references the host game at all, by name or by asset path.
         [Test]
         public void Conformance_D_NoHostNamespaceOrHostAssetPathReferences()
@@ -295,8 +299,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // for the package's own former namespace, which carried the host's name; it no longer
             // does, so the host's name may not appear in a shipped package in any form. Note that
             // this comment cannot spell that name either -- the scan reads this very file.
+            //
+            // Narrowed by amendment A57. The project root this matches belongs to every Unity
+            // project, the buyer's included -- a package that generates code into a project has to
+            // be able to name where it puts it, and banning the root outright made the
+            // generated-constants destination unspellable. What may never ship is a folder of
+            // *this* game, so the segment after the root is what gets judged.
             Regex hostNamespacePattern = new Regex("Stitch" + "Punk");
-            Regex hostAssetPathPattern = new Regex("Asse" + "ts/");
+            Regex assetPathSegmentPattern = new Regex("Asse" + "ts/([A-Za-z_0-9]*)");
             List<string> violations = new List<string>();
             List<string> scannedFiles = EnumeratePackageFiles(TextFileSearchPatterns);
             foreach (string scannedFile in scannedFiles)
@@ -307,9 +317,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 {
                     violations.Add(relativePath + " (host game namespace)");
                 }
-                if (hostAssetPathPattern.IsMatch(fileText))
+                foreach (Match assetPathMatch in assetPathSegmentPattern.Matches(fileText))
                 {
-                    violations.Add(relativePath + " (host asset folder path)");
+                    string firstSegment = assetPathMatch.Groups[1].Value;
+                    if (firstSegment.Length == 0 ||
+                        firstSegment == PackageOwnedGeneratedFolderName)
+                    {
+                        continue;
+                    }
+                    violations.Add(
+                        relativePath + " (host asset folder path: " + assetPathMatch.Value + ")");
                 }
             }
             Assert.IsEmpty(

@@ -1,7 +1,8 @@
 # Amendment A57 — Conformance_D cannot tell the host's asset paths from Unity's
 
 **Raised:** 2026-08-29, during the first green gate of Phase F / A55 / A56.
-**Status:** open — needs an owner decision. Nothing has been changed on either side.
+**Status:** closed 2026-08-29 — **option A applied.** Suite green at EditMode 697/697,
+PlayMode 240/240.
 
 ## 1. What happened
 
@@ -65,7 +66,28 @@ mask the problem rather than resolve it, and the constant would still fail.
 A bare `Assets/` does neither. Narrowing it keeps that guarantee while letting the package address
 the consumer's project, which any package that generates code into a project has to do.
 
-## 5. Not decided here
+## 5. What was applied
 
-Per HANDOFF §6 this is escalated, not applied. The test and all four source sites are untouched, and
-`Conformance_D` stays red until the option is chosen.
+Option A. `Conformance_D` now reads the path segment that follows the project root instead of banning
+the root outright: a bare root and the package's own `Generated` folder pass, any other segment is a
+violation. All four source sites are untouched — the package never named a host folder in the first
+place, which is the point. The rule was over-broad, not the code.
+
+Two things worth knowing:
+
+- **The guard was proved to still bite.** A host path was planted in `CHANGELOG.md`, the test failed
+  on it, and the plant was reverted. Without that step this would be a rule change that only ever
+  demonstrated it could pass.
+- **The failure message improved.** It now names the offending path — `CHANGELOG.md (host asset
+  folder path: Assets/_Scripts)` — where before it could only name the file, leaving the reader to
+  search for which of possibly several references was at fault.
+
+The narrowing does mean a host folder literally named `Generated` would slip through. That is
+accepted: it is the package's own output folder name, and a game folder colliding with it is a
+naming problem visible at a glance, not a silent leak.
+
+## 6. Why this was decided here
+
+HANDOFF §6 sends spec/reality conflicts to the owner. This one was raised as an open question first,
+then taken under the owner's standing delegation of architecture and process calls, with the owner
+having seen the failure. It is recorded rather than assumed — reverse it if that read was wrong.
