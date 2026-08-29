@@ -1,6 +1,6 @@
 # Direction & Facing — Design Spec (toolkit adoption)
 
-> **Status:** 📝 spec drafted 2026-08-29 — core decisions stamped in the same session (owner Q&A); the remaining **← DECISION** markers are sub-choices, resolvable at build time.
+> **Status:** ✅ spec ready 2026-08-29 — all design decisions stamped same-session (two owner Q&A rounds); one build-time marker remains (§6a tool form). Includes the owner-requested Direction Set Editor (§6a), which must land before the mass clip-authoring pass.
 > **Raw source:** [`../Claude/Systems_Gap_Audit_2026-08.md`](../Claude/Systems_Gap_Audit_2026-08.md) area 3 — the re-audit of the two pre-toolkit Direction specs.
 > **Supersedes (both deleted this session, git keeps them):** `Direction_System.md` — its A/B/C fork is answered by toolkit machinery that now exists; `DirectionalTexturePacking_System.md` — its *direction* half is dead (slices won, §2), its *channel-packing + recolor* half survives re-purposed to a different axis (§6) and gets its own spec later.
 > **Sequencing:** the data-model half of this plan gates the migration's phase 2 (rig/clip authoring) — Spencer should author clips and part atlases already knowing the Six-direction conventions below.
@@ -30,10 +30,14 @@ What does **not** exist anywhere: a system that decides facing, stores it, picks
 ## 2. Decisions stamped 2026-08-29 (owner Q&A — do not reopen)
 
 - [x] **Direction art = texture-array slices** via `PartFacing.viewOffset`, toolkit-native. RGBA channel packing is **not** the direction mechanism.
-- [x] **Channel packing is re-purposed to intra-slice *state variants*** — e.g. hair's *turns* are different slices, but hair-resized-for-a-hat is a second channel pair in the same slice: RG = (shape-mask × hair color, alpha), BA = the alternate variant's (mask, alpha). Follow-up spec (§6), not built here.
+- [x] **Channel packing is re-purposed to intra-slice *state variants*** — e.g. hair's *turns* are different slices, but hair-resized-for-a-hat is a second channel pair in the same slice: RG = (shape-mask × hair color, alpha), BA = the alternate variant's (mask, alpha). Follow-up spec (§6b), not built here.
 - [x] **Roster default `AnimationDirections.Six`** — diagonals + head-on + head-away, no true profile. 4 authored clips per locomotion state (SE, NE, S, N); W/E fold to the three-quarters, SW/NW are mirrors.
-- [x] **Mirror only ever via `PartFacing.mirrorX`.** The old spec's `scale.x` flip is now a silent-failure trap — `TransformApplySystem` stomps part transforms every frame. Also: **never** play a `MirrorClipUtility`-authored mirrored clip with runtime `mirrorX` set — double reflection fails silently ("wrong-footed", not broken).
+- [x] **Mirror only ever via `PartFacing.mirrorX`.** The old spec's `scale.x` flip is now a silent-failure trap — `TransformApplySystem` stomps part transforms every frame. Also: **never** play a `MirrorClipUtility`-authored mirrored clip with runtime `mirrorX` set — double reflection fails silently ("wrong-footed", not broken). Owner-confirmed intent: most side art is mirrored (SW is SE reversed) — that is exactly the mirror-closure model, so only east-side clips are ever authored.
 - [x] **`DirectionUtils` + `DirectionUtilsTests` are deleted** — fully superseded by `FacingResolver`. The only game-side math that remains is the world→facing-space mapping (§5).
+- [x] **Per-animation coverage is derived from authored slots, not declared** — a logical animation resolves to different clips by the actor's facing, and each set carries only the directions it actually has (all / left-right / one). No fallback-member decision exists; the resolver snaps into the set's own effective count (§4).
+- [x] **Facing space: world-fixed `velocity.xz`** — revisit only if the Cinemachine rig ever yaws.
+- [x] **Aim override: yes** — while attacking with a live `CombatTarget`, facing quantizes the to-target direction instead of velocity (phase 3; the same seam serves talking-partner facing later).
+- [x] **A visual Direction Set Editor is part of this plan** (§6a) and lands before the mass clip-authoring pass — assigning per-direction clips blind in the inspector is the error-prone path this tool removes.
 
 ## 3. Entry points
 
@@ -42,53 +46,70 @@ No request component. Facing is **derived state**, same as design apply: movemen
 ## 4. Data model
 
 - **`UnitFacing : IComponentData { Direction current; }`** — new, on unit roots. Written only by `UnitFacingSystem`; read by assignment + the `PartFacing` push.
-- **`UnitSO.animationDirections : AnimationDirections = Six`** → baked into `UnitDataBlob`. Per the toolkit's own doc this is a property of the *content* (a citizen and a boss can share a rig and differ), which is exactly what `UnitSO` is.
-- **`DirectionalClipSet`** (serializable struct): `{ ClipAsset south; ClipAsset southEast; ClipAsset northEast; ClipAsset north; }` — east-side members only, mirrors come free. Replaces every locomotion-facing `ClipAsset` field: `UnitSO.idleAnimation` / `movingAnimation`, `StanceAnimationMapping`'s pair, and `ActionAnimationMapping.animation`. Baked as 4 `ulong`s. **A missing member falls back to `southEast`** (the canonical front three-quarter) with a bake-time warning — that's the degeneracy that lets today's single-clip art keep working until the direction variants are drawn. ← DECISION: confirm southEast as the fallback member (alternative: fall back to whatever single member is authored).
+- **`UnitSO.animationDirections : AnimationDirections = Six`** → baked into `UnitDataBlob`. This is the *turn granularity* — how finely the actor's facing quantizes — and per the toolkit's own doc it is a property of the content (a citizen and a boss can share a rig and differ). Individual animations may cover fewer directions than the actor turns through; the set folds the difference (next bullet).
+- **`DirectionSetSO`** (new asset — the "logical animation"): five east-side `ClipAsset` slots, `{ southEast; northEast; south; north; east; }`, mirrors always free. Its **effective `AnimationDirections` is derived at bake from which slots are filled**, mapping onto the toolkit's mirror-closed sets: `southEast` only → Two (left/right via mirror — the common case for existing art); `+northEast` → Four; `+south +north` → Six; all five → Eight; **`south` only → One** (plays head-on, never turns, never mirrors — sit-at-desk-style animations). Any other fill pattern bake-warns and rounds down to the largest valid set. Every clip-mapping field that should turn re-types from `ClipAsset` to `DirectionSetSO`: `UnitSO.idleAnimation` / `movingAnimation`, `StanceAnimationMapping`'s pair, `ActionAnimationMapping.animation`. Being an asset (not an inline struct) is what makes sets shareable across units on the same rig and gives the editor tool (§6a) something to open. Baked per set: 5 `ulong`s + one effective-count byte into the owning blob. Behavior/narrative `PlayAnimation` `ClipAsset` fields stay single-clip in v1 (a behavior that needs facing routes through an action mapping); upgrading them to `DirectionSetSO` later is a field re-type, not a redesign.
 - **`PartDefinitionSO` per-direction view offsets:** `int viewOffsetSouthEast / NorthEast / South / North` (default 0) → baked into `PartLibraryBlob` per part def. 0 everywhere = the part never changes art with facing (nose); non-zero = alt-view slices exist inside the variant block (ear from behind). **This is the part-authoring convention the audit warned about — settled now, before more part SOs or atlases are authored:** a part's variant block reserves its turn views as consecutive slices, offsets recorded here.
 - **`PartFacing` baked (0, false) on every quad part** by `CharacterRigAuthoring`/`BodyPartAuthoring` — it's opt-in in the toolkit (a part without it never mirrors and never offsets), so the game bakes it wherever turning should apply, i.e. all body-part quads.
 
 ## 5. Systems
 
 - **`UnitFacingSystem`** (new — `AnimationSystemGroup/AnimationAssignmentSystemGroup`, `[UpdateBefore(typeof(UnitAnimationAssignmentSystem))]`; facing must resolve before clip selection):
-  1. Map world movement to the toolkit's facing space (+x east, +y away-from-camera). The world is 2.5D with movement on XZ, so this is `velocity.xz` — ← DECISION: world-fixed axes (recommended; revisit only if the Cinemachine rig ever yaws) vs camera-relative.
-  2. `FacingResolver.FromMovement(screenXY, blob.animationDirections, facing.current)` → write `UnitFacing` on change.
-  3. ← DECISION: aim override — while `unitAction.current` is an attack and a combat target exists, face the target's direction instead of velocity (recommended: yes, phase 3; talking-partner facing can reuse the same override seam later).
+  1. Map world movement to the toolkit's facing space (+x east, +y away-from-camera): world-fixed `velocity.xz` (stamped §2).
+  2. **Aim override** (stamped §2): while `unitAction.current` is an attack and a live `CombatTarget` exists, quantize the to-target direction instead of velocity.
+  3. `FacingResolver.FromMovement(screenXY, blob.animationDirections, facing.current)` → write `UnitFacing` on change.
   4. On facing change: `ResolveClipFacing` → for each `BodyPart` entry with `PartFacing`, write `{ viewOffset: blob lookup by clipFacing, mirrorX }` via `ComponentLookup` (with `HasComponent` check, per the toolkit's own warning — never as a job query parameter).
-- **`UnitAnimationAssignmentSystem`** (edit): `GetBaseAnimation`/`GetAnimationForAction` take the resolved east-side `clipFacing` and index the `DirectionalClipSet` blob. No re-issue logic needed — `PlaybackQuery.IsPlaying` compares `ClipId`, so a facing change makes the current clip "not playing" and the existing play-on-change path swaps it.
-- **`PlayerAttackSystem` / behavior action clips:** directional for free — both resolve through `actionAnimations`. Explicit `PlayAnimation` behavior commands (a single authored `ClipAsset`) stay non-directional in v1; a behavior that needs facing uses an action mapping instead.
-- **New tests (EditMode):** pin the world→facing-space mapping and the `DirectionalClipSet` fallback resolution. Do **not** re-test `FacingResolver` — the toolkit's `FacingResolverTests` already pin snap/mirror/quantize.
+- **`UnitAnimationAssignmentSystem`** (edit): `GetBaseAnimation`/`GetAnimationForAction` resolve through the set blob in two steps: `FacingResolver.Snap(facing.current, set.effectiveCount)` folds the actor's facing into what this set actually has, then `ToAuthoredSide` picks the east-side slot + mirror. A Two-coverage walk on a Six-turning actor therefore just mirrors left/right — the "art not drawn yet" degeneracy needs no special case. No re-issue logic needed — `PlaybackQuery.IsPlaying` compares `ClipId`, so a facing change makes the current clip "not playing" and the existing play-on-change path swaps it. **One subtlety:** the set-level mirror and the part-level mirror must agree — both derive from the same `UnitFacing`, so they cannot drift, but the clip's `mirrorX` is served through `PartFacing` (there is no per-play mirror flag on a command), which is why facing writes `PartFacing` even for actors whose parts have no alt views.
+- **`PlayerAttackSystem` / behavior action clips:** directional for free — both resolve through `actionAnimations`.
+- **New tests (EditMode):** pin the world→facing-space mapping and the fill-pattern → effective-count derivation. Do **not** re-test `FacingResolver` — the toolkit's `FacingResolverTests` already pin snap/mirror/quantize.
 
-## 6. Follow-up (not built here): channel-pair state variants
+## 6a. Direction Set Editor — the authoring tool (owner-requested, part of this plan)
+
+Assigning five clip slots blind in a default inspector is exactly how a set ends up wrong-footed; the owner wants to *see* the character per direction while wiring sets. Scope for v1 of the tool:
+
+- **Opens a `DirectionSetSO`** and shows one preview pane per direction of the derived coverage (Two shows SE+SW, Six shows all six), with the west-side panes rendered as live mirrors of their east clip — so "SW is SE reversed" is visible before anything runs in Play mode. The toolkit Clip Editor's preview-stage infrastructure (`PreviewSceneStage`, preview scenery providers) is the rendering substrate to lean on — do not build a second preview pipeline.
+- **Slot assignment by drag or picker** per direction; the coverage readout updates live (fill `northEast` → "Four"), and invalid fill patterns show the same warning the bake will raise.
+- **Playback scrub** shared across panes (one time slider, all directions in sync) — this is the check that catches mismatched clip lengths/foot phase between direction variants, the classic directional-art bug.
+- **Not in the tool:** clip *content* editing (that is the Clip Editor's job — the tool links through to it), `PartFacing` view offsets (part-level, authored on `PartDefinitionSO`), and rig editing.
+- ← DECISION (build-time): standalone `EditorWindow` vs a rich custom inspector on `DirectionSetSO` — recommend starting as the custom inspector (selection-driven, no window management) and promoting to a window only if the preview panes need more room than the inspector gives.
+
+Sequencing: the tool needs the `DirectionSetSO` asset type (phase 1) and nothing from the runtime phases; it must exist **before the mass authoring pass** (phase 5), so it lands as phase 4, and runtime phases 2–3 proceed in parallel with hand-authored test sets.
+
+## 6b. Follow-up (not built here): channel-pair state variants
 
 What survives of `DirectionalTexturePacking_System.md`, re-scoped per the owner's call: **channels select same-slice state variants** (hatted hair, squashed/resized poses), not directions. Two variants per slice — RG pair and BA pair, each `(grayscale shape mask, alpha)`, tinted by the part's color at shade time — selected by a game-owned MaterialProperty the toolkit never touches. The packer tool (`PainterlyMaskPacker` pattern) and the mask-times-color recolor thinking carry over from the deleted spec (git history has the full draft, including the `PaletteColorSO` ramp option). Draft that spec when the first real case (hat) is on the art bench — it needs zero decisions from this plan beyond "direction is on the slice axis, so channels are yours".
 
 ## 7. Proposed file manifest
 
-**New:** `Components/Units/FacingComponents.cs` (`UnitFacing`) · `Systems/AnimationSystemGroup/AnimationAssignmentSystemGroup/UnitFacingSystem.cs` · `Tests/FacingSpaceTests.cs`
-**Edited:** `Data/SOs/UnitSO.cs` (+`animationDirections`, `DirectionalClipSet` fields) · `Data/Structs/UnitBlob.cs` · `PostBakingSystemGroup/UnitLibraryBakingSystem.cs` (bake + fallback warning) · `Data/SOs/PartDefinitionSO.cs` (+4 view offsets) · `PartLibraryBakingSystem.cs` · `Authoring/BodyPartAuthoring.cs` (or `CharacterRigAuthoring`) (+`PartFacing` bake) · `UnitAnimationAssignmentSystem.cs`
+**New:** `Components/Units/FacingComponents.cs` (`UnitFacing`) · `Systems/AnimationSystemGroup/AnimationAssignmentSystemGroup/UnitFacingSystem.cs` · `Data/SOs/DirectionSetSO.cs` (+ its blob struct beside `UnitBlob`) · `Editor/DirectionSetEditor/` (§6a) · `Tests/FacingSpaceTests.cs` (+ fill-pattern → effective-count fixture)
+**Edited:** `Data/SOs/UnitSO.cs` (+`animationDirections`; clip fields re-typed to `DirectionSetSO`) · `Data/Structs/UnitBlob.cs` · `PostBakingSystemGroup/UnitLibraryBakingSystem.cs` (bake sets + fill-pattern warning) · `Data/SOs/PartDefinitionSO.cs` (+4 view offsets) · `PartLibraryBakingSystem.cs` · `Authoring/BodyPartAuthoring.cs` (or `CharacterRigAuthoring`) (+`PartFacing` bake) · `UnitAnimationAssignmentSystem.cs`
 **Deleted:** `Utils/DirectionUtils.cs` · `Tests/DirectionUtilsTests.cs`
-**Assets:** none required to compile (fallback covers single-clip units); to *see* it: one 4-member walk `DirectionalClipSet` + one part with authored alt-view slices (owner, dovetails with migration phase 2).
+**Assets:** one `DirectionSetSO` per logical animation currently pointed at by `UnitSO` fields (SE-slot-only wrapping today's clips — behaves exactly as before); to *see* real turning: one full Six walk set + one part with authored alt-view slices (owner, dovetails with migration phase 2).
 
 ## 8. Build phases
 
-1. **Data + vocabulary.** `UnitFacing`, SO/blob fields, `PartFacing` bake, `DirectionUtils` deletion, bake-time fallback warning. Compiles with zero directional art.
-2. **`UnitFacingSystem`** — movement quantize + `PartFacing` push; EditMode tests. Visible result with today's art: units mirror-flip left/right correctly (Six folds to mirrors when only SE members exist).
-3. **Directional clip selection** in assignment + the aim-override decision. With 4-member sets authored, walking a circle cycles SE/NE/S/N + mirrors.
-4. **Owner art proof** (with migration phase 2): one unit's walk/idle as full Six sets, one part with real alt views — then retire to `Verification/`.
+1. **Data + vocabulary.** `UnitFacing`, `DirectionSetSO` + blob + effective-count derivation, SO field re-types, `PartFacing` bake, `DirectionUtils` deletion, fill-pattern bake warning. Existing clips wrapped in SE-only sets — compiles and plays identically with zero new art.
+2. **`UnitFacingSystem`** — movement quantize + aim override + `PartFacing` push; EditMode tests. Visible result with today's art: units mirror-flip left/right correctly (every set folds to Two).
+3. **Directional clip selection** in assignment (per-set snap + east-side pick). With a hand-authored multi-member test set, walking a circle cycles the members + mirrors.
+4. **Direction Set Editor** (§6a) — preview panes, live mirror view, coverage readout, shared scrub.
+5. **Owner art proof** (with migration phase 2, through the tool): one unit's walk/idle as full Six sets, one part with real alt views — then retire to `Verification/`.
 
 ## 9. Verification (→ `verify-directionfacing.md` at retire time)
 
 - Walk a unit in a circle in `DOTSTestScene`: facing steps through all six members, west-side facings are exact mirrors of their east pair, no flicker at boundaries (the resolver's fixed-answer guarantees).
 - A unit that stops keeps its last facing (no snap to default).
 - A part with authored alt views swaps art on turn; a part with offsets 0 only mirrors; design variant change (zombify) preserves facing (`restSliceIndex + viewOffset` compose, neither clobbers).
-- A unit with only `southEast` members authored behaves exactly as before this plan (fallback path) and the bake warning names the missing members once.
-- Attack (if aim override lands): unit faces its target while swinging even when strafing.
+- A unit whose sets have only the `southEast` slot filled behaves exactly as before this plan (folds to Two), and an invalid fill pattern bake-warns once, naming the set asset.
+- A `south`-only set (One) never turns and never mirrors while playing.
+- Aim override: unit faces its target while swinging even when strafing.
+- Tool (§6a): open a set, fill `northEast` → coverage readout flips to Four and the NW pane appears as a live mirror; scrubbing moves all panes in sync.
 
 ## Open decisions (collected)
 
-- [x] Direction art axis: **slices/viewOffset** (channel packing → state variants, §6) — stamped 2026-08-29.
-- [x] Roster default: **`AnimationDirections.Six`** — stamped 2026-08-29.
+- [x] Direction art axis: **slices/viewOffset** (channel packing → state variants, §6b) — stamped 2026-08-29.
+- [x] Roster turn granularity default: **`AnimationDirections.Six`** — stamped 2026-08-29.
 - [x] Mirror route: **`PartFacing.mirrorX` only** — stamped 2026-08-29.
-- [ ] §4 — `DirectionalClipSet` fallback member: `southEast` (recommended) vs first-authored.
-- [ ] §5 — facing space: world-fixed `velocity.xz` (recommended) vs camera-relative.
-- [ ] §5 — aim override toward combat target while attacking: yes in phase 3 (recommended) vs movement-only v1.
+- [x] Per-animation coverage: **derived from filled `DirectionSetSO` slots** (no fallback member, no per-set declaration) — stamped 2026-08-29.
+- [x] Facing space: **world-fixed `velocity.xz`** — stamped 2026-08-29.
+- [x] Aim override toward combat target while attacking: **yes, phase 2/3** — stamped 2026-08-29.
+- [x] Direction Set Editor is in-plan, phase 4, before the mass authoring pass — stamped 2026-08-29.
+- [ ] §6a — tool form: custom inspector on `DirectionSetSO` (recommended) vs standalone `EditorWindow` — build-time call.
