@@ -1,7 +1,16 @@
 # Behavior Command Split — Design Spec
 
-> **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
+> **Status:** ✅ decisions stamped + currency-checked 2026-08-29 — ready to build. Builds **before** `../NewPlans/AnimationEventTiming_System.md` (its two new commands land in the split-out layout).
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #9 — "do it as the first commit of RangedCombat, or immediately before"
+
+## 0. Currency check (2026-08-29) — what changed since drafting
+
+Every claim below was re-verified against the working tree; the core surgery is unchanged, but three things landed since July that the extractor must know:
+
+- **The roster grew to 13 implemented arms.** `PlayActionAnimation`, `RequestSocialResponse`, `StopAnimation`, `PlaySound` all post-date this spec (P3b social + P4 sound + migration). File is now 636 lines / 31 KB. The phases in §9 are updated to the current roster.
+- **The animation seam is the toolkit's, not `AnimationRequest`.** The migration cutover (commits 4007c5a4 / 0112a838) rewrote all three animation arms to write the `AnimationCommand` buffer via `AnimationCommandUtil.Play/Stop` + `AnimationCommandPending`. The arms are already thin wrappers over that util — extract them verbatim; do not touch the util.
+- **`BehaviorCommandCatalog` (Utils/) now exists and owns blocking truth.** `IsImplemented`/`IsBlocking` are consulted by bake validation, and `BehaviorCommandCatalogTests` pins both sets. Handlers must NOT re-declare blocking in a `CommandResult` — that would be a second source of truth. The handler return carries only *completed/advance*; blocking-ness stays the catalog's answer. Extraction changes neither set, so the catalog and its test are untouched (a diff there means the refactor changed behavior).
+- **Re-verified, still true:** `BehaviorInterruptSystem.RunCleanupCommand` duplicates the `ModifyMotivation` / `ReleaseInteraction` / `StopAnimation` arms verbatim — §5's dedup target. The Item bookkeeping is still inline in `RunRequestPickup`. `WaitTime` gained qualifier-as-early-exit (shares `BehaviorQualifiers.Evaluate` with `LoopUntil`), which strengthens the case for those two sharing a file.
 
 ---
 
@@ -29,9 +38,9 @@ Utils/BehaviorCommands/            ← static, Burst-compatible, no state
 
 - Handlers are `static` methods taking a `BehaviorCommandContext` (a plain struct bundling the job's `[ReadOnly]`/writable lookups + blob refs + dt) — the same shape `BehaviorQualifiers.Evaluate` already takes lookups. No managed state, `[BurstCompile]`-transparent (static methods called from the Burst job inline fine).
 - The job keeps: phase machine (Execute → Complete), command-index advance, timeout/iteration guards, ECB plumbing. The switch body per arm becomes ~3 lines: call handler, interpret its blocking/advance result.
-- Return contract: `CommandResult { bool blocking; bool completed; }` (or two bools) — pin the exact semantics from the current arms during extraction, do not redesign them.
+- Return contract: completed/advance only — blocking-ness is `BehaviorCommandCatalog.IsBlocking`'s answer (see §0), never re-declared per handler. Pin the exact advance semantics from the current arms during extraction, do not redesign them.
 
-**← DECISION:** one file per command vs grouped by family (movement / combat / animation / social / item). *Recommendation: grouped by family — ~6 files instead of 15, and families share private helpers (e.g., animation-layer clears).*
+✅ DECIDED 2026-08-29: **grouped by family** — ~6 files instead of 15, and families share private helpers. Current-roster grouping: Movement (Approach, FleeFromTarget) · Wait/Loop (WaitTime, LoopUntil — share `BehaviorQualifiers`) · Animation (PlayAnimation, PlayActionAnimation, StopAnimation — all thin `AnimationCommandUtil` wrappers) · Item (RequestPickup + equip/attach bookkeeping) · Requests (RequestAttack, RequestSocialResponse, ModifyMotivation) · Misc (ReleaseInteraction, PlaySound). Exact file boundaries are the extractor's call; the constraint is that every arm the interrupt system duplicates ends up shared. The AnimationEventTiming plan's `WaitForAnimEvent`/`WaitForClipFinished` land in the Wait/Loop family file (its manifest's "homes per the Split plan's layout" resolves here).
 
 ## 5. Systems
 
@@ -48,11 +57,11 @@ Utils/BehaviorCommands/            ← static, Burst-compatible, no state
 
 Extraction is mechanical but must be **verifiable per step** — one command family per commit, compile + smoke-play between each:
 
-1. Context struct + the two simplest fire-and-advance families (Animation, Motivation).
+1. Context struct + the simplest fire-and-advance arms (Animation family, ModifyMotivation, ReleaseInteraction, PlaySound).
 2. Movement family (Approach, FleeFromTarget) — the blocking semantics are the risk zone; extract verbatim.
-3. Combat + Social + Item families (RequestAttack, RequestSocialResponse, RequestPickup + the equip/attach bookkeeping).
-4. LoopUntil/WaitTime + qualifier wiring (already half-external in `BehaviorQualifiers`).
-5. `BehaviorInterruptSystem` reuses handlers; delete its duplicated arms.
+3. Requests + Item (RequestAttack, RequestSocialResponse, RequestPickup + the equip/attach bookkeeping).
+4. Wait/Loop family (WaitTime incl. its qualifier early-exit, LoopUntil) — qualifier wiring already half-external in `BehaviorQualifiers`.
+5. `BehaviorInterruptSystem` reuses the phase-1 handlers (ModifyMotivation, ReleaseInteraction, StopAnimation); delete its duplicated arms.
 
 ## 10. Verification
 
@@ -63,5 +72,7 @@ This is the highest-regression-risk plan in the batch precisely because it "chan
 
 ## Open decisions (collected)
 
-- [ ] §2 — file granularity: per-family (recommended) vs per-command.
-- [ ] §10 — include the PlayMode interpreter fixture in this plan vs defer to the FeatureIsolation plan's test spine.
+All stamped 2026-08-29 (owner approved; details inline):
+
+- [x] §2 — file granularity: **per-family** (~6 files; grouping listed at the §2 stamp).
+- [x] §10 — PlayMode interpreter fixture: **include in this plan.** The split is what makes it writable, and the AnimationEventTiming plan builds two new *blocking* commands immediately after — command-index progression is exactly the invariant they'll lean on. One fixture, phase-machine progression only; no coverage-chasing beyond it.
