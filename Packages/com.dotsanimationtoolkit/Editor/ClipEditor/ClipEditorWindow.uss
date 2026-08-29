@@ -62,13 +62,13 @@
     margin-right: 4px;
 }
 
-/* The tabs share the top bar with the clip set and rig fields, so they need to read as a group
-   apart from them rather than as four more bar actions. A margin does that where the -1px overlap
-   inside the run says the four belong together. */
+/* The tabs share the top bar with the clip set and rig fields. Flush against Edit Prefab, not set
+   apart from it: the -1px carries the same shared-edge trick .clip-editor__bar-action uses, so the
+   strip continues the run rather than opening a gap in it. */
 .clip-editor__tab-strip {
     flex-direction: row;
     align-items: stretch;
-    margin-left: 16px;
+    margin-left: -1px;
 }
 
 /*
@@ -181,47 +181,22 @@
 }
 
 /*
- * The bake pane covers the dock rather than replacing it.
+ * Every tab that is not the Clip Editor: a pane covering the dock rather than replacing it.
  *
  * Switching by display:none on the dock would be simpler and is the wrong trade. A hidden
  * TwoPaneSplitView still gets a geometry pass, at zero by zero, and a split that clamps its fixed
  * pane against a height of nothing keeps that number: you come back to a collapsed pane and no
  * handle to drag it out with. Covering touches nothing, so the timeline, the preview and all three
- * splits are exactly as you left them when you switch back — which is the point of the tab.
+ * splits are exactly as you left them when you switch back — which is the point of the tabs.
  *
  * The background is opaque for the same reason it is hardcoded: this is the ground the dock would
  * otherwise show through, and every other surface in this window picks its greys the same way.
+ *
+ * One rule for all of them, not one per pane. There were three byte-identical copies before the
+ * fourth tab arrived, which is three chances for one to drift into a pane that covers the dock
+ * slightly differently from its neighbours.
  */
-.clip-editor__vat-bake-pane {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    background-color: rgb(56, 56, 56);
-}
-
-/*
- * Same shape as .clip-editor__vat-bake-pane above, and for the same reason: a TwoPaneSplitView
- * hidden with display:none is laid out at zero by zero and comes back collapsed with no handle
- * to drag it open again. Covering the dock with an absolute-positioned pane leaves its geometry
- * untouched underneath, so closing the New Rig flow costs nothing.
- */
-.clip-editor__new-rig-pane {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    background-color: rgb(56, 56, 56);
-}
-
-/*
- * The 2D Direction Sets pane. Same shape and same reason as the two above — covering the dock
- * rather than hiding it is what keeps the timeline, the preview and all three splits exactly where
- * they were when the toggle goes back off.
- */
-.clip-editor__direction-sets-pane {
+.clip-editor__cover-pane {
     position: absolute;
     left: 0;
     right: 0;

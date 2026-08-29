@@ -7,7 +7,7 @@ area: code
 
 ## Goal
 
-Confirm the Clip Editor's four exclusive tabs, the viewport tools now floating over the preview, and
+Confirm the Clip Editor's five exclusive tabs, the viewport tools now floating over the preview, and
 that VAT Bake and 2D Direction Sets read the window's clip set and rig rather than holding their own.
 Spec: [`ClipEditorTabs_System.md`](ClipEditorTabs_System.md). Built and gated this session — EditMode
 765/765, PlayMode 241/241, console clean. Everything below marked `[ ]` needs the Editor on screen.
@@ -72,7 +72,10 @@ the owner asked for in the first place.
 ### Tabs (owner, needs the Editor)
 
 - [ ] Open the Clip Editor: the top bar carries Clip Set / New Set / Rig / Edit Prefab as before,
-      then the four tabs, then the ⚠ badge — with **Clip Editor** lit.
+      then the five tabs flush against Edit Prefab with no gap, then the ⚠ badge — with **Clip
+      Editor** lit.
+- [ ] **Cutscene Editor** is a placeholder: clicking it covers the dock with a pane that says so.
+      It must not simply reveal the clip editor with the wrong tab lit.
 - [ ] Each tab shows exactly its own pane. No two panes visible at once.
 - [ ] **Click the lit tab.** It must stay lit and nothing must change — the failure to look for is
       the window going blank, which is what a plain toggle would do.

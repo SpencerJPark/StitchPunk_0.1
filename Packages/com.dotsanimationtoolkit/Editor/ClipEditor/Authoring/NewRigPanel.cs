@@ -19,7 +19,7 @@ namespace DotsAnimationToolkit.Editor
     /// <strong>An element hosted in a cover pane, following <c>VatBakePanel</c>'s shape.</strong>
     /// <see cref="ClipEditorWindow.ShowNewRigTab"/> shows and hides it the same way
     /// <c>ShowVatBakeTab</c> shows and hides that panel — an absolutely positioned pane over the
-    /// dock, never a <c>display:none</c> swap, for the reason <c>.clip-editor__new-rig-pane</c>'s
+    /// dock, never a <c>display:none</c> swap, for the reason <c>.clip-editor__cover-pane</c>'s
     /// USS comment gives: a hidden <c>TwoPaneSplitView</c> is laid out at zero by zero and comes
     /// back collapsed with no handle to drag it open again.
     /// </para>

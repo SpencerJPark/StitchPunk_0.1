@@ -10,6 +10,7 @@
             <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
             <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip">
                 <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Editor" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-new-rig" text="New Rig" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-direction-sets" text="2D Direction Sets" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab"/>
@@ -130,9 +131,10 @@
                     </ui:ScrollView>
                 </ui:VisualElement>
             </ui:TwoPaneSplitView>
-            <ui:VisualElement name="vat-bake-pane" class="clip-editor__vat-bake-pane clip-editor--hidden"/>
-            <ui:VisualElement name="new-rig-pane" class="clip-editor__new-rig-pane clip-editor--hidden"/>
-            <ui:VisualElement name="direction-sets-pane" class="clip-editor__direction-sets-pane clip-editor--hidden"/>
+            <ui:VisualElement name="vat-bake-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
+            <ui:VisualElement name="new-rig-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
+            <ui:VisualElement name="direction-sets-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
+            <ui:VisualElement name="cutscene-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

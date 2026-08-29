@@ -309,11 +309,14 @@ namespace DotsAnimationToolkit.Editor
         private ClipEditorTab activeTab = ClipEditorTab.ClipEditor;
 
         /// <summary>
-        /// The four tab toggles, indexed by <see cref="ClipEditorTab"/>. Held rather than re-queried
-        /// because every switch has to write the three that did not change, and a lookup miss would
+        /// The tab toggles, indexed by <see cref="ClipEditorTab"/>. Held rather than re-queried
+        /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[4];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[5];
+
+        /// <summary>The Cutscene Editor's cover pane. A placeholder — see <see cref="ShowCutsceneTab"/>.</summary>
+        private VisualElement cutscenePane;
 
         /// <summary>Guards the re-entry a tab switch causes by assigning the other toggles' values.</summary>
         private bool isApplyingTab;
@@ -1131,6 +1134,7 @@ namespace DotsAnimationToolkit.Editor
             directionSetsPane = rootVisualElement.Q<VisualElement>("direction-sets-pane");
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
             newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
+            cutscenePane = rootVisualElement.Q<VisualElement>("cutscene-pane");
 
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
             viewportOverlay = rootVisualElement.Q<VisualElement>("viewport-overlay");
@@ -1829,6 +1833,9 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
                 "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
                 + "opens on, and what the other three tabs are drawn over.");
+            BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
+                "Not built yet — the tab is here so the shape of the window is settled before the "
+                + "editor that fills it is.");
             BindTab(ClipEditorTab.NewRig, "tab-new-rig",
                 "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
                 + "targets, and optionally point this clip set at the result.");
@@ -1900,6 +1907,7 @@ namespace DotsAnimationToolkit.Editor
             ShowNewRigTab(activeTab == ClipEditorTab.NewRig);
             Show2DDirectionSetsTab(activeTab == ClipEditorTab.DirectionSets);
             ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
+            ShowCutsceneTab(activeTab == ClipEditorTab.CutsceneEditor);
 
             // The overlay's controls only mean anything while looking at the 3D area, and the cover
             // panes are drawn over the whole body — so on any other tab it is underneath one of them
@@ -1913,12 +1921,41 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Shows or hides the Cutscene Editor's placeholder pane.
+        /// </summary>
+        /// <remarks>
+        /// <strong>A pane that says it is empty, not an empty pane.</strong> Every other tab hides
+        /// all the covers and reveals the dock; a Cutscene Editor that did the same would show the
+        /// clip editor with the wrong tab lit, which reads as a bug rather than as unbuilt. One
+        /// label costs nothing and is honest. Replace the whole method when the editor exists.
+        /// </remarks>
+        private void ShowCutsceneTab(bool isShown)
+        {
+            if (cutscenePane == null)
+            {
+                return;
+            }
+
+            if (isShown && cutscenePane.childCount == 0)
+            {
+                Label placeholderLabel = new Label(
+                    "Cutscene Editor — not built yet.");
+                placeholderLabel.AddToClassList(HeadingUssClassName);
+                placeholderLabel.style.marginLeft = 10f;
+                placeholderLabel.style.marginTop = 10f;
+                cutscenePane.Add(placeholderLabel);
+            }
+
+            cutscenePane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        /// <summary>
         /// Shows or hides the VAT bake tab over the editor.
         /// </summary>
         /// <remarks>
         /// <para>
         /// <strong>The pane covers the dock; it does not replace it.</strong> The reasoning is in
-        /// <c>.clip-editor__vat-bake-pane</c> — a <c>TwoPaneSplitView</c> laid out at zero by zero
+        /// <c>.clip-editor__cover-pane</c> — a <c>TwoPaneSplitView</c> laid out at zero by zero
         /// keeps the zero, and you would come back to a collapsed pane. Covering means switching
         /// back costs nothing and changes nothing.
         /// </para>
@@ -1954,7 +1991,7 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <remarks>
         /// Covers the dock rather than replacing it, for the same reason <see cref="ShowVatBakeTab"/>
-        /// does — the reasoning is in <c>.clip-editor__new-rig-pane</c>'s USS comment: a
+        /// does — the reasoning is in <c>.clip-editor__cover-pane</c>'s USS comment: a
         /// <c>TwoPaneSplitView</c> hidden with <c>display:none</c> is laid out at zero by zero and
         /// comes back collapsed with no handle to drag it open again. Covering leaves the dock's
         /// geometry untouched underneath, so closing the flow costs nothing.
@@ -1987,7 +2024,7 @@ namespace DotsAnimationToolkit.Editor
         /// <para>
         /// Covers the dock rather than replacing it, and tears nothing down on hide — the same shape
         /// as <see cref="ShowVatBakeTab"/> and <see cref="ShowNewRigTab"/>, for the reason
-        /// <c>.clip-editor__direction-sets-pane</c>'s USS comment gives. It also matters more here
+        /// <c>.clip-editor__cover-pane</c>'s USS comment gives. It also matters more here
         /// than for either of those: the panel holds a preview registry and a rig instance, and
         /// rebuilding those on every toggle would put a visible hitch between checking a clip in the
         /// editor and checking how it turns.

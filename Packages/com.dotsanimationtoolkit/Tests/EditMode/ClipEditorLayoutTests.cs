@@ -35,7 +35,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The four tabs, in the top bar beside the clip set and rig they all read. Exactly one
             // is lit, and SetActiveTab is the only writer of that.
             "tab-strip",
-            "tab-clip-editor", "tab-new-rig", "tab-direction-sets", "tab-vat-bake",
+            "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-direction-sets",
+            "tab-vat-bake",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
             // The floating overlay over the viewport, and the row of viewport tools inside it —
@@ -77,9 +78,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The New Rig flow's slot, covering the dock the same way the VAT bake tab does
             // (Phase D11). Nothing is built into it until the toggle is first switched on.
             "new-rig-pane",
-            // The 2D Direction Sets pane, third of the three cover panes. Same lazily-filled shape,
-            // so a rename here is a toggle that lights and shows nothing.
-            "direction-sets-pane"
+            // The 2D Direction Sets pane, and the Cutscene Editor's placeholder. Same lazily-filled
+            // shape as the two above, so a rename here is a tab that lights and shows nothing.
+            "direction-sets-pane", "cutscene-pane"
         };
 
         [Test]
@@ -157,7 +158,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             string[] tabNames = new string[]
             {
-                "tab-clip-editor", "tab-new-rig", "tab-direction-sets", "tab-vat-bake"
+                "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-direction-sets",
+                "tab-vat-bake"
             };
 
             List<string> litTabs = new List<string>();
