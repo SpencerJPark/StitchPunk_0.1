@@ -1,5 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
+using Unity.Rendering;
 
 // Unified character-rig registry. Replaces the four disconnected per-part registries
 // (AnimatorTarget, DesignPart/DesignRange, Ragdoll2DJointRef/Zone, EquipSocket) with one BodyPart
@@ -72,3 +74,42 @@ public struct CharacterPalette : IComponentData, IPersist
 // identify rig roots when assembling the BodyPart buffer. [BakingType] → stripped from the runtime world.
 [BakingType]
 public struct CharacterRigConfig : IComponentData { }
+
+// The character root a part belongs to — baked by BodyPartAuthoring, read by CharacterRigBakingSystem
+// when assembling the root's BodyPart buffer.
+public struct BaseParent : IComponentData
+{
+    public Entity baseParentEntity;
+}
+
+// Per-instance sprite tint. Drives the _BaseColor shader property (Hybrid Per
+// Instance in the 2D graphs) so every body-part quad can carry its own colour
+// while the whole crowd still batches into one draw call. Multiply-tint: the
+// sprite is baked white-fill / black-outline, so Value multiplies the fill and
+// the black outline (0 * tint = 0) survives untouched. White (1,1,1,1) = the
+// authored sprite unchanged. Baked white by BodyPartAuthoring; a skin/design
+// system writes per-part colours.
+[MaterialProperty("_BaseColor")]
+public struct BodyPartTint : IComponentData
+{
+    public float4 Value; // RGBA, multiplies the sprite
+}
+
+// Per-instance colour for the packed mask's G layer (drives _SecondaryColor on the packed 2D
+// graphs, Hybrid Per Instance). PackedChannelRecolor uses RGB as the layer tint and ALPHA as the
+// layer blend strength (0 hides the layer). Baked white by BodyPartAuthoring with alpha from its
+// useLayerChannels flag (0 = the part's mask doesn't use G/B — stray channel data can never
+// composite); DesignApplyUtil.ApplyDesign writes palette colours over it.
+[MaterialProperty("_SecondaryColor")]
+public struct BodyPartSecondaryTint : IComponentData
+{
+    public float4 Value; // RGB layer tint, A = blend strength
+}
+
+// Per-instance colour for the packed mask's B layer (drives _TertiaryColor). Same semantics as
+// BodyPartSecondaryTint.
+[MaterialProperty("_TertiaryColor")]
+public struct BodyPartTertiaryTint : IComponentData
+{
+    public float4 Value; // RGB layer tint, A = blend strength
+}

@@ -26,7 +26,8 @@ Keep this file current: add a row when you add a request component; delete the r
 | `PickupRequest` | BehaviorExecutionSystem (RequestPickup), PlayerPickupSystem | `ItemSystemGroup` — ItemConsumeSystem (consumables) / ItemEquipSystem (weapons) |
 | `AttachItemRequest` | BehaviorExecution, PlayerPickupSystem, ItemConsumeSystem | `ItemSystemGroup` — ItemAttachSystem |
 | `ThrownItemRequest` | PlayerUnequipSystem | `ItemSystemGroup` — ThrownItemSystem + ThrownItemHitSystem |
-| `AnimationRequest` | BehaviorExecution/Interrupt, PlayerAttackSystem | `AnimationSystemGroup` — AnimationRequestSystem |
+| `AnimationCommand` + `AnimationCommandPending` | BehaviorExecution/Interrupt, PlayerAttackSystem, UnitAnimationAssignmentSystem, NarrativeEventManager | `com.dotsanimationtoolkit`'s `CommandApplySystem` (`AnimationToolkitSystemGroup`, `SimulationSystemGroup`) — drains the buffer, never read game-side except via `PlaybackQuery`/`PlaybackLayer` |
+| `AnimEventOutput` (gated `AnimEventsPending`) | `com.dotsanimationtoolkit`'s `EventEmissionSystem` | `AnimEventSoundSystem` (`SoundSystemGroup`) — maps event keys to `SoundType` via `AnimSoundEventMappingSO`/blob |
 | `ChangeDesignRequest` | (re-skin callers; currently only consumed) | `DesignSystemGroup` — DesignChangeSystem. Payload: shape `paletteChanges`/`shapeOverrides` + `alternateColorMode` (Enable = zombify: every palette entry shows its `alternative` colour, rolled identity kept) |
 | `SaveRequest` / `LoadRequest` | AutoSaveTimerSystem; SaveLoadBridge + DebugSaveMenu (Mono) | `SaveSystemGroup` — PersistentSaveSystem / PersistentLoadSystem |
 | `OnDialogueEvent` | DialogueUIManager (Mono) | `DialogueSystemGroup` — DialogueEventSystem; NarrativeDialogueBridgeSystem bridges to narrative |
@@ -44,7 +45,7 @@ Keep this file current: add a row when you add a request component; delete the r
 | Contract | Owner | Producers | Resolution / consumer |
 |---|---|---|---|
 | `DamageEvent` via `DamageBus` | DamageBusSystem (GameManagerSystemGroup, OrderFirst — resets queues, carries producer JobHandle) | AttackRequestSystem, HazardZoneSystem, ThrownItemHitSystem, PlayerAttackSystem | DamageResolutionSystem (raw → resolved), DamageEventSystem (applies). ⚠ 2026-07 ragdoll rework: `hitSourceX` deleted — every producer sets `sourcePosition` (float3, drives AOE + ragdoll launch direction); events carry `flailIntensity`/`spin`/`restitution`; the lethal event's values land in `Health.kill*` (incl. `killSourcePosition`) |
-| `CorpseCells` map | CorpseCellSystem (GameManagerSystemGroup — rebuilds each frame from settled corpses, carries reader JobHandle via `AddJobHandleForReader`) | (rebuild is the producer) | Ragdoll2DSystem (RagdollSystemGroup) reads pile height at landing |
+| `CorpseCells` map | CorpseCellSystem (GameManagerSystemGroup — rebuilds each frame from settled corpses via `RagdollActor`+`RagdollState.Sleeping`, carries reader JobHandle via `AddJobHandleForReader`) | (rebuild is the producer) | position registry only, no current reader — the old landing-height-raise consumer (Ragdoll2DSystem) was dropped, not ported, when the toolkit ragdoll landed |
 
 ## Removed (2026-07-02 structural pass)
 

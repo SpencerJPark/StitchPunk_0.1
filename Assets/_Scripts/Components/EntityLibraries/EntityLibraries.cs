@@ -1,14 +1,6 @@
 ﻿using Unity.Entities;
 using UnityEngine;
 
-public struct AnimationLibrary : IComponentData {
-    public BlobAssetReference<AnimationLibraryBlob> library;
-}
-public struct AnimationLibraryReference : IComponentData
-{
-    public UnityObjectRef<AnimationLibrarySO> library;
-}
-
 
 public struct UnitDataLibrary : IComponentData
 {

@@ -191,7 +191,8 @@ public class BehaviorSOEditor : Editor
                 break;
 
             case BehaviorCommandType.PlayAnimation:
-                DrawAnimationEnumAsInt(intProp, row);
+                EditorGUI.PropertyField(row, element.FindPropertyRelative("AnimationClip"),
+                    new GUIContent("Animation Clip"));
                 AdvanceRow(ref y, ref row);
                 EditorGUI.PropertyField(row, floatProp, new GUIContent("Speed"));
                 AdvanceRow(ref y, ref row);
@@ -300,27 +301,5 @@ public class BehaviorSOEditor : Editor
         TEnum next    = (TEnum)EditorGUI.EnumPopup(rect, new GUIContent(label), current);
         if (!next.Equals(current))
             intProp.intValue = (int)(object)next;
-    }
-
-    private static void DrawAnimationEnumAsInt(SerializedProperty intProp, Rect rect)
-    {
-        AnimationType current    = (AnimationType)(ushort)intProp.intValue;
-        Rect          buttonRect = EditorGUI.PrefixLabel(rect, new GUIContent("Animation"));
-
-        if (GUI.Button(buttonRect, current.ToString(), EditorStyles.popup))
-        {
-            var obj  = intProp.serializedObject;
-            var path = intProp.propertyPath;
-            new EnumSearchDropdown(
-                new AdvancedDropdownState(),
-                Enum.GetNames(typeof(AnimationType)),
-                idx =>
-                {
-                    SerializedProperty prop = obj.FindProperty(path);
-                    prop.intValue = idx;
-                    obj.ApplyModifiedProperties();
-                }
-            ).Show(buttonRect);
-        }
     }
 }

@@ -151,32 +151,30 @@ InvalidOperationException: Structural changes are not allowed while iterating ov
 
 ---
 
-## Ragdoll — Gotchas (2026-07 rework)
+## Ragdoll — Gotchas (2026-08-29: adopted the toolkit's ragdoll, replacing Ragdoll2D)
 
-Ragdoll components are documented in [[Components]]; the system lives in `RagdollSystemGroup`
-(`Tasks/Verification/Ragdoll2D_System.md`). The pre-rework "known issues" (joint ground clamp,
-settle-to-rest drift) are gone with the old per-joint velocity/clamp code.
-
-### ApplyPoseJob stomps corpse poses — sleeping corpses must still re-write rotations
-`ApplyAnimatedPoseSystem.ApplyPoseJob` writes EVERY entity with `AnimationTargetPose` +
-`LocalTransform` each frame — including all parts of dead units. The ragdoll driver runs later in
-the frame and overwrites, which is why it must keep re-asserting rotations even when a corpse is
-`sleeping` (dynamics skipped, pose write kept). If corpses ever snap back to their animated pose,
-something broke this ordering.
+Ragdoll is now `com.dotsanimationtoolkit`'s own real-physics ragdoll (`RagdollActor`/`RagdollLaunch`/
+`RagdollState`), driven game-side by `RagdollLaunchInitSystem`/`RagdollReviveSystem`
+(`HealthSystemGroup`). The 2026-07 Ragdoll2D system (procedural pendulum flail, per-joint landing
+zones, a scripted Z-tilt) is deleted — its `ApplyPoseJob`-stomp ordering gotcha and the visual-child-Y
+open bug went with it; the toolkit is real Unity Physics box colliders with authored hinge limits, a
+different mechanism entirely. See `Assets/_Vault/Tasks/NewPlans/AnimationToolkitMigration_System.md`
+§5 and `Packages/com.dotsanimationtoolkit/Documentation~/ragdoll.md` for how it actually works now.
 
 ### The CorpseCells map bypasses ECS dependency tracking
 `CorpseCells` hands a `NativeParallelMultiHashMap` through a singleton. `CorpseCellSystem` clears
 it each frame on the main thread — any job reading it MUST register via
-`CorpseCellSystem.AddJobHandleForReader` (Ragdoll2DSystem does), or the clear races the read.
-Same pattern and reason as `DamageBusSystem.AddJobHandleForProducer`.
+`CorpseCellSystem.AddJobHandleForReader`, or the clear races the read. Same pattern and reason as
+`DamageBusSystem.AddJobHandleForProducer`. (No current reader registers — the artificial corpse-stack
+landing-height hack that used to read it was dropped with Ragdoll2D; this stays live for whatever
+reads `CorpseCells` next.)
 
-### Visual child Y offset is not accounted for — clips through ground (OPEN BUG, pre-existing)
-When the visual root child tilts on Z, its top swings downward toward the ground. The Z-tilt pivot
-is at the visual child's local origin (root/feet level) but the geometry extends upward, so a 90°
-tilt rotates the top of the character to ground level and below.
-
-**Possible fix direction:** Translate the visual child upward by half its height when tilting, so
-the rotation pivot is at the character's centre of mass. Or raise the root entity's Y on death.
+### Corpse-stacking landing-height hack was dropped, not ported — verify stacking in play-test
+The old system needed an artificial per-cell landing-height raise because it wasn't real physics. The
+toolkit's ragdoll is real Unity Physics box colliders, which *should* stack corpses correctly through
+actual body-vs-body collision once self-collision groups are authored on the rig — but this is
+unverified (no rig exists yet). If corpses visibly clip into each other in play-test, that's the first
+place to look, not a regression to chase in the command seam.
 
 ---
 

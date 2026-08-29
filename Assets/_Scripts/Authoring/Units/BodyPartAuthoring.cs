@@ -8,10 +8,11 @@ using UnityEngine.Serialization;
 // AnimationTargetAuthoring + AnimationTargetNoIndexAuthoring + BaseParentAuthoring on rig parts:
 //   • bakes BodyPartInfo (self-description: target + partDef + role flags),
 //   • bakes BaseParent so the root can rebuild its BodyPart buffer after Instantiate,
-//   • bakes the animation pose set (rest/animated pose + PostTransformMatrix) for every part,
-//   • adds ImageIndex/ImageIndexOverride only when the GO actually renders (folds the no-index case).
+//   • bakes PostTransformMatrix (non-uniform scale support) and the tint components for every part.
 // CharacterRigBakingSystem assembles the root's BodyPart buffer from these. Ragdoll bodies are
-// authored directly on the toolkit's RigAsset (Clip Editor) — nothing for this baker to flag.
+// authored directly on the toolkit's RigAsset (Clip Editor) — nothing for this baker to flag. Rest
+// pose and rest sprite slice are the toolkit's own RigTargetAuthoring (added alongside this one) —
+// not this baker's job any more.
 public class BodyPartAuthoring : MonoBehaviour
 {
     [Tooltip("Which body part this GameObject is. Stays the single part-identity key everywhere.")]
@@ -24,9 +25,6 @@ public class BodyPartAuthoring : MonoBehaviour
     [Tooltip("Static config for this part KIND (design grid + ragdoll zones). Optional — leave null " +
              "for parts with no design variants and no ragdoll config; the part still animates.")]
     public UnitPartSO unitPartDef;
-
-    [Tooltip("First texture-array slice for this part before any design roll. Ignored for non-rendering parts.")]
-    public int baseImageIndex;
 
     [Tooltip("Per-instance multiply tint for this part's sprite (drives _BaseColor). White = authored " +
              "colour unchanged; black outline survives (0 * tint = 0). Ignored for non-rendering parts. " +
@@ -78,26 +76,6 @@ public class BodyPartAuthoring : MonoBehaviour
                 AddComponent(entity, new BaseParent { baseParentEntity = rootEntity });
             }
 
-            Transform partTransform = authoring.transform;
-
-            AddComponent(entity, new AnimationTargetRestPose
-            {
-                localPosition  = partTransform.localPosition,
-                rotation       = partTransform.localEulerAngles.z,
-                scale          = new float2(partTransform.localScale.x, partTransform.localScale.y),
-                baseImageIndex = authoring.baseImageIndex,
-            });
-
-            // Seed the animated pose to rest so ApplyPoseJob produces correct positions on the very
-            // first frame — before AnimationSamplingSystem runs (avoids spawn-frame quad collapse).
-            AddComponent(entity, new AnimationTargetPose
-            {
-                localPosition = partTransform.localPosition,
-                rotation      = partTransform.localEulerAngles.z,
-                scale         = new float2(partTransform.localScale.x, partTransform.localScale.y),
-                imageIndex    = authoring.baseImageIndex,
-            });
-
             AddComponent(entity, new PostTransformMatrix { Value = float4x4.identity });
 
             // Camera-visibility gate (starts visible; CameraVisibilitySystem propagates the root's
@@ -107,8 +85,6 @@ public class BodyPartAuthoring : MonoBehaviour
 
             if (hasRenderer)
             {
-                AddComponent(entity, new ImageIndex { index = authoring.baseImageIndex, onUpdate = true });
-                AddComponent(entity, new ImageIndexOverride { Value = 0 });
                 // Per-instance tint (drives _BaseColor, Hybrid Per Instance). Set per-part in the
                 // authoring inspector; white leaves the authored sprite unchanged. A future global
                 // palette/skin system will overwrite this at runtime.

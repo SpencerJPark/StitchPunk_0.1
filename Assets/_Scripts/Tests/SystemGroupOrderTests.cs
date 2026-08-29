@@ -62,7 +62,6 @@ namespace StitchPunk.Tests
             { typeof(CombatExecutionSystemGroup),     typeof(CombatSystemGroup) },
             { typeof(CombatReactionSystemGroup),      typeof(CombatSystemGroup) },
             { typeof(AnimationAssignmentSystemGroup), typeof(AnimationSystemGroup) },
-            { typeof(AnimationExecutionSystemGroup),  typeof(AnimationSystemGroup) },
         };
 
         private static UpdateInGroupAttribute GetUpdateInGroup(Type groupType)

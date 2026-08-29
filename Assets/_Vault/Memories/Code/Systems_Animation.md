@@ -5,136 +5,85 @@ related: "[[Systems]], [[Components]], [[Data]]"
 
 # AnimationSystemGroup — Context
 
-There is **no Unity Animator**. All animation is driven by keyframe data baked from ScriptableObjects. Part of the larger [[Systems]] execution pipeline.
+Animation is driven by the `com.dotsanimationtoolkit` package now — there is no game-owned keyframe
+pipeline any more. This note covers the **game↔toolkit seam**: what the game still owns, what it
+hands to the package, and where the two meet in the frame. Full toolkit behavior lives in the
+package's own `Documentation~/` (start at `Packages/com.dotsanimationtoolkit/Documentation~/index.md`);
+this note only covers the game-side call sites and conventions.
+
+See `Assets/_Vault/Tasks/NewPlans/AnimationToolkitMigration_System.md` for the migration history and
+the decisions this seam is built on (locked 2026-08-29). Rig/clip/ragdoll-body **authoring** is a
+separate, ongoing task — nothing here assumes real assets exist yet.
 
 ---
 
-## Unit Visual Structure
+## What the game still owns
 
-Units are **layered quads** — flat meshes parented in a hierarchy, each representing a body part (`AnimationTarget` enum). Animation moves, rotates (Z-axis), or changes the texture index of these quads.
+- **`AnimationSystemGroup`** (`SystemGroups.cs`): shrunk to one system, `UnitAnimationAssignmentSystem`
+  (`AnimationAssignmentSystemGroup`). It decides which `ClipId` each layer should play from the
+  `UnitLibraryBlob` and issues `AnimationCommandUtil.Play` only on change — never every frame, since
+  commands are requests, not state. Ordered `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so
+  commands issued this frame apply this frame.
+- **The command seam** — every write site issues `AnimationCommandUtil.Play`/`Stop` against
+  `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
+  `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem` (`PlayAnimation`/
+  `PlayActionAnimation`/`StopAnimation` behavior commands), `PlayerAttackSystem` (swing clip),
+  `NarrativeEventManager` (managed, via `EntityManager.GetBuffer<AnimationCommand>` +
+  `SetComponentEnabled<AnimationCommandPending>` directly — no lookup available outside a system).
+- **The read seam** — `PlaybackQuery.IsPlaying`/`PlaybackLayer.flags & PlaybackFlags.Active` answer
+  "what's actually playing", read against the toolkit's own `PlaybackLayer` buffer. Never track a
+  shadow copy of playback state game-side.
+- **`AnimationToolkitLayer`** (`Data/Enums/AnimationToolkitLayer.cs`): the six-layer convention every
+  rig in this game declares, in this order — `Base(0) / Action(1) / Override(2) / Face(3) / Eyes(4) /
+  Mouth(5)`. Cast to `byte` at the `AnimationCommandUtil`/`PlaybackQuery` call site. The toolkit does
+  **not** enforce that layer 3 means "Face" on every rig — it's a project convention every rig must
+  follow by hand so a tag-bound `FaceExpressions` clip set's starting-layer references mean the same
+  thing across rigs (see the migration spec §4).
+- **Clip vocabulary** — `UnitSO.idleAnimation`/`movingAnimation`/`actionAnimations`/
+  `stanceAnimations`, `BehaviorCommandAuthoring.AnimationClip`, `NarrativeEventSO`'s
+  `PlayAnimationAction.animationClip` are all direct `ClipAsset` object references (toolkit
+  `Authoring` assembly). Bakers (`UnitLibraryBakingSystem`, `BehaviorLibraryBakingSystem`) write
+  `clipAsset.Id` (a `ClipId`) into the blob; a null `ClipAsset` bakes to `default` (`ClipId.IsValid ==
+  false`), which every call site checks before issuing a command.
+- **Design → `TargetRestPose.restSliceIndex`** — `DesignApplyUtil.ApplyDesign` writes the toolkit's
+  per-part rest slice instead of a legacy pose/image-index pair; sprite tracks authored in
+  `RelativeToRest` slice space retarget to whatever variant a character rolled automatically.
+- **`AnimEventSoundSystem`** (`SoundSystemGroup`) — the first real `AnimEventOutput` consumer: maps
+  event keys to `SoundType` via `AnimSoundEventMappingSO` → `AnimSoundEventMappingBlob` and fires
+  `SoundUtil.PlayOn`. Empty table until real clips author event markers — this is the template the
+  animation-event-timing plan's consumers will follow.
+- **Visibility** — `CameraVisibilitySystem` (`GameManagerSystemGroup`) is still the one visibility
+  authority: it drives its own `CameraVisible` as before, and additionally mirrors that decision onto
+  the toolkit's `AnimVisible` for actors that carry it (`AnimVisibleMirrorJob`). The toolkit's own
+  `AnimLodDistanceSystem` is not used — two visibility authorities would just risk disagreeing.
+- **Billboard** — the toolkit's `BillboardResolveSystem`, Y-axis upright mode, authored per-actor on
+  `ActorAuthoring.billboardMode`. No game code.
+- **Ragdoll** — `RagdollLaunchInitSystem`/`RagdollReviveSystem` (`HealthSystemGroup`) build a toolkit
+  `RagdollLaunch` impulse from `Health.kill*` and enable `RagdollActor` on death; disabling
+  `RagdollActor` on revive is the toolkit's own job (it restores the pose captured on enable exactly).
+  `CorpseCellSystem` (`GameManagerSystemGroup`) rebuilds its spatial hash from `RagdollActor` +
+  `RagdollState.flags & RagdollStateFlags.Sleeping` — position registry only; the legacy artificial
+  corpse-stacking landing-height hack was dropped (the toolkit's ragdoll is real Unity Physics box
+  colliders — verify actual body-vs-body stacking in play-test before reintroducing anything like it).
 
-Textures are **texture arrays** — multiple frames packed into one array asset. This lets the GPU instance the same material across hundreds of characters while varying per-character appearance via `MaterialPropertyBlock`.
+## Where the toolkit's own pipeline lives
 
----
+`AnimationToolkitSystemGroup` runs **inside `SimulationSystemGroup`** (not `LateSimulationSystemGroup`
+— verified against the package source; an earlier draft of the migration spec assumed otherwise).
+It declares no ordering edges of its own; the game orders against it. Internally: binding → logic/events
+→ presentation (sampling, transform/sprite apply, billboard, then the ragdoll sub-group nested inside
+presentation, then sockets). See the package's `Runtime/Systems/AnimationToolkitSystemGroups.cs` and
+`Documentation~/` for the full internal pipeline — this note does not duplicate it.
 
-## Animation Data Pipeline
+## Spawn-frame gotcha (unchanged from the legacy system)
 
-```
-AnimationClipSO
-  └── PartTrack[]  (one per AnimationTarget)
-        └── Keyframe[]  (time, value, interpolation type, blend mode)
+`AnimationSystemGroup` runs before `SpawnSystemGroup`, so a spawned entity's toolkit part bindings
+(`RigPartRef`) are only reliable from frame 2 onward — the toolkit's own `RigBindingSystem` handles
+this the same way `BodyPartInitSystem` handles `BodyPart` (see [[Gotchas]]).
 
-AnimationLibrarySO
-  └── maps AnimationType enum → AnimationClipSO
+## What's still pending
 
-AnimationLibraryBakingSystem  (PostBakingSystemGroup)
-  └── converts SO data → BlobAsset<AnimationLibraryBlob>
-      stored as singleton component on a library entity
-```
-
-SOs and blob structs are documented in [[Data]]. Systems never touch SOs at runtime — always use the blob.
-
----
-
-## Animation Layers (AnimationLayerType enum)
-
-7 layers evaluated in order. Later layers can override or additively blend on top:
-
-| Layer | Purpose |
-|---|---|
-| `Base` | Idle/walk/run cycle |
-| `Direction` | 8-directional facing offset |
-| `Action` | Attack, interact, etc. |
-| `Face` | Overall facial expression |
-| `Eyes` | Eye state / blink |
-| `Mouth` | Mouth shape / talking |
-| `Override` | Force-overrides everything (cutscenes, death) |
-
-Each entity has one `AnimationLayer` buffer element per active layer. Buffer capacity is 8. Full component definitions in [[Components]].
-
----
-
-## Blend Modes & Interpolation
-
-Per-keyframe settings:
-- **Blend mode**: `Override` (replaces) or `Additive` (adds on top of lower layers)
-- **Interpolation**: 5 types (Linear, Step, EaseIn, EaseOut, EaseInOut)
-
----
-
-## Execution Pipeline
-
-```
-AnimationAssignmentSystemGroup
-  UnitAnimationAssignmentSystem  — decides which AnimationType to play per layer
-  UnitFaceDirectionSystem        — sets Direction layer based on velocity
-
-AnimationExecutionSystemGroup
-  AnimationTimeSystem            — advances elapsed time, handles loop/clamp   [UNGATED — runs off screen]
-  AnimationSamplingSystem        — samples keyframes at current time           [gated: WithAll<CameraVisible> on roots]
-  ApplyAnimatedPoseSystem        — writes position/rotation/scale to quads     [gated: WithAll<CameraVisible> on parts]
-  UpdateImageIndexSystem         — writes texture array index to MPB           [gated: WithAll<CameraVisible> on parts]
-  BillboardSystem                — rotates root quad to always face camera     [gated: parent CameraVisible lookup]
-```
-
-### Camera-visibility gating (`CameraVisible`)
-
-Off-screen rigs skip the expensive presentation work: `CameraVisibilitySystem` (GameManagerSystemGroup)
-flips the `CameraVisible` enableable tag on roots + parts from the `CameraView` singleton. Design:
-
-- **Timers keep advancing** (`AnimationTimeSystem` ungated) so units re-enter view at the correct
-  pose — sampling refreshes everything the first visible frame; no snap/stale-pose catch-up needed.
-- Assignment systems (`UnitAnimationAssignment`/`UnitFaceDirection`) stay ungated — they are
-  decision-side state, and gating them would desync `AnimationLayer` state off screen.
-- The tag is baked ENABLED by `CharacterRigAuthoring`/`BodyPartAuthoring`/`ImageIndexAuthoring`, so
-  worlds where `CameraVisibilitySystem` finds nothing to flip (e.g. the Animation Editor preview —
-  its `CameraView` stays at the default center 0 / radius 25 because no AudioManager writes it)
-  keep animating as long as the rig sits near the origin.
-
-### File Paths (relative to `_Scripts/Systems/AnimationSystemGroup/`)
-
-| System | File |
-|---|---|
-| `UnitAnimationAssignmentSystem` | `AnimationAssignmentSystemGroup/UnitAnimationAssignmentSystem.cs` |
-| `UnitFaceDirectionSystem` | `AnimationAssignmentSystemGroup/UnitFaceDirectionSystem.cs` |
-| `AnimationTimeSystem` | `AnimationExecutionSystemGroup/AnimationTimeSystem.cs` |
-| `AnimationSamplingSystem` | `AnimationExecutionSystemGroup/AnimationSamplingSystem.cs` |
-| `ApplyAnimatedPoseSystem` | `AnimationExecutionSystemGroup/ApplyAnimatedPoseSystem.cs` |
-| `UpdateImageIndexSystem` | `AnimationExecutionSystemGroup/UpdateImageIndexSystem.cs` |
-| `BillboardSystem` | `AnimationExecutionSystemGroup/BillboardSystem.cs` |
-
----
-
-## AnimatorTarget Buffer — Spawn Gotcha
-
-`DynamicBuffer<AnimatorTarget>` holds entity refs to the quad child entities. **These entity refs are NOT reliably remapped by `ECB.Instantiate`.** See [[Gotchas]] for the full history and root cause.
-
-**Two-part fix:**
-
-1. `AnimatorAuthoring.Baker` populates `AnimatorTarget` at bake time via `GetComponentsInChildren`. This gives scene entities a correct buffer permanently (they never get `NeedsAnimatorInit`).
-
-2. For spawned (prefab) entities: `UnitSpawnerSystem` adds `NeedsAnimatorInit`. `AnimatorTargetInitSystem` clears and rebuilds the buffer using `DynamicBuffer<LinkedEntityGroup>` — the exact remapping table `ECB.Instantiate` produces. This is guaranteed correct regardless of how `characterRoot` is set in the inspector or how deep the prefab is nested.
-
-`AnimationSystemGroup` runs before `SpawnSystemGroup`, so spawned entities have an unreliable `AnimatorTarget` on their spawn frame. From frame 2 onward the buffer is correct.
-
----
-
-## Adding a New Animation
-
-1. Create an `AnimationClipSO` under `Assets/ScriptableObjects/Animations/`.
-2. Add `PartTrack` entries for each `AnimationTarget` quad you want to move.
-3. Add keyframes with timing, target values, interpolation, and blend mode.
-4. Open `AnimationLibrarySO` and register the new clip against an `AnimationType` enum value (add a new enum value if needed). Enums are in [[Data]].
-5. The baking system will pick it up automatically on next bake.
-
-Use the custom **Animation Editor** (`Editor/AnimationEditor/`) to preview clips without entering play mode.
-
----
-
-## Animation Editor preview path (Editor/AnimationEditor/)
-
-Separate from the runtime pipeline: in `AnimationEditorScene.unity` (play mode), `EditorAnimationSystem` samples the `AnimationClipSO` **directly** (no blob, no rebake needed per edit) and writes `AnimationTargetPose`; the runtime `ApplyAnimatedPoseSystem` applies it to transforms. Requirements for the preview world (all bake from the `GameSceneTag` prefab, which must be inside `AnimationEditorSubScene`): `GameSettings` (gates `EditorAnimationSystem`) and `GameSceneTag` (gates `AnimationSystemGroup` → pose apply). The runtime samplers (`AnimationTimeSystem`/`AnimationSamplingSystem`) stay off in this scene because no `AnimationLibrary` blob is baked there — the SO path is the sole driver, no conflict.
-
-**Perf gotchas (hit 2026-07, editor ran at 14 FPS):**
-- Never put `Debug.Log` in `EditorAnimationSystem.SampleClipSO` or anything per-part/per-track — at 24 samples/s × 13 parts × N tracks it's thousands of logs/sec and each editor log captures a stack trace.
-- `AnimationClipEditorWindow.OnEditorUpdate` must NOT call `EditorApplication.QueuePlayerLoopUpdate()` in play mode — it stacks extra simulation ticks on top of the normal player loop. Repaint is throttled to 20 Hz there.
+Rig targets, layers, and ragdoll bodies are not yet authored on any real rig (owner's task, in
+progress separately). Every system above compiles and is wired correctly but is currently a no-op —
+nothing has the toolkit's `ActorAuthoring`/`RigTargetAuthoring` components yet. Do not treat "compiles
+clean" as "verified in play" for anything in this note until a real rig exists.

@@ -139,11 +139,11 @@ public partial class DesignSystemGroup : GameSceneSystemGroup { }
 [UpdateBefore(typeof(AnimationToolkitSystemGroup))]
 public partial class AnimationSystemGroup : GameSceneSystemGroup { }
 
+        // OrderFirst was load-bearing against AnimationExecutionSystemGroup (OrderLast), which is
+        // gone with the legacy read-side systems — kept as documentation that this group is meant
+        // to run before whatever else ends up in AnimationSystemGroup.
         [UpdateInGroup(typeof(AnimationSystemGroup), OrderFirst = true)]
         public partial class AnimationAssignmentSystemGroup : ComponentSystemGroup { }
-
-        [UpdateInGroup(typeof(AnimationSystemGroup), OrderLast = true)]
-        public partial class AnimationExecutionSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
 // LateSimulationSystemGroup pipeline: Spawn → SpawnInit → Sound → Despawn → Save
