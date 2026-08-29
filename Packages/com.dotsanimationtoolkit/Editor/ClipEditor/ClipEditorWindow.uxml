@@ -2,10 +2,19 @@
     <Style src="project://database/Packages/com.dotsanimationtoolkit/Editor/ClipEditor/ClipEditorWindow.uss?fileID=7433441132597879392&amp;guid=9f9579bb3bb5224498fd9bfa8e54f406&amp;type=3#ClipEditorWindow"/>
     <ui:VisualElement name="clip-editor-root" class="clip-editor__root">
         <uie:Toolbar name="clip-editor-toolbar" class="clip-editor__toolbar">
-            <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
-            <uie:ToolbarToggle name="tab-new-rig" text="New Rig" class="clip-editor__tab"/>
-            <uie:ToolbarToggle name="tab-direction-sets" text="2D Direction Sets" class="clip-editor__tab"/>
-            <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab"/>
+            <ui:Label text="Clip Set" class="clip-editor__toolbar-label"/>
+            <uie:ObjectField name="clip-set-field" class="clip-editor__object-field"/>
+            <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
+            <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
+            <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
+            <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
+            <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip">
+                <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-new-rig" text="New Rig" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-direction-sets" text="2D Direction Sets" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
         </uie:Toolbar>
         <ui:VisualElement name="clip-editor-body" class="clip-editor__body">
             <ui:TwoPaneSplitView name="dock-vertical" orientation="Vertical" fixed-pane-index="1" fixed-pane-initial-dimension="220" class="clip-editor__dock">
@@ -39,15 +48,6 @@
                             <ui:VisualElement name="viewport-frame" class="clip-editor__viewport-frame">
                                 <ui:Image name="viewport-image" class="clip-editor__viewport"/>
                                 <ui:VisualElement name="viewport-overlay" picking-mode="Ignore" class="clip-editor__viewport-overlay">
-                                    <ui:VisualElement name="overlay-identity-row" class="clip-editor__overlay-row">
-                                        <ui:Label text="Clip Set" class="clip-editor__overlay-label"/>
-                                        <uie:ObjectField name="clip-set-field" class="clip-editor__object-field"/>
-                                        <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
-                                        <ui:Label text="Rig" class="clip-editor__overlay-label"/>
-                                        <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
-                                        <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
-                                        <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
-                                    </ui:VisualElement>
                                     <ui:VisualElement name="overlay-tool-row" class="clip-editor__overlay-row">
                                         <uie:ToolbarToggle name="gizmo-move-toggle" text="Move" value="true" class="clip-editor__bar-action"/>
                                         <uie:ToolbarToggle name="gizmo-rotate-toggle" text="Rotate" class="clip-editor__bar-action"/>

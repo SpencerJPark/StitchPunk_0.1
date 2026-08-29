@@ -1901,9 +1901,10 @@ namespace DotsAnimationToolkit.Editor
             Show2DDirectionSetsTab(activeTab == ClipEditorTab.DirectionSets);
             ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
 
-            // The identity and tool rows are Clip Editor controls sitting over the Clip Editor's own
-            // viewport. The cover panes are drawn over the whole body, so on any other tab the rows
-            // are underneath them and would only ever be half-visible during a transition.
+            // The overlay's controls only mean anything while looking at the 3D area, and the cover
+            // panes are drawn over the whole body — so on any other tab it is underneath one of them
+            // and would only ever be half-visible during a transition. The top bar is the opposite
+            // case and stays put: the clip set and rig are what every tab reads.
             if (viewportOverlay != null)
             {
                 viewportOverlay.EnableInClassList(

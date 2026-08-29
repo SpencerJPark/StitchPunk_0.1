@@ -114,11 +114,12 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar is
 now four exclusive tabs (`tab-clip-editor` · `tab-new-rig` · `tab-direction-sets` · `tab-vat-bake`)
-and nothing else, with `SetActiveTab(ClipEditorTab)` the single writer of both the enum and the four
-toggles' lit state — never call a `Show…Tab` method directly. Everything that used to share the top
-bar (clip set, rig, New Set, Edit Prefab, the validation badge) plus Billboard, Ragdoll and new
-Move/Rotate/Scale buttons now live in `viewport-overlay`, a frame-sized `picking-mode: Ignore` column
-inside `viewport-frame`. Four things to know before touching it:
+in the top bar beside the clip set and rig fields, which stay there — `SetActiveTab(ClipEditorTab)`
+is the single writer of both the enum and the four toggles' lit state, so never call a `Show…Tab`
+method directly. Billboard, Ragdoll and new Move/Rotate/Scale buttons moved off the bar into
+`viewport-overlay`, a frame-sized `picking-mode: Ignore` column inside `viewport-frame` — the
+controls that only mean anything while looking at the 3D area. Four things to know before touching
+it:
 
 - **The overlay container must stay frame-sized.** The findings panel's `max-width`/`max-height` are
   percentages resolving against it — shrink it to hug its rows and 60% of the viewport becomes 60% of

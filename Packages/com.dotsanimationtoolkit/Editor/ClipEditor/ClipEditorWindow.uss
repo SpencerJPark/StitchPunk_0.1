@@ -53,6 +53,24 @@
     flex-shrink: 0;
 }
 
+/* Each label heads a pair of fields, so its left margin is the gap between one group and the next
+   rather than the gap between two controls. That is the only spacing in this row that is allowed to
+   be larger than the others, and it is here rather than inline so both labels cannot drift apart. */
+.clip-editor__toolbar-label {
+    -unity-text-align: middle-left;
+    margin-left: 16px;
+    margin-right: 4px;
+}
+
+/* The tabs share the top bar with the clip set and rig fields, so they need to read as a group
+   apart from them rather than as four more bar actions. A margin does that where the -1px overlap
+   inside the run says the four belong together. */
+.clip-editor__tab-strip {
+    flex-direction: row;
+    align-items: stretch;
+    margin-left: 16px;
+}
+
 /*
  * The tab run. Deliberately NOT .clip-editor__bar-action: that rule's own comment says it styles
  * runs of *independent* controls, and these are a radio group — exactly one is on, and clicking the
@@ -1186,9 +1204,9 @@
 }
 
 /*
- * One row of the overlay: the identity controls, or the viewport tools. Right-aligned and growing
- * right-to-left, so adding a control pushes the run leftward over the scene rather than moving
- * every control the user already knows the position of.
+ * A row of the overlay — today the viewport tools, and whatever else earns a place over the scene.
+ * Right-aligned and growing right-to-left, so adding a control pushes the run leftward over the
+ * scene rather than moving every control the user already knows the position of.
  *
  * Opaque, not translucent. These are controls to be read and hit, not a readout laid over the
  * picture — and a translucent run would show the rig through its own borders, where the -1px
@@ -1209,15 +1227,6 @@
     border-top-width: 1px;
     border-bottom-width: 1px;
     border-color: rgb(32, 32, 32);
-}
-
-/* A label inside an overlay row. Smaller left margin than the old toolbar's: the row is a floating
-   island rather than a full-width bar, so the gap that separated groups across a window's width is
-   simply wasted space here. */
-.clip-editor__overlay-label {
-    -unity-text-align: middle-left;
-    margin-left: 8px;
-    margin-right: 4px;
 }
 
 /* Starts a new run inside a row. The -1px overlap in .clip-editor__bar-action makes a run read as

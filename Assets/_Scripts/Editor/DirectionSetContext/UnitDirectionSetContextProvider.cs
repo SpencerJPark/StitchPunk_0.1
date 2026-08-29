@@ -131,7 +131,7 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
             Debug.LogWarning(
                 $"[2D Direction Sets] '{unitName}' animates on {assignedCount} clip sets; the panel " +
                 $"previews against the first, '{firstClipSet.name}'. Clips from the others will not " +
-                "pose until that set is opened on the Clip Editor tab.");
+                "pose until that set is opened in the Clip Editor's top bar.");
         }
         return firstClipSet;
     }

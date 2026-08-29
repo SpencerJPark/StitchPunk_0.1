@@ -30,16 +30,17 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private static readonly string[] RequiredElementNames = new string[]
         {
             "clip-editor-root", "clip-editor-toolbar",
-            // The top bar is four tabs and nothing else. Exactly one is lit, and SetActiveTab is
-            // the only writer of that.
+            "clip-set-field", "new-clip-set-button",
+            "skinned-source-field", "validation-badge-slot",
+            // The four tabs, in the top bar beside the clip set and rig they all read. Exactly one
+            // is lit, and SetActiveTab is the only writer of that.
+            "tab-strip",
             "tab-clip-editor", "tab-new-rig", "tab-direction-sets", "tab-vat-bake",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
-            // The floating overlay over the viewport: the shared clip set / rig identity row, and
-            // the row of viewport tools beneath it.
-            "viewport-overlay", "overlay-identity-row", "overlay-tool-row",
-            "clip-set-field", "new-clip-set-button",
-            "skinned-source-field", "validation-badge-slot",
+            // The floating overlay over the viewport, and the row of viewport tools inside it —
+            // the controls that only mean anything while looking at the 3D area.
+            "viewport-overlay", "overlay-tool-row",
             "gizmo-move-toggle", "gizmo-rotate-toggle", "gizmo-scale-toggle",
             "billboard-preview-toggle", "ragdoll-preview-toggle",
             // Transport bar: every control that answers "when", docked above the timeline.

@@ -245,14 +245,14 @@ namespace DotsAnimationToolkit.Editor
             if (previewRig == null)
             {
                 sourceLabel.text =
-                    "No rig on the Clip Editor tab — the queue and the coverage readout work "
-                    + "without one, but nothing can be posed.";
+                    "No rig in the top bar — the queue and the coverage readout work without one, "
+                    + "but nothing can be posed.";
                 return;
             }
 
             sourceLabel.text =
                 "Previewing " + (sourceClipSet != null ? "'" + sourceClipSet.name + "'" : "no clip set")
-                + " on '" + previewRig.name + "' — both come from the Clip Editor tab.";
+                + " on '" + previewRig.name + "' — the queue can only hold clips from that set.";
         }
 
         private VisualElement BuildBody()
@@ -711,7 +711,8 @@ namespace DotsAnimationToolkit.Editor
                 {
                     clipWarnings[queuedClip] = "Not in '"
                         + (sourceClipSet != null ? sourceClipSet.name : "the open clip set")
-                        + "' — it cannot be previewed here. Add it to that set on the Clip Editor tab.";
+                        + "' — it cannot be previewed here. Add it to that set, or open the set that "
+                        + "holds it in the top bar.";
                 }
             }
         }
@@ -950,8 +951,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 // In this pane's own words: the controller points at the Clip Editor's Rig field,
                 // which is on a tab the author is not looking at.
-                status = "No rig on the Clip Editor tab — the queue and the coverage readout work "
-                    + "without one, but nothing can be posed.";
+                status = "No rig in the top bar — the queue and the coverage readout work without "
+                    + "one, but nothing can be posed.";
             }
             else if (facingClip == null && string.IsNullOrEmpty(status))
             {

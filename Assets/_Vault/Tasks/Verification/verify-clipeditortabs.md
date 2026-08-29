@@ -7,24 +7,35 @@ area: code
 
 ## Goal
 
-Confirm the Clip Editor's top bar is four exclusive tabs and nothing else, that the identity
-controls and the viewport tools now float over the preview, and that VAT Bake and 2D Direction Sets
-read the window's clip set and rig rather than holding their own. Spec:
-[`ClipEditorTabs_System.md`](ClipEditorTabs_System.md). Built and gated this session — EditMode
+Confirm the Clip Editor's four exclusive tabs, the viewport tools now floating over the preview, and
+that VAT Bake and 2D Direction Sets read the window's clip set and rig rather than holding their own.
+Spec: [`ClipEditorTabs_System.md`](ClipEditorTabs_System.md). Built and gated this session — EditMode
 765/765, PlayMode 241/241, console clean. Everything below marked `[ ]` needs the Editor on screen.
 
-## How the four open DECISIONs were stamped
+## Correction, 2026-08-29
 
-All four went the way the spec recommended:
+**The identity fields were moved into the overlay and have been moved back.** The spec's §1 ask 3
+("the top bar eventually just tabs") was read as licence to relocate Clip Set / New Set / Rig / Edit
+Prefab / the validation badge in this pass; the owner had only asked for Billboard and Ragdoll to
+move. They are back in `clip-editor-toolbar`, in their original order, with the tab strip beside them
+where the three pane toggles used to sit. The spec's §3c and its identity-row DECISION are therefore
+**superseded** — read them as history, not as what shipped.
+
+Two consequences worth noting, both good: the clip set and rig are now visible on every tab rather
+than only on the Clip Editor one, and the overlay is a single row of viewport tools, which is what
+the owner asked for in the first place.
+
+## How the four open DECISIONs were stamped
 
 - **Tab styling:** own `.clip-editor__tab` + `--active`, not `bar-action` + a modifier. `bar-action`'s
   own comment says it styles runs of *independent* controls; a radio group needs a held-down state
   that rule deliberately has no business defining.
-- **Identity row placement:** Clip-Editor-only. The whole overlay hides on the other three tabs (the
-  cover panes are drawn over the body, so the rows would be underneath them anyway). VAT Bake and
-  2D Direction Sets each show what they resolved to instead — see below.
-- **Tool row on the Direction Sets tab:** no. The pane forces `BillboardPreviewEnabled = true` and
-  `DisableRagdollPreview()` while its tab is active and restores both on the way out.
+- **Identity row placement:** ~~Clip-Editor-only~~ — **moot, see the correction above.** The fields
+  never left the top bar.
+- **Tool row on the Direction Sets tab:** no. The whole overlay hides on the other three tabs (the
+  cover panes are drawn over the body, so it would be underneath them anyway). The pane forces
+  `BillboardPreviewEnabled = true` and `DisableRagdollPreview()` while its tab is active and restores
+  both on the way out.
 - **`previewClipSet` from an actor with several clip sets:** the first, with a console warning
   naming the count and the one chosen.
 
@@ -60,7 +71,8 @@ All four went the way the spec recommended:
 
 ### Tabs (owner, needs the Editor)
 
-- [ ] Open the Clip Editor: the top bar is four tabs and nothing else, with **Clip Editor** lit.
+- [ ] Open the Clip Editor: the top bar carries Clip Set / New Set / Rig / Edit Prefab as before,
+      then the four tabs, then the ⚠ badge — with **Clip Editor** lit.
 - [ ] Each tab shows exactly its own pane. No two panes visible at once.
 - [ ] **Click the lit tab.** It must stay lit and nothing must change — the failure to look for is
       the window going blank, which is what a plain toggle would do.
@@ -77,16 +89,17 @@ All four went the way the spec recommended:
 
 ### The floating overlay
 
-- [ ] Identity row (Clip Set / New Set / Rig / Edit Prefab / ⚠) floats top-right over the preview,
-      right-aligned. Tool row (Move / Rotate / Scale │ Billboard │ Ragdoll) sits below it.
-- [ ] **An orbit drag started on empty viewport still orbits; one started on a row does not.** This
+- [ ] The tool row (Move / Rotate / Scale │ Billboard │ Ragdoll) floats top-right over the preview,
+      right-aligned.
+- [ ] **An orbit drag started on empty viewport still orbits; one started on the row does not.** This
       is the `picking-mode: Ignore` container with pickable children — if orbiting is dead
       everywhere, the container is taking clicks it should pass through.
-- [ ] Click the ⚠ badge on an invalid set: findings open **below both rows**, still clipped to the
+- [ ] Click the ⚠ badge on an invalid set: findings open **below the tool row**, still clipped to the
       3D area. Then drag the viewport pane down to its minimum width — the findings panel must stay
       a corner of it and must not spill over the inspector. (Its `max-width: 60%` resolves against
-      the overlay container now, which is why that container stays frame-sized.)
-- [ ] The overlay is gone on the other three tabs.
+      the overlay container, which is why that container stays frame-sized rather than hugging the
+      row.)
+- [ ] The overlay is gone on the other three tabs; the top bar is not.
 
 ### Gizmos, billboard, ragdoll
 
@@ -98,7 +111,7 @@ All four went the way the spec recommended:
 ### Panes read the window
 
 - [ ] VAT Bake tab: Clip Set and Rig show the window's, greyed out, with the line saying where to
-      change them. Change the clip set on the Clip Editor tab, come back — VAT Bake followed it.
+      change them. Change the clip set in the top bar while on this tab — VAT Bake follows it live.
 - [ ] Bake from the tab: it bakes what the window is showing.
 - [ ] `Window ▸ DOTS Animation Toolkit ▸ VAT Bake` — the **standalone** window still has both
       pickers live and no bound-source line. This is the regression the bound mode exists to avoid.
@@ -140,8 +153,8 @@ All four went the way the spec recommended:
 
 ## Follow-ups deliberately not built
 
-- Showing the identity controls on the New Rig / VAT Bake / 2D Direction Sets tabs. Both panes state
-  what they resolved to instead; revisit if the round trip to the Clip Editor tab annoys in practice.
+- A tab-only top bar. The owner's "eventually just tabs" still stands as a direction; this pass
+  moved only what was asked for, and the clip set and rig fields stay where they were.
 - Authoring a direction set whose clips span two clip sets. That is the accepted cost of the shared
   preview, and the row warning names it rather than hiding it.
 - Merging every clip set an actor lists into one preview registry, so a multi-set actor previews

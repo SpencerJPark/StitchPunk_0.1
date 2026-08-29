@@ -82,7 +82,7 @@ namespace DotsAnimationToolkit.Editor
             // the only way to say what to bake, and a line telling you to change them somewhere else
             // would be pointing at a window that is not open.
             sourceBoundHint = new Label(
-                "Clip Set and Rig follow the Clip Editor's own — change them on its Clip Editor tab.");
+                "Clip Set and Rig follow the Clip Editor's own — change them in its top bar.");
             sourceBoundHint.style.whiteSpace = WhiteSpace.Normal;
             sourceBoundHint.style.display = DisplayStyle.None;
             root.Add(sourceBoundHint);
