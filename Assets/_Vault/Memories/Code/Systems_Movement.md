@@ -1,86 +1,88 @@
 ---
-tags: [memory, code, systems, movement, pathfinding]
-related: "[[Systems]], [[Components]], [[Systems_AI]]"
+tags: [memory, code, systems, movement, pathfinding, package]
+related: "[[Systems]], [[Components]], [[Systems_AI]], [[Contracts]]"
 ---
 
-# MovementSystemGroup — Context
+# Movement — Context
 
-Movement is split into four sub-groups that run in order each frame. Part of the larger [[Systems]] execution pipeline. Units' pathfinding decisions are initiated by [[Systems_AI]] (via `PathRequest`).
-
----
-
-## Sub-Group Responsibilities
-
-```
-MovementRoutingSystemGroup      — calculates paths (does the expensive work)
-  FlowFieldSystem               — builds a flowfield grid for horde movement
-  DStarLiteSystem               — incremental pathfinding for individual units
-
-MovementCoordinatorSystemGroup  — assigns formation offsets within a horde
-  PathfindingCoordinatorSystem  — distributes destination targets per horde member
-  GridSystem                    — maintains the spatial grid used by the flowfield
-
-MovementFollowerSystemGroup     — reads path data and produces a desired velocity
-  FlowFieldFollowerSystem       — units in a horde sample the flowfield
-  DStarLiteFollowerSystem       — individual units follow their D* path
-  PlayerFollowerSystem          — player character movement
-
-MovementExecutionSystemGroup    — applies final velocity to transforms
-  LocomotionStanceSystem        — syncs StateMachine.currentStance → Movement.isRunning + LocomotionStance.stance (runs before UnitMoverSystem)
-  UnitMoverSystem               — integrates velocity → position (picks runSpeed when isRunning)
-  UnitGravitySystem             — applies gravity on Y axis
-  StairTransitionSystem         — handles stair/level transition triggers
-  SetupUnitMoverDefaultPositionSystem — initialises position on first frame
-```
-
-### File Paths (relative to `_Scripts/Systems/MovementSystemGroup/`)
-
-| System | File |
-|---|---|
-| `FlowFieldSystem` | `MovementRoutingSystemGroup/FlowFieldSystem.cs` |
-| `DStarLiteSystem` | `MovementRoutingSystemGroup/DStarLiteSystem.cs` |
-| `PathfindingCoordinatorSystem` | `MovementCoordinatorSystemGroup/PathfindingCoordinatorSystem.cs` |
-| `GridSystem` | `MovementCoordinatorSystemGroup/GridSystem.cs` |
-| `FlowFieldFollowerSystem` | `MovementFollowerSystemGroup/FlowFieldFollowerSystem.cs` |
-| `DStarLiteFollowerSystem` | `MovementFollowerSystemGroup/DStarLiteFollowerSystem.cs` |
-| `PlayerFollowerSystem` | `MovementFollowerSystemGroup/PlayerFollowerSystem.cs` |
-| `LocomotionStanceSystem` | `MovementExecutionSystemGroup/LocomotionStanceSystem.cs` |
-| `UnitMoverSystem` | `MovementExecutionSystemGroup/UnitMoverSystem.cs` |
-| `UnitGravitySystem` | `MovementExecutionSystemGroup/UnitGravitySystem.cs` |
-| `StairTransitionSystem` | `MovementExecutionSystemGroup/StairTransitionSystem.cs` |
-| `SetupUnitMoverDefaultPositionSystem` | `MovementExecutionSystemGroup/SetupUnitMoverDefaultPositionSystem.cs` |
+**The grid/pathfinding/movement/horde stack now lives in `Packages/com.dotsmovementtoolkit`**
+(namespace `DotsMovementToolkit`), extracted 2026-08 per
+`_Vault/Tasks/Verification/verify-movement-toolkit.md` (was `Tasks/Plans/Movement_Toolkit_Extraction.md`).
+This file covers the **game-side seam** — what stays in `Assets/_Scripts` and how it talks to
+the package. For the package's own systems, components, and pipeline, **read the package
+README** (`Packages/com.dotsmovementtoolkit/README.md`) — a transcription here would rot.
 
 ---
 
-## Horde vs Individual Movement
+## What moved vs. what stayed
 
-- **Horde movement** (most units): FlowField. A shared vector grid points every cell toward the target. Units sample the cell they occupy. Cheap for large groups.
-- **Individual movement** (player, special units): D* Lite. Incremental A* variant that replans efficiently when obstacles change.
+Moved into the package: `GridSystem`, `FlowFieldSystem`, `DStarLiteSystem`,
+`PathfindingCoordinatorSystem`, `PathRequestSystem`, `PathStuckCheckSystem`,
+`FormationOffsetSystem`, `HordeSystem`, `DStarLiteFollowerSystem`, `FlowFieldFollowerSystem`,
+`UnitMoverSystem`, `UnitGravitySystem`, `StairTransitionSystem`,
+`SetupUnitMoverDefaultPositionSystem`, `PathfindingUtils`, `HordeUtils`, the `Movement`/
+`Gravity`/`Horde`/`HordeMembership`/`HordeMemberBuffer`/`PathfindingAgent`/`PathRequest`/
+`StuckDetector`/`DStarLiteFollower`/`FlowFieldFollower`/`HordeRegistry`/`FormationType`/
+`MovementGridSettings`/`MovementStuck` components, and `MovementAuthoring`/
+`PathfindingAuthoring`/`HordeAuthoring`/`GravityAuthoring`/`HordeRegistryAuthoring`/
+`GridConfigAuthoring`. `MovementSystemGroup` itself (root + `MovementCoordinatorSystemGroup`/
+`MovementRoutingSystemGroup`/`MovementFollowerSystemGroup`/`MovementSteeringSystemGroup`
+(empty, declared slot)/`MovementExecutionSystemGroup`) is declared inside the package, not in
+the game's `SystemGroups.cs`.
 
-Units are assigned to a `Horde` entity. The horde holds the target destination; individual members hold a `formationOffset` (in `HordeMembership`) added on top.
+Stayed in game code (`Assets/_Scripts`), all under `using DotsMovementToolkit;`:
 
-The system switches a unit between `FlowFieldFollower` and `DStarLiteFollower` (both `IEnableableComponent`) based on `PathfindingAgent.currentMode`. Full component definitions in [[Components]].
-
----
-
-## Key Components
-
-| Component | File | Purpose |
+| System | File | Why it stays |
 |---|---|---|
-| `Movement` | `MovementComponents.cs` | moveSpeed, runSpeed, rotationSpeed, targetPosition, isMoving, isRunning. Speeds for brain units come from `UnitSO` (overridden post-bake by `UnitSpeedBakingSystem`); `MovementAuthoring` values are authoritative only for non-brain units (player) |
-| `UnitGravity` | `MovementComponents.cs` | fallSpeed, verticalVelocity |
-| `HordeMembership` | `MovementComponents.cs` | hordeId, hordeEntity, formationOffset, priority |
-| `Horde` | `MovementComponents.cs` | Shared target + flowfield index + member count |
-| `HordeMemberBuffer` | `MovementComponents.cs` | Buffer of member entities on the horde entity |
-| `PathfindingAgent` | `PathfindingComponents.cs` | Mode, repath interval, target, active flag |
-| `DStarLiteFollower` | `PathfindingComponents.cs` | Per-unit D* Lite state (enableable) |
-| `FlowFieldFollower` | `PathfindingComponents.cs` | Per-unit flowfield state (enableable) |
+| `PlayerMoveSystem` | `Systems/MovementSystemGroup/MovementFollowerSystemGroup/PlayerFollowerSystem.cs` | Writes `Movement.targetPosition` directly from player input — game-specific, not `PathRequest`-driven |
+| `LocomotionStanceSystem` | `Systems/MovementSystemGroup/MovementExecutionSystemGroup/LocomotionStanceSystem.cs` | Bridges `StateMachine.currentStance` (AI-spine) → `Movement.isRunning` |
+| `MovementStuckBridgeSystem` | `Systems/MovementSystemGroup/MovementCoordinatorSystemGroup/MovementStuckBridgeSystem.cs` | Maps the package's generic `MovementStuck` → this game's `ActionInterruptRequest`. `[UpdateAfter(typeof(PathStuckCheckSystem))]`, same package group, so the mapping happens same-frame |
+| `UnitSpeedBakingSystem` | `Systems/PostBakingSystemGroup/UnitSpeedBakingSystem.cs` | Copies `UnitSO` (game data) speeds into the package's `Movement` component post-bake |
+| `OrderMarkerSystem` | `Systems/PresentationSystemGroup/OrderMarkerSystem.cs` | Reads the game-only `HordeOrderMarker` (see below) alongside the package's `Horde` |
 
----
+Note these three game files legitimately declare `[UpdateInGroup(typeof(MovementCoordinatorSystemGroup))]`
+/ `MovementFollowerSystemGroup` / `MovementExecutionSystemGroup` (a **package** group) — that's
+allowed (game code plugging into a package group), and their folder still matches per
+`SystemPlacementConformanceTests`'s regex **only because they use an unqualified `typeof(...)`
+via `using DotsMovementToolkit;`** — a fully-qualified `typeof(DotsMovementToolkit.Foo)` would
+not match the folder-name regex and would fail the conformance test. Keep the `using`.
 
-## Adding Movement to a New Unit
+## Horde.markerEntity → HordeOrderMarker
 
-1. Add `UnitMoverAuthoring` to the body prefab — see [[Authoring]] for baking conventions.
-2. Add `HordeAuthoring` if the unit should join a horde, or `PathfindingAuthoring` for individual pathfinding.
-3. Add `UnitGravityAuthoring` if the unit is subject to gravity.
-4. The follower and execution systems will pick it up automatically via query.
+The order-destination marker GameObject reference used to live on the package's `Horde`
+component (`markerEntity`). The extraction split it into a new game-only component,
+`HordeOrderMarker` (`Components/Units/HordeOrderMarker.cs`), added alongside `Horde` on the
+same horde entity by `PlayerControllerAuthoring`'s baker. `OrderMarkerSystem` now queries
+`(RefRO<Horde>, RefRO<HordeOrderMarker>)` together — a horde entity with no `HordeOrderMarker`
+(e.g. one created via `HordeUtils.CreateHorde` or `HordeAuthoring`, neither of which add it)
+simply doesn't match, same effective behavior as the old `markerEntity == Entity.Null` check.
+
+`Horde.behaviorFlags` was dropped entirely during the extraction (confirmed dead: always
+written `0`, never read anywhere).
+
+## Death / revive wiring
+
+`Movement` and `Gravity` are `IEnableableComponent`. `DeathSystem.DeathJob` disables both
+(`[WithPresent(typeof(Movement))]`/`Gravity` — same pattern as its existing `PathRequest`/
+`DStarLiteFollower`/`FlowFieldFollower`/`HordeMembership` handling); `ReviveRequestSystem.ReviveJob`
+re-enables both. `UnitMoverJob`/`UnitGravityJob` inside the package have **no** `Dead` filter at
+all — the enabled bit on `Movement`/`Gravity` themselves is the gate now. `SpawnStateInitSystem`
+resets both to enabled on every `NewlySpawned` entity (spawn AND pool reclaim) — required per
+the [[Gotchas]] "enableable bits aren't reliably copied on reclaim" trap; skip this and a
+reclaimed corpse-turned-fresh-unit silently never moves again.
+
+`UnitAnimationAssignmentJob` (`AnimationAssignmentSystemGroup`) carries an explicit
+`[WithPresent(typeof(Movement))]` — the one place where letting the new enabled-gate exclude
+dead units would have been a real regression (it's what assigns the Death animation clip via
+`unitAction.current == ActionType.Death`), not a harmless no-op like the other movement/
+pathfinding jobs (which already excluded dead units via their own follower/request enable
+flags, so gaining the Movement gate too changed nothing observable for them).
+
+## Grid config
+
+`GridConfigAuthoring` is baked in `Assets/Scenes/SubScenes/DOTSTestScene.unity` (the real DOTS
+sandbox — `Game.unity` itself holds no baked content and is not wired to any subscene; it's
+loaded via `Assets/Scenes/TestArea.unity`'s `SubScene` component instead). Today's values match
+the pre-extraction hardcoded constants: 100×100×1 grid, cellSize 2, layerHeight 3,
+wallLayerMask = Walls (8), heavyLayerMask = PathfindingHeavy (9), groundLayerMask = Ground (3)
++ Structures (7), wallCost 255 / heavyCost 50 / defaultCost 1.

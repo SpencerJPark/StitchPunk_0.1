@@ -35,8 +35,9 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
 | `DesignComponents.cs` | `Components/Units/` | **Semantic** Unit Design: `DesignSlot` (`target`+`shapeIndex`), `PersistedDesign` (`IPersist`, rolled shapes — auto-saved), `ShapeOverride`, `ChangeDesignRequest` (enableable, semantic re-skin: shape-tag `paletteChanges` + `shapeOverrides` + `alternateColorMode` Enable/Disable), `RandomTagOption` buffer (authored roll pool from `CharacterRigAuthoring.randomTags` — what a random spawn may look like), `DesignReloadOnBake` (`[BakingType]`). Colours live in `CharacterPalette`; slices re-derived through the `PartLibrary` blob, colours through the `ColorPaletteLibrary` blob. ⚠ `DesignPart`/`DesignRange` buffers removed |
 | `CameraVisibilityComponents.cs` | `Components/Units/` | `CameraVisible` (enableable tag) — camera-visibility gate, flipped by `CameraVisibilitySystem` (GameManagerSystemGroup) from `CameraView`. Baked ENABLED on rig roots (`CharacterRigAuthoring`), parts (`BodyPartAuthoring`), standalone quads (`ImageIndexAuthoring`). ⚠ **PRESENTATION-ONLY gate** — see [[RULES]] |
-| `MovementComponents.cs` | `Components/Units/` | `UnitMover`, `UnitGravity`, `HordeMembership`, `Horde`, `HordeMemberBuffer`, `SetupUnitMoverDefaultPosition` |
-| `PathfindingComponents.cs` | `Components/Units/` | `PathfindingAgent`, `PathRequest`, `DStarLiteFollower`, `FlowFieldFollower` |
+| `HordeOrderMarker.cs` | `Components/Units/` | `HordeOrderMarker` — game-only order-marker GameObject ref, split off the package's `Horde` (see [[Systems_Movement]]) |
+| `NavigationWaypoint.cs` | `Components/Units/` | `NavigationWaypoint` — stayed in game (AI-spine/waypoint-registration consumers only, no package system reads it) |
+| `UnitSpeedBakingData.cs` | `Components/Units/` | `UnitSpeedBakingData` — bake-only, stayed in game (`UnitSO` coupling) |
 | `SpawnerComponents.cs` | `Components/Spawners/` | `UnitSpawner`, `PoolOwner`, `NeedsAnimatorInit` |
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
@@ -45,7 +46,6 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `ColorPaletteLibrary` (+`ColorPaletteLibraryReference`), `UnitPrefabEntry` |
 | `FactoryComponents.cs` | `Components/Structures/` | `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer, `FactoryGridConfig` singleton, `FactoryGridCell` buffer |
-| `RegistryComponents.cs` | `Components/Registry/` | `HordeRegistry` |
 | `SceneTags.cs` | `Components/Tags/` | `MainMenuTag`, `GameSceneTag` |
 | `GameDataComponents.cs` | `Components/Save/` | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` (now incl. master/music/sfx/ambient volume floats — persisted via IPersist) |
 | `Dialogue.cs` | `Components/AI/` | `DialogueProvider` (enableable, on NPC), `DialogueManagerTag`, `ActiveDialogue` (enableable, singleton), `OnDialogueEvent` (enableable, singleton), `PlayedDialogue` (buffer on GameData), `DialogueFlag` (buffer on GameData) |
@@ -183,77 +183,18 @@ Enums: `UnitPartId : short` (`Data/Enums/PartEnums.cs`, one per interchangeable 
 
 ---
 
-## Movement Components (`Components/Units/`)
+## Movement Components — moved to the package (`Packages/com.dotsmovementtoolkit`)
 
-Used by [[Systems_Movement]].
-
-### `MovementComponents.cs`
-
-```
-UnitMover
-    float   moveSpeed
-    float   rotationSpeed
-    float3  targetPosition
-    bool    isMoving
-
-UnitGravity
-    float   fallSpeed
-    float   verticalVelocity
-
-SetupUnitMoverDefaultPosition   tag — triggers SetupUnitMoverDefaultPositionSystem on first frame
-
-HordeMembership (enableable)
-    int     hordeId
-    Entity  hordeEntity
-    float2  formationOffset
-    int     priority
-
-Horde
-    int     hordeId
-    float3  targetPosition
-    Entity  targetEntity
-    int     flowFieldIndex
-    int     memberCount
-    bool    isActive
-    bool    needsPathUpdate
-    int     behaviorFlags
-
-HordeMemberBuffer (buffer, capacity 16)
-    Entity  memberEntity
-```
-
-### `PathfindingComponents.cs`
-
-```
-PathfindingAgent
-    PathfindingMode     preferredMode       — DStarLite / FlowField / None
-    PathfindingMode     currentMode
-    float               repathInterval
-    float               timeSinceLastRepath
-    int                 hordeFormationThreshold
-    bool                needsRepath
-    float3              targetPosition
-    bool                isActive
-
-PathRequest (enableable)
-    float3          targetPosition
-    PathfindingMode requestedMode
-
-DStarLiteFollower (enableable)
-    int     currentNodeIndex
-    int     goalNodeIndex
-    float3  nextWaypoint
-    float3  targetPosition
-    int     pathDataIndex
-    float3  lastMoveDirection
-    int     currentLayer
-
-FlowFieldFollower (enableable)
-    float3  targetPosition
-    float3  lastMoveVector
-    int     flowFieldIndex
-    int     currentLayer
-```
+`Movement` (renamed from `UnitMover`, now `IEnableableComponent` — see [[Systems_Movement]]
+death/revive wiring), `Gravity` (renamed from `UnitGravity`, also enableable),
+`SetupUnitMoverDefaultPosition`, `HordeMembership`, `Horde` (dropped `behaviorFlags` and
+`markerEntity` — see [[Systems_Movement]]), `HordeMemberBuffer`, `HordeRegistry`,
+`FormationType`, `PathfindingAgent`, `PathRequest`, `StuckDetector`, `DStarLiteFollower`,
+`FlowFieldFollower`, `MovementGridSettings`, `MovementStuck` (enableable — replaces the old
+direct `ActionInterruptRequest` write) all live in `Packages/com.dotsmovementtoolkit/Runtime/Components/`,
+namespace `DotsMovementToolkit`. Read the package README for fields — a transcription here
+would rot. What stayed in game code: see the table above (`HordeOrderMarker`,
+`NavigationWaypoint`, `UnitSpeedBakingData`).
 
 ---
 

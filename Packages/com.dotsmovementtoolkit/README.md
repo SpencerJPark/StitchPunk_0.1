@@ -1,0 +1,78 @@
+# DOTS Movement Toolkit
+
+Grid-based pathfinding and movement for Unity Entities: a shared grid/cost-map, D* Lite for
+individual agents, flow fields for hordes/groups, formation offsets, stair/layer transitions,
+and a `PathRequest`-driven API. Bake one `GridConfigAuthoring` and issue `PathRequest`s — no
+other project coupling.
+
+Extracted from Stitch Punk. This is an **internal-quality extraction** — decoupled, documented,
+compiling, play-tested — not yet a polished sellable toolkit. See Known Issues below.
+
+## The contract
+
+- **In:** add `PathRequest` (enableable) + `PathfindingAgent` to an entity, then drive it via
+  `MovementAPI.BeginPathRequest` / `MovementAPI.HaltPathing`. Any system may also write
+  `Movement.targetPosition` directly instead of going through `PathRequest` — that's how a
+  player-controlled character typically works, and it stays fully supported.
+- **Out:** `Movement` (position target + `isMoving`/`isRunning`, both enableable) is what the
+  rest of your game reads — animation, camera, anything that cares whether a unit is walking.
+  `MovementStuck` is an enableable tag set when an entity has an active `PathRequest` but hasn't
+  made progress in ~4 seconds; map it onto whatever "cancel the current action" concept your
+  game uses (see `MovementStuckBridgeSystem` in the consuming game for a worked example — it
+  disables `MovementStuck` and enables the game's own interrupt tag).
+- **Death/despawn:** `Movement` and `Gravity` are `IEnableableComponent`. Disable both when an
+  entity dies or otherwise shouldn't move under its own power (a ragdoll, a cutscene actor);
+  re-enable both on revive/respawn. A pooled entity being reclaimed must have every enableable
+  component's bit reset explicitly — Entities does not reliably preserve or reset enabled bits
+  across `Instantiate`/pool-reclaim.
+- **Gating:** every package system requires the baked `MovementGridSettings` singleton
+  (see Quickstart) — no config in the world means the whole `MovementSystemGroup` idles. This
+  is the generic, game-agnostic replacement for a scene-gate tag.
+
+## Quickstart (grid config)
+
+Add `GridConfigAuthoring` to one GameObject in your subscene (or any baked scene content) and
+set:
+
+| Field | Meaning |
+|---|---|
+| `width` / `height` / `layerCount` | Grid extent. `layerCount` > 1 needs stairs (`StairUtils.AddStairConnection`) to connect layers — see Known Issues, layer support is half-plumbed. |
+| `cellSize` / `layerHeight` | World-unit size of one cell / vertical distance between layers. |
+| `wallLayerMask` / `heavyLayerMask` / `groundLayerMask` | Physics `LayerMask`s the grid samples against — walls block pathing entirely, "heavy" cells cost more, `groundLayerMask` is what `UnitGravitySystem` raycasts down onto. |
+| `wallCost` / `heavyCost` / `defaultCost` | Byte cost-map values. `wallCost` doubles as the "impassable" sentinel every pathfinding/flow-field comparison in the package checks against — pick a value nothing else would realistically produce (`byte.MaxValue` by default). |
+
+Then add `MovementAuthoring` (+ `GravityAuthoring` if the entity should fall) to any unit, and
+either `PathfindingAuthoring` (individual D* Lite / flow-field agent) or `HordeAuthoring`
+(shared group target) depending on whether it moves alone or in a formation.
+
+## Adding a pathfinding strategy
+
+One strategy = one `PathfindingMode` enum member + one routing system (consumes `PathRequest`,
+lives in `MovementRoutingSystemGroup`) + one enableable follower component + one follower system
+(lives in `MovementFollowerSystemGroup`, writes `Movement.targetPosition`). `PathRequestSystem`
+is the dispatcher — it reads `PathRequest.requestedMode` and flips on the matching follower
+component; add your new mode there too. New strategies ship inside the package, so extending
+the enum is the intended way to grow it — this isn't a plug-in system for external assemblies.
+
+## Known Issues
+
+Not fixed in this pass — extraction and improvement are deliberately separate, so a play-test
+regression stays attributable to one or the other:
+
+- **D* Lite replan is main-thread and full-grid per request** (`DStarLiteSystem.ComputeDStarLitePath`)
+  — fine at today's scale, will not scale to many simultaneous individual pathfinders.
+- **`GridSystem` uses physics `NumBodies` as a change proxy** plus a `CompleteDependency()` sync
+  each time it changes (`GridSystem.cs`) — correct but coarse (any body add/remove anywhere
+  rebuilds the whole cost map) and a hard sync point.
+- **Flow-field ring-buffer slot reuse can clobber a field still in use**
+  (`FlowFieldSystem.FLOW_FIELD_MAP_COUNT` wraps without checking the old slot is done).
+- **Layer support is half-plumbed**: the cost map is layered end-to-end, but flow-field and
+  D* Lite indexing assume a single layer. Multi-layer buildings need stairs wired by hand via
+  `StairUtils` and haven't been stress-tested.
+- **Per-entity line-of-sight raycasts every frame** in both follower systems — fine at current
+  unit counts, a first target for batching/throttling if it shows up in a profile.
+- **`PathfindingUtils.GetFlowDirectionSmooth`** (bilinear flow sampling for smoother movement)
+  and several `GridSystem`/`PathfindingUtils` static helpers (`IsWall`, `IsWalkable`,
+  `GetMovementCost`, `GetNeighbors`, `GetCardinalNeighbors`, `HasLineOfSight`, `ManhattanDistance`)
+  are written but not called from anywhere in the package — candidates for the still-empty
+  `MovementSteeringSystemGroup`, or for deletion if a future pass confirms nothing needs them.

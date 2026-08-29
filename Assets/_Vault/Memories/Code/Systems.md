@@ -29,11 +29,12 @@ StateMachineSystemGroup      — decision resolution + behavior execution: see [
 ItemSystemGroup
   ├── ItemEquipSystemGroup (OrderFirst) — equip, consume, pickup, attach, unequip
   └── ThrownItemSystemGroup            — thrown item movement, proximity hit detection
-MovementSystemGroup          — see [[Systems_Movement]]
-  ├── MovementCoordinatorSystemGroup — grid, path requests, stuck checks, formation offsets
+MovementSystemGroup          — PACKAGE-OWNED (com.dotsmovementtoolkit, ns DotsMovementToolkit); see [[Systems_Movement]]
+  ├── MovementCoordinatorSystemGroup — grid, path requests, stuck checks, formation offsets, horde lifecycle
   ├── MovementRoutingSystemGroup     — flowfield / D* Lite path calculation
-  ├── MovementFollowerSystemGroup    — smooth path following
-  └── MovementExecutionSystemGroup   — writes final position/rotation to transforms
+  ├── MovementFollowerSystemGroup    — smooth path following (+ game's PlayerMoveSystem)
+  ├── MovementSteeringSystemGroup    — empty, declared slot for future arrival easing/avoidance
+  └── MovementExecutionSystemGroup   — writes final position/rotation to transforms (+ game's LocomotionStanceSystem)
 BuildingsSystemGroup         — factory production loop (PARKED — ProductionSystem + FactoryLibraryBakingSystem live commented-out in Core/Unused/)
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)
@@ -97,7 +98,6 @@ Runs once at bake time. Converts ScriptableObject data into BlobAssets, and dist
 | `InteractionSpatialHashSystem` | `InteractionSpatialHashSystem.cs` | Rebuilds the interaction/waypoint spatial hash (`SpatialHashRegistry`) |
 | `WaypointRegistrationSystem` | `WaypointRegistrationSystem.cs` | Registers `NavigationWaypoint` entities into the registry |
 | `FloatingWorldOriginSystem` | `FloatingWorldOriginSystem.cs` | Recenters world origin to prevent float precision loss |
-| `HordeSystem` | `HordeSystem.cs` | Creates/destroys horde entities, manages membership |
 | `CameraVisibilitySystem` | `CameraVisibilitySystem.cs` | Flips the `CameraVisible` enableable tag on rig roots + propagates to `BodyPart` children, from the `CameraView` singleton (XZ distance vs viewRadius, +5/+10 hysteresis paddings; `IgnoreComponentEnabledState` so off-screen roots re-enable). **Presentation-only gate** — animation sampling/apply/image-index/billboard chunk-filter on it; simulation systems must never gate on it. Prefab-lookup guard: spawn-frame `BodyPart` buffers still hold prefab entity refs — never written through (would corrupt the prefab's enable state); part sync self-heals via a drift check instead |
 
 ---
@@ -166,7 +166,10 @@ Contains the nested `ActionSelectionSystemGroup` and `ActionExecutionSystemGroup
 
 ---
 
-### MovementSystemGroup — see [[Systems_Movement]]
+### MovementSystemGroup — package-owned, see [[Systems_Movement]]
+
+Declared inside `Packages/com.dotsmovementtoolkit`, not `SystemGroups.cs` — the game's `ItemSystemGroup`/
+`BuildingsSystemGroup` keep their `UpdateBefore`/`UpdateAfter` edges onto it via `using DotsMovementToolkit;`.
 
 ---
 
@@ -233,10 +236,10 @@ Combat runs on a **recycled `NativeQueue<DamageEvent>` bus (v2)** — no per-uni
 
 | System | File | Purpose |
 |---|---|---|
-| `DeathSystem` | `DeathSystem.cs` | First-death-frame work (`Dead` is enabled upstream in `DamageEventSystem`); latches on `UnitAction.current == ActionType.Death` (set here) so it runs once per death. Halts pathing, fires `ActionInterruptRequest`, cancels in-flight `AttackRequest`. **Enables `PlayerInteractable` (if present) so a revivable corpse becomes targetable by the player reviver** (`PlayerTargetingSystem` scans `PlayerInteractable`; only `UndeadAuthoring` units carry it, baked disabled). `Alive` deprecated — `Dead` is the sole life-state. |
+| `DeathSystem` | `DeathSystem.cs` | First-death-frame work (`Dead` is enabled upstream in `DamageEventSystem`); latches on `UnitAction.current == ActionType.Death` (set here) so it runs once per death. Halts pathing, disables the package's `Movement`/`Gravity` (both enableable — Ragdoll2DSystem drives the corpse from here), fires `ActionInterruptRequest`, cancels in-flight `AttackRequest`. **Enables `PlayerInteractable` (if present) so a revivable corpse becomes targetable by the player reviver** (`PlayerTargetingSystem` scans `PlayerInteractable`; only `UndeadAuthoring` units carry it, baked disabled). `Alive` deprecated — `Dead` is the sole life-state. |
 | `Ragdoll2DInitSystem` | `Ragdoll2DInitSystem.cs` | Runs after `DeathSystem`. Detects freshly dead units, reads `Health.kill*` (full `killSourcePosition` float3): derives `fallSideSign` (X) + a real 3D launch velocity (horizontal away from source × `killLaunchForceX` + up × `killLaunchForceY`), seeds `Ragdoll2DLaunch` (restitution = per-attack or `RagdollSimConfig` default, `airborne=1`), copies flail/spin onto `Ragdoll2D`, resets each `RagdollJoint`-flagged joint (zone target from its `RagdollLandingZone` buffer, launch-proportional trail kick on `angularVelocity`, baked settle/segment/weight preserved). Fully independent of the design `PartLibrary` blob |
 | `HealRequestSystem` | `HealRequestSystem.cs` | Applies a heal request when enabled |
-| `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, `UnitAction`→Idle (re-arms death latch), disables `PlayerInteractable` (alive again → no longer a reviver target). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
+| `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, re-enables the package's `Movement`/`Gravity`, `UnitAction`→Idle (re-arms death latch), disables `PlayerInteractable` (alive again → no longer a reviver target). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
 | `SwapBrainSystem` | `SwapBrainSystem.cs` | `[UpdateAfter(ReviveRequestSystem)]`. Consumes an enabled `SwapBrainRequest`: re-keys `UtilityBrain.unitType`/`UnitData.unitType`, `Faction`, and rebuilds the `AttackFaction`/`AvailableAttack`/`Motivation` buffers from `UnitDataLibrary[newUnit]`; fires `ActionInterruptRequest`; consumes the request via ECB. Generic brain-swap hook (revive, future feral turn, debug). Rebuilt motivations are zero-decay (blob has no decay data). |
 | `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveRequestSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
@@ -266,7 +269,7 @@ Runs after `SpawnSystemGroup` each frame. All systems filter on `[WithAll<NewlyS
 
 | System | File | Purpose |
 |---|---|---|
-| `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off (units start alive = `Dead` disabled), `UtilityBrain`→on |
+| `SpawnStateInitSystem` | `SpawnStateInitSystem.cs` | Resets root-entity enableable states: `Dead`/`Ragdoll2DLaunch`/`Undead`/`Minion`/`Revive`/`Selected`/pathfinding→off (units start alive = `Dead` disabled), `UtilityBrain`→on, the package's `Movement`/`Gravity`→on (a reclaimed pool unit must be able to move/fall again) |
 | `BodyPartInitSystem` | `BodyPartInitSystem.cs` | Rebuilds the root `BodyPart` buffer on `NewlySpawned` units from `BodyPartInfo`+`BaseParent` (carries `partDef`+`flags`) — ECB.Instantiate does not reliably remap refs inside dynamic buffers. Replaces `AnimatorTargetInitSystem` |
 | `Ragdoll2DSpawnInitSystem` | `Ragdoll2DSpawnInitSystem.cs` | Scans `LinkedEntityGroup` to force-disable `Ragdoll2D`/`RagdollJoint` on all child entities, and zeroes + disables the root's `Ragdoll2DLaunch` (airborne/sleeping flags) — fixes ECB.Instantiate enabled-bit copy and stale state on pool reclaims |
 | `DesignRandomizeSystem` | `DesignRandomizeSystem.cs` | `[UpdateAfter(BodyPartInitSystem)] [UpdateBefore(MinionRestoreApplySystem)]` Rolls a per-character `CharacterPalette`: one shape tag per group from the AUTHORED `RandomTagOption` buffer (CharacterRigAuthoring.randomTags — authoring decides randomness; unlisted tags like "Zombie" never roll) + one colour index per referenced `ColorPaletteType` (full palette length; slot [min,max] windows narrow it at apply) + a random shape per `DesignSlot`-flagged `BodyPart` into `PersistedDesign`; resets alternate-colour mode, disables `RandomizeDesign`. `IJobEntity.ScheduleParallel`, requires both library singletons |

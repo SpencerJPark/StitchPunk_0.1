@@ -13,12 +13,13 @@ Keep this file current: add a row when you add a request component; delete the r
 
 | Contract | Produced by | Consumed by (owner feature) |
 |---|---|---|
-| `PathRequest` | BehaviorExecution/Interrupt, DeathSystem, HordeSystem, SpawnStateInit | `MovementSystemGroup` — PathRequestSystem → routing → followers |
+| `PathRequest` | BehaviorExecution/Interrupt, DeathSystem, HordeSystem, SpawnStateInit | `MovementSystemGroup` (package `com.dotsmovementtoolkit`, namespace `DotsMovementToolkit`) — PathRequestSystem → routing → followers. Issued via `MovementAPI.BeginPathRequest`/`HaltPathing` |
+| `MovementStuck` | `MovementSystemGroup` package — PathStuckCheckSystem (unit has an active `PathRequest`, no progress in ~4s) | Game's `MovementStuckBridgeSystem` (same package group, `UpdateAfter(PathStuckCheckSystem)`) maps it to `ActionInterruptRequest` |
 | `AttackRequest` | BehaviorExecutionSystem (RequestAttack), PlayerAttackSystem | `CombatSystemGroup` — AttackRequestSystem (AnimationTimeSystem reads swing timing; WorldMoodSystem reads for mood; BehaviorInterruptSystem cancels) |
 | `HealRequest` | ItemConsumeSystem | `HealthSystemGroup` — HealRequestSystem |
 | `ReviveRequest` | PlayerReviverSystem, SpawnStateInitSystem | `HealthSystemGroup` — ReviveRequestSystem |
 | `SwapBrainRequest` | ReviveRequestSystem | `HealthSystemGroup` — SwapBrainSystem |
-| `ActionInterruptRequest` | DeathSystem, ReviveRequestSystem, SwapBrainSystem, PathStuckCheckSystem, SelfDefenceAwarenessSystem | `StateMachineSystemGroup` — BehaviorInterruptSystem (single teardown path) |
+| `ActionInterruptRequest` | DeathSystem, ReviveRequestSystem, SwapBrainSystem, MovementStuckBridgeSystem (via package `MovementStuck`), SelfDefenceAwarenessSystem | `StateMachineSystemGroup` — BehaviorInterruptSystem (single teardown path) |
 | `ActionRequest` | MotivationDecaySystem, UnitSpawnerSystem, PersistentLoadSystem | `UtilityAISystemGroup` — gate tag that triggers the awareness/scoring pass |
 | `MotivationChangeRequest` (buffer) | ItemConsumeSystem, BehaviorExecution (ModifyMotivation), DeathSystem, BehaviorInterrupt | `UtilityAISystemGroup` — MotivationChangeRequestSystem |
 | `SocialInvite` | BehaviorExecutionSystem (RequestSocialResponse) | `UtilityAISystemGroup` — SocialResponseSystem |

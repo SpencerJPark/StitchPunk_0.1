@@ -229,6 +229,27 @@ for the unexpected throws that have nowhere else to report.
 
 ---
 
+## `SystemPlacementConformanceTests`' folder↔group check is a regex on the raw attribute text
+
+`SystemFileFolderMatchesItsUpdateGroup` matches `[UpdateInGroup\(typeof\((\w+)\)` against each
+file's source text and compares the captured identifier to the parent folder name. Writing
+`[UpdateInGroup(typeof(SomeNamespace.SomeGroup))]` (a fully-qualified type) doesn't match the
+regex at all — `\w+` stops at the `.`, so the whole `typeof\((\w+)\)` fails and the file is
+silently counted as having **zero** `[UpdateInGroup]` attributes, which trips the *other*
+test (`EverySystemFileDeclaresAnUpdateGroup`) instead, with a confusing "declares 1 system but 0
+attributes" message. A game file plugging into a package group (e.g.
+`LocomotionStanceSystem.cs` using `DotsMovementToolkit.MovementExecutionSystemGroup`) must add
+`using DotsMovementToolkit;` and write the bare `typeof(MovementExecutionSystemGroup)` — never
+the qualified form — to keep both tests reading it correctly.
+
+## `.gitignore` blanket-ignores every `/Packages/*/` — a new embedded package needs its own un-ignore line
+
+`.gitignore` has `/[Pp]ackages/*/` followed by an explicit `!/Packages/com.dotsanimationtoolkit/`
+allowlist entry. Creating a second embedded package (e.g. `com.dotsmovementtoolkit`) without
+adding its own `!/Packages/<name>/` line means every file in it silently never gets staged by
+`git add Packages/<name>` — no error, no warning, `git status` just shows nothing. Add the
+un-ignore line in the same commit that scaffolds the package, before doing anything else.
+
 ## DOTS Animation Toolkit — ragdoll (Packages/com.dotsanimationtoolkit)
 
 ### A ragdoll must re-write its pose every frame, including while asleep

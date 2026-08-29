@@ -25,8 +25,15 @@ namespace DotsMovementToolkit
     public partial class MovementRoutingSystemGroup : ComponentSystemGroup { }
 
     [UpdateInGroup(typeof(MovementSystemGroup))]
-    [UpdateBefore(typeof(MovementExecutionSystemGroup))]
+    [UpdateBefore(typeof(MovementSteeringSystemGroup))]
     public partial class MovementFollowerSystemGroup : ComponentSystemGroup { }
+
+    // Declared slot for future "natural movement" work (arrival easing, avoidance) — empty for
+    // now. The unused PathfindingUtils.GetFlowDirectionSmooth bilinear sampler is the first
+    // candidate to land here; see the package README's Known Issues.
+    [UpdateInGroup(typeof(MovementSystemGroup))]
+    [UpdateBefore(typeof(MovementExecutionSystemGroup))]
+    public partial class MovementSteeringSystemGroup : ComponentSystemGroup { }
 
     [UpdateInGroup(typeof(MovementSystemGroup))]
     public partial class MovementExecutionSystemGroup : ComponentSystemGroup { }

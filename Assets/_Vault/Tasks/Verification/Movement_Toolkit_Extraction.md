@@ -1,10 +1,42 @@
 ---
 tags: [plan, movement, pathfinding, package]
 related: "[[Systems_Movement]], [[Contracts]], [[RULES]]"
-status: awaiting-approval
+status: built
 ---
 
-# DOTS Movement Toolkit — package extraction plan
+# DOTS Movement Toolkit — package extraction plan (retired — see verify-movement-toolkit.md)
+
+All four phases built 2026-08-29. Deviations from the plan as written, decided during the
+build rather than called out in advance:
+
+- **`AIUtils` kept no transitional forwarding wrapper.** The plan's intro describes AIUtils
+  keeping thin `BeginPathRequest`/`HaltPathing` wrappers "until game call sites are migrated" —
+  since the move (Phase 2 step 5) and the migration happened in the same pass, the wrapper step
+  was skipped and all 7 call sites went straight to `MovementAPI`.
+- **`NavigationWaypoint` and `UnitSpeedBakingData` both stayed in game code** despite living in
+  `MovementComponents.cs` (which the plan says moves wholesale minus only `UnitSpeedBakingData`).
+  `NavigationWaypoint`'s only consumers are AI-spine/waypoint-registration game code; no package
+  system ever reads it. See [[Systems_Movement]].
+- **`HordeRegistry` and `FormationType`** (not named in the plan's file list) moved into the
+  package too — both are pure horde/movement concepts with zero other game consumers.
+- **`GridSystem`'s literal-duplicate static helpers now delegate to `PathfindingUtils`**
+  (`CalculateIndex` ×2, `GetGridPosition`, `IsValidGridPosition`, `OctileDistance`) rather than
+  a full rename/merge — satisfies "merge the duplicated members" with zero call-site risk.
+  Layer-aware `GridSystem`-only overloads are untouched.
+- **`wallCost`/`heavyCost`/`defaultCost` are threaded as real parameters**, not just baked and
+  forgotten — every `== ConstGameData.WALL_COST` comparison across the package (including
+  several dead/unused static helpers, touched only to hit the "zero `ConstGameData` hits"
+  bar) now compares against the settings-sourced byte.
+- **Game.unity turned out to hold no baked content.** `GridConfigAuthoring` went into
+  `Assets/Scenes/SubScenes/DOTSTestScene.unity` instead (the real DOTS sandbox, loaded via
+  `TestArea.unity`'s `SubScene` component) — confirmed live via `execute_code` (a unit's
+  `Movement.isMoving` reached `true` under real pathfinding).
+- **`HordeSystem` moved to the package's `MovementCoordinatorSystemGroup`**, not a new spot in
+  game code — it can no longer live in the game's `GameManagerSystemGroup` (a package system
+  can't derive from a game-declared base group). No known behavior depended on the old
+  order-first-in-SimulationSystemGroup placement.
+
+Original plan follows unchanged below.
 
 Paste-ready prompt for an agent. Read `CLAUDE.md`, `Assets/_Vault/Memories/Code/RULES.md`,
 `Systems_Movement.md`, and `Gotchas.md` before starting. Run the compile gate
