@@ -49,7 +49,8 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 
 | SO | Enum Key | Purpose |
 |---|---|---|
-| `UnitLibrarySO` + `UnitSO` | `UnitType` | Unit stats, prefab refs, base motivation weights |
+| `UnitLibrarySO` + `UnitSO` | `UnitType` | Unit stats, prefab refs, base motivation weights, `animationDirections` (turn granularity, default `Six`); clip fields are `DirectionSetSO`, not `ClipAsset` |
+| `DirectionSetSO` (no library — referenced directly by `UnitSO`/mapping fields) | — | Five east-side `ClipAsset` slots (`southEast/northEast/south/north/east`); effective `AnimationDirections` **derived** from fill pattern via `TryGetEffectiveDirections` (never declared). Bakes to `DirectionSetBlob` via `DirectionSetBakeUtil.Bake` (warns + rounds down on an invalid pattern). See `Systems_Animation.md` (facing) |
 | `AnimationLibrarySO` + `AnimationClipSO` | `AnimationType` | All animation clip data — used by [[Systems_Animation]] |
 | `AttackLibrarySO` + `AttackSO` | `DamageSource` (was `AttackType`) | Attack stats, ranges, damage + ragdoll response (`ragdollForce`/`launchForceX/Y`/flail/spin/restitution). Optional `ragdollProfile` (`RagdollProfileSO`) — flattened over the inline fields at bake by `AttackLibraryBakingSystem` |
 | `RagdollProfileSO` | — (flattened into `AttackBlob`) | Shared ragdoll response for a family of attacks (launch, flail, spin, restitution). Referenced by `AttackSO.ragdollProfile`; zero runtime indirection |
@@ -75,7 +76,7 @@ The blob holder [[Components]] (e.g. `AnimationLibrary`, `UnitDataLibrary`) are 
 | `NeedType` | 13 | None / Hunger / Energy / Fun / Social / Comfort / Bladder / Safety / Movement / SelfPreservation / SelfDefence / BloodLust / Work (`Data/Enums/AiEnums.cs`; renamed from `MotivationType`) |
 | `UnitType` | 4 | MaleCitizen / FemaleCitizen / MaleZombie / FemaleZombie |
 | `BuildingType` | 7 | Building categories |
-| `Direction` | 8 | N / NE / E / SE / S / SW / W / NW |
+| `Direction` / `AnimationDirections` | 8 / 5 | **Toolkit-owned** (`DotsAnimationToolkit.Direction`/`.AnimationDirections`, `DirectionEnums.cs`) — the game's own copies + `DirectionUtils` were deleted 2026-08-29 (superseded by `FacingResolver`); `using DotsAnimationToolkit;` wherever these appear now |
 | `ItemType` | 10 | Held + consumable item types (weapons, Bandage/MedKit/Bread/Water) |
 | `ItemCategory` | 5 | None / Weapon / Healing / Food / Drink — drives the `ItemConsumeSystem` consume-vs-equip branch |
 | `ColorPaletteType` | 6 | `byte`-backed (`ColorEnums.cs`): None / World / Skin / Blood / Hair / Shirts — indexes `ColorPaletteLibraryBlob`; doubles as the per-character colour sharing group (one rolled index per type). No zombie palettes — conversion looks are each entry's `alternative` colour. Append-only |

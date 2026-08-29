@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DotsAnimationToolkit;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -44,6 +45,10 @@ public class CharacterRigAuthoring : MonoBehaviour
             // --- Unified body-part registry (assembled by CharacterRigBakingSystem / BodyPartInitSystem) ---
             AddBuffer<BodyPart>(entity);
             AddComponent<CharacterRigConfig>(entity);
+
+            // Facing (DirectionFacing_System.md §4): derived state, written only by UnitFacingSystem.
+            // South = facing the camera, the same head-on default the rest pose already reads as.
+            AddComponent(entity, new UnitFacing { current = Direction.South });
 
             // Camera-visibility gate (starts visible; CameraVisibilitySystem flips it from CameraView).
             AddComponent<CameraVisible>(entity);

@@ -11,6 +11,7 @@
             <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
+            <uie:ToolbarButton name="direction-sets-button" text="Direction Sets" class="clip-editor__bar-action"/>
             <uie:ToolbarToggle name="vat-bake-toggle" text="VAT Bake" class="clip-editor__bar-action"/>
             <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
         </uie:Toolbar>

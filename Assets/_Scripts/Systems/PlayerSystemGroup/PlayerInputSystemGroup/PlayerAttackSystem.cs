@@ -107,8 +107,16 @@ public partial struct PlayerAttackSystem : ISystem
             attackRequest.ValueRW.elapsed      = 0f;
             SystemAPI.SetComponentEnabled<AttackRequest>(selfEntity, true);
 
-            // Swing animation on the Action layer.
-            ClipId animationClip = AIUtils.GetAnimationByAction(ref unitBlob, actionType);
+            // Swing animation on the Action layer — directional for free (DirectionFacing_System.md
+            // §5): resolve the actor's own last-resolved facing into an east-side clip pick.
+            Direction clipFacing = Direction.SouthEast;
+            if (SystemAPI.HasComponent<UnitFacing>(selfEntity))
+            {
+                UnitFacing unitFacing = SystemAPI.GetComponent<UnitFacing>(selfEntity);
+                FacingResolver.ResolveClipFacing(
+                    unitFacing.current, unitBlob.animationDirections, out clipFacing, out bool _);
+            }
+            ClipId animationClip = AIUtils.GetAnimationByAction(ref unitBlob, actionType, clipFacing);
             if (animationClip.IsValid && SystemAPI.HasBuffer<AnimationCommand>(selfEntity)
                 && animationCommandPendingLookup.HasComponent(selfEntity))
             {

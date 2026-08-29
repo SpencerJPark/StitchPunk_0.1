@@ -9,7 +9,9 @@
         "StitchPunk.Data",
         "StitchPunk.Components",
         "UnityEditor.UI",
-        "DotsAnimationToolkit.Authoring"
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
+        "DotsAnimationToolkit.Editor"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -85,6 +86,10 @@ public class BodyPartAuthoring : MonoBehaviour
 
             if (hasRenderer)
             {
+                // Facing (DirectionFacing_System.md §4): opt-in in the toolkit, so the game bakes it
+                // wherever turning should apply — every quad part. Written only by UnitFacingSystem.
+                AddComponent(entity, new PartFacing { viewOffset = 0, mirrorX = false });
+
                 // Per-instance tint (drives _BaseColor, Hybrid Per Instance). Set per-part in the
                 // authoring inspector; white leaves the authored sprite unchanged. A future global
                 // palette/skin system will overwrite this at runtime.

@@ -41,8 +41,16 @@ public static class AnimationCommands
             return;
 
         int unitIndex = context.unitLibrary.Value.FindByUnitType(brain.unitType);
+        Direction clipFacing = Direction.SouthEast;
+        if (context.unitFacingLookup.HasComponent(unit))
+        {
+            FacingResolver.ResolveClipFacing(
+                context.unitFacingLookup[unit].current,
+                unitIndex >= 0 ? context.unitLibrary.Value.units[unitIndex].animationDirections : AnimationDirections.One,
+                out clipFacing, out bool _);
+        }
         ClipId actionAnimation = unitIndex >= 0
-            ? AIUtils.GetAnimationByAction(ref context.unitLibrary.Value.units[unitIndex], stateMachine.action)
+            ? AIUtils.GetAnimationByAction(ref context.unitLibrary.Value.units[unitIndex], stateMachine.action, clipFacing)
             : default;
 
         if (!actionAnimation.IsValid) return;

@@ -3,6 +3,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using UnityEngine.Serialization;
+using DotsAnimationToolkit;
 using DotsAnimationToolkit.Authoring;
 
 [CreateAssetMenu(fileName = "Unit", menuName = "Units/Unit")]
@@ -35,10 +36,13 @@ public class UnitSO : ScriptableObject
     [SearchableEnum] public FactionType[] socialFactions;
     
     [Header("Animations")]
+    [Tooltip("How many directions this unit's locomotion/action art turns through. A citizen and a " +
+             "boss can share a rig and differ here — it's a property of the content, not the rig.")]
+    public AnimationDirections animationDirections = AnimationDirections.Six;
     public ActionAnimationMapping[] actionAnimations;
     public StanceAnimationMapping[] stanceAnimations;
-    public ClipAsset idleAnimation;
-    public ClipAsset movingAnimation;
+    public DirectionSetSO idleAnimation;
+    public DirectionSetSO movingAnimation;
 
     [Header("Combat")]
     [SearchableEnum] public FactionType[] attackFactions;
@@ -54,7 +58,7 @@ public class UnitSO : ScriptableObject
     // public float progressMax;
     // public Sprite sprite;
 
-    public ClipAsset GetAnimation(ActionType actionType, bool isMoving)
+    public DirectionSetSO GetAnimation(ActionType actionType, bool isMoving)
     {
         for (int i = 0; i < actionAnimations.Length; i++)
         {
@@ -79,7 +83,7 @@ public struct MotivationDecayConfig
 public struct ActionAnimationMapping
 {
     [SearchableEnum] public ActionType action;
-    public ClipAsset animation;
+    public DirectionSetSO animation;
 }
 
 [Serializable]
@@ -93,7 +97,7 @@ public struct AttackActionMapping
 public struct StanceAnimationMapping
 {
     public StanceType stance;
-    public ClipAsset idleAnimation;
-    public ClipAsset movingAnimation;
+    public DirectionSetSO idleAnimation;
+    public DirectionSetSO movingAnimation;
 }
 

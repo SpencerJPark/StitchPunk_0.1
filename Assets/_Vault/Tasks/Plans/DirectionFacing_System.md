@@ -1,6 +1,6 @@
 # Direction & Facing — Design Spec (toolkit adoption)
 
-> **Status:** ✅ spec ready 2026-08-29 — all design decisions stamped same-session (two owner Q&A rounds); one build-time marker remains (§6a tool form). Includes the owner-requested Direction Set Editor (§6a), which must land before the mass clip-authoring pass.
+> **Status:** 🔨 phases 1–4 built 2026-08-29 (data model, `UnitFacingSystem`, directional clip selection, Direction Set Editor window) — compiles clean, new EditMode tests + touched-fixture suites pass. **Phase 5 (owner art proof) is outstanding** — needs a real Six-direction walk/idle set and a part with authored alt-view slices, through the tool, then a compile+rebake+play pass before this retires to `Verification/`.
 > **Raw source:** [`../Claude/Systems_Gap_Audit_2026-08.md`](../Claude/Systems_Gap_Audit_2026-08.md) area 3 — the re-audit of the two pre-toolkit Direction specs.
 > **Supersedes (both deleted this session, git keeps them):** `Direction_System.md` — its A/B/C fork is answered by toolkit machinery that now exists; `DirectionalTexturePacking_System.md` — its *direction* half is dead (slices won, §2), its *channel-packing + recolor* half survives re-purposed to a different axis (§6) and gets its own spec later.
 > **Sequencing:** the data-model half of this plan gates the migration's phase 2 (rig/clip authoring) — Spencer should author clips and part atlases already knowing the Six-direction conventions below.
@@ -70,7 +70,7 @@ Assigning five clip slots blind in a default inspector is exactly how a set ends
 - **Slot assignment by drag or picker** per direction; the coverage readout updates live (fill `northEast` → "Four"), and invalid fill patterns show the same warning the bake will raise.
 - **Playback scrub** shared across panes (one time slider, all directions in sync) — this is the check that catches mismatched clip lengths/foot phase between direction variants, the classic directional-art bug.
 - **Not in the tool:** clip *content* editing (that is the Clip Editor's job — the tool links through to it), `PartFacing` view offsets (part-level, authored on `PartDefinitionSO`), and rig editing.
-- ← DECISION (build-time): standalone `EditorWindow` vs a rich custom inspector on `DirectionSetSO` — recommend starting as the custom inspector (selection-driven, no window management) and promoting to a window only if the preview panes need more room than the inspector gives.
+- [x] **Tool form: standalone `EditorWindow`**, opened from within the toolkit's Clip Editor (not a `DirectionSetSO` custom inspector) — owner wants direction-based clip authoring reachable from the same place as clip content authoring. Stamped 2026-08-29 (build-time).
 
 Sequencing: the tool needs the `DirectionSetSO` asset type (phase 1) and nothing from the runtime phases; it must exist **before the mass authoring pass** (phase 5), so it lands as phase 4, and runtime phases 2–3 proceed in parallel with hand-authored test sets.
 
@@ -87,11 +87,11 @@ What survives of `DirectionalTexturePacking_System.md`, re-scoped per the owner'
 
 ## 8. Build phases
 
-1. **Data + vocabulary.** `UnitFacing`, `DirectionSetSO` + blob + effective-count derivation, SO field re-types, `PartFacing` bake, `DirectionUtils` deletion, fill-pattern bake warning. Existing clips wrapped in SE-only sets — compiles and plays identically with zero new art.
-2. **`UnitFacingSystem`** — movement quantize + aim override + `PartFacing` push; EditMode tests. Visible result with today's art: units mirror-flip left/right correctly (every set folds to Two).
-3. **Directional clip selection** in assignment (per-set snap + east-side pick). With a hand-authored multi-member test set, walking a circle cycles the members + mirrors.
-4. **Direction Set Editor** (§6a) — preview panes, live mirror view, coverage readout, shared scrub.
-5. **Owner art proof** (with migration phase 2, through the tool): one unit's walk/idle as full Six sets, one part with real alt views — then retire to `Verification/`.
+1. ✅ **Data + vocabulary.** `UnitFacing`, `DirectionSetSO` + blob + effective-count derivation, SO field re-types, `PartFacing` bake, `DirectionUtils` deletion, fill-pattern bake warning. Existing clips wrapped in SE-only sets — compiles and plays identically with zero new art.
+2. ✅ **`UnitFacingSystem`** — movement quantize + aim override + `PartFacing` push; EditMode tests. Visible result with today's art: units mirror-flip left/right correctly (every set folds to Two).
+3. ✅ **Directional clip selection** in assignment (per-set snap + east-side pick), plus the same facing-aware pick threaded through `AIUtils.GetAnimationByAction`'s two other callers (`PlayerAttackSystem`, the `PlayActionAnimation` behavior command) so they inherit it "for free" per §5. With a hand-authored multi-member test set, walking a circle cycles the members + mirrors.
+4. ✅ **Direction Set Editor** (§6a) — standalone `EditorWindow` (`Assets/_Scripts/Editor/DirectionSetEditor/DirectionSetEditorWindow.cs`): preview panes (one `ClipPreviewController` instance per direction, west-side panes mirrored via a UI Toolkit `scale(-1,1)` on the rendered `Image`), live coverage readout sharing `DirectionSetSO.TryGetEffectiveDirections` with the bake warning, shared scrub slider, "Open in Clip Editor" per authored slot. Launched from a "Direction Sets" toolbar button in the Clip Editor, placed immediately before VAT Bake — wired through a new `ClipEditorWindow.OnDirectionSetsButtonClicked` static event so the toolkit package takes no dependency on this game (`PackagingConformanceTests` still green).
+5. ⏳ **Owner art proof** (with migration phase 2, through the tool): one unit's walk/idle as full Six sets, one part with real alt views — then retire to `Verification/`.
 
 ## 9. Verification (→ `verify-directionfacing.md` at retire time)
 
@@ -112,4 +112,4 @@ What survives of `DirectionalTexturePacking_System.md`, re-scoped per the owner'
 - [x] Facing space: **world-fixed `velocity.xz`** — stamped 2026-08-29.
 - [x] Aim override toward combat target while attacking: **yes, phase 2/3** — stamped 2026-08-29.
 - [x] Direction Set Editor is in-plan, phase 4, before the mass authoring pass — stamped 2026-08-29.
-- [ ] §6a — tool form: custom inspector on `DirectionSetSO` (recommended) vs standalone `EditorWindow` — build-time call.
+- [x] §6a — tool form: **standalone `EditorWindow`, launched from the Clip Editor** — stamped 2026-08-29 (build-time).

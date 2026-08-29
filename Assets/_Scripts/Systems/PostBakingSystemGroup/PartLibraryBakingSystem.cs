@@ -59,6 +59,10 @@ public partial struct PartLibraryBakingSystem : ISystem
             ref PartDef def = ref partsBuilder[slot];
             def.id    = partSO.id;
             def.group = ToFixed(partSO.group, partSO.name, "group");
+            def.viewOffsetSouthEast = partSO.viewOffsetSouthEast;
+            def.viewOffsetNorthEast = partSO.viewOffsetNorthEast;
+            def.viewOffsetSouth     = partSO.viewOffsetSouth;
+            def.viewOffsetNorth     = partSO.viewOffsetNorth;
 
             int designCount = partSO.designs != null ? partSO.designs.Count : 0;
             BlobBuilderArray<PartDesignDef> designsBuilder = builder.Allocate(ref def.designs, designCount);

@@ -28,6 +28,7 @@ public partial struct BehaviorExecutionSystem : ISystem
     private BufferLookup<AnimationCommand>      _animationCommandLookup;
     private BufferLookup<Motivation>            _motivationLookup;
     private ComponentLookup<StateMachine>       _stateMachineLookup;
+    private ComponentLookup<UnitFacing>         _unitFacingLookup;
     private ComponentLookup<SocialInvite>       _socialInviteLookup;
     private BufferLookup<AnimEventOutput>       _animEventOutputLookup;
     private ComponentLookup<AnimEventsPending>  _animEventsPendingLookup;
@@ -52,6 +53,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         _animationCommandLookup  = state.GetBufferLookup<AnimationCommand>(false);
         _motivationLookup        = state.GetBufferLookup<Motivation>(true);
         _stateMachineLookup      = state.GetComponentLookup<StateMachine>(true);
+        _unitFacingLookup        = state.GetComponentLookup<UnitFacing>(true);
         _socialInviteLookup      = state.GetComponentLookup<SocialInvite>(true);
         _animEventOutputLookup   = state.GetBufferLookup<AnimEventOutput>(true);
         _animEventsPendingLookup = state.GetComponentLookup<AnimEventsPending>(true);
@@ -73,6 +75,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         _animationCommandLookup.Update(ref state);
         _motivationLookup.Update(ref state);
         _stateMachineLookup.Update(ref state);
+        _unitFacingLookup.Update(ref state);
         _socialInviteLookup.Update(ref state);
         _animEventOutputLookup.Update(ref state);
         _animEventsPendingLookup.Update(ref state);
@@ -106,6 +109,7 @@ public partial struct BehaviorExecutionSystem : ISystem
             animationCommandLookup   = _animationCommandLookup,
             motivationLookup         = _motivationLookup,
             stateMachineLookup       = _stateMachineLookup,
+            unitFacingLookup         = _unitFacingLookup,
             socialInviteLookup       = _socialInviteLookup,
             animEventOutputLookup    = _animEventOutputLookup,
             animEventsPendingLookup  = _animEventsPendingLookup,
@@ -142,6 +146,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
     // read OTHER units' StateMachine (the target's), and each unit writes only its own.
     [ReadOnly] [NativeDisableContainerSafetyRestriction]
     public ComponentLookup<StateMachine> stateMachineLookup;
+
+    [ReadOnly] public ComponentLookup<UnitFacing> unitFacingLookup;
 
     // NativeDisableParallelForRestriction is safe: each unit/item is owned by at most one
     // executing behavior at a time, so no two threads write to the same component.
@@ -243,6 +249,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
             motivationLookup              = motivationLookup,
             socialInviteLookup            = socialInviteLookup,
             stateMachineLookup            = stateMachineLookup,
+            unitFacingLookup              = unitFacingLookup,
             animEventOutputLookup         = animEventOutputLookup,
             animEventsPendingLookup       = animEventsPendingLookup,
             waypointCells                 = waypointCells,

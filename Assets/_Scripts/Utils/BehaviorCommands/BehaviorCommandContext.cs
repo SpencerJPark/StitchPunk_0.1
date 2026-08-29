@@ -18,6 +18,7 @@ public struct BehaviorCommandContext
     public BufferLookup<Motivation>                 motivationLookup;
     public ComponentLookup<SocialInvite>            socialInviteLookup;
     public ComponentLookup<StateMachine>            stateMachineLookup;
+    public ComponentLookup<UnitFacing>              unitFacingLookup;
     public NativeParallelMultiHashMap<int2, Entity> waypointCells;
     public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     public BufferLookup<AnimEventOutput>            animEventOutputLookup;

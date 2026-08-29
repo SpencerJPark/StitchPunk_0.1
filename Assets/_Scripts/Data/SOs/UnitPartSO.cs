@@ -33,6 +33,22 @@ public class UnitPartSO : ScriptableObject
     public Texture2DArray textureArray;
 
     public List<PartDesign> designs = new();
+
+    [Header("Direction — alt views")]
+    [Tooltip("Frames to step from the rolled design's rest slice for the SouthEast alt view. 0 = " +
+             "this part's art does not change for that facing (it only mirrors, if at all). The " +
+             "final slice composes as restSliceIndex + viewOffset + the clip's own key — three " +
+             "terms, three owners (design roll, facing, animation).")]
+    public int viewOffsetSouthEast;
+
+    [Tooltip("Frames to step from the rest slice for the NorthEast alt view. 0 = no alt view.")]
+    public int viewOffsetNorthEast;
+
+    [Tooltip("Frames to step from the rest slice for the South (head-on) alt view. 0 = no alt view.")]
+    public int viewOffsetSouth;
+
+    [Tooltip("Frames to step from the rest slice for the North (head-away) alt view. 0 = no alt view.")]
+    public int viewOffsetNorth;
 }
 
 [Serializable]

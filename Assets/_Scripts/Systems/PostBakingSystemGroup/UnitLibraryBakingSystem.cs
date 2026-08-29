@@ -55,8 +55,9 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].becomesUnitType      = unitSO.becomesUnitType;
             unitsArray[i].canBePlayerControlled = unitSO.canBePlayerControlled;
             unitsArray[i].awarenessRange       = unitSO.awarenessRange;
-            unitsArray[i].idleAnimation        = unitSO.idleAnimation != null ? unitSO.idleAnimation.Id : default;
-            unitsArray[i].movingAnimation      = unitSO.movingAnimation != null ? unitSO.movingAnimation.Id : default;
+            unitsArray[i].animationDirections  = unitSO.animationDirections;
+            unitsArray[i].idleAnimation        = DirectionSetBakeUtil.Bake(unitSO.idleAnimation, $"{unitSO.name}.idleAnimation");
+            unitsArray[i].movingAnimation      = DirectionSetBakeUtil.Bake(unitSO.movingAnimation, $"{unitSO.name}.movingAnimation");
             unitsArray[i].randomMotivationAmount = unitSO.randomMotivationsTotal;
 
             int motivationCount = unitSO.motivations?.Length ?? 0;
@@ -93,9 +94,8 @@ public partial struct UnitLibraryBakingSystem : ISystem
             for (int j = 0; j < mappingCount; j++)
             {
                 mappingsArray[j].action    = unitSO.actionAnimations[j].action;
-                mappingsArray[j].animation = unitSO.actionAnimations[j].animation != null
-                    ? unitSO.actionAnimations[j].animation.Id
-                    : default;
+                mappingsArray[j].animation = DirectionSetBakeUtil.Bake(
+                    unitSO.actionAnimations[j].animation, $"{unitSO.name}.actionAnimations[{j}]");
             }
 
             int stanceCount = unitSO.stanceAnimations?.Length ?? 0;
@@ -103,13 +103,11 @@ public partial struct UnitLibraryBakingSystem : ISystem
                 builder.Allocate(ref unitsArray[i].stanceAnimations, stanceCount);
             for (int j = 0; j < stanceCount; j++)
             {
-                stanceArray[j].stance         = unitSO.stanceAnimations[j].stance;
-                stanceArray[j].idleAnimation   = unitSO.stanceAnimations[j].idleAnimation != null
-                    ? unitSO.stanceAnimations[j].idleAnimation.Id
-                    : default;
-                stanceArray[j].movingAnimation = unitSO.stanceAnimations[j].movingAnimation != null
-                    ? unitSO.stanceAnimations[j].movingAnimation.Id
-                    : default;
+                stanceArray[j].stance          = unitSO.stanceAnimations[j].stance;
+                stanceArray[j].idleAnimation    = DirectionSetBakeUtil.Bake(
+                    unitSO.stanceAnimations[j].idleAnimation, $"{unitSO.name}.stanceAnimations[{j}].idle");
+                stanceArray[j].movingAnimation  = DirectionSetBakeUtil.Bake(
+                    unitSO.stanceAnimations[j].movingAnimation, $"{unitSO.name}.stanceAnimations[{j}].moving");
             }
         }
 

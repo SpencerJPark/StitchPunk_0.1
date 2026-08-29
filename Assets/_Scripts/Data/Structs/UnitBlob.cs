@@ -23,6 +23,7 @@ public struct UnitDataBlob
     // Authored zombie/conversion form for this unit; None = does not convert.
     public UnitType becomesUnitType;
     public float awarenessRange;
+    public AnimationDirections animationDirections;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;
     public BlobArray<NeedType> randomMotivations;
@@ -31,14 +32,14 @@ public struct UnitDataBlob
     public BlobArray<AttackActionMappingBlob> attacks;
     public BlobArray<ActionAnimationMappingBlob> actionAnimations;
     public BlobArray<StanceAnimationBlob> stanceAnimations;
-    public ClipId idleAnimation;
-    public ClipId movingAnimation;
+    public DirectionSetBlob idleAnimation;
+    public DirectionSetBlob movingAnimation;
 }
 
 public struct ActionAnimationMappingBlob
 {
     public ActionType action;
-    public ClipId animation;
+    public DirectionSetBlob animation;
 }
 
 public struct AttackActionMappingBlob
@@ -50,6 +51,6 @@ public struct AttackActionMappingBlob
 public struct StanceAnimationBlob
 {
     public StanceType stance;
-    public ClipId idleAnimation;
-    public ClipId movingAnimation;
+    public DirectionSetBlob idleAnimation;
+    public DirectionSetBlob movingAnimation;
 }

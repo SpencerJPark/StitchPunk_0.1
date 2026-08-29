@@ -23,6 +23,7 @@ single-character names, explicit types everywhere.
 | Path | What it is |
 |---|---|
 | `TexturePacker/` | **Texture Channel Packer** — node-graph window that packs greyscale images into RGBA channels (see below). |
+| `DirectionSetEditor/DirectionSetEditorWindow.cs` | Standalone `EditorWindow` for authoring `DirectionSetSO`s (built 2026-08-29, `DirectionFacing_System.md` §6a). One `ClipPreviewController` instance per direction pane (reuses the toolkit's own preview machinery — never a second pipeline); west-side panes mirror via UI Toolkit `style.scale = (-1,1)` on the rendered `Image`, not a second render. Opens via `Window ▸ Stitch Punk ▸ Direction Set Editor`, `[OnOpenAsset]` double-click, or the "Direction Sets" button the toolkit's Clip Editor toolbar now carries (see the hook note below). |
 | `DialogueEditor/` | `DialogueSequenceEditorWindow` (GraphView node editor for `DialogueSequenceSO`) + `DialogueSequenceSOEditor`. |
 | `AnimationEditor/` | Hybrid preview-scene animation tooling: `AnimationClipEditorWindow`, `AnimationPreviewController(+Editor)`, `EditorAnimationSystem`, `EditorApplyAnimatedPoseSystem`, `AnimationClipUtilities`. |
 | `NarrativeEditor/` | `NarrativeEventSOEditor` custom inspector. |
@@ -35,6 +36,17 @@ single-character names, explicit types everywhere.
 | `ShowWhenDrawer.cs` | `PropertyDrawer` for `[ShowWhen("siblingBool", shownWhen)]` (`Data/Attributes/ShowWhenAttribute.cs`) — hides the field entirely unless a SIBLING bool matches; works in nested classes/list elements. Used by `PaletteSlot` (min/max only when `useFullRange` off) and `ColorVariation` (`alternative` only when `hasAlternative` on). |
 
 ---
+
+## Pattern: hooking a host tool into the Clip Editor toolbar without coupling the package
+
+`PackagingConformanceTests` (d) forbids any `com.dotsanimationtoolkit` file from naming `StitchPunk` or
+a host `Assets/` folder, so a game-side "open my tool" button can't be added by referencing game types
+from the package. The fix used for `DirectionSetEditorWindow` (2026-08-29): the package exposes a bare
+`public static event System.Action OnDirectionSetsButtonClicked` on `ClipEditorWindow`, adds a
+`ToolbarButton` in `ClipEditorWindow.uxml` that only shows when the event has a subscriber, and invokes
+it on click. The game's window subscribes from a `static` constructor (no `[InitializeOnLoad]` class
+needed — a `static` ctor on the window type itself runs at domain load). Reuse this shape for any
+future "toolkit toolbar → host tool" link instead of adding a host-aware hook inside the package.
 
 ## Pattern: GraphView node windows
 

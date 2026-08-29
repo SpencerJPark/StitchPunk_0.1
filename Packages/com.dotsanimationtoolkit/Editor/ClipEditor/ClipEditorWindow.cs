@@ -582,6 +582,15 @@ namespace DotsAnimationToolkit.Editor
             window.minSize = new Vector2(820f, 460f);
         }
 
+        /// <summary>
+        /// Fired when the toolbar's Direction Sets button is clicked. Direction/AnimationDirections
+        /// are already toolkit vocabulary (see DirectionEnums.cs) — deciding and authoring which
+        /// clip plays for which direction is host-owned, so this package exposes the button and the
+        /// click, never a host type. Null (the default, no button shown) is the packaged-alone case;
+        /// a host hooks this from its own Editor assembly to open its own authoring tool.
+        /// </summary>
+        public static event System.Action OnDirectionSetsButtonClicked;
+
         /// <summary>Brings the Clip Editor forward showing the editor, opening it if it is closed.</summary>
         public static void FocusClipEditing()
         {
@@ -1071,6 +1080,18 @@ namespace DotsAnimationToolkit.Editor
                     + "and self-collision — to see whether a pose still reads on impact. Turning it "
                     + "off restores the pose exactly.";
                 ragdollPreviewToggle.RegisterValueChangedCallback(OnRagdollPreviewToggleChanged);
+            }
+
+            ToolbarButton directionSetsButton = rootVisualElement.Q<ToolbarButton>("direction-sets-button");
+            if (directionSetsButton != null)
+            {
+                bool hasHost = OnDirectionSetsButtonClicked != null;
+                directionSetsButton.style.display = hasHost ? DisplayStyle.Flex : DisplayStyle.None;
+                if (hasHost)
+                {
+                    directionSetsButton.tooltip = "Open the host project's direction/facing authoring tool.";
+                    directionSetsButton.clicked += () => OnDirectionSetsButtonClicked?.Invoke();
+                }
             }
 
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");

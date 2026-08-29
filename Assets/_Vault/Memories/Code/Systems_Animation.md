@@ -19,11 +19,30 @@ separate, ongoing task — nothing here assumes real assets exist yet.
 
 ## What the game still owns
 
-- **`AnimationSystemGroup`** (`SystemGroups.cs`): shrunk to one system, `UnitAnimationAssignmentSystem`
-  (`AnimationAssignmentSystemGroup`). It decides which `ClipId` each layer should play from the
-  `UnitLibraryBlob` and issues `AnimationCommandUtil.Play` only on change — never every frame, since
-  commands are requests, not state. Ordered `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so
-  commands issued this frame apply this frame.
+- **`AnimationSystemGroup`** (`SystemGroups.cs`): two systems in `AnimationAssignmentSystemGroup`,
+  `UnitFacingSystem` then `UnitAnimationAssignmentSystem` (`[UpdateBefore]` edge, in that order —
+  facing must resolve before clip selection reads it). Assignment decides which `ClipId` each layer
+  should play from the `UnitLibraryBlob` and issues `AnimationCommandUtil.Play` only on change —
+  never every frame, since commands are requests, not state. Ordered
+  `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so commands issued this frame apply this frame.
+- **Facing** (`DirectionFacing_System.md`, built 2026-08-29): `UnitFacing : IComponentData { Direction
+  current; }` on unit roots, written only by `UnitFacingSystem` — world-fixed `velocity.xz` (via
+  `Movement.targetPosition - LocalTransform.Position`) quantized through the toolkit's
+  `FacingResolver.FromMovement`, with an aim override (to-target direction) while `unitAction.current`
+  is an attack and `CombatTarget` is enabled. On change it pushes `PartFacing { viewOffset, mirrorX }`
+  onto every `BodyPart` that carries one, view offset read from `PartLibraryBlob.PartDef.GetViewOffset`.
+  `DirectionSetSO` (`Data/SOs/`) replaces bare `ClipAsset` on every clip-mapping field that should turn
+  (`UnitSO.idleAnimation`/`movingAnimation`, `StanceAnimationMapping`, `ActionAnimationMapping`) — five
+  east-side slots, effective `AnimationDirections` **derived** from which are filled
+  (`DirectionSetSO.TryGetEffectiveDirections`, shared by the bake-time warning and the editor tool's
+  live readout — never re-derive this elsewhere). `AIUtils.GetAnimationByAction` and
+  `UnitAnimationAssignmentJob`'s two resolvers all take a `Direction clipFacing` resolved once via
+  `FacingResolver.ResolveClipFacing(unitFacing.current, blob.animationDirections, ...)` — `PlayerAttackSystem`
+  and the `PlayActionAnimation` behavior command get directionality "for free" this way, no extra
+  decision logic. The game's own `Direction`/`AnimationDirections` enums and `DirectionUtils` are
+  **deleted** — everything uses the toolkit's `DotsAnimationToolkit.Direction`/`AnimationDirections`
+  now. Authoring tool: `Assets/_Scripts/Editor/DirectionSetEditor/DirectionSetEditorWindow.cs` (see
+  [[Editor]]). Phase 5 (real Six-direction art) is still owner-pending — see the spec's status header.
 - **The command seam** — every write site issues `AnimationCommandUtil.Play`/`Stop` against
   `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
   `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem` (`PlayAnimation`/

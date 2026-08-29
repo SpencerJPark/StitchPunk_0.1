@@ -43,7 +43,8 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         in UnitData         unitData,
         in Movement         movement,
         in UnitAction       unitAction,
-        in LocomotionStance locomotionStance)
+        in LocomotionStance locomotionStance,
+        in UnitFacing       unitFacing)
     {
         int unitIndex = (int)unitData.unitType;
         if (unitIndex < 0 || unitIndex >= library.Value.units.Length)
@@ -51,8 +52,15 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
 
         ref UnitDataBlob unitBlob = ref library.Value.units[unitIndex];
 
+        // Per-set snap + east-side pick (DirectionFacing_System.md §5): a set with fewer authored
+        // directions than the actor turns through folds onto whatever it actually has — a
+        // Two-coverage walk on a Six-turning actor just mirrors left/right, no special case needed.
+        // The mirror half of this (mirrorX) is served through PartFacing, not the clip pick.
+        FacingResolver.ResolveClipFacing(
+            unitFacing.current, unitBlob.animationDirections, out Direction clipFacing, out bool _);
+
         // Base layer always reflects locomotion/stance
-        ClipId baseClip = GetBaseAnimation(ref unitBlob, locomotionStance.stance, movement.isMoving);
+        ClipId baseClip = GetBaseAnimation(ref unitBlob, locomotionStance.stance, movement.isMoving, clipFacing);
         if (baseClip.IsValid
             && !PlaybackQuery.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Base, baseClip))
         {
@@ -71,7 +79,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
             }
             else
             {
-                ClipId actionClip = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving);
+                ClipId actionClip = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving, clipFacing);
                 if (actionClip.IsValid
                     && !PlaybackQuery.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Action, actionClip))
                 {
@@ -97,7 +105,8 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
     private static ClipId GetBaseAnimation(
         ref UnitDataBlob unitBlob,
         StanceType stance,
-        bool isMoving)
+        bool isMoving,
+        Direction clipFacing)
     {
         if (stance != StanceType.Normal)
         {
@@ -105,23 +114,24 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
             for (int i = 0; i < stances.Length; i++)
             {
                 if (stances[i].stance == stance)
-                    return isMoving ? stances[i].movingAnimation : stances[i].idleAnimation;
+                    return (isMoving ? stances[i].movingAnimation : stances[i].idleAnimation).GetSlot(clipFacing);
             }
         }
-        return isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation;
+        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).GetSlot(clipFacing);
     }
 
     private static ClipId GetAnimationForAction(
         ActionType action,
         ref UnitDataBlob unitBlob,
-        bool isMoving)
+        bool isMoving,
+        Direction clipFacing)
     {
         ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
         for (int i = 0; i < mappings.Length; i++)
         {
             if (mappings[i].action == action)
-                return mappings[i].animation;
+                return mappings[i].animation.GetSlot(clipFacing);
         }
-        return isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation;
+        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).GetSlot(clipFacing);
     }
 }

@@ -45,6 +45,27 @@ public struct PartDef
     public UnitPartId id;
     public FixedString32Bytes group;        // shared shape-tag group this part follows ("Skin"/"Hair"/empty)
     public BlobArray<PartDesignDef> designs;
+
+    // Direction alt-view offsets (DirectionFacing_System.md §4): frames to step from the rolled
+    // design's rest slice for that facing. 0 everywhere = the part never changes art with facing
+    // (it only mirrors, via PartFacing.mirrorX, if at all). No East slot — the roster default
+    // (Six) never resolves to true profile; an Eight-count actor's true-profile parts read 0.
+    public int viewOffsetSouthEast;
+    public int viewOffsetNorthEast;
+    public int viewOffsetSouth;
+    public int viewOffsetNorth;
+
+    public int GetViewOffset(DotsAnimationToolkit.Direction eastSideFacing)
+    {
+        switch (eastSideFacing)
+        {
+            case DotsAnimationToolkit.Direction.SouthEast: return viewOffsetSouthEast;
+            case DotsAnimationToolkit.Direction.NorthEast: return viewOffsetNorthEast;
+            case DotsAnimationToolkit.Direction.South: return viewOffsetSouth;
+            case DotsAnimationToolkit.Direction.North: return viewOffsetNorth;
+            default: return 0;
+        }
+    }
 }
 
 public struct PartLibraryBlob
