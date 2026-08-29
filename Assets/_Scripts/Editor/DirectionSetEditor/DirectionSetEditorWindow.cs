@@ -26,6 +26,7 @@ using UnityEngine.UIElements;
 //  the game renders. Clip CONTENT editing, PartFacing view offsets, and rig editing are explicitly
 //  out of scope for this tool — "Open in Clip Editor" links out for the first.
 // ===========================================================================
+[InitializeOnLoad]
 public class DirectionSetEditorWindow : EditorWindow
 {
     private const int PreviewSize = 160;
@@ -41,9 +42,11 @@ public class DirectionSetEditorWindow : EditorWindow
 
     private readonly Dictionary<Direction, DirectionPreviewPane> panes = new Dictionary<Direction, DirectionPreviewPane>();
 
-    // Subscribes once per domain load — the Clip Editor's toolbar button only appears once a host
-    // has hooked this, and only ever calls back into a parameterless opener (ClipEditorWindow takes
-    // no dependency on this type or on StitchPunk at all; see its own OnDirectionSetsButtonClicked).
+    // [InitializeOnLoad] is load-bearing here, not decoration: a bare static constructor only runs
+    // the first time something touches this type, which without it never happened until a user
+    // manually opened this window — so the Clip Editor's toolbar button (which only shows once this
+    // subscribes) never appeared on a fresh domain load. [InitializeOnLoad] forces the static ctor
+    // to run at editor load / every domain reload, before any window is opened.
     static DirectionSetEditorWindow()
     {
         ClipEditorWindow.OnDirectionSetsButtonClicked += OpenWindow;

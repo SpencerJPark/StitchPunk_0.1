@@ -44,9 +44,12 @@ a host `Assets/` folder, so a game-side "open my tool" button can't be added by 
 from the package. The fix used for `DirectionSetEditorWindow` (2026-08-29): the package exposes a bare
 `public static event System.Action OnDirectionSetsButtonClicked` on `ClipEditorWindow`, adds a
 `ToolbarButton` in `ClipEditorWindow.uxml` that only shows when the event has a subscriber, and invokes
-it on click. The game's window subscribes from a `static` constructor (no `[InitializeOnLoad]` class
-needed — a `static` ctor on the window type itself runs at domain load). Reuse this shape for any
-future "toolkit toolbar → host tool" link instead of adding a host-aware hook inside the package.
+it on click. The game's window subscribes from a `static` constructor **decorated with
+`[InitializeOnLoad]`** — a bare `static` ctor only runs the first time something touches the type, so
+without the attribute the button silently never appeared until a user manually opened
+`DirectionSetEditorWindow` once (found 2026-08-29: the button was missing from the toolbar entirely on
+a fresh domain load). Reuse this shape for any future "toolkit toolbar → host tool" link, and don't
+drop the attribute.
 
 ## Pattern: GraphView node windows
 
