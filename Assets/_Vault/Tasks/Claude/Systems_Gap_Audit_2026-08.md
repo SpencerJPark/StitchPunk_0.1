@@ -184,5 +184,8 @@ systems the migration replaces — last chance to verify them cheaply.
    [`../NewPlans/AnimationToolkitMigration_System.md`](../NewPlans/AnimationToolkitMigration_System.md)**
 3. Area 2 spec: **drafted 2026-08-29 →
    [`../NewPlans/AnimationEventTiming_System.md`](../NewPlans/AnimationEventTiming_System.md)** — built after 2 + BehaviorCommandSplit
-4. Direction re-audit (area 3) — short, unblocks part authoring
+4. Direction re-audit (area 3): **done 2026-08-29 →
+   [`../Plans/DirectionFacing_System.md`](../Plans/DirectionFacing_System.md)** — toolkit facing model
+   adopted (slices for direction, `Six` default); both pre-toolkit specs deleted as superseded,
+   channel packing re-scoped to intra-slice state variants (follow-up spec)
 5. Everything else per areas 5/6

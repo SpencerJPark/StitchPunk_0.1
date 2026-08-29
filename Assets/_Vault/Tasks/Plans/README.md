@@ -48,8 +48,7 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 | Game UI — Health | — | ⬜ not started |
 | Minion Systems → new state machine | — | ⬜ not started |
 | **Behavior Bake Validation** (shared command catalog; bake warns on unimplemented BehaviorSO commands) | [BehaviorBakeValidation_System.md](../Completed/BehaviorBakeValidation_System.md) | ✔️ spec retired · [verify](../Verification/verify-behaviorbakevalidation.md) still open |
-| **Direction System** (facing representation — DECISION-FIRST, blocks part-SO authoring) | [Direction_System.md](Direction_System.md) | ✅ spec ready |
-| **Directional Texture Packing + Recolor** (4 facings → RGBA channels + mirror-flip 8-way; grayscale mask → palette ColorRamp recolor; implements Direction §Option B) | [DirectionalTexturePacking_System.md](DirectionalTexturePacking_System.md) | ✅ spec ready |
+| **Direction & Facing** (toolkit adoption: `FacingResolver`/`PartFacing`/`AnimationDirections.Six` default; `UnitFacingSystem` + `DirectionalClipSet` + part view offsets; supersedes the two pre-toolkit Direction specs — deleted 2026-08-29, git keeps them; channel packing re-scoped to intra-slice state variants, own spec later) | [DirectionFacing_System.md](DirectionFacing_System.md) | 📝 core decisions stamped; 3 build-time markers open |
 | **Color Palette v2 + Ragdoll Separation** (`UnitPartSO` = `PartDesign` list: tagged texture span + 3 palette-window slots; `ColorVariation {color, alternative}` pairs — zombify = alternate-colour mode, identity kept; randomness authored on `CharacterRigAuthoring.randomTags`; ragdoll fully extracted to `RagdollJointSO`/`RagdollJointAuthoring`) | [ColorPalette_System.md](../Verification/ColorPalette_System.md) | 🔨 built — awaiting asset wiring + play verify ([verify-colorpalette.md](../Verification/verify-colorpalette.md)) |
 | **Painterly Gradient-Map** (64×64 gradient atlas as UV palette; mesh UV picks colour, lighting shades; PainterlyGradientMap node + PainterlyPaletteShader + LUT generator) | [PainterlyGradientMap_Shader.md](../Completed/PainterlyGradientMap_Shader.md) | ✔️ spec retired · [verify](../Verification/verify-painterly-gradient-map.md) still open |
 | **Zombie Conversion** (ZombifyRequest composes SwapBrainRequest + ChangeDesignRequest) | [ZombieConversion_System.md](ZombieConversion_System.md) | ✅ spec ready — shrunk: `SwapBrainRequest` + `ChangeDesignRequest` both exist, only the composer is missing |
@@ -76,6 +75,5 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 | Interactions/Behaviors (bulk, AI-assisted SO setup) | — | ⬜ not started |
 | Trade System Group | — | ⬜ not started |
 | Vehicle System (driving, caravan base) | — | ⬜ not started |
-| Direction System (multi-facing characters) | — | ⬜ not started |
 
 > Build-order notes for narrative/scene-driven systems (Dialogue, Narrative Events, Cinematic Camera, Feral Zombie AI, etc.) live in the lower half of [`futureneedsplan.md`](futureneedsplan.md) and will graduate into their own docs here as they're picked up.
