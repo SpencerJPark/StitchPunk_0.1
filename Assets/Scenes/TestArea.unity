@@ -1593,6 +1593,7 @@ MonoBehaviour:
   soundLibrary: {fileID: 11400000, guid: 4f505c160197d164bb9898afe331f479, type: 2}
   poolSize: 32
   cameraViewRadius: 25
+  maxCameraViewRadius: 120
   exploreMusic: {fileID: 8300000, guid: 1865cb80ae4881949bb753ebc9026d85, type: 3}
   tensionMusic: {fileID: 8300000, guid: 7e100415a60abe84a9e03d852a7b1987, type: 3}
   combatMusic: {fileID: 8300000, guid: 14c607822eaded44d9d44f37627fecf1, type: 3}
