@@ -87,6 +87,34 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.AreEqual(1, skippedEventCount, "sanity: exactly one event was authored");
         }
 
+        /// <summary>
+        /// Covers Phase G7: a Prop slot has no rig, no clip lane, and no <c>AnimationCommand</c>/
+        /// <c>RigPartRef</c> on its bound entity at all — just a transform. Root motion must still
+        /// apply through the same <c>ApplyPose</c> path an Actor slot uses.
+        /// </summary>
+        [Test]
+        public void PropSlot_WithNoRigOrCommandBuffer_StillGetsRootMotion()
+        {
+            Entity propEntity = testWorld.EntityManager.CreateEntity();
+            testWorld.EntityManager.AddComponentData(propEntity, LocalTransform.Identity);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildPropOnlyCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
+            {
+                slotId = SlotId,
+                actorEntity = propEntity
+            });
+
+            Advance(1f);
+
+            float3 position = testWorld.EntityManager.GetComponentData<LocalTransform>(propEntity).Position;
+            Assert.AreEqual(5f, position.x, 1e-4f, "a prop with no rig or clip lane must still get root motion");
+            Assert.IsTrue(
+                testWorld.EntityManager.GetComponentData<CutscenePlaybackState>(requestEntity).isComplete);
+        }
+
         [Test]
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {
@@ -181,6 +209,61 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             SystemHandle timelineSystem = testWorld.GetOrCreateSystem<CutsceneTimelineSystem>();
             timelineSystem.Update(testWorld.Unmanaged);
             testWorld.EntityManager.CompleteAllTrackedJobs();
+        }
+
+        /// <summary>One Prop slot, one segment, no holds: root motion only, spanning [0, 1].</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildPropOnlyCutsceneBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 1;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Prop };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 1f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                builder.Allocate(ref slotSegment.clipBlocks, 0);
+                BlobBuilderArray<CutsceneTransformKeyBlob> transformKeys =
+                    builder.Allocate(ref slotSegment.transformKeys, 2);
+                transformKeys[0] = new CutsceneTransformKeyBlob
+                {
+                    time = 0f,
+                    position = new float3(0f, 0f, 0f),
+                    rotation = float3.zero,
+                    scale = new float3(1f, 1f, 1f),
+                    interpolation = Interpolation.Linear
+                };
+                transformKeys[1] = new CutsceneTransformKeyBlob
+                {
+                    time = 1f,
+                    position = new float3(5f, 0f, 0f),
+                    rotation = float3.zero,
+                    scale = new float3(1f, 1f, 1f),
+                    interpolation = Interpolation.Linear
+                };
+                builder.Allocate(ref slotSegment.facingKeys, 0);
+                builder.Allocate(ref slotSegment.partTracks, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
         }
 
         /// <summary>One segment, no holds: a clip block and root motion both spanning [0, 2], one event at t=1.</summary>

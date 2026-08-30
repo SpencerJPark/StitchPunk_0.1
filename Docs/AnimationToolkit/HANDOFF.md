@@ -112,11 +112,14 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**Phase G — Cutscene Editor. Specced 2026-08-29; G1 built and gated the same day (owner directed
-"do the spec" — read as sign-off).** The `tab-cutscene-editor` placeholder becomes a multi-actor,
-scene-hosted cutscene timeline (clip blocks + keyframes, camera and event lanes, hold points) baked
-to a blob with an ECS runtime player. Full owner Q&A and the G1–G7 build order are in
-`Phase_G_Cutscene_Spec.md` — §2–§4 are owner product calls, §7 the recorded delegated decisions.
+**Phase G — Cutscene Editor. Specced 2026-08-29; G1–G7 all built and gated the same day (owner
+directed "do the spec" — read as sign-off).** The `tab-cutscene-editor` placeholder is now a
+multi-actor, scene-hosted cutscene timeline (clip blocks + keyframes, camera and event lanes, hold
+points) baked to a blob with an ECS runtime player. Full owner Q&A and the G1–G7 build order are in
+`Phase_G_Cutscene_Spec.md` — §2–§4 are owner product calls, §7 the recorded delegated decisions
+(nine now, G-D1 through G-D9, the last four decided while building rather than up front — see each
+phase's own entry below for why). **Feature-complete, gated, undemoed** — see G7's own line for
+what that last word means before treating this as shippable.
 
 **G1 — data model — done.** `CutsceneAsset` (`Authoring/Assets/CutsceneAsset.cs`): named
 actor/prop slots (stable 32-bit `slotId`, same generator RigAsset rows use), clip blocks, a
@@ -327,9 +330,20 @@ resolved-angle number in the editor and no runtime-side facing at all, because n
 package drives facing outside host movement code for it to hook into; recast-to-a-different-rig
 support for the baked runtime path (G-D9); a frozen (non-scrolling) timeline header column.
 
+**G7 — prop slots + docs — done. Phase G (G1–G6) is feature-complete.** Prop slots turned out to
+already work end to end — they were built into the data model, editor, preview, bake and runtime
+player incrementally since G1, gated by `CutsceneSlotKind.Prop` at every layer, rather than bolted
+on at the end. G7's real work was closing the one untested path: a dedicated PlayMode fixture
+(`PropSlot_WithNoRigOrCommandBuffer_StillGetsRootMotion`) proving a Prop entity with no
+`AnimationCommand`/`RigPartRef` at all — just a transform — still gets root motion through the same
+`ApplyPose` path an Actor slot uses. `Documentation~/cutscenes.md` (new, linked from `index.md`)
+covers the concept model, authoring workflow, scene binding/preview, baking, the runtime API, and
+recorded gaps in the same voice the rest of `Documentation~/` uses. EditMode 709/709, PlayMode
+243/243 (240 prior Phase F baseline + 2 from G6 + 1 Prop fixture here). Compile gate green.
+
 **Owed before this closes for real: the owner's eyes on a live cutscene**, same as every other
 visual surface in this package (HANDOFF §8's own standing note) — nothing here has been looked at
-running against a real actor in a real scene. G7 (prop slots + docs) is what remains on the queue.
+running against a real actor in a real scene. Nothing remains on the Phase G queue.
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says

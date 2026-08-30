@@ -155,6 +155,10 @@ And the two references both of them lean on:
   the default mode falls *inside the billboard plane* rather than in world
   space, hierarchy-implied joints and limits, self-collision, previewing a
   drop in the Clip Editor, and the one component a game enables to start one.
+- [`cutscenes.md`](cutscenes.md) — multi-actor timelines: clip blocks and
+  keyframes on one lane per actor, a camera lane, hold points, non-destructive
+  Scene-view preview and keying, baking to a `CutsceneBlob`, and the
+  `CutscenePlaybackApi` that plays one at runtime.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.

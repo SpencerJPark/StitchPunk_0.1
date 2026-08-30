@@ -384,10 +384,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.13.0 is rig-centric binding
-            // (Phase F) with event authoring and the timeline binding surface (amendments A55,
-            // A56), on top of 0.12.0's target tags and shared clips (amendment A51).
-            Assert.AreEqual("0.13.0", manifest.version, "Version tracks the shipped feature set; 0.13.0 is rig-centric binding with event authoring and the timeline binding surface.");
+            // -- not drift because someone edited the manifest. 0.14.0 is Phase G, the Cutscene
+            // Editor: multi-actor timelines, non-destructive Scene-view preview and keying, a camera
+            // lane, baking to a blob, and an ECS runtime player, on top of 0.13.0's rig-centric
+            // binding (Phase F).
+            Assert.AreEqual("0.14.0", manifest.version, "Version tracks the shipped feature set; 0.14.0 is the Cutscene Editor (Phase G).");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

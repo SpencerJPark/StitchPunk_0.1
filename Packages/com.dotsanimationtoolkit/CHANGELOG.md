@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene docs and Prop slot coverage (Phase G7)
+
+`Documentation~/cutscenes.md` (linked from `index.md`): concept model, authoring workflow, scene
+binding and Scene-view preview, baking, the runtime API, and recorded gaps. Prop slots — a bare
+transform target with no rig and no clip lane — were already wired through every layer since G1;
+G7 adds the one PlayMode fixture that had been missing, proving a Prop entity with no
+`AnimationCommand`/`RigPartRef` at all still gets root motion through the runtime player.
+
+**Phase G (multi-actor cutscenes) is feature-complete as of this release**: data model, the
+Cutscene Editor tab, non-destructive Scene-view preview and keying, a camera lane with scrub
+preview, baking to a `CutsceneBlob`, and the runtime player. Not yet judged by eye — see
+`HANDOFF.md`.
+
 ### Added — Cutscene runtime player (Phase G6)
 
 `CutsceneTimelineSystem` and `CutscenePartOverrideSystem` play a baked `CutsceneBlob`: clip blocks
