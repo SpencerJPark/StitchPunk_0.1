@@ -69,6 +69,10 @@ namespace DotsAnimationToolkit.Editor
         private ScrollView timelineScrollView;
         private ScrollView inspectorScroll;
         private CutsceneTimelinePlayheadElement playheadElement;
+        private CutsceneCastPanel castPanel;
+
+        /// <summary>Set while this panel is the one driving <see cref="Selection"/>, so the sync back does not fight it.</summary>
+        private bool isDrivingUnitySelection;
 
         private Button playToggleButton;
         private Button continueButton;
@@ -118,13 +122,29 @@ namespace DotsAnimationToolkit.Editor
             VisualElement timelineArea = new VisualElement();
             timelineArea.style.flexGrow = 1f;
             timelineArea.style.flexDirection = FlexDirection.Column;
-            body.Add(timelineArea);
 
             timelineArea.Add(BuildAddSlotRow());
 
             timelineScrollView = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             timelineScrollView.style.flexGrow = 1f;
             timelineArea.Add(timelineScrollView);
+
+            castPanel = new CutsceneCastPanel();
+            castPanel.PlaceRequested += PlaceSlotFromPrefab;
+            castPanel.BindRequested += BindSlotToObject;
+            castPanel.SlotSelected += SelectSlotHeader;
+            castPanel.FrameRequested += FrameSlotInSceneView;
+
+            TwoPaneSplitView castSplit = new TwoPaneSplitView(0, 220f, TwoPaneSplitViewOrientation.Horizontal);
+            castSplit.style.flexGrow = 1f;
+            castSplit.Add(castPanel);
+            castSplit.Add(timelineArea);
+            body.Add(castSplit);
+
+            // Clicking the character in the Hierarchy or the Scene view lights its cast row and its
+            // timeline group — the other half of "selection syncs both ways" (A58 §3.3).
+            Selection.selectionChanged += OnUnitySelectionChanged;
+            RegisterCallback<DetachFromPanelEvent>(_ => Selection.selectionChanged -= OnUnitySelectionChanged);
 
             inspectorScroll = new ScrollView(ScrollViewMode.Vertical);
             inspectorScroll.style.width = 300f;
@@ -659,6 +679,7 @@ namespace DotsAnimationToolkit.Editor
             SyncPreviewActivation();
             RebuildTimeline();
             RebuildInspector();
+            RefreshCastPanel();
         }
 
         /// <summary>
@@ -711,6 +732,7 @@ namespace DotsAnimationToolkit.Editor
             newSlot.FindPropertyRelative("rig").objectReferenceValue = null;
             newSlot.FindPropertyRelative("clipSets").ClearArray();
             newSlot.FindPropertyRelative("directionSet").objectReferenceValue = null;
+            newSlot.FindPropertyRelative("actorPrefab").objectReferenceValue = null;
             newSlot.FindPropertyRelative("clipBlocks").ClearArray();
             newSlot.FindPropertyRelative("transformKeys").ClearArray();
             newSlot.FindPropertyRelative("facingKeys").ClearArray();
@@ -746,6 +768,148 @@ namespace DotsAnimationToolkit.Editor
             SyncSceneSelectionToTimelineSelection();
             RebuildTimeline();
             RebuildInspector();
+            RefreshCastPanel();
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Cast panel: staging the scene from the tool (A58 §3.3).
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Instantiates a slot's actor prefab at the Scene view pivot and binds it, as one Undo step.
+        /// </summary>
+        /// <remarks>
+        /// <strong>A real scene edit, deliberately outside the preview's capture/restore
+        /// (decision A58-D3).</strong> The preview poses objects and un-poses them on exit;
+        /// placement creates one that is meant to survive a save. Preview is exited first so the
+        /// new object is captured at its authored rest pose on re-entry rather than mid-scrub.
+        /// </remarks>
+        private void PlaceSlotFromPrefab(int slotIndex)
+        {
+            if (cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count)
+            {
+                return;
+            }
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            if (slot.actorPrefab == null)
+            {
+                return;
+            }
+            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            if (string.IsNullOrEmpty(cutscene.sceneGuid) || currentSceneGuid != cutscene.sceneGuid)
+            {
+                return;
+            }
+
+            StopPlayback();
+            previewController.ExitPreview();
+
+            GameObject placed = PrefabUtility.InstantiatePrefab(slot.actorPrefab) as GameObject;
+            if (placed == null)
+            {
+                return;
+            }
+            placed.name = slot.name;
+            SceneView sceneView = SceneView.lastActiveSceneView;
+            placed.transform.position = sceneView != null ? sceneView.pivot : Vector3.zero;
+            Undo.RegisterCreatedObjectUndo(placed, "Place Cutscene Slot");
+
+            CutsceneSceneBindingUtility.SetBinding(serializedObject, currentSceneGuid, slot.SlotId, placed);
+            serializedObject.Update();
+
+            SetSelectedGameObject(placed);
+            RebuildAll();
+            FrameSlotInSceneView(slotIndex);
+        }
+
+        private void BindSlotToObject(int slotIndex, GameObject boundObject)
+        {
+            if (cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count)
+            {
+                return;
+            }
+            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            if (string.IsNullOrEmpty(currentSceneGuid))
+            {
+                return;
+            }
+
+            // Re-entered rather than patched: the controller captures rest poses on entry, and a
+            // slot bound mid-preview would otherwise never have any.
+            StopPlayback();
+            previewController.ExitPreview();
+            CutsceneSceneBindingUtility.SetBinding(
+                serializedObject, currentSceneGuid, cutscene.slots[slotIndex].SlotId, boundObject);
+            serializedObject.Update();
+            RebuildAll();
+            ApplyPreviewAtPlayhead();
+        }
+
+        private void FrameSlotInSceneView(int slotIndex)
+        {
+            SceneView sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null || cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count)
+            {
+                return;
+            }
+            GameObject boundObject = previewController.GetBoundObject(cutscene.slots[slotIndex].SlotId);
+            if (boundObject == null)
+            {
+                return;
+            }
+            sceneView.Frame(ComputeFramingBounds(boundObject), false);
+        }
+
+        /// <summary>The renderer bounds of an object and its children, or a small box at its position.</summary>
+        private static Bounds ComputeFramingBounds(GameObject boundObject)
+        {
+            Renderer[] renderers = boundObject.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+            {
+                return new Bounds(boundObject.transform.position, Vector3.one);
+            }
+            Bounds bounds = renderers[0].bounds;
+            for (int rendererIndex = 1; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                bounds.Encapsulate(renderers[rendererIndex].bounds);
+            }
+            return bounds;
+        }
+
+        /// <summary>Lights the cast row and slot group for whatever the author just picked in Unity's own views.</summary>
+        private void OnUnitySelectionChanged()
+        {
+            if (isDrivingUnitySelection || cutscene == null || panel == null)
+            {
+                return;
+            }
+            int slotIndex = CutsceneCastPanel.FindSlotIndexForSelection(
+                cutscene, CutsceneSceneBindingUtility.CurrentSceneGuid(), Selection.activeGameObject);
+            if (slotIndex < 0 || slotIndex == selectedSlotIndex)
+            {
+                return;
+            }
+            selectedSlotIndex = slotIndex;
+            selectedLaneKind = SelectedLaneKind.None;
+            selectedPartTrackIndex = -1;
+            RebuildTimeline();
+            RebuildInspector();
+            RefreshCastPanel();
+        }
+
+        private void SetSelectedGameObject(GameObject target)
+        {
+            isDrivingUnitySelection = true;
+            Selection.activeGameObject = target;
+            isDrivingUnitySelection = false;
+        }
+
+        private void RefreshCastPanel()
+        {
+            if (castPanel != null)
+            {
+                castPanel.Rebuild(cutscene, CutsceneSceneBindingUtility.CurrentSceneGuid(), selectedSlotIndex);
+            }
         }
 
         /// <summary>
@@ -775,7 +939,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (target != null)
             {
-                Selection.activeGameObject = target;
+                SetSelectedGameObject(target);
             }
         }
 
@@ -1625,6 +1789,13 @@ namespace DotsAnimationToolkit.Editor
             kindField.Bind(serializedObject);
             kindField.RegisterCallback<ChangeEvent<string>>(_ => RebuildAll());
             inspectorScroll.Add(kindField);
+
+            // Props get one too: a door places exactly the way a character does (A58 §3.3).
+            PropertyField actorPrefabField =
+                new PropertyField(slotProperty.FindPropertyRelative("actorPrefab"), "Actor Prefab");
+            actorPrefabField.Bind(serializedObject);
+            actorPrefabField.RegisterCallback<SerializedPropertyChangeEvent>(_ => RefreshCastPanel());
+            inspectorScroll.Add(actorPrefabField);
 
             if (slot.kind == CutsceneSlotKind.Actor)
             {

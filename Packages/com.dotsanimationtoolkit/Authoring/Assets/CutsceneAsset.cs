@@ -171,6 +171,19 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Optional set consulted when a facing has no override key active. Ignored for <see cref="CutsceneSlotKind.Prop"/>.</summary>
         public DirectionSetAsset directionSet;
 
+        /// <summary>
+        /// The prefab the cast panel's <em>Place in Scene</em> stages this slot from (amendment A58
+        /// §3.2), so an empty scene can be dressed into a full cutscene without leaving the tool.
+        /// Optional — binding an already-placed GameObject by hand still works, and a slot that was
+        /// bound that way never needs one.
+        /// </summary>
+        /// <remarks>
+        /// A plain asset reference, which <c>Authoring/</c> may hold; placing it is editor work and
+        /// lives in the Editor assembly (Conformance_C). Nothing at run time reads this — a baked
+        /// cutscene binds entities the host supplies, never a prefab this asset names.
+        /// </remarks>
+        public GameObject actorPrefab;
+
         /// <summary>Which clip plays when, and whether it loops (spec §2). Overlapping blocks are a crossfade; touching blocks are a hard cut — both derived from <see cref="CutsceneClipBlock.start"/>/<see cref="CutsceneClipBlock.duration"/> at bake, never authored as a separate blend field.</summary>
         public List<CutsceneClipBlock> clipBlocks = new List<CutsceneClipBlock>();
 
