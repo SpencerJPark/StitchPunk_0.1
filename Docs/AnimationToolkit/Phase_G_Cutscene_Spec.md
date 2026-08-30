@@ -5,6 +5,11 @@ written amendment before changing any of them. §7 decisions are recorded under 
 delegation directive (architecture calls are the session's to make and record); flag before G1
 lands if any is wrong.
 
+**Amended 2026-08-30 by `Amendment_A58_CutsceneVisualAuthoring_Spec.md`:** §3's "timeline +
+inspector only" tab layout and G3's recorded preview cuts are superseded — the tab gains a cast
+panel and the Scene-view preview plays clips, blends, facing and holds for real. Read A58 before
+touching preview or panel code.
+
 ## 1. What this is
 
 The `tab-cutscene-editor` placeholder becomes a real editor: a timeline that stages **multiple

@@ -109,18 +109,25 @@ enter. No custom layout management beyond that — the owner docks windows once,
   poses objects; placement creates them. G-D1's restore contract applies only to poses.
 - **A58-D4** Auto Key stays out of scope (G3's cut stands — move with the gizmo, press Key). It
   is UX polish; this amendment spends its budget on seeing.
+- **A58-D5** (decided while building T4) Facing re-picks a block's clip **only when the block
+  already names a member of the slot's direction set**. A block naming the SouthEast walk is
+  asking for "the walk", and turning the actor should re-pick the variant; a block naming a
+  one-off clip the set has never heard of — a wave, a stumble — is asking for that clip exactly,
+  and swapping it for a walk because the actor happens to face north-east would be silent
+  nonsense. The mirror flag applies either way: the actor is still facing that direction.
 
 ## 5. The queue
 
 1. **A58-T1 — clip-block preview** (§3.1, minus facing): registries, block timing + loop phase,
    seam crossfade, full-pose write to tagged children, sprite tracks. The shared-math fixture
-   (A58-D1). *This task alone unblocks the owner.*
-2. **A58-T2 — play transport with real holds** (§3.2).
+   (A58-D1). *This task alone unblocks the owner.* — **done** (`6c604153`)
+2. **A58-T2 — play transport with real holds** (§3.2). — **done** (`bd745080`)
 3. **A58-T3 — cast panel + place-from-prefab** (§3.3, the `actorPrefab` field, save/reload proof
-   for the new field).
+   for the new field). — **done** (`9e09b372`)
 4. **A58-T4 — facing applied in preview** (§3.1 last bullet) + workspace ergonomics (§3.4).
+   — **done** (`79303013`)
 5. **A58-T5 — docs**: `Documentation~/cutscenes.md` authoring section rewritten around the
-   visual workflow; CHANGELOG.
+   visual workflow; CHANGELOG. — **done**
 
 Gate per HANDOFF §3 cadence; owner visual pass after T1 (early — the whole amendment exists
 because a visual gap survived a green gate) and again at the end.
@@ -135,3 +142,39 @@ because a visual gap survived a green gate) and again at the end.
   zero (reuse pose buffers) so a 30s vignette doesn't churn the editor.
 - `GUIUtility.hotControl` stays untouched from the tick (the A54 lesson — buttons and drags die
   window-wide, symptom looks unrelated).
+
+## 7. What was built, and what it does not do
+
+Every task landed. EditMode 712/712 (709 prior + 3 in `CutsceneBlockTimingTests`), PlayMode
+243/243, console clean. Each task was driven live against real scene objects rather than trusted
+from a compile — the numbers are in the commit messages.
+
+**Two deviations from §3, recorded with what was checked rather than quietly implemented
+differently** (§1's rule):
+
+- **Sprite tracks preview through the material property block, not a `SpriteRenderer`.** §3.1
+  said "where the bound child carries a `SpriteRenderer`". Nothing in this toolkit renders a part
+  that way: `NewRigPanel`'s own note says every part kind goes through a mesh renderer, "never a
+  `SpriteRenderer`", and `SpriteMaterialSystem` publishes frames as the `_ImageIndex` /
+  `_AtlasFrame` per-instance properties, which is also how `PreviewRigMirror` shows a frame. The
+  preview writes those two properties on the bound child's `Renderer` (capturing and restoring the
+  block, so a part that had none is left with none). Verified live: slice 3 → 7 across a sprite
+  track, no block left behind on exit. A `SpriteRenderer` path would have been a second sprite
+  pipeline with nothing at run time behind it.
+- **The facing mirror is applied; the alt-view frame step is not.** `FacingResolver` gives the
+  variant and the mirror flag, and both are applied. The remaining half of runtime facing is
+  `PartFacing.viewOffset` — which frame a direction shows — and the toolkit bakes that as 0 and
+  leaves it to the host (`RigTargetBaker`'s own comment). There is no package-side rule mapping a
+  direction to a frame offset, so the preview has nothing to derive one from. Recorded as a gap in
+  `Documentation~/cutscenes.md`, not silently skipped.
+
+**Found and fixed while verifying**: the registry rebuild guard compared clip-set references only,
+so dragging a clip into a set while the cutscene tab was open left the registry one clip short and
+a block naming that clip previewed nothing, with no error anywhere. It now compares the clips
+inside each set too. Key edits *inside* a clip are still not compared and do not need to be — they
+happen on the Clip Editor tab, and switching tabs exits the preview and drops the registries.
+
+**Still owed: the owner's eyes.** Nothing here has been looked at running against a real actor in
+a real scene — which is the whole reason this amendment exists (§1: a visual gap survived a green
+gate). The acceptance question is the founding sentence: keyframe, keyframe, walking clip on loop,
+and *see* it.

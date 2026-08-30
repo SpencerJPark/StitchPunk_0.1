@@ -34,13 +34,22 @@ different roster by re-binding its slots in a different scene.
 
 Open **Window ▸ DOTS Animation Toolkit ▸ Clip Editor** and switch to the
 **Cutscene Editor** tab (or double-click a `CutsceneAsset` — it opens there
-directly). The tab is timeline and inspector only; Unity's own Scene view is
-the viewport.
+directly). The tab is a cast list, a timeline and an inspector; Unity's own
+Scene view is the viewport, so dock the three — Hierarchy, Scene view, Clip
+Editor — side by side once and Unity remembers the arrangement.
 
+- **Cast panel** (left). One row per slot: a state dot (● bound, ○ unbound,
+  ⚠ bound to something this scene no longer has), the slot's name and kind, and
+  four actions. **Place** instantiates the slot's **Actor Prefab** at the Scene
+  view pivot and binds it — one Undo step, and how an empty scene gets dressed
+  without leaving the tool. **Bind** takes a GameObject that is already in the
+  scene. **Select** and **Frame** put it under the cursor and on screen.
+  Selection syncs both ways: clicking the character in the Hierarchy or the
+  Scene view lights its cast row and its timeline group.
 - **Slots.** "+ Actor Slot" / "+ Prop Slot" add a row. A slot's header doubles
-  as its selection target — click it to edit its name, kind, rig, clip sets
-  and direction set in the inspector on the right. Right-click a header for
-  **Remove Slot**.
+  as its selection target — click it to edit its name, kind, actor prefab, rig,
+  clip sets and direction set in the inspector on the right. Right-click a
+  header for **Remove Slot**.
 - **Clip lane** (Actor slots only). Double-click empty space to add a block;
   drag its body to move it, its edges to resize it. **Dragging two blocks so
   they overlap makes the overlap the crossfade window; blocks that merely
@@ -52,7 +61,12 @@ the viewport.
   separate it from.
 - **Facing lane** (Actor slots only). Empty by default — facing derives from
   root travel direction. Add an override key to pin a facing (a direction
-  angle, 0–360°) for a moment, e.g. "face the camera during this line."
+  angle, 0–360°) for a moment, e.g. "face the camera during this line." Give
+  the slot a **Direction Set** and the preview applies it: the resolved angle
+  picks that set's east-side variant and mirrors it when the facing is served
+  by a flip. A block that names a clip the direction set holds gets re-picked
+  as the actor turns; a block naming a one-off clip the set has never heard of
+  is left exactly as authored.
 - **Part tracks** (Actor slots only). "+ Part Track" opens the same tag
   picker every part-tag surface in this package uses. A part track's keys
   layer *over* whatever the clip lane is currently playing, on just the
@@ -77,14 +91,34 @@ Once a slot is bound and the scene matches, scrubbing the playhead poses the
 *real* GameObject — never a preview mirror — so Unity's own Move/Rotate/Scale
 gizmo works on it the moment you select it. Move it, then press **Key** in the
 toolbar to write its current transform as a key at the playhead. Entering
-preview snapshots every affected transform; leaving it (switching tabs, saving
-the scene, loading a different cutscene) restores every one exactly — nothing
-here is destructive.
+preview snapshots every affected transform and every part renderer's material
+property block; leaving it (switching tabs, saving the scene, loading a
+different cutscene) restores every one exactly — nothing here is destructive.
 
-What scrubbing does *not* show yet: a clip block's own pose (that needs the
-baked registry a real actor bake produces, which this preview intentionally
-does not build), and a real sprite-flip for facing (shown as a resolved-angle
-number instead). Both need the systems below, which only run at play time.
+**Clip blocks play.** Each actor slot builds, in the editor, the same
+`ClipRegistryBlob` its `(rig, clip sets)` bind would bake for a real actor, and
+every part goes through the runtime's own `ClipSampler` against the rest pose
+the bake captures. So a scrub shows walk cycles at the right loop phase, seam
+overlaps cross-fading with the outgoing clip still advancing on its own clock,
+sprite tracks stepping frames, facing applied, part-track keys layered on top,
+and the camera lane driving the Scene view. The block-timing rules the runtime
+player uses live in one place, `CutsceneBlockTiming`, which both paths call — a
+preview that disagrees with playback is not representable.
+
+If a slot's clip blocks show nothing, the slot inspector says why (no rig, no
+clip sets, or a clip set with validation errors).
+
+### Playing it in the editor
+
+The transport under the toolbar is a rehearsal of runtime pacing, not a
+scrubber: **Play / Pause / Stop**, a **Speed** field, **Loop**, and **Skip
+Holds**. Stop returns the playhead to where Play was pressed.
+
+A hold marker really holds — the transport stops there, names the hold id it is
+waiting on, and waits for **Continue**, exactly as the runtime waits for a host
+to release that id. What keeps running under it is the point: the cutscene
+clock freezes, the actors' own clips do not, so looping clips keep cycling and
+the camera holds its shot. Turn on **Skip Holds** for a quick full run.
 
 ## Baking
 
@@ -148,9 +182,19 @@ Recasting a slot onto a different rig for the runtime path needs a rebake.
 - No Auto Key — move with the gizmo, then press Key.
 - The header column scrolls horizontally with the lanes rather than staying
   frozen.
-- Facing has no visual (sprite-flip) application anywhere yet — only a
-  resolved-angle readout in the editor. Nothing in this package drives facing
-  outside host movement code for a runtime system to hook into.
+- Facing is applied in the **editor preview** (variant pick and mirror) but
+  has no runtime-side application: nothing in this package drives facing
+  outside host movement code for a runtime system to hook into, so a baked
+  cutscene leaves `PartFacing` to the host.
+- The preview's facing mirror does not step alt-view frames. That is
+  `PartFacing.viewOffset`, which the toolkit bakes as 0 and a host owns — there
+  is no package-side rule saying which frame a given direction shows, so the
+  preview has nothing to derive one from.
+- A sprite frame previews by writing the same `_ImageIndex` / `_AtlasFrame`
+  per-instance properties `SpriteMaterialSystem` publishes at run time, so a
+  part shows the right frame only if its material reads them. Parts in this
+  toolkit are mesh renderers by construction (`Quad`, `FlipbookPlane`,
+  `VatMesh`); there is no `SpriteRenderer` path to preview.
 - Multiple simultaneous cutscenes each with their own camera are not
   supported — `CutsceneCameraPose` is one world singleton, matching the one
   camera a game actually has.

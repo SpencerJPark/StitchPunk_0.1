@@ -112,6 +112,28 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A58 — Cutscene Visual Authoring. Specced and built 2026-08-30; T1–T5 all landed and gated the
+same day. THE ACTIVE ITEM IS NOW THE OWNER'S EYES.** The owner's first hands-on with Phase G found
+it unusable: clip blocks previewed nothing, so you animated blind.
+`Amendment_A58_CutsceneVisualAuthoring_Spec.md` supersedes Phase G §3's "timeline + inspector only"
+and G3's preview cuts; its §1 records *why* the gap shipped (a scope cut justified by a false
+"needs a real actor bake" claim — `ClipRegistryBuilder.Build` was always callable in-editor, as the
+Direction Sets pane proves) and its **§7 records what was built, the two deviations from §3, and
+what is still owed**.
+
+What the tab does now: clip blocks play in the Scene view (loop phase, seam crossfades, sprite
+frames, part-track overrides, facing variant + mirror), a transport plays the cutscene in-editor
+with holds that really hold while the actors' clips keep cycling under them, and a cast panel
+places actor prefabs into an empty scene and binds them. `CutsceneBlockTiming`
+(`Runtime/Sampling/`) is the one copy of the block-timing rules both the preview and
+`CutsceneTimelineSystem` read — do not grow a second.
+
+**Owed, and the only thing left: the owner runs it and looks.** Every task was proved live through
+`execute_code` against real scene objects (exact numbers in the commit messages) and the gate is
+green — EditMode 712/712, PlayMode 243/243 — but no human has watched a cutscene play. The
+acceptance question is the founding sentence: keyframe, keyframe, walking clip on loop, and *see*
+it. Do that before treating A58 as closed.
+
 **Phase G — Cutscene Editor. Specced 2026-08-29; G1–G7 all built and gated the same day (owner
 directed "do the spec" — read as sign-off).** The `tab-cutscene-editor` placeholder is now a
 multi-actor, scene-hosted cutscene timeline (clip blocks + keyframes, camera and event lanes, hold

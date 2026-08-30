@@ -10,6 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene visual authoring: clip blocks preview, a transport, and a cast panel (A58)
+
+The Cutscene Editor previewed root motion and hand-keyed parts but **nothing of the clip lane**,
+so a bound actor slid around the scene in its rest pose. The gap had been recorded as needing "the
+baked clip registry a real actor bake produces"; that was wrong — `ClipRegistryBuilder.Build` has
+always been callable in the editor, as the Direction Sets pane proves.
+
+- **Clip blocks play in the Scene view.** Each actor slot builds its own `ClipRegistryBlob` from
+  its `(rig, clip sets)` bind and samples every part through `ClipSampler.SamplePose`, composing
+  against a rest pose taken by the same `RestPoseCapture` the bake uses. Loop phase, seam
+  crossfades with the outgoing clip still advancing, sprite frames through `_ImageIndex` /
+  `_AtlasFrame`, and part-track overrides layered on top. Registries are preview-scoped and
+  disposed on exit; captured property blocks are un-written with the poses.
+- **`CutsceneBlockTiming`** (new, `Runtime/Sampling/`): the one copy of the clip-block timing rules
+  — seam blend duration, blend weight, local clip time, loop phase. `CutsceneTimelineSystem`
+  derives its Play command's `blendDuration` through it, so the preview and the runtime player
+  cannot disagree about what a block shows.
+- **An editor play transport** with Play / Pause / Stop / Speed / Loop / Skip Holds. A hold marker
+  stops the elastic clock and names the hold id it waits on until **Continue** — while the actors'
+  own clips keep running under it, so looping clips keep cycling and the camera holds its shot.
+- **A cast panel** beside the timeline: one row per slot with its binding state and Place / Bind /
+  Select / Frame. `CutsceneSlot` gains `actorPrefab`, and **Place** instantiates it at the Scene
+  view pivot and binds it in one Undo step, so an empty scene can be staged without leaving the
+  tool. Selection syncs both ways with Unity's Hierarchy.
+- **Facing is applied, not just displayed**: the resolved angle runs through `FacingResolver`
+  against the slot's direction set to pick the east-side variant and the mirror flag, and the
+  mirror is the same three negations `TransformSampleSystem` applies for `PartFacing.mirrorX`. A
+  block is re-picked only when it already names a member of the direction set.
+
+### Fixed — a clip added to a set mid-preview left the cutscene registry stale
+
+The Cutscene Editor's registry rebuild guard compared clip-set references only, so dragging a clip
+into a set while the tab was open left the registry one clip short and a block naming that clip
+previewed nothing, with no error anywhere. It now compares the clips inside each set as well.
+
 ### Added — "New" button creates a Cutscene asset from the tab
 
 The Cutscene Editor tab's toolbar now has a **New** button beside the Cutscene field, mirroring
