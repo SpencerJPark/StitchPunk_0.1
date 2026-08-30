@@ -139,11 +139,33 @@ namespace DotsAnimationToolkit
         public float angleRadians;
     }
 
-    /// <summary>One baked per-part override track (Phase G §2), addressed by tag rather than a dense target index — resolved against whichever rig the bound actor actually carries, per slot, at play time (a slot may be recast, spec §3).</summary>
+    /// <summary>One baked per-part override track (Phase G §2), addressed by tag at authoring time.</summary>
+    /// <remarks>
+    /// <strong>Decision G-D9: resolved to a dense target index at cutscene bake time, not looked up
+    /// live at play time.</strong> The runtime has nothing to look a tag up against —
+    /// <see cref="ClipRegistryBlob"/> resolves a tag-bound clip track down to a dense index during
+    /// the clip's own bake and carries no tag map of its own, so there is no existing baked
+    /// structure a player could query at play time. <see cref="targetIndex"/> is therefore resolved
+    /// here, against the slot's rig, using the exact same canonical (ascending stable id) ordering
+    /// <c>ClipRegistryBuilder</c> uses — the same rig always yields the same ordering regardless of
+    /// which builder computes it, so this index agrees with whatever dense index the bound actor's
+    /// own <see cref="RigPartRef"/> buffer resolves to. <strong>The cost:</strong> a slot recast to a
+    /// different rig at play time (spec §3's "the same cutscene can be recast") does not re-resolve
+    /// tags against the new rig; only the Scene-view editor preview (G3) does that live. Recasting a
+    /// slot's rig for the runtime player needs a rebake until a follow-up amendment gives the
+    /// runtime registry its own tag map.
+    /// </remarks>
     public struct CutscenePartTrackBlob
     {
-        /// <summary>The role this track poses (rule T2: unresolved against the bound actor's rig is a warning and a skip, never an error).</summary>
+        /// <summary>The authored role, kept for diagnostics — the runtime never looks it up again.</summary>
         public uint tagId;
+
+        /// <summary>
+        /// Dense target index resolved at bake (matches <see cref="RigPartRef.targetIndex"/> for the
+        /// bound actor's own rig), or −1 when the tag did not resolve against the slot's rig at bake
+        /// time — skipped at play time, never an error (rule T2).
+        /// </summary>
+        public int targetIndex;
 
         /// <summary>Which pose channels this track owns; channels outside the mask are left to the composited clip beneath it.</summary>
         public AnimatedChannels channels;

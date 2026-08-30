@@ -149,6 +149,20 @@ New components + systems in the toolkit runtime assembly:
   Clipping a looping block at every boundary and re-describing the remainder would restart its loop
   phase at each hold release — the "pop back to frame 0" this section's "looping clips keep
   cycling" rules out.
+- **G-D9** Decided at G6: `CutscenePartTrackBlob` resolves its tag to a dense target index **at
+  cutscene bake time**, not by a live tag lookup at play time. The runtime has nothing to look a tag
+  up against — `ClipRegistryBlob` resolves a tag-bound clip track down to a dense index during the
+  *clip's own* bake and keeps no tag map of its own for anything else to query. The resolved index
+  is computed against the slot's rig using the exact canonical (ascending stable id) order
+  `ClipRegistryBuilder` uses, so it agrees with whatever dense index the bound actor's own
+  `RigPartRef` buffer resolves to — the same rig always yields the same ordering regardless of which
+  builder computes it. **The cost, and it is real:** recasting a slot to a different rig (§3's "the
+  same cutscene can be recast") is honored live by the Scene-view editor preview (G3, which
+  resolves tags against whatever rig is currently assigned) but **not** by the baked runtime
+  player — a recast for the runtime path needs a rebake. Closing that gap needs the runtime registry
+  to carry its own tag map, which is a `ClipRegistryBlob`/`ClipRegistryBuilder` change (schema
+  version bump, new bake step) well outside this phase's blast radius and is left as a follow-up
+  amendment rather than risked here.
 
 ## 8. Out of scope
 

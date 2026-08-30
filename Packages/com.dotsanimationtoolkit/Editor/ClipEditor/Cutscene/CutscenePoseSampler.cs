@@ -63,8 +63,11 @@ namespace DotsAnimationToolkit.Editor
 
             position = Vector3.LerpUnclamped(
                 ToVector3(fromKey.position), ToVector3(toKey.position), easedTime);
-            rotation = Quaternion.SlerpUnclamped(
-                Quaternion.Euler(ToVector3(fromKey.rotation)), Quaternion.Euler(ToVector3(toKey.rotation)), easedTime);
+            // Per-component Euler lerp, converted once — never a quaternion slerp, matching
+            // ClipSampler's own rotation interpolation exactly (its remarks: slerping would take a
+            // different path between the same two keys and quietly disagree with the curve editor).
+            rotation = Quaternion.Euler(Vector3.LerpUnclamped(
+                ToVector3(fromKey.rotation), ToVector3(toKey.rotation), easedTime));
             scale = Vector3.LerpUnclamped(ToVector3(fromKey.scale), ToVector3(toKey.scale), easedTime);
         }
 
@@ -116,8 +119,8 @@ namespace DotsAnimationToolkit.Editor
                 linearTime, fromKey.interpolation, fromKey.bezierStartHandle, fromKey.bezierEndHandle);
 
             position = Vector3.LerpUnclamped(ToVector3(fromKey.position), ToVector3(toKey.position), easedTime);
-            rotation = Quaternion.SlerpUnclamped(
-                Quaternion.Euler(ToVector3(fromKey.rotation)), Quaternion.Euler(ToVector3(toKey.rotation)), easedTime);
+            rotation = Quaternion.Euler(Vector3.LerpUnclamped(
+                ToVector3(fromKey.rotation), ToVector3(toKey.rotation), easedTime));
             fieldOfView = Mathf.LerpUnclamped(fromKey.fieldOfView, toKey.fieldOfView, easedTime);
         }
 

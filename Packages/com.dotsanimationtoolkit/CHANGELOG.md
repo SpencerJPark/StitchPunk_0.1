@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene runtime player (Phase G6)
+
+`CutsceneTimelineSystem` and `CutscenePartOverrideSystem` play a baked `CutsceneBlob`: clip blocks
+become `AnimationCommand` Play requests (overlap = crossfade, exactly as authored), root/prop
+transforms and the camera lane write directly, part-track overrides compose as an Override layer on
+`TargetPose` between clip sampling and the transform write, and events emit through the same
+`AnimEventOutput` shape a clip's own events use. Pause, speed, skip, and hold-release are host-driven
+through `CutsceneControl`/`CutsceneHoldRelease`; `CutscenePlaybackApi.CreatePlayRequest` stands up a
+request with its internal bookkeeping correctly sized. Skip jumps straight to the final segment's
+final instant and fires every remaining `fireOnSkip` event, so a skipped cutscene leaves the exact
+same world state as a fully played-through one — proved by a PlayMode test comparing both end states
+directly rather than by inspection.
+
+Also fixes a real correctness bug the two pose samplers shared: rotation was slerped between keys
+through quaternions, which `ClipSampler`'s own documented reasoning already rules out for this
+package (a slerp disagrees with the per-component Euler lerp the curve editor shows). Both samplers
+now lerp Euler components and convert to a quaternion only at the point a consumer actually needs
+one.
+
 ### Added — Cutscene bake (Phase G5)
 
 `CutsceneBlobBuilder` bakes a `CutsceneAsset` to a `CutsceneBlob`, split into segments at hold
@@ -48,7 +67,7 @@ than a frozen one — see the panel's own remarks and `HANDOFF.md` for what that
 
 ### Added — Cutscene data model (Phase G1)
 
-`CutsceneAsset` (`Authoring/Assets/CutsceneAsset.cs`): named actor/prop slots, clip blocks, root
+`CutsceneAsset` (new file in `Authoring/Assets`): named actor/prop slots, clip blocks, root
 motion and facing-override keys, tag-addressed per-part keyed tracks, a camera lane, an event
 lane, hold markers, and per-scene GameObject bindings. Data model only — no editor UI, no bake, no
 runtime player yet; those are Phase G's later steps (`Docs/AnimationToolkit/Phase_G_Cutscene_Spec.md`).

@@ -355,6 +355,7 @@ namespace DotsAnimationToolkit.Authoring
         private struct PartTrackBucket
         {
             public uint tagId;
+            public int targetIndex;
             public AnimatedChannels channels;
             public List<CutsceneTransformKeyBlob> keys;
         }
@@ -390,6 +391,7 @@ namespace DotsAnimationToolkit.Authoring
             for (int i = 0; i < partTracks.Count; i++)
             {
                 partTrackArray[i].tagId = partTracks[i].tagId;
+                partTrackArray[i].targetIndex = partTracks[i].targetIndex;
                 partTrackArray[i].channels = partTracks[i].channels;
                 BlobBuilderArray<CutsceneTransformKeyBlob> keyArray =
                     builder.Allocate(ref partTrackArray[i].keys, partTracks[i].keys.Count);
@@ -509,13 +511,16 @@ namespace DotsAnimationToolkit.Authoring
             for (int trackIndex = 0; trackIndex < slot.partTracks.Count; trackIndex++)
             {
                 CutsceneKeyedTrack track = slot.partTracks[trackIndex];
-                if (track.tagId == 0u || (slot.rig != null && !TagExistsOnRig(slot.rig, track.tagId)))
+                int resolvedTargetIndex = slot.rig != null
+                    ? ResolveDenseTargetIndexForTag(slot.rig, track.tagId)
+                    : -1;
+                if (track.tagId == 0u || resolvedTargetIndex < 0)
                 {
                     warnings.Add(
                         "Cutscene part track " + trackIndex + " on slot '" + slot.name + "' names tag id 0x"
                         + track.tagId.ToString("X8") + ", which the slot's rig does not declare. Baked "
-                        + "anyway (rule T2) — it is skipped at play time if the bound actor's rig still "
-                        + "lacks it.");
+                        + "anyway (rule T2) — skipped at play time (decision G-D9: resolved once here, "
+                        + "against the rig assigned at bake time).");
                 }
 
                 // Every segment needs its own bucket entry for this track, even an empty one, so the
@@ -540,6 +545,7 @@ namespace DotsAnimationToolkit.Authoring
                     bucket[slotIndex, segmentIndex].Add(new PartTrackBucket
                     {
                         tagId = track.tagId,
+                        targetIndex = resolvedTargetIndex,
                         channels = track.channels,
                         keys = perSegmentKeys[segmentIndex]
                     });
@@ -547,20 +553,37 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        private static bool TagExistsOnRig(RigAsset rig, uint tagId)
+        /// <summary>
+        /// The dense target index <paramref name="tagId"/> resolves to on <paramref name="rig"/>, in
+        /// the exact canonical (ascending stable id) order <c>ClipRegistryBuilder.BuildCanonicalTargets</c>
+        /// uses — see decision G-D9 on <see cref="CutscenePartTrackBlob.targetIndex"/> for why the two
+        /// must agree. Returns −1 when the tag is 0 or no target on the rig carries it.
+        /// </summary>
+        private static int ResolveDenseTargetIndexForTag(RigAsset rig, uint tagId)
         {
-            if (rig.targets == null)
+            if (tagId == 0u || rig.targets == null)
             {
-                return false;
+                return -1;
             }
+
+            List<RigTargetDefinition> canonicalTargets = new List<RigTargetDefinition>();
             for (int i = 0; i < rig.targets.Count; i++)
             {
-                if (rig.targets[i] != null && rig.targets[i].tagId == tagId)
+                if (rig.targets[i] != null)
                 {
-                    return true;
+                    canonicalTargets.Add(rig.targets[i]);
                 }
             }
-            return false;
+            canonicalTargets.Sort((left, right) => left.stableId.CompareTo(right.stableId));
+
+            for (int denseIndex = 0; denseIndex < canonicalTargets.Count; denseIndex++)
+            {
+                if (canonicalTargets[denseIndex].tagId == tagId)
+                {
+                    return denseIndex;
+                }
+            }
+            return -1;
         }
 
         private static void BucketCameraKeys(

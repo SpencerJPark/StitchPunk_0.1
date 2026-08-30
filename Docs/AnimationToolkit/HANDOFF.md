@@ -263,7 +263,73 @@ block landed whole (unclipped, duration still 3) in segment 0 with its start cor
 the boundary-time event landed in segment 1 (the segment that *opens* there) rebased to 0, and that
 exactly two warnings fired (the unresolved clip id, the unresolved tag id) — zero false positives
 from the resolvable references. (2) A no-hold cutscene bakes to exactly one segment spanning the
-full content. Compile gate green, zero errors/warnings. **G6 — runtime player — next.**
+full content. Compile gate green, zero errors/warnings.
+
+**G6 — runtime player — done.** `Runtime/Components/CutsceneComponents.cs` (`CutscenePlay`,
+`CutsceneControl`, `CutscenePlaybackState`, `CutsceneActorBinding`, internal
+`CutsceneSlotRuntimeState`, `CutsceneHoldRelease`, the `CutsceneCameraPose` singleton),
+`Runtime/Sampling/CutsceneBlobSampler.cs` (the Burst-jobbable twin of the editor's
+`CutscenePoseSampler`), `Runtime/Api/CutscenePlaybackApi.cs` (`CreatePlayRequest`, `RequestSkip`),
+and two systems: `CutsceneTimelineSystem` (`AnimationToolkitLogicSystemGroup` — time, clip-block
+Play commands through the *existing* `AnimationCommand` API, root/prop transforms, the camera
+singleton, events, hold pause/release, skip) and `CutscenePartOverrideSystem`
+(`AnimationToolkitPresentationSystemGroup`, `UpdateAfter(TransformSampleSystem)` /
+`UpdateBefore(TransformApplySystem)` — the per-part Override layer, writing `TargetPose` in the one
+window before it reaches a renderer). Neither is `[BurstCompile]` or job-scheduled: a handful of
+cutscenes run at once, nothing like the per-part sampling hot path, and the logic reaches across a
+cutscene's own state, every bound actor's buffers, and one world camera singleton in a way one
+`IJobEntity` query cannot express — plain `SystemAPI` calls in `OnUpdate` are not the banned
+`.Run()` pattern (there is no job object here to call it on).
+
+**A real architecture gap surfaced while wiring this up, fixed rather than routed around**: the
+baked `ClipRegistryBlob` has no tag→dense-index map at runtime (a clip's own tag-bound tracks are
+resolved to a `targetIndex` once, at the *clip's* bake, and the map itself is never carried
+forward) — so a cutscene part-track's tag has nothing to resolve against for an arbitrary bound
+actor. Rather than extend `ClipRegistryBlob`/`ClipRegistryBuilder` (heavily gated, cross-cutting,
+outside this phase's blast radius) or invent a second resolution path, **decision G-D9** resolves
+the tag to a dense index once, at *cutscene* bake time, against the slot's own rig, using the exact
+canonical (ascending stable id) ordering `ClipRegistryBuilder` already uses — so it agrees with
+whatever index the bound actor's own `RigPartRef` buffer assigns, with no changes to either. The
+honest cost, recorded in the spec: recasting a slot to a different rig is honored live by the G3
+editor preview but not by the baked runtime path, which needs a rebake until a follow-up amendment
+gives the runtime registry its own tag map.
+
+**A second correctness fix landed alongside it**: both pose samplers (editor and runtime) were
+slerping rotation between two keys through quaternions. `ClipSampler`'s own remarks say exactly why
+that is wrong for this package — a slerp takes a different path between the same two keys than the
+per-component Euler lerp the curve editor shows, so the preview would have quietly disagreed with
+what plays. Both `CutscenePoseSampler` and `CutsceneBlobSampler` now lerp Euler components and
+convert to a quaternion once, only where the final consumer needs one (a root's `LocalTransform`,
+a camera pose) — never where the consumer already wants radians (`TargetPose.rotation`), matching
+`TransformApplySystem`'s own "convert at the last step" shape exactly.
+
+**Skip/play-through parity — verified by a real PlayMode test**, which is the test HANDOFF called
+out in advance as the one that matters: `Tests/PlayMode/CutsceneTimelineSystemTests.cs` builds a
+`CutsceneBlob` by hand (matching this suite's existing convention of never bake-testing through
+PlayMode fixtures), runs one to completion by advancing world time in five 0.5s steps and a second
+by requesting an immediate skip, and asserts the final root `LocalTransform.Position` and fired
+`AnimEventOutput` count are identical between the two — not merely close. A second test confirms a
+skip actually stops the actor's clip layer (the "release the actors" half of spec §6's end/skip
+contract). Both pass. The full suites were run once at this commit point (HANDOFF §3's own cadence)
+and caught two real `PackagingConformanceTests` violations before they could ship: **Conformance_C**
+flagged the literal substring `UnityEditor` inside two doc comments in `CutsceneAsset.cs` explaining
+why the type is *not* referenced there (the scanner reads raw text, comments included — the same
+trap A57 already documents); **Conformance_D** flagged `Authoring/Assets/CutsceneAsset.cs` in
+`CHANGELOG.md` as a "host asset folder path" (the pattern is `Assets/` + an identifier, and
+`CutsceneAsset` matched it same as any host folder name would). Both were reworded, not suppressed.
+Final state: EditMode 709/709, PlayMode 242/242 (240 prior + the 2 new fixtures here), console
+clean.
+
+**Not built, and out of scope for this phase** (spec §8 already excludes some of these; the rest
+are this phase's own honest cuts, all recorded above at the decision that caused them): Auto Key in
+the editor preview; a visual (sprite-flip) facing application at runtime — only a read-only
+resolved-angle number in the editor and no runtime-side facing at all, because nothing in this
+package drives facing outside host movement code for it to hook into; recast-to-a-different-rig
+support for the baked runtime path (G-D9); a frozen (non-scrolling) timeline header column.
+
+**Owed before this closes for real: the owner's eyes on a live cutscene**, same as every other
+visual surface in this package (HANDOFF §8's own standing note) — nothing here has been looked at
+running against a real actor in a real scene. G7 (prop slots + docs) is what remains on the queue.
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says

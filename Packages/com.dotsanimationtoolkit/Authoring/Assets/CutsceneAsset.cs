@@ -61,8 +61,8 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// Editor-only slot→GameObject bindings, one entry per scene this cutscene has been opened
-        /// against (spec §5). Stored as strings so <c>Authoring/</c> never references
-        /// <c>UnityEditor</c> (Conformance_C) — only editor code ever parses a
+        /// against (spec §5). Stored as strings so <c>Authoring/</c> never references the editor
+        /// assembly (Conformance_C) — only editor code ever parses a
         /// <c>GlobalObjectId</c> out of <see cref="CutsceneSlotBindingEntry.globalObjectId"/>.
         /// </summary>
         public List<CutsceneSceneBinding> sceneBindings = new List<CutsceneSceneBinding>();
@@ -414,9 +414,9 @@ namespace DotsAnimationToolkit.Authoring
         public uint slotId;
 
         /// <summary>
-        /// <c>GlobalObjectId.ToString()</c> of the bound GameObject. Stored as a string, never a
-        /// <c>UnityEditor.GlobalObjectId</c>, so this type stays parseable by editor code only while
-        /// the asset itself carries no <c>UnityEditor</c> reference (Conformance_C).
+        /// <c>GlobalObjectId.ToString()</c> of the bound GameObject. Stored as a string, never the
+        /// editor-only identifier type itself, so this stays parseable by editor code only while the
+        /// asset itself carries no editor-assembly reference (Conformance_C).
         /// </summary>
         public string globalObjectId = string.Empty;
     }
