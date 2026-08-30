@@ -234,7 +234,36 @@ cut, including the exact instant of the cut itself and its `isCut` flag) via dir
 calls, and the actual Scene view placement (build a camera key, drive `ApplyCameraPose`, read
 `sceneView.camera.transform`/`cameraSettings.fieldOfView` back on the *next* tool call) — position
 and rotation landed with zero error, FOV read back exactly. Compile gate green, zero
-errors/warnings. **G5 — bake (CutsceneBlob) — next.**
+errors/warnings.
+
+**G5 — bake (CutsceneBlob) — done.** `Runtime/Blobs/CutsceneBlob.cs` (new blob types) +
+`Authoring/Build/CutsceneBlobBuilder.cs` (beside `ClipRegistryBuilder`). Carries no clip registry
+of its own — a clip block's `clipId` resolves at play time against whichever `ClipRegistryBlob` the
+*bound actor* already carries from its own actor bake ("rides the same registry blobs the actors
+already use", spec §5), which is what keeps the runtime player (G6) a consumer of existing playback
+machinery rather than a second pipeline. One enum, `CutsceneSlotKind`, had to move from `Authoring`
+to `Runtime/Components/AnimationToolkitEnums.cs` mid-task — the blob needs it and `Authoring` nests
+*inside* the `DotsAnimationToolkit` namespace precisely so it can see runtime enums, never the
+reverse; this is the same reason `TargetKind`/`AnimTechnique` already live there.
+
+**Decision G-D8** (recorded in the spec): a clip block is assigned to exactly one segment, by its
+start time, and is *never* clipped across a hold even when its authored span crosses one — the
+segment split makes elastic time containable for lookups, it does not describe playback itself.
+Splitting a looping block at every hold and re-describing the remainder would restart its loop
+phase at each release, which is exactly the "pop back to frame 0" spec §2's "looping clips keep
+cycling" forbids. Every other lane item (a key, a cut, an event) is a single instant and is bucketed
+by its own time under the same half-open-interval rule (`AssignToSegment`): segment *i* owns
+`[boundary[i], boundary[i+1])`, except the final segment, which is closed at both ends.
+
+Verified live against two real bakes (`execute_code`, no disk writes needed — a `BlobAssetReference`
+is disposed in the same call): (1) a hold at t=2 with a clip block `[1, 4)` spanning it, transform
+keys either side, a part track with a resolvable tag and one with an unresolvable one, and an event
+authored exactly at the hold's own time — checked segment count/durations/hold ids, that the clip
+block landed whole (unclipped, duration still 3) in segment 0 with its start correctly rebased, that
+the boundary-time event landed in segment 1 (the segment that *opens* there) rebased to 0, and that
+exactly two warnings fired (the unresolved clip id, the unresolved tag id) — zero false positives
+from the resolvable references. (2) A no-hold cutscene bakes to exactly one segment spanning the
+full content. Compile gate green, zero errors/warnings. **G6 — runtime player — next.**
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says

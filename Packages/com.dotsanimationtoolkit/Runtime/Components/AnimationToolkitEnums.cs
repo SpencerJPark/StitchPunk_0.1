@@ -286,6 +286,22 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
+    /// Whether a cutscene slot is a rigged, clip-playing actor or a bare transform target (Phase G
+    /// spec §2). Lives here rather than in <c>Authoring</c> because both the authored
+    /// <c>CutsceneSlot</c> and the baked <see cref="CutsceneSlotMetaBlob"/> need it, and an
+    /// authoring type nests inside this namespace precisely so it can see enums declared here — not
+    /// the other way around.
+    /// </summary>
+    public enum CutsceneSlotKind : byte
+    {
+        /// <summary>Plays clip blocks on a rig and moves via root keys.</summary>
+        Actor = 0,
+
+        /// <summary>A plain transform target with no rig and no clip lane — a door, a crate, a light.</summary>
+        Prop = 1
+    }
+
+    /// <summary>
     /// Reserved event-key values (architecture sections 5.4, 5.5). Keys 0–15 belong to the
     /// package: 0 is invalid, 1–2 are the shipped built-ins, 3–15 are reserved for future
     /// built-ins. User-authored keys start at <see cref="FirstUserKey"/> (validation rule V09).

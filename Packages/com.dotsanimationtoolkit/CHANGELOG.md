@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene bake (Phase G5)
+
+`CutsceneBlobBuilder` bakes a `CutsceneAsset` to a `CutsceneBlob`, split into segments at hold
+points so the runtime clock is `(segmentIndex, timeInSegment)` rather than one elastic value. No
+embedded clip registry — a clip block's id resolves against whichever registry the bound actor
+already carries from its own bake. A clip block is assigned to its start segment only and is never
+clipped across a hold (decision G-D8), so a looping block's phase survives a hold release intact.
+Unresolved clip/tag references warn and still bake, matching rules T2/T6's lenient philosophy.
+
 ### Added — Cutscene Editor camera scrub preview (Phase G4)
 
 Scrubbing now moves the Scene view's own camera to the cutscene camera lane's pose ("Preview Shot"

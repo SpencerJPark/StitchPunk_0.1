@@ -140,6 +140,15 @@ New components + systems in the toolkit runtime assembly:
   hard-cut markers for the exceptions" (§2) reduces to without inventing a second blend concept
   beside crossfade — the same `isCut` flag the runtime `CutsceneCameraPose` singleton exposes (§6)
   is true exactly on the marker's own frame.
+- **G-D8** Decided at G5: a clip block is assigned to exactly one segment (by its start time, same
+  half-open-interval rule every other lane item uses) and is **never clipped or re-described across
+  a hold boundary**, even when its authored `[start, start+duration)` span crosses one. The segment
+  split exists to make elastic time containable for lookups (§5, §9), not to describe playback
+  itself: once the player issues a block's Play/Queue command, the clip keeps running through the
+  existing `PlaybackLayer`/`ClipSampler` machinery exactly like any other clip, hold or no hold.
+  Clipping a looping block at every boundary and re-describing the remainder would restart its loop
+  phase at each hold release — the "pop back to frame 0" this section's "looping clips keep
+  cycling" rules out.
 
 ## 8. Out of scope
 

@@ -146,16 +146,6 @@ namespace DotsAnimationToolkit.Authoring
         }
     }
 
-    /// <summary>Whether a <see cref="CutsceneSlot"/> is a rigged, clip-playing actor or a bare transform target.</summary>
-    public enum CutsceneSlotKind : byte
-    {
-        /// <summary>Plays clip blocks on a <see cref="RigAsset"/> and moves via root keys (spec §2, §3).</summary>
-        Actor = 0,
-
-        /// <summary>A plain transform target with no rig and no clip lane — a door, a crate, a light (spec §2).</summary>
-        Prop = 1
-    }
-
     /// <summary>
     /// One named, recastable slot a cutscene stages (spec §3): an abstract role ("Bertha",
     /// "Minion A") pinning a rig and clip sets for an <see cref="CutsceneSlotKind.Actor"/>, or nothing
