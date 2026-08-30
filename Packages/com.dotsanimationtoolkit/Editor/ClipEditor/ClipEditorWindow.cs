@@ -315,8 +315,9 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[5];
 
-        /// <summary>The Cutscene Editor's cover pane. A placeholder — see <see cref="ShowCutsceneTab"/>.</summary>
+        /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
+        private CutsceneEditorPanel cutscenePanel;
 
         /// <summary>Guards the re-entry a tab switch causes by assigning the other toggles' values.</summary>
         private bool isApplyingTab;
@@ -625,6 +626,16 @@ namespace DotsAnimationToolkit.Editor
             if (window != null && window.directionSetsPanel != null && directionSet != null)
             {
                 window.directionSetsPanel.LoadDirectionSet(directionSet);
+            }
+        }
+
+        /// <summary>Brings the Clip Editor forward on its Cutscene Editor tab, with <paramref name="cutscene"/> loaded.</summary>
+        public static void FocusCutsceneTab(DotsAnimationToolkit.Authoring.CutsceneAsset cutscene)
+        {
+            ClipEditorWindow window = FocusTab(ClipEditorTab.CutsceneEditor);
+            if (window != null && window.cutscenePanel != null && cutscene != null)
+            {
+                window.cutscenePanel.LoadCutscene(cutscene);
             }
         }
 
@@ -1850,8 +1861,8 @@ namespace DotsAnimationToolkit.Editor
                 "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
                 + "opens on, and what the other three tabs are drawn over.");
             BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
-                "Not built yet — the tab is here so the shape of the window is settled before the "
-                + "editor that fills it is.");
+                "Stage a multi-actor cutscene: clip blocks and keys on a timeline, scene-view "
+                + "posing, a camera lane, and an event/hold lane.");
             BindTab(ClipEditorTab.NewRig, "tab-new-rig",
                 "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
                 + "targets, and optionally point this clip set at the result.");
@@ -1937,13 +1948,14 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Shows or hides the Cutscene Editor's placeholder pane.
+        /// Shows or hides the Cutscene Editor over the dock (Phase G, G2).
         /// </summary>
         /// <remarks>
-        /// <strong>A pane that says it is empty, not an empty pane.</strong> Every other tab hides
-        /// all the covers and reveals the dock; a Cutscene Editor that did the same would show the
-        /// clip editor with the wrong tab lit, which reads as a bug rather than as unbuilt. One
-        /// label costs nothing and is honest. Replace the whole method when the editor exists.
+        /// Covers the dock rather than replacing it, and tears nothing down on hide — the same shape
+        /// <see cref="ShowVatBakeTab"/>, <see cref="ShowNewRigTab"/> and
+        /// <see cref="Show2DDirectionSetsTab"/> already establish, for the same
+        /// <c>.clip-editor__cover-pane</c> reason: a hidden <c>TwoPaneSplitView</c> underneath one of
+        /// these panes is laid out at zero by zero and comes back collapsed with no handle to reopen.
         /// </remarks>
         private void ShowCutsceneTab(bool isShown)
         {
@@ -1952,14 +1964,10 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (isShown && cutscenePane.childCount == 0)
+            if (isShown && cutscenePanel == null)
             {
-                Label placeholderLabel = new Label(
-                    "Cutscene Editor — not built yet.");
-                placeholderLabel.AddToClassList(HeadingUssClassName);
-                placeholderLabel.style.marginLeft = 10f;
-                placeholderLabel.style.marginTop = 10f;
-                cutscenePane.Add(placeholderLabel);
+                cutscenePanel = new CutsceneEditorPanel();
+                cutscenePane.Add(cutscenePanel);
             }
 
             cutscenePane.EnableInClassList(HiddenUssClassName, !isShown);

@@ -136,7 +136,41 @@ real disk round-trip (`execute_code`, scratch asset created/saved/reloaded/delet
 type checked, `git status` clean after) rather than an in-memory fixture — the class this
 package's own lessons (§9 point 4) warn an in-memory suite cannot catch.
 `EnsureStableIds`/`RigAsset`'s exact "public because code-built assets hit no lifecycle hook
-between populating a list and saving it" contract carries over unchanged. **G2 — the tab — next.**
+between populating a list and saving it" contract carries over unchanged.
+
+**G2 — the tab — done.** `Editor/ClipEditor/Cutscene/`: `CutsceneEditorPanel` replaces the
+placeholder in `ShowCutsceneTab`, wired the same way `NewRigPanel`/`DirectionSetsPanel` are (a
+cover pane over the dock, built on first show, never torn down). Slot headers double as the slot
+list (no separate list view); selecting one, a clip block, or any lane marker drives the right-hand
+inspector, which is `PropertyField`s bound to a `SerializedObject` throughout — every add/move/
+resize/delete is a real Undo step. New seconds-based `CutsceneTimelineGeometry`/
+`CutsceneTimelineRulerElement`/`CutsceneTimelinePlayheadElement` sibling the Clip Editor's own
+normalized-time versions (G-D2: elastic length has no duration to normalize against) rather than
+reusing them. Two reusable lane elements — `CutsceneMomentLaneElement` (any point-in-time list:
+root/facing/part-track/camera/event/hold) and `CutsceneClipBlockLaneElement` — serve every lane
+kind; drag is visual-only until release, one `SerializedProperty` commit per drag. Scene remember/
+open/warn flow and per-scene `GlobalObjectId` bindings are `CutsceneSceneBindingUtility`
+(editor-only; the asset itself still carries only strings). Double-clicking a `CutsceneAsset`
+opens it via `CutsceneAssetOpener`, mirroring `DirectionSetAssetOpener`.
+
+**v1 scope cuts, recorded rather than silent** (see the panel's own class remarks): the header
+column scrolls horizontally with the lanes instead of staying frozen (dual synced-scroll columns
+are real work a first pass skipped); one item drags at a time, no box-select, no multi-key drag;
+an "add" always inserts a bare default (zero position, identity rotation, scale one, 60° FOV) and
+leaves filling it in to the inspector, never a captured live pose — that capture is G3's non-
+destructive scene-view preview, not built yet. None of these are correctness gaps; every
+add/move/resize/delete the spec calls for works and was proved live against a real window (see
+below), not just compiled.
+
+Compile gate green, zero errors/warnings. No dedicated test fixtures — this is UI wiring
+(HANDOFF §2's "often zero tests" case) — but every mutation path was proved against a real,
+on-screen `ClipEditorWindow` via `execute_code` + reflection rather than trusted from a read: two
+slots added and id-minted, a clip block added/resolved, transform keys inserted with correct
+defaults and re-sorted on insert, delete, remove-slot, and a scene binding set/found/resolved/
+unbound round-trip — all through the exact private methods the UI calls, with the window actually
+open. Every selection branch (both slot kinds, every lane kind, camera/event/hold) was driven
+through `SelectItem`/`SelectSlotHeader` and rebuilt the inspector with no exception. `git status`
+clean after (scratch assets deleted). **G3 — Scene-view preview + keying — next.**
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says

@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene Editor tab (Phase G2)
+
+`Editor/ClipEditor/Cutscene/CutsceneEditorPanel` replaces the Cutscene Editor tab's placeholder: a
+slot/lane timeline (clip blocks, root motion, facing overrides, tag-addressed part tracks, camera
+keys and cut markers, events, holds) plus an inspector, everything routed through a
+`SerializedObject` for Undo. Scene remember/open/warn flow and per-scene GameObject bindings.
+v1 ships single-item drag only (no box-select) and a horizontally-scrolling header column rather
+than a frozen one — see the panel's own remarks and `HANDOFF.md` for what that leaves for later.
+
 ### Added — Cutscene data model (Phase G1)
 
 `CutsceneAsset` (`Authoring/Assets/CutsceneAsset.cs`): named actor/prop slots, clip blocks, root

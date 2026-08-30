@@ -1265,3 +1265,28 @@
     -unity-text-align: middle-left;
     white-space: normal;
 }
+
+/* Phase G, G2: the Cutscene Editor's block/moment timeline. A fresh, seconds-based sibling of the
+   key-lane stack above (decision G-D2) — sharing these tokens' naming and feel, never RebuildTimeline
+   or TimelineGeometry itself. */
+
+.cutscene-editor__clip-block {
+    background-color: rgba(80, 140, 200, 0.85);
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: rgba(20, 40, 60, 0.9);
+}
+
+.cutscene-editor__clip-block--selected {
+    border-color: rgba(255, 210, 90, 1);
+    border-width: 2px;
+}
+
+.cutscene-editor__clip-block--loop {
+    background-color: rgba(90, 170, 120, 0.85);
+}
+
+.cutscene-editor__moment-marker--selected {
+    border-width: 2px;
+    border-color: rgba(255, 210, 90, 1);
+}
