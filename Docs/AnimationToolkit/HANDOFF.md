@@ -170,7 +170,47 @@ defaults and re-sorted on insert, delete, remove-slot, and a scene binding set/f
 unbound round-trip — all through the exact private methods the UI calls, with the window actually
 open. Every selection branch (both slot kinds, every lane kind, camera/event/hold) was driven
 through `SelectItem`/`SelectSlotHeader` and rebuilt the inspector with no exception. `git status`
-clean after (scratch assets deleted). **G3 — Scene-view preview + keying — next.**
+clean after (scratch assets deleted).
+
+**G3 — Scene-view preview + keying — done, scoped down from the full spec (recorded, not hidden).**
+`CutscenePreviewController` (new): non-destructive scrub posing per decision G-D1 — entering
+preview captures every bound GameObject's (and every bound `RigTargetAuthoring` child's) local
+transform, scrubbing writes root motion + part-track overrides onto the *real* scene GameObjects
+(never a mirror, unlike the Clip Editor's own `PreviewRenderUtility` preview), and exiting restores
+every capture exactly. `CutsceneEditorPanel` activates/deactivates it the moment the current scene
+does/doesn't match `sceneGuid` (`SyncPreviewActivation`, called from every rebuild), and exits it on
+tab-hide (`ShowCutsceneTab` now calls `panel.OnHidden()`), on `EditorSceneManager.sceneSaving`
+(G-D1's "must never survive into a saved scene"), and on `DetachFromPanelEvent`/loading a different
+cutscene. Selecting a slot or a part track also sets `Selection.activeGameObject` to the resolved
+GameObject/child — because preview poses real scene objects, Unity's own Move/Rotate/Scale gizmo
+already works on it, so **no custom gizmo drawing was needed at all**, which is most of why G3
+landed lighter than the spec's own "hardest one" risk note. A "Key" toolbar button reads the
+selected slot's (or part track's) *live* transform at the playhead and upserts a
+`CutsceneTransformKey` via `SerializedProperty` (`CutscenePreviewController.TryKeyRoot`/
+`TryKeyPartTrack`, overwrite-within-1/120s rather than duplicate). `CutscenePoseSampler` (new,
+editor-only) interpolates `CutsceneTransformKey`/`CutsceneCameraKey` lists directly — reusing
+`ClipSampler.Ease` for the actual easing math rather than reimplementing it — because there is no
+baked blob to sample from until G5. A slot inspector shows the resolved facing angle at the
+playhead (`CutscenePoseSampler.TryResolveFacingAngle`: last override key at-or-before the playhead,
+else derived from a finite-difference of root position) as a **read-only number**, not an actual
+sprite flip — flipping needs the baked runtime pipeline that does not exist before G6.
+
+**Scoped out of G3, recorded as owed, not silent:**
+- **Clip-lane playback is not previewed.** What a clip block would show at this instant needs
+  `ClipSampler` against a baked `ClipRegistryBlob`, and there is none until G5; scrubbing moves the
+  root and any keyed parts, but an actor's clip-driven parts just sit at their scene rest pose.
+- **No Auto Key.** Only the manual "Key" button exists — continuous polling for live gizmo drags
+  risks a feedback loop (`ApplyPose` writing the very transform being watched for a change) that
+  was not worth the risk this pass. The interaction is: move with Unity's gizmo, press Key.
+- Facing preview is a number, not a visual flip (above).
+
+Verified live: built a rig + tagged rig-target child + cutscene in memory (no disk writes needed —
+`CutscenePreviewController` takes a scene GUID string and a `GlobalObjectId`, neither cares whether
+either side is saved), entered preview, sampled root motion and a channel-masked part track at t=0
+and t=1 and checked exact numbers (including that an *unmasked* channel — z position — stayed at
+its captured rest value rather than leaking the sampled value), exited and checked exact restore,
+then drove `TryKeyRoot` and confirmed the written key's time and position through the real
+`SerializedObject`. Compile gate green, zero errors/warnings. **G4 — camera lane — next.**
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says

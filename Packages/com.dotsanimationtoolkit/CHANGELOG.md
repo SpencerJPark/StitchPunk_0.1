@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene Editor Scene-view preview and keying (Phase G3)
+
+Non-destructive scrub preview: scrubbing the cutscene timeline poses the real bound scene
+GameObjects (root motion + tag-addressed part-track overrides), never a mirror, so Unity's own
+Move/Rotate/Scale gizmo works on a selected actor for free. Entering preview captures every
+affected transform; leaving it (tab switch, scene save, closing the panel, loading a different
+cutscene) restores every one exactly. A "Key" button reads the live transform of whatever is
+selected and writes it as a key at the playhead. Clip-lane playback and a real sprite-flip facing
+preview are not previewed yet — both need the baked blob G5 introduces.
+
 ### Added — Cutscene Editor tab (Phase G2)
 
 `Editor/ClipEditor/Cutscene/CutsceneEditorPanel` replaces the Cutscene Editor tab's placeholder: a

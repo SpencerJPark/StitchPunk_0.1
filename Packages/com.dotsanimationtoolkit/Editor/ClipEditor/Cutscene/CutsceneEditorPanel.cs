@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -72,10 +73,21 @@ namespace DotsAnimationToolkit.Editor
         private int selectedPartTrackIndex = -1;
         private int selectedItemIndex = -1;
 
+        private readonly CutscenePreviewController previewController = new CutscenePreviewController();
+
         public CutsceneEditorPanel()
         {
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
+
+            // G-D1: a scrub must never survive into a saved scene. Exiting before the write is the
+            // only correct order — sceneSaving fires before the scene file is actually written.
+            EditorSceneManager.sceneSaving += OnSceneSaving;
+            RegisterCallback<DetachFromPanelEvent>(_ =>
+            {
+                EditorSceneManager.sceneSaving -= OnSceneSaving;
+                previewController.ExitPreview();
+            });
 
             Add(BuildToolbar());
 
@@ -112,6 +124,7 @@ namespace DotsAnimationToolkit.Editor
 
         public void LoadCutscene(CutsceneAsset cutsceneAsset)
         {
+            previewController.ExitPreview();
             cutscene = cutsceneAsset;
             serializedObject = cutscene != null ? new SerializedObject(cutscene) : null;
             selectedSlotIndex = -1;
@@ -120,6 +133,17 @@ namespace DotsAnimationToolkit.Editor
             selectedItemIndex = -1;
             cutsceneField.SetValueWithoutNotify(cutscene);
             RebuildAll();
+        }
+
+        /// <summary>Called by <c>ClipEditorWindow.ShowCutsceneTab</c> when the tab is switched away from (G-D1: tab switch restores the preview).</summary>
+        internal void OnHidden()
+        {
+            previewController.ExitPreview();
+        }
+
+        private void OnSceneSaving(UnityEngine.SceneManagement.Scene scene, string path)
+        {
+            previewController.ExitPreview();
         }
 
         private VisualElement BuildToolbar()
@@ -166,7 +190,55 @@ namespace DotsAnimationToolkit.Editor
             });
             toolbar.Add(zoomSlider);
 
+            Button keyButton = new Button(KeySelection)
+            {
+                text = "Key",
+                tooltip = "Keys the selected slot's (or part track's) current live transform at the "
+                    + "playhead — move it with Unity's own gizmo first (spec §3)."
+            };
+            keyButton.style.marginLeft = 16f;
+            toolbar.Add(keyButton);
+
             return toolbar;
+        }
+
+        /// <summary>
+        /// Keys the current live pose of whatever is selected — a slot's root, or a part track — at
+        /// the playhead (spec §3). Requires the preview to be active (the remembered scene open and
+        /// the slot bound), the same gate <see cref="BuildSceneBindingRow"/> already shows a note for.
+        /// </summary>
+        private void KeySelection()
+        {
+            if (cutscene == null || !previewController.IsActive || selectedSlotIndex < 0
+                || selectedSlotIndex >= cutscene.slots.Count)
+            {
+                return;
+            }
+
+            CutsceneSlot slot = cutscene.slots[selectedSlotIndex];
+            SerializedProperty slotProperty =
+                serializedObject.FindProperty("slots").GetArrayElementAtIndex(selectedSlotIndex);
+
+            bool keyed;
+            if ((selectedLaneKind == SelectedLaneKind.PartTrackHeader || selectedLaneKind == SelectedLaneKind.PartTrackKey)
+                && selectedPartTrackIndex >= 0 && selectedPartTrackIndex < slot.partTracks.Count)
+            {
+                SerializedProperty keysProperty = slotProperty.FindPropertyRelative("partTracks")
+                    .GetArrayElementAtIndex(selectedPartTrackIndex).FindPropertyRelative("keys");
+                keyed = previewController.TryKeyPartTrack(
+                    serializedObject, keysProperty, slot, slot.partTracks[selectedPartTrackIndex], playheadSeconds);
+            }
+            else
+            {
+                SerializedProperty keysProperty = slotProperty.FindPropertyRelative("transformKeys");
+                keyed = previewController.TryKeyRoot(serializedObject, keysProperty, slot, playheadSeconds);
+            }
+
+            if (keyed)
+            {
+                serializedObject.Update();
+                RebuildAll();
+            }
         }
 
         private VisualElement BuildAddSlotRow()
@@ -262,13 +334,42 @@ namespace DotsAnimationToolkit.Editor
             }
             serializedObject.Update();
             RebuildAll();
+            previewController.ApplyPose(cutscene, playheadSeconds);
         }
 
         private void RebuildAll()
         {
             RefreshSceneStatus();
+            SyncPreviewActivation();
             RebuildTimeline();
             RebuildInspector();
+        }
+
+        /// <summary>
+        /// Enters preview the moment the remembered scene is the open one, and exits it the moment
+        /// it is not — spec §3's "wrong scene open" warning already covers timing edits staying live;
+        /// this is the posing half of that same rule (G-D1).
+        /// </summary>
+        private void SyncPreviewActivation()
+        {
+            if (cutscene == null)
+            {
+                previewController.ExitPreview();
+                return;
+            }
+
+            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            bool shouldBeActive = !string.IsNullOrEmpty(cutscene.sceneGuid) && currentSceneGuid == cutscene.sceneGuid;
+
+            if (shouldBeActive && !previewController.IsActive)
+            {
+                previewController.EnterPreview(cutscene, currentSceneGuid);
+                previewController.ApplyPose(cutscene, playheadSeconds);
+            }
+            else if (!shouldBeActive && previewController.IsActive)
+            {
+                previewController.ExitPreview();
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -324,8 +425,41 @@ namespace DotsAnimationToolkit.Editor
         {
             selectedSlotIndex = slotIndex;
             selectedLaneKind = SelectedLaneKind.None;
+            selectedPartTrackIndex = -1;
+            SyncSceneSelectionToTimelineSelection();
             RebuildTimeline();
             RebuildInspector();
+        }
+
+        /// <summary>
+        /// Selects whatever GameObject the current timeline selection corresponds to (spec §3), so
+        /// Unity's own Move/Rotate/Scale gizmo is already on it — no custom gizmo drawing needed
+        /// since preview poses the real scene object, never a mirror.
+        /// </summary>
+        private void SyncSceneSelectionToTimelineSelection()
+        {
+            if (!previewController.IsActive || selectedSlotIndex < 0 || selectedSlotIndex >= cutscene.slots.Count)
+            {
+                return;
+            }
+            CutsceneSlot slot = cutscene.slots[selectedSlotIndex];
+            GameObject target = previewController.GetBoundObject(slot.SlotId);
+
+            if ((selectedLaneKind == SelectedLaneKind.PartTrackHeader || selectedLaneKind == SelectedLaneKind.PartTrackKey)
+                && selectedPartTrackIndex >= 0 && selectedPartTrackIndex < slot.partTracks.Count && slot.rig != null)
+            {
+                Transform partTransform = previewController.GetBoundPartTransform(
+                    slot.SlotId, slot.rig, slot.partTracks[selectedPartTrackIndex].tagId);
+                if (partTransform != null)
+                {
+                    target = partTransform.gameObject;
+                }
+            }
+
+            if (target != null)
+            {
+                Selection.activeGameObject = target;
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -763,6 +897,7 @@ namespace DotsAnimationToolkit.Editor
         private void OnPlayheadScrubbed(float time)
         {
             playheadSeconds = Mathf.Max(0f, time);
+            previewController.ApplyPose(cutscene, playheadSeconds);
             RebuildTimeline();
         }
 
@@ -776,6 +911,7 @@ namespace DotsAnimationToolkit.Editor
             selectedLaneKind = laneKind;
             selectedPartTrackIndex = partTrackIndex;
             selectedItemIndex = itemIndex;
+            SyncSceneSelectionToTimelineSelection();
             RebuildTimeline();
             RebuildInspector();
         }
@@ -1178,6 +1314,16 @@ namespace DotsAnimationToolkit.Editor
                 PropertyField directionSetField = new PropertyField(slotProperty.FindPropertyRelative("directionSet"));
                 directionSetField.Bind(serializedObject);
                 inspectorScroll.Add(directionSetField);
+
+                float facingAngle;
+                bool isOverride = CutscenePoseSampler.TryResolveFacingAngle(
+                    slot.facingKeys, slot.transformKeys, playheadSeconds, out facingAngle);
+                Label facingLabel = new Label(
+                    "Facing at playhead: " + facingAngle.ToString("0.#") + "°"
+                    + (isOverride ? " (override key)" : " (derived from root travel)"));
+                facingLabel.style.marginTop = 4f;
+                facingLabel.style.whiteSpace = WhiteSpace.Normal;
+                inspectorScroll.Add(facingLabel);
             }
 
             BuildSceneBindingRow(slotIndex);

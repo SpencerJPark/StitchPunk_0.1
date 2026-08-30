@@ -1970,6 +1970,11 @@ namespace DotsAnimationToolkit.Editor
                 cutscenePane.Add(cutscenePanel);
             }
 
+            if (!isShown && cutscenePanel != null)
+            {
+                cutscenePanel.OnHidden();
+            }
+
             cutscenePane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
