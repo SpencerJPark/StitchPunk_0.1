@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — "New" button creates a Cutscene asset from the tab
+
+The Cutscene Editor tab's toolbar now has a **New** button beside the Cutscene field, mirroring
+`ClipEditorWindow.CreateClipSet`'s shape: asks where to save, creates the asset, and loads it —
+so starting a cutscene no longer requires the Project window's Create menu.
+
 ### Added — Cutscene docs and Prop slot coverage (Phase G7)
 
 `Documentation~/cutscenes.md` (linked from `index.md`): concept model, authoring workflow, scene

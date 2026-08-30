@@ -142,6 +142,36 @@ namespace DotsAnimationToolkit.Editor
             previewController.ExitPreview();
         }
 
+        /// <summary>
+        /// Creates a new <see cref="CutsceneAsset"/> wherever the user chooses, and loads it —
+        /// mirroring <c>ClipEditorWindow.CreateClipSet</c>/<c>ClipAssetUtility.CreateClipSet</c>'s
+        /// shape exactly: the location is asked for rather than guessed, and loading the new asset
+        /// runs the same <see cref="LoadCutscene"/> path picking one by hand does.
+        /// </summary>
+        private void CreateCutsceneAsset()
+        {
+            string assetPath = EditorUtility.SaveFilePanelInProject(
+                "Create Cutscene",
+                "NewCutscene",
+                "asset",
+                "Choose where to save the new cutscene.");
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return;
+            }
+
+            CutsceneAsset newCutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            newCutscene.EnsureStableIds();
+            newCutscene.name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+
+            AssetDatabase.CreateAsset(newCutscene, assetPath);
+            AssetDatabase.SaveAssets();
+            newCutscene.MarkStableIdPersisted();
+
+            LoadCutscene(newCutscene);
+            EditorGUIUtility.PingObject(newCutscene);
+        }
+
         private void OnSceneSaving(UnityEngine.SceneManagement.Scene scene, string path)
         {
             previewController.ExitPreview();
@@ -166,6 +196,14 @@ namespace DotsAnimationToolkit.Editor
             cutsceneField.RegisterValueChangedCallback(
                 changeEvent => LoadCutscene(changeEvent.newValue as CutsceneAsset));
             toolbar.Add(cutsceneField);
+
+            Button newCutsceneButton = new Button(CreateCutsceneAsset)
+            {
+                text = "New",
+                tooltip = "Creates a new Cutscene asset wherever you choose, and loads it."
+            };
+            newCutsceneButton.style.marginLeft = 4f;
+            toolbar.Add(newCutsceneButton);
 
             sceneStatusLabel = new Label(string.Empty);
             sceneStatusLabel.style.marginLeft = 12f;
