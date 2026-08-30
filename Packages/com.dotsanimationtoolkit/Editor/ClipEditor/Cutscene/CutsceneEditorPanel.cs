@@ -68,6 +68,22 @@ namespace DotsAnimationToolkit.Editor
 
         private ScrollView timelineScrollView;
         private ScrollView inspectorScroll;
+        private CutsceneTimelinePlayheadElement playheadElement;
+
+        private Button playToggleButton;
+        private Button continueButton;
+        private Label transportStatusLabel;
+        private FloatField speedField;
+        private Toggle loopPlaybackToggle;
+        private Toggle skipHoldsToggle;
+
+        private bool isPlaying;
+        private double lastTickTime;
+        private float playbackSpeed = 1f;
+        private float prePlayPlayheadSeconds;
+
+        /// <summary>Index into <see cref="CutsceneAsset.holdMarkers"/> the transport is waiting on, or −1.</summary>
+        private int gatingHoldIndex = -1;
 
         private int selectedSlotIndex = -1;
         private SelectedLaneKind selectedLaneKind = SelectedLaneKind.None;
@@ -87,10 +103,12 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<DetachFromPanelEvent>(_ =>
             {
                 EditorSceneManager.sceneSaving -= OnSceneSaving;
+                StopPlayback();
                 previewController.ExitPreview();
             });
 
             Add(BuildToolbar());
+            Add(BuildTransportRow());
 
             VisualElement body = new VisualElement();
             body.style.flexGrow = 1f;
@@ -125,6 +143,7 @@ namespace DotsAnimationToolkit.Editor
 
         public void LoadCutscene(CutsceneAsset cutsceneAsset)
         {
+            StopPlayback();
             previewController.ExitPreview();
             cutscene = cutsceneAsset;
             serializedObject = cutscene != null ? new SerializedObject(cutscene) : null;
@@ -139,6 +158,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Called by <c>ClipEditorWindow.ShowCutsceneTab</c> when the tab is switched away from (G-D1: tab switch restores the preview).</summary>
         internal void OnHidden()
         {
+            StopPlayback();
             previewController.ExitPreview();
         }
 
@@ -174,6 +194,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnSceneSaving(UnityEngine.SceneManagement.Scene scene, string path)
         {
+            StopPlayback();
             previewController.ExitPreview();
         }
 
@@ -253,6 +274,248 @@ namespace DotsAnimationToolkit.Editor
             toolbar.Add(previewShotToggle);
 
             return toolbar;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Editor play transport (A58 §3.2). A rehearsal of runtime pacing, holds included.
+        // -----------------------------------------------------------------------------------
+
+        private VisualElement BuildTransportRow()
+        {
+            VisualElement row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.paddingLeft = 6f;
+            row.style.paddingBottom = 4f;
+
+            playToggleButton = new Button(TogglePlayback) { text = "Play" };
+            playToggleButton.style.width = 60f;
+            row.Add(playToggleButton);
+
+            Button stopButton = new Button(StopPlayback) { text = "Stop" };
+            stopButton.tooltip = "Stops and returns the playhead to where Play was pressed.";
+            stopButton.style.width = 60f;
+            row.Add(stopButton);
+
+            continueButton = new Button(ReleaseHold) { text = "Continue" };
+            continueButton.tooltip = "Releases the hold the transport is waiting on, the way a host "
+                + "releases it at run time.";
+            continueButton.style.display = DisplayStyle.None;
+            row.Add(continueButton);
+
+            speedField = new FloatField("Speed") { value = playbackSpeed };
+            speedField.style.width = 110f;
+            speedField.style.marginLeft = 8f;
+            speedField.RegisterValueChangedCallback(
+                changeEvent => playbackSpeed = Mathf.Max(0f, changeEvent.newValue));
+            row.Add(speedField);
+
+            loopPlaybackToggle = new Toggle("Loop") { value = false };
+            loopPlaybackToggle.style.marginLeft = 8f;
+            loopPlaybackToggle.tooltip = "Restart from the top on reaching the end, for rehearsing a beat.";
+            row.Add(loopPlaybackToggle);
+
+            skipHoldsToggle = new Toggle("Skip Holds") { value = false };
+            skipHoldsToggle.style.marginLeft = 8f;
+            skipHoldsToggle.tooltip = "Run straight through hold markers instead of waiting for Continue.";
+            row.Add(skipHoldsToggle);
+
+            transportStatusLabel = new Label(string.Empty);
+            transportStatusLabel.style.marginLeft = 12f;
+            transportStatusLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+            row.Add(transportStatusLabel);
+
+            return row;
+        }
+
+        private void TogglePlayback()
+        {
+            if (isPlaying)
+            {
+                SetPlaying(false);
+                return;
+            }
+            if (cutscene == null)
+            {
+                return;
+            }
+            prePlayPlayheadSeconds = playheadSeconds;
+            previewController.HoldClipPhaseSeconds = 0f;
+            gatingHoldIndex = -1;
+            SetPlaying(true);
+        }
+
+        private void StopPlayback()
+        {
+            bool wasRunning = isPlaying || gatingHoldIndex >= 0;
+            SetPlaying(false);
+            gatingHoldIndex = -1;
+            previewController.HoldClipPhaseSeconds = 0f;
+            if (wasRunning)
+            {
+                SetPlayhead(prePlayPlayheadSeconds);
+            }
+            RefreshTransportStatus();
+        }
+
+        private void SetPlaying(bool playing)
+        {
+            if (playing == isPlaying)
+            {
+                return;
+            }
+            isPlaying = playing;
+            if (playing)
+            {
+                lastTickTime = EditorApplication.timeSinceStartup;
+                EditorApplication.update += Tick;
+            }
+            else
+            {
+                EditorApplication.update -= Tick;
+            }
+            if (playToggleButton != null)
+            {
+                playToggleButton.text = playing ? "Pause" : "Play";
+            }
+            RefreshTransportStatus();
+        }
+
+        private void ReleaseHold()
+        {
+            if (gatingHoldIndex < 0)
+            {
+                return;
+            }
+            // Stepping a hair past the marker so the same hold is not re-detected on the next tick.
+            gatingHoldIndex = -1;
+            playheadSeconds += HoldReleaseEpsilon;
+            RefreshTransportStatus();
+        }
+
+        /// <summary>Nudge past a released hold, well under one frame at any sane speed.</summary>
+        private const float HoldReleaseEpsilon = 1e-3f;
+
+        /// <summary>
+        /// One transport frame: advance the elastic clock, stop dead on a hold, and re-pose.
+        /// </summary>
+        /// <remarks>
+        /// <strong>A hold freezes the cutscene clock, not the actors.</strong> At run time
+        /// <c>PlaybackTimeSystem</c> keeps advancing every layer while
+        /// <c>CutsceneTimelineSystem</c> sits paused, so a looping walk keeps cycling and the camera
+        /// holds its shot (spec §2). <see cref="CutscenePreviewController.HoldClipPhaseSeconds"/>
+        /// is the editor's copy of that: seconds the clips advanced while the timeline did not.
+        /// </remarks>
+        private void Tick()
+        {
+            double now = EditorApplication.timeSinceStartup;
+            float elapsed = (float)(now - lastTickTime);
+            lastTickTime = now;
+
+            if (cutscene == null || !previewController.IsActive)
+            {
+                SetPlaying(false);
+                return;
+            }
+
+            if (gatingHoldIndex >= 0)
+            {
+                previewController.HoldClipPhaseSeconds += elapsed * playbackSpeed;
+                ApplyPreviewAtPlayhead();
+                return;
+            }
+
+            float advancedTime = playheadSeconds + elapsed * playbackSpeed;
+
+            int crossedHoldIndex = skipHoldsToggle != null && skipHoldsToggle.value
+                ? -1
+                : FindFirstHoldCrossed(playheadSeconds, advancedTime);
+            if (crossedHoldIndex >= 0)
+            {
+                gatingHoldIndex = crossedHoldIndex;
+                SetPlayhead(cutscene.holdMarkers[crossedHoldIndex].time);
+                RefreshTransportStatus();
+                return;
+            }
+
+            float contentEnd = ComputeContentEndSeconds();
+            if (advancedTime >= contentEnd)
+            {
+                if (loopPlaybackToggle != null && loopPlaybackToggle.value)
+                {
+                    // A fresh play: the actors' clocks restart with the timeline's.
+                    previewController.HoldClipPhaseSeconds = 0f;
+                    SetPlayhead(0f);
+                    return;
+                }
+                SetPlayhead(contentEnd);
+                SetPlaying(false);
+                return;
+            }
+
+            SetPlayhead(advancedTime);
+        }
+
+        /// <summary>The first hold marker strictly after <paramref name="fromSeconds"/> and at or before <paramref name="toSeconds"/>.</summary>
+        private int FindFirstHoldCrossed(float fromSeconds, float toSeconds)
+        {
+            int firstIndex = -1;
+            if (cutscene.holdMarkers == null)
+            {
+                return -1;
+            }
+            for (int holdIndex = 0; holdIndex < cutscene.holdMarkers.Count; holdIndex++)
+            {
+                CutsceneHoldMarker holdMarker = cutscene.holdMarkers[holdIndex];
+                if (holdMarker == null || holdMarker.time <= fromSeconds || holdMarker.time > toSeconds)
+                {
+                    continue;
+                }
+                if (firstIndex < 0 || holdMarker.time < cutscene.holdMarkers[firstIndex].time)
+                {
+                    firstIndex = holdIndex;
+                }
+            }
+            return firstIndex;
+        }
+
+        /// <summary>
+        /// Moves the playhead and re-poses, without rebuilding the timeline.
+        /// </summary>
+        /// <remarks>
+        /// The playhead element repaints itself from its own <c>TimeSeconds</c>; rebuilding every
+        /// lane each frame is what would make a 30s vignette churn the editor (A58 §6).
+        /// </remarks>
+        private void SetPlayhead(float timeSeconds)
+        {
+            playheadSeconds = Mathf.Max(0f, timeSeconds);
+            if (playheadElement != null)
+            {
+                playheadElement.TimeSeconds = playheadSeconds;
+            }
+            ApplyPreviewAtPlayhead();
+        }
+
+        private void RefreshTransportStatus()
+        {
+            if (transportStatusLabel == null)
+            {
+                return;
+            }
+
+            if (gatingHoldIndex >= 0 && cutscene != null && gatingHoldIndex < cutscene.holdMarkers.Count)
+            {
+                string holdId = cutscene.holdMarkers[gatingHoldIndex].holdId;
+                transportStatusLabel.text =
+                    "Holding on '" + (string.IsNullOrEmpty(holdId) ? "(unnamed hold)" : holdId) + "'.";
+                continueButton.style.display = DisplayStyle.Flex;
+                return;
+            }
+
+            // No running time in the label: it would rebuild this row's layout every tick, and the
+            // playhead already says where the clock is.
+            continueButton.style.display = DisplayStyle.None;
+            transportStatusLabel.text = isPlaying ? "Playing" : string.Empty;
         }
 
         /// <summary>
@@ -421,6 +684,7 @@ namespace DotsAnimationToolkit.Editor
             }
             else if (!shouldBeActive && previewController.IsActive)
             {
+                StopPlayback();
                 previewController.ExitPreview();
             }
         }
@@ -560,17 +824,17 @@ namespace DotsAnimationToolkit.Editor
             BuildEventRows(content, contentWidth);
             BuildHoldRows(content, contentWidth);
 
-            CutsceneTimelinePlayheadElement playhead = new CutsceneTimelinePlayheadElement
+            playheadElement = new CutsceneTimelinePlayheadElement
             {
                 pixelsPerSecond = pixelsPerSecond,
                 TimeSeconds = playheadSeconds
             };
-            playhead.style.position = Position.Absolute;
-            playhead.style.left = HeaderColumnWidth;
-            playhead.style.top = 0f;
-            playhead.style.bottom = 0f;
-            playhead.style.width = contentWidth;
-            content.Add(playhead);
+            playheadElement.style.position = Position.Absolute;
+            playheadElement.style.left = HeaderColumnWidth;
+            playheadElement.style.top = 0f;
+            playheadElement.style.bottom = 0f;
+            playheadElement.style.width = contentWidth;
+            content.Add(playheadElement);
 
             timelineScrollView.Add(content);
             timelineScrollView.scrollOffset = preservedScroll;
