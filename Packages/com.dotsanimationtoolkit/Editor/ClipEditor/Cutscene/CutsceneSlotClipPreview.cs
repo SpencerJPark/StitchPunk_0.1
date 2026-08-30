@@ -29,6 +29,7 @@ namespace DotsAnimationToolkit.Editor
         private BlobAssetReference<ClipRegistryBlob> registry;
         private RigAsset boundRig;
         private readonly List<ClipSetAsset> boundClipSets = new List<ClipSetAsset>();
+        private readonly List<ulong> boundClipIds = new List<ulong>();
 
         /// <summary>Why there is no registry, for the slot inspector. Empty when one built.</summary>
         public string StatusMessage { get; private set; } = string.Empty;
@@ -52,7 +53,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Rebuilds only when the slot's rig or clip-set membership has actually changed.</summary>
         public void RebuildIfBindChanged(RigAsset rig, List<ClipSetAsset> clipSets)
         {
-            if (registry.IsCreated && boundRig == rig && SameClipSets(clipSets))
+            if (registry.IsCreated && boundRig == rig && SameBind(clipSets))
             {
                 return;
             }
@@ -64,6 +65,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 boundClipSets.AddRange(clipSets);
             }
+            CollectClipIds(clipSets, boundClipIds);
 
             if (rig == null)
             {
@@ -147,21 +149,67 @@ namespace DotsAnimationToolkit.Editor
             registry = default(BlobAssetReference<ClipRegistryBlob>);
         }
 
-        private bool SameClipSets(List<ClipSetAsset> clipSets)
+        /// <summary>
+        /// Whether the bind is still the one the registry was built from — the same sets, holding the
+        /// same clips.
+        /// </summary>
+        /// <remarks>
+        /// The clips inside each set are compared, not just the set references: dragging a clip into
+        /// a set from its inspector while the cutscene tab is open leaves the set reference identical
+        /// and the registry one clip short, so the new block would preview nothing with no error
+        /// anywhere. Key edits <em>inside</em> a clip are not compared and do not need to be — they
+        /// happen on the Clip Editor tab, and switching tabs exits the preview and drops the
+        /// registries anyway.
+        /// </remarks>
+        private bool SameBind(List<ClipSetAsset> clipSets)
         {
-            int count = clipSets != null ? clipSets.Count : 0;
-            if (count != boundClipSets.Count)
+            int setCount = clipSets != null ? clipSets.Count : 0;
+            if (setCount != boundClipSets.Count)
             {
                 return false;
             }
-            for (int index = 0; index < count; index++)
+            for (int index = 0; index < setCount; index++)
             {
                 if (clipSets[index] != boundClipSets[index])
                 {
                     return false;
                 }
             }
+
+            CollectClipIds(clipSets, comparisonClipIds);
+            if (comparisonClipIds.Count != boundClipIds.Count)
+            {
+                return false;
+            }
+            for (int index = 0; index < comparisonClipIds.Count; index++)
+            {
+                if (comparisonClipIds[index] != boundClipIds[index])
+                {
+                    return false;
+                }
+            }
             return true;
+        }
+
+        /// <summary>Reused so the membership check a scrub runs every tick allocates nothing.</summary>
+        private readonly List<ulong> comparisonClipIds = new List<ulong>();
+
+        private static void CollectClipIds(List<ClipSetAsset> clipSets, List<ulong> clipIds)
+        {
+            clipIds.Clear();
+            for (int setIndex = 0; clipSets != null && setIndex < clipSets.Count; setIndex++)
+            {
+                ClipSetAsset clipSet = clipSets[setIndex];
+                if (clipSet == null || clipSet.clips == null)
+                {
+                    continue;
+                }
+                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
+                {
+                    ClipAsset clip = clipSet.clips[clipIndex];
+                    clipIds.Add(clip != null ? clip.Id.Value : 0UL);
+                }
+            }
         }
     }
 }

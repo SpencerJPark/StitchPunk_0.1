@@ -336,7 +336,13 @@ namespace DotsAnimationToolkit.Editor
                 composedPoses[partEntry.Key] = restAsPose;
             }
 
-            ComposeClipLane(slot, parts, timeSeconds);
+            // Clip lane, then facing, then the cutscene's own overrides — the order the shipped
+            // systems run in (TransformSampleSystem applies facing after composition;
+            // CutscenePartOverrideSystem then runs after that one). An override key is the last
+            // word on the channels it owns, in the preview exactly as in play.
+            SlotFacing facing = ResolveSlotFacing(slot, timeSeconds);
+            ComposeClipLane(slot, parts, timeSeconds, in facing);
+            ComposeFacingMirror(slot, in facing);
             ComposePartTrackOverrides(slot, timeSeconds);
 
             foreach (KeyValuePair<uint, PartBinding> partEntry in parts)
@@ -354,7 +360,7 @@ namespace DotsAnimationToolkit.Editor
         /// while their overlap lasts, into <see cref="composedPoses"/>.
         /// </summary>
         private void ComposeClipLane(
-            CutsceneSlot slot, Dictionary<uint, PartBinding> parts, float timeSeconds)
+            CutsceneSlot slot, Dictionary<uint, PartBinding> parts, float timeSeconds, in SlotFacing facing)
         {
             if (slot.clipBlocks == null || slot.clipBlocks.Count == 0)
             {
@@ -377,7 +383,8 @@ namespace DotsAnimationToolkit.Editor
 
             CutsceneClipBlock activeBlock = slot.clipBlocks[activeBlockIndex];
             int activeClipIndex;
-            if (!clipPreview.TryGetClipIndex(activeBlock.clipId, out activeClipIndex))
+            if (!clipPreview.TryGetClipIndex(
+                    ResolveFacingVariantClipId(slot, in facing, activeBlock.clipId), out activeClipIndex))
             {
                 return;
             }
@@ -397,7 +404,8 @@ namespace DotsAnimationToolkit.Editor
                     previousBlock.start, previousBlock.duration, activeBlock.start);
                 blendWeight = CutsceneBlockTiming.SeamBlendWeight(
                     activeBlock.start, blendDuration, timeSeconds);
-                if (blendWeight < 1f && clipPreview.TryGetClipIndex(previousBlock.clipId, out previousClipIndex))
+                if (blendWeight < 1f && clipPreview.TryGetClipIndex(
+                        ResolveFacingVariantClipId(slot, in facing, previousBlock.clipId), out previousClipIndex))
                 {
                     // The outgoing clip keeps running on its own clock while the weight climbs —
                     // PlaybackTimeSystem.AdvanceBlend's behaviour, not a frozen last frame.
@@ -456,6 +464,145 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
             return activeIndex;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Facing (A58 §3.1, T4): the angle is resolved, run through the runtime's own resolver,
+        // and applied — not merely displayed as a number.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>Which authored-side clip a slot's facing calls for at the playhead, and whether it mirrors.</summary>
+        private struct SlotFacing
+        {
+            public bool isResolved;
+            public Direction clipFacing;
+            public bool mirrorX;
+        }
+
+        /// <summary>
+        /// Walks the runtime facing path for a slot's angle at <paramref name="timeSeconds"/>, the
+        /// way the Direction Sets pane does: angle to a facing vector,
+        /// <see cref="FacingResolver.FromMovement"/> at the set's own turn granularity,
+        /// <see cref="FacingResolver.Snap"/> into the coverage the filled slots actually give, then
+        /// <see cref="FacingResolver.ToAuthoredSide"/>. Unresolved without a direction set — there is
+        /// then nothing that says which art serves which angle.
+        /// </summary>
+        private static SlotFacing ResolveSlotFacing(CutsceneSlot slot, float timeSeconds)
+        {
+            SlotFacing facing = new SlotFacing();
+            if (slot.directionSet == null)
+            {
+                return facing;
+            }
+
+            float angleDegrees;
+            CutscenePoseSampler.TryResolveFacingAngle(
+                slot.facingKeys, slot.transformKeys, timeSeconds, out angleDegrees);
+
+            float angleRadians = Mathf.Deg2Rad * angleDegrees;
+            float2 facingVector = new float2(Mathf.Cos(angleRadians), Mathf.Sin(angleRadians));
+            // No hysteresis seed: the angle is authored rather than sampled from noisy movement, so
+            // the same playhead must always resolve to the same facing however it was scrubbed to.
+            Direction memberFacing = FacingResolver.FromMovement(
+                in facingVector, slot.directionSet.targetDirections, Direction.SouthEast);
+
+            AnimationDirections coverage;
+            slot.directionSet.TryGetEffectiveDirections(out coverage);
+            Direction foldedFacing = FacingResolver.Snap(memberFacing, coverage);
+
+            Direction clipFacing;
+            bool mirrorX;
+            FacingResolver.ToAuthoredSide(foldedFacing, out clipFacing, out mirrorX);
+
+            facing.isResolved = true;
+            facing.clipFacing = clipFacing;
+            facing.mirrorX = mirrorX;
+            return facing;
+        }
+
+        /// <summary>
+        /// The clip a block actually plays once facing has had its say: the direction set's sibling
+        /// for the resolved side.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Substituted only when the block already names a member of the set</strong>
+        /// (decision A58-D5). A block naming the set's SouthEast walk is asking for "the walk",
+        /// and turning the actor should re-pick the variant; a block naming a one-off clip the set
+        /// has never heard of — a wave, a stumble — is asking for that clip exactly, and swapping it
+        /// out for a walk because the actor happens to face north-east would be silent nonsense.
+        /// </remarks>
+        private static ulong ResolveFacingVariantClipId(
+            CutsceneSlot slot, in SlotFacing facing, ulong authoredClipId)
+        {
+            if (!facing.isResolved || authoredClipId == 0UL || !IsDirectionSetMember(slot.directionSet, authoredClipId))
+            {
+                return authoredClipId;
+            }
+            ClipAsset variantClip = slot.directionSet.GetSlot(facing.clipFacing);
+            return variantClip != null ? variantClip.Id.Value : authoredClipId;
+        }
+
+        private static bool IsDirectionSetMember(DirectionSetAsset directionSet, ulong clipId)
+        {
+            for (int slotIndex = 0; slotIndex < DirectionSlotOrder.Length; slotIndex++)
+            {
+                ClipAsset slotClip = directionSet.GetSlot(DirectionSlotOrder[slotIndex]);
+                if (slotClip != null && slotClip.Id.Value == clipId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>What the slot's facing resolves to at a time, for the slot inspector's readout.</summary>
+        public static string DescribeResolvedFacing(CutsceneSlot slot, float timeSeconds)
+        {
+            SlotFacing facing = ResolveSlotFacing(slot, timeSeconds);
+            if (!facing.isResolved)
+            {
+                return "no direction set";
+            }
+            return "plays the " + facing.clipFacing + " variant" + (facing.mirrorX ? ", mirrored" : string.Empty);
+        }
+
+        /// <summary>The five east-side slots a direction set authors, in the order the queue lists them.</summary>
+        private static readonly Direction[] DirectionSlotOrder =
+        {
+            Direction.South, Direction.SouthEast, Direction.East, Direction.NorthEast, Direction.North
+        };
+
+        /// <summary>
+        /// Reflects every facing part about the actor's vertical axis when the resolved facing is
+        /// served by a mirrored clip — the same three negations
+        /// <c>TransformSampleSystem</c> applies for <c>PartFacing.mirrorX</c>, so the preview flips
+        /// what play flips rather than merely scaling the whole actor by −1.
+        /// </summary>
+        private void ComposeFacingMirror(CutsceneSlot slot, in SlotFacing facing)
+        {
+            if (!facing.isResolved || !facing.mirrorX || slot.rig == null || slot.rig.targets == null)
+            {
+                return;
+            }
+
+            for (int targetIndex = 0; targetIndex < slot.rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = slot.rig.targets[targetIndex];
+                if (target == null || !target.facesDirection)
+                {
+                    continue;
+                }
+                TargetPose pose;
+                if (!composedPoses.TryGetValue(target.stableId, out pose))
+                {
+                    continue;
+                }
+                pose.localPosition.x = -pose.localPosition.x;
+                pose.rotation.y = -pose.rotation.y;
+                pose.rotation.z = -pose.rotation.z;
+                pose.scale.x = -pose.scale.x;
+                composedPoses[target.stableId] = pose;
+            }
         }
 
         /// <summary>

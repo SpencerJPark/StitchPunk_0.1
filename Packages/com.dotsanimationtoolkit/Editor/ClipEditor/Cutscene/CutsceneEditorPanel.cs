@@ -700,13 +700,70 @@ namespace DotsAnimationToolkit.Editor
 
             if (shouldBeActive && !previewController.IsActive)
             {
+                EnsureSceneViewIsOpen();
                 previewController.EnterPreview(cutscene, currentSceneGuid);
+                FrameCastOnFirstEnter();
+                // After the framing, never before: a cutscene with camera keys wants its own shot,
+                // and ApplyCameraPose is what puts the view there.
                 ApplyPreviewAtPlayhead();
             }
             else if (!shouldBeActive && previewController.IsActive)
             {
                 StopPlayback();
                 previewController.ExitPreview();
+            }
+        }
+
+        /// <summary>
+        /// Makes sure there is a Scene view to preview into (A58 §3.4). The docked
+        /// Hierarchy + Scene view + Cutscene window arrangement is the intended workflow, and a
+        /// preview posing objects nobody can see is the shape of the defect A58 exists to fix.
+        /// </summary>
+        private static void EnsureSceneViewIsOpen()
+        {
+            if (SceneView.lastActiveSceneView != null)
+            {
+                return;
+            }
+            if (SceneView.sceneViews != null && SceneView.sceneViews.Count > 0)
+            {
+                ((SceneView)SceneView.sceneViews[0]).Focus();
+                return;
+            }
+            EditorWindow.GetWindow<SceneView>();
+        }
+
+        /// <summary>Frames every bound cast member once per preview session, so the actors are on screen to begin with.</summary>
+        private void FrameCastOnFirstEnter()
+        {
+            SceneView sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null || cutscene.slots == null)
+            {
+                return;
+            }
+
+            bool hasBounds = false;
+            Bounds castBounds = new Bounds();
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                GameObject boundObject = previewController.GetBoundObject(cutscene.slots[slotIndex].SlotId);
+                if (boundObject == null)
+                {
+                    continue;
+                }
+                Bounds slotBounds = ComputeFramingBounds(boundObject);
+                if (!hasBounds)
+                {
+                    castBounds = slotBounds;
+                    hasBounds = true;
+                    continue;
+                }
+                castBounds.Encapsulate(slotBounds);
+            }
+
+            if (hasBounds)
+            {
+                sceneView.Frame(castBounds, true);
             }
         }
 
@@ -1830,7 +1887,10 @@ namespace DotsAnimationToolkit.Editor
                     slot.facingKeys, slot.transformKeys, playheadSeconds, out facingAngle);
                 Label facingLabel = new Label(
                     "Facing at playhead: " + facingAngle.ToString("0.#") + "°"
-                    + (isOverride ? " (override key)" : " (derived from root travel)"));
+                    + (isOverride ? " (override key)" : " (derived from root travel)")
+                    + (slot.directionSet == null
+                        ? " — assign a Direction Set to apply it in the preview."
+                        : " — " + CutscenePreviewController.DescribeResolvedFacing(slot, playheadSeconds)));
                 facingLabel.style.marginTop = 4f;
                 facingLabel.style.whiteSpace = WhiteSpace.Normal;
                 inspectorScroll.Add(facingLabel);
