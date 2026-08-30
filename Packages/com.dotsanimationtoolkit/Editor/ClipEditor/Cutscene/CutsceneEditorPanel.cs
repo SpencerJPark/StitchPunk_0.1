@@ -62,6 +62,7 @@ namespace DotsAnimationToolkit.Editor
         private Label sceneStatusLabel;
         private Button sceneActionButton;
         private Slider zoomSlider;
+        private Toggle previewShotToggle;
         private float pixelsPerSecond = 40f;
         private float playheadSeconds;
 
@@ -199,6 +200,20 @@ namespace DotsAnimationToolkit.Editor
             keyButton.style.marginLeft = 16f;
             toolbar.Add(keyButton);
 
+            previewShotToggle = new Toggle("Preview Shot") { value = true };
+            previewShotToggle.style.marginLeft = 16f;
+            previewShotToggle.tooltip =
+                "While scrubbing, move the Scene view's own camera to the cutscene camera lane's "
+                + "pose (spec §4). Turn off to scrub freely without the Scene view camera moving.";
+            previewShotToggle.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (changeEvent.newValue)
+                {
+                    previewController.ApplyCameraPose(cutscene, playheadSeconds);
+                }
+            });
+            toolbar.Add(previewShotToggle);
+
             return toolbar;
         }
 
@@ -334,7 +349,7 @@ namespace DotsAnimationToolkit.Editor
             }
             serializedObject.Update();
             RebuildAll();
-            previewController.ApplyPose(cutscene, playheadSeconds);
+            ApplyPreviewAtPlayhead();
         }
 
         private void RebuildAll()
@@ -364,7 +379,7 @@ namespace DotsAnimationToolkit.Editor
             if (shouldBeActive && !previewController.IsActive)
             {
                 previewController.EnterPreview(cutscene, currentSceneGuid);
-                previewController.ApplyPose(cutscene, playheadSeconds);
+                ApplyPreviewAtPlayhead();
             }
             else if (!shouldBeActive && previewController.IsActive)
             {
@@ -897,8 +912,18 @@ namespace DotsAnimationToolkit.Editor
         private void OnPlayheadScrubbed(float time)
         {
             playheadSeconds = Mathf.Max(0f, time);
-            previewController.ApplyPose(cutscene, playheadSeconds);
+            ApplyPreviewAtPlayhead();
             RebuildTimeline();
+        }
+
+        /// <summary>Poses every bound actor/prop and, if <see cref="previewShotToggle"/> allows it, the Scene view camera (G4).</summary>
+        private void ApplyPreviewAtPlayhead()
+        {
+            previewController.ApplyPose(cutscene, playheadSeconds);
+            if (previewShotToggle != null && previewShotToggle.value)
+            {
+                previewController.ApplyCameraPose(cutscene, playheadSeconds);
+            }
         }
 
         // -----------------------------------------------------------------------------------

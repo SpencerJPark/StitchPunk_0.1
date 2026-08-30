@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene Editor camera scrub preview (Phase G4)
+
+Scrubbing now moves the Scene view's own camera to the cutscene camera lane's pose ("Preview Shot"
+toolbar toggle). Cut markers split the lane into independent interpolation windows (decision G-D7)
+rather than blending across the cut. Placing the Scene view camera at an exact world position
+needed its pivot/size relationship solved backwards — confirmed empirically against this Editor
+version rather than assumed from memory.
+
 ### Added — Cutscene Editor Scene-view preview and keying (Phase G3)
 
 Non-destructive scrub preview: scrubbing the cutscene timeline poses the real bound scene

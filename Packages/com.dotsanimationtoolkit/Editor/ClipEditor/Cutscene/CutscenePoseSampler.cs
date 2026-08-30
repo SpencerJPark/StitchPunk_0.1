@@ -122,6 +122,70 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
+        /// Samples the camera lane the way it plays at runtime (decision G-D7): a cut marker splits
+        /// the lane into independent interpolation windows, so a shot never blends across the cut it
+        /// names as the exception to "one camera just moving around the scene" (spec §2). Windowing
+        /// happens here rather than by pre-slicing the key list once, so the same list serves every
+        /// call regardless of where the playhead currently sits.
+        /// </summary>
+        /// <param name="isCut">True when <paramref name="timeSeconds"/> sits inside one frame's width of a cut marker — informational, mirrored by the runtime player's <c>CutsceneCameraPose.isCut</c> (spec §6).</param>
+        public static void SampleCameraWithCuts(
+            List<CutsceneCameraKey> keys, List<CutsceneCameraCutMarker> cutMarkers, float timeSeconds,
+            out Vector3 position, out Quaternion rotation, out float fieldOfView, out bool isCut)
+        {
+            float windowStart = 0f;
+            float windowEnd = float.MaxValue;
+            isCut = false;
+            if (cutMarkers != null)
+            {
+                const float CutEpsilon = 1f / 60f;
+                for (int i = 0; i < cutMarkers.Count; i++)
+                {
+                    float cutTime = cutMarkers[i].time;
+                    if (Mathf.Abs(cutTime - timeSeconds) <= CutEpsilon)
+                    {
+                        isCut = true;
+                    }
+                    if (cutTime <= timeSeconds && cutTime > windowStart)
+                    {
+                        windowStart = cutTime;
+                    }
+                    if (cutTime > timeSeconds && cutTime < windowEnd)
+                    {
+                        windowEnd = cutTime;
+                    }
+                }
+            }
+
+            List<CutsceneCameraKey> windowedKeys = new List<CutsceneCameraKey>();
+            if (keys != null)
+            {
+                for (int i = 0; i < keys.Count; i++)
+                {
+                    if (keys[i].time >= windowStart && keys[i].time < windowEnd)
+                    {
+                        windowedKeys.Add(keys[i]);
+                    }
+                }
+            }
+            // A window with no key of its own (every key sits outside it) still needs a pose: hold
+            // whichever key most recently applied before this window opened, exactly as a clip holds
+            // its last frame past its own end.
+            if (windowedKeys.Count == 0 && keys != null)
+            {
+                for (int i = 0; i < keys.Count; i++)
+                {
+                    if (keys[i].time <= timeSeconds)
+                    {
+                        windowedKeys.Add(keys[i]);
+                    }
+                }
+            }
+
+            SampleCamera(windowedKeys, timeSeconds, out position, out rotation, out fieldOfView);
+        }
+
+        /// <summary>
         /// Resolves the facing angle in effect at <paramref name="timeSeconds"/> (spec §2): the
         /// last override key at or before it, or a derivation from root travel direction when none
         /// has fired yet.

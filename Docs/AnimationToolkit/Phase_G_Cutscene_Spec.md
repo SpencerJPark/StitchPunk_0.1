@@ -133,6 +133,13 @@ New components + systems in the toolkit runtime assembly:
   step here for it to protect.
 - **G-D6** Slot resolution at runtime is the host's job via the binding buffer (§6). The toolkit
   ships no component that marks "this entity is Bertha".
+- **G-D7** Decided at G4: a camera cut marker splits the lane into independent interpolation
+  windows rather than describing a blend shape of its own. Sampling at time *t* only considers
+  keys inside `[lastCutAtOrBefore(t), nextCutAfter(t))`; a window with no key of its own holds the
+  last key before it opened. This is what "one camera just moving around the scene, with optional
+  hard-cut markers for the exceptions" (§2) reduces to without inventing a second blend concept
+  beside crossfade — the same `isCut` flag the runtime `CutsceneCameraPose` singleton exposes (§6)
+  is true exactly on the marker's own frame.
 
 ## 8. Out of scope
 

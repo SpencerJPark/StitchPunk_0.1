@@ -210,7 +210,31 @@ either side is saved), entered preview, sampled root motion and a channel-masked
 and t=1 and checked exact numbers (including that an *unmasked* channel — z position — stayed at
 its captured rest value rather than leaking the sampled value), exited and checked exact restore,
 then drove `TryKeyRoot` and confirmed the written key's time and position through the real
-`SerializedObject`. Compile gate green, zero errors/warnings. **G4 — camera lane — next.**
+`SerializedObject`. Compile gate green, zero errors/warnings.
+
+**G4 — camera lane — done.** Keys, cut markers and Align-to-Scene-View authoring already existed
+from G2/G3; G4 added the forward direction — **scrubbing now moves the Scene view's own camera** to
+the cutscene's shot (`CutscenePreviewController.ApplyCameraPose`, gated by a new "Preview Shot"
+toolbar toggle, default on). Cut markers are cut-aware per new decision **G-D7**
+(`CutscenePoseSampler.SampleCameraWithCuts`): a marker splits the lane into independent
+interpolation windows rather than blending across it, holding the last key before a window opens
+if the window owns no key of its own. Placing the Scene view camera at an exact world position
+(rather than orbiting a pivot, which is all `SceneView.LookAt` natively does) needed the pivot
+solved backwards: **confirmed empirically against this Editor version** (not from memory/docs —
+`SceneView`'s camera-distance-from-`size` relationship is undocumented and version-sensitive),
+`cameraDistance = size / sin(fov · 0.5)`, then `pivot = position + rotation · forward ·
+cameraDistance`; `size` itself is arbitrary since only the ratio matters. **A second, real trap
+found live**: `SceneView.camera.transform` does not refresh synchronously after `LookAt` — it
+updates on the view's own repaint, so a caller reading it back immediately (as a test, or as any
+code that does not yield a frame) sees the *previous* pose. `ApplyCameraPose` now calls
+`sceneView.Repaint()` itself so this is never visible from outside the class.
+
+Verified live, both pieces: the cut-window math (four probed times across two windows split by one
+cut, including the exact instant of the cut itself and its `isCut` flag) via direct reflection
+calls, and the actual Scene view placement (build a camera key, drive `ApplyCameraPose`, read
+`sceneView.camera.transform`/`cameraSettings.fieldOfView` back on the *next* tool call) — position
+and rotation landed with zero error, FOV read back exactly. Compile gate green, zero
+errors/warnings. **G5 — bake (CutsceneBlob) — next.**
 
 **Clip Editor tabs + viewport overlay — landed 2026-08-29, owner visual pass owed.** The top bar
 gained five exclusive tabs — `tab-clip-editor`, `tab-cutscene-editor` (a placeholder pane that says

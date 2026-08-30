@@ -300,6 +300,58 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
+        /// <summary>
+        /// Pushes the camera lane's pose at <paramref name="timeSeconds"/> onto the last active
+        /// Scene view (spec §4, G4: "scrub preview of the shot"), respecting cut markers (G-D7).
+        /// A no-op with no camera keys authored yet, or no Scene view to drive.
+        /// </summary>
+        /// <remarks>
+        /// <strong>Placed by solving for the pivot a desired camera <em>position</em> implies,
+        /// not by aiming at it.</strong> <c>SceneView.LookAt</c> takes an orbit pivot and a distance
+        /// (<c>size</c>), not a camera position — the relationship, confirmed empirically against
+        /// this Editor version, is <c>cameraDistance = size / sin(fov · 0.5)</c>, then
+        /// <c>pivot = position + rotation · forward · cameraDistance</c>. <c>size</c> itself is
+        /// arbitrary (chosen as 1) because only the ratio matters once <c>cameraDistance</c> is
+        /// solved for; any positive value reproduces the same camera position and rotation.
+        /// </remarks>
+        public void ApplyCameraPose(CutsceneAsset cutscene, float timeSeconds)
+        {
+            if (!IsActive || cutscene?.cameraLane?.keys == null || cutscene.cameraLane.keys.Count == 0)
+            {
+                return;
+            }
+            SceneView sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null || sceneView.camera == null)
+            {
+                return;
+            }
+
+            Vector3 position;
+            Quaternion rotation;
+            float fieldOfView;
+            bool isCut;
+            CutscenePoseSampler.SampleCameraWithCuts(
+                cutscene.cameraLane.keys, cutscene.cameraLane.cutMarkers, timeSeconds,
+                out position, out rotation, out fieldOfView, out isCut);
+
+            const float ChosenSize = 1f;
+            float cameraDistance = ChosenSize / Mathf.Sin(Mathf.Max(1f, fieldOfView) * 0.5f * Mathf.Deg2Rad);
+            Vector3 pivot = position + rotation * Vector3.forward * cameraDistance;
+
+            sceneView.orthographic = false;
+            sceneView.LookAt(pivot, rotation, ChosenSize, false, true);
+
+            SceneView.CameraSettings cameraSettings = sceneView.cameraSettings;
+            cameraSettings.fieldOfView = fieldOfView;
+            sceneView.cameraSettings = cameraSettings;
+
+            // LookAt updates pivot/rotation/size immediately but the camera transform itself is
+            // recomputed on the view's own repaint — without forcing one here, a caller reading
+            // sceneView.camera.transform straight back (or a scrub that never yields a frame) can
+            // observe the pose from before this call rather than the one just requested.
+            sceneView.Repaint();
+        }
+
         // -----------------------------------------------------------------------------------
         // Gizmo keying (spec §3): move the actor or a part with Unity's own transform tool,
         // then press Key — the same interaction family Rig Edit and Unity Timeline recording use.
