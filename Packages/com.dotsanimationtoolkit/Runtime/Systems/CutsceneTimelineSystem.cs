@@ -183,12 +183,14 @@ namespace DotsAnimationToolkit
 
                     // Overlap with the immediately preceding block on this slot's lane is the
                     // crossfade window (spec §2); blocks that merely touch or leave a gap play a
-                    // hard cut. Never authored — always this derivation, at the moment it is issued.
+                    // hard cut. Never authored — always this derivation, at the moment it is issued,
+                    // and through the one copy the editor preview also reads (A58-D1).
                     float blendDuration = 0f;
                     if (slotState.nextClipBlockIndex > 0)
                     {
                         CutsceneClipBlockBlob previousBlock = slotSegment.clipBlocks[slotState.nextClipBlockIndex - 1];
-                        blendDuration = math.max(0f, (previousBlock.start + previousBlock.duration) - block.start);
+                        blendDuration = CutsceneBlockTiming.SeamBlendDuration(
+                            previousBlock.start, previousBlock.duration, block.start);
                     }
 
                     commands.Add(new AnimationCommand

@@ -1378,6 +1378,18 @@ namespace DotsAnimationToolkit.Editor
                 directionSetField.Bind(serializedObject);
                 inspectorScroll.Add(directionSetField);
 
+                // Why a clip block is showing nothing, said where the bind that caused it is edited.
+                // Silence here is what made the missing preview read as a broken tool (A58 §1).
+                string clipPreviewStatus = previewController.GetClipPreviewStatus(slot.SlotId);
+                if (!string.IsNullOrEmpty(clipPreviewStatus))
+                {
+                    Label clipStatusLabel = new Label(clipPreviewStatus);
+                    clipStatusLabel.style.marginTop = 4f;
+                    clipStatusLabel.style.whiteSpace = WhiteSpace.Normal;
+                    clipStatusLabel.style.color = new Color(0.95f, 0.8f, 0.35f);
+                    inspectorScroll.Add(clipStatusLabel);
+                }
+
                 float facingAngle;
                 bool isOverride = CutscenePoseSampler.TryResolveFacingAngle(
                     slot.facingKeys, slot.transformKeys, playheadSeconds, out facingAngle);
