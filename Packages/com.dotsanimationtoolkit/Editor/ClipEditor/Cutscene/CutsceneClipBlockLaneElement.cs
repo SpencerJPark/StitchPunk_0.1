@@ -94,13 +94,16 @@ namespace DotsAnimationToolkit.Editor
                 block.EnableInClassList(LoopBlockUssClassName, blocks[capturedIndex].loop);
                 block.style.position = Position.Absolute;
                 block.style.top = 2f;
+                block.style.bottom = 2f;
                 PositionBlock(block, blocks[capturedIndex]);
 
-                Label label = new Label(blocks[capturedIndex].label);
+                // The loop glyph rides the label, not a style: a looping walk reads as "Walk ⟳" at
+                // any zoom, where a subtle tint alone did not.
+                Label label = new Label(
+                    blocks[capturedIndex].label + (blocks[capturedIndex].loop ? "  ⟳" : string.Empty));
+                label.AddToClassList("cutscene-editor__clip-block-label");
                 label.pickingMode = PickingMode.Ignore;
                 label.style.overflow = Overflow.Hidden;
-                label.style.fontSize = 10f;
-                label.style.paddingLeft = 3f;
                 block.Add(label);
 
                 VisualElement startHandle = new VisualElement();

@@ -102,14 +102,8 @@ namespace DotsAnimationToolkit.Editor
             int capturedIndex = slotIndex;
 
             VisualElement row = new VisualElement();
-            row.style.marginBottom = 6f;
-            row.style.paddingLeft = 4f;
-            row.style.paddingTop = 2f;
-            row.style.paddingBottom = 2f;
-            if (isSelected)
-            {
-                row.style.backgroundColor = new Color(0.24f, 0.35f, 0.48f, 0.6f);
-            }
+            row.AddToClassList("cutscene-editor__cast-row");
+            row.EnableInClassList("cutscene-editor__cast-row--selected", isSelected);
             row.RegisterCallback<PointerDownEvent>(_ => SlotSelected?.Invoke(capturedIndex));
 
             GameObject boundObject;

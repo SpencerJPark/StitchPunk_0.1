@@ -140,13 +140,13 @@ Target tags — the vocabulary that lets one target be shared between rigs — a
 
 ### Getting into prefab mode
 
-- **Edit Prefab** in the toolbar opens the loaded prefab. It is enabled only while the toolbar's **Rig** field holds a rig whose **Source Prefab** is set; with either one missing it says so on hover rather than failing after the press.
+- **Prefab**, beside **Edit** in the Rig Hierarchy pane's header, opens the loaded prefab. It is enabled only while the toolbar's **Rig** field holds a rig whose **Source Prefab** is set; with either one missing it says so on hover rather than failing after the press.
 - **Right-click any row** for *Open Prefab Here* (opens with that object selected and framed), *Ping in Project*, and *Select in Scene*.
 - **Double-click a row** does the same as *Open Prefab Here*.
 
 It is a mode switch, not a window arrangement. The Clip Editor docks beside the Scene view, so entering prefab mode brings the Scene view and Hierarchy forward and the Clip Editor steps behind on its own; leaving prefab mode brings it back with the playhead and selection where you left them. You never have to move a window.
 
-> If your Clip Editor is currently floating, the first **Edit Prefab** docks it for you, carrying its clip set, playhead and selection across. That happens once.
+> If your Clip Editor is currently floating, the first **Prefab** press docks it for you, carrying its clip set, playhead and selection across. That happens once.
 
 Sharing a tab group is what makes the switch free, and it is also why the Clip Editor's top bar is not on screen while you are in the stage. The Scene view carries a **Clip Editor** overlay for that: one button back to the timeline, one straight to the VAT bake tab, both leaving the prefab stage open behind them. Dismiss it from the Scene view's overlay menu if you would rather use the tab.
 

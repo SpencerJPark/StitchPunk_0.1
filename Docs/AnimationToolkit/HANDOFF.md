@@ -112,6 +112,31 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A60 + A59-T1 — Cutscene UI overhaul and the in-tab viewport. Built 2026-08-30, gated, smoke-
+verified live; THE ACTIVE ITEM IS THE OWNER'S VISUAL PASS.** After the owner judged the A58-era
+tab "unusable … pretty bad ui wise", `Amendment_A60_CutsceneUiOverhaul_Spec.md` records the
+method (capture the window via `GUIView.GrabPixels` reflection BEFORE and AFTER editing — screen
+reads lie under occlusion), the research (Timeline/Sequencer conventions adopted wholesale), and
+the changes: A59-T1's scene viewport inside the tab (URP `SingleCameraRequest`, Shot/Free camera,
+overlay-hosted scene states), the outliner-style timeline (full-width ruler, accent strips,
+merged dead rows, styled blocks/keys), the icon transport with a time readout, and SessionState
+restore of the open cutscene across domain reloads (the tab used to come back empty). Its §4
+lists the backlog in order: owner's eyes first, then A59-T2 click-select, A59-T3 in-viewport
+gizmo, cast/inspector polish, frozen header column. Full suites are owed once at the commit
+point — not yet run.
+
+**A59 — Embedded Scene Viewport. Specced 2026-08-30; T1 built same day under A60 (see above);
+T2–T4 remain.** The
+owner's third correction on the same axis: even with A58's animated preview, the cutscene tab
+itself shows no scene — "it needs the scene there to actually work."
+`Amendment_A59_EmbeddedSceneViewport_Spec.md` revokes A58 §2.1's embedded-viewport deferral and
+records why it was mis-priced twice (both deferrals assumed a preview world; the open scene +
+already-posed real objects mean the tab only needs a utility camera rendering into an RT — URP's
+`SingleCameraRequest` was verified present in this project's package cache). Tab becomes cast |
+viewport | inspector over timeline. Work its §5 queue: T1 render+play (owner's eyes immediately
+after, before T2), T2 click-select, T3 in-viewport gizmo, T4 docs. Its §6 names the one
+load-bearing unknown to prove first, in isolation, before building layout around it.
+
 **A58 — Cutscene Visual Authoring. Specced and built 2026-08-30; T1–T5 all landed and gated the
 same day. THE ACTIVE ITEM IS NOW THE OWNER'S EYES.** The owner's first hands-on with Phase G found
 it unusable: clip blocks previewed nothing, so you animated blind.

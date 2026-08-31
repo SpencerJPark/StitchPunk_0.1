@@ -51,7 +51,8 @@ namespace DotsAnimationToolkit.Editor
             Hold
         }
 
-        private const float LaneRowHeight = 20f;
+        private const float LaneRowHeight = 22f;
+        private const float RulerHeight = 24f;
         private const float HeaderColumnWidth = 150f;
         private const float TrailingSeconds = 5f;
 
@@ -71,10 +72,21 @@ namespace DotsAnimationToolkit.Editor
         private CutsceneTimelinePlayheadElement playheadElement;
         private CutsceneCastPanel castPanel;
 
+        private CutsceneViewportElement viewportElement;
+        private VisualElement viewportOverlay;
+        private Label viewportMessageLabel;
+        private Button viewportActionButton;
+        private Toggle shotModeToggle;
+
+        /// <summary>Viewport locked to the camera lane (Shot) vs. the free orbit rig. Shot by default: scrubbing should show the framed movie (A59 §3.3).</summary>
+        private bool viewportShotMode = true;
+
         /// <summary>Set while this panel is the one driving <see cref="Selection"/>, so the sync back does not fight it.</summary>
         private bool isDrivingUnitySelection;
 
         private Button playToggleButton;
+        private Image playToggleIcon;
+        private Label timeReadoutLabel;
         private Button continueButton;
         private Label transportStatusLabel;
         private FloatField speedField;
@@ -114,14 +126,10 @@ namespace DotsAnimationToolkit.Editor
             Add(BuildToolbar());
             Add(BuildTransportRow());
 
-            VisualElement body = new VisualElement();
-            body.style.flexGrow = 1f;
-            body.style.flexDirection = FlexDirection.Row;
-            Add(body);
-
+            // A59 §3.1: the tab is a whole tool — cast | viewport | inspector over the timeline.
             VisualElement timelineArea = new VisualElement();
-            timelineArea.style.flexGrow = 1f;
             timelineArea.style.flexDirection = FlexDirection.Column;
+            timelineArea.style.minHeight = 120f;
 
             timelineArea.Add(BuildAddSlotRow());
 
@@ -135,16 +143,10 @@ namespace DotsAnimationToolkit.Editor
             castPanel.SlotSelected += SelectSlotHeader;
             castPanel.FrameRequested += FrameSlotInSceneView;
 
-            TwoPaneSplitView castSplit = new TwoPaneSplitView(0, 220f, TwoPaneSplitViewOrientation.Horizontal);
-            castSplit.style.flexGrow = 1f;
-            castSplit.Add(castPanel);
-            castSplit.Add(timelineArea);
-            body.Add(castSplit);
-
-            // Clicking the character in the Hierarchy or the Scene view lights its cast row and its
-            // timeline group — the other half of "selection syncs both ways" (A58 §3.3).
-            Selection.selectionChanged += OnUnitySelectionChanged;
-            RegisterCallback<DetachFromPanelEvent>(_ => Selection.selectionChanged -= OnUnitySelectionChanged);
+            VisualElement centerColumn = new VisualElement();
+            centerColumn.style.flexGrow = 1f;
+            centerColumn.style.flexDirection = FlexDirection.Row;
+            centerColumn.Add(BuildViewportArea());
 
             inspectorScroll = new ScrollView(ScrollViewMode.Vertical);
             inspectorScroll.style.width = 300f;
@@ -152,8 +154,30 @@ namespace DotsAnimationToolkit.Editor
             inspectorScroll.style.paddingLeft = 6f;
             inspectorScroll.style.paddingRight = 6f;
             inspectorScroll.style.paddingTop = 6f;
-            body.Add(inspectorScroll);
+            centerColumn.Add(inspectorScroll);
 
+            TwoPaneSplitView castSplit = new TwoPaneSplitView(0, 220f, TwoPaneSplitViewOrientation.Horizontal);
+            castSplit.style.flexGrow = 1f;
+            castSplit.Add(castPanel);
+            castSplit.Add(centerColumn);
+
+            VisualElement upperArea = new VisualElement();
+            upperArea.style.flexGrow = 1f;
+            upperArea.style.minHeight = 160f;
+            upperArea.Add(castSplit);
+
+            TwoPaneSplitView verticalSplit = new TwoPaneSplitView(1, 240f, TwoPaneSplitViewOrientation.Vertical);
+            verticalSplit.style.flexGrow = 1f;
+            verticalSplit.Add(upperArea);
+            verticalSplit.Add(timelineArea);
+            Add(verticalSplit);
+
+            // Clicking the character in the Hierarchy or the Scene view lights its cast row and its
+            // timeline group — the other half of "selection syncs both ways" (A58 §3.3).
+            Selection.selectionChanged += OnUnitySelectionChanged;
+            RegisterCallback<DetachFromPanelEvent>(_ => Selection.selectionChanged -= OnUnitySelectionChanged);
+
+            RestoreSessionCutscene();
             RebuildAll();
         }
 
@@ -161,11 +185,47 @@ namespace DotsAnimationToolkit.Editor
         // Loading and the scene remember/open flow (spec §3).
         // -----------------------------------------------------------------------------------
 
+        private const string SessionCutsceneKey = "DotsAnimationToolkit.CutsceneEditor.OpenCutsceneGuid";
+
+        /// <summary>
+        /// The panel is destroyed and re-created on every domain reload (the window trap the
+        /// AnimationToolkit notes document), so the open cutscene rides SessionState — without this
+        /// the tab came back empty after any recompile, reading as a dead tool.
+        /// </summary>
+        private void RestoreSessionCutscene()
+        {
+            if (cutscene != null)
+            {
+                return;
+            }
+            string savedGuid = SessionState.GetString(SessionCutsceneKey, string.Empty);
+            if (string.IsNullOrEmpty(savedGuid))
+            {
+                return;
+            }
+            string assetPath = AssetDatabase.GUIDToAssetPath(savedGuid);
+            CutsceneAsset saved = string.IsNullOrEmpty(assetPath)
+                ? null
+                : AssetDatabase.LoadAssetAtPath<CutsceneAsset>(assetPath);
+            if (saved != null)
+            {
+                cutscene = saved;
+                serializedObject = new SerializedObject(cutscene);
+                cutsceneField.SetValueWithoutNotify(cutscene);
+            }
+        }
+
         public void LoadCutscene(CutsceneAsset cutsceneAsset)
         {
             StopPlayback();
             previewController.ExitPreview();
             cutscene = cutsceneAsset;
+            string cutsceneGuid = string.Empty;
+            if (cutscene != null)
+            {
+                cutsceneGuid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(cutscene));
+            }
+            SessionState.SetString(SessionCutsceneKey, cutsceneGuid);
             serializedObject = cutscene != null ? new SerializedObject(cutscene) : null;
             selectedSlotIndex = -1;
             selectedLaneKind = SelectedLaneKind.None;
@@ -263,6 +323,7 @@ namespace DotsAnimationToolkit.Editor
             { value = pixelsPerSecond };
             zoomSlider.style.width = 180f;
             zoomSlider.style.marginLeft = 16f;
+            zoomSlider.labelElement.style.minWidth = 38f;
             zoomSlider.RegisterValueChangedCallback(changeEvent =>
             {
                 pixelsPerSecond = changeEvent.newValue;
@@ -272,18 +333,29 @@ namespace DotsAnimationToolkit.Editor
 
             Button keyButton = new Button(KeySelection)
             {
-                text = "Key",
+                text = " Key",
                 tooltip = "Keys the selected slot's (or part track's) current live transform at the "
                     + "playhead — move it with Unity's own gizmo first (spec §3)."
             };
             keyButton.style.marginLeft = 16f;
+            keyButton.style.flexDirection = FlexDirection.Row;
+            keyButton.style.alignItems = Align.Center;
+            Image keyIcon = new Image
+            {
+                image = EditorGUIUtility.IconContent("d_Animation.Record").image,
+                pickingMode = PickingMode.Ignore
+            };
+            keyIcon.AddToClassList("cutscene-editor__transport-icon");
+            keyButton.Insert(0, keyIcon);
             toolbar.Add(keyButton);
 
-            previewShotToggle = new Toggle("Preview Shot") { value = true };
+            // Off by default since A59: the in-tab viewport's Shot mode shows the framed movie, so
+            // yanking the author's Scene view camera around on every scrub became opt-in.
+            previewShotToggle = new Toggle { text = "Drive Scene View", value = false };
             previewShotToggle.style.marginLeft = 16f;
             previewShotToggle.tooltip =
-                "While scrubbing, move the Scene view's own camera to the cutscene camera lane's "
-                + "pose (spec §4). Turn off to scrub freely without the Scene view camera moving.";
+                "Also move the Scene view's own camera to the cutscene camera lane's pose while "
+                + "scrubbing. The tab's viewport shows the shot regardless.";
             previewShotToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 if (changeEvent.newValue)
@@ -300,42 +372,66 @@ namespace DotsAnimationToolkit.Editor
         // Editor play transport (A58 §3.2). A rehearsal of runtime pacing, holds included.
         // -----------------------------------------------------------------------------------
 
+        private static Button MakeTransportButton(Action onClick, string iconName, string tooltip, out Image icon)
+        {
+            Button button = new Button(onClick) { tooltip = tooltip };
+            button.AddToClassList("cutscene-editor__transport-button");
+            icon = new Image { image = EditorGUIUtility.IconContent(iconName).image };
+            icon.AddToClassList("cutscene-editor__transport-icon");
+            icon.pickingMode = PickingMode.Ignore;
+            button.Add(icon);
+            return button;
+        }
+
         private VisualElement BuildTransportRow()
         {
             VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.paddingLeft = 6f;
-            row.style.paddingBottom = 4f;
+            row.AddToClassList("cutscene-editor__transport");
 
-            playToggleButton = new Button(TogglePlayback) { text = "Play" };
-            playToggleButton.style.width = 60f;
+            Image discardedIcon;
+            row.Add(MakeTransportButton(
+                () => SetPlayhead(0f), "d_Animation.FirstKey", "Go to start.", out discardedIcon));
+
+            playToggleButton = MakeTransportButton(
+                TogglePlayback, "d_PlayButton", "Play / pause the cutscene in the viewport.",
+                out playToggleIcon);
             row.Add(playToggleButton);
 
-            Button stopButton = new Button(StopPlayback) { text = "Stop" };
-            stopButton.tooltip = "Stops and returns the playhead to where Play was pressed.";
-            stopButton.style.width = 60f;
-            row.Add(stopButton);
+            row.Add(MakeTransportButton(
+                StopPlayback, "d_StopButton",
+                "Stops and returns the playhead to where Play was pressed.", out discardedIcon));
 
-            continueButton = new Button(ReleaseHold) { text = "Continue" };
+            row.Add(MakeTransportButton(
+                () => SetPlayhead(ComputeContentEndSecondsSafe()), "d_Animation.LastKey",
+                "Go to end.", out discardedIcon));
+
+            timeReadoutLabel = new Label("0.00 / 0.00 s");
+            timeReadoutLabel.AddToClassList("cutscene-editor__time-readout");
+            row.Add(timeReadoutLabel);
+
+            continueButton = new Button(ReleaseHold) { text = "Continue ▶" };
             continueButton.tooltip = "Releases the hold the transport is waiting on, the way a host "
                 + "releases it at run time.";
             continueButton.style.display = DisplayStyle.None;
+            continueButton.style.marginLeft = 8f;
             row.Add(continueButton);
 
             speedField = new FloatField("Speed") { value = playbackSpeed };
-            speedField.style.width = 110f;
-            speedField.style.marginLeft = 8f;
+            speedField.style.width = 96f;
+            speedField.style.marginLeft = 12f;
+            speedField.labelElement.style.minWidth = 42f;
             speedField.RegisterValueChangedCallback(
                 changeEvent => playbackSpeed = Mathf.Max(0f, changeEvent.newValue));
             row.Add(speedField);
 
-            loopPlaybackToggle = new Toggle("Loop") { value = false };
+            // text, not the label parameter: a labeled Toggle carries an inspector's ~150px label
+            // column, which is what scattered these controls across the row in the first build.
+            loopPlaybackToggle = new Toggle { text = "Loop", value = false };
             loopPlaybackToggle.style.marginLeft = 8f;
             loopPlaybackToggle.tooltip = "Restart from the top on reaching the end, for rehearsing a beat.";
             row.Add(loopPlaybackToggle);
 
-            skipHoldsToggle = new Toggle("Skip Holds") { value = false };
+            skipHoldsToggle = new Toggle { text = "Skip Holds", value = false };
             skipHoldsToggle.style.marginLeft = 8f;
             skipHoldsToggle.tooltip = "Run straight through hold markers instead of waiting for Continue.";
             row.Add(skipHoldsToggle);
@@ -346,6 +442,23 @@ namespace DotsAnimationToolkit.Editor
             row.Add(transportStatusLabel);
 
             return row;
+        }
+
+        private float ComputeContentEndSecondsSafe()
+        {
+            return cutscene != null ? ComputeContentEndSeconds() : 0f;
+        }
+
+        /// <summary>Cheap per-move text update; fixed-format so the row never re-lays-out.</summary>
+        private void RefreshTimeReadout()
+        {
+            if (timeReadoutLabel == null)
+            {
+                return;
+            }
+            float contentEnd = ComputeContentEndSecondsSafe();
+            timeReadoutLabel.text = playheadSeconds.ToString("0.00") + " / "
+                + contentEnd.ToString("0.00") + " s";
         }
 
         private void TogglePlayback()
@@ -394,9 +507,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 EditorApplication.update -= Tick;
             }
-            if (playToggleButton != null)
+            if (playToggleIcon != null)
             {
-                playToggleButton.text = playing ? "Pause" : "Play";
+                playToggleIcon.image = EditorGUIUtility
+                    .IconContent(playing ? "d_PauseButton" : "d_PlayButton").image;
             }
             RefreshTransportStatus();
         }
@@ -513,6 +627,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 playheadElement.TimeSeconds = playheadSeconds;
             }
+            RefreshTimeReadout();
             ApplyPreviewAtPlayhead();
         }
 
@@ -593,6 +708,208 @@ namespace DotsAnimationToolkit.Editor
             row.Add(addPropButton);
 
             return row;
+        }
+
+        // -----------------------------------------------------------------------------------
+        // The in-tab scene viewport (amendment A59).
+        // -----------------------------------------------------------------------------------
+
+        private VisualElement BuildViewportArea()
+        {
+            VisualElement container = new VisualElement();
+            container.style.flexGrow = 1f;
+            container.style.position = Position.Relative;
+            container.style.minWidth = 160f;
+
+            viewportElement = new CutsceneViewportElement();
+            viewportElement.style.flexGrow = 1f;
+            viewportElement.NavigationBrokeShot += OnViewportNavigationBrokeShot;
+            viewportElement.NavigationChangedCamera += RenderViewport;
+            viewportElement.RegisterCallback<GeometryChangedEvent>(_ => RenderViewport());
+            viewportElement.RegisterCallback<KeyDownEvent>(keyEvent =>
+            {
+                if (keyEvent.keyCode == KeyCode.F)
+                {
+                    FrameViewportOnCast();
+                    keyEvent.StopPropagation();
+                }
+            });
+            container.Add(viewportElement);
+
+            VisualElement controlStrip = new VisualElement();
+            controlStrip.AddToClassList("cutscene-editor__viewport-controls");
+            controlStrip.style.position = Position.Absolute;
+            controlStrip.style.top = 4f;
+            controlStrip.style.right = 4f;
+            controlStrip.style.flexDirection = FlexDirection.Row;
+
+            shotModeToggle = new Toggle { text = "Shot", value = viewportShotMode };
+            shotModeToggle.tooltip = "Locked to the camera lane — the viewport shows the framed movie. "
+                + "Drag in the viewport (or turn this off) for a free orbit camera.";
+            shotModeToggle.RegisterValueChangedCallback(changeEvent =>
+            {
+                viewportShotMode = changeEvent.newValue;
+                if (!viewportShotMode)
+                {
+                    viewportElement.AdoptRenderedPoseAsFreeRig();
+                }
+                RenderViewport();
+            });
+            controlStrip.Add(shotModeToggle);
+
+            Button frameButton = new Button(FrameViewportOnCast) { text = "Frame" };
+            frameButton.tooltip = "Frames the bound cast (or the selected slot) in the viewport. Shortcut: F.";
+            frameButton.style.marginLeft = 4f;
+            controlStrip.Add(frameButton);
+            container.Add(controlStrip);
+
+            viewportOverlay = new VisualElement();
+            viewportOverlay.AddToClassList("cutscene-editor__viewport-overlay");
+            viewportOverlay.style.position = Position.Absolute;
+            viewportOverlay.style.left = 0f;
+            viewportOverlay.style.right = 0f;
+            viewportOverlay.style.top = 0f;
+            viewportOverlay.style.bottom = 0f;
+            viewportOverlay.style.alignItems = Align.Center;
+            viewportOverlay.style.justifyContent = Justify.Center;
+            viewportOverlay.style.display = DisplayStyle.None;
+
+            viewportMessageLabel = new Label(string.Empty);
+            viewportMessageLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            viewportMessageLabel.style.marginBottom = 6f;
+            viewportOverlay.Add(viewportMessageLabel);
+
+            viewportActionButton = new Button(OnSceneActionButtonClicked) { text = string.Empty };
+            viewportActionButton.style.display = DisplayStyle.None;
+            viewportOverlay.Add(viewportActionButton);
+            container.Add(viewportOverlay);
+
+            return container;
+        }
+
+        private void OnViewportNavigationBrokeShot()
+        {
+            viewportShotMode = false;
+            if (shotModeToggle != null)
+            {
+                shotModeToggle.SetValueWithoutNotify(false);
+            }
+        }
+
+        /// <summary>
+        /// Renders the open scene into the tab. Shot mode samples the camera lane at the playhead;
+        /// Free (or a cutscene with no camera keys yet) renders the orbit rig (A59 §3.3).
+        /// </summary>
+        private void RenderViewport()
+        {
+            if (viewportElement == null)
+            {
+                return;
+            }
+
+            bool hasCameraKeys = cutscene != null && cutscene.cameraLane?.keys != null
+                && cutscene.cameraLane.keys.Count > 0;
+            if (viewportShotMode && hasCameraKeys)
+            {
+                Vector3 position;
+                Quaternion rotation;
+                float fieldOfView;
+                bool isCut;
+                CutscenePoseSampler.SampleCameraWithCuts(
+                    cutscene.cameraLane.keys, cutscene.cameraLane.cutMarkers, playheadSeconds,
+                    out position, out rotation, out fieldOfView, out isCut);
+                viewportElement.IsShowingShotPose = true;
+                viewportElement.RenderShot(position, rotation, fieldOfView);
+                return;
+            }
+
+            viewportElement.IsShowingShotPose = false;
+            viewportElement.RenderFree();
+        }
+
+        /// <summary>
+        /// The viewport hosts its own state instead of a toolbar warning nobody reads (A59 §3.1):
+        /// no cutscene, no remembered scene, or the wrong scene open all land here.
+        /// </summary>
+        private void RefreshViewportOverlay()
+        {
+            if (viewportOverlay == null)
+            {
+                return;
+            }
+
+            string message = null;
+            string action = null;
+            if (cutscene == null)
+            {
+                message = "No cutscene loaded.\nPick one above, or create a new one.";
+            }
+            else if (string.IsNullOrEmpty(cutscene.sceneGuid))
+            {
+                message = "This cutscene has no scene yet.";
+                action = "Remember Current Scene";
+            }
+            else if (CutsceneSceneBindingUtility.CurrentSceneGuid() != cutscene.sceneGuid)
+            {
+                message = "This cutscene plays in\n" + cutscene.scenePath + ".";
+                action = "Open Scene";
+            }
+
+            if (message == null)
+            {
+                viewportOverlay.style.display = DisplayStyle.None;
+                return;
+            }
+            viewportOverlay.style.display = DisplayStyle.Flex;
+            viewportMessageLabel.text = message;
+            viewportActionButton.text = action ?? string.Empty;
+            viewportActionButton.style.display = action != null ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <summary>Frames the selected slot's bound object if there is one, else the whole bound cast.</summary>
+        private void FrameViewportOnCast()
+        {
+            if (viewportElement == null || cutscene == null || cutscene.slots == null)
+            {
+                return;
+            }
+
+            bool hasBounds = false;
+            Bounds framingBounds = new Bounds();
+            if (selectedSlotIndex >= 0 && selectedSlotIndex < cutscene.slots.Count)
+            {
+                GameObject selectedObject = previewController.GetBoundObject(cutscene.slots[selectedSlotIndex].SlotId);
+                if (selectedObject != null)
+                {
+                    framingBounds = ComputeFramingBounds(selectedObject);
+                    hasBounds = true;
+                }
+            }
+            if (!hasBounds)
+            {
+                for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+                {
+                    GameObject boundObject = previewController.GetBoundObject(cutscene.slots[slotIndex].SlotId);
+                    if (boundObject == null)
+                    {
+                        continue;
+                    }
+                    Bounds slotBounds = ComputeFramingBounds(boundObject);
+                    if (!hasBounds)
+                    {
+                        framingBounds = slotBounds;
+                        hasBounds = true;
+                        continue;
+                    }
+                    framingBounds.Encapsulate(slotBounds);
+                }
+            }
+
+            if (hasBounds)
+            {
+                OnViewportNavigationBrokeShot();
+                viewportElement.FrameBounds(framingBounds);
+            }
         }
 
         private void RefreshSceneStatus()
@@ -680,6 +997,8 @@ namespace DotsAnimationToolkit.Editor
             RebuildTimeline();
             RebuildInspector();
             RefreshCastPanel();
+            RefreshViewportOverlay();
+            RenderViewport();
         }
 
         /// <summary>
@@ -700,9 +1019,15 @@ namespace DotsAnimationToolkit.Editor
 
             if (shouldBeActive && !previewController.IsActive)
             {
-                EnsureSceneViewIsOpen();
+                // The in-tab viewport is the primary surface now (A59); a Scene view is only
+                // required when the author opted into driving its camera.
+                if (previewShotToggle != null && previewShotToggle.value)
+                {
+                    EnsureSceneViewIsOpen();
+                }
                 previewController.EnterPreview(cutscene, currentSceneGuid);
                 FrameCastOnFirstEnter();
+                FrameViewportFreeRigOnCast();
                 // After the framing, never before: a cutscene with camera keys wants its own shot,
                 // and ApplyCameraPose is what puts the view there.
                 ApplyPreviewAtPlayhead();
@@ -764,6 +1089,37 @@ namespace DotsAnimationToolkit.Editor
             if (hasBounds)
             {
                 sceneView.Frame(castBounds, true);
+            }
+        }
+
+        /// <summary>Pre-points the viewport's free orbit rig at the bound cast without leaving Shot mode.</summary>
+        private void FrameViewportFreeRigOnCast()
+        {
+            if (viewportElement == null || cutscene.slots == null)
+            {
+                return;
+            }
+            bool hasBounds = false;
+            Bounds castBounds = new Bounds();
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                GameObject boundObject = previewController.GetBoundObject(cutscene.slots[slotIndex].SlotId);
+                if (boundObject == null)
+                {
+                    continue;
+                }
+                Bounds slotBounds = ComputeFramingBounds(boundObject);
+                if (!hasBounds)
+                {
+                    castBounds = slotBounds;
+                    hasBounds = true;
+                    continue;
+                }
+                castBounds.Encapsulate(slotBounds);
+            }
+            if (hasBounds)
+            {
+                viewportElement.FrameBounds(castBounds);
             }
         }
 
@@ -1011,6 +1367,16 @@ namespace DotsAnimationToolkit.Editor
 
             if (cutscene == null || serializedObject == null)
             {
+                Label emptyHint = new Label(
+                    "No cutscene loaded.\n\n"
+                    + "Pick a Cutscene asset in the toolbar (or press New), then add Actor and Prop "
+                    + "slots.\nDouble-click any lane to add a clip block or key at that time.");
+                emptyHint.style.unityTextAlign = TextAnchor.MiddleCenter;
+                emptyHint.style.whiteSpace = WhiteSpace.Normal;
+                emptyHint.style.marginTop = 24f;
+                emptyHint.style.color = new Color(0.62f, 0.62f, 0.66f);
+                emptyHint.style.alignSelf = Align.Center;
+                timelineScrollView.Add(emptyHint);
                 return;
             }
 
@@ -1019,6 +1385,15 @@ namespace DotsAnimationToolkit.Editor
             float contentEnd = ComputeContentEndSeconds();
             float contentWidth = CutsceneTimelineGeometry
                 .Create(pixelsPerSecond).TimeToX(contentEnd + TrailingSeconds);
+
+            // A short cutscene must still fill the pane: a 240px ruler floating in a grey void was
+            // the single worst thing about the first build (A60). Lanes always reach at least the
+            // visible edge; NaN-guarded because the first rebuild runs before any layout pass.
+            float visibleWidth = timelineScrollView.contentViewport.resolvedStyle.width;
+            if (!float.IsNaN(visibleWidth) && visibleWidth > 0f)
+            {
+                contentWidth = Mathf.Max(contentWidth, visibleWidth - HeaderColumnWidth);
+            }
 
             VisualElement content = new VisualElement();
             content.style.flexDirection = FlexDirection.Column;
@@ -1031,9 +1406,10 @@ namespace DotsAnimationToolkit.Editor
                 trailingSeconds = TrailingSeconds
             };
             ruler.style.width = contentWidth;
-            ruler.style.height = LaneRowHeight;
+            ruler.style.height = RulerHeight;
             ruler.Scrubbed += OnPlayheadScrubbed;
             content.Add(CreateRow(null, ruler, null));
+            RefreshTimeReadout();
 
             SerializedProperty slotsProperty = serializedObject.FindProperty("slots");
             for (int slotIndex = 0; slotIndex < slotsProperty.arraySize; slotIndex++)
@@ -1155,21 +1531,30 @@ namespace DotsAnimationToolkit.Editor
             return latest;
         }
 
-        private VisualElement CreateRow(string headerLabel, VisualElement laneElement, Action onHeaderClick)
+        private VisualElement CreateRow(
+            string headerLabel, VisualElement laneElement, Action onHeaderClick,
+            bool isGroup = false, string accentClass = null, bool indentLabel = false,
+            bool isSelected = false)
         {
             VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.flexShrink = 0f;
+            row.AddToClassList("cutscene-editor__row");
+            row.EnableInClassList("cutscene-editor__row--group", isGroup);
+            row.EnableInClassList("cutscene-editor__row--selected", isSelected);
 
             VisualElement headerCell = new VisualElement();
+            headerCell.AddToClassList("cutscene-editor__track-header");
+            headerCell.EnableInClassList("cutscene-editor__track-header--group", isGroup);
+            if (!string.IsNullOrEmpty(accentClass))
+            {
+                headerCell.AddToClassList("cutscene-editor__track-header--" + accentClass);
+            }
             headerCell.style.width = HeaderColumnWidth;
-            headerCell.style.flexShrink = 0f;
-            headerCell.style.justifyContent = Justify.Center;
             if (!string.IsNullOrEmpty(headerLabel))
             {
                 Label label = new Label(headerLabel);
-                label.style.fontSize = 10f;
-                label.style.paddingLeft = 4f;
+                label.AddToClassList("cutscene-editor__track-header-label");
+                label.EnableInClassList("cutscene-editor__track-header-label--group", isGroup);
+                label.EnableInClassList("cutscene-editor__track-header-label--indent", indentLabel);
                 label.pickingMode = PickingMode.Ignore;
                 headerCell.Add(label);
             }
@@ -1190,17 +1575,16 @@ namespace DotsAnimationToolkit.Editor
         {
             CutsceneSlot slot = cutscene.slots[slotIndex];
             bool isActor = slot.kind == CutsceneSlotKind.Actor;
+            string accent = isActor ? "actor" : "prop";
 
             VisualElement headerRow = CreateRow(
-                (isActor ? "▶ " : "■ ") + slot.name,
+                slot.name,
                 new VisualElement { style = { width = contentWidth, height = LaneRowHeight } },
-                () => SelectSlotHeader(slotIndex));
+                () => SelectSlotHeader(slotIndex),
+                isGroup: true, accentClass: accent,
+                isSelected: slotIndex == selectedSlotIndex && selectedLaneKind == SelectedLaneKind.None);
             headerRow.AddManipulator(new ContextualMenuManipulator(menuEvent =>
                 menuEvent.menu.AppendAction("Remove Slot", _ => RemoveSlot(slotIndex))));
-            if (slotIndex == selectedSlotIndex && selectedLaneKind == SelectedLaneKind.None)
-            {
-                headerRow.style.backgroundColor = new Color(0.24f, 0.35f, 0.48f, 0.6f);
-            }
             content.Add(headerRow);
 
             if (isActor)
@@ -1226,53 +1610,58 @@ namespace DotsAnimationToolkit.Editor
                     CommitClipBlockChange(clipBlocksProperty, index, start, duration);
                 clipLane.EmptySpaceDoubleClicked += time => AddClipBlock(slotIndex, clipBlocksProperty, time);
                 clipLane.BlockDeleteRequested += index => DeleteArrayElement(clipBlocksProperty, index);
-                content.Add(CreateRow("  Clip", clipLane, () => SelectSlotHeader(slotIndex)));
+                content.Add(CreateRow(
+                    "Clip", clipLane, () => SelectSlotHeader(slotIndex),
+                    accentClass: accent, indentLabel: true));
             }
 
             SerializedProperty transformKeysProperty = slotProperty.FindPropertyRelative("transformKeys");
             BuildMomentRow(
-                content, isActor ? "  Root" : "  Transform", slot.transformKeys, transformKeysProperty,
+                content, isActor ? "Root" : "Move", slot.transformKeys, transformKeysProperty,
                 slotIndex, SelectedLaneKind.RootTransformKey, -1, contentWidth,
-                new Color(0.65f, 0.85f, 0.55f), time => InsertTransformKeyDefault(transformKeysProperty, time));
+                new Color(0.65f, 0.85f, 0.55f), time => InsertTransformKeyDefault(transformKeysProperty, time),
+                accentClass: accent);
 
             if (isActor)
             {
                 SerializedProperty facingKeysProperty = slotProperty.FindPropertyRelative("facingKeys");
                 BuildMomentRow(
-                    content, "  Facing", slot.facingKeys, facingKeysProperty,
+                    content, "Facing", slot.facingKeys, facingKeysProperty,
                     slotIndex, SelectedLaneKind.FacingKey, -1, contentWidth,
-                    new Color(0.85f, 0.75f, 0.4f), time => InsertFacingKeyDefault(facingKeysProperty, time));
+                    new Color(0.85f, 0.75f, 0.4f), time => InsertFacingKeyDefault(facingKeysProperty, time),
+                    accentClass: accent);
 
+                // One row per part track — the label IS the track header, keys live beside it.
+                // The old header-row-plus-keys-row pair wasted a lane per track (A60).
                 SerializedProperty partTracksProperty = slotProperty.FindPropertyRelative("partTracks");
                 for (int trackIndex = 0; trackIndex < slot.partTracks.Count; trackIndex++)
                 {
                     int capturedTrackIndex = trackIndex;
                     CutsceneKeyedTrack track = slot.partTracks[trackIndex];
                     string tagName = VocabularyRegistryProvider.TargetTags.FindName(track.tagId);
-                    VisualElement partHeaderSpacer = new VisualElement { style = { width = contentWidth, height = LaneRowHeight } };
-                    VisualElement partHeaderRow = CreateRow(
-                        "  Part: " + (tagName ?? "0x" + track.tagId.ToString("X8")),
-                        partHeaderSpacer,
-                        () => SelectItem(slotIndex, SelectedLaneKind.PartTrackHeader, capturedTrackIndex, -1));
-                    partHeaderRow.AddManipulator(new ContextualMenuManipulator(menuEvent =>
-                        menuEvent.menu.AppendAction(
-                            "Remove Part Track", _ => DeleteArrayElement(partTracksProperty, capturedTrackIndex))));
-                    content.Add(partHeaderRow);
-
                     SerializedProperty trackProperty = partTracksProperty.GetArrayElementAtIndex(capturedTrackIndex);
                     SerializedProperty keysProperty = trackProperty.FindPropertyRelative("keys");
                     BuildMomentRow(
-                        content, "    Keys", track.keys, keysProperty,
+                        content, tagName ?? "0x" + track.tagId.ToString("X8"), track.keys, keysProperty,
                         slotIndex, SelectedLaneKind.PartTrackKey, capturedTrackIndex, contentWidth,
-                        new Color(0.75f, 0.55f, 0.85f), time => InsertTransformKeyDefault(keysProperty, time));
+                        new Color(0.75f, 0.55f, 0.85f), time => InsertTransformKeyDefault(keysProperty, time),
+                        accentClass: accent);
+                    VisualElement partRow = content[content.childCount - 1];
+                    partRow.AddManipulator(new ContextualMenuManipulator(menuEvent =>
+                        menuEvent.menu.AppendAction(
+                            "Remove Part Track", _ => DeleteArrayElement(partTracksProperty, capturedTrackIndex))));
                 }
 
-                VisualElement addPartTrackButton = new Button(() => OpenAddPartTrackPicker(slotIndex))
+                Button addPartTrackButton = new Button(() => OpenAddPartTrackPicker(slotIndex))
                 {
-                    text = "+ Part Track"
+                    text = "+ Part Track",
+                    tooltip = "Adds a keyed override track for one rig part (picked by tag)."
                 };
-                addPartTrackButton.style.marginLeft = HeaderColumnWidth;
-                addPartTrackButton.style.width = 110f;
+                addPartTrackButton.style.marginLeft = 8f;
+                addPartTrackButton.style.width = HeaderColumnWidth - 16f;
+                addPartTrackButton.style.marginTop = 2f;
+                addPartTrackButton.style.marginBottom = 4f;
+                addPartTrackButton.style.fontSize = 10f;
                 content.Add(addPartTrackButton);
             }
         }
@@ -1280,7 +1669,8 @@ namespace DotsAnimationToolkit.Editor
         private void BuildMomentRow(
             VisualElement content, string label, List<CutsceneTransformKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
-            Action<float> onAddAtTime)
+            Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
+            bool indentLabel = true)
         {
             List<float> times = new List<float>(keys.Count);
             for (int i = 0; i < keys.Count; i++)
@@ -1302,13 +1692,17 @@ namespace DotsAnimationToolkit.Editor
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
 
-            content.Add(CreateRow(label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1)));
+            content.Add(CreateRow(
+                label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
+                isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0));
         }
 
         private void BuildMomentRow(
             VisualElement content, string label, List<CutsceneFacingKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
-            Action<float> onAddAtTime)
+            Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
+            bool indentLabel = true)
         {
             List<float> times = new List<float>(keys.Count);
             for (int i = 0; i < keys.Count; i++)
@@ -1329,14 +1723,14 @@ namespace DotsAnimationToolkit.Editor
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
 
-            content.Add(CreateRow(label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1)));
+            content.Add(CreateRow(
+                label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
+                isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0));
         }
 
         private void BuildCameraRows(VisualElement content, float contentWidth)
         {
-            content.Add(CreateRow("▶ Camera",
-                new VisualElement { style = { width = contentWidth, height = LaneRowHeight } }, null));
-
             SerializedProperty cameraLaneProperty = serializedObject.FindProperty("cameraLane");
             SerializedProperty keysProperty = cameraLaneProperty.FindPropertyRelative("keys");
             List<float> times = new List<float>(cutscene.cameraLane.keys.Count);
@@ -1357,7 +1751,9 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertCameraKeyDefault(keysProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
-            content.Add(CreateRow("  Keys", lane, () => SelectItem(-1, SelectedLaneKind.CameraKey, -1, -1)));
+            content.Add(CreateRow(
+                "Camera", lane, () => SelectItem(-1, SelectedLaneKind.CameraKey, -1, -1),
+                isGroup: true, accentClass: "camera"));
 
             SerializedProperty cutMarkersProperty = cameraLaneProperty.FindPropertyRelative("cutMarkers");
             List<float> cutTimes = new List<float>(cutscene.cameraLane.cutMarkers.Count);
@@ -1375,14 +1771,11 @@ namespace DotsAnimationToolkit.Editor
             cutLane.MomentMoveCommitted += (index, time) => CommitMomentTime(cutMarkersProperty, index, time);
             cutLane.EmptySpaceDoubleClicked += time => InsertCutMarkerDefault(cutMarkersProperty, time);
             cutLane.MomentDeleteRequested += index => DeleteArrayElement(cutMarkersProperty, index);
-            content.Add(CreateRow("  Cuts", cutLane, null));
+            content.Add(CreateRow("Cuts", cutLane, null, accentClass: "camera", indentLabel: true));
         }
 
         private void BuildEventRows(VisualElement content, float contentWidth)
         {
-            content.Add(CreateRow("▶ Events",
-                new VisualElement { style = { width = contentWidth, height = LaneRowHeight } }, null));
-
             SerializedProperty eventsProperty = serializedObject.FindProperty("events");
             List<float> times = new List<float>(cutscene.events.Count);
             for (int i = 0; i < cutscene.events.Count; i++)
@@ -1402,14 +1795,13 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertEventDefault(eventsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(eventsProperty, index);
-            content.Add(CreateRow("  Markers", lane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1)));
+            content.Add(CreateRow(
+                "Events", lane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1),
+                isGroup: true, accentClass: "events"));
         }
 
         private void BuildHoldRows(VisualElement content, float contentWidth)
         {
-            content.Add(CreateRow("▶ Holds",
-                new VisualElement { style = { width = contentWidth, height = LaneRowHeight } }, null));
-
             SerializedProperty holdsProperty = serializedObject.FindProperty("holdMarkers");
             List<float> times = new List<float>(cutscene.holdMarkers.Count);
             for (int i = 0; i < cutscene.holdMarkers.Count; i++)
@@ -1429,17 +1821,19 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(holdsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertHoldDefault(holdsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(holdsProperty, index);
-            content.Add(CreateRow("  Markers", lane, () => SelectItem(-1, SelectedLaneKind.Hold, -1, -1)));
+            content.Add(CreateRow(
+                "Holds", lane, () => SelectItem(-1, SelectedLaneKind.Hold, -1, -1),
+                isGroup: true, accentClass: "holds"));
         }
 
         private void OnPlayheadScrubbed(float time)
         {
-            playheadSeconds = Mathf.Max(0f, time);
-            ApplyPreviewAtPlayhead();
-            RebuildTimeline();
+            // No rebuild: the playhead element repaints itself from TimeSeconds, and rebuilding
+            // every lane per pointer-move is exactly the churn A58 §6 warned about.
+            SetPlayhead(time);
         }
 
-        /// <summary>Poses every bound actor/prop and, if <see cref="previewShotToggle"/> allows it, the Scene view camera (G4).</summary>
+        /// <summary>Poses every bound actor/prop, renders the in-tab viewport, and — only if <see cref="previewShotToggle"/> opts in — also drives the Scene view camera (G4, now opt-in per A59).</summary>
         private void ApplyPreviewAtPlayhead()
         {
             previewController.ApplyPose(cutscene, playheadSeconds);
@@ -1447,6 +1841,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.ApplyCameraPose(cutscene, playheadSeconds);
             }
+            RenderViewport();
         }
 
         // -----------------------------------------------------------------------------------
@@ -1804,6 +2199,13 @@ namespace DotsAnimationToolkit.Editor
                     BuildPartTrackHeaderInspector(selectedSlotIndex, selectedPartTrackIndex);
                     return;
                 case SelectedLaneKind.PartTrackKey:
+                    // The merged part row (A60): clicking its header selects the track with no key,
+                    // which is the track inspector's case, not a key's.
+                    if (selectedItemIndex < 0)
+                    {
+                        BuildPartTrackHeaderInspector(selectedSlotIndex, selectedPartTrackIndex);
+                        return;
+                    }
                     BuildTransformKeyInspector(
                         "slots.Array.data[" + selectedSlotIndex + "].partTracks.Array.data["
                             + selectedPartTrackIndex + "].keys",

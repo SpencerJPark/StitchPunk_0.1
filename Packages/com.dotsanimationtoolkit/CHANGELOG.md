@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Edit Prefab moved to the Rig Hierarchy header and became **Prefab**
+
+It opened the rig's prefab but sat in the top bar, a row away from the tree it acts on and reading
+as one more toolbar control among the clip set, the rig field and the tabs. It now sits beside the
+**Edit** toggle in the Rig Hierarchy pane's header, next to the rows it opens, and the word "Edit"
+in front of it was doing nothing the neighbouring toggle did not already say.
+
+- The button chrome the Rig Hierarchy header gives its controls — a Toolbar type outside a Toolbar
+  draws no background and no border — is now `.clip-editor__pane-chrome`, worn by both controls
+  rather than baked into the rig-edit toggle's own rule. `.clip-editor__rig-edit-toggle` is down to
+  the orange :checked tint that is actually about rig edit mode.
+- **Prefab** is disabled whenever the rig has no source prefab, which is most of the time, so the
+  chrome carries a `:disabled` background: the opaque one it paints would otherwise survive the
+  dimming Unity applies to the label alone, and a disabled button would look pressable.
+
 ### Added — Cutscene visual authoring: clip blocks preview, a transport, and a cast panel (A58)
 
 The Cutscene Editor previewed root motion and hand-keyed parts but **nothing of the clip lane**,

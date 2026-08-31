@@ -7,7 +7,6 @@
             <uie:ToolbarButton name="new-clip-set-button" text="New Set" class="clip-editor__bar-action"/>
             <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
-            <uie:ToolbarButton name="edit-prefab-button" text="Edit Prefab" class="clip-editor__bar-action"/>
             <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip">
                 <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Editor" class="clip-editor__tab"/>
@@ -35,7 +34,8 @@
                             <ui:VisualElement class="clip-editor__pane-header">
                                 <ui:Label text="Rig Hierarchy" class="clip-editor__pane-title"/>
                                 <ui:VisualElement class="clip-editor__pane-actions">
-                                    <uie:ToolbarToggle name="rig-edit-toggle" text="Edit" class="clip-editor__pane-action clip-editor__rig-edit-toggle"/>
+                                    <uie:ToolbarToggle name="rig-edit-toggle" text="Edit" class="clip-editor__pane-action clip-editor__pane-chrome clip-editor__rig-edit-toggle"/>
+                                    <uie:ToolbarButton name="edit-prefab-button" text="Prefab" class="clip-editor__pane-action clip-editor__pane-chrome"/>
                                 </ui:VisualElement>
                             </ui:VisualElement>
                             <ui:Label name="hierarchy-empty-label" text="Assign a rig to the toolbar&apos;s Rig field to list its transforms." class="clip-editor__hint"/>

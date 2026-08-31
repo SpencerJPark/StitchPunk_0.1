@@ -375,6 +375,25 @@ re-dock's `AdoptCarriedState`.
   `BindToolbar`, before that, so all three registrations were skipped every single time behind their
   own null guards.
 
+## A session CAN see the editor UI — capture the window, don't guess (2026-08-30)
+
+"Anything on-screen needs the owner to look" is now only half true: an agent session can capture
+any EditorWindow pixel-exactly via `execute_code` — reflect `EditorWindow.m_Parent` (a
+`DockArea`), walk up to `GUIView`, call its internal `GrabPixels(RenderTexture, Rect)`, read the
+RT back and flip it vertically before saving. **Do not use `InternalEditorUtility.ReadScreenPixel`**
+— it reads the physical screen, so whatever app overlaps that region is what you capture, and
+`Focus()` does not reliably win the fight while the owner works in another program. Capture
+BEFORE and AFTER any UI change; three cutscene-editor rounds shipped "gate green" UI the owner
+immediately rejected because nobody looked. The owner's judgment still closes a visual pass —
+but "the layout is broken" is now findable without them.
+
+The Cutscene Editor's in-tab viewport renders the OPEN scene with a hidden `HideAndDontSave`
+camera through URP's `SingleCameraRequest` (`CutsceneViewportElement`). Two traps: sweep leaked
+cameras with `Resources.FindObjectsOfTypeAll` (`GameObject.Find` cannot see `HideAndDontSave`
+objects, and such objects survive domain reloads); and the open cutscene rides `SessionState`
+(`RestoreSessionCutscene`) because the panel dies with every reload — remove that and the tab
+comes back empty, reading as a dead tool.
+
 ## Do not spawn subagents against this package
 
 Three processes driving one live Unity Editor already caused MCP lock

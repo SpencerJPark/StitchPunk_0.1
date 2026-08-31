@@ -62,13 +62,14 @@
     margin-right: 4px;
 }
 
-/* The tabs share the top bar with the clip set and rig fields. Flush against Edit Prefab, not set
-   apart from it: the -1px carries the same shared-edge trick .clip-editor__bar-action uses, so the
-   strip continues the run rather than opening a gap in it. */
+/* The tabs share the top bar with the clip set and rig fields. The -1px shared-edge trick
+   .clip-editor__bar-action uses is for continuing a run of buttons, and the strip no longer follows
+   one — the Rig object field ends that half of the bar. So this is the group gap the toolbar labels
+   use instead: the fields are one run, the tabs are another. */
 .clip-editor__tab-strip {
     flex-direction: row;
     align-items: stretch;
-    margin-left: -1px;
+    margin-left: 16px;
 }
 
 /*
@@ -110,10 +111,8 @@
  *
  * The top bar had drifted into per-control inline padding plus a hand-placed margin here and there,
  * and the margins read as deliberate grouping when they were only leftovers — the gap before VAT
- * Bake said "these two belong apart" about two controls that belong together. Edit Prefab was worse
- * than spaced wrong: it was a `Button` wearing the pane-action class among ToolbarToggles, so it
- * carried a different height, border and hover state from everything beside it. It is a
- * ToolbarButton now, and this is the only thing that sizes any of them.
+ * Bake said "these two belong apart" about two controls that belong together. This rule is the only
+ * thing that sizes any of them.
  *
  * There is no gap inside a run: the controls read as one segmented strip, and the only spacing left
  * is between runs — the label margin in the top bar, the dropdown margin in the status row.
@@ -477,16 +476,13 @@
     flex-grow: 1;
 }
 
-/* The toggle itself is tinted when on, so the mode is legible from the toolbar as well as from
-   the viewport. Three signals for one mode is deliberate: the cost of misreading it is a gizmo
-   drag that edits the rig when you meant to key a pose. */
-/* Lives in the Rig Hierarchy pane header rather than the toolbar, so it has to read as one of that
-   row's buttons (New / Delete / All) rather than as a flat toolbar toggle. A ToolbarToggle outside a
-   Toolbar inherits a transparent background and no border, which in a pane header looks like a label
-   somebody forgot to style — these rules give it the ordinary button chrome back. It stays a
-   ToolbarToggle rather than becoming a Button so its :checked state still reads at a glance and the
-   existing bindings are untouched. */
-.clip-editor__rig-edit-toggle {
+/* A Toolbar control living in a pane header rather than in a Toolbar. Both of the Rig Hierarchy
+   header's controls are that — Edit and Prefab — and outside a Toolbar they inherit a transparent
+   background and no border, which in a pane header looks like a label somebody forgot to style.
+   This gives them the ordinary button chrome back so they read as siblings of the New / Delete
+   buttons in the pane above. They stay Toolbar types rather than becoming Buttons so the toggle's
+   :checked state still reads at a glance and the existing bindings are untouched. */
+.clip-editor__pane-chrome {
     background-color: rgb(88, 88, 88);
     border-left-width: 1px;
     border-right-width: 1px;
@@ -502,10 +498,20 @@
     border-bottom-right-radius: 3px;
 }
 
-.clip-editor__rig-edit-toggle:hover {
+.clip-editor__pane-chrome:hover {
     background-color: rgb(103, 103, 103);
 }
 
+/* Disabled still has to read as disabled: the chrome above paints an opaque background that would
+   otherwise survive the dimming Unity applies to the label alone. Prefab is disabled whenever the
+   rig has no source prefab, which is most of the time on a fresh window. */
+.clip-editor__pane-chrome:disabled {
+    background-color: rgb(70, 70, 70);
+}
+
+/* The toggle itself is tinted when on, so the mode is legible from the toolbar as well as from
+   the viewport. Three signals for one mode is deliberate: the cost of misreading it is a gizmo
+   drag that edits the rig when you meant to key a pose. */
 .clip-editor__rig-edit-toggle:checked {
     background-color: rgb(226, 138, 44);
     color: rgb(24, 20, 14);
@@ -1266,27 +1272,173 @@
     white-space: normal;
 }
 
-/* Phase G, G2: the Cutscene Editor's block/moment timeline. A fresh, seconds-based sibling of the
-   key-lane stack above (decision G-D2) — sharing these tokens' naming and feel, never RebuildTimeline
-   or TimelineGeometry itself. */
+/* ------------------------------------------------------------------------------------------- */
+/* Cutscene Editor (Phase G / A59 / A60 visual pass)                                             */
+/*                                                                                               */
+/* The design language is Unity Timeline's: an outliner-style header column on a darker ground   */
+/* than the lanes, group rows carrying a per-kind accent strip on their left edge, saturated     */
+/* rounded clip blocks, diamond keys, and a full-width ruler. Lane/row heights are inline in the */
+/* panel because they multiply into computed content widths; every colour that is *state*        */
+/* (selected, bound, broken) lives here as a modifier class, never as an inline colour.          */
+/* ------------------------------------------------------------------------------------------- */
+
+.cutscene-editor__viewport {
+    background-color: rgb(22, 22, 22);
+}
+
+.cutscene-editor__viewport-controls {
+    background-color: rgba(34, 34, 34, 0.88);
+    border-radius: 3px;
+    padding: 2px 6px;
+    align-items: center;
+}
+
+.cutscene-editor__viewport-overlay {
+    background-color: rgba(20, 20, 20, 0.8);
+}
+
+.cutscene-editor__row {
+    flex-direction: row;
+    flex-shrink: 0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(34, 34, 34);
+}
+
+.cutscene-editor__row--group {
+    background-color: rgb(54, 54, 54);
+}
+
+.cutscene-editor__row--selected {
+    background-color: rgba(61, 96, 133, 0.5);
+}
+
+.cutscene-editor__track-header {
+    flex-shrink: 0;
+    justify-content: center;
+    background-color: rgb(48, 48, 48);
+    border-right-width: 1px;
+    border-right-color: rgb(30, 30, 30);
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0);
+    padding-left: 6px;
+}
+
+.cutscene-editor__track-header--group {
+    background-color: rgb(56, 56, 56);
+}
+
+/* Per-kind accent strips: which family a row belongs to, readable at timeline-glance distance. */
+.cutscene-editor__track-header--actor  { border-left-color: rgb(88, 148, 216); }
+.cutscene-editor__track-header--prop   { border-left-color: rgb(120, 190, 120); }
+.cutscene-editor__track-header--camera { border-left-color: rgb(90, 190, 190); }
+.cutscene-editor__track-header--events { border-left-color: rgb(230, 150, 70); }
+.cutscene-editor__track-header--holds  { border-left-color: rgb(230, 200, 80); }
+
+.cutscene-editor__track-header-label {
+    font-size: 11px;
+    -unity-text-align: middle-left;
+    color: rgb(200, 200, 200);
+    overflow: hidden;
+}
+
+.cutscene-editor__track-header-label--group {
+    -unity-font-style: bold;
+    color: rgb(230, 230, 230);
+}
+
+.cutscene-editor__track-header-label--indent {
+    padding-left: 14px;
+}
+
+.cutscene-editor__clip-lane,
+.cutscene-editor__moment-lane {
+    background-color: rgb(40, 40, 40);
+}
 
 .cutscene-editor__clip-block {
-    background-color: rgba(80, 140, 200, 0.85);
+    background-color: rgb(64, 112, 160);
     border-radius: 3px;
     border-width: 1px;
-    border-color: rgba(20, 40, 60, 0.9);
+    border-color: rgb(100, 152, 200);
+    overflow: hidden;
 }
 
 .cutscene-editor__clip-block--selected {
-    border-color: rgba(255, 210, 90, 1);
+    border-color: rgb(255, 210, 90);
     border-width: 2px;
+    background-color: rgb(80, 132, 184);
 }
 
 .cutscene-editor__clip-block--loop {
-    background-color: rgba(90, 170, 120, 0.85);
+    background-color: rgb(74, 140, 108);
+    border-color: rgb(110, 180, 145);
+}
+
+.cutscene-editor__clip-block-label {
+    font-size: 10px;
+    color: rgb(238, 242, 248);
+    -unity-text-align: middle-left;
+    padding-left: 4px;
+}
+
+/* A key is a diamond: the square marker rotated in place. Fill colour stays in C# (it encodes
+   which lane family the key belongs to); everything shape-like lives here. */
+.cutscene-editor__moment-marker {
+    rotate: 45deg;
+    border-radius: 1px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.6);
 }
 
 .cutscene-editor__moment-marker--selected {
     border-width: 2px;
-    border-color: rgba(255, 210, 90, 1);
+    border-color: rgb(255, 210, 90);
+}
+
+.cutscene-editor__transport {
+    flex-direction: row;
+    align-items: center;
+    padding: 3px 6px;
+    background-color: rgb(50, 50, 50);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(32, 32, 32);
+}
+
+.cutscene-editor__transport-button {
+    width: 28px;
+    height: 22px;
+    padding: 1px;
+    margin-left: 1px;
+    margin-right: 1px;
+    justify-content: center;
+    align-items: center;
+}
+
+.cutscene-editor__transport-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.cutscene-editor__time-readout {
+    -unity-text-align: middle-center;
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(215, 215, 215);
+    background-color: rgb(34, 34, 34);
+    border-radius: 3px;
+    padding: 2px 8px;
+    margin-left: 8px;
+}
+
+.cutscene-editor__cast-row {
+    margin-bottom: 4px;
+    padding: 3px 4px;
+    border-radius: 3px;
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.cutscene-editor__cast-row--selected {
+    background-color: rgba(61, 96, 133, 0.5);
+    border-left-color: rgb(88, 148, 216);
 }

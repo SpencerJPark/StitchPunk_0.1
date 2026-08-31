@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: NewCutscene
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneAsset
   stableId: 487653882943925116
-  sceneGuid: 
-  scenePath: 
+  sceneGuid: ee9d36369f1c3de4da15f188fbb1bfca
+  scenePath: Assets/Scenes/TestArea.unity
   slots:
   - name: Prop 1
     slotId: 890669729
@@ -22,6 +22,7 @@ MonoBehaviour:
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys: []
     facingKeys: []
@@ -32,6 +33,7 @@ MonoBehaviour:
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys: []
     facingKeys: []

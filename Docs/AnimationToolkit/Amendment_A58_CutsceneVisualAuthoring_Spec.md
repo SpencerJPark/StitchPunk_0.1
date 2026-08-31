@@ -6,6 +6,11 @@ all. I need to see where I am animating and see the animations and SEE what I am
 This amendment supersedes Phase G spec §3's "timeline + inspector only" line and G3's recorded
 preview cuts. Everything else in Phase G — data model, timeline UI, bake, runtime player — stands.
 
+**Amended 2026-08-30 by `Amendment_A59_EmbeddedSceneViewport_Spec.md`:** §2.1's "embedded
+scene-rendering viewport stays out of scope" is revoked by the owner — the tab gains its own
+viewport rendering the open scene. The docked Scene-view workflow this doc describes keeps
+working but is no longer the primary shape.
+
 ## 1. The defect this amendment exists to kill
 
 Scrubbing the built editor moves root positions and hand-keyed parts, but **clip blocks preview
