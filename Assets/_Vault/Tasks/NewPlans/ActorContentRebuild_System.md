@@ -1,7 +1,9 @@
 # Actor Content Rebuild — Design Spec (G0)
 
-> **Status:** T1–T6 built, gated and committed 2026-09-05 (`G0-T1` … `G0-T6`). **Stopped at the ⏸
-> owner checkpoint, T7** — the only thing left in this spec is the owner's eyes. Full suites re-run
+> **Status:** ✅ **COMPLETE.** T1–T6 built, gated and committed 2026-09-05 (`G0-T1` … `G0-T6`);
+> T7's ⏸ owner checkpoint **passed the same day — the owner watched it and reported "the legs
+> move."** This spec's deliverable (one unit that is a real toolkit actor with a walk cycle you can
+> see) is met. Retire it into `Tasks/Verification/` when A63 next touches this area. Full suites re-run
 > at the stop: toolkit EditMode 714 (1 pre-existing `Conformance_A` failure, unchanged),
 > `StitchPunk.Tests` 57 (714 + 57 = the 771 the G1 session recorded), toolkit PlayMode 250/250,
 > `StitchPunk.Tests.PlayMode` 253/253 — no count dropped, no new failure.
@@ -160,7 +162,7 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   a bound minion's part rotation changes between two samples **while** its root position advances
   along the lane.*
 
-- [ ] **⏸ T7 — Owner checkpoint.** Stop here and hand over. The owner opens
+- [x] **⏸ T7 — Owner checkpoint.** Stop here and hand over. The owner opens
   `Assets/Scenes/CutsceneG1Checkpoint.unity`, presses Play, presses **F9**, and watches. Expected:
   both minions **walk** their lanes with limbs cycling, the camera tracks then hard-cuts at 3.05s, a
   sound fires at 1.5s, `UtilityActions` is empty on both while it runs, WASD does nothing, and at the
@@ -349,6 +351,28 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
     period stretches to 10 s, which is almost exactly one MCP round trip, so three consecutive samples
     all landed within 0.07 of the same phase and the clip looked frozen. That is a measurement
     artefact, not a bug. `0.05` (period 20 s, two round trips) separates the samples properly.
+
+- **(T7, 2026-09-05) ⏸ Owner checkpoint PASSED — "the legs move."** The owner opened
+  `CutsceneG1Checkpoint.unity`, pressed Play and F9, and confirmed the walk on screen. That is the
+  one thing G0 existed to deliver and the one thing no machine assertion could settle. The owner
+  raised no correction to the cycle, so the authored keys stand as they are.
+
+  Scope note, recorded rather than assumed: the owner reported the animation. The rest of T7's
+  watch-list (camera track + hard cut at 3.05 s, the 1.5 s sound, empty `UtilityActions`, WASD
+  inert, wander resuming at the end) was machine-verified in the G1 checkpoint session and again
+  during this spec's T6 gate, but was **not** separately reported back by eye this time. Nothing
+  suggests it regressed — G0 added animation and touched none of that machinery — but if a later
+  session needs "the owner has personally seen the camera cut" it does not yet have it.
+
+- **Left for the next session, with evidence (not a scope cut, a hand-off):**
+  - **`NewRig.asset` declares zero sockets**, and the only socket-shaped thing in the project is a
+    bare `HandSocket` GameObject under `PlayerUnit.prefab`'s `RightHand` — which is inert, because
+    `PlayerUnit` is not an actor. **A63's own ⏸ checkpoint ("actor with a hand socket, a prop,
+    Attach at 1 s") is therefore unreachable until a `SocketDefinition` is added to `NewRig`.**
+    Same shape of gap as the one that created G0; flagged early this time.
+  - `NewClip 1`'s three dead transform tracks still log rule-T6 warnings per actor bind.
+  - `PlayerUnit`/`BaseUnit` are still not actors (they instance a different copy of the body-part
+    tree — see the T1 entry).
 
 - **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
   their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already
