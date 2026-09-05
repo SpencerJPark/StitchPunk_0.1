@@ -10,6 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene attach lane (A63)
+
+Cutscenes could move things independently and nothing else. Actors and props can now touch: carry
+and throw, board a cart, hand a prop from one actor to another.
+
+- `CutsceneAttachMarker` on every `CutsceneSlot`, Actor and Prop alike, with `CutsceneAttachKind`
+  (`Attach` / `Detach`), a host slot id, a socket id (0 = the host's root), an offset, a
+  hide-while-attached flag and a detach impulse. Baked into `CutsceneAttachMarkerBlob` per segment,
+  with the host slot id resolved to a dense slot index at bake time. `CutsceneBlob.schemaVersion`
+  is now **3**.
+- `CutsceneTimelineSystem` applies them: socket attach through the existing `SocketAttachment`,
+  root attach through `Parent`, and both mechanisms cleared before either is added, so a hand-over
+  is one operation and no entity is ever transformed twice. An attached slot's root lane is
+  suppressed — the host owns the transform. A skip replays every remaining marker, so a skipped run
+  and a watched one leave the same world.
+- `CutsceneDetachSignal` (`IComponentData, IEnableableComponent`): enabled on the detached entity
+  for one frame, carrying `worldImpulse` (the authored impulse rotated out of host space) and
+  `previousHost`. The toolkit applies no physics of its own.
+- `hideWhileAttached` adds `Unity.Rendering.DisableRendering` to the rider and every rendering
+  member of its linked group, and removes it on detach — never the toolkit's own visibility flag,
+  which a host's culling mirror would fight.
+- Cutscene Editor: an **Attach** row on every slot with a distinct glyph per kind, an inspector with
+  host and socket dropdowns of *names*, and a Scene-view preview that composes the attachment the
+  same way `SocketResolveSystem` does — including hiding and un-hiding renderers against a snapshot
+  taken before preview writes anything.
+
 ### Added — Cutscene stages (A61)
 
 The Cutscene Editor bound slots to scene GameObjects and the runtime player bound slots to

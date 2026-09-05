@@ -71,6 +71,11 @@ Editor — side by side once and Unity remembers the arrangement.
   picker every part-tag surface in this package uses. A part track's keys
   layer *over* whatever the clip lane is currently playing, on just the
   channels you check.
+- **Attach lane** (every slot). Double-click to add an Attach at the
+  playhead; the inspector picks the **Host** slot it rides and, when that host
+  is an actor whose rig declares sockets, which **Socket** — or `(root)` for
+  the host's own transform. A diamond marker is an Attach, a ring is a Detach.
+  See [Attach lane](#attach-lane) below.
 - **Camera lane.** Add keys the same way; the inspector's **Align to Scene
   View** button captures the Scene view camera's current pose into the
   selected key. Add cut markers on the row below for a hard cut instead of a
@@ -190,6 +195,12 @@ bindings.Add(new CutsceneActorBinding { slotId = berthaSlotId, actorEntity = ber
 - **Events** — the same `AnimEventOutput` buffer / `AnimEventsPending` gate a
   clip's own events use, on the cutscene request entity itself rather than
   any one bound actor.
+- **Detachments** — `CutsceneDetachSignal` is enabled on the *detached entity*
+  for the frame a Detach marker fires, carrying `worldImpulse` (the authored
+  impulse rotated out of host space) and `previousHost`. Read it, act on it,
+  and disable it. The toolkit applies no physics of its own — a package that
+  assumed a physics stack would not be usable in a project that has another
+  one — so a throw is your `AddForce`, your `ThrownItemRequest`, or nothing.
 
 At the end (naturally or via skip) the player stops each Actor slot's clip
 layer on the layer index you gave it and marks `CutscenePlaybackState.isComplete`.
@@ -219,6 +230,56 @@ The **baked runtime player does not**: a part track's tag is resolved to a
 dense target index once, at bake time, against the rig the slot had *then*.
 Recasting a slot onto a different rig for the runtime path needs a rebake.
 
+## Attach lane
+
+Actors and props can touch. An **Attach** marker binds the slot it sits on to
+another slot — either to a **socket** on that host's rig, or to the host's
+root — and a **Detach** marker lets go again.
+
+While a slot is attached, **its root lane is ignored**: the host owns the
+transform. Everything else keeps running, so an actor riding a cart can still
+play clips and wave. Attaching while already attached is a **hand-over** — the
+old binding drops silently, with no signal and no impulse. Attachments are left
+in place when a cutscene ends; a cutscene that wants its cast free authors a
+Detach. A skip replays every marker it jumped over, so a skipped run and a
+watched one end with the same things riding the same hosts.
+
+### Carry and throw
+
+1. On the prop's slot, add an **Attach** at the moment the hand closes. Host:
+   the actor. Socket: the hand socket on the actor's rig. Offset nudges it to
+   sit right in the grip.
+2. Add a **Detach** at the moment of release and give it an **Impulse**, in the
+   host's space — `(0, 2, 5)` throws it up and forward *relative to the actor*,
+   so the same marker works whichever way the actor is facing.
+3. At run time, read `CutsceneDetachSignal.worldImpulse` off the prop entity
+   and hand it to whatever moves things in your game.
+
+The prop is left at the world pose it was let go at. **If the prop's slot has
+any root key at all it snaps back to that lane the instant it detaches** — key
+sampling clamps to the last key, so "the root lane resumes" wins immediately.
+A prop that should stay where it was thrown gets an *empty* root lane; its
+scene transform is its home.
+
+### Board a cart
+
+1. On each rider's slot, add an **Attach** at the boarding moment. Host: the
+   cart. Socket: `(root)`. Offset places them on it — a bench seat, or nowhere
+   in particular for someone hidden inside.
+2. Tick **Hide While Attached** for riders who disappear inside. That adds
+   `Unity.Rendering.DisableRendering` to the rider and every rendering member
+   of its linked group while the attachment lasts, and removes it again on
+   detach. It is deliberately *not* the toolkit's own visibility flag: a host
+   that mirrors its own culling into `AnimVisible` every frame would fight one.
+3. Key the **cart's** root lane to drive off. Riders come with it.
+4. Add a **Detach** for each rider where they get out, with no impulse.
+
+### Hand-over
+
+Give the prop two Attach markers on one lane: the first naming actor A's hand
+socket, the second, later, naming actor B's. No Detach in between — an Attach
+onto a new host *is* the release of the old one.
+
 ## Known gaps
 
 - No box-select or multi-key drag in the timeline; one item at a time.
@@ -238,6 +299,9 @@ Recasting a slot onto a different rig for the runtime path needs a rebake.
   part shows the right frame only if its material reads them. Parts in this
   toolkit are mesh renderers by construction (`Quad`, `FlipbookPlane`,
   `VatMesh`); there is no `SpriteRenderer` path to preview.
+- A **bone** socket previews at the host root. Its motion lives inside a VAT
+  texture the editor never samples; playback places it correctly. The
+  inspector says so when you pick one.
 - Multiple simultaneous cutscenes each with their own camera are not
   supported — `CutsceneCameraPose` is one world singleton, matching the one
   camera a game actually has.

@@ -396,3 +396,21 @@ period becomes 10 s — almost exactly one `execute_code` round trip — and thr
 land within 0.07 of the same phase, making a working clip look frozen. Pick a speed whose stretched
 period is a non-multiple of the round trip (`0.05` gives 20 s) before concluding anything is broken.
 
+### A detached cutscene slot only "stays where it was let go" if its root lane is empty
+Amendment A63 §3.1 promises both "Detach leaves the slot at its world pose" and "the root lane
+resumes from the next key". Those are the same sentence only for a slot with no key after the
+detach — and `CutsceneKeySampler`/`CutsceneBlobSampler` **clamp to the last key**, so *any* authored
+root key wins the transform back on the very first frame after the attachment ends and snaps the
+slot to its lane. A prop that should stay where it was thrown gets an entirely empty root lane; its
+scene transform (or its `LocalTransform` at the moment of detach) is then its home, because A62
+defect 2's rule leaves a keyless slot alone. Found 2026-09-05 authoring A63's checkpoint: the crate
+kept teleporting back to its starting spot the instant the hand released it, which reads as a broken
+detach and is in fact a working root lane.
+
+### `RigAsset.sockets` was empty project-wide until 2026-09-05
+Nothing could ride an actor's hand, and `PlayerUnit.prefab`'s bare `HandSocket` GameObject is inert
+— `PlayerUnit` is not a toolkit actor, so no `SocketRegistry` is ever baked from it. `NewRig.asset`
+now declares one `RigTarget` socket, "RightHand" (id `1287933773`, target `3934483903`, dense target
+index 15), and both `CutsceneG1Checkpoint` minions bake it. **`ActorBaker` only adds `SocketRegistry`
+when `SocketRegistryBuilder.HasSockets(rig)`**, so a rig with no socket rows produces an actor that
+silently ignores every `SocketAttachment` pointed at it — there is no warning anywhere.

@@ -1,6 +1,6 @@
 # Amendment A63 — Cutscene Attach Lane
 
-> **Status:** ✅ spec, not built. Written 2026-09-04.
+> **Status:** ✅ T0–T6 built and gated green 2026-09-05. Stopped at the ⏸ owner checkpoint. Written 2026-09-04.
 > **Roadmap:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` — read its §4 protocol first.
 > **Depends on:** A62 (schema 2, `TrySampleTransform`, `CutsceneKeySampler` in `Authoring`). **Parallel-safe with:** G1 (game side).
 > **Session budget:** one Sonnet session, possibly two — commit per task; the checkboxes are the resume point.
@@ -118,7 +118,7 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
 - [x] **T3 — Hide/unhide.** Extend T2's detach test: with `hideWhileAttached`, `DisableRendering` present while attached and gone after detach on an entity that has `MaterialMeshInfo` (add the component in the fixture; no renderer needed).
 - [x] **T4 — Editor lane + inspector (§3.4).** **[parallel-safe with T5]** No fixture. Prove live via `execute_code`: add an Attach through the private insert method, select it, inspector builds without exception, host/socket dropdowns list the right names.
 - [x] **T5 — Preview (§3.4).** **[parallel-safe with T4]** No fixture. Prove live: two bound objects, an Attach at 1 s with offset (0, 1, 0) to the host root, scrub to 2 s → the attached object's world position equals host position + (0, 1, 0); scrub to 0.5 s → back on its own keys; hide flag → renderers disabled and restored on `ExitPreview` (assert `Renderer.enabled` before/after).
-- [ ] **T6 — Docs.** `cutscenes.md` "Attach lane" section (three recipes: carry & throw, board a cart, hand-over) + `CutsceneDetachSignal` in the runtime section. CHANGELOG, HANDOFF §4.
+- [x] **T6 — Docs.** `cutscenes.md` "Attach lane" section (three recipes: carry & throw, board a cart, hand-over) + `CutsceneDetachSignal` in the runtime section. CHANGELOG, HANDOFF §4.
 - [ ] **⏸ Owner checkpoint.** In the editor: actor with a hand socket, a prop, Attach at 1 s to the socket, Detach at 3 s. Scrub: the prop should jump into the hand at 1 s, ride the hand through a waving clip, and stay where the hand was at 3 s.
 
 ## 6. Risks and traps
@@ -167,3 +167,11 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
   with offset (0, 1, 0) landed on host + (0, 1, 0) with error 0.000000; `hideWhileAttached` disabled
   the renderer while attached, restored it at the detach, and `ExitPreview` restored both the
   renderer and the transform.
+- **Full suites, once, at the end (protocol step 5).** EditMode 715 discovered / 714 passed — the
+  one failure is `Conformance_A_AsmdefReferenceLists_MatchSection13Exactly`, an extra
+  `Unity.RenderPipelines.Universal.Runtime` reference on the Editor asmdef that predates this
+  session (the file is unmodified in the working tree; last touched by commit `f106542c`), already
+  recorded in HANDOFF §4 under A61. PlayMode 253/253. Neither discovered total dropped.
+- **T0 verified baked, not merely authored:** both `CutsceneG1Checkpoint` minions come out of play
+  mode carrying a `SocketRegistry` whose one socket is id `1287933773` at dense target index 15.
+

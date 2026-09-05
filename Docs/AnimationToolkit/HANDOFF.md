@@ -112,6 +112,34 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A63 — Cutscene Attach Lane. T0–T6 built and gated green 2026-09-05; stopped at its ⏸ owner
+checkpoint.** Actors and props can now touch. `CutsceneAttachMarker` on every slot bakes to
+`CutsceneAttachMarkerBlob` (schema **3**) with the host slot id resolved to a dense index at bake;
+`CutsceneTimelineSystem` collects each frame's attach work into a `NativeList` and applies it after
+the query loop, because every one of those operations is a structural change. Socket attach reuses
+`SocketAttachment`, root attach uses `Parent`, and both are cleared before either is added — which
+is what makes a hand-over a single operation and what keeps an entity from being transformed twice.
+An attached slot's root lane is suppressed; `CutsceneDetachSignal` hands the host a world impulse
+and no physics; `hideWhileAttached` uses `DisableRendering`, never `AnimVisible`. Editor side: an
+Attach row on every slot with a glyph per kind, an inspector of host/socket *names*, and a
+Scene-view preview that composes the attachment exactly the way `SocketResolveSystem` does.
+EditMode `CutsceneBlobBuilderTests` 3/3, PlayMode `CutsceneAttachTests` 3/3 +
+`CutsceneTimelineSystemTests` 7/7; both reverts exercised (see the spec's §7). Editor work proved
+live through `execute_code` — dropdowns, glyphs, and measured preview placement (crate exactly on
+`RightHand`, delta 0.00000).
+
+**T0 was added at the front and is not in the written spec.** `NewRig.asset` declared zero sockets,
+so the checkpoint had nothing to attach to. One `RigTarget` socket ("RightHand", id `1287933773`,
+target `3934483903`) now sits on the rig; verified baked, not merely authored — both
+`CutsceneG1Checkpoint` minions come out of play mode carrying a `SocketRegistry` with that socket at
+dense target index 15.
+
+**Owed**: the owner's eyes on the checkpoint — open `Assets/Scenes/CutsceneA63Checkpoint.unity` and
+`A63CheckpointCutscene.asset` in the Cutscene Editor and scrub. **Also worth knowing**: detach only
+leaves a slot "where it was let go" when that slot's root lane is *empty*; any authored root key
+wins back the transform the instant the attachment ends, because key sampling clamps to the last
+key. The checkpoint's Crate is keyless for exactly that reason (spec §7, `Gotchas.md`).
+
 **A61 — Cutscene Stage Baking. T1–T4 built and gated green 2026-09-04** (MCP was unreachable for
 part of the session — the Editor's own auto-recompile caught one real `Hash128` ambiguity bug in
 `CutsceneStageAuthoring.cs` in the meantime, fixed before MCP reconnected; full detail of that
