@@ -30,6 +30,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         private readonly VisualElement rowsContainer = new VisualElement();
+        private readonly Label stageStatusLabel = new Label();
+        private readonly Button syncToStageButton;
 
         /// <summary>Raised with the slot index whose prefab should be instantiated and bound.</summary>
         public event Action<int> PlaceRequested;
@@ -43,6 +45,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised with the slot index whose bound object should be framed in the Scene view.</summary>
         public event Action<int> FrameRequested;
 
+        /// <summary>Raised when the author presses Sync to Stage (amendment A61-T3).</summary>
+        public event Action SyncToStageRequested;
+
         public CutsceneCastPanel()
         {
             style.minWidth = 200f;
@@ -50,15 +55,39 @@ namespace DotsAnimationToolkit.Editor
             style.paddingTop = 6f;
             style.paddingRight = 4f;
 
+            VisualElement headerRow = new VisualElement();
+            headerRow.style.flexDirection = FlexDirection.Row;
+            headerRow.style.alignItems = Align.Center;
+            headerRow.style.marginBottom = 4f;
+
             Label heading = new Label("Cast");
             heading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            heading.style.marginBottom = 4f;
-            Add(heading);
+            headerRow.Add(heading);
+
+            stageStatusLabel.style.flexGrow = 1f;
+            stageStatusLabel.style.marginLeft = 6f;
+            stageStatusLabel.style.color = new Color(0.68f, 0.68f, 0.72f);
+            headerRow.Add(stageStatusLabel);
+
+            syncToStageButton = new Button(() => SyncToStageRequested?.Invoke()) { text = "Sync to Stage" };
+            syncToStageButton.tooltip =
+                "Writes every bound slot into this scene's CutsceneStageAuthoring component, baking "
+                + "one CutsceneStage entity that plays this cutscene at runtime (amendment A61). "
+                + "Explicit, never automatic — press it after the cast is the way you want it.";
+            headerRow.Add(syncToStageButton);
+
+            Add(headerRow);
 
             ScrollView rowsScroll = new ScrollView(ScrollViewMode.Vertical);
             rowsScroll.style.flexGrow = 1f;
             rowsScroll.Add(rowsContainer);
             Add(rowsScroll);
+        }
+
+        /// <summary>Sets the Stage status text (A61-D2: sync is explicit, so this only ever reports state — it never triggers a write).</summary>
+        public void SetStageStatus(string statusText)
+        {
+            stageStatusLabel.text = statusText;
         }
 
         /// <summary>Rebuilds every row from the cutscene's current slots and bindings.</summary>

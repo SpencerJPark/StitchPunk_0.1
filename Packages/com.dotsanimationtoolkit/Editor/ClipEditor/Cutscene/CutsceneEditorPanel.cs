@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
@@ -142,6 +143,7 @@ namespace DotsAnimationToolkit.Editor
             castPanel.BindRequested += BindSlotToObject;
             castPanel.SlotSelected += SelectSlotHeader;
             castPanel.FrameRequested += FrameSlotInSceneView;
+            castPanel.SyncToStageRequested += SyncCutsceneToStage;
 
             VisualElement centerColumn = new VisualElement();
             centerColumn.style.flexGrow = 1f;
@@ -1319,10 +1321,174 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshCastPanel()
         {
-            if (castPanel != null)
+            if (castPanel == null)
             {
-                castPanel.Rebuild(cutscene, CutsceneSceneBindingUtility.CurrentSceneGuid(), selectedSlotIndex);
+                return;
             }
+            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            castPanel.Rebuild(cutscene, currentSceneGuid, selectedSlotIndex);
+            castPanel.SetStageStatus(ComputeStageStatusText(currentSceneGuid));
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Sync to Stage (amendment A61-T3): writes the cast panel's resolved bindings into this
+        // scene's CutsceneStageAuthoring component, ready for CutsceneStageBaker to bake at the next
+        // subscene reopen or Play. A61-D2: explicit only, never triggered by a Bind/Place click.
+        // -----------------------------------------------------------------------------------
+
+        private void SyncCutsceneToStage()
+        {
+            if (cutscene == null)
+            {
+                return;
+            }
+
+            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            List<KeyValuePair<uint, GameObject>> resolvedBindings = ResolveBoundSlotsForStage(currentSceneGuid);
+
+            GameObject firstBoundObject = null;
+            bool spansMultipleScenes = false;
+            for (int bindingIndex = 0; bindingIndex < resolvedBindings.Count; bindingIndex++)
+            {
+                GameObject boundObject = resolvedBindings[bindingIndex].Value;
+                if (firstBoundObject == null)
+                {
+                    firstBoundObject = boundObject;
+                }
+                else if (boundObject.scene != firstBoundObject.scene)
+                {
+                    spansMultipleScenes = true;
+                }
+            }
+
+            CutsceneStageAuthoring stageAuthoring = FindStageAuthoringForCutscene(cutscene);
+            if (stageAuthoring == null && firstBoundObject == null)
+            {
+                // Nothing bound and no stage to update — Stage stays "none" (spec §3.3).
+                RefreshCastPanel();
+                return;
+            }
+
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Sync Cutscene To Stage");
+
+            if (stageAuthoring == null)
+            {
+                GameObject stageGameObject = new GameObject("Cutscene Stage — " + cutscene.name);
+                SceneManager.MoveGameObjectToScene(stageGameObject, firstBoundObject.scene);
+                Undo.RegisterCreatedObjectUndo(stageGameObject, "Sync Cutscene To Stage");
+                stageAuthoring = stageGameObject.AddComponent<CutsceneStageAuthoring>();
+            }
+            else
+            {
+                Undo.RecordObject(stageAuthoring, "Sync Cutscene To Stage");
+            }
+
+            SerializedObject stageSerializedObject = new SerializedObject(stageAuthoring);
+            stageSerializedObject.FindProperty("cutscene").objectReferenceValue = cutscene;
+            SerializedProperty bindingsProperty = stageSerializedObject.FindProperty("bindings");
+            bindingsProperty.ClearArray();
+            for (int bindingIndex = 0; bindingIndex < resolvedBindings.Count; bindingIndex++)
+            {
+                bindingsProperty.InsertArrayElementAtIndex(bindingIndex);
+                SerializedProperty entryProperty = bindingsProperty.GetArrayElementAtIndex(bindingIndex);
+                entryProperty.FindPropertyRelative("slotId").uintValue = resolvedBindings[bindingIndex].Key;
+                entryProperty.FindPropertyRelative("target").objectReferenceValue = resolvedBindings[bindingIndex].Value;
+            }
+            stageSerializedObject.ApplyModifiedProperties();
+            Undo.CollapseUndoOperations(undoGroup);
+
+            EditorSceneManager.MarkSceneDirty(stageAuthoring.gameObject.scene);
+
+            castPanel.Rebuild(cutscene, currentSceneGuid, selectedSlotIndex);
+            castPanel.SetStageStatus(
+                spansMultipleScenes ? "Stage: synced (bindings span multiple scenes)" : "Stage: synced");
+        }
+
+        /// <summary>Every bound slot resolved to its live GameObject, in the cutscene's own slot order — the same pairs both the sync write and the status check read.</summary>
+        private List<KeyValuePair<uint, GameObject>> ResolveBoundSlotsForStage(string currentSceneGuid)
+        {
+            List<KeyValuePair<uint, GameObject>> resolved = new List<KeyValuePair<uint, GameObject>>();
+            if (cutscene == null || cutscene.slots == null)
+            {
+                return resolved;
+            }
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                CutsceneSlot slot = cutscene.slots[slotIndex];
+                if (slot == null)
+                {
+                    continue;
+                }
+                CutsceneSlotBindingEntry entry =
+                    CutsceneSceneBindingUtility.FindBinding(cutscene, currentSceneGuid, slot.SlotId);
+                if (entry == null || string.IsNullOrEmpty(entry.globalObjectId))
+                {
+                    continue;
+                }
+                GameObject boundObject = CutsceneSceneBindingUtility.ResolveGameObject(entry.globalObjectId);
+                if (boundObject != null)
+                {
+                    resolved.Add(new KeyValuePair<uint, GameObject>(slot.SlotId, boundObject));
+                }
+            }
+            return resolved;
+        }
+
+        /// <summary>"Stage: none" / "Stage: synced" / "Stage: out of date" (spec §3.3) — recomputed every <see cref="RefreshCastPanel"/>.</summary>
+        private string ComputeStageStatusText(string currentSceneGuid)
+        {
+            if (cutscene == null)
+            {
+                return string.Empty;
+            }
+            CutsceneStageAuthoring stageAuthoring = FindStageAuthoringForCutscene(cutscene);
+            if (stageAuthoring == null)
+            {
+                return "Stage: none";
+            }
+
+            List<KeyValuePair<uint, GameObject>> resolvedBindings = ResolveBoundSlotsForStage(currentSceneGuid);
+            bool matches = stageAuthoring.bindings != null
+                && stageAuthoring.bindings.Count == resolvedBindings.Count;
+            for (int bindingIndex = 0; matches && bindingIndex < resolvedBindings.Count; bindingIndex++)
+            {
+                if (!StagedBindingMatches(
+                        stageAuthoring, resolvedBindings[bindingIndex].Key, resolvedBindings[bindingIndex].Value))
+                {
+                    matches = false;
+                }
+            }
+
+            return matches ? "Stage: synced" : "Stage: out of date";
+        }
+
+        private static bool StagedBindingMatches(
+            CutsceneStageAuthoring stageAuthoring, uint slotId, GameObject boundObject)
+        {
+            for (int bindingIndex = 0; bindingIndex < stageAuthoring.bindings.Count; bindingIndex++)
+            {
+                CutsceneStageSlotBinding binding = stageAuthoring.bindings[bindingIndex];
+                if (binding != null && binding.slotId == slotId)
+                {
+                    return binding.target == boundObject;
+                }
+            }
+            return false;
+        }
+
+        private static CutsceneStageAuthoring FindStageAuthoringForCutscene(CutsceneAsset cutscene)
+        {
+            CutsceneStageAuthoring[] allStageAuthorings =
+                UnityEngine.Object.FindObjectsByType<CutsceneStageAuthoring>(FindObjectsInactive.Include);
+            for (int stageIndex = 0; stageIndex < allStageAuthorings.Length; stageIndex++)
+            {
+                if (allStageAuthorings[stageIndex].cutscene == cutscene)
+                {
+                    return allStageAuthorings[stageIndex];
+                }
+            }
+            return null;
         }
 
         /// <summary>
