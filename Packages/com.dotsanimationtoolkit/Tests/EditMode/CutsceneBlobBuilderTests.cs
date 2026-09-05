@@ -9,9 +9,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// Covers <c>CutsceneBlobBuilder</c>'s boundary-continuity baking (amendment A62 defect 1): the
-    /// runtime player only ever walks one segment's own key array, so a lane still in motion across
-    /// a hold needs its value baked into both the segment that ends there and the one that starts.
+    /// Covers <c>CutsceneBlobBuilder</c>'s boundary-continuity and seam-blend baking (amendment A62,
+    /// defects 1 and 3): the runtime player only ever walks one segment's own key array, so a lane
+    /// still in motion across a hold needs its value baked into both the segment that ends there and
+    /// the one that starts, and a crossfade whose predecessor ends up in an earlier segment needs its
+    /// blend duration baked rather than derived at play time from "the previous block in this segment".
     /// </summary>
     public sealed class CutsceneBlobBuilderTests
     {
@@ -66,6 +68,39 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 CutsceneTransformKeyBlob firstStartingKey = startingSlotSegment.transformKeys[0];
                 Assert.AreEqual(0f, firstStartingKey.time, 1e-4f, "segment 1's first key must sit at its own start");
                 Assert.AreEqual(4f, firstStartingKey.position.x, 1e-4f, "segment 1 must resume from the same pose segment 0 ended on");
+            }
+            finally
+            {
+                blob.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Spec §5's own numbers for this test (blocks [0,3) and [2.5,5), hold at 2.7) put the
+        /// second block's <em>start</em> (2.5) before the hold (2.7), so decision G-D8 assigns it
+        /// whole to segment 0, not segment 1 — logged in the spec's §7. This uses a hold at 2.4
+        /// instead, between the two starts, which reaches the same intent: a block whose blend
+        /// partner ended up in the earlier segment must still bake its seam.
+        /// </summary>
+        [Test]
+        public void SeamAcrossAHold_KeepsItsBlendDuration()
+        {
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            CutsceneSlot actorSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor };
+            actorSlot.clipBlocks.Add(new CutsceneClipBlock { clipId = 1UL, start = 0f, duration = 3f, loop = false });
+            actorSlot.clipBlocks.Add(new CutsceneClipBlock { clipId = 2UL, start = 2.5f, duration = 2.5f, loop = false });
+            cutscene.slots.Add(actorSlot);
+            cutscene.holdMarkers.Add(new CutsceneHoldMarker { time = 2.4f, holdId = "H" });
+            cutscene.EnsureStableIds();
+
+            BlobAssetReference<CutsceneBlob> blob;
+            CutsceneBlobBuilder.Build(cutscene, out blob, null);
+            try
+            {
+                ref CutsceneSlotSegmentBlob startingSlotSegment = ref blob.Value.segments[1].slotTracks[0];
+                Assert.AreEqual(1, startingSlotSegment.clipBlocks.Length, "the second block is assigned wholly to segment 1 by its own start time");
+                Assert.AreEqual(0.5f, startingSlotSegment.clipBlocks[0].blendDuration, 1e-4f,
+                    "the seam's overlap survives the hold even though the outgoing block is no longer in this segment");
             }
             finally
             {

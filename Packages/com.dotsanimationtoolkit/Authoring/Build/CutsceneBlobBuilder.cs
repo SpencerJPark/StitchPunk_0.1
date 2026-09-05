@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Authoring
     public static class CutsceneBlobBuilder
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
-        public const int SchemaVersion = 1;
+        public const int SchemaVersion = 2;
 
         private const float BoundaryEpsilon = 1e-5f;
 
@@ -419,16 +419,33 @@ namespace DotsAnimationToolkit.Authoring
             {
                 return;
             }
+
+            // Sorted by start on the flat (pre-segment-split) lane, so each block's predecessor
+            // here is its true seam partner (amendment A62 defect 3) — never merely the previous
+            // entry in authoring order, and never reset at a segment boundary.
+            List<int> sortedIndices = new List<int>(slot.clipBlocks.Count);
             for (int i = 0; i < slot.clipBlocks.Count; i++)
             {
-                CutsceneClipBlock block = slot.clipBlocks[i];
+                sortedIndices.Add(i);
+            }
+            sortedIndices.Sort((left, right) => slot.clipBlocks[left].start.CompareTo(slot.clipBlocks[right].start));
+
+            CutsceneClipBlock previousBlock = null;
+            for (int sortedPosition = 0; sortedPosition < sortedIndices.Count; sortedPosition++)
+            {
+                int originalIndex = sortedIndices[sortedPosition];
+                CutsceneClipBlock block = slot.clipBlocks[originalIndex];
                 if (block.clipId != 0UL && !ClipExistsInSlot(slot, block.clipId))
                 {
                     warnings.Add(
-                        "Cutscene clip block " + i + " on slot '" + slot.name + "' names clip id 0x"
+                        "Cutscene clip block " + originalIndex + " on slot '" + slot.name + "' names clip id 0x"
                         + block.clipId.ToString("X16") + ", which is not in any of the slot's clip "
                         + "sets. Baked anyway — the bound actor's own registry may still resolve it.");
                 }
+
+                float blendDuration = previousBlock != null
+                    ? CutsceneBlockTiming.SeamBlendDuration(previousBlock.start, previousBlock.duration, block.start)
+                    : 0f;
 
                 float segmentStart;
                 int segmentIndex = AssignToSegment(boundaries, block.start, out segmentStart);
@@ -437,8 +454,11 @@ namespace DotsAnimationToolkit.Authoring
                     clipId = block.clipId,
                     start = block.start - segmentStart,
                     duration = block.duration,
-                    loop = block.loop
+                    loop = block.loop,
+                    blendDuration = blendDuration
                 });
+
+                previousBlock = block;
             }
         }
 

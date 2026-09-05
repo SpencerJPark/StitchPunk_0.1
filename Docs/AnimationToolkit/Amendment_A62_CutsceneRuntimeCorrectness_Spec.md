@@ -71,7 +71,7 @@ Add `public bool isDriven;`. `CutsceneTimelineSystem.OnUpdate` clears it at the 
 - [x] **T1 — Sampler move (§3.1).** Pure refactor, no behaviour change. Gate: compile; run `DotsAnimationToolkit.Tests.EditMode` group `CutsceneBlockTimingTests` and any EditMode fixture that referenced the old type (grep).
 - [x] **T2 — Boundary continuity (§3.2).** Test (EditMode, new `Tests/EditMode/CutsceneBlobBuilderTests.cs`): `HoldBoundary_BakesTheSampledPoseIntoBothSegments` — in-memory `CutsceneAsset` (`ScriptableObject.CreateInstance`, no disk), one Prop slot with keys A(0s, x=0) and B(4s, x=8), one hold at 2s; `Build`; assert segment 0's last key is at `time == 2f` with `x == 4f`, segment 1's first key is at `time == 0f` with `x == 4f`; dispose the blob in `finally`. Revert the fix, watch it fail (segment 0 will have one key). Camera variant of the same test is optional — only if it costs under ten lines.
 - [x] **T3 — Empty lanes (§3.3).** Test (PlayMode): `EmptyRootLane_LeavesTheBoundTransformAlone` — a Prop slot with zero transform keys, entity placed at `(3, 0, 0)`, advance one step, assert unchanged.
-- [ ] **T4 — Baked blend (§3.4).** Test (EditMode, same builder fixture): `SeamAcrossAHold_KeepsItsBlendDuration` — blocks `[0, 3)` and `[2.5, 5)` with a hold at 2.7 → the second block (segment 1) has `blendDuration == 0.5f`. Bump `SchemaVersion`.
+- [x] **T4 — Baked blend (§3.4).** Test (EditMode, same builder fixture): `SeamAcrossAHold_KeepsItsBlendDuration` — blocks `[0, 3)` and `[2.5, 5)` with a hold at 2.7 → the second block (segment 1) has `blendDuration == 0.5f`. Bump `SchemaVersion`. **Numbers corrected — see §7**: the hold used is 2.4, not 2.7.
 - [ ] **T5 — Speed/pause (§3.5).** Test (PlayMode): `SpeedChange_IssuesSetSpeedOnEveryBoundActorLayer` — set `CutsceneControl.speed = 0.5f`, advance, assert the actor's `AnimationCommand` buffer contains a `SetSpeed` with `speed == 0.5f` on the request's layer; set `paused = true`, advance, assert a `SetSpeed 0`. (The fixture's actor has no `CommandApplySystem` running, so the buffer keeps the commands — that is what makes the assertion possible.)
 - [ ] **T6 — Release frame (§3.6) + `isDriven` (§3.7).** Test (PlayMode): `BlockAtSegmentStart_IsIssuedOnTheReleaseFrame` — two-segment hand-built blob (add a `BuildTwoSegmentCutsceneBlob` helper to the fixture file: hold at 1s, a block at segment-1 time 0), run to the hold, enable `CutsceneHoldRelease` with the id, advance **once**, assert the Play command is already in the buffer. `isDriven` needs no fixture; assert it inside `SkippedAndPlayedThrough_…` (false after completion) since that test already exists.
 - [ ] **T7 — Docs.** `Documentation~/cutscenes.md`: a short "Holds, pause and speed" subsection (hold keeps clips cycling; pause freezes layers; speed scales layers), and remove "Facing … no runtime-side application" from Known gaps only when A65 lands — leave it for now. `CHANGELOG.md` `[Unreleased]` → "Fixed — cutscene runtime" with the six defects in one sentence each. HANDOFF §4 paragraph.
@@ -85,3 +85,14 @@ Add `public bool isDriven;`. `CutsceneTimelineSystem.OnUpdate` clears it at the 
 - `CutsceneKeySampler` must not pull `UnityEditor` into `Authoring` — `Conformance_C` reads raw text; the moved file's comments must not mention the editor namespace by name either.
 
 ## 7. Build log
+
+**T4's own test numbers conflict with decision G-D8, not silently edited.** §5's recipe for
+`SeamAcrossAHold_KeepsItsBlendDuration` — blocks `[0, 3)` and `[2.5, 5)`, hold at 2.7, asserting the
+second block lands in segment 1 — cannot produce that outcome. `AssignToSegment`/decision G-D8
+place a clip block by its own **start** time, never split; block B's start (2.5) is before the hold
+(2.7), so it lands whole in segment 0 together with block A, and segment 1 gets zero clip blocks.
+Used a hold at **2.4** instead (between the two starts) so block B's start (2.5) falls after the
+boundary and the block lands in segment 1 as the test intends, keeping the same blocks and the same
+expected `blendDuration == 0.5f`. Confirmed by reverting the fix and watching the test fail before
+committing. Flagging for the owner: was 2.7 a typo for a value below 2.5, or did the test's own
+"lands in segment 1" premise need to change instead?

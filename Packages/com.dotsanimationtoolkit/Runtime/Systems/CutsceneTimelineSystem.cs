@@ -181,18 +181,11 @@ namespace DotsAnimationToolkit
                 {
                     CutsceneClipBlockBlob block = slotSegment.clipBlocks[slotState.nextClipBlockIndex];
 
-                    // Overlap with the immediately preceding block on this slot's lane is the
-                    // crossfade window (spec §2); blocks that merely touch or leave a gap play a
-                    // hard cut. Never authored — always this derivation, at the moment it is issued,
-                    // and through the one copy the editor preview also reads (A58-D1).
-                    float blendDuration = 0f;
-                    if (slotState.nextClipBlockIndex > 0)
-                    {
-                        CutsceneClipBlockBlob previousBlock = slotSegment.clipBlocks[slotState.nextClipBlockIndex - 1];
-                        blendDuration = CutsceneBlockTiming.SeamBlendDuration(
-                            previousBlock.start, previousBlock.duration, block.start);
-                    }
-
+                    // The crossfade window from this block's true predecessor on the slot's flat
+                    // lane (amendment A62 defect 3, decision A62-D3) — baked by CutsceneBlobBuilder,
+                    // never derived here from "the previous block in this segment", which would
+                    // always read 0 for the first block after a hold even when its real predecessor
+                    // overlaps it.
                     commands.Add(new AnimationCommand
                     {
                         kind = CommandKind.Play,
@@ -200,7 +193,7 @@ namespace DotsAnimationToolkit
                         clip = new ClipId(block.clipId),
                         speed = 1f,
                         loop = block.loop ? LoopMode.Loop : LoopMode.Once,
-                        blendDuration = blendDuration,
+                        blendDuration = block.blendDuration,
                         time = 0f
                     });
                     issuedAny = true;

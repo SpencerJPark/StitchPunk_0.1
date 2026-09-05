@@ -88,7 +88,7 @@ namespace DotsAnimationToolkit
         public BlobArray<CutscenePartTrackBlob> partTracks;
     }
 
-    /// <summary>One baked clip block (Phase G §2): overlap with the previous block is the crossfade window; blocks that merely touch are a hard cut — both derived from <see cref="start"/>/<see cref="duration"/> by the player, never authored as a separate field.</summary>
+    /// <summary>One baked clip block (Phase G §2): overlap with the previous block on the slot's flat lane is the crossfade window; blocks that merely touch are a hard cut.</summary>
     public struct CutsceneClipBlockBlob
     {
         /// <summary>The clip's stable id, resolved against whichever <see cref="ClipRegistryBlob"/> the bound actor carries.</summary>
@@ -102,6 +102,17 @@ namespace DotsAnimationToolkit
 
         /// <summary>Whether the clip loops for the block's duration rather than playing once.</summary>
         public bool loop;
+
+        /// <summary>
+        /// The crossfade window from the block immediately before this one on the slot's flat
+        /// (pre-segment-split) clip lane, baked at bake time (amendment A62 defect 3, decision
+        /// A62-D3) rather than derived at play time from "the previous block in this segment" — a
+        /// hold can fall between two overlapping blocks, and the incoming one is still the first
+        /// block of its own segment even though it has a real predecessor to blend from. 0 for the
+        /// slot's first block on the flat lane, or when the previous block only touches or leaves a
+        /// gap (a hard cut).
+        /// </summary>
+        public float blendDuration;
     }
 
     /// <summary>One baked transform key (Phase G §2). Rotation is stored in radians (converted at bake; authoring is degrees, matching <c>TransformKeyBlob</c>'s own convention).</summary>
