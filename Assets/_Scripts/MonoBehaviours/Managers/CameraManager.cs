@@ -12,6 +12,7 @@ public class CameraManager : Singleton<CameraManager>
     [SerializeField] private CinemachineCamera controllUnitsCam;
     [SerializeField] private CinemachineCamera mapCam;
     [SerializeField] private CinemachineCamera cinematicCam;
+    [SerializeField] private CinemachineCamera cutsceneCam;
 
     [Header("Cinematic")]
     [Tooltip("Empty GameObject that the cinematic camera follows/looks at. Move this to frame each shot.")]
@@ -23,6 +24,10 @@ public class CameraManager : Singleton<CameraManager>
     private Dictionary<CinemachineCameraType, CinemachineCamera> cameraMap;
     private CinemachineCameraType currentCamera;
     private CinemachineCameraType _preCinematicCamera;
+    private CinemachineCameraType _preCutsceneCamera;
+
+    /// <summary>The cutscene vcam — CutsceneCameraBridge drives its transform/lens directly, never Follow/LookAt.</summary>
+    public CinemachineCamera CutsceneCamera => cutsceneCam;
 
     private const int ACTIVE_PRIORITY = 20;
     private const int INACTIVE_PRIORITY = 1;
@@ -37,6 +42,7 @@ public class CameraManager : Singleton<CameraManager>
             { CinemachineCameraType.ControlUnits, controllUnitsCam },
             { CinemachineCameraType.Map,          mapCam },
             { CinemachineCameraType.Cinematic,    cinematicCam },
+            { CinemachineCameraType.Cutscene,     cutsceneCam },
         };
 
         // Ensure a default active camera
@@ -76,6 +82,23 @@ public class CameraManager : Singleton<CameraManager>
     public void ExitCinematic()
     {
         SwitchCamera(_preCinematicCamera);
+    }
+
+    /// <summary>
+    /// Activates the cutscene vcam. Unlike EnterCinematic, this does not move a follow target —
+    /// CutsceneCameraBridge writes the vcam's transform/lens directly every frame from
+    /// CutsceneCameraPose. Call ExitCutscene() to return to the previous camera.
+    /// </summary>
+    public void EnterCutscene()
+    {
+        _preCutsceneCamera = currentCamera;
+        SwitchCamera(CinemachineCameraType.Cutscene);
+    }
+
+    /// <summary>Restores the camera that was active before EnterCutscene was called.</summary>
+    public void ExitCutscene()
+    {
+        SwitchCamera(_preCutsceneCamera);
     }
 
     public CinemachineCameraType GetCurrentCamera()

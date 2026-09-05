@@ -7,4 +7,5 @@
         ControlUnits,
         Map,
         Cinematic,
+        Cutscene,
     }
