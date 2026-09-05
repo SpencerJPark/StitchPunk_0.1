@@ -86,6 +86,41 @@ namespace DotsAnimationToolkit
 
         /// <summary>Tag-addressed per-part override tracks within this segment. Empty for a Prop slot.</summary>
         public BlobArray<CutscenePartTrackBlob> partTracks;
+
+        /// <summary>Attach/detach moments within this segment, segment-relative (amendment A63).</summary>
+        public BlobArray<CutsceneAttachMarkerBlob> attachMarkers;
+    }
+
+    /// <summary>One baked attach/detach moment (amendment A63 §3.2), bucketed by its own instant like an event.</summary>
+    public struct CutsceneAttachMarkerBlob
+    {
+        /// <summary>Marker time, segment-relative seconds.</summary>
+        public float time;
+
+        /// <summary>Whether this marker binds the slot to a host or releases it.</summary>
+        public CutsceneAttachKind kind;
+
+        /// <summary>
+        /// Index into <see cref="CutsceneBlob.slots"/> of the host, or −1 when the authored host slot
+        /// id resolved to nothing. Warned at bake and skipped at play time rather than erroring —
+        /// the same lenient rule an unresolved part-track tag follows.
+        /// </summary>
+        public int hostSlotIndex;
+
+        /// <summary>A socket id on the host's rig, or 0 for the host's root.</summary>
+        public uint socketId;
+
+        /// <summary>Extra offset in socket space, or host-root space for a root attach.</summary>
+        public float3 localOffset;
+
+        /// <summary>Root-attach rotation, converted from the authored Euler degrees at bake.</summary>
+        public quaternion localRotation;
+
+        /// <summary>Whether the slot's renderers are suppressed while the attachment lasts.</summary>
+        public bool hideWhileAttached;
+
+        /// <summary>Detach only: the host-space impulse handed on through <c>CutsceneDetachSignal</c>.</summary>
+        public float3 detachImpulse;
     }
 
     /// <summary>One baked clip block (Phase G §2): overlap with the previous block on the slot's flat lane is the crossfade window; blocks that merely touch are a hard cut.</summary>

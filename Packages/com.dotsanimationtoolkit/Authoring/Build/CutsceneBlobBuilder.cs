@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Authoring
     public static class CutsceneBlobBuilder
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
-        public const int SchemaVersion = 2;
+        public const int SchemaVersion = 3;
 
         private const float BoundaryEpsilon = 1e-5f;
 
@@ -161,6 +161,13 @@ namespace DotsAnimationToolkit.Authoring
                             latest = Mathf.Max(latest, LatestTime(slot.partTracks[i].keys));
                         }
                     }
+                    if (slot.attachMarkers != null)
+                    {
+                        for (int i = 0; i < slot.attachMarkers.Count; i++)
+                        {
+                            latest = Mathf.Max(latest, slot.attachMarkers[i].time);
+                        }
+                    }
                 }
             }
             latest = Mathf.Max(latest, LatestCameraTime(cutscene.cameraLane?.keys));
@@ -277,6 +284,7 @@ namespace DotsAnimationToolkit.Authoring
             List<CutsceneTransformKeyBlob>[,] transformKeysBySlotSegment = new List<CutsceneTransformKeyBlob>[cutscene.slots?.Count ?? 0, segmentCount];
             List<CutsceneFacingKeyBlob>[,] facingKeysBySlotSegment = new List<CutsceneFacingKeyBlob>[cutscene.slots?.Count ?? 0, segmentCount];
             List<PartTrackBucket>[,] partTracksBySlotSegment = new List<PartTrackBucket>[cutscene.slots?.Count ?? 0, segmentCount];
+            List<CutsceneAttachMarkerBlob>[,] attachMarkersBySlotSegment = new List<CutsceneAttachMarkerBlob>[cutscene.slots?.Count ?? 0, segmentCount];
 
             for (int slotIndex = 0; slotIndex < (cutscene.slots?.Count ?? 0); slotIndex++)
             {
@@ -286,6 +294,7 @@ namespace DotsAnimationToolkit.Authoring
                     transformKeysBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneTransformKeyBlob>();
                     facingKeysBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneFacingKeyBlob>();
                     partTracksBySlotSegment[slotIndex, segmentIndex] = new List<PartTrackBucket>();
+                    attachMarkersBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneAttachMarkerBlob>();
                 }
 
                 CutsceneSlot slot = cutscene.slots[slotIndex];
@@ -293,6 +302,7 @@ namespace DotsAnimationToolkit.Authoring
                 BucketTransformKeys(slot.transformKeys, boundaries, transformKeysBySlotSegment, slotIndex);
                 BucketFacingKeys(slot.facingKeys, boundaries, facingKeysBySlotSegment, slotIndex);
                 BucketPartTracks(slot, boundaries, warnings, partTracksBySlotSegment, slotIndex);
+                BucketAttachMarkers(cutscene, slot, boundaries, warnings, attachMarkersBySlotSegment, slotIndex);
             }
 
             List<CutsceneCameraKeyBlob>[] cameraKeysBySegment = new List<CutsceneCameraKeyBlob>[segmentCount];
@@ -330,7 +340,8 @@ namespace DotsAnimationToolkit.Authoring
                         clipBlocksBySlotSegment[slotIndex, segmentIndex],
                         transformKeysBySlotSegment[slotIndex, segmentIndex],
                         facingKeysBySlotSegment[slotIndex, segmentIndex],
-                        partTracksBySlotSegment[slotIndex, segmentIndex]);
+                        partTracksBySlotSegment[slotIndex, segmentIndex],
+                        attachMarkersBySlotSegment[slotIndex, segmentIndex]);
                 }
 
                 BlobBuilderArray<CutsceneCameraKeyBlob> cameraKeyArray =
@@ -367,7 +378,8 @@ namespace DotsAnimationToolkit.Authoring
         private static void FillSlotSegment(
             ref BlobBuilder builder, ref CutsceneSlotSegmentBlob slotSegmentBlob,
             List<CutsceneClipBlockBlob> clipBlocks, List<CutsceneTransformKeyBlob> transformKeys,
-            List<CutsceneFacingKeyBlob> facingKeys, List<PartTrackBucket> partTracks)
+            List<CutsceneFacingKeyBlob> facingKeys, List<PartTrackBucket> partTracks,
+            List<CutsceneAttachMarkerBlob> attachMarkers)
         {
             BlobBuilderArray<CutsceneClipBlockBlob> clipBlockArray =
                 builder.Allocate(ref slotSegmentBlob.clipBlocks, clipBlocks.Count);
@@ -403,6 +415,13 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     keyArray[keyIndex] = partTracks[i].keys[keyIndex];
                 }
+            }
+
+            BlobBuilderArray<CutsceneAttachMarkerBlob> attachMarkerArray =
+                builder.Allocate(ref slotSegmentBlob.attachMarkers, attachMarkers.Count);
+            for (int i = 0; i < attachMarkers.Count; i++)
+            {
+                attachMarkerArray[i] = attachMarkers[i];
             }
         }
 
@@ -669,6 +688,124 @@ namespace DotsAnimationToolkit.Authoring
                     fireOnSkip = events[i].fireOnSkip
                 });
             }
+        }
+
+        /// <summary>
+        /// Buckets one slot's attach lane (amendment A63 §3.2), resolving each Attach marker's host
+        /// slot id to a dense index once, here, the same way a part track's tag is resolved (G-D9) —
+        /// the runtime carries no slot-id map to look one up against.
+        /// </summary>
+        private static void BucketAttachMarkers(
+            CutsceneAsset cutscene, CutsceneSlot slot, List<SegmentBoundary> boundaries,
+            List<string> warnings, List<CutsceneAttachMarkerBlob>[,] bucket, int slotIndex)
+        {
+            if (slot.attachMarkers == null)
+            {
+                return;
+            }
+
+            // Sorted by time on the flat lane so the runtime's cursor walk sees a hand-over's two
+            // markers in authored order rather than in list order.
+            List<CutsceneAttachMarker> sortedMarkers = new List<CutsceneAttachMarker>(slot.attachMarkers);
+            sortedMarkers.Sort((left, right) => left.time.CompareTo(right.time));
+
+            for (int markerIndex = 0; markerIndex < sortedMarkers.Count; markerIndex++)
+            {
+                CutsceneAttachMarker marker = sortedMarkers[markerIndex];
+                if (marker == null)
+                {
+                    continue;
+                }
+
+                int hostSlotIndex = -1;
+                if (marker.kind == CutsceneAttachKind.Attach)
+                {
+                    hostSlotIndex = ResolveSlotIndexById(cutscene, marker.hostSlotId);
+                    if (hostSlotIndex < 0)
+                    {
+                        warnings.Add(
+                            "Cutscene attach marker " + markerIndex + " on slot '" + slot.name +
+                            "' names host slot id 0x" + marker.hostSlotId.ToString("X8") +
+                            ", which this cutscene does not declare. Baked anyway — skipped at play time.");
+                    }
+                    else if (hostSlotIndex == slotIndex)
+                    {
+                        warnings.Add(
+                            "Cutscene attach marker " + markerIndex + " on slot '" + slot.name +
+                            "' names itself as its host. Baked as unresolved — skipped at play time.");
+                        hostSlotIndex = -1;
+                    }
+                    else if (marker.socketId != 0u)
+                    {
+                        WarnOnUnknownSocket(cutscene.slots[hostSlotIndex], slot, markerIndex, marker.socketId, warnings);
+                    }
+                }
+
+                float segmentStart;
+                int segmentIndex = AssignToSegment(boundaries, marker.time, out segmentStart);
+                bucket[slotIndex, segmentIndex].Add(new CutsceneAttachMarkerBlob
+                {
+                    time = marker.time - segmentStart,
+                    kind = marker.kind,
+                    hostSlotIndex = hostSlotIndex,
+                    socketId = marker.socketId,
+                    localOffset = marker.localOffset,
+                    localRotation = quaternion.Euler(math.radians(marker.localEulerDegrees)),
+                    hideWhileAttached = marker.hideWhileAttached,
+                    detachImpulse = marker.detachImpulse
+                });
+            }
+        }
+
+        private static int ResolveSlotIndexById(CutsceneAsset cutscene, uint slotId)
+        {
+            if (slotId == 0u || cutscene.slots == null)
+            {
+                return -1;
+            }
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                if (cutscene.slots[slotIndex] != null && cutscene.slots[slotIndex].SlotId == slotId)
+                {
+                    return slotIndex;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Warns when a socket attach names a socket the host cannot offer. Not fatal: the runtime
+        /// falls back to a root attach, so a mistyped socket parks the prop at the host's origin
+        /// rather than leaving it behind with nothing said.
+        /// </summary>
+        private static void WarnOnUnknownSocket(
+            CutsceneSlot hostSlot, CutsceneSlot ridingSlot, int markerIndex, uint socketId, List<string> warnings)
+        {
+            if (hostSlot.rig == null)
+            {
+                warnings.Add(
+                    "Cutscene attach marker " + markerIndex + " on slot '" + ridingSlot.name +
+                    "' names socket 0x" + socketId.ToString("X8") + " on host slot '" + hostSlot.name +
+                    "', which has no rig. Baked anyway — attaches to the host root at play time.");
+                return;
+            }
+
+            if (hostSlot.rig.sockets != null)
+            {
+                for (int socketIndex = 0; socketIndex < hostSlot.rig.sockets.Count; socketIndex++)
+                {
+                    SocketDefinition socket = hostSlot.rig.sockets[socketIndex];
+                    if (socket != null && socket.Id.Value == socketId)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            warnings.Add(
+                "Cutscene attach marker " + markerIndex + " on slot '" + ridingSlot.name +
+                "' names socket 0x" + socketId.ToString("X8") + ", which rig '" + hostSlot.rig.name +
+                "' does not declare. Baked anyway — attaches to the host root at play time.");
         }
 
         // -----------------------------------------------------------------------------------

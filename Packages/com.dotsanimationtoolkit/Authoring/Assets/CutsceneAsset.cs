@@ -201,6 +201,9 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Per-part key lanes that layer, Override, over whatever clip is currently playing (spec §2, like <c>ApplyHeldTargetPose</c>). Ignored for <see cref="CutsceneSlotKind.Prop"/>.</summary>
         public List<CutsceneKeyedTrack> partTracks = new List<CutsceneKeyedTrack>();
 
+        /// <summary>When this slot rides another slot, and when it lets go (amendment A63 §3.1). Authored on Actor and Prop slots alike — a crate rides a cart exactly as an actor does.</summary>
+        public List<CutsceneAttachMarker> attachMarkers = new List<CutsceneAttachMarker>();
+
         /// <summary>This slot's stable 32-bit identity within the owning cutscene — what a host's <c>CutsceneActorBinding</c> buffer resolves against (spec §6), never <see cref="name"/> or list position.</summary>
         public uint SlotId
         {
@@ -406,6 +409,51 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>The id a <c>CutsceneHoldRelease</c> names to release this specific hold.</summary>
         public string holdId = string.Empty;
+    }
+
+    /// <summary>
+    /// One attach/detach moment on a slot's attach lane (amendment A63 §3.1).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Attach while already attached is a hand-over</strong>, not an error: the previous
+    /// binding is dropped silently — no <c>CutsceneDetachSignal</c>, no impulse — and the new one
+    /// takes its place. Two markers at the same instant apply in authored order.
+    /// </para>
+    /// <para>
+    /// <strong>An attached slot's root lane is ignored</strong> for as long as the attachment lasts;
+    /// the host owns the transform. Clip blocks and part tracks keep playing, so an actor riding a
+    /// cart can still wave. <see cref="CutsceneAttachKind.Detach"/> leaves the slot at the world pose
+    /// it was let go at (Phase G §4, "actors stay where the cutscene left them") and the root lane
+    /// resumes from its next key.
+    /// </para>
+    /// </remarks>
+    [Serializable]
+    public sealed class CutsceneAttachMarker
+    {
+        /// <summary>Marker time, in raw timeline seconds.</summary>
+        public float time;
+
+        /// <summary>Whether this marker binds the slot to a host or releases it.</summary>
+        public CutsceneAttachKind kind = CutsceneAttachKind.Attach;
+
+        /// <summary>Attach only: the <see cref="CutsceneSlot.SlotId"/> of the slot this one rides.</summary>
+        public uint hostSlotId;
+
+        /// <summary>A <c>SocketDefinition.Id</c> on the host slot's rig, or 0 for the host's root.</summary>
+        public uint socketId;
+
+        /// <summary>Extra offset in socket space, or host-root space for a root attach.</summary>
+        public float3 localOffset;
+
+        /// <summary>Root attach only — a socket carries its own rotation, which this would fight.</summary>
+        public float3 localEulerDegrees;
+
+        /// <summary>Hides the slot's renderers while the attachment lasts: riders inside a cart.</summary>
+        public bool hideWhileAttached;
+
+        /// <summary>Detach only: an impulse in host space, rotated to world at detach time and handed to the host through <c>CutsceneDetachSignal</c> (decision A63-D2 — the toolkit applies no physics of its own).</summary>
+        public float3 detachImpulse;
     }
 
     /// <summary>Editor-only slot→GameObject bindings for one scene (spec §5).</summary>

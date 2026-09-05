@@ -1,10 +1,13 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using DotsAnimationToolkit.Authoring;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
@@ -101,6 +104,57 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Assert.AreEqual(1, startingSlotSegment.clipBlocks.Length, "the second block is assigned wholly to segment 1 by its own start time");
                 Assert.AreEqual(0.5f, startingSlotSegment.clipBlocks[0].blendDuration, 1e-4f,
                     "the seam's overlap survives the hold even though the outgoing block is no longer in this segment");
+            }
+            finally
+            {
+                blob.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Amendment A63-T1: the runtime has no slot-id map, so an attach marker's host is resolved
+        /// to a dense slot index at bake. An unresolvable host must warn once and bake −1 rather
+        /// than throwing — rule T2's lenient shape, so one mis-typed host cannot fail a bake.
+        /// </summary>
+        [Test]
+        public void AttachMarker_ResolvesHostSlotIndex_AndWarnsOnUnknownHost()
+        {
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            CutsceneSlot propSlot = new CutsceneSlot { name = "Prop", kind = CutsceneSlotKind.Prop };
+            CutsceneSlot actorSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor };
+            cutscene.slots.Add(propSlot);
+            cutscene.slots.Add(actorSlot);
+            cutscene.EnsureStableIds();
+
+            propSlot.attachMarkers.Add(new CutsceneAttachMarker
+            {
+                time = 0.5f,
+                kind = CutsceneAttachKind.Attach,
+                hostSlotId = actorSlot.SlotId,
+                localOffset = new float3(0f, 1f, 0f)
+            });
+            propSlot.attachMarkers.Add(new CutsceneAttachMarker
+            {
+                time = 1f,
+                kind = CutsceneAttachKind.Attach,
+                hostSlotId = 0xFFFFu
+            });
+
+            List<string> warnings = new List<string>();
+            BlobAssetReference<CutsceneBlob> blob;
+            LogAssert.Expect(LogType.Warning, new Regex("host slot id 0x0000FFFF"));
+            CutsceneBlobBuilder.Build(cutscene, out blob, warnings);
+            try
+            {
+                ref CutsceneSlotSegmentBlob propSegment = ref blob.Value.segments[0].slotTracks[0];
+                Assert.AreEqual(2, propSegment.attachMarkers.Length, "both markers bake");
+                Assert.AreEqual(1, propSegment.attachMarkers[0].hostSlotIndex,
+                    "the resolvable host bakes to its dense slot index");
+                Assert.AreEqual(1f, propSegment.attachMarkers[0].localOffset.y, 1e-4f,
+                    "sanity: the authored offset survives the bake");
+                Assert.AreEqual(-1, propSegment.attachMarkers[1].hostSlotIndex,
+                    "an unknown host slot id bakes as unresolved rather than throwing");
+                Assert.AreEqual(1, warnings.Count, "exactly one warning, for the unresolvable host");
             }
             finally
             {

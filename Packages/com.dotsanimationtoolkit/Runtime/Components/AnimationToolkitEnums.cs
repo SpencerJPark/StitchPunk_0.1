@@ -302,6 +302,20 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
+    /// What one cutscene attach marker does (amendment A63): bind this slot to a host, or release it.
+    /// Lives here rather than in <c>Authoring</c> for the same reason <see cref="CutsceneSlotKind"/>
+    /// does — both the authored marker and its baked form need it.
+    /// </summary>
+    public enum CutsceneAttachKind : byte
+    {
+        /// <summary>Bind this slot to a host slot's socket, or to the host's root.</summary>
+        Attach = 0,
+
+        /// <summary>Release the slot where it stands and raise <c>CutsceneDetachSignal</c>.</summary>
+        Detach = 1
+    }
+
+    /// <summary>
     /// Reserved event-key values (architecture sections 5.4, 5.5). Keys 0–15 belong to the
     /// package: 0 is invalid, 1–2 are the shipped built-ins, 3–15 are reserved for future
     /// built-ins. User-authored keys start at <see cref="FirstUserKey"/> (validation rule V09).
