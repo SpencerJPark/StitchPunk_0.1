@@ -217,6 +217,9 @@ public class NarrativeEventManager : MonoBehaviour
             case CinematicCameraAction cinCamAction:
                 return ExecuteCinematicCameraAsync(cinCamAction, ct);
 
+            case ZombifyAction zombifyAction:
+                return ExecuteZombifyAsync(zombifyAction, ct);
+
             default:
                 Debug.LogWarning($"NarrativeEventManager: Unknown action type '{action.GetType().Name}'.");
                 return UniTask.CompletedTask;
@@ -342,6 +345,35 @@ public class NarrativeEventManager : MonoBehaviour
                 if (_entityManager.HasComponent<Interaction>(entity))
                     _entityManager.SetComponentEnabled<Interaction>(entity, action.enable);
                 break;
+        }
+    }
+
+    private async UniTask ExecuteZombifyAsync(ZombifyAction action, CancellationToken ct)
+    {
+        if (!TryGetEntity(action.targetEntityId, out Entity entity)) return;
+
+        if (!_entityManager.HasComponent<ZombifyRequest>(entity))
+        {
+            Debug.LogWarning($"NarrativeEventManager: Entity {entity} has no ZombifyRequest — only " +
+                             "units baked through UnitBakingUtil can be converted.");
+            return;
+        }
+
+        _entityManager.SetComponentData(entity, new ZombifyRequest
+        {
+            targetUnitType = action.targetUnitType,
+            delaySeconds   = action.delaySeconds,
+        });
+        _entityManager.SetComponentEnabled<ZombifyRequest>(entity, true);
+
+        // ZombifySystem disables the request once it has composed the conversion — including the
+        // case where the unit has no zombie form, so this never waits forever.
+        if (action.waitForConversion)
+        {
+            await UniTask.WaitUntil(
+                () => !_entityManager.Exists(entity)
+                      || !_entityManager.IsComponentEnabled<ZombifyRequest>(entity),
+                cancellationToken: ct);
         }
     }
 

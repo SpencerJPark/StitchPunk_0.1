@@ -67,6 +67,18 @@ public struct LocomotionStance : IComponentData
 // Player actions
 public struct Undead : IComponentData, IEnableableComponent { }
 public struct ReviveRequest : IComponentData, IEnableableComponent { }
+
+// Turns a LIVING unit into its converted (zombie) form. Enabled by any trigger — debug menu,
+// narrative ZombifyAction, a future bite hook — and consumed by ZombifySystem, which composes the
+// brain swap and the re-skin that already exist. Corpses convert through ReviveRequest instead.
+// targetUnitType None = use the unit's authored UnitSO.becomesUnitType, the same field the revive
+// path converts through, so a trigger never has to know the human→zombie mapping.
+public struct ZombifyRequest : IComponentData, IEnableableComponent
+{
+    public UnitType targetUnitType;
+    // Counts down inside the request; conversion applies on the frame it reaches zero (0 = instant).
+    public float delaySeconds;
+}
 public struct Minion: IComponentData, IEnableableComponent, IPersist { }
 public struct Selected : IComponentData, IEnableableComponent
 {

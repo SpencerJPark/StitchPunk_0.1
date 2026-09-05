@@ -133,6 +133,25 @@ public class EnableComponentAction : NarrativeActionBase
 }
 
 /// <summary>
+/// Converts the target unit into its zombie form (brain swap + re-skin) through ZombifyRequest.
+/// Only units baked by UnitBakingUtil carry the request; corpses convert through revive instead.
+/// </summary>
+[Serializable]
+public class ZombifyAction : NarrativeActionBase
+{
+    [Tooltip("Which unit type to convert into. Leave as None to use the unit's own " +
+             "UnitSO.becomesUnitType — the same mapping the revive path converts through.")]
+    [SearchableEnum] public UnitType targetUnitType;
+
+    [Tooltip("Seconds between the request and the conversion. 0 converts on the same frame.")]
+    public float delaySeconds;
+
+    [Tooltip("When true, the group waits until the conversion has actually been applied before " +
+             "advancing — the honest wait when delaySeconds is set.")]
+    public bool waitForConversion;
+}
+
+/// <summary>
 /// Moves the cinematic camera to look at the target entity (or leaves the cinematic target
 /// in place if targetEntityId is -1), holds for holdDuration seconds, then returns to the
 /// gameplay camera. The group waits for the full hold before advancing.

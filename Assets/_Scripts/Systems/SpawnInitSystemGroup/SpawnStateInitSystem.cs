@@ -26,6 +26,7 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<Undead>            _undeadLookup;
     private ComponentLookup<Minion>            _minionLookup;
     private ComponentLookup<ReviveRequest>     _reviveLookup;
+    private ComponentLookup<ZombifyRequest>    _zombifyLookup;
     private ComponentLookup<Selected>          _selectedLookup;
     private ComponentLookup<PathRequest>       _pathRequestLookup;
     private ComponentLookup<DStarLiteFollower> _dStarLookup;
@@ -47,6 +48,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _undeadLookup          = state.GetComponentLookup<Undead>(false);
         _minionLookup          = state.GetComponentLookup<Minion>(false);
         _reviveLookup          = state.GetComponentLookup<ReviveRequest>(false);
+        _zombifyLookup         = state.GetComponentLookup<ZombifyRequest>(false);
         _selectedLookup        = state.GetComponentLookup<Selected>(false);
         _pathRequestLookup     = state.GetComponentLookup<PathRequest>(false);
         _dStarLookup           = state.GetComponentLookup<DStarLiteFollower>(false);
@@ -68,6 +70,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _undeadLookup.Update(ref state);
         _minionLookup.Update(ref state);
         _reviveLookup.Update(ref state);
+        _zombifyLookup.Update(ref state);
         _selectedLookup.Update(ref state);
         _pathRequestLookup.Update(ref state);
         _dStarLookup.Update(ref state);
@@ -100,6 +103,9 @@ public partial struct SpawnStateInitSystem : ISystem
                 _minionLookup.SetComponentEnabled(entity, false);
             if (_reviveLookup.HasComponent(entity))
                 _reviveLookup.SetComponentEnabled(entity, false);
+            // A pool-reclaimed body must never carry the conversion the previous life requested.
+            if (_zombifyLookup.HasComponent(entity))
+                _zombifyLookup.SetComponentEnabled(entity, false);
             if (_selectedLookup.HasComponent(entity))
                 _selectedLookup.SetComponentEnabled(entity, false);
 

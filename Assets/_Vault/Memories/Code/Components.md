@@ -32,7 +32,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `DamageEvent.cs` | `Components/Combat/` | `DamageEvent` — **plain value struct** (NOT `IComponentData`), queued in the `DamageBus`. `sourceEntity` (Null = environmental) + `damageSource` + damage/knockback/AOE fields |
 | `DamageBus.cs` | `Components/Combat/` | `DamageBus` singleton — recycled `NativeQueue<DamageEvent>` transport (`raw` + `resolved`). Owned/disposed by `DamageBusSystem` |
 | `Hazard.cs` | `Components/Combat/` | `HazardZone` — proximity damage zone (spikes): `damageAmount`, `damageSource`, `radius`, `retriggerInterval`, `lastTriggerTime` (whole-zone gate), kill-knockback fields |
-| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal` |
+| `UnitComponents.cs` | `Components/Units/` | `Unit`, `UnitData`, `UnitStateData`, `UnitAction`, `Dead`, `Health`, `HealthBar`, `Attack`, `AttackData`, `AttackCooldown`, `Selected`, `Undead`, `Revive`, `Minion`, `PlayerImmune`, `Heal`, `ZombifyRequest` |
 | `DesignComponents.cs` | `Components/Units/` | **Semantic** Unit Design: `DesignSlot` (`target`+`shapeIndex`), `PersistedDesign` (`IPersist`, rolled shapes — auto-saved), `ShapeOverride`, `ChangeDesignRequest` (enableable, semantic re-skin: shape-tag `paletteChanges` + `shapeOverrides` + `alternateColorMode` Enable/Disable), `RandomTagOption` buffer (authored roll pool from `CharacterRigAuthoring.randomTags` — what a random spawn may look like), `DesignReloadOnBake` (`[BakingType]`). Colours live in `CharacterPalette`; slices re-derived through the `PartLibrary` blob, colours through the `ColorPaletteLibrary` blob. ⚠ `DesignPart`/`DesignRange` buffers removed |
 | `CameraVisibilityComponents.cs` | `Components/Units/` | `CameraVisible` (enableable tag) — camera-visibility gate, flipped by `CameraVisibilitySystem` (GameManagerSystemGroup) from `CameraView`. Baked ENABLED on rig roots (`CharacterRigAuthoring`), parts (`BodyPartAuthoring`), standalone quads (`ImageIndexAuthoring`). ⚠ **PRESENTATION-ONLY gate** — see [[RULES]] |
 | `HordeOrderMarker.cs` | `Components/Units/` | `HordeOrderMarker` — game-only order-marker GameObject ref, split off the package's `Horde` (see [[Systems_Movement]]) |
@@ -141,6 +141,9 @@ PlayerImmune            tag — prevents player attack targeting
 Heal (enableable)       int healAmount
 Undead (enableable)     tag — unit is player-controlled undead
 Revive (enableable)     tag
+ZombifyRequest          UnitType targetUnitType (None = the unit's authored becomesUnitType),
+  (enableable)          float delaySeconds. Living-unit conversion trigger — ZombifySystem
+                        (HealthSystemGroup) composes SwapBrainRequest + ChangeDesignRequest
 Minion (enableable)     tag — unit is a player minion
 
 Selected (enableable)

@@ -39,7 +39,7 @@ BuildingsSystemGroup         — factory production loop (PARKED — ProductionS
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)
   └── CombatReactionSystemGroup  — DamageResolutionSystem + DamageEventSystem (bus drain + apply)
-HealthSystemGroup            — death, fake ragdoll init, heal, revive, brain swap, health bar updates
+HealthSystemGroup            — death, fake ragdoll init, heal, revive, brain swap, zombify, health bar updates
 DesignSystemGroup            — DesignChangeSystem: runtime body-part re-skin (after Health, before Animation)
 AnimationSystemGroup         — see [[Systems_Animation]]
   ├── AnimationAssignmentSystemGroup — decides which clip to play per layer
@@ -241,6 +241,7 @@ Combat runs on a **recycled `NativeQueue<DamageEvent>` bus (v2)** — no per-uni
 | `HealRequestSystem` | `HealRequestSystem.cs` | Applies a heal request when enabled |
 | `ReviveRequestSystem` | `ReviveRequestSystem.cs` | Consumes `ReviveRequest` on a corpse (`[WithAll(Dead)]`): heal, `Dead`→off, `Undead`→on, re-enables the package's `Movement`/`Gravity`, `UnitAction`→Idle (re-arms death latch), disables `PlayerInteractable` (alive again → no longer a reviver target). If the unit's `UnitDataBlob.becomesUnitType != None`, stamps + enables `SwapBrainRequest{newUnit}` and enables `Minion` (→ selectable). Re-enables `UtilityBrain`, fires `ActionInterruptRequest`. |
 | `SwapBrainSystem` | `SwapBrainSystem.cs` | `[UpdateAfter(ReviveRequestSystem)]`. Consumes an enabled `SwapBrainRequest`: re-keys `UtilityBrain.unitType`/`UnitData.unitType`, `Faction`, and rebuilds the `AttackFaction`/`AvailableAttack`/`Motivation` buffers from `UnitDataLibrary[newUnit]`; fires `ActionInterruptRequest`; consumes the request via ECB. Generic brain-swap hook (revive, future feral turn, debug). Rebuilt motivations are zero-decay (blob has no decay data). |
+| `ZombifySystem` | `ZombifySystem.cs` | `[UpdateAfter(ReviveRequestSystem)]` + `[UpdateBefore(SwapBrainSystem)]`. Consumes `ZombifyRequest` on a LIVING unit (`[WithDisabled(Dead)]`): counts down `delaySeconds`, resolves the target type (`None` → `UnitDataBlob.becomesUnitType`), then stamps + enables `SwapBrainRequest` (consumed the same frame, and it fires the `ActionInterruptRequest`) and `ChangeDesignRequest` (skin group → "Zombie" tag + `AlternateColorMode.Enable`, applied the same frame by `DesignSystemGroup`), and enables `Undead` if present. Defers a frame when a `SwapBrainRequest` is already in flight (a revive that frame) rather than clobbering it. Corpses convert through `ReviveRequestSystem`, not this. |
 | `Ragdoll2DReviveSystem` | `Ragdoll2DReviveSystem.cs` | Runs after `ReviveRequestSystem`. Resets visual child + joint rotations to their pre-death pose and disables ragdoll components |
 | `HealthBarSystem` | `HealthBarSystem.cs` | Syncs `HealthBar` visual entity scale to `Health` values |
 

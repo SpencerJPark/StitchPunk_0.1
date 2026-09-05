@@ -13,6 +13,7 @@ public class NarrativeEventSOEditor : Editor
         ("Play Animation",   typeof(PlayAnimationAction)),
         ("Enable Component", typeof(EnableComponentAction)),
         ("Cinematic Camera", typeof(CinematicCameraAction)),
+        ("Zombify",          typeof(ZombifyAction)),
     };
 
     public override void OnInspectorGUI()
@@ -180,6 +181,9 @@ public class NarrativeEventSOEditor : Editor
                 return $"{(e.enable ? "Enable" : "Disable")} {e.componentType}";
             case CinematicCameraAction c:
                 return $"Camera {c.holdDuration}s";
+            case ZombifyAction z:
+                string zombifyTarget = z.targetUnitType == UnitType.None ? "authored form" : z.targetUnitType.ToString();
+                return $"Zombify #{z.targetEntityId} → {zombifyTarget}{(z.delaySeconds > 0f ? $" ({z.delaySeconds}s)" : "")}";
             default:
                 return action.GetType().Name;
         }
@@ -215,6 +219,11 @@ public class NarrativeEventSOEditor : Editor
             case CinematicCameraAction _:
                 DrawFieldRelative(actionProp, "holdDuration");
                 DrawFieldRelative(actionProp, "targetOffset");
+                break;
+            case ZombifyAction _:
+                DrawFieldRelative(actionProp, "targetUnitType");
+                DrawFieldRelative(actionProp, "delaySeconds");
+                DrawFieldRelative(actionProp, "waitForConversion");
                 break;
         }
     }

@@ -63,7 +63,10 @@ public static class UnitBakingUtil
 
         baker.AddComponent<SwapBrainRequest>(entity);
         baker.SetComponentEnabled<SwapBrainRequest>(entity, false);
-        
+
+        baker.AddComponent<ZombifyRequest>(entity);
+        baker.SetComponentEnabled<ZombifyRequest>(entity, false);
+
 
         baker.AddComponent<SocialInvite>(entity);
         baker.SetComponentEnabled<SocialInvite>(entity, false);

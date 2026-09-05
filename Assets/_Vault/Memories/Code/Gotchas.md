@@ -281,6 +281,19 @@ adding a constraint solver, write the settle test.
 A new job file without `using Unity.Collections;` fails with `CS0246: ReadOnlyAttribute could not be
 found`, which reads like a missing assembly reference rather than a missing using.
 
+### A string literal becomes a `FixedString` only OUTSIDE Burst
+`new FixedString32Bytes("Skin")` — and the implicit `string` → `FixedString32Bytes` conversion that
+hides the same constructor — compiles fine in C# and then fails at Burst compile time with
+`BC1016: The managed function System.String.get_Length is not supported` (via
+`FixedStringMethods.CopyFromTruncated`). The failure names the *Collections* file, not yours; the
+call site is further down the stack trace. `EnumLogNames`'s comment claims the conversion is legal
+inside Burst — treat that claim as unverified, it is the same constructor.
+
+**Fix:** materialise the value where managed code is allowed and hand it to the job as data —
+`ZombifySystem` builds its two palette names in a deliberately non-`[BurstCompile]` `OnCreate` and
+passes them as `FixedString32Bytes` job fields. Per-method `[BurstCompile]` is what makes this
+possible: dropping it on `OnCreate` leaves `OnUpdate` and the job fully Bursted.
+
 ### A mutable `NativeArray<T>` crossing a `[BurstCompile]` static entry point needs `ref`
 `in` and a bare value parameter both fail (BC1063/BC1067) even though `NativeArray` is only a
 pointer handle. `ClipSampler`'s `in NativeArray<PlaybackLayer>` works *only* because it is read-only
