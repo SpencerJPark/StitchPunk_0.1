@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
@@ -813,13 +814,15 @@ namespace DotsAnimationToolkit.Editor
                 && cutscene.cameraLane.keys.Count > 0;
             if (viewportShotMode && hasCameraKeys)
             {
-                Vector3 position;
-                Quaternion rotation;
+                float3 sampledPosition;
+                float3 sampledEulerDegrees;
                 float fieldOfView;
                 bool isCut;
-                CutscenePoseSampler.SampleCameraWithCuts(
+                CutsceneKeySampler.SampleCameraWithCuts(
                     cutscene.cameraLane.keys, cutscene.cameraLane.cutMarkers, playheadSeconds,
-                    out position, out rotation, out fieldOfView, out isCut);
+                    out sampledPosition, out sampledEulerDegrees, out fieldOfView, out isCut);
+                Vector3 position = new Vector3(sampledPosition.x, sampledPosition.y, sampledPosition.z);
+                Quaternion rotation = Quaternion.Euler(sampledEulerDegrees.x, sampledEulerDegrees.y, sampledEulerDegrees.z);
                 viewportElement.IsShowingShotPose = true;
                 viewportElement.RenderShot(position, rotation, fieldOfView);
                 return;
@@ -2451,7 +2454,7 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 float facingAngle;
-                bool isOverride = CutscenePoseSampler.TryResolveFacingAngle(
+                bool isOverride = CutsceneKeySampler.TryResolveFacingAngle(
                     slot.facingKeys, slot.transformKeys, playheadSeconds, out facingAngle);
                 Label facingLabel = new Label(
                     "Facing at playhead: " + facingAngle.ToString("0.#") + "°"

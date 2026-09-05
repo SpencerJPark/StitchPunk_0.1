@@ -304,13 +304,13 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                Vector3 position;
-                Quaternion rotation;
-                Vector3 scale;
-                CutscenePoseSampler.Sample(slot.transformKeys, timeSeconds, out position, out rotation, out scale);
-                boundObject.transform.localPosition = position;
-                boundObject.transform.localRotation = rotation;
-                boundObject.transform.localScale = scale;
+                float3 position;
+                float3 eulerDegrees;
+                float3 scale;
+                CutsceneKeySampler.TrySampleTransform(slot.transformKeys, timeSeconds, out position, out eulerDegrees, out scale);
+                boundObject.transform.localPosition = new Vector3(position.x, position.y, position.z);
+                boundObject.transform.localRotation = Quaternion.Euler(eulerDegrees.x, eulerDegrees.y, eulerDegrees.z);
+                boundObject.transform.localScale = new Vector3(scale.x, scale.y, scale.z);
 
                 if (slot.kind != CutsceneSlotKind.Actor)
                 {
@@ -496,7 +496,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             float angleDegrees;
-            CutscenePoseSampler.TryResolveFacingAngle(
+            CutsceneKeySampler.TryResolveFacingAngle(
                 slot.facingKeys, slot.transformKeys, timeSeconds, out angleDegrees);
 
             float angleRadians = Mathf.Deg2Rad * angleDegrees;
@@ -635,11 +635,11 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                Vector3 sampledPosition;
-                Quaternion sampledRotation;
-                Vector3 sampledScale;
-                CutscenePoseSampler.Sample(
-                    track.keys, timeSeconds, out sampledPosition, out sampledRotation, out sampledScale);
+                float3 sampledPosition;
+                float3 sampledEulerDegrees;
+                float3 sampledScale;
+                CutsceneKeySampler.TrySampleTransform(
+                    track.keys, timeSeconds, out sampledPosition, out sampledEulerDegrees, out sampledScale);
 
                 if ((track.channels & AnimatedChannels.PositionXY) != 0)
                 {
@@ -653,12 +653,11 @@ namespace DotsAnimationToolkit.Editor
                 if ((track.channels & AnimatedChannels.Rotation) != 0)
                 {
                     // The key authors degrees; a pose carries radians, like TargetPose everywhere.
-                    Vector3 sampledEuler = sampledRotation.eulerAngles;
-                    pose.rotation = math.radians(new float3(sampledEuler.x, sampledEuler.y, sampledEuler.z));
+                    pose.rotation = math.radians(sampledEulerDegrees);
                 }
                 if ((track.channels & AnimatedChannels.Scale) != 0)
                 {
-                    pose.scale = new float3(sampledScale.x, sampledScale.y, sampledScale.z);
+                    pose.scale = sampledScale;
                 }
 
                 composedPoses[targetStableId] = pose;
@@ -752,13 +751,15 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Vector3 position;
-            Quaternion rotation;
+            float3 sampledPosition;
+            float3 sampledEulerDegrees;
             float fieldOfView;
             bool isCut;
-            CutscenePoseSampler.SampleCameraWithCuts(
+            CutsceneKeySampler.SampleCameraWithCuts(
                 cutscene.cameraLane.keys, cutscene.cameraLane.cutMarkers, timeSeconds,
-                out position, out rotation, out fieldOfView, out isCut);
+                out sampledPosition, out sampledEulerDegrees, out fieldOfView, out isCut);
+            Vector3 position = new Vector3(sampledPosition.x, sampledPosition.y, sampledPosition.z);
+            Quaternion rotation = Quaternion.Euler(sampledEulerDegrees.x, sampledEulerDegrees.y, sampledEulerDegrees.z);
 
             const float ChosenSize = 1f;
             float cameraDistance = ChosenSize / Mathf.Sin(Mathf.Max(1f, fieldOfView) * 0.5f * Mathf.Deg2Rad);

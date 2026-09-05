@@ -9,7 +9,7 @@ namespace DotsAnimationToolkit
     /// <summary>
     /// Evaluates baked <see cref="CutsceneTransformKeyBlob"/>/<see cref="CutsceneCameraKeyBlob"/>
     /// arrays at a segment-relative second, for the runtime player (Phase G §6). The Burst-jobbable
-    /// twin of the editor's <c>CutscenePoseSampler</c> — same math, reusing <see cref="ClipSampler.Ease"/>
+    /// twin of <c>CutsceneKeySampler</c> (Authoring) — same math, reusing <see cref="ClipSampler.Ease"/>
     /// for the same reason that one does, but written against <see cref="BlobArray{T}"/> rather than
     /// <c>List&lt;T&gt;</c> so it can run inside a per-frame job.
     /// </summary>

@@ -1,47 +1,54 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
-using DotsAnimationToolkit.Authoring;
 using Unity.Mathematics;
-using UnityEngine;
 
-namespace DotsAnimationToolkit.Editor
+namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Evaluates a <see cref="CutsceneTransformKey"/>/<see cref="CutsceneFacingKey"/> list at a raw
-    /// timeline second, for the Scene-view preview (Phase G, G3). Editor-only and GameObject-facing
-    /// by design — it interpolates authoring lists directly rather than through
-    /// <c>ClipRegistryBlob</c>/<c>ClipSampler</c>'s baked, Burst-jobbed path, because there is no
-    /// blob until G5 and nothing here runs per-frame at runtime. It reuses
-    /// <see cref="ClipSampler.Ease"/> rather than re-implementing easing, so a key drawn with the
-    /// same curve editor look and the same math everywhere else in this package.
+    /// Evaluates a <see cref="CutsceneTransformKey"/>/<see cref="CutsceneCameraKey"/>/
+    /// <see cref="CutsceneFacingKey"/> list at a raw timeline second — the one flat-list sampler
+    /// shared by <see cref="CutsceneBlobBuilder"/> (baking boundary-continuity keys, amendment A62
+    /// §3.1/§3.2) and the Scene-view preview (Phase G, G3). Moved here from the Editor assembly so
+    /// the builder can call it too; the Editor assembly already sees <c>Authoring</c> internals.
     /// </summary>
-    internal static class CutscenePoseSampler
+    /// <remarks>
+    /// Outputs raw authoring-space values (position, Euler degrees, scale) rather than
+    /// <c>UnityEngine.Quaternion</c> — the builder needs them as-is to write synthetic
+    /// <see cref="CutsceneTransformKey"/>/<see cref="CutsceneCameraKey"/> entries, and the editor
+    /// preview (the only caller that wants a <c>Quaternion</c>) converts at its own call sites.
+    /// </remarks>
+    internal static class CutsceneKeySampler
     {
-        /// <summary>Samples a transform key list at <paramref name="timeSeconds"/>. Holds the nearest key outside the authored range, exactly like a clip's own edge behaviour.</summary>
-        public static void Sample(
+        /// <summary>
+        /// Samples a transform key list at <paramref name="timeSeconds"/>. Holds the nearest key
+        /// outside the authored range, exactly like a clip's own edge behaviour. Returns false when
+        /// the list is null or empty, in which case every out parameter is the identity pose —
+        /// callers must not write it unconditionally (amendment A62 defect 2).
+        /// </summary>
+        public static bool TrySampleTransform(
             List<CutsceneTransformKey> keys, float timeSeconds,
-            out Vector3 position, out Quaternion rotation, out Vector3 scale)
+            out float3 position, out float3 eulerDegrees, out float3 scale)
         {
             if (keys == null || keys.Count == 0)
             {
-                position = Vector3.zero;
-                rotation = Quaternion.identity;
-                scale = Vector3.one;
-                return;
+                position = float3.zero;
+                eulerDegrees = float3.zero;
+                scale = new float3(1f, 1f, 1f);
+                return false;
             }
 
             if (keys.Count == 1 || timeSeconds <= keys[0].time)
             {
-                ToUnityTypes(keys[0], out position, out rotation, out scale);
-                return;
+                ToOut(keys[0], out position, out eulerDegrees, out scale);
+                return true;
             }
 
             int lastIndex = keys.Count - 1;
             if (timeSeconds >= keys[lastIndex].time)
             {
-                ToUnityTypes(keys[lastIndex], out position, out rotation, out scale);
-                return;
+                ToOut(keys[lastIndex], out position, out eulerDegrees, out scale);
+                return true;
             }
 
             int segmentStart = 0;
@@ -57,37 +64,36 @@ namespace DotsAnimationToolkit.Editor
             CutsceneTransformKey fromKey = keys[segmentStart];
             CutsceneTransformKey toKey = keys[segmentStart + 1];
             float span = toKey.time - fromKey.time;
-            float linearTime = span > 0f ? Mathf.Clamp01((timeSeconds - fromKey.time) / span) : 1f;
+            float linearTime = span > 0f ? math.saturate((timeSeconds - fromKey.time) / span) : 1f;
             float easedTime = ClipSampler.Ease(
                 linearTime, fromKey.interpolation, fromKey.bezierStartHandle, fromKey.bezierEndHandle);
 
-            position = Vector3.LerpUnclamped(
-                ToVector3(fromKey.position), ToVector3(toKey.position), easedTime);
-            // Per-component Euler lerp, converted once — never a quaternion slerp, matching
-            // ClipSampler's own rotation interpolation exactly (its remarks: slerping would take a
-            // different path between the same two keys and quietly disagree with the curve editor).
-            rotation = Quaternion.Euler(Vector3.LerpUnclamped(
-                ToVector3(fromKey.rotation), ToVector3(toKey.rotation), easedTime));
-            scale = Vector3.LerpUnclamped(ToVector3(fromKey.scale), ToVector3(toKey.scale), easedTime);
+            position = math.lerp(fromKey.position, toKey.position, easedTime);
+            // Per-component Euler lerp, never a quaternion slerp — matching ClipSampler's own
+            // rotation interpolation exactly (its remarks: slerping would take a different path
+            // between the same two keys and quietly disagree with the curve editor).
+            eulerDegrees = math.lerp(fromKey.rotation, toKey.rotation, easedTime);
+            scale = math.lerp(fromKey.scale, toKey.scale, easedTime);
+            return true;
         }
 
-        /// <summary>Samples a camera key list the same way <see cref="Sample"/> does, plus field of view.</summary>
+        /// <summary>Samples a camera key list the same way <see cref="TrySampleTransform"/> does, plus field of view.</summary>
         public static void SampleCamera(
             List<CutsceneCameraKey> keys, float timeSeconds,
-            out Vector3 position, out Quaternion rotation, out float fieldOfView)
+            out float3 position, out float3 eulerDegrees, out float fieldOfView)
         {
             if (keys == null || keys.Count == 0)
             {
-                position = Vector3.zero;
-                rotation = Quaternion.identity;
+                position = float3.zero;
+                eulerDegrees = float3.zero;
                 fieldOfView = 60f;
                 return;
             }
 
             if (keys.Count == 1 || timeSeconds <= keys[0].time)
             {
-                position = ToVector3(keys[0].position);
-                rotation = Quaternion.Euler(ToVector3(keys[0].rotation));
+                position = keys[0].position;
+                eulerDegrees = keys[0].rotation;
                 fieldOfView = keys[0].fieldOfView;
                 return;
             }
@@ -95,8 +101,8 @@ namespace DotsAnimationToolkit.Editor
             int lastIndex = keys.Count - 1;
             if (timeSeconds >= keys[lastIndex].time)
             {
-                position = ToVector3(keys[lastIndex].position);
-                rotation = Quaternion.Euler(ToVector3(keys[lastIndex].rotation));
+                position = keys[lastIndex].position;
+                eulerDegrees = keys[lastIndex].rotation;
                 fieldOfView = keys[lastIndex].fieldOfView;
                 return;
             }
@@ -114,14 +120,13 @@ namespace DotsAnimationToolkit.Editor
             CutsceneCameraKey fromKey = keys[segmentStart];
             CutsceneCameraKey toKey = keys[segmentStart + 1];
             float span = toKey.time - fromKey.time;
-            float linearTime = span > 0f ? Mathf.Clamp01((timeSeconds - fromKey.time) / span) : 1f;
+            float linearTime = span > 0f ? math.saturate((timeSeconds - fromKey.time) / span) : 1f;
             float easedTime = ClipSampler.Ease(
                 linearTime, fromKey.interpolation, fromKey.bezierStartHandle, fromKey.bezierEndHandle);
 
-            position = Vector3.LerpUnclamped(ToVector3(fromKey.position), ToVector3(toKey.position), easedTime);
-            rotation = Quaternion.Euler(Vector3.LerpUnclamped(
-                ToVector3(fromKey.rotation), ToVector3(toKey.rotation), easedTime));
-            fieldOfView = Mathf.LerpUnclamped(fromKey.fieldOfView, toKey.fieldOfView, easedTime);
+            position = math.lerp(fromKey.position, toKey.position, easedTime);
+            eulerDegrees = math.lerp(fromKey.rotation, toKey.rotation, easedTime);
+            fieldOfView = math.lerp(fromKey.fieldOfView, toKey.fieldOfView, easedTime);
         }
 
         /// <summary>
@@ -134,7 +139,7 @@ namespace DotsAnimationToolkit.Editor
         /// <param name="isCut">True when <paramref name="timeSeconds"/> sits inside one frame's width of a cut marker — informational, mirrored by the runtime player's <c>CutsceneCameraPose.isCut</c> (spec §6).</param>
         public static void SampleCameraWithCuts(
             List<CutsceneCameraKey> keys, List<CutsceneCameraCutMarker> cutMarkers, float timeSeconds,
-            out Vector3 position, out Quaternion rotation, out float fieldOfView, out bool isCut)
+            out float3 position, out float3 eulerDegrees, out float fieldOfView, out bool isCut)
         {
             float windowStart = 0f;
             float windowEnd = float.MaxValue;
@@ -145,7 +150,7 @@ namespace DotsAnimationToolkit.Editor
                 for (int i = 0; i < cutMarkers.Count; i++)
                 {
                     float cutTime = cutMarkers[i].time;
-                    if (Mathf.Abs(cutTime - timeSeconds) <= CutEpsilon)
+                    if (math.abs(cutTime - timeSeconds) <= CutEpsilon)
                     {
                         isCut = true;
                     }
@@ -185,7 +190,7 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            SampleCamera(windowedKeys, timeSeconds, out position, out rotation, out fieldOfView);
+            SampleCamera(windowedKeys, timeSeconds, out position, out eulerDegrees, out fieldOfView);
         }
 
         /// <summary>
@@ -219,21 +224,21 @@ namespace DotsAnimationToolkit.Editor
             // earlier — the same finite-difference a live actor's movement vector would give
             // FacingResolver.FromMovement.
             const float LookBackSeconds = 0.05f;
-            Vector3 positionNow;
-            Quaternion rotationNow;
-            Vector3 scaleNow;
-            Sample(rootKeys, timeSeconds, out positionNow, out rotationNow, out scaleNow);
-            Vector3 positionBefore;
-            Sample(rootKeys, Mathf.Max(0f, timeSeconds - LookBackSeconds), out positionBefore, out rotationNow, out scaleNow);
+            float3 positionNow;
+            float3 rotationNow;
+            float3 scaleNow;
+            TrySampleTransform(rootKeys, timeSeconds, out positionNow, out rotationNow, out scaleNow);
+            float3 positionBefore;
+            TrySampleTransform(rootKeys, math.max(0f, timeSeconds - LookBackSeconds), out positionBefore, out rotationNow, out scaleNow);
 
-            Vector3 delta = positionNow - positionBefore;
-            if (delta.sqrMagnitude < 1e-8f)
+            float3 delta = positionNow - positionBefore;
+            if (math.lengthsq(delta) < 1e-8f)
             {
                 angleDegrees = 0f;
                 return false;
             }
 
-            angleDegrees = Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg;
+            angleDegrees = math.degrees(math.atan2(delta.x, delta.z));
             if (angleDegrees < 0f)
             {
                 angleDegrees += 360f;
@@ -241,17 +246,12 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        private static void ToUnityTypes(
-            CutsceneTransformKey key, out Vector3 position, out Quaternion rotation, out Vector3 scale)
+        private static void ToOut(
+            CutsceneTransformKey key, out float3 position, out float3 eulerDegrees, out float3 scale)
         {
-            position = ToVector3(key.position);
-            rotation = Quaternion.Euler(ToVector3(key.rotation));
-            scale = ToVector3(key.scale);
-        }
-
-        private static Vector3 ToVector3(float3 value)
-        {
-            return new Vector3(value.x, value.y, value.z);
+            position = key.position;
+            eulerDegrees = key.rotation;
+            scale = key.scale;
         }
     }
 }
