@@ -127,7 +127,7 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   *Gate: reload the asset from disk and assert every target has a non-zero id and a non-zero tagId;
   the rig passes the toolkit's own validation with no V02/V05/V13 error.*
 
-- [ ] **T4 — Make the unit an actor.** On the prefab layer T1 identified: `ActorAuthoring` on the
+- [x] **T4 — Make the unit an actor.** On the prefab layer T1 identified: `ActorAuthoring` on the
   unit root (`rig = NewRig`, `clipSets = [ NewClipSet ]`), and `RigTargetAuthoring` on each animated
   part with its `targetStableId`. Leave each part's `rig` field **null** so it inherits the actor's
   rig — setting a different rig is an authoring error the baker reports.
@@ -260,6 +260,28 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   namespace `DotsAnimationToolkit`, not `DotsAnimationToolkit.Authoring` where every other type this
   task touches lives. The MCP `execute_code` backend is also CodeDom/C# 6 here — no local functions,
   no `using` directives (the snippet is a method body), so everything is fully qualified.
+
+- **(T4, done 2026-09-05) `MaleCitizen.prefab` is a toolkit actor.** `ActorAuthoring` on the root
+  (`rig = NewRig`, `clipSets = [ NewClipSet ]`), `RigTargetAuthoring` on all 16 parts with their
+  `targetStableId` and `rig` left null so each inherits the actor's rig.
+
+  *Gate result:* Play on the checkpoint scene — **2** actor roots in the world (`TestRotter` and
+  `MaleCitizen`, both `MaleCitizen.prefab` instances), each with 1 `PlaybackLayer`, a **16**-entry
+  `RigPartRef` buffer, live `AnimationCommand`/`AnimEventOutput` buffers, and a created
+  `ClipRegistry` blob. No toolkit error logged.
+
+  **Spec drift — T4's "assert no `ActorBakeFailed` entity exists" is not assertable.**
+  `ActorBakeFailed` is `internal` *and* `[BakingType]`, so it never reaches the built entity scene
+  and is invisible to a Play-mode query. What actually proves the bake succeeded is the pair above:
+  a created `ClipRegistry` on the root plus a populated `RigPartRef` buffer, which only
+  `RigBindingBakingSystem` writes and only for an actor that did not bail. Use that assertion in any
+  later spec that copies this gate.
+
+  **Known bake noise, left alone deliberately:** `NewClip 1`'s three transform tracks quote target
+  ids from the `HumanoidRig` deleted in the 2026-08-29 cleanup, so each bake logs three rule-T6
+  "track is skipped" warnings per actor bind. They are Phase-F debt in a stub clip with no content,
+  not a fault in this chain; deleting the stubs is a separate cleanup and would change what the Clip
+  Editor and `NewCutscene.asset` currently point at.
 
 - **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
   their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already

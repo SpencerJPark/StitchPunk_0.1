@@ -130,6 +130,7 @@ GameObject:
   - component: {fileID: 4516035438850849657}
   - component: {fileID: 6082555596445708689}
   - component: {fileID: 5555932285046531508}
+  - component: {fileID: 1883516529480559465}
   m_Layer: 0
   m_Name: LeftFoot
   m_TagString: Untagged
@@ -234,6 +235,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &1883516529480559465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 931086575458771125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1753421473
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &1021099851410571827
 GameObject:
   m_ObjectHideFlags: 0
@@ -337,6 +358,7 @@ GameObject:
   - component: {fileID: 7786159717769186268}
   - component: {fileID: 7967261035080145879}
   - component: {fileID: 598591333089182757}
+  - component: {fileID: 5445654233600478701}
   m_Layer: 0
   m_Name: LeftHand
   m_TagString: Untagged
@@ -441,6 +463,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &5445654233600478701
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1132879814373537819}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 221259330
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &1177653470753664924
 GameObject:
   m_ObjectHideFlags: 0
@@ -571,6 +613,7 @@ GameObject:
   - component: {fileID: 4206190778515886575}
   - component: {fileID: 3399102213948935319}
   - component: {fileID: 2738671108027014714}
+  - component: {fileID: 1837921646393425809}
   m_Layer: 0
   m_Name: RightUpperArm
   m_TagString: Untagged
@@ -676,6 +719,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &1837921646393425809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1605978085274449659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1726161722
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &1712510412753938001
 GameObject:
   m_ObjectHideFlags: 0
@@ -806,6 +869,7 @@ GameObject:
   - component: {fileID: 8803525904725242249}
   - component: {fileID: 583263892950030168}
   - component: {fileID: 2491290938818564386}
+  - component: {fileID: 6017719668168628576}
   m_Layer: 0
   m_Name: RightLowerArm
   m_TagString: Untagged
@@ -911,6 +975,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &6017719668168628576
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1818198835163919025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 2128489924
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &1829652459452292244
 GameObject:
   m_ObjectHideFlags: 0
@@ -924,6 +1008,7 @@ GameObject:
   - component: {fileID: 1816768235529586214}
   - component: {fileID: 3559399326514361256}
   - component: {fileID: 5108188630842897074}
+  - component: {fileID: 4528846196415363747}
   m_Layer: 0
   m_Name: RightHand
   m_TagString: Untagged
@@ -1028,6 +1113,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &4528846196415363747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1829652459452292244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 3934483903
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &2198680534970862452
 GameObject:
   m_ObjectHideFlags: 0
@@ -1041,6 +1146,7 @@ GameObject:
   - component: {fileID: 1856190966470207451}
   - component: {fileID: 7794204233358258453}
   - component: {fileID: 1641957111775463579}
+  - component: {fileID: 3957429094184113960}
   m_Layer: 0
   m_Name: Pelvis
   m_TagString: Untagged
@@ -1148,6 +1254,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &3957429094184113960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2198680534970862452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1140299929
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &2699631245674403349
 GameObject:
   m_ObjectHideFlags: 0
@@ -1278,6 +1404,7 @@ GameObject:
   - component: {fileID: 6405952512691644956}
   - component: {fileID: 5406727304966279137}
   - component: {fileID: 4921848997313952197}
+  - component: {fileID: 7545580771120369067}
   m_Layer: 0
   m_Name: LeftLowerLeg
   m_TagString: Untagged
@@ -1383,6 +1510,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &7545580771120369067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2793443842951905063}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1711980931
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &2820428712034707050
 GameObject:
   m_ObjectHideFlags: 0
@@ -1513,6 +1660,7 @@ GameObject:
   - component: {fileID: 762824711905173657}
   - component: {fileID: 5556634892679736172}
   - component: {fileID: 3986905548465459307}
+  - component: {fileID: 7881108225031753542}
   m_Layer: 0
   m_Name: RightLowerLeg
   m_TagString: Untagged
@@ -1618,6 +1766,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &7881108225031753542
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3106109558775310792}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 2283231638
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &3111530226436820541
 GameObject:
   m_ObjectHideFlags: 0
@@ -1712,6 +1880,7 @@ GameObject:
   - component: {fileID: 5423423446734517798}
   - component: {fileID: 6227331681561670214}
   - component: {fileID: 7200275109390196469}
+  - component: {fileID: 7252195820066308145}
   m_Layer: 0
   m_Name: RightFoot
   m_TagString: Untagged
@@ -1816,6 +1985,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &7252195820066308145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3271744655631085733}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1203172312
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &3420010238202682184
 GameObject:
   m_ObjectHideFlags: 0
@@ -2180,6 +2369,7 @@ GameObject:
   - component: {fileID: 202962692276087138}
   - component: {fileID: 5058858478413726630}
   - component: {fileID: 7571871285302227157}
+  - component: {fileID: 6425880914984772252}
   m_Layer: 0
   m_Name: Neck
   m_TagString: Untagged
@@ -2285,6 +2475,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &6425880914984772252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4301437577614999533}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 2225763172
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &4857314316255899760
 GameObject:
   m_ObjectHideFlags: 0
@@ -2298,6 +2508,7 @@ GameObject:
   - component: {fileID: 5234412572318912481}
   - component: {fileID: 9083753584520476326}
   - component: {fileID: 2028534286734617247}
+  - component: {fileID: 4008329290422328974}
   m_Layer: 0
   m_Name: LeftUpperLeg
   m_TagString: Untagged
@@ -2403,6 +2614,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &4008329290422328974
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4857314316255899760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 3452626627
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &5645857117973728562
 GameObject:
   m_ObjectHideFlags: 0
@@ -2416,6 +2647,7 @@ GameObject:
   - component: {fileID: 7139360833813867376}
   - component: {fileID: 2310129143537385773}
   - component: {fileID: 6985841751422160073}
+  - component: {fileID: 2386628484122887468}
   m_Layer: 0
   m_Name: RightUpperLeg
   m_TagString: Untagged
@@ -2521,6 +2753,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &2386628484122887468
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5645857117973728562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 2973879041
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &5913586954817689161
 GameObject:
   m_ObjectHideFlags: 0
@@ -2534,6 +2786,7 @@ GameObject:
   - component: {fileID: 126026408025993355}
   - component: {fileID: 7318317102742747123}
   - component: {fileID: 8808155360905445084}
+  - component: {fileID: 2243544443885553354}
   m_Layer: 0
   m_Name: LeftLowerArm
   m_TagString: Untagged
@@ -2639,6 +2892,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &2243544443885553354
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5913586954817689161}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1630943582
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &5945333620248794271
 GameObject:
   m_ObjectHideFlags: 0
@@ -2652,6 +2925,7 @@ GameObject:
   - component: {fileID: 5900370102229058765}
   - component: {fileID: 8739283867169983255}
   - component: {fileID: 5197900853732956951}
+  - component: {fileID: 3478116201059024259}
   m_Layer: 0
   m_Name: Torso
   m_TagString: Untagged
@@ -2761,6 +3035,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &3478116201059024259
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5945333620248794271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 264798881
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &6070736960350805383
 GameObject:
   m_ObjectHideFlags: 0
@@ -3450,6 +3744,7 @@ GameObject:
   - component: {fileID: 5293948782683976615}
   - component: {fileID: 1449747340643508457}
   - component: {fileID: 9075180598144084148}
+  - component: {fileID: 2856350741585092193}
   m_Layer: 0
   m_Name: BaseHead
   m_TagString: Untagged
@@ -3564,6 +3859,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &2856350741585092193
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7375585534706214761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 3088210805
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &7573434779292915580
 GameObject:
   m_ObjectHideFlags: 0
@@ -3694,6 +4009,7 @@ GameObject:
   - component: {fileID: 8099044404527368633}
   - component: {fileID: 2465231886132978536}
   - component: {fileID: 4191877602286084064}
+  - component: {fileID: 2396106282583073903}
   m_Layer: 0
   m_Name: LeftUpperArm
   m_TagString: Untagged
@@ -3799,6 +4115,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
   parentEntity: {fileID: 9101195342176660511}
+--- !u!114 &2396106282583073903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8346345280746603786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f81f88174504a4ab12daf7de53e8329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigTargetAuthoring
+  rig: {fileID: 0}
+  targetStableId: 1173584893
+  useKindOverride: 0
+  kindOverride: 0
+  restSliceIndex: 0
+  startMirrored: 0
+  vatDrivingLayerIndex: 0
+  expectedMaterial: {fileID: 0}
 --- !u!1 &8499683922572236858
 GameObject:
   m_ObjectHideFlags: 0
@@ -4028,6 +4364,7 @@ GameObject:
   - component: {fileID: 6836798298145647292}
   - component: {fileID: 81547783365101107}
   - component: {fileID: 5385637352373302489}
+  - component: {fileID: 8157836579268367819}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -4243,6 +4580,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionAuthoring
   actionType: 10
   playerInteractable: 1
+--- !u!114 &8157836579268367819
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 863a8586a0b14d948a39955b5390bd90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ActorAuthoring
+  rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+  clipSets:
+  - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+  startingLayers: []
+  sampleOverride:
+    rateHz: 0
+    phase01: 0
+  addDistanceLod: 0
+  billboardMode: 0
+  frozenYawDegrees: 0
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0
