@@ -262,6 +262,19 @@ suite re-run 247/247 green (this is UI wiring — no dedicated fixture, per this
 zero tests" convention). Committed separately from A61's own T1–T4 commits since it isn't one of this
 amendment's tasks. **Please re-try the owner checkpoint now** — binding should work normally.
 
+**2026-09-04, final — owner confirms binding/Sync to Stage works, but reports bound props snap to
+world origin.** Confirmed root cause: `CutscenePreviewController.ApplyPose` writes
+`CutscenePoseSampler.Sample`'s result onto every bound object's `localPosition`/`localRotation`/
+`localScale` unconditionally, and `Sample` returns `(Vector3.zero, Quaternion.identity, Vector3.one)`
+for a slot with an empty `transformKeys` list — exactly this roadmap's own already-logged gap
+(`Cutscene_Roadmap.md` §1 table: "A slot with zero root keys is written to position (0,0,0) every
+frame — both editor and runtime", assigned to **A62-T2**). Not a regression from anything built in
+this amendment — pre-existing, already tracked, out of A61's scope. **Owner's call: defer to a full
+A62 session** rather than a partial patch here — A62 is already spec'd with read-first files, a
+proper fix design, and tests covering this bug plus four related ones (lost blend across a hold,
+hard cut after a hold, speed/pause not reaching actors, a late clip issue after hold release). No
+code changed for this. A61 is otherwise complete and gated; next up per the roadmap is A62.
+
 **T4 — done.** `Documentation~/cutscenes.md`: "Playing a cutscene" split into a new "Staging a
 cutscene (amendment A61)" section (the stage flow: `TryFindStage` + `CreatePlayRequestFromStage`)
 followed by "Playing a cutscene manually (spawned actors)" carrying the original manual-binding
