@@ -96,7 +96,7 @@ minions walk their lanes with legs and arms cycling, and keep cycling for the wh
 Work in order. After each: save → compile gate → run only the fixtures the task names → tick the
 box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `git add -A`).
 
-- [ ] **T1 — Map the hierarchy and decide the target set.** [parallel-safe]
+- [x] **T1 — Map the hierarchy and decide the target set.** [parallel-safe]
   Open `MaleCitizen.prefab` and record which prefab actually owns the 31 parts (asset vs. nested
   `MaleUnitVisual` vs. the model prefab) — this decides where `RigTargetAuthoring` goes, and editing
   the wrong layer silently does nothing. Then decide **which parts are animated targets**. Not all 31
@@ -187,7 +187,54 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
 
 ## 7. Open questions / build log
 
-- *(T1)* Which prefab layer owns the 31 parts — record the answer here before T4 edits anything.
+- **(T1, answered 2026-09-05) `MaleCitizen.prefab` owns all 31 parts itself.** It is a *Regular*,
+  fully flattened prefab: every one of its 39 transforms returns `null` from
+  `PrefabUtility.GetCorrespondingObjectFromSource`, so nothing under it is a nested prefab instance.
+  `ActorAuthoring` and all 16 `RigTargetAuthoring` components go **on `MaleCitizen.prefab` directly**,
+  under `Visual/MaleUnitVisual/…`.
+
+  **Drift from §2 — the four unit prefabs do NOT share one visual.** §2 says `MaleCitizen` shares its
+  visual "through `TestRotter` and `PlayerUnit`". Verified false:
+
+  | Prefab | Where its 31 parts come from |
+  |---|---|
+  | `Units/MaleCitizen.prefab` | **owns them** (flattened, no source) — the two checkpoint minions |
+  | `Units/BaseUnit.prefab` | instance of `Units/**Visuals**/MaleUnitVisual.prefab` |
+  | `Units/PlayerUnit.prefab` | variant of `BaseUnit` (so, also `Visuals/MaleUnitVisual.prefab`) |
+  | `Units/MaleUnitVisual.prefab` | instance of `Assets/Models/MaleNPC_StitchPunk.fbx`; **referenced by nothing** |
+
+  So there are *two* copies of the same body-part tree in the project, and the one §2 names
+  (`Units/MaleUnitVisual.prefab`, guid `57a3dea4…`) is the orphan — `BaseUnit` uses the
+  similarly-named file in the `Visuals/` subfolder. Editing either would leave `MaleCitizen`
+  untouched. **This spec animates `MaleCitizen` only**, which is what the G1 checkpoint's two minions
+  (both guid `c7df5a12f0afc5a4186c4dc99eba6f7f`) instantiate. `PlayerUnit` gaining a walk is a
+  follow-up: the same rig applies, but the components have to be added a second time on
+  `Visuals/MaleUnitVisual.prefab`.
+
+- **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
+  their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already
+  uses — `{Upper|Lower}{Side}{Limb}`, from its three existing rows.
+
+  | Part (path under `Visual/MaleUnitVisual/`) | Tag |
+  |---|---|
+  | `LeftUpperLeg` | `UpperLeftLeg` |
+  | `LeftUpperLeg/LeftLowerLeg` | `LowerLeftLeg` |
+  | `LeftUpperLeg/LeftLowerLeg/LeftFoot` | `LeftFoot` |
+  | `RightUpperLeg` | `UpperRightLeg` |
+  | `RightUpperLeg/RightLowerLeg` | `LowerRightLeg` |
+  | `RightUpperLeg/RightLowerLeg/RightFoot` | `RightFoot` |
+  | `Pelvis` | `Pelvis` |
+  | `Pelvis/Torso` | `Torso` |
+  | `Pelvis/Torso/LeftUpperArm` | `UpperLeftArm` *(existing row)* |
+  | `Pelvis/Torso/LeftUpperArm/LeftLowerArm` | `LowerLeftArm` |
+  | `Pelvis/Torso/LeftUpperArm/LeftLowerArm/LeftHand` | `LeftHand` |
+  | `Pelvis/Torso/RightUpperArm` | `UpperRightArm` *(existing row)* |
+  | `Pelvis/Torso/RightUpperArm/RightLowerArm` | `LowerRightArm` *(existing row)* |
+  | `Pelvis/Torso/RightUpperArm/RightLowerArm/RightHand` | `RightHand` |
+  | `Pelvis/Torso/Neck` | `Neck` |
+  | `Pelvis/Torso/Neck/BaseHead` | `Head` |
+
+  Mirror pairs: the six left/right limb pairs plus the two feet and two hands — eight pairs.
 - **Standing context from the G1 checkpoint session (2026-09-05):** the checkpoint scene
   (`CutsceneG1Checkpoint.unity` + `SubScenes/CutsceneG1Checkpoint_Sub.unity`) is built, wired and
   machine-verified end to end; root motion, camera tracking, the hard cut, AI gating and release all
