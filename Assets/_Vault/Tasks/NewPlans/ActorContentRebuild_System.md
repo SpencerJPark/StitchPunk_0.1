@@ -1,6 +1,11 @@
 # Actor Content Rebuild — Design Spec (G0)
 
-> **Status:** specced 2026-09-05, nothing built. Inserted **before A63** on the cutscene critical
+> **Status:** T1–T6 built, gated and committed 2026-09-05 (`G0-T1` … `G0-T6`). **Stopped at the ⏸
+> owner checkpoint, T7** — the only thing left in this spec is the owner's eyes. Full suites re-run
+> at the stop: toolkit EditMode 714 (1 pre-existing `Conformance_A` failure, unchanged),
+> `StitchPunk.Tests` 57 (714 + 57 = the 771 the G1 session recorded), toolkit PlayMode 250/250,
+> `StitchPunk.Tests.PlayMode` 253/253 — no count dropped, no new failure.
+> Inserted **before A63** on the cutscene critical
 > path by owner decision (2026-09-05) — see `Cutscene_Roadmap.md` §3.
 > **Executor:** one fresh Claude Sonnet session with no prior context. `Cutscene_Roadmap.md` §4 is
 > the protocol; read it before opening this spec's tasks.

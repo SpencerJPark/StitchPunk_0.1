@@ -173,6 +173,39 @@ integration at all. **Subagent rule for those sessions (supersedes §2's blanket
 may read/write files for a task marked parallel-safe and never touches `mcp__UnityMCP__*`; only the
 parent session compiles, tests and commits.
 
+**G0 — Actor Content Rebuild. T1–T6 built and gated 2026-09-05; stopped at its ⏸ owner checkpoint.**
+Inserted into the roadmap ahead of A63 because building the G1 checkpoint proved the game had **no
+animation content at all**. It has some now. `MaleCitizen.prefab` is the first toolkit actor in this
+project: `NewRig.asset` filled in place with 16 tagged `Quad` targets, one `Base` layer and 6 mirror
+pairs; `ActorAuthoring` on the prefab root and `RigTargetAuthoring` on all 16 parts; a new
+`Walk.asset` — 1 s looping, 30 fps, 16 tag-bound tracks of 5 `EaseInOut` keys — seeded on layer 0 and
+added to `NewClipSet`; and both `G1CheckpointCutscene` slots given the rig, the set and a 0→4 s
+looping clip block. The target-tag registry went 3 rows → 16 and `TargetTags.cs` was regenerated
+through `ConstantsGenerator`. Separately, **145 unresolvable MonoBehaviour components were stripped
+from 9 prefabs** (project-wide count now 0, previously ~100 bake warnings per run).
+
+Proved live rather than by inspection: with the cutscene fired at `speed = 0.05`, a bound minion's
+`LeftUpperLeg` swings −21.85° → +15.93° between two samples *while* its root advances its lane
+(z −0.372 → 0.155), `CutscenePlay` active and both actors gated. Suites unchanged: EditMode 714 (same
+one pre-existing `Conformance_A` failure) + `StitchPunk.Tests` 57 = 771, PlayMode 250/250 and
+253/253.
+
+Three things this surfaced that later sessions should not rediscover — all now in the game vault's
+`Gotchas.md`: clip keys are **offsets from `TargetRestPose`**, not absolute local transforms;
+`TransformKey.rotationZ` is legacy and `QuickStartActorBuilder` still writes it, so that sample is
+stale on the one point a new author copies first; and `ActorBakeFailed` is `internal` + `[BakingType]`,
+so "assert no `ActorBakeFailed` entity" is not assertable from a Play-mode world — assert a created
+`ClipRegistry` plus a populated `RigPartRef` buffer instead. Also **corrected against the roadmap**:
+`CutsceneControl.speed` *does* reach the actors' clip layers now (`PlaybackLayer.speed` read back as
+the requested 0.05), so §1's bug table entry A62-T4 is stale — do not re-fix it.
+
+**Owed:** the ⏸ checkpoint itself (owner opens `Assets/Scenes/CutsceneG1Checkpoint.unity`, Play, F9,
+and watches the minions walk), plus two deliberate non-changes: `NewClip 1`'s three transform tracks
+still quote target ids from the `HumanoidRig` deleted on 2026-08-29 and log three rule-T6 warnings
+per actor bind, and `PlayerUnit` is **not** an actor — it and `BaseUnit` instance
+`Units/Visuals/MaleUnitVisual.prefab`, a second copy of the same body-part tree that `MaleCitizen`
+does not share, so giving the player a walk means adding the same components a second time there.
+
 **G1 — Cutscene Integration. Phases 1–4 built and gated green 2026-09-04** (game-side, not a
 package amendment — logged here because it's the first real host consumer of A61/A62's surface).
 `CutsceneSystemGroup` (Player → Cutscene → UtilityAI) plus `CutsceneStartSystem`/`CutsceneEndSystem`/

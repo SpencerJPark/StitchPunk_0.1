@@ -346,3 +346,53 @@ toolkit working as designed (a cutscene stages its cast); author each slot its o
 `CreateEntityQuery(typeof(CutsceneActor)).CalculateEntityCount()` returns only entities whose
 `CutsceneActor` is *enabled*. Debugging "the component vanished" when a cutscene ends is this: the
 entity still has it, the bit is off.
+
+## A dead script GUID that "greps clean" may be a live package script
+
+`grep -rl "guid: <g>" Assets Packages --include=*.meta` misses every script inside a **resolved
+package** (`com.unity.entities`, Cinemachine, uGUI, Input System — they live in `Library/PackageCache`
+or are resolved by the package manager, not by a `.meta` under `Assets/`). A guid that greps clean is
+therefore not proof the script is gone. `AssetDatabase.GUIDToAssetPath(guid)` is the check that does
+not lie. Found 2026-09-05 doing G0-T2: `c16549610bfe4458aa9389201d072bb6`, listed in a spec as one of
+seven "unrecoverable dead GUIDs" to strip from every unit prefab, is
+`Unity.Entities.Hybrid`'s `LinkedEntityGroupAuthoring` — hand YAML surgery would have deleted a
+working baker component from `BaseUnit` and `MaleCitizen`. Prefer
+`GameObjectUtility.RemoveMonoBehavioursWithMissingScript`, which only ever removes what Unity itself
+cannot resolve, and **strip base prefabs before variants** or each removal lands as a variant override
+instead of clearing.
+
+## DOTS Animation Toolkit — authoring a clip from code
+
+### Clip keys are OFFSETS from the part's rest pose, not absolute local transforms
+`ClipSampler` anchors an `Override` track on `TargetRestPose` (`restPose.localPosition.xy`,
+`restPose.rotation`), so an all-zero key means "leave this part alone", and a channel left out of the
+track's `channels` mask stays at rest entirely. Authoring absolute local values instead collapses
+every part onto the actor origin.
+
+### `TransformKey.rotationZ` is legacy; author `float3 rotation` in degrees
+`ClipAsset.OnAfterDeserialize` migrates `rotationZ` into `rotation` **only when `rotation` is
+all-zero**, so writing both is safe but writing `rotationZ` alone is the pre-3D path.
+`QuickStartActorBuilder.MakeSwingTrack` in `Samples~` still writes `rotationZ` — one more instance of
+the "`Samples~` is excluded from compilation and rots silently" trap above.
+
+### On a cutout rig, Z is the only axis that can swing a part
+Every `MaleCitizen` body part is a flat quad — measured mesh bounds have `size.z == 0.000` — pivoted
+at its joint with the art hanging below it (`center.y ≈ −0.19` on a limb). Rotating about X or Y
+foreshortens a cutout to a line. That pivot offset is also why `RigTargetDefinition.boundsExtents`
+must be measured as `|mesh.center| + mesh.extents` **about the pivot**: measuring about the mesh
+centre under-covers every limb by roughly half its length, and the error is invisible until something
+culls wrong.
+
+### `ActorBakeFailed` cannot be asserted from a Play-mode world
+It is `internal` *and* `[BakingType]`, so it never reaches the built entity scene. "Assert no
+`ActorBakeFailed` entity exists" is unassertable from the game world. What actually proves an actor
+baked is a created `ClipRegistry` blob on the root plus a populated `RigPartRef` buffer — only
+`RigBindingBakingSystem` writes that buffer, and only for an actor that did not bail.
+
+### Sampling a slowed cutscene over MCP: do not let the clip period match the round trip
+`CutsceneControl.speed` reaches the actors' clip layers (`PlaybackLayer.speed` reads back as the
+requested value), so slowing a cutscene slows the walk cycle with it. At `speed = 0.1` a 1 s clip's
+period becomes 10 s — almost exactly one `execute_code` round trip — and three consecutive samples
+land within 0.07 of the same phase, making a working clip look frozen. Pick a speed whose stretched
+period is a non-multiple of the round trip (`0.05` gives 20 s) before concluding anything is broken.
+
