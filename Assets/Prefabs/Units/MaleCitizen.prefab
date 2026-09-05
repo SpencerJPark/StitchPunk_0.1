@@ -4595,7 +4595,11 @@ MonoBehaviour:
   rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
   clipSets:
   - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
-  startingLayers: []
+  startingLayers:
+  - layerIndex: 0
+    clip: {fileID: 11400000, guid: bc3726a3fd33bcb4abbbdbec3a11209c, type: 2}
+    speed: 1
+    loop: 0
   sampleOverride:
     rateHz: 0
     phase01: 0

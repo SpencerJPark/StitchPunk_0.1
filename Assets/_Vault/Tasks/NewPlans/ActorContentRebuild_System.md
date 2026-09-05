@@ -135,7 +135,7 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   (a `PlaybackLayer` buffer and the command/event buffers) and that no `ActorBakeFailed` entity
   exists. Assert by querying the world, not by reading the inspector.*
 
-- [ ] **T5 — Author the walk clip.** Create `Assets/ScriptableObjects/Animations/Walk.asset`:
+- [x] **T5 — Author the walk clip.** Create `Assets/ScriptableObjects/Animations/Walk.asset`:
   `duration` ~1.0s, `defaultLoop = true`, `frameRate` 30, and `transformTracks` addressed **by
   `tagId`** (T3's tags), not by target id. A readable 2.5D cutout walk is roughly: upper legs
   counter-swinging ±25°, lower legs trailing, upper arms counter-swinging ±15° opposite the legs,
@@ -282,6 +282,38 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   "track is skipped" warnings per actor bind. They are Phase-F debt in a stub clip with no content,
   not a fault in this chain; deleting the stubs is a separate cleanup and would change what the Clip
   Editor and `NewCutscene.asset` currently point at.
+
+- **(T5, done 2026-09-05) `Walk.asset` authored; 16 tag-bound tracks, 5 keys each.** Created through
+  `ClipAssetUtility.CreateClipInSet` + `RenameClip` (so the set append and the id mint go the same
+  way the Clip Editor's own New Clip button goes), then filled: `duration` 1.0s,
+  `defaultLoop = Loop`, `frameRate` 30, keys at 0 / .25 / .5 / .75 / 1 with the first repeated last
+  so the loop seam has no jump, `EaseInOut` throughout. Legs swing ±22°, arms counter-swing ±14°
+  opposite their own side's leg, knees and elbows only ever bend one way, and the pelvis carries a
+  3 cm dip twice per stride with the torso, neck and head counter-rotating a few degrees to keep the
+  head near level. `ActorAuthoring.startingLayers` seeds layer 0 with it.
+
+  **Three facts about this rig that decide how any future clip must be authored:**
+  1. **Keys are OFFSETS from the part's rest pose, not absolute local transforms.** `ClipSampler`
+     anchors an `Override` track on `TargetRestPose` (`restPose.localPosition.xy`,
+     `restPose.rotation`), so a key of all zeros means "unchanged", and a channel left out of the
+     `channels` mask stays at rest entirely.
+  2. **Rotation is `float3 rotation` in degrees; `rotationZ` is legacy.** `ClipAsset.OnAfterDeserialize`
+     migrates `rotationZ` into `rotation` **only when `rotation` is all-zero**, so authoring both is
+     safe but authoring `rotationZ` alone is the old path. `QuickStartActorBuilder`'s `MakeSwingTrack`
+     still writes `rotationZ` — that sample is stale on this point, as `Gotchas.md` warns about
+     `Samples~` generally.
+  3. **Z is the only axis that can swing these parts.** Every one of the 16 meshes is a flat quad —
+     measured mesh bounds are `size.z == 0.000` — pivoted at its joint with the art hanging below
+     (`center.y ≈ −0.19` on a limb). Rotating about X or Y foreshortens a cutout to a line. That is
+     also why `boundsExtents` had to be re-derived from `|mesh.center| + mesh.extents` about the
+     **pivot** rather than guessed: the first pass measured about the mesh centre and under-covered
+     every limb by roughly half its length.
+
+  *Gate result:* Play — both actors' layer 0 holds clip id `0xF8D1558C18E8F741` (`Walk`) at
+  `clipIndex 2`, layer time advancing. Two samples ~9.7 s apart: `LeftUpperLeg` 0.07° → 342.06°,
+  `LeftLowerLeg` 346.02° → 349.57°, `LeftFoot` 357.99° → 4.74°, and the pelvis `posY` 0.981 → 1.006
+  (rest is 1.011, so the dip channel is live too). `ValidateClip(Walk)` and the rig half of
+  `ValidateBind` are both clean; the only bind warnings are `NewClip 1`'s three pre-existing V38s.
 
 - **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
   their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already

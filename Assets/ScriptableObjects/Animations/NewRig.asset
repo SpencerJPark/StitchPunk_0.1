@@ -19,9 +19,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis
     kind: 0
     boundsExtents:
-      x: 0.22
-      y: 0.16
-      z: 0.12
+      x: 0.26630816
+      y: 0.25354224
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 1945739799
@@ -30,9 +30,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso
     kind: 0
     boundsExtents:
-      x: 0.26
-      y: 0.28
-      z: 0.14
+      x: 0.2681043
+      y: 0.62511814
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2597715051
@@ -41,9 +41,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck
     kind: 0
     boundsExtents:
-      x: 0.08
-      y: 0.08
-      z: 0.08
+      x: 0.11833611
+      y: 0.19953445
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 1950791333
@@ -52,9 +52,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead
     kind: 0
     boundsExtents:
-      x: 0.2
-      y: 0.22
-      z: 0.18
+      x: 0.31664968
+      y: 0.46631938
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2879213531
@@ -63,9 +63,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm
     kind: 0
     boundsExtents:
-      x: 0.07
-      y: 0.18
-      z: 0.07
+      x: 0.22854841
+      y: 0.4868583
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2386436819
@@ -74,9 +74,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm/LeftLowerArm
     kind: 0
     boundsExtents:
-      x: 0.06
-      y: 0.16
-      z: 0.06
+      x: 0.16174346
+      y: 0.38032582
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2741812215
@@ -85,9 +85,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm/LeftLowerArm/LeftHand
     kind: 0
     boundsExtents:
-      x: 0.06
-      y: 0.07
-      z: 0.05
+      x: 0.18309644
+      y: 0.54691964
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2947591421
@@ -96,9 +96,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/RightUpperArm
     kind: 0
     boundsExtents:
-      x: 0.07
-      y: 0.18
-      z: 0.07
+      x: 0.15039322
+      y: 0.46833432
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 1776794818
@@ -107,9 +107,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/RightUpperArm/RightLowerArm
     kind: 0
     boundsExtents:
-      x: 0.06
-      y: 0.16
-      z: 0.06
+      x: 0.29747304
+      y: 0.37492037
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2248304700
@@ -118,9 +118,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/RightUpperArm/RightLowerArm/RightHand
     kind: 0
     boundsExtents:
-      x: 0.06
-      y: 0.07
-      z: 0.05
+      x: 0.40191376
+      y: 0.5369265
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 3817894984
@@ -129,9 +129,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/LeftUpperLeg
     kind: 0
     boundsExtents:
-      x: 0.09
-      y: 0.2
-      z: 0.09
+      x: 0.15439403
+      y: 0.46796584
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 1185793452
@@ -140,9 +140,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/LeftUpperLeg/LeftLowerLeg
     kind: 0
     boundsExtents:
-      x: 0.08
-      y: 0.2
-      z: 0.08
+      x: 0.18399295
+      y: 0.59063727
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 213271597
@@ -151,9 +151,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/LeftUpperLeg/LeftLowerLeg/LeftFoot
     kind: 0
     boundsExtents:
-      x: 0.08
-      y: 0.06
-      z: 0.12
+      x: 0.33301637
+      y: 0.22391565
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 3350377798
@@ -162,9 +162,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/RightUpperLeg
     kind: 0
     boundsExtents:
-      x: 0.09
-      y: 0.2
-      z: 0.09
+      x: 0.15345614
+      y: 0.467665
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 2932757636
@@ -173,9 +173,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/RightUpperLeg/RightLowerLeg
     kind: 0
     boundsExtents:
-      x: 0.08
-      y: 0.2
-      z: 0.08
+      x: 0.1828169
+      y: 0.590301
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 1914658121
@@ -184,9 +184,9 @@ MonoBehaviour:
     sourceNodePath: Visual/MaleUnitVisual/RightUpperLeg/RightLowerLeg/RightFoot
     kind: 0
     boundsExtents:
-      x: 0.08
-      y: 0.06
-      z: 0.12
+      x: 0.33246005
+      y: 0.22300515
+      z: 0.02
     framesPerVariant: 1
     facesDirection: 0
     tagId: 3949569509
