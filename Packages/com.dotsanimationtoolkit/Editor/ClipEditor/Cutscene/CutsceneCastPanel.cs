@@ -133,7 +133,6 @@ namespace DotsAnimationToolkit.Editor
             VisualElement row = new VisualElement();
             row.AddToClassList("cutscene-editor__cast-row");
             row.EnableInClassList("cutscene-editor__cast-row--selected", isSelected);
-            row.RegisterCallback<PointerDownEvent>(_ => SlotSelected?.Invoke(capturedIndex));
 
             GameObject boundObject;
             BindingState state = ResolveBindingState(cutscene, currentSceneGuid, slot, out boundObject);
@@ -141,6 +140,13 @@ namespace DotsAnimationToolkit.Editor
             VisualElement titleRow = new VisualElement();
             titleRow.style.flexDirection = FlexDirection.Row;
             titleRow.style.alignItems = Align.Center;
+            // Registered on the title row only, not the whole row: the row also hosts the Bind
+            // ObjectField and the Place/Select/Frame buttons, and a pointer-down anywhere in them
+            // bubbles up just the same. Selecting on every such click tore the whole cast panel down
+            // mid-interaction (SelectSlotHeader -> RefreshCastPanel -> Rebuild), which destroyed the
+            // ObjectField before a drag-and-drop or picker assignment could commit, and repeatedly
+            // rebuilt the slot inspector's fields under an in-progress interaction there too.
+            titleRow.RegisterCallback<PointerDownEvent>(_ => SlotSelected?.Invoke(capturedIndex));
 
             Label stateDot = new Label(StateGlyph(state));
             stateDot.style.color = StateColor(state);
