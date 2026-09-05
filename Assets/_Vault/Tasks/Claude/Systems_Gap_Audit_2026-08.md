@@ -145,7 +145,7 @@ is Save.
 - **CleanupBatch 2026-07 rows 1/2/5/6 still open**: Thirst `NeedType`, EffectLibrary enum-index
   collision (two SOs silently overwrite one slot — the same bug class the bake validators were
   built for), `groundBufferOverride` unconsumed, `#region` rule decision.
-- **Cutscene plan is half-stale**: `Cutscene_System.md`'s editor half is superseded by the toolkit
+- **Cutscene plan is half-stale**: `Cutscene_System.md` (deleted 2026-09-04; superseded by `NewPlans/Cutscene_Roadmap.md`)'s editor half is superseded by the toolkit
   Clip Editor; the `CutsceneSO` runtime (Phase 4) should be re-scoped as a toolkit *consumer*
   (Override-layer commands + events driving dialogue/camera) rather than built as spec'd.
 - **Vault truth pass after area 1**: `Systems.md`'s animation section, `Systems_Animation.md`,

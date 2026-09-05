@@ -112,6 +112,18 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Cutscenes — the roadmap to completion (written 2026-09-04, nothing built yet).**
+`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` is the index: eight package amendments
+(A61 stage baking → A62 runtime correctness → A63 attach lane → A64 marks/rendezvous holds →
+A65 holding events + runtime facing + block speed → A66/A67 editor polish → A68 docs/release) and
+three game plans (G1 integration, G2 interactions, G3 acceptance). Each amendment is one fresh
+session; the roadmap's §4 protocol governs. Review findings that motivated it: motion into a hold
+is lost at runtime (half-open bucketing + per-segment sampler), empty root lanes teleport to the
+origin, blends across holds are lost, speed/pause never reach actors, and the game has no host
+integration at all. **Subagent rule for those sessions (supersedes §2's blanket ban):** a subagent
+may read/write files for a task marked parallel-safe and never touches `mcp__UnityMCP__*`; only the
+parent session compiles, tests and commits.
+
 **A60 + A59-T1 — Cutscene UI overhaul and the in-tab viewport. Built 2026-08-30, gated, smoke-
 verified live; THE ACTIVE ITEM IS THE OWNER'S VISUAL PASS.** After the owner judged the A58-era
 tab "unusable … pretty bad ui wise", `Amendment_A60_CutsceneUiOverhaul_Spec.md` records the
