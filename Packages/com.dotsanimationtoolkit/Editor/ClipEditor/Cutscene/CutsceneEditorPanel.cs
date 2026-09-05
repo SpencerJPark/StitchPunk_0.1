@@ -48,6 +48,7 @@ namespace DotsAnimationToolkit.Editor
             FacingKey,
             PartTrackHeader,
             PartTrackKey,
+            AttachMarker,
             CameraKey,
             Event,
             Hold
@@ -1634,6 +1635,7 @@ namespace DotsAnimationToolkit.Editor
                             latest = Mathf.Max(latest, LatestTime(slot.partTracks[i].keys));
                         }
                     }
+                    latest = Mathf.Max(latest, LatestTime(slot.attachMarkers));
                 }
             }
             latest = Mathf.Max(latest, LatestTime(cutscene.cameraLane?.keys));
@@ -1669,6 +1671,19 @@ namespace DotsAnimationToolkit.Editor
                 for (int i = 0; i < keys.Count; i++)
                 {
                     latest = Mathf.Max(latest, keys[i].time);
+                }
+            }
+            return latest;
+        }
+
+        private static float LatestTime(List<CutsceneAttachMarker> markers)
+        {
+            float latest = 0f;
+            if (markers != null)
+            {
+                for (int i = 0; i < markers.Count; i++)
+                {
+                    latest = Mathf.Max(latest, markers[i].time);
                 }
             }
             return latest;
@@ -1791,6 +1806,9 @@ namespace DotsAnimationToolkit.Editor
                 new Color(0.65f, 0.85f, 0.55f), time => InsertTransformKeyDefault(transformKeysProperty, time),
                 accentClass: accent);
 
+            SerializedProperty attachMarkersProperty = slotProperty.FindPropertyRelative("attachMarkers");
+            BuildAttachRow(content, slot, attachMarkersProperty, slotIndex, contentWidth, accent);
+
             if (isActor)
             {
                 SerializedProperty facingKeysProperty = slotProperty.FindPropertyRelative("facingKeys");
@@ -1895,6 +1913,44 @@ namespace DotsAnimationToolkit.Editor
             content.Add(CreateRow(
                 label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
                 isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0));
+        }
+
+        /// <summary>
+        /// The attach lane (amendment A63 §3.4). Built here rather than through
+        /// <see cref="BuildMomentRow"/> because its markers are not all one kind: an Attach and a
+        /// Detach get different shapes, which needs the per-marker class overload.
+        /// </summary>
+        private void BuildAttachRow(
+            VisualElement content, CutsceneSlot slot, SerializedProperty attachMarkersProperty,
+            int slotIndex, float contentWidth, string accentClass)
+        {
+            List<float> times = new List<float>(slot.attachMarkers.Count);
+            List<string> variantClasses = new List<string>(slot.attachMarkers.Count);
+            for (int i = 0; i < slot.attachMarkers.Count; i++)
+            {
+                times.Add(slot.attachMarkers[i].time);
+                variantClasses.Add(slot.attachMarkers[i].kind == CutsceneAttachKind.Detach
+                    ? "cutscene-editor__moment-marker--detach"
+                    : "cutscene-editor__moment-marker--attach");
+            }
+
+            CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
+            {
+                pixelsPerSecond = pixelsPerSecond,
+                markerColor = new Color(0.45f, 0.8f, 0.8f),
+                style = { width = contentWidth, height = LaneRowHeight }
+            };
+            bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.AttachMarker;
+            lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1, variantClasses);
+            lane.MomentSelected += index => SelectItem(slotIndex, SelectedLaneKind.AttachMarker, -1, index);
+            lane.MomentMoveCommitted += (index, time) => CommitMomentTime(attachMarkersProperty, index, time);
+            lane.EmptySpaceDoubleClicked += time => InsertAttachMarkerDefault(slotIndex, attachMarkersProperty, time);
+            lane.MomentDeleteRequested += index => DeleteArrayElement(attachMarkersProperty, index);
+
+            content.Add(CreateRow(
+                "Attach", lane, () => SelectItem(slotIndex, SelectedLaneKind.AttachMarker, -1, -1),
+                accentClass: accentClass, indentLabel: true,
                 isSelected: isSelectedLane && selectedItemIndex < 0));
         }
 
@@ -2151,6 +2207,40 @@ namespace DotsAnimationToolkit.Editor
             CommitStructuralChange();
         }
 
+        /// <summary>
+        /// A fresh Attach at the playhead, pre-pointed at the first other slot so the marker means
+        /// something the instant it exists — an unset host would bake as unresolved and silently do
+        /// nothing at play time.
+        /// </summary>
+        private void InsertAttachMarkerDefault(int slotIndex, SerializedProperty listProperty, float time)
+        {
+            int index = listProperty.arraySize;
+            listProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("time").floatValue = time;
+            element.FindPropertyRelative("kind").enumValueIndex = (int)CutsceneAttachKind.Attach;
+            element.FindPropertyRelative("hostSlotId").uintValue = FindFirstOtherSlotId(slotIndex);
+            element.FindPropertyRelative("socketId").uintValue = 0u;
+            ZeroFloat3(element.FindPropertyRelative("localOffset"), 0f, 0f, 0f);
+            ZeroFloat3(element.FindPropertyRelative("localEulerDegrees"), 0f, 0f, 0f);
+            element.FindPropertyRelative("hideWhileAttached").boolValue = false;
+            ZeroFloat3(element.FindPropertyRelative("detachImpulse"), 0f, 0f, 0f);
+            SortByTime(listProperty);
+            CommitStructuralChange();
+        }
+
+        private uint FindFirstOtherSlotId(int slotIndex)
+        {
+            for (int otherIndex = 0; otherIndex < cutscene.slots.Count; otherIndex++)
+            {
+                if (otherIndex != slotIndex && cutscene.slots[otherIndex] != null)
+                {
+                    return cutscene.slots[otherIndex].SlotId;
+                }
+            }
+            return 0u;
+        }
+
         private void InsertHoldDefault(SerializedProperty listProperty, float time)
         {
             int index = listProperty.arraySize;
@@ -2380,6 +2470,9 @@ namespace DotsAnimationToolkit.Editor
                             + selectedPartTrackIndex + "].keys",
                         selectedItemIndex,
                         cutscene.slots[selectedSlotIndex].partTracks[selectedPartTrackIndex].keys.Count);
+                    return;
+                case SelectedLaneKind.AttachMarker:
+                    BuildAttachMarkerInspector(selectedSlotIndex, selectedItemIndex);
                     return;
                 case SelectedLaneKind.CameraKey:
                     BuildCameraKeyInspector(selectedItemIndex);
@@ -2615,6 +2708,183 @@ namespace DotsAnimationToolkit.Editor
             inspectorScroll.Add(tagButton);
 
             AddBoundField(trackProperty, "channels", "Channels");
+        }
+
+        private void BuildAttachMarkerInspector(int slotIndex, int markerIndex)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            if (markerIndex < 0 || markerIndex >= slot.attachMarkers.Count)
+            {
+                return;
+            }
+
+            CutsceneAttachMarker marker = slot.attachMarkers[markerIndex];
+            SerializedProperty markerProperty = serializedObject.FindProperty("slots")
+                .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("attachMarkers")
+                .GetArrayElementAtIndex(markerIndex);
+
+            inspectorScroll.Add(BuildHeading("Attach"));
+            AddBoundField(markerProperty, "time", "Time (s)");
+
+            PropertyField kindField = new PropertyField(markerProperty.FindPropertyRelative("kind"), "Kind");
+            kindField.Bind(serializedObject);
+            // A full rebuild, not just a repaint: the fields below differ by kind, and the lane's
+            // own marker shape is read off this value too.
+            kindField.RegisterCallback<SerializedPropertyChangeEvent>(_ => RebuildAll());
+            inspectorScroll.Add(kindField);
+
+            if (marker.kind == CutsceneAttachKind.Detach)
+            {
+                AddBoundField(markerProperty, "detachImpulse", "Impulse (host space)");
+                inspectorScroll.Add(BuildInspectorNote(
+                    "The impulse is handed to the host through CutsceneDetachSignal; the toolkit " +
+                    "applies no physics of its own."));
+                return;
+            }
+
+            BuildHostSlotDropdown(slot, slotIndex, markerProperty, marker);
+            CutsceneSlot hostSlot = FindSlotById(marker.hostSlotId);
+            BuildSocketDropdown(hostSlot, markerProperty, marker);
+
+            AddBoundField(markerProperty, "localOffset", "Offset");
+            if (marker.socketId == 0u)
+            {
+                AddBoundField(markerProperty, "localEulerDegrees", "Rotation");
+            }
+            AddBoundField(markerProperty, "hideWhileAttached", "Hide While Attached");
+        }
+
+        private void BuildHostSlotDropdown(
+            CutsceneSlot slot, int slotIndex, SerializedProperty markerProperty, CutsceneAttachMarker marker)
+        {
+            List<uint> hostSlotIds = new List<uint>();
+            List<string> hostLabels = new List<string>();
+            int currentChoice = -1;
+            for (int otherIndex = 0; otherIndex < cutscene.slots.Count; otherIndex++)
+            {
+                CutsceneSlot otherSlot = cutscene.slots[otherIndex];
+                if (otherIndex == slotIndex || otherSlot == null)
+                {
+                    continue;
+                }
+                if (otherSlot.SlotId == marker.hostSlotId)
+                {
+                    currentChoice = hostLabels.Count;
+                }
+                hostSlotIds.Add(otherSlot.SlotId);
+                hostLabels.Add(otherSlot.name);
+            }
+
+            if (hostLabels.Count == 0)
+            {
+                inspectorScroll.Add(BuildInspectorNote(
+                    "This cutscene has no other slot to ride. Add one to the cast first."));
+                return;
+            }
+
+            DropdownField hostDropdown = new DropdownField("Host", hostLabels, Mathf.Max(0, currentChoice));
+            hostDropdown.RegisterValueChangedCallback(changeEvent =>
+            {
+                int chosenIndex = hostLabels.IndexOf(changeEvent.newValue);
+                if (chosenIndex < 0)
+                {
+                    return;
+                }
+                markerProperty.FindPropertyRelative("hostSlotId").uintValue = hostSlotIds[chosenIndex];
+                // The socket belongs to the old host's rig; a new host makes it meaningless.
+                markerProperty.FindPropertyRelative("socketId").uintValue = 0u;
+                serializedObject.ApplyModifiedProperties();
+                RebuildAll();
+            });
+            inspectorScroll.Add(hostDropdown);
+        }
+
+        private void BuildSocketDropdown(
+            CutsceneSlot hostSlot, SerializedProperty markerProperty, CutsceneAttachMarker marker)
+        {
+            if (hostSlot == null || hostSlot.kind != CutsceneSlotKind.Actor || hostSlot.rig == null
+                || hostSlot.rig.sockets == null || hostSlot.rig.sockets.Count == 0)
+            {
+                // A Prop host, or an Actor whose rig declares no sockets, can only be ridden at its
+                // root — offering an empty dropdown would suggest otherwise.
+                return;
+            }
+
+            List<uint> socketIds = new List<uint> { 0u };
+            List<string> socketLabels = new List<string> { "(root)" };
+            int currentChoice = 0;
+            for (int socketIndex = 0; socketIndex < hostSlot.rig.sockets.Count; socketIndex++)
+            {
+                SocketDefinition socket = hostSlot.rig.sockets[socketIndex];
+                if (socket == null || !socket.Id.IsValid)
+                {
+                    continue;
+                }
+                if (socket.Id.Value == marker.socketId)
+                {
+                    currentChoice = socketLabels.Count;
+                }
+                socketIds.Add(socket.Id.Value);
+                socketLabels.Add(socket.displayName);
+            }
+
+            DropdownField socketDropdown = new DropdownField("Socket", socketLabels, currentChoice);
+            socketDropdown.RegisterValueChangedCallback(changeEvent =>
+            {
+                int chosenIndex = socketLabels.IndexOf(changeEvent.newValue);
+                if (chosenIndex < 0)
+                {
+                    return;
+                }
+                markerProperty.FindPropertyRelative("socketId").uintValue = socketIds[chosenIndex];
+                serializedObject.ApplyModifiedProperties();
+                RebuildAll();
+            });
+            inspectorScroll.Add(socketDropdown);
+
+            SocketDefinition chosenSocket = FindSocketById(hostSlot.rig, marker.socketId);
+            if (chosenSocket != null && chosenSocket.mode == SocketAttachMode.Bone)
+            {
+                inspectorScroll.Add(BuildInspectorNote(
+                    "Bone sockets preview at the host root. Playback places them correctly."));
+            }
+        }
+
+        private CutsceneSlot FindSlotById(uint slotId)
+        {
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                if (cutscene.slots[slotIndex] != null && cutscene.slots[slotIndex].SlotId == slotId)
+                {
+                    return cutscene.slots[slotIndex];
+                }
+            }
+            return null;
+        }
+
+        private static SocketDefinition FindSocketById(RigAsset rig, uint socketId)
+        {
+            if (socketId == 0u || rig == null || rig.sockets == null)
+            {
+                return null;
+            }
+            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
+            {
+                if (rig.sockets[socketIndex] != null && rig.sockets[socketIndex].Id.Value == socketId)
+                {
+                    return rig.sockets[socketIndex];
+                }
+            }
+            return null;
+        }
+
+        private static Label BuildInspectorNote(string text)
+        {
+            Label note = new Label(text);
+            note.style.whiteSpace = WhiteSpace.Normal;
+            note.style.marginTop = 4f;
+            note.style.opacity = 0.75f;
+            return note;
         }
 
         private void BuildCameraKeyInspector(int keyIndex)

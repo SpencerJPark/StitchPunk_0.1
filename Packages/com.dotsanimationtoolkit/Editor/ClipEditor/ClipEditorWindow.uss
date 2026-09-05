@@ -1395,6 +1395,18 @@
     border-color: rgb(255, 210, 90);
 }
 
+/* The attach lane carries two kinds of moment, so shape carries the difference: an Attach is the
+   lane's ordinary diamond, a Detach is a ring. Colour is already spent on lane family. */
+.cutscene-editor__moment-marker--attach {
+    rotate: 45deg;
+}
+
+.cutscene-editor__moment-marker--detach {
+    rotate: 0deg;
+    border-radius: 6px;
+    border-width: 2px;
+}
+
 .cutscene-editor__transport {
     flex-direction: row;
     align-items: center;

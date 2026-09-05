@@ -30,6 +30,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly List<VisualElement> markerElements = new List<VisualElement>();
         private readonly List<float> times = new List<float>();
+        private readonly List<string> variantClasses = new List<string>();
         private int selectedIndex = -1;
         private int draggingIndex = -1;
         private float dragStartPointerX;
@@ -66,10 +67,28 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Rebuilds every marker from a fresh snapshot of times. Call after any authored change.</summary>
         public void SetTimes(IReadOnlyList<float> newTimes, int newSelectedIndex)
         {
+            SetTimes(newTimes, newSelectedIndex, null);
+        }
+
+        /// <summary>
+        /// As <see cref="SetTimes(IReadOnlyList{float}, int)"/>, plus one extra USS class per marker
+        /// so a lane whose moments are not all the same <em>kind</em> can say so by shape — the
+        /// attach lane's Attach and Detach (amendment A63 §3.4). Null entries are simply skipped.
+        /// </summary>
+        public void SetTimes(IReadOnlyList<float> newTimes, int newSelectedIndex, IReadOnlyList<string> markerVariantClasses)
+        {
             times.Clear();
             if (newTimes != null)
             {
                 times.AddRange(newTimes);
+            }
+            variantClasses.Clear();
+            if (markerVariantClasses != null)
+            {
+                for (int index = 0; index < markerVariantClasses.Count; index++)
+                {
+                    variantClasses.Add(markerVariantClasses[index]);
+                }
             }
             selectedIndex = newSelectedIndex;
             Rebuild();
@@ -90,7 +109,12 @@ namespace DotsAnimationToolkit.Editor
                 marker.style.height = MarkerSize;
                 marker.style.top = 2f;
                 marker.style.backgroundColor = markerColor;
-                marker.style.rotate = new Rotate(new Angle(45f, AngleUnit.Degree));
+                // Shape lives in USS, not in an inline style: an inline rotate would outrank the
+                // variant classes below, and a Detach marker must be able to stop being a diamond.
+                if (capturedIndex < variantClasses.Count && !string.IsNullOrEmpty(variantClasses[capturedIndex]))
+                {
+                    marker.AddToClassList(variantClasses[capturedIndex]);
+                }
                 marker.EnableInClassList(SelectedMarkerUssClassName, capturedIndex == selectedIndex);
                 PositionMarker(marker, times[capturedIndex]);
 
