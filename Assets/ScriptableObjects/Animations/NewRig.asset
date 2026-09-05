@@ -13,9 +13,200 @@ MonoBehaviour:
   m_Name: NewRig
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigAsset
   stableId: 9991656416296622103
-  targets: []
-  layers: []
-  mirrorPairs: []
+  targets:
+  - displayName: Pelvis
+    stableId: 1140299929
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis
+    kind: 0
+    boundsExtents:
+      x: 0.22
+      y: 0.16
+      z: 0.12
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1945739799
+  - displayName: Torso
+    stableId: 264798881
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso
+    kind: 0
+    boundsExtents:
+      x: 0.26
+      y: 0.28
+      z: 0.14
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2597715051
+  - displayName: Neck
+    stableId: 2225763172
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck
+    kind: 0
+    boundsExtents:
+      x: 0.08
+      y: 0.08
+      z: 0.08
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1950791333
+  - displayName: BaseHead
+    stableId: 3088210805
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead
+    kind: 0
+    boundsExtents:
+      x: 0.2
+      y: 0.22
+      z: 0.18
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2879213531
+  - displayName: LeftUpperArm
+    stableId: 1173584893
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm
+    kind: 0
+    boundsExtents:
+      x: 0.07
+      y: 0.18
+      z: 0.07
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2386436819
+  - displayName: LeftLowerArm
+    stableId: 1630943582
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm/LeftLowerArm
+    kind: 0
+    boundsExtents:
+      x: 0.06
+      y: 0.16
+      z: 0.06
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2741812215
+  - displayName: LeftHand
+    stableId: 221259330
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/LeftUpperArm/LeftLowerArm/LeftHand
+    kind: 0
+    boundsExtents:
+      x: 0.06
+      y: 0.07
+      z: 0.05
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2947591421
+  - displayName: RightUpperArm
+    stableId: 1726161722
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/RightUpperArm
+    kind: 0
+    boundsExtents:
+      x: 0.07
+      y: 0.18
+      z: 0.07
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1776794818
+  - displayName: RightLowerArm
+    stableId: 2128489924
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/RightUpperArm/RightLowerArm
+    kind: 0
+    boundsExtents:
+      x: 0.06
+      y: 0.16
+      z: 0.06
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2248304700
+  - displayName: RightHand
+    stableId: 3934483903
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/RightUpperArm/RightLowerArm/RightHand
+    kind: 0
+    boundsExtents:
+      x: 0.06
+      y: 0.07
+      z: 0.05
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 3817894984
+  - displayName: LeftUpperLeg
+    stableId: 3452626627
+    sourceNodePath: Visual/MaleUnitVisual/LeftUpperLeg
+    kind: 0
+    boundsExtents:
+      x: 0.09
+      y: 0.2
+      z: 0.09
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1185793452
+  - displayName: LeftLowerLeg
+    stableId: 1711980931
+    sourceNodePath: Visual/MaleUnitVisual/LeftUpperLeg/LeftLowerLeg
+    kind: 0
+    boundsExtents:
+      x: 0.08
+      y: 0.2
+      z: 0.08
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 213271597
+  - displayName: LeftFoot
+    stableId: 1753421473
+    sourceNodePath: Visual/MaleUnitVisual/LeftUpperLeg/LeftLowerLeg/LeftFoot
+    kind: 0
+    boundsExtents:
+      x: 0.08
+      y: 0.06
+      z: 0.12
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 3350377798
+  - displayName: RightUpperLeg
+    stableId: 2973879041
+    sourceNodePath: Visual/MaleUnitVisual/RightUpperLeg
+    kind: 0
+    boundsExtents:
+      x: 0.09
+      y: 0.2
+      z: 0.09
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2932757636
+  - displayName: RightLowerLeg
+    stableId: 2283231638
+    sourceNodePath: Visual/MaleUnitVisual/RightUpperLeg/RightLowerLeg
+    kind: 0
+    boundsExtents:
+      x: 0.08
+      y: 0.2
+      z: 0.08
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1914658121
+  - displayName: RightFoot
+    stableId: 1203172312
+    sourceNodePath: Visual/MaleUnitVisual/RightUpperLeg/RightLowerLeg/RightFoot
+    kind: 0
+    boundsExtents:
+      x: 0.08
+      y: 0.06
+      z: 0.12
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 3949569509
+  layers:
+  - displayName: Base
+    defaultActive: 1
+  mirrorPairs:
+  - leftTargetId: 1173584893
+    rightTargetId: 1726161722
+  - leftTargetId: 1630943582
+    rightTargetId: 2128489924
+  - leftTargetId: 221259330
+    rightTargetId: 3934483903
+  - leftTargetId: 3452626627
+    rightTargetId: 2973879041
+  - leftTargetId: 1711980931
+    rightTargetId: 2283231638
+  - leftTargetId: 1753421473
+    rightTargetId: 1203172312
+  sourcePrefab: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
   sockets: []
   billboardRoots: []
   ragdollBodies: []

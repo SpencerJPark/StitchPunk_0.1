@@ -116,7 +116,7 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   *Gate: enter Play on `CutsceneG1Checkpoint.unity`; `read_console` shows **zero** "The referenced
   script is missing" warnings. That count is the test — do not add a fixture.*
 
-- [ ] **T3 — Build the rig.** Populate `NewRig.asset` in place (decision D1) from T1's list: one
+- [x] **T3 — Build the rig.** Populate `NewRig.asset` in place (decision D1) from T1's list: one
   `RigTargetDefinition` per animated part with `displayName`, `sourceNodePath`, a `tagId`, and
   sensible `boundsExtents`; one `Base` layer with `defaultActive = true`; `mirrorPairs` for the
   left/right limbs. Use the Clip Editor's **New Rig panel** against the unit prefab if it can carry
@@ -238,6 +238,28 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
 
   *Gate result:* Play entered on `CutsceneG1Checkpoint.unity`, both `CutsceneStage` entities baked,
   console carries **zero** "The referenced script is missing" entries (previously ~100).
+
+- **(T3, done 2026-09-05) `NewRig.asset` populated in place; 13 target tags minted.** The registry
+  held 3 rows (`UpperRightArm`, `UpperLeftArm`, `LowerRightArm`) and now holds 16 — the 13 new ones
+  follow that same `{Upper|Lower}{Side}{Limb}` convention rather than the parts' own
+  `{Side}{Upper|Lower}{Limb}` order, because the vocabulary is the shared thing and three rows of it
+  already existed. `Assets/Generated/DotsAnimationToolkit/TargetTags.cs` regenerated through
+  `ConstantsGenerator.BuildVocabularyConstantsSource` + `WriteGeneratedFile` (the same path
+  `VocabularyConstantsSection.RegenerateIfConfigured` uses), 16 constants, zero sanitisation reports.
+
+  The rig carries `sourcePrefab = MaleCitizen.prefab`, 16 `Quad` targets with full
+  `Visual/MaleUnitVisual/…` node paths, one `Base` layer with `defaultActive = true`, and 6 mirror
+  pairs (the arm/leg/hand/foot left-right pairs; `Pelvis Torso Neck BaseHead` are midline and pair
+  with nothing).
+
+  *Gate result:* asset re-imported `ForceUpdate` and reloaded from disk — 16 targets, **0** zero ids,
+  **0** zero tag ids, no duplicate id and no duplicate tag; `ClipValidation.ValidateRig` returns an
+  **empty** message list, so no V02/V05/V13. Compile clean.
+
+  **Note for anyone building a rig from `execute_code`:** `TargetKind` lives in the *runtime*
+  namespace `DotsAnimationToolkit`, not `DotsAnimationToolkit.Authoring` where every other type this
+  task touches lives. The MCP `execute_code` backend is also CodeDom/C# 6 here — no local functions,
+  no `using` directives (the snippet is a method body), so everything is fully qualified.
 
 - **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
   their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already

@@ -16,6 +16,58 @@
             {
                 "name": "LowerRightArm",
                 "stableId": 2248304700
+            },
+            {
+                "name": "UpperLeftLeg",
+                "stableId": 1185793452
+            },
+            {
+                "name": "LowerLeftLeg",
+                "stableId": 213271597
+            },
+            {
+                "name": "LeftFoot",
+                "stableId": 3350377798
+            },
+            {
+                "name": "UpperRightLeg",
+                "stableId": 2932757636
+            },
+            {
+                "name": "LowerRightLeg",
+                "stableId": 1914658121
+            },
+            {
+                "name": "RightFoot",
+                "stableId": 3949569509
+            },
+            {
+                "name": "Pelvis",
+                "stableId": 1945739799
+            },
+            {
+                "name": "Torso",
+                "stableId": 2597715051
+            },
+            {
+                "name": "LowerLeftArm",
+                "stableId": 2741812215
+            },
+            {
+                "name": "LeftHand",
+                "stableId": 2947591421
+            },
+            {
+                "name": "RightHand",
+                "stableId": 3817894984
+            },
+            {
+                "name": "Neck",
+                "stableId": 1950791333
+            },
+            {
+                "name": "Head",
+                "stableId": 2879213531
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/TargetTags.cs"
