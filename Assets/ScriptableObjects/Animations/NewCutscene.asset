@@ -27,9 +27,9 @@ MonoBehaviour:
     transformKeys: []
     facingKeys: []
     partTracks: []
-  - name: Actor 2
-    slotId: 4016164674
-    kind: 0
+  - name: Prop 2
+    slotId: 3418555890
+    kind: 1
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
@@ -43,4 +43,10 @@ MonoBehaviour:
     cutMarkers: []
   events: []
   holdMarkers: []
-  sceneBindings: []
+  sceneBindings:
+  - sceneGuid: ee9d36369f1c3de4da15f188fbb1bfca
+    slotBindings:
+    - slotId: 890669729
+      globalObjectId: GlobalObjectId_V1-2-0b34cb0768f070741990d8d5a5dfa9e2-548270450-0
+    - slotId: 3418555890
+      globalObjectId: GlobalObjectId_V1-2-0b34cb0768f070741990d8d5a5dfa9e2-488662803-0
