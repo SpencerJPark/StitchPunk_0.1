@@ -308,6 +308,10 @@ namespace DotsAnimationToolkit.Authoring
             BucketCameraCuts(cutscene.cameraLane?.cutMarkers, boundaries, cameraCutsBySegment);
             BucketEvents(cutscene.events, boundaries, eventsBySegment);
 
+            InsertBoundaryContinuityKeys(
+                cutscene, boundaries, transformKeysBySlotSegment, facingKeysBySlotSegment,
+                partTracksBySlotSegment, cameraKeysBySegment);
+
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
                 ref CutsceneSegmentBlob segmentBlob = ref segmentArray[segmentIndex];
@@ -645,6 +649,248 @@ namespace DotsAnimationToolkit.Authoring
                     fireOnSkip = events[i].fireOnSkip
                 });
             }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Boundary continuity (amendment A62 defect 1, decision A62-D1): a per-segment array walk
+        // never reaches across a hold, so every keyed lane still playing across one needs its value
+        // at the boundary baked into both the segment that ends there and the one that starts —
+        // otherwise the ending segment holds its last authored key's stale value for the rest of its
+        // own duration, and the starting segment has nothing until its own first authored key.
+        // -----------------------------------------------------------------------------------
+
+        private static void InsertBoundaryContinuityKeys(
+            CutsceneAsset cutscene, List<SegmentBoundary> boundaries,
+            List<CutsceneTransformKeyBlob>[,] transformKeysBySlotSegment,
+            List<CutsceneFacingKeyBlob>[,] facingKeysBySlotSegment,
+            List<PartTrackBucket>[,] partTracksBySlotSegment,
+            List<CutsceneCameraKeyBlob>[] cameraKeysBySegment)
+        {
+            int segmentCount = boundaries.Count - 1;
+            int slotCount = cutscene.slots?.Count ?? 0;
+
+            // Boundary 0 is the timeline's own start and the last boundary is the cutscene's own
+            // end — neither separates two segments that both need continuity, only a hold does.
+            for (int boundaryIndex = 1; boundaryIndex < segmentCount; boundaryIndex++)
+            {
+                float boundaryTime = boundaries[boundaryIndex].time;
+                float endingSegmentDuration = boundaries[boundaryIndex].time - boundaries[boundaryIndex - 1].time;
+                int endingSegmentIndex = boundaryIndex - 1;
+                int startingSegmentIndex = boundaryIndex;
+
+                for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+                {
+                    CutsceneSlot slot = cutscene.slots[slotIndex];
+                    if (slot == null)
+                    {
+                        continue;
+                    }
+
+                    InsertTransformContinuity(
+                        slot.transformKeys, boundaryTime, endingSegmentDuration,
+                        transformKeysBySlotSegment[slotIndex, endingSegmentIndex],
+                        transformKeysBySlotSegment[slotIndex, startingSegmentIndex]);
+
+                    InsertFacingContinuity(
+                        slot.facingKeys, boundaryTime, facingKeysBySlotSegment[slotIndex, startingSegmentIndex]);
+
+                    if (slot.partTracks != null)
+                    {
+                        List<PartTrackBucket> endingBuckets = partTracksBySlotSegment[slotIndex, endingSegmentIndex];
+                        List<PartTrackBucket> startingBuckets = partTracksBySlotSegment[slotIndex, startingSegmentIndex];
+                        for (int trackIndex = 0; trackIndex < slot.partTracks.Count; trackIndex++)
+                        {
+                            InsertTransformContinuity(
+                                slot.partTracks[trackIndex].keys, boundaryTime, endingSegmentDuration,
+                                endingBuckets[trackIndex].keys, startingBuckets[trackIndex].keys);
+                        }
+                    }
+                }
+
+                InsertCameraContinuity(
+                    cutscene.cameraLane, boundaryTime, endingSegmentDuration,
+                    cameraKeysBySegment[endingSegmentIndex], cameraKeysBySegment[startingSegmentIndex]);
+            }
+        }
+
+        /// <summary>
+        /// Root/part-track continuity for one lane across one boundary. The ending segment always
+        /// gets a synthetic copy of the boundary pose at its own last instant; the starting segment
+        /// gets one at its own first instant too, unless an authored key already sits at the
+        /// boundary (it lands there naturally via <see cref="AssignToSegment"/>'s half-open rule).
+        /// </summary>
+        private static void InsertTransformContinuity(
+            List<CutsceneTransformKey> flatKeys, float boundaryTime, float endingSegmentDuration,
+            List<CutsceneTransformKeyBlob> endingSegmentKeys, List<CutsceneTransformKeyBlob> startingSegmentKeys)
+        {
+            if (flatKeys == null || flatKeys.Count == 0)
+            {
+                return;
+            }
+
+            float3 sampledPosition;
+            float3 sampledEulerDegrees;
+            float3 sampledScale;
+            CutsceneKeySampler.TrySampleTransform(
+                flatKeys, boundaryTime, out sampledPosition, out sampledEulerDegrees, out sampledScale);
+
+            int precedingIndex = FindPrecedingKeyIndex(flatKeys, boundaryTime);
+            CutsceneTransformKeyBlob endingKey = new CutsceneTransformKeyBlob
+            {
+                time = endingSegmentDuration,
+                position = sampledPosition,
+                rotation = math.radians(sampledEulerDegrees),
+                scale = sampledScale,
+                interpolation = flatKeys[precedingIndex].interpolation,
+                bezierStartHandle = flatKeys[precedingIndex].bezierStartHandle,
+                bezierEndHandle = flatKeys[precedingIndex].bezierEndHandle
+            };
+            // Appended, not inserted: every key already bucketed into the ending segment has a
+            // rebased time strictly less than its own duration, so this stays the sorted list's max.
+            endingSegmentKeys.Add(endingKey);
+
+            if (!HasKeyNear(flatKeys, boundaryTime))
+            {
+                CutsceneTransformKeyBlob startingKey = endingKey;
+                startingKey.time = 0f;
+                // Inserted at the front: this is time 0 of the starting segment, and nothing already
+                // bucketed there can be earlier (no authored key sits within epsilon of the boundary
+                // in this branch).
+                startingSegmentKeys.Insert(0, startingKey);
+            }
+        }
+
+        /// <summary>
+        /// Facing continuity across one boundary (§3.2): unlike a transform/camera lane, a facing
+        /// lane has no interpolated "current value" to hold — only the last override key at or
+        /// before the playhead matters (<c>CutsceneKeySampler.TryResolveFacingAngle</c>'s own rule).
+        /// So only the starting segment needs anything, and only when the override that was active
+        /// going into the hold would otherwise vanish from the segment that resumes after it.
+        /// </summary>
+        private static void InsertFacingContinuity(
+            List<CutsceneFacingKey> flatKeys, float boundaryTime, List<CutsceneFacingKeyBlob> startingSegmentKeys)
+        {
+            if (flatKeys == null || flatKeys.Count == 0)
+            {
+                return;
+            }
+
+            int bestIndex = -1;
+            for (int i = 0; i < flatKeys.Count; i++)
+            {
+                if (flatKeys[i].time <= boundaryTime && (bestIndex < 0 || flatKeys[i].time > flatKeys[bestIndex].time))
+                {
+                    bestIndex = i;
+                }
+            }
+            if (bestIndex < 0 || math.abs(flatKeys[bestIndex].time - boundaryTime) <= BoundaryEpsilon)
+            {
+                // No override yet, or one already sits at the boundary and lands in the starting
+                // segment on its own via AssignToSegment.
+                return;
+            }
+
+            startingSegmentKeys.Insert(0, new CutsceneFacingKeyBlob
+            {
+                time = 0f,
+                angleRadians = math.radians(flatKeys[bestIndex].angleDegrees)
+            });
+        }
+
+        /// <summary>Camera-lane counterpart of <see cref="InsertTransformContinuity"/>, sampled cut-aware (decision G-D7 stays authoritative even at a hold).</summary>
+        private static void InsertCameraContinuity(
+            CutsceneCameraLane cameraLane, float boundaryTime, float endingSegmentDuration,
+            List<CutsceneCameraKeyBlob> endingSegmentKeys, List<CutsceneCameraKeyBlob> startingSegmentKeys)
+        {
+            List<CutsceneCameraKey> flatKeys = cameraLane?.keys;
+            if (flatKeys == null || flatKeys.Count == 0)
+            {
+                return;
+            }
+
+            float3 sampledPosition;
+            float3 sampledEulerDegrees;
+            float fieldOfView;
+            bool isCut;
+            CutsceneKeySampler.SampleCameraWithCuts(
+                flatKeys, cameraLane.cutMarkers, boundaryTime,
+                out sampledPosition, out sampledEulerDegrees, out fieldOfView, out isCut);
+
+            int precedingIndex = FindPrecedingCameraKeyIndex(flatKeys, boundaryTime);
+            CutsceneCameraKeyBlob endingKey = new CutsceneCameraKeyBlob
+            {
+                time = endingSegmentDuration,
+                position = sampledPosition,
+                rotation = math.radians(sampledEulerDegrees),
+                fieldOfView = fieldOfView,
+                interpolation = flatKeys[precedingIndex].interpolation,
+                bezierStartHandle = flatKeys[precedingIndex].bezierStartHandle,
+                bezierEndHandle = flatKeys[precedingIndex].bezierEndHandle
+            };
+            endingSegmentKeys.Add(endingKey);
+
+            bool hasAuthoredKeyAtBoundary = false;
+            for (int i = 0; i < flatKeys.Count; i++)
+            {
+                if (math.abs(flatKeys[i].time - boundaryTime) <= BoundaryEpsilon)
+                {
+                    hasAuthoredKeyAtBoundary = true;
+                    break;
+                }
+            }
+            if (!hasAuthoredKeyAtBoundary)
+            {
+                CutsceneCameraKeyBlob startingKey = endingKey;
+                startingKey.time = 0f;
+                startingSegmentKeys.Insert(0, startingKey);
+            }
+        }
+
+        private static bool HasKeyNear(List<CutsceneTransformKey> keys, float time)
+        {
+            for (int i = 0; i < keys.Count; i++)
+            {
+                if (math.abs(keys[i].time - time) <= BoundaryEpsilon)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The last key at or before <paramref name="time"/> (assumes ascending-sorted keys, same as every other lane walk in this builder); falls back to the first key when <paramref name="time"/> precedes every key.</summary>
+        private static int FindPrecedingKeyIndex(List<CutsceneTransformKey> keys, float time)
+        {
+            int precedingIndex = 0;
+            for (int i = 0; i < keys.Count; i++)
+            {
+                if (keys[i].time <= time)
+                {
+                    precedingIndex = i;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return precedingIndex;
+        }
+
+        private static int FindPrecedingCameraKeyIndex(List<CutsceneCameraKey> keys, float time)
+        {
+            int precedingIndex = 0;
+            for (int i = 0; i < keys.Count; i++)
+            {
+                if (keys[i].time <= time)
+                {
+                    precedingIndex = i;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return precedingIndex;
         }
 
         private static CutsceneTransformKeyBlob ToBlob(CutsceneTransformKey key, float segmentStart)
