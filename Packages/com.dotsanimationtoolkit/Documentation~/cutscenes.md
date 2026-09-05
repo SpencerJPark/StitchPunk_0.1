@@ -134,7 +134,35 @@ clip, it keeps running through the actor's own `PlaybackLayer` regardless of
 what the cutscene clock is doing, which is what lets a looping background
 clip survive a hold without its loop phase resetting.
 
-## Playing a cutscene
+## Staging a cutscene (amendment A61)
+
+The cast panel's **Sync to Stage** button writes every bound slot into a
+`CutsceneStageAuthoring` component in the open scene — creating one, named
+"Cutscene Stage — &lt;asset&gt;", the first time you press it. That component
+bakes to one `CutsceneStage` entity per cutscene: the blob plus a
+`CutsceneStageBinding` per slot. This is the normal way a cast that was placed
+and bound in the editor reaches the game.
+
+```csharp
+// Somewhere the host looks a staged cutscene up by its stable id (its asset's StableId):
+if (CutscenePlaybackApi.TryFindStage(entityManager, cutsceneKey, out Entity stageEntity))
+{
+    Entity cutscene = CutscenePlaybackApi.CreatePlayRequestFromStage(entityManager, stageEntity);
+    // Every staged slot is already bound. Add or overwrite CutsceneActorBinding entries
+    // for anything the stage's subscene could not bake — a spawned unit, or a target that
+    // lived outside the subscene at bake time.
+}
+```
+
+Sync is explicit — pressing Bind or Place never writes the stage on its own,
+so rehearsing a cast does not dirty the scene. Re-press Sync to Stage after
+changing the cast; the cast panel's Stage status (`none` / `synced` / `out of
+date`) tells you when a rebake is owed.
+
+## Playing a cutscene manually (spawned actors)
+
+Actors that do not exist until runtime — spawned units, procedurally placed
+props — have no scene object for a stage to bind, so bind them by hand instead:
 
 ```csharp
 BlobAssetReference<CutsceneBlob> blob = /* built or cached ahead of time */;

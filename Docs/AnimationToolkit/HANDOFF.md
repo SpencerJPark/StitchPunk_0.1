@@ -112,6 +112,27 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A61 — Cutscene Stage Baking. T1–T4 built and gated green 2026-09-04** (MCP was unreachable for
+part of the session — the Editor's own auto-recompile caught one real `Hash128` ambiguity bug in
+`CutsceneStageAuthoring.cs` in the meantime, fixed before MCP reconnected; full detail of that
+detour is in the spec's §7). `CutsceneStageAuthoring` + `CutsceneStageBaker`
+(`Authoring/Baking/CutsceneStageAuthoring.cs`, new) bake a `CutsceneAsset` and its scene-bound cast
+into one `CutsceneStage` entity + `CutsceneStageBinding` buffer — proved live via `BakingTestWorld`
+(new `CutsceneStageBakingTests.cs`, 3/3). `CutscenePlaybackApi` gained
+`CreatePlayRequestFromStage`/`TryFindStage`. The cast panel gained a Stage status label and a Sync
+to Stage button (`CutsceneEditorPanel.SyncCutsceneToStage`, one collapsed Undo step) — proved live
+via `execute_code` driving the real Cutscene Editor tab through a scratch two-slot sync. Compile
+clean; `DotsAnimationToolkit.Tests.EditMode` 712/712 (one pre-existing, unrelated asmdef-drift
+failure — `Conformance_A`, nothing to do with this amendment), `.PlayMode` 247/247 (243 baseline + 4
+new). **Owed**: the owner's own eyes on Sync to Stage in a live scene per the spec's own owner
+checkpoint (§5's last line), and an answer to a flagged assembly-visibility question
+(`CutsceneSlotRuntimeState` is internal to Runtime with no `InternalsVisibleTo` grant to the test
+assemblies, unlike Authoring's — spec's §7 has the detail). One placement ambiguity was resolved by
+judgment call (T3's "beside '+ Actor Slot'" — logged in §7, not silently reinterpreted). **Also
+noted, unrelated to this work**: the working tree picked up changes this session did not make
+(a new Prop slot on `NewCutscene.asset`, a Zombie-conversion system, narrative-event edits) —
+apparently concurrent activity in the same shared Editor/project, left untouched.
+
 **Cutscenes — the roadmap to completion (written 2026-09-04, nothing built yet).**
 `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` is the index: eight package amendments
 (A61 stage baking → A62 runtime correctness → A63 attach lane → A64 marks/rendezvous holds →

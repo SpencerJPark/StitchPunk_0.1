@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene stages (A61)
+
+The Cutscene Editor bound slots to scene GameObjects and the runtime player bound slots to
+entities, but nothing connected the two — a host had to rebuild every binding by hand in code, and
+no baked entity carried a cutscene's blob into a subscene at all.
+
+- `CutsceneStageAuthoring` + `CutsceneStageBaker` (`Authoring/Baking/`): bakes a `CutsceneAsset` and
+  its scene-bound cast into one `CutsceneStage` entity, blob and `CutsceneStageBinding` buffer
+  included. An unassigned cutscene, or a binding naming a slot id the asset does not declare, bakes
+  to nothing (the latter with one warning) rather than to something broken.
+- `CutscenePlaybackApi.CreatePlayRequestFromStage` and `.TryFindStage`: the read side a host uses to
+  find a staged cutscene by its stable id and start it with every staged slot already bound — a
+  host may still add or overwrite `CutsceneActorBinding` entries afterward for spawned actors.
+- Cast panel gains a **Stage** status label and a **Sync to Stage** button: writes every currently
+  bound slot into the scene's `CutsceneStageAuthoring` component (creating one the first time) as
+  one Undo step. Explicit only — Bind and Place never write the stage on their own, so rehearsing a
+  cast never dirties the scene.
+
 ### Changed — Edit Prefab moved to the Rig Hierarchy header and became **Prefab**
 
 It opened the rig's prefab but sat in the top bar, a row away from the tree it acts on and reading
