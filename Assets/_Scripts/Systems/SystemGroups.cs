@@ -37,8 +37,8 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
 // SimulationSystemGroup pipeline:
-// GameManager → Player → UtilityAI → MinionActionSelection → StateMachine → Item → Movement
-//   → Buildings → Combat → Health → Design → Animation
+// GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → StateMachine → Item
+//   → Movement → Buildings → Combat → Health → Design → Animation
 // (Adjacent edges below are asserted by SystemGroupOrderTests — keep them explicit.)
 // --------------------------------------------------------------------------------------------
 
@@ -61,6 +61,14 @@ public partial class PlayerSystemGroup : GameSceneSystemGroup { }
 
         [UpdateInGroup(typeof(PlayerSystemGroup), OrderLast = true)]
         public partial class PlayerEquipmentSystemGroup : ComponentSystemGroup { }
+
+// Sits between Player and UtilityAI: a cutscene that starts this frame must gate AI selection
+// this same frame, and a request spawned by NarrativeEventManager (a MonoBehaviour Update, i.e.
+// before SimulationSystemGroup) is consumed the same frame it is created.
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(PlayerSystemGroup))]
+[UpdateBefore(typeof(UtilityAISystemGroup))]
+public partial class CutsceneSystemGroup : GameSceneSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(StateMachineSystemGroup))]

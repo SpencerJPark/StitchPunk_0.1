@@ -33,6 +33,8 @@ Keep this file current: add a row when you add a request component; delete the r
 | `SaveRequest` / `LoadRequest` | AutoSaveTimerSystem; SaveLoadBridge + DebugSaveMenu (Mono) | `SaveSystemGroup` — PersistentSaveSystem / PersistentLoadSystem |
 | `OnDialogueEvent` | DialogueUIManager (Mono) | `DialogueSystemGroup` — DialogueEventSystem; NarrativeDialogueBridgeSystem bridges to narrative |
 | `OnNarrativeEvent` | NarrativeProximitySystem, NarrativeDialogueBridgeSystem | NarrativeEventManager (Mono, async via UniTask) |
+| `CutsceneRequest` (one-frame signal entity) + `CutsceneRequestBindingOverride` buffer | NarrativeEventManager (`PlayCutsceneAction`), `CutsceneDebugTrigger` (Mono) | `CutsceneSystemGroup` — CutsceneStartSystem: `TryFindStage`/`CreatePlayRequestFromStage`, enables `CutsceneActor` + `ActionInterruptRequest` on every bound unit, writes `ActiveCutscene`, destroys the signal (G1) |
+| `ActiveCutscene` (on the `NarrativeEventTag` singleton) | CutsceneStartSystem | CutsceneEndSystem (teardown on `CutscenePlaybackState.isComplete`), `CutscenePlayerControlSystem` (drives `CutsceneActiveTag`), `PersistentSaveSystem` (save lock) (G1) |
 
 ## Read-only view/state singletons
 

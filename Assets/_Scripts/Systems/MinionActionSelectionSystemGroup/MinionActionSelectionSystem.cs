@@ -72,6 +72,7 @@ public partial struct MinionActionSelectionSystem : ISystem
 // readable while UtilityBrain is disabled — a player minion's utility AI no longer drives it.
 [WithAll(typeof(PlayerUnitBrain))]
 [WithPresent(typeof(UtilityBrain))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct MinionActionWriteJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>    aiConfig;

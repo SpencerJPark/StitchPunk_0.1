@@ -39,6 +39,7 @@ public partial struct NavigationAwarenessSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct NavigationAwarenessJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity> waypointCells;

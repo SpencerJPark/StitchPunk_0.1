@@ -19,6 +19,7 @@ PlayerSystemGroup            — all player-driven logic
   ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
   ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
   └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions (reviver)
+CutsceneSystemGroup          — wires com.dotsanimationtoolkit's cutscene player into the game: see [[Systems_AI]]'s brain-control split and Tasks/NewPlans/CutsceneIntegration_System.md (G1)
 UtilityAISystemGroup         — decision inputs: see [[Systems_AI]]
   ├── UtilityMotivationSystemGroup — motivation change requests + decay
   └── UtilityAwarenessSystemGroup  — awareness systems populate the UtilityActions buffer

@@ -39,6 +39,9 @@ public partial struct UnitFacingSystem : ISystem
 }
 
 [BurstCompile]
+// G2 replaces this skip with the CutsceneFacing bridge — for now a cutscene actor's facing is
+// left exactly as it was the frame the cutscene started.
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct UnitFacingJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> unitLibrary;

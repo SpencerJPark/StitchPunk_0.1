@@ -77,6 +77,7 @@ public partial struct EnemyAwarenessSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct CombatAwarenessJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;

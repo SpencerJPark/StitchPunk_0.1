@@ -28,6 +28,11 @@ public partial struct PlayerAttackSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        // A scene without the narrative singleton behaves as "no cutscene".
+        if (SystemAPI.TryGetSingletonEntity<NarrativeEventTag>(out Entity narrativeEntity)
+            && SystemAPI.IsComponentEnabled<CutsceneActiveTag>(narrativeEntity))
+            return;
+
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
         BlobAssetReference<UnitLibraryBlob> unitLibrary =

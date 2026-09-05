@@ -17,6 +17,10 @@ partial struct PlayerMoveSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        // A scene without the narrative singleton behaves as "no cutscene".
+        bool cutsceneActive = SystemAPI.TryGetSingletonEntity<NarrativeEventTag>(out Entity narrativeEntity)
+            && SystemAPI.IsComponentEnabled<CutsceneActiveTag>(narrativeEntity);
+
         foreach (var (transform, unitMover, moveInput, moveEnabled, actionMap, aimEnabled) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
@@ -35,6 +39,13 @@ partial struct PlayerMoveSystem : ISystem
             }
 
             float3 currentPos = transform.ValueRO.Position;
+
+            // Lock movement while a cutscene is running (same shape as the aim lock below).
+            if (cutsceneActive)
+            {
+                unitMover.ValueRW.targetPosition = currentPos;
+                continue;
+            }
 
             // Lock movement while aiming
             if (aimEnabled.ValueRO)

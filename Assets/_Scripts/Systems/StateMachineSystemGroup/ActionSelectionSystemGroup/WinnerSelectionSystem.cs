@@ -50,6 +50,7 @@ public partial struct WinnerSelectionSystem : ISystem
 // StateMachine decision even though its UtilityBrain is disabled (decisions come from the player).
 [WithPresent(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct WinnerSelectJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;

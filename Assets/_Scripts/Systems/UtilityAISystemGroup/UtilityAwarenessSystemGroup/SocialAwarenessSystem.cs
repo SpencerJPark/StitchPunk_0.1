@@ -58,6 +58,7 @@ public partial struct SocialAwarenessSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct SocialAwarenessJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;

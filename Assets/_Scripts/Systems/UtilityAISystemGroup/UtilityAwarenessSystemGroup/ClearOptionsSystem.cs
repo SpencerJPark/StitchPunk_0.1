@@ -23,6 +23,7 @@ public partial struct ClearOptionsSystem : ISystem
 // too (UtilityBrain disabled) — otherwise their player/self-defence options would accumulate.
 [WithPresent(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct ClearOptionsJob : IJobEntity
 {
     public void Execute(ref DynamicBuffer<UtilityActions> actions)

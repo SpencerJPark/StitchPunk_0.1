@@ -57,6 +57,9 @@ public static class UnitBakingUtil
         baker.AddComponent<ActionInterruptRequest>(entity);
         baker.SetComponentEnabled<ActionInterruptRequest>(entity, false);
 
+        baker.AddComponent<CutsceneActor>(entity);
+        baker.SetComponentEnabled<CutsceneActor>(entity, false);
+
         baker.AddBuffer<MotivationChangeRequest>(entity);
         baker.AddBuffer<RecentWaypoint>(entity);
         baker.AddBuffer<RecentInteraction>(entity);

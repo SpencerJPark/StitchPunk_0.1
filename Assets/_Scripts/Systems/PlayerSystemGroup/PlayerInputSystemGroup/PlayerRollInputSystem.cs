@@ -13,6 +13,11 @@ public partial struct PlayerRollInputSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        // A scene without the narrative singleton behaves as "no cutscene".
+        if (SystemAPI.TryGetSingletonEntity<NarrativeEventTag>(out Entity narrativeEntity)
+            && SystemAPI.IsComponentEnabled<CutsceneActiveTag>(narrativeEntity))
+            return;
+
         float deltaTime = SystemAPI.Time.DeltaTime;
 
         foreach (var (rollInput, rollEnabled) in

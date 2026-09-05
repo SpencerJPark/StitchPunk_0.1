@@ -37,6 +37,7 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<Gravity>           _gravityLookup;
     private ComponentLookup<AnimationCommandPending> _animationCommandPendingLookup;
     private BufferLookup<AnimationCommand>     _animationCommandLookup;
+    private ComponentLookup<CutsceneActor>     _cutsceneActorLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -59,6 +60,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _gravityLookup         = state.GetComponentLookup<Gravity>(false);
         _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
         _animationCommandLookup = state.GetBufferLookup<AnimationCommand>(false);
+        _cutsceneActorLookup   = state.GetComponentLookup<CutsceneActor>(false);
     }
 
     [BurstCompile]
@@ -81,6 +83,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _gravityLookup.Update(ref state);
         _animationCommandPendingLookup.Update(ref state);
         _animationCommandLookup.Update(ref state);
+        _cutsceneActorLookup.Update(ref state);
 
         foreach (var (_, entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
@@ -108,6 +111,9 @@ public partial struct SpawnStateInitSystem : ISystem
                 _zombifyLookup.SetComponentEnabled(entity, false);
             if (_selectedLookup.HasComponent(entity))
                 _selectedLookup.SetComponentEnabled(entity, false);
+            // A pool-reclaimed body must never carry the previous life's cutscene binding.
+            if (_cutsceneActorLookup.HasComponent(entity))
+                _cutsceneActorLookup.SetComponentEnabled(entity, false);
 
             // Pathfinding — disabled until a path is requested.
             if (_pathRequestLookup.HasComponent(entity))

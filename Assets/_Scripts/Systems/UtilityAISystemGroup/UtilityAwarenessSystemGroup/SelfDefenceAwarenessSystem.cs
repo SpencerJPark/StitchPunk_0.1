@@ -67,6 +67,7 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct SelfDefenceAwarenessJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Dead>                 deadLookup;

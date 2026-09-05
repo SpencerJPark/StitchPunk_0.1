@@ -47,6 +47,7 @@ public partial struct InteractionAwarenessSystem : ISystem
 
 [BurstCompile]
 [WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct InteractionAwarenessJob : IJobEntity
 {
     [ReadOnly] public SpatialHashRegistry                         registry;

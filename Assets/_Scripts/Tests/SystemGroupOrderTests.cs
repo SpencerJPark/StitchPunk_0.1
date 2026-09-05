@@ -20,6 +20,7 @@ namespace StitchPunk.Tests
         {
             typeof(GameManagerSystemGroup),
             typeof(PlayerSystemGroup),
+            typeof(CutsceneSystemGroup),
             typeof(UtilityAISystemGroup),
             typeof(MinionActionSelectionSystemGroup),
             typeof(StateMachineSystemGroup),

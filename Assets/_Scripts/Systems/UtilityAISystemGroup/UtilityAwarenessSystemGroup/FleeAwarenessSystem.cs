@@ -65,6 +65,7 @@ public partial struct FleeAwarenessSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(UtilityBrain))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct FleeAwarenessJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Dead>                deadLookup;

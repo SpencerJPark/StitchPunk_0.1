@@ -81,6 +81,7 @@ public partial struct ItemAwarenessSystem : ISystem
 [BurstCompile]
 [WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
 [WithDisabled(typeof(Dead))]
+[WithDisabled(typeof(CutsceneActor))]
 public partial struct ItemAwarenessJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity>      itemCells;

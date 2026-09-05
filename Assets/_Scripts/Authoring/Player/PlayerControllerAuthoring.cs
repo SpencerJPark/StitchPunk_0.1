@@ -180,6 +180,10 @@ public class PlayerControllerAuthoring : MonoBehaviour
                 ? GetEntity(controllerAuthoring.handSocket, TransformUsageFlags.Dynamic)
                 : Entity.Null;
             AddComponent(entity, new UnitEquip { socketEntity = socketEntity });
+
+            // The player is not baked through UnitBakingUtil — add the cutscene gate here.
+            AddComponent(entity, new CutsceneActor());
+            SetComponentEnabled<CutsceneActor>(entity, false);
         }
     }
 }

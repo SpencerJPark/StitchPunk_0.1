@@ -21,6 +21,7 @@ public partial struct PersistentSaveSystem : ISystem
     // every archetype in the world, which is what Unity's "create queries in OnCreate" warning is
     // about. WithDisabled<Dead> is part of the query, so the alive-only filter still lives with it.
     private EntityQuery aliveMinionQuery;
+    private bool warnedForActiveCutscene;
 
     public void OnCreate(ref SystemState state)
     {
@@ -37,6 +38,24 @@ public partial struct PersistentSaveSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         Entity gameDataEntity = SystemAPI.GetSingletonEntity<GameDataTag>();
+
+        bool cutsceneActive = SystemAPI.TryGetSingletonEntity<NarrativeEventTag>(out Entity narrativeEntity)
+            && SystemAPI.IsComponentEnabled<ActiveCutscene>(narrativeEntity);
+
+        if (!cutsceneActive)
+        {
+            warnedForActiveCutscene = false;
+        }
+        else if (state.EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
+        {
+            state.EntityManager.SetComponentEnabled<SaveRequest>(gameDataEntity, false);
+            if (!warnedForActiveCutscene)
+            {
+                Debug.LogWarning("[PersistentSaveSystem] Save request skipped — a cutscene is active.");
+                warnedForActiveCutscene = true;
+            }
+            return;
+        }
 
         if (!state.EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
             return;
