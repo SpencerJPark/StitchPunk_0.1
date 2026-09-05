@@ -245,6 +245,23 @@ All four T1–T4 checkboxes above are now ticked on the strength of these live r
 checkpoint is **not** ticked — it specifically asks for the owner's own eyes on a real cutscene in
 `DOTSTestScene`, which this session's scratch-object proof deliberately does not substitute for.
 
+**2026-09-04, still later — a real, pre-existing bug surfaced the moment the owner actually tried the
+checkpoint by hand.** Binding a slot in the cast panel appeared to do nothing, and the slot
+inspector's fields flickered visibly. Root cause, confirmed by reading `CutsceneCastPanel.BuildRow`:
+its "select this slot" `PointerDownEvent` handler was registered on the whole row, and the row also
+hosts the Bind `ObjectField` and the Place/Select/Frame buttons — a pointer-down anywhere inside
+them bubbles up just the same, firing `SelectSlotHeader` → `RefreshCastPanel` → `Rebuild`, which
+tears the entire cast panel down and rebuilds it mid-interaction. That destroyed the very
+`ObjectField` the owner had just clicked before a drag-and-drop or picker assignment could commit,
+and rebuilt the slot inspector's `PropertyField`s on every such click, which is the flicker. This is
+pre-existing A58-era code — HANDOFF's own notes already said no human had bound a slot live before —
+not something this amendment's own tasks introduced. **Fixed**: moved the `PointerDownEvent`
+registration to `titleRow` (a sibling of the `ObjectField`/buttons, not their ancestor), so clicks on
+those controls no longer bubble into slot selection. Compile clean; full `DotsAnimationToolkit.Tests.PlayMode`
+suite re-run 247/247 green (this is UI wiring — no dedicated fixture, per this package's own "often
+zero tests" convention). Committed separately from A61's own T1–T4 commits since it isn't one of this
+amendment's tasks. **Please re-try the owner checkpoint now** — binding should work normally.
+
 **T4 — done.** `Documentation~/cutscenes.md`: "Playing a cutscene" split into a new "Staging a
 cutscene (amendment A61)" section (the stage flow: `TryFindStage` + `CreatePlayRequestFromStage`)
 followed by "Playing a cutscene manually (spawned actors)" carrying the original manual-binding
