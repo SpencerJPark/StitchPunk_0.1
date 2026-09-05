@@ -19,7 +19,7 @@ Phase G + A58–A60 shipped a complete **package-side** cutscene feature in `Pac
 | A key at a hold's exact time lands in the *next* segment, so motion into a hold is lost at runtime; the editor (flat-list sampler) interpolates correctly, so preview ≠ playback | `CutsceneBlobBuilder.AssignToSegment` half-open rule + per-segment `CutsceneBlobSampler` | A62-T1 |
 | First clip block after a hold is always a hard cut (blend derived from "previous block in the same segment") | `CutsceneTimelineSystem.ProcessClipBlocks` | A62-T3 |
 | A slot with zero root keys is written to position (0,0,0) every frame — both editor and runtime | `CutsceneBlobSampler.SampleTransform` / `CutscenePoseSampler.Sample` return zero for an empty list and callers write it unconditionally | A62-T2 |
-| `CutsceneControl.speed` / `.paused` scale the cutscene clock only; actors' clip layers run at speed 1 regardless | `ProcessClipBlocks` issues `speed = 1f`; nothing issues `SetSpeed` | A62-T4 |
+| ~~`CutsceneControl.speed` scales the cutscene clock only~~ **FIXED — verified 2026-09-05 (G0-T6): a cutscene fired at `speed = 0.05` reads back `PlaybackLayer.speed == 0.050` on both actors. Do not re-fix.** | `ProcessClipBlocks` | A62-T4 |
 | Clip blocks whose start is the segment's t=0 are issued one frame late after a hold release | hold branch returns before `ProcessClipBlocks` | A62-T5 |
 | Facing has no runtime application at all (recorded gap) | — | A65-T2 |
 
@@ -39,7 +39,7 @@ Toolkit amendments live in `Docs/AnimationToolkit/` (the package's own doc syste
 | A61 | [`Amendment_A61_CutsceneStageBaking_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A61_CutsceneStageBaking_Spec.md) | `CutsceneStageAuthoring` + baker: the asset and its scene bindings bake to a `CutsceneStage` entity; cast panel "Sync to Stage"; `CreatePlayRequestFromStage` | — | A62 |
 | A62 | [`Amendment_A62_CutsceneRuntimeCorrectness_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A62_CutsceneRuntimeCorrectness_Spec.md) | the five runtime bugs above, with PlayMode fixtures that fail on the old code | — | A61 |
 | G1 | [`CutsceneIntegration_System.md`](CutsceneIntegration_System.md) | `CutsceneSystemGroup`, `CutsceneRequest` signal, `CutsceneActor` gate (AI/movement/input), Cinemachine bridge, `PlayCutsceneAction`, sound consumer, save lock — **first cutscene plays in the game** | A61, A62 | A63 |
-| G0 | [`ActorContentRebuild_System.md`](ActorContentRebuild_System.md) | the rig, per-part authoring and one **walk clip** that make a unit a real toolkit actor — inserted 2026-09-05 by owner decision, because nothing in the game could play a clip | G1 | — |
+| G0 | [`ActorContentRebuild_System.md`](ActorContentRebuild_System.md) | ✅ **DONE 2026-09-05, owner-verified on screen.** The rig, per-part authoring and one **walk clip** that make `MaleCitizen` a real toolkit actor | G1 | — |
 | A63 | [`Amendment_A63_CutsceneAttachLane_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A63_CutsceneAttachLane_Spec.md) | attach lane: socket attach, root attach (ride), hand-over, detach with impulse signal, hide-while-attached; editor lane + preview | A62 | G1 |
 | A64 | [`Amendment_A64_CutsceneMarks_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A64_CutsceneMarks_Spec.md) | marks lane + rendezvous holds: `CutsceneMoveToMark` request, arrival detection, timeout teleport; editor lane, Scene-view mark handles, preview travel | A63 | — |
 | A65 | [`Amendment_A65_CutsceneCuesFacingBlocks_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A65_CutsceneCuesFacingBlocks_Spec.md) | holding events (the dialogue cue), host inspector seam for event payloads, runtime facing (`CutsceneFacing` + direction-variant re-pick), per-block speed and start offset | A64 | — |
@@ -49,7 +49,7 @@ Toolkit amendments live in `Docs/AnimationToolkit/` (the package's own doc syste
 | G3 | [`CutsceneAcceptance_System.md`](CutsceneAcceptance_System.md) | the "Rendezvous and Depart" cutscene authored with real assets, a debug trigger, the owner's verification checklist, perf check | everything above | — |
 | A68 | [`Amendment_A68_CutsceneDocsRelease_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A68_CutsceneDocsRelease_Spec.md) | `cutscenes.md` rewrite, new `cutscene-api.md` reference, `Samples~` cutscene sample compiled through a temp assembly, CHANGELOG, HANDOFF closure, version bump | G3 | — |
 
-**Critical path:** A61 → G1 → **G0** → A63 → A64 → A65 → G2 → A66 → A67 → G3 → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing from a debug key — built and machine-verified 2026-09-05 in its own `Assets/Scenes/CutsceneG1Checkpoint.unity`, awaiting the owner's eyes.
+**Critical path:** ~~A61 → G1 → G0~~ → **A63 (next)** → A64 → A65 → G2 → A66 → A67 → G3 → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing from a debug key — built and machine-verified 2026-09-05 in its own `Assets/Scenes/CutsceneG1Checkpoint.unity`, awaiting the owner's eyes.
 
 > **G0 was inserted after G1 (2026-09-05).** Building G1's checkpoint proved the integration works
 > and simultaneously proved the game has **no animation content at all**: one empty `RigAsset`, two
