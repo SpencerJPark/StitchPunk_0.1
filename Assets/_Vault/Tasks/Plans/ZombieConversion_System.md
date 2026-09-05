@@ -1,6 +1,6 @@
 # Zombie Conversion System — Design Spec
 
-> **Status:** 🔨 **phase 1 built 2026-09-04** — `ZombifyRequest` + `ZombifySystem` + both v1 triggers (debug menu, narrative `ZombifyAction`) landed. **C# compiles green** — the Editor (busy on another session) recompiled all six touched assemblies at 17:44 on 2026-09-04 with no `error CS` from these files, read out of `Logs/Editor.log`. One Burst error was found and fixed there (`BC1016`, string → `FixedString` inside the job — see [[Gotchas]]); that fix awaits the next recompile. ⚠ **NOT rebaked, NOT play-tested.** The gate + play pass is the checklist at [`../Verification/verify-zombieconversion.md`](../Verification/verify-zombieconversion.md). Phase 2 (zombie palette/tag assets) is an owner art task; phases 3–4 deferred, see §11.
+> **Status:** 🔨 **phase 1 built 2026-09-04** — `ZombifyRequest` + `ZombifySystem` + both v1 triggers (debug menu, narrative `ZombifyAction`) landed. **C# compiles green** — the Editor (busy on another session) recompiled all six touched assemblies at 17:44 on 2026-09-04 with no `error CS` from these files, read out of `Logs/Editor.log`. One Burst error was found and fixed there (`BC1016`, string → `FixedString` inside the job — see [[Gotchas]]), and the next recompile came back clean. ⚠ **NOT rebaked, NOT play-tested.** The gate + play pass is the checklist at [`../Verification/verify-zombieconversion.md`](../Verification/verify-zombieconversion.md). Phase 2 (zombie palette/tag assets) is an owner art task; phases 3–4 deferred, see §11.
 > Both halves it composes already existed: `SwapBrainRequest` (`SwapBrainSystem`, from Brain Control Split) and `ChangeDesignRequest` (from the CharacterRig/ColorPalette work — `CharacterRigAuthoring.cs:114`).
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #5 — "the vertical-slice payoff of everything just built, and it's nearly free now"
 
@@ -98,7 +98,7 @@ DOTSTestScene: debug-key a citizen → same frame: skin swaps to zombie column (
 
 **Known gaps this phase does not close**
 
-- **Compiled (C# green); not rebaked, not play-tested.** The one Burst failure found in the log is fixed but not yet re-verified.
+- **Compiles green (C# + Burst); not rebaked, not play-tested.**
 - **No test fixture.** The invariants worth pinning (target resolution, the in-flight-swap defer) need a `World` + a `UnitDataLibrary` blob, i.e. a PlayMode fixture; writing one without being able to run it — or to revert the fix and watch it fail — would violate the project's own test rule. Owed with the gate.
 - **Conversion does not survive save/load for non-minions.** `UnitData`/`UtilityBrain` are not `IPersist`; only the design half (`CharacterPalette`, `PersistedDesign`) persists. A converted citizen reloads with its human brain and a zombie skin. Fixing it means persisting the unit type — a Save-system decision, not this spec's.
 - **§9.4 bite conversion is an owner call, not just a code task.** Today the game's zombie-creation path is *corpse revive* (`ReviveRequest` → `becomesUnitType`). Converting on a zombie's killing blow puts two different mechanics on the same moment; which one the demo wants — bite converts the living, or death-then-reanimate — decides whether `DamageEventSystem` should divert the killing blow at all.

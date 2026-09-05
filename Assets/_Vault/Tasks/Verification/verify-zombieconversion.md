@@ -13,8 +13,8 @@ and skin — in the frame it resolves, and that nothing else regressed. Spec + b
 
 The Editor was busy on another session while this was written, but it did recompile: all six
 touched assemblies built clean at 17:44 on 2026-09-04 (`Logs/Editor.log`, no `error CS` from these
-files), and a Burst `BC1016` in `ZombifyJob` was caught there and fixed. **Nothing has been rebaked
-or run.** Start at the gate.
+files), a Burst `BC1016` in `ZombifyJob` was caught there and fixed, and the 17:50 recompile came
+back clean. **Nothing has been rebaked or run.** Start at the rebake.
 
 ## Gate (first session with the Editor free)
 
@@ -22,10 +22,10 @@ or run.** Start at the gate.
   `UnitComponents.cs`, `UnitBakingUtil.cs`, `SpawnStateInitSystem.cs`, `DebugZombifyMenu.cs`,
   `NarrativeEventSO.cs`, `NarrativeEventManager.cs`, `NarrativeEventSOEditor.cs`). The one
   `error CS0104` in that log is another session's `CutsceneStageAuthoring.cs`, not this work.
-- [ ] Re-check Burst after the next recompile: `ZombifyJob` first failed `BC1016` building a
-  `FixedString32Bytes` from a string literal; the names now come from a non-`[BurstCompile]`
-  `OnCreate` as job fields ([[Gotchas]]). Confirm the error is gone — do not "fix" it by dropping
-  `[BurstCompile]` from the job.
+- [x] Burst — `ZombifyJob` first failed `BC1016` building a `FixedString32Bytes` from a string
+  literal; the names now come from a non-`[BurstCompile]` `OnCreate` as job fields ([[Gotchas]]).
+  Verified on the 17:50 recompile: no Burst error after it. Do not "fix" a future BC here by
+  dropping `[BurstCompile]` from the job.
 - [ ] **Rebake** — `UnitBakingUtil` now adds `ZombifyRequest`, so every unit archetype changed.
   Reopen the subscene / re-enter Play mode before testing.
 - [ ] EditMode ▸ `StitchPunk.Tests` — `SystemPlacementConformanceTests` must still pass
