@@ -32,5 +32,5 @@ An [Obsidian](https://obsidian.md) vault; start at `_Vault/Home.md`.
 ## Where the work is
 
 - **Active:** the DOTS Animation Toolkit — `Packages/com.dotsanimationtoolkit`, `Assets/AnimationToolkitMigration/`, docs in `Docs/AnimationToolkit/`.
-- **Built:** dialogue + narrative events; the AI decision/execution split with interrupts, self-defence, flee, talk, sit, pickup, minion move orders, and sound.
+- **Built:** dialogue + narrative events; the AI decision/execution split with interrupts, self-defence, flee, talk, sit, pickup, minion move orders, and sound. Cutscene integration (`CutsceneSystemGroup`, `Tasks/NewPlans/CutsceneIntegration_System.md`, G1) is code-complete — start/end/camera/sound/triggers all gate a bound actor off AI and movement — but nobody has watched one play in the game yet; a ⏸ owner checkpoint is open.
 - **Parked:** the factory production loop — the data layer bakes, but `ProductionSystem` and `FactoryLibraryBakingSystem` sit commented out in `Core/Unused/`, and `BuildingsSystemGroup` has no live members.

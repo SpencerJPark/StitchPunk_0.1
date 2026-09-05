@@ -173,6 +173,26 @@ integration at all. **Subagent rule for those sessions (supersedes §2's blanket
 may read/write files for a task marked parallel-safe and never touches `mcp__UnityMCP__*`; only the
 parent session compiles, tests and commits.
 
+**G1 — Cutscene Integration. Phases 1–4 built and gated green 2026-09-04** (game-side, not a
+package amendment — logged here because it's the first real host consumer of A61/A62's surface).
+`CutsceneSystemGroup` (Player → Cutscene → UtilityAI) plus `CutsceneStartSystem`/`CutsceneEndSystem`/
+`CutscenePlayerControlSystem` consume `CutscenePlaybackApi.TryFindStage`/`CreatePlayRequestFromStage`
+and gate every bound actor's AI/movement/facing off via a new `CutsceneActor` component, proving that
+surface out under a real host for the first time. `CutsceneCameraBridge` drives a dedicated vcam from
+`CutsceneCameraPose` every LateUpdate. Two real bugs were caught fixing this, not pre-existing in the
+package: a `ComponentLookup` cached before `CreatePlayRequestFromStage`'s structural change threw
+`ObjectDisposedException` on later use (game-side mistake, documented in `Gotchas.md`), and
+`AnimEventSoundSystem`'s existing `AnimEventsPending` pass was about to `PlayOn`-follow a
+`CutscenePlay` request entity that has no `LocalTransform` — split into two passes instead. Full
+suites green: `StitchPunk.Tests` 771 discovered (1 pre-existing `Conformance_A` failure, same as
+A61/A62), `.PlayMode` 253/253; toolkit `DotsAnimationToolkit.Tests.EditMode`/`.PlayMode` counts did
+not drop from the A62 session's 714/250. **Owed:** the ⏸ owner checkpoint (spec §6) — the first real
+cutscene played by a human, still pending — and the scene wiring it needs (a `CutsceneCam` vcam under
+the camera rig, `CutsceneCameraBridge` + `CutsceneDebugTrigger` placed in the test scene, an actual
+authored two-actor cutscene synced to stage), deliberately left to the owner rather than risking a
+scene edit while `TestArea.unity`/`DOTSTestScene.unity` already carry uncommitted changes from
+concurrent activity this session did not make.
+
 **A60 + A59-T1 — Cutscene UI overhaul and the in-tab viewport. Built 2026-08-30, gated, smoke-
 verified live; THE ACTIVE ITEM IS THE OWNER'S VISUAL PASS.** After the owner judged the A58-era
 tab "unusable … pretty bad ui wise", `Amendment_A60_CutsceneUiOverhaul_Spec.md` records the

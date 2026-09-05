@@ -1,6 +1,7 @@
 # Cutscene Integration — Design Spec (G1)
 
-> **Status:** ✅ spec ready, not built. Written 2026-09-04.
+> **Status:** Phases 1–4 built and gated green 2026-09-04. Phase 5's full suites are green; the
+> ⏸ owner checkpoint (§6) is the one thing left — see the build log §7 for exactly what to do.
 > **Roadmap:** [`Cutscene_Roadmap.md`](Cutscene_Roadmap.md) — read its §4 protocol first. This is the spec that makes **a cutscene play in the game for the first time**.
 > **Depends on:** toolkit A61 (`CutsceneStage`, `CreatePlayRequestFromStage`, `TryFindStage`) and A62 (`CutsceneCameraPose.isDriven`, speed propagation). **Parallel-safe with:** A63.
 > **Executor:** one Sonnet session, possibly two — commit per phase.
@@ -113,11 +114,36 @@ Each frame, if `ActiveCutscene` is enabled and its request's `CutscenePlaybackSt
 - [x] **Phase 2 — start/end/player-control systems (§3.3–3.5).** Tests (PlayMode, `StitchPunk.Tests.PlayMode`, manual `World` like `BehaviorExecutionSystemTests`): `CutsceneStartSystem_BindsTheStage_EnablesCutsceneActor_AndRaisesInterrupt` (hand-built `CutsceneStage` entity + one unit entity with the components §3.3 touches; assert enabled bits and that the signal is gone); `CutsceneEndSystem_ReleasesActorsAndDestroysTheRequest` (mark `isComplete`, update, assert). Landed 2026-09-04: `CutsceneStartSystem`, `CutsceneEndSystem`, `CutscenePlayerControlSystem` in `Systems/CutsceneSystemGroup/`. Both fixtures genuinely failed first (see §7) before the fix; 2/2 green after.
 - [x] **Phase 3 — camera bridge + sound pass (§3.6, 3.7).** No fixture. Gate: compile. Landed 2026-09-04: `CameraManager` gained `cutsceneCam`/`CutsceneCamera`/`EnterCutscene`/`ExitCutscene` + `CinemachineCameraType.Cutscene`; `CutsceneCameraBridge` (Mono) drives its transform/lens from `CutsceneCameraPose` each LateUpdate; `AnimEventSoundSystem` split its `AnimEventsPending` pass in two (`[WithNone(typeof(CutscenePlay))]` on the existing actor job, a new single-threaded `CutsceneAnimEventSoundJob` playing non-positionally at `ListenerPosition` for request entities). Scene wiring (vcam under the camera rig, bridge + debug trigger objects) deferred to the Phase 5 checkpoint setup.
 - [x] **Phase 4 — triggers (§3.8).** Gate: compile. Then a static self-review against `RULES.md` (no `var`, explicit types, `[ReadOnly]` import). Landed 2026-09-04: `PlayCutsceneAction` + `CutsceneSlotEntityOverride` in `NarrativeEventSO.cs`; `NarrativeEventManager.ExecutePlayCutsceneAsync` (two-phase wait, see §7); `CutsceneDebugTrigger` (Mono) beside `DebugSaveMenu.cs`. Static review: no `var`, no drift.
-- [ ] **Phase 5 — full suites once** (`StitchPunk.Tests`, `StitchPunk.Tests.PlayMode`; also the toolkit suites since A61/A62 landed before this).
+- [x] **Phase 5 — full suites once** (`StitchPunk.Tests`, `StitchPunk.Tests.PlayMode`; also the toolkit suites since A61/A62 landed before this). Landed 2026-09-04: `StitchPunk.Tests` 771 discovered, 1 failure (`Conformance_A_AsmdefReferenceLists_MatchSection13Exactly`, pre-existing per the A61/A62 sessions — unrelated `Unity.RenderPipelines.Universal.Runtime` asmdef drift, nothing to do with G1); `StitchPunk.Tests.PlayMode` 253/253; `DotsAnimationToolkit.Tests.EditMode`/`.PlayMode` counts unchanged from the A62 baseline (714/250) — no regression.
 - [ ] **⏸ Owner checkpoint (the first real cutscene).** In `DOTSTestScene`: two placed minion actors and the player, a cutscene with a walking clip block + root keys for both minions, a camera lane with one move and one cut, one event. Sync to Stage, enter Play, press F9. Expect: both minions walk on their root keys with the walk cycle looping, the camera moves then cuts, the Entities window shows empty `UtilityActions` on both while it runs, WASD does nothing, and at the end they resume wandering from where they stopped and the camera blends back. Retire this spec into `Tasks/Verification/` with `verify-cutsceneintegration.md` holding exactly that list.
 
 ## 7. Open questions / build log
 
+- **Session close (2026-09-04): stopping at the ⏸ owner checkpoint, per protocol.** Phases 1–4 are
+  committed (`G1-P1` through `G1-P4`) and Phase 5's full suites are green (see the Phase 5 checkbox
+  above). Everything left is the checkpoint itself. Deliberately did **not** touch
+  `TestArea.unity` / `Assets/Scenes/SubScenes/DOTSTestScene.unity` to add the scene objects §5's
+  manifest calls for — both already carry uncommitted changes this session did not make (visible in
+  `git status` from the start of the session), the same "concurrent activity in the shared Editor"
+  situation the A61 session logged in `HANDOFF.md`. Scene edits are listed as either the owner's or
+  `execute_code`'s — given unknown concurrent edits already sitting in those files, this session
+  judged risking a scene-file merge conflict worse than asking the owner to place a few objects by
+  hand. **What the owner needs to do:**
+  1. In a scene that loads the `DOTSTestScene` subscene (`TestArea.unity` looks like the intended
+     host — confirm before using it, given its pending changes): add a `CutsceneCam` `CinemachineCamera`
+     under the camera rig (no Follow/LookAt), a `CutsceneCameraBridge` component anywhere in the
+     scene, and wire `CutsceneCam` into `CameraManager`'s new `Cutscene Cam` inspector slot.
+  2. Author a small `CutsceneAsset` (Cutscene Editor tab) with two Actor slots, a walking clip block
+     + root keys for each, a camera lane with one move and one hard cut, and one event — then place
+     two minion actors + the player in the subscene, bind the cast, and **Sync to Stage**.
+  3. Add a `CutsceneDebugTrigger` object in the scene, assign the authored `CutsceneAsset`.
+  4. Enter Play, press **F9**. Expect: both minions walk on their root keys with the walk cycle
+     looping, the camera moves then hard-cuts, the Entities window shows empty `UtilityActions` on
+     both actors and the player while it runs, WASD does nothing, and at the end they resume
+     wandering from where they stopped while the camera blends back to gameplay.
+  5. Report back whether the gameplay camera is orthographic (the open question below) and whatever
+     else looked wrong — then this spec retires into `Tasks/Verification/verify-cutsceneintegration.md`
+     with exactly that checklist.
 - Orthographic gameplay camera? (§3.6 — answer at the checkpoint.)
 - **Phase 4 drift:** §3.8 describes `CutsceneDebugTrigger` as `KeyCode key = F9`, but this project's `activeInputHandler` is `1` (new Input System only, verified in `ProjectSettings/ProjectSettings.asset`) — legacy `UnityEngine.Input`/`KeyCode` polling does not work at runtime. Implemented as `UnityEngine.InputSystem.Key key = Key.F9` polled via `Keyboard.current[key].wasPressedThisFrame`, matching the project's own precedent (`DebugZombifyMenu.cs`, `UnitSelectionManager.cs`).
 - **Phase 4 drift:** §3.8's `PlayCutsceneAction` wait text ("`await UniTask.WaitUntil(() => !ActiveCutscene enabled)`") would resolve immediately — `ActiveCutscene` is not yet enabled the instant the signal entity is created (`CutsceneStartSystem` consumes it on a later tick), so a naive "wait until not enabled" check is already true at t=0 and `waitForCompletion` would never actually wait. Implemented as a two-phase wait instead: wait until `ActiveCutscene` becomes enabled *or* the signal is gone (dropped/stage-miss), then, only if it started, wait until `ActiveCutscene` disables again.

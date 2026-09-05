@@ -151,6 +151,23 @@ Runs inside `SimulationSystemGroup`, before `MinionActionSelectionSystemGroup`. 
 
 ---
 
+### CutsceneSystemGroup (`Systems/CutsceneSystemGroup/`)
+
+Between `PlayerSystemGroup` and `UtilityAISystemGroup` — a cutscene starting this frame must gate
+AI selection this same frame, and `NarrativeEventManager`'s signal (a MonoBehaviour `Update`, before
+`SimulationSystemGroup`) is consumed the same frame it's created. Wires
+`com.dotsanimationtoolkit`'s cutscene player into the game (G1, `Tasks/NewPlans/CutsceneIntegration_System.md`) — clip blocks + root keys + camera + events on baked actors only; marks/attach/dialogue/facing are G2.
+
+| System | File | Purpose |
+|---|---|---|
+| `CutsceneStartSystem` | `CutsceneStartSystem.cs` | `[OrderFirst]`, not Bursted (managed `CutscenePlaybackApi` + structural changes). Consumes every `CutsceneRequest` signal: `TryFindStage` → `CreatePlayRequestFromStage`, applies `CutsceneRequestBindingOverride` entries, enables `CutsceneActor` + `ActionInterruptRequest` on every bound entity, halts any `PathRequest` (`MovementAPI.HaltPathing` + snaps `Movement.targetPosition`), writes `ActiveCutscene` on the `NarrativeEventTag` singleton. A second request while one is active, or a scene with no narrative singleton, is dropped with a warning. **Gotcha:** every `ComponentLookup` used here must be refreshed (`.Update(ref state)`) *after* `CreatePlayRequestFromStage`'s structural change — see `Gotchas.md` |
+| `CutsceneEndSystem` | `CutsceneEndSystem.cs` | Not Bursted (`DestroyEntity`). On `CutscenePlaybackState.isComplete`: disables `CutsceneActor` on every bound entity, re-arms the brain (enables `ActionInterruptRequest` + `ActionRequest` — the same re-arm shape as `ReviveRequestSystem`/`SwapBrainSystem`), destroys the toolkit's request entity (the toolkit leaves that lifecycle step to the host), disables `ActiveCutscene` |
+| `CutscenePlayerControlSystem` | `CutscenePlayerControlSystem.cs` | Drives `CutsceneActiveTag = ActiveCutscene enabled`, OR'd against `NarrativeEventManager`'s own writes for `blockPlayerInput` events — only *enables*, and only *disables* when `ActiveNarrativeEvent` is also disabled, so it never stomps a narrative-event-driven enable |
+
+**Gates elsewhere** (not in this folder): `[WithDisabled(typeof(CutsceneActor))]` on `WinnerSelectionSystem`, `MinionActionSelectionSystem`, and every `UtilityAwarenessSystemGroup` job except `ThreatDecaySystem` (deliberate — see the spec's §7 drift log); `UnitFacingSystem` skips a `CutsceneActor`-enabled unit; `PlayerMoveSystem`/`PlayerAttackSystem`/`PlayerRollInputSystem`/`PlayerEquipmentInputSystem`/`PlayerPickupSystem`/`DialogueStartSystem` early-out on `CutsceneActiveTag` (read via `SystemAPI.TryGetSingletonEntity<NarrativeEventTag>` — a scene without the singleton behaves as "no cutscene"); `PersistentSaveSystem` skips a `SaveRequest` while `ActiveCutscene` is enabled (warns once). Camera: `CutsceneCameraBridge` (Mono, `MonoBehaviours/Managers/`) drives a dedicated `CameraManager` vcam from the `CutsceneCameraPose` singleton. Sound: `AnimEventSoundSystem` splits its `AnimEventsPending` pass in two — actors (unchanged, now `[WithNone(typeof(CutscenePlay))]`) and cutscene request entities (new, non-positional at `ListenerPosition`). Triggers: `PlayCutsceneAction` (`NarrativeEventSO.cs`) and `CutsceneDebugTrigger` (Mono, F9 debug key) both spawn a `CutsceneRequest` signal.
+
+---
+
 ### MinionActionSelectionSystemGroup (`Systems/MinionActionSelectionSystemGroup/`)
 
 Runs before `StateMachineSystemGroup`. Handles player-commanded units and writes `UtilityActions` buffer entries from the player's command. See [[Systems_AI]].
