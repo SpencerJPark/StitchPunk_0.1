@@ -207,7 +207,16 @@ MonoBehaviour:
   - leftTargetId: 1753421473
     rightTargetId: 1203172312
   sourcePrefab: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
-  sockets: []
+  sockets:
+  - displayName: RightHand
+    stableId: 1287933773
+    mode: 0
+    targetId: 3934483903
+    boneName: 
+    layerIndex: 0
+    localPosition: {x: 0, y: 0, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    previewAttachment: {fileID: 0}
   billboardRoots: []
   ragdollBodies: []
   ragdollSettings:

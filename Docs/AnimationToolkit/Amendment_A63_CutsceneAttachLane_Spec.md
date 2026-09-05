@@ -108,6 +108,11 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
 
 ## 5. Tasks
 
+- [x] **T0 — A hand socket on `NewRig.asset` (blocker, added 2026-09-05).** The rig declared zero
+  sockets, so §5's checkpoint had nothing to attach to. One `SocketDefinition` — `displayName`
+  "RightHand", `mode = SocketAttachMode.RigTarget`, `targetId = 3934483903` (the RightHand target),
+  zero offset — added through `RigAsset.EnsureStableIds`. Gate: reload from disk, socket id non-zero
+  and `SocketId.IsValid`, `SocketRegistryBuilder.HasSockets` true, `ClipValidation.ValidateRig` clean.
 - [ ] **T1 — Data + enum + blob + builder (§3.1–3.2).** Test (EditMode, `CutsceneBlobBuilderTests.cs`): `AttachMarker_ResolvesHostSlotIndex_AndWarnsOnUnknownHost` — two slots, one Attach naming the other → `hostSlotIndex == 1`; one naming id 0xFFFF → `−1` and exactly one warning.
 - [ ] **T2 — Runtime attach/detach (§3.3).** Tests (PlayMode, `CutsceneTimelineSystemTests.cs` helpers or a new `CutsceneAttachTests.cs`): `AttachToSocket_AddsSocketAttachment_AndSuspendsRootLane` (prop slot with root keys and an Attach at 0.5 s to an actor entity that carries an empty `SocketRegistry` — build a minimal `SocketRegistryBlob` in the fixture, or assert the root-attach fallback if that is too heavy; say which in §7); `Detach_RestoresIndependence_AndRaisesTheSignal` (after Detach: no `SocketAttachment`, `CutsceneDetachSignal` enabled, `worldImpulse` equals the authored impulse for an identity host rotation); `Skip_AppliesRemainingAttachMarkers`.
 - [ ] **T3 — Hide/unhide.** Extend T2's detach test: with `hideWhileAttached`, `DisableRendering` present while attached and gone after detach on an entity that has `MaterialMeshInfo` (add the component in the fixture; no renderer needed).
@@ -124,3 +129,11 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
 - `LinkedEntityGroup` on runtime-spawned actors is rebuilt by the host's spawn-init (Stitch Punk `BodyPartInitSystem`) — by the time a cutscene runs it is correct; do not cache the member list across frames.
 
 ## 7. Build log
+
+**2026-09-05, this session.**
+
+- **T0 was not in the written spec and had to be added at the front.** `NewRig.asset` declared
+  `sockets: []`, and the only socket-shaped object in the project was a bare `HandSocket` GameObject
+  under `PlayerUnit.prefab` — which is not a toolkit actor, so it is inert. §5's owner checkpoint
+  ("actor with a hand socket") was unreachable. Added one `RigTarget` socket on the RightHand target
+  (id `1287933773`, minted by `EnsureStableIds`); gate passed on a reload from disk.
