@@ -117,7 +117,7 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
 - [x] **T2 — Runtime attach/detach (§3.3).** Tests (PlayMode, `CutsceneTimelineSystemTests.cs` helpers or a new `CutsceneAttachTests.cs`): `AttachToSocket_AddsSocketAttachment_AndSuspendsRootLane` (prop slot with root keys and an Attach at 0.5 s to an actor entity that carries an empty `SocketRegistry` — build a minimal `SocketRegistryBlob` in the fixture, or assert the root-attach fallback if that is too heavy; say which in §7); `Detach_RestoresIndependence_AndRaisesTheSignal` (after Detach: no `SocketAttachment`, `CutsceneDetachSignal` enabled, `worldImpulse` equals the authored impulse for an identity host rotation); `Skip_AppliesRemainingAttachMarkers`.
 - [x] **T3 — Hide/unhide.** Extend T2's detach test: with `hideWhileAttached`, `DisableRendering` present while attached and gone after detach on an entity that has `MaterialMeshInfo` (add the component in the fixture; no renderer needed).
 - [x] **T4 — Editor lane + inspector (§3.4).** **[parallel-safe with T5]** No fixture. Prove live via `execute_code`: add an Attach through the private insert method, select it, inspector builds without exception, host/socket dropdowns list the right names.
-- [ ] **T5 — Preview (§3.4).** **[parallel-safe with T4]** No fixture. Prove live: two bound objects, an Attach at 1 s with offset (0, 1, 0) to the host root, scrub to 2 s → the attached object's world position equals host position + (0, 1, 0); scrub to 0.5 s → back on its own keys; hide flag → renderers disabled and restored on `ExitPreview` (assert `Renderer.enabled` before/after).
+- [x] **T5 — Preview (§3.4).** **[parallel-safe with T4]** No fixture. Prove live: two bound objects, an Attach at 1 s with offset (0, 1, 0) to the host root, scrub to 2 s → the attached object's world position equals host position + (0, 1, 0); scrub to 0.5 s → back on its own keys; hide flag → renderers disabled and restored on `ExitPreview` (assert `Renderer.enabled` before/after).
 - [ ] **T6 — Docs.** `cutscenes.md` "Attach lane" section (three recipes: carry & throw, board a cart, hand-over) + `CutsceneDetachSignal` in the runtime section. CHANGELOG, HANDOFF §4.
 - [ ] **⏸ Owner checkpoint.** In the editor: actor with a hand socket, a prop, Attach at 1 s to the socket, Detach at 3 s. Scrub: the prop should jump into the hand at 1 s, ride the hand through a waving clip, and stay where the hand was at 3 s.
 
@@ -152,3 +152,18 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
 - **`attachedHostSlotIndex` defaults to −1, never 0.** A zeroed struct would read as "riding slot 0"
   and suppress the root lane of every slot before anything had attached — `CutscenePlaybackApi`
   initialises it explicitly for that reason.
+- **Detach only leaves a slot "where it was let go" when its root lane is empty.** §3.1 promises
+  both "it stays where it was let go" and "the root lane resumes from the next key"; those are the
+  same sentence only for a slot with no key after the detach — and because
+  `CutsceneKeySampler`/`CutsceneBlobSampler` clamp to the last key, *any* authored root key wins the
+  instant the attachment ends and snaps the slot back to its lane. The checkpoint cutscene's Crate
+  therefore carries **no** root keys: its scene transform is its home, and A62 defect 2's
+  leave-a-keyless-slot-alone rule is what makes the promise hold. Recorded in `Gotchas.md`.
+- **Preview places riders after hosts, iteratively.** Attachments chain (a crate in a hand on an
+  actor riding a cart), so one in-order sweep would leave a rider a frame behind its own host. The
+  placement pass repeats until nothing new is placed.
+- **T5 measured:** socket attach put the crate exactly on `RightHand` (|crate − hand| = 0.00000) and
+  it rode the walk cycle's arm swing (0.153 of travel between t=2.0 and t=2.4); the root-attach case
+  with offset (0, 1, 0) landed on host + (0, 1, 0) with error 0.000000; `hideWhileAttached` disabled
+  the renderer while attached, restored it at the detach, and `ExitPreview` restored both the
+  renderer and the transform.

@@ -69,6 +69,17 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>One bound rig-target child: what to pose, what it looked like, what it rests at.</summary>
+        /// <summary>
+        /// One renderer's <c>enabled</c> flag as it was before preview touched it. Captured for
+        /// every bound object, not only the ones a cutscene hides — whether a slot is hidden depends
+        /// on the playhead, and the snapshot has to predate any scrub.
+        /// </summary>
+        private struct RendererVisibilitySnapshot
+        {
+            public Renderer renderer;
+            public bool wasEnabled;
+        }
+
         private sealed class PartBinding
         {
             public Transform partTransform;
@@ -81,6 +92,8 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Dictionary<uint, GameObject> boundObjects = new Dictionary<uint, GameObject>();
         private readonly Dictionary<uint, TransformSnapshot> rootSnapshots = new Dictionary<uint, TransformSnapshot>();
+        private readonly Dictionary<uint, List<RendererVisibilitySnapshot>> rendererSnapshots =
+            new Dictionary<uint, List<RendererVisibilitySnapshot>>();
         private readonly Dictionary<uint, Dictionary<uint, PartBinding>> partsBySlot =
             new Dictionary<uint, Dictionary<uint, PartBinding>>();
         private readonly Dictionary<uint, CutsceneSlotClipPreview> clipPreviewsBySlot =
@@ -137,6 +150,7 @@ namespace DotsAnimationToolkit.Editor
 
                 boundObjects[slot.SlotId] = boundObject;
                 rootSnapshots[slot.SlotId] = TransformSnapshot.Capture(boundObject.transform);
+                rendererSnapshots[slot.SlotId] = CaptureRendererVisibility(boundObject);
 
                 if (slot.kind != CutsceneSlotKind.Actor)
                 {
@@ -147,6 +161,21 @@ namespace DotsAnimationToolkit.Editor
             }
 
             IsActive = true;
+        }
+
+        private static List<RendererVisibilitySnapshot> CaptureRendererVisibility(GameObject boundObject)
+        {
+            Renderer[] renderers = boundObject.GetComponentsInChildren<Renderer>(true);
+            List<RendererVisibilitySnapshot> snapshots = new List<RendererVisibilitySnapshot>(renderers.Length);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                snapshots.Add(new RendererVisibilitySnapshot
+                {
+                    renderer = renderers[rendererIndex],
+                    wasEnabled = renderers[rendererIndex].enabled
+                });
+            }
+            return snapshots;
         }
 
         private static Dictionary<uint, PartBinding> CapturePartBindings(GameObject boundObject)
@@ -202,6 +231,18 @@ namespace DotsAnimationToolkit.Editor
                     rootSnapshot.RestoreTo(boundObjectEntry.Value.transform);
                 }
 
+                List<RendererVisibilitySnapshot> renderers;
+                if (rendererSnapshots.TryGetValue(boundObjectEntry.Key, out renderers))
+                {
+                    for (int rendererIndex = 0; rendererIndex < renderers.Count; rendererIndex++)
+                    {
+                        if (renderers[rendererIndex].renderer != null)
+                        {
+                            renderers[rendererIndex].renderer.enabled = renderers[rendererIndex].wasEnabled;
+                        }
+                    }
+                }
+
                 Dictionary<uint, PartBinding> parts;
                 if (!partsBySlot.TryGetValue(boundObjectEntry.Key, out parts))
                 {
@@ -215,6 +256,7 @@ namespace DotsAnimationToolkit.Editor
 
             boundObjects.Clear();
             rootSnapshots.Clear();
+            rendererSnapshots.Clear();
             partsBySlot.Clear();
             DisposeClipPreviews();
             HoldClipPhaseSeconds = 0f;
@@ -271,6 +313,16 @@ namespace DotsAnimationToolkit.Editor
             return TryGetPart(slotId, targetStableId, out partBinding) ? partBinding.partTransform : null;
         }
 
+        /// <summary>
+        /// The live child transform a raw target id resolves to. A socket names its target by id
+        /// rather than by tag, so it cannot go through <see cref="GetBoundPartTransform"/>.
+        /// </summary>
+        public Transform GetBoundPartTransformByTargetId(uint slotId, uint targetStableId)
+        {
+            PartBinding partBinding;
+            return TryGetPart(slotId, targetStableId, out partBinding) ? partBinding.partTransform : null;
+        }
+
         private bool TryGetPart(uint slotId, uint targetStableId, out PartBinding partBinding)
         {
             partBinding = null;
@@ -295,6 +347,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            ResolveAttachmentsAt(cutscene, timeSeconds);
+
             for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
             {
                 CutsceneSlot slot = cutscene.slots[slotIndex];
@@ -307,7 +361,10 @@ namespace DotsAnimationToolkit.Editor
                 float3 position;
                 float3 eulerDegrees;
                 float3 scale;
-                if (CutsceneKeySampler.TrySampleTransform(slot.transformKeys, timeSeconds, out position, out eulerDegrees, out scale))
+                // An attached slot's root lane is ignored exactly as it is at run time (§3.1) — the
+                // host owns the transform, and the placement pass below writes it.
+                if (!resolvedAttachments[slotIndex].isAttached
+                    && CutsceneKeySampler.TrySampleTransform(slot.transformKeys, timeSeconds, out position, out eulerDegrees, out scale))
                 {
                     boundObject.transform.localPosition = new Vector3(position.x, position.y, position.z);
                     boundObject.transform.localRotation = Quaternion.Euler(eulerDegrees.x, eulerDegrees.y, eulerDegrees.z);
@@ -322,6 +379,201 @@ namespace DotsAnimationToolkit.Editor
                 }
                 ApplyActorParts(slot, timeSeconds);
             }
+
+            PlaceAttachedSlots(cutscene);
+            ApplyAttachmentVisibility(cutscene);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Attach lane preview (amendment A63 §3.4). Mirrors the runtime's composition rather than
+        // approximating it: preview and playback disagreeing is the defect this whole tool exists
+        // to avoid.
+        // -----------------------------------------------------------------------------------
+
+        private struct ResolvedAttachment
+        {
+            public bool isAttached;
+            public bool isPlaced;
+            public int hostSlotIndex;
+            public uint socketId;
+            public Vector3 localOffset;
+            public Vector3 localEulerDegrees;
+            public bool hide;
+        }
+
+        // Reused every tick, like composedPoses — a 30s vignette must not allocate per slot per frame.
+        private readonly List<ResolvedAttachment> resolvedAttachments = new List<ResolvedAttachment>();
+
+        /// <summary>The last attach marker at or before the playhead decides each slot's state.</summary>
+        private void ResolveAttachmentsAt(CutsceneAsset cutscene, float timeSeconds)
+        {
+            resolvedAttachments.Clear();
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                CutsceneSlot slot = cutscene.slots[slotIndex];
+                ResolvedAttachment resolved = new ResolvedAttachment { hostSlotIndex = -1 };
+                if (slot != null && slot.attachMarkers != null)
+                {
+                    CutsceneAttachMarker activeMarker = null;
+                    for (int markerIndex = 0; markerIndex < slot.attachMarkers.Count; markerIndex++)
+                    {
+                        CutsceneAttachMarker marker = slot.attachMarkers[markerIndex];
+                        if (marker != null && marker.time <= timeSeconds
+                            && (activeMarker == null || marker.time >= activeMarker.time))
+                        {
+                            activeMarker = marker;
+                        }
+                    }
+
+                    if (activeMarker != null && activeMarker.kind == CutsceneAttachKind.Attach)
+                    {
+                        int hostSlotIndex = FindSlotIndexById(cutscene, activeMarker.hostSlotId);
+                        if (hostSlotIndex >= 0 && hostSlotIndex != slotIndex)
+                        {
+                            resolved.isAttached = true;
+                            resolved.hostSlotIndex = hostSlotIndex;
+                            resolved.socketId = activeMarker.socketId;
+                            resolved.localOffset = new Vector3(
+                                activeMarker.localOffset.x, activeMarker.localOffset.y, activeMarker.localOffset.z);
+                            resolved.localEulerDegrees = new Vector3(
+                                activeMarker.localEulerDegrees.x, activeMarker.localEulerDegrees.y,
+                                activeMarker.localEulerDegrees.z);
+                            resolved.hide = activeMarker.hideWhileAttached;
+                        }
+                    }
+                }
+                resolvedAttachments.Add(resolved);
+            }
+        }
+
+        /// <summary>
+        /// Places every attached slot on its host, hosts first. Repeated rather than done in one
+        /// sweep because attachments chain — a crate in a hand on an actor riding a cart — and a
+        /// rider read before its own host was placed would trail a frame behind it.
+        /// </summary>
+        private void PlaceAttachedSlots(CutsceneAsset cutscene)
+        {
+            for (int pass = 0; pass < resolvedAttachments.Count; pass++)
+            {
+                bool placedAnyThisPass = false;
+                for (int slotIndex = 0; slotIndex < resolvedAttachments.Count; slotIndex++)
+                {
+                    ResolvedAttachment resolved = resolvedAttachments[slotIndex];
+                    if (!resolved.isAttached || resolved.isPlaced)
+                    {
+                        continue;
+                    }
+                    if (resolvedAttachments[resolved.hostSlotIndex].isAttached
+                        && !resolvedAttachments[resolved.hostSlotIndex].isPlaced)
+                    {
+                        continue;
+                    }
+
+                    PlaceOneAttachedSlot(cutscene, slotIndex, resolved);
+                    resolved.isPlaced = true;
+                    resolvedAttachments[slotIndex] = resolved;
+                    placedAnyThisPass = true;
+                }
+                if (!placedAnyThisPass)
+                {
+                    return;
+                }
+            }
+        }
+
+        private void PlaceOneAttachedSlot(CutsceneAsset cutscene, int slotIndex, in ResolvedAttachment resolved)
+        {
+            GameObject boundObject = GetBoundObject(cutscene.slots[slotIndex].SlotId);
+            CutsceneSlot hostSlot = cutscene.slots[resolved.hostSlotIndex];
+            GameObject hostObject = hostSlot == null ? null : GetBoundObject(hostSlot.SlotId);
+            if (boundObject == null || hostObject == null)
+            {
+                return;
+            }
+
+            SocketDefinition socket = FindSocket(hostSlot.rig, resolved.socketId);
+            Transform socketTransform = null;
+            if (socket != null && socket.mode == SocketAttachMode.RigTarget)
+            {
+                socketTransform = GetBoundPartTransformByTargetId(hostSlot.SlotId, socket.targetId);
+            }
+            // A Bone socket's motion lives in a VAT texture the editor never samples, so it previews
+            // at the host root — a recorded limitation the inspector says out loud (§3.4).
+
+            if (socketTransform != null)
+            {
+                Quaternion socketLocalRotation = Quaternion.Euler(socket.localEulerAngles);
+                boundObject.transform.position = socketTransform.position
+                    + socketTransform.rotation * (socket.localPosition + resolved.localOffset);
+                boundObject.transform.rotation = socketTransform.rotation * socketLocalRotation;
+                return;
+            }
+
+            boundObject.transform.position = hostObject.transform.TransformPoint(resolved.localOffset);
+            boundObject.transform.rotation =
+                hostObject.transform.rotation * Quaternion.Euler(resolved.localEulerDegrees);
+        }
+
+        private void ApplyAttachmentVisibility(CutsceneAsset cutscene)
+        {
+            for (int slotIndex = 0; slotIndex < resolvedAttachments.Count; slotIndex++)
+            {
+                CutsceneSlot slot = cutscene.slots[slotIndex];
+                if (slot == null)
+                {
+                    continue;
+                }
+                List<RendererVisibilitySnapshot> renderers;
+                if (!rendererSnapshots.TryGetValue(slot.SlotId, out renderers))
+                {
+                    continue;
+                }
+
+                bool hide = resolvedAttachments[slotIndex].isAttached && resolvedAttachments[slotIndex].hide;
+                for (int rendererIndex = 0; rendererIndex < renderers.Count; rendererIndex++)
+                {
+                    Renderer renderer = renderers[rendererIndex].renderer;
+                    if (renderer == null)
+                    {
+                        continue;
+                    }
+                    // Restores to what was captured rather than to true: a renderer the scene had
+                    // already disabled must not be switched on by scrubbing past a detach.
+                    renderer.enabled = hide ? false : renderers[rendererIndex].wasEnabled;
+                }
+            }
+        }
+
+        private static int FindSlotIndexById(CutsceneAsset cutscene, uint slotId)
+        {
+            if (slotId == 0u)
+            {
+                return -1;
+            }
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                if (cutscene.slots[slotIndex] != null && cutscene.slots[slotIndex].SlotId == slotId)
+                {
+                    return slotIndex;
+                }
+            }
+            return -1;
+        }
+
+        private static SocketDefinition FindSocket(RigAsset rig, uint socketId)
+        {
+            if (socketId == 0u || rig == null || rig.sockets == null)
+            {
+                return null;
+            }
+            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
+            {
+                if (rig.sockets[socketIndex] != null && rig.sockets[socketIndex].Id.Value == socketId)
+                {
+                    return rig.sockets[socketIndex];
+                }
+            }
+            return null;
         }
 
         private void ApplyActorParts(CutsceneSlot slot, float timeSeconds)
