@@ -146,7 +146,7 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   `LocalTransform.Rotation` **changes between two frames**. A clip that loads but never moves a part
   is the failure this gate exists to catch.*
 
-- [ ] **T6 — Put the walk into the checkpoint cutscene.** On both slots of
+- [x] **T6 — Put the walk into the checkpoint cutscene.** On both slots of
   `Assets/ScriptableObjects/Animations/G1CheckpointCutscene.asset`, set `rig = NewRig`,
   `clipSets = [ NewClipSet ]`, and add one `CutsceneClipBlock` for the walk spanning 0→4s with
   `loop = true`. Re-bake (reopen the subscene or re-enter Play).
@@ -314,6 +314,36 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   `LeftLowerLeg` 346.02° → 349.57°, `LeftFoot` 357.99° → 4.74°, and the pelvis `posY` 0.981 → 1.006
   (rest is 1.011, so the dip channel is live too). `ValidateClip(Walk)` and the rig half of
   `ValidateBind` are both clean; the only bind warnings are `NewClip 1`'s three pre-existing V38s.
+
+- **(T6, done 2026-09-05) Both cutscene slots carry the walk.** `Minion A` and `Minion B` on
+  `G1CheckpointCutscene.asset` now have `rig = NewRig`, `clipSets = [ NewClipSet ]`, and one
+  `CutsceneClipBlock { clipId = Walk, start = 0, duration = 4, loop = true }` alongside their two
+  existing root keys. Re-baked by re-entering Play; the stage blob comes back with
+  `slotTracks[0..1] = { clipBlocks: 1, rootKeys: 2 }` on both.
+
+  *Gate result:* fired from `execute_code` with `CutsceneRequest { speed = 0.05 }`, `CutscenePlay = 1`
+  and `CutsceneActor` enabled on both minions throughout. Two samples, one clip layer at
+  `time 0.4854` and the next at `0.9071`:
+
+  | | sample 1 | sample 2 |
+  |---|---|---|
+  | root Z along the lane | −0.3724 | **0.1548** |
+  | `LeftUpperLeg` rotZ | −21.85° | **+15.93°** |
+  | `LeftLowerLeg` rotZ | −6.16° | −9.66° |
+  | `LeftFoot` rotZ | +4.03° | −4.90° |
+  | `Pelvis` rotZ / posY | 0.02° / 1.0109 | −0.83° / **1.0028** |
+
+  A 38° leg swing while the root advances is exactly what the gate asks for, and the sampled values
+  land on the authored keys (−22° at t=.5, easing to +22° at t=1).
+
+  **Two things worth carrying forward:**
+  - **`CutsceneControl.speed` *does* reach the clip layers now** — `PlaybackLayer.speed` read back as
+    `0.050`, matching the request. The roadmap's §1 bug table still lists that as open (A62-T4);
+    whatever landed since has fixed it. Do not re-fix it.
+  - **Pick a cutscene speed that does not resonate with the clip period.** At `speed = 0.1` the walk's
+    period stretches to 10 s, which is almost exactly one MCP round trip, so three consecutive samples
+    all landed within 0.07 of the same phase and the clip looked frozen. That is a measurement
+    artefact, not a bug. `0.05` (period 20 s, two round trips) separates the samples properly.
 
 - **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
   their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already

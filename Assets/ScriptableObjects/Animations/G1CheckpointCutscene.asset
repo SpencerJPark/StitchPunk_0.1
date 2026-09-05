@@ -19,11 +19,16 @@ MonoBehaviour:
   - name: Minion A
     slotId: 105442954
     kind: 0
-    rig: {fileID: 0}
-    clipSets: []
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
     actorPrefab: {fileID: 0}
-    clipBlocks: []
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 4
+      loop: 1
     transformKeys:
     - time: 0
       position:
@@ -70,11 +75,16 @@ MonoBehaviour:
   - name: Minion B
     slotId: 832162630
     kind: 0
-    rig: {fileID: 0}
-    clipSets: []
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
     actorPrefab: {fileID: 0}
-    clipBlocks: []
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 4
+      loop: 1
     transformKeys:
     - time: 0
       position:
