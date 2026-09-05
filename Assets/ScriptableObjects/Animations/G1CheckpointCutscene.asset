@@ -1,0 +1,200 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa76dfa59491ed241b6458959d0c55e3, type: 3}
+  m_Name: G1CheckpointCutscene
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneAsset
+  stableId: 16903509434599191623
+  sceneGuid: d2b2e1866153ef142b62cb945dbb2cb9
+  scenePath: Assets/Scenes/CutsceneG1Checkpoint.unity
+  slots:
+  - name: Minion A
+    slotId: 105442954
+    kind: 0
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys:
+    - time: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 4
+      position:
+        x: 0
+        y: 0
+        z: 5
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+  - name: Minion B
+    slotId: 832162630
+    kind: 0
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys:
+    - time: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 4
+      position:
+        x: 0
+        y: 0
+        z: 5
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+  cameraLane:
+    keys:
+    - time: 0
+      position:
+        x: -2
+        y: 3
+        z: -6
+      rotation:
+        x: 20
+        y: 0
+        z: 0
+      fieldOfView: 60
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 3
+      position:
+        x: -2
+        y: 3
+        z: 1
+      rotation:
+        x: 20
+        y: 0
+        z: 0
+      fieldOfView: 60
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 3.05
+      position:
+        x: 3
+        y: 1.5
+        z: 3
+      rotation:
+        x: 10
+        y: -140
+        z: 0
+      fieldOfView: 45
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 4
+      position:
+        x: 3
+        y: 1.5
+        z: 3
+      rotation:
+        x: 10
+        y: -140
+        z: 0
+      fieldOfView: 45
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    cutMarkers:
+    - time: 3.05
+  events:
+  - time: 1.5
+    eventKey: 1
+    intParam: 0
+    floatParam: 0
+    fireOnSkip: 1
+  holdMarkers: []
+  sceneBindings: []
