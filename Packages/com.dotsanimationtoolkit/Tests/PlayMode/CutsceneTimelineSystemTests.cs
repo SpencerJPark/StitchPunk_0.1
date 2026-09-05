@@ -143,6 +143,45 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.AreEqual(0f, position.z, 1e-4f);
         }
 
+        /// <summary>
+        /// Covers amendment A62 defect 4: speed and pause never reached the actors — blocks were
+        /// always issued at a flat speed 1 and pause froze only the clock, so a slowed or paused
+        /// cutscene left its actors' clip layers running at normal speed underneath it.
+        /// </summary>
+        [Test]
+        public void SpeedChange_IssuesSetSpeedOnEveryBoundActorLayer()
+        {
+            Entity actorEntity = CreateBoundActor(out Entity requestEntity);
+
+            CutsceneControl control = testWorld.EntityManager.GetComponentData<CutsceneControl>(requestEntity);
+            control.speed = 0.5f;
+            testWorld.EntityManager.SetComponentData(requestEntity, control);
+            Advance(0.1f);
+
+            DynamicBuffer<AnimationCommand> commandsAfterSlow = testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
+            Assert.IsTrue(HasSetSpeed(commandsAfterSlow, 0.5f), "slowing playback must reach the actor's clip layer");
+
+            control = testWorld.EntityManager.GetComponentData<CutsceneControl>(requestEntity);
+            control.paused = true;
+            testWorld.EntityManager.SetComponentData(requestEntity, control);
+            Advance(0.1f);
+
+            DynamicBuffer<AnimationCommand> commandsAfterPause = testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
+            Assert.IsTrue(HasSetSpeed(commandsAfterPause, 0f), "pausing must freeze the actor's clip layer, not just the clock");
+        }
+
+        private static bool HasSetSpeed(DynamicBuffer<AnimationCommand> commands, float expectedSpeed)
+        {
+            for (int i = 0; i < commands.Length; i++)
+            {
+                if (commands[i].kind == CommandKind.SetSpeed && math.abs(commands[i].speed - expectedSpeed) < 1e-4f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         [Test]
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {

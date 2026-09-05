@@ -50,7 +50,8 @@ namespace DotsAnimationToolkit
                 timeInSegment = 0f,
                 isPausedOnHold = false,
                 isComplete = false,
-                nextEventIndex = 0
+                nextEventIndex = 0,
+                appliedLayerSpeed = -1f
             });
             entityManager.AddBuffer<CutsceneActorBinding>(requestEntity);
             entityManager.AddComponentData(requestEntity, default(CutsceneHoldRelease));

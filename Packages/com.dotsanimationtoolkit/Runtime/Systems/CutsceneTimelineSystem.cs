@@ -72,6 +72,17 @@ namespace DotsAnimationToolkit
             DynamicBuffer<AnimEventOutput> eventOutput = entityManager.GetBuffer<AnimEventOutput>(requestEntity);
 
             CutsceneControl control = entityManager.GetComponentData<CutsceneControl>(requestEntity);
+
+            // Speed/pause reach every bound actor's clip layer every frame, independent of hold
+            // state (amendment A62 defect 4, decision A62-D4): a hold freezes only the clock, never
+            // layer speed — looping clips keep cycling under it by owner call (Phase G §2).
+            float effectiveLayerSpeed = control.paused ? 0f : math.max(0f, control.speed);
+            if (effectiveLayerSpeed != playbackState.appliedLayerSpeed)
+            {
+                ApplyLayerSpeedToAllActorSlots(entityManager, ref blob, layerIndex, bindings, effectiveLayerSpeed);
+                playbackState.appliedLayerSpeed = effectiveLayerSpeed;
+            }
+
             if (control.skipRequested)
             {
                 PerformSkip(entityManager, ref blob, layerIndex, bindings, ref playbackState, eventOutput, requestEntity);
@@ -100,12 +111,11 @@ namespace DotsAnimationToolkit
                 return;
             }
 
-            float speed = math.max(0f, control.speed);
-            if (!control.paused && speed > 0f)
+            if (!control.paused && effectiveLayerSpeed > 0f)
             {
-                playbackState.timeInSegment += deltaTime * speed;
+                playbackState.timeInSegment += deltaTime * effectiveLayerSpeed;
 
-                ProcessClipBlocks(entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState);
+                ProcessClipBlocks(entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates, ref playbackState);
                 ProcessEvents(entityManager, ref blob, ref playbackState, eventOutput, requestEntity);
 
                 ref CutsceneSegmentBlob currentSegment = ref blob.segments[playbackState.segmentIndex];
@@ -153,7 +163,7 @@ namespace DotsAnimationToolkit
         // -----------------------------------------------------------------------------------
 
         private static void ProcessClipBlocks(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
+            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
             DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
             ref CutscenePlaybackState playbackState)
         {
@@ -191,7 +201,10 @@ namespace DotsAnimationToolkit
                         kind = CommandKind.Play,
                         layerIndex = layerIndex,
                         clip = new ClipId(block.clipId),
-                        speed = 1f,
+                        // The layer's currently-applied speed (amendment A62 defect 4), not a flat
+                        // 1 — a block issued while the host has slowed or paused playback must not
+                        // silently resume at normal speed.
+                        speed = layerSpeed,
                         loop = block.loop ? LoopMode.Loop : LoopMode.Once,
                         blendDuration = block.blendDuration,
                         time = 0f
@@ -233,6 +246,43 @@ namespace DotsAnimationToolkit
                     speed = 0f,
                     loop = LoopMode.UseClipDefault,
                     blendDuration = 0f,
+                    time = 0f
+                });
+                entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+            }
+        }
+
+        /// <summary>
+        /// Issues <c>SetSpeed</c> to every bound Actor slot's clip layer (amendment A62 defect 4).
+        /// Not gated on the layer being active — a block issued later on a currently-idle layer
+        /// must still inherit the speed already in effect, not the command API's own speed-1 default.
+        /// </summary>
+        private static void ApplyLayerSpeedToAllActorSlots(
+            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
+            DynamicBuffer<CutsceneActorBinding> bindings, float layerSpeed)
+        {
+            for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
+            {
+                if (blob.slots[slotIndex].kind != CutsceneSlotKind.Actor)
+                {
+                    continue;
+                }
+                Entity actorEntity;
+                if (!TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out actorEntity) ||
+                    !entityManager.HasComponent<AnimationCommand>(actorEntity))
+                {
+                    continue;
+                }
+
+                DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
+                commands.Add(new AnimationCommand
+                {
+                    kind = CommandKind.SetSpeed,
+                    layerIndex = layerIndex,
+                    clip = default,
+                    speed = layerSpeed,
+                    loop = LoopMode.UseClipDefault,
+                    blendDuration = float.NaN,
                     time = 0f
                 });
                 entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);

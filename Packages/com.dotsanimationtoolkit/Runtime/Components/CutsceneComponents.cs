@@ -58,7 +58,11 @@ namespace DotsAnimationToolkit
     /// </summary>
     public struct CutsceneControl : IComponentData
     {
-        /// <summary>Freezes the clock. Clip layers already playing keep whatever pose they were composited to; nothing advances.</summary>
+        /// <summary>
+        /// Freezes the clock and every bound actor's clip layer (amendment A62 decision A62-D4: the
+        /// host is saying "freeze everything"). Distinct from a hold, which freezes only the clock —
+        /// looping clips keep cycling under a hold by owner call (Phase G §2).
+        /// </summary>
         public bool paused;
 
         /// <summary>Playback speed multiplier. 1 = normal. Time only ever moves forward (elastic length assumes it); a non-positive value is clamped to 0 by the player, which behaves like <see cref="paused"/>.</summary>
@@ -85,6 +89,15 @@ namespace DotsAnimationToolkit
 
         /// <summary>Cursor into the current segment's event array — the next not-yet-fired event, never re-read from the start (mirrors this package's existing "advance a cursor, never re-scan" playback convention).</summary>
         public int nextEventIndex;
+
+        /// <summary>
+        /// The layer speed last issued to every bound Actor slot via <c>SetSpeed</c> (amendment A62
+        /// defect 4). <c>-1</c> means "never applied" — a value no real speed can equal, since the
+        /// player clamps a negative <see cref="CutsceneControl.speed"/> to 0 — so the very first
+        /// frame always issues at least one <c>SetSpeed</c> even when the host leaves speed at its
+        /// default of 1.
+        /// </summary>
+        public float appliedLayerSpeed;
     }
 
     /// <summary>
