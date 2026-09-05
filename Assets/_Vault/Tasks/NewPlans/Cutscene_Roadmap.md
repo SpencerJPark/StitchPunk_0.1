@@ -39,6 +39,7 @@ Toolkit amendments live in `Docs/AnimationToolkit/` (the package's own doc syste
 | A61 | [`Amendment_A61_CutsceneStageBaking_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A61_CutsceneStageBaking_Spec.md) | `CutsceneStageAuthoring` + baker: the asset and its scene bindings bake to a `CutsceneStage` entity; cast panel "Sync to Stage"; `CreatePlayRequestFromStage` | — | A62 |
 | A62 | [`Amendment_A62_CutsceneRuntimeCorrectness_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A62_CutsceneRuntimeCorrectness_Spec.md) | the five runtime bugs above, with PlayMode fixtures that fail on the old code | — | A61 |
 | G1 | [`CutsceneIntegration_System.md`](CutsceneIntegration_System.md) | `CutsceneSystemGroup`, `CutsceneRequest` signal, `CutsceneActor` gate (AI/movement/input), Cinemachine bridge, `PlayCutsceneAction`, sound consumer, save lock — **first cutscene plays in the game** | A61, A62 | A63 |
+| G0 | [`ActorContentRebuild_System.md`](ActorContentRebuild_System.md) | the rig, per-part authoring and one **walk clip** that make a unit a real toolkit actor — inserted 2026-09-05 by owner decision, because nothing in the game could play a clip | G1 | — |
 | A63 | [`Amendment_A63_CutsceneAttachLane_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A63_CutsceneAttachLane_Spec.md) | attach lane: socket attach, root attach (ride), hand-over, detach with impulse signal, hide-while-attached; editor lane + preview | A62 | G1 |
 | A64 | [`Amendment_A64_CutsceneMarks_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A64_CutsceneMarks_Spec.md) | marks lane + rendezvous holds: `CutsceneMoveToMark` request, arrival detection, timeout teleport; editor lane, Scene-view mark handles, preview travel | A63 | — |
 | A65 | [`Amendment_A65_CutsceneCuesFacingBlocks_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A65_CutsceneCuesFacingBlocks_Spec.md) | holding events (the dialogue cue), host inspector seam for event payloads, runtime facing (`CutsceneFacing` + direction-variant re-pick), per-block speed and start offset | A64 | — |
@@ -48,7 +49,15 @@ Toolkit amendments live in `Docs/AnimationToolkit/` (the package's own doc syste
 | G3 | [`CutsceneAcceptance_System.md`](CutsceneAcceptance_System.md) | the "Rendezvous and Depart" cutscene authored with real assets, a debug trigger, the owner's verification checklist, perf check | everything above | — |
 | A68 | [`Amendment_A68_CutsceneDocsRelease_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A68_CutsceneDocsRelease_Spec.md) | `cutscenes.md` rewrite, new `cutscene-api.md` reference, `Samples~` cutscene sample compiled through a temp assembly, CHANGELOG, HANDOFF closure, version bump | G3 | — |
 
-**Critical path:** A61 → G1 → A63 → A64 → A65 → G2 → A66 → A67 → G3 → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing in `DOTSTestScene` from a debug key.
+**Critical path:** A61 → G1 → **G0** → A63 → A64 → A65 → G2 → A66 → A67 → G3 → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing from a debug key — built and machine-verified 2026-09-05 in its own `Assets/Scenes/CutsceneG1Checkpoint.unity`, awaiting the owner's eyes.
+
+> **G0 was inserted after G1 (2026-09-05).** Building G1's checkpoint proved the integration works
+> and simultaneously proved the game has **no animation content at all**: one empty `RigAsset`, two
+> stub clips, a dangling `ClipSet.rig`, and `ActorAuthoring` referenced by zero prefabs and zero
+> scenes. The checkpoint minions slide their root-motion lanes instead of walking. Every spec after
+> this one adds features on top of a stack that cannot show a moving character, and §6's acceptance
+> cutscene already assumes "`NewRig.asset` actors with the live clip set" that do not exist — so the
+> content gets rebuilt before A63, not after.
 
 ## 4. Execution protocol (for the Sonnet session running a spec)
 
