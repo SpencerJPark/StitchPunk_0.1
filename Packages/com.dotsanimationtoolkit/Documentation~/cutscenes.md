@@ -196,6 +196,21 @@ layer on the layer index you gave it and marks `CutscenePlaybackState.isComplete
 The toolkit does not destroy the request entity — that is yours to do once
 you're done reading its final state.
 
+### Holds, pause and speed
+
+These are three different things, easy to conflate:
+
+- **A hold** freezes the *clock* only. Looping clips on every bound actor keep
+  cycling and the camera holds its shot — that is the point of a hold, so a
+  background walk cycle does not pop back to frame 0 when the hold releases.
+- **`CutsceneControl.paused`** freezes the *actors* too: every bound Actor
+  slot's clip layer is issued `SetSpeed 0`, so nothing advances anywhere,
+  hold or no hold. Use this for "the whole scene is frozen," not a hold.
+- **`CutsceneControl.speed`** scales every bound actor's clip layer to match
+  the clock, reissued the instant it changes and inherited by any block
+  issued afterward — slowing a cutscene down slows what plays in it down too,
+  not just how fast the clock ticks.
+
 ### What recasting does and does not carry over
 
 A slot's rig can be reassigned and the Scene-view preview (above) resolves

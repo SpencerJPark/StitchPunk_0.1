@@ -133,6 +133,34 @@ noted, unrelated to this work**: the working tree picked up changes this session
 (a new Prop slot on `NewCutscene.asset`, a Zombie-conversion system, narrative-event edits) —
 apparently concurrent activity in the same shared Editor/project, left untouched.
 
+**A62 — Cutscene Runtime Correctness. T1–T7 built and gated green 2026-09-04.** All six runtime
+defects the review found are fixed: (T1) `CutscenePoseSampler` moved from Editor to
+`Authoring/Build/CutsceneKeySampler.cs` so `CutsceneBlobBuilder` can share it; (T2)
+`CutsceneBlobBuilder.FillSegments` now bakes synthetic keys at every hold boundary for every keyed
+lane (root, part tracks, camera, facing) so a segment never opens or closes on a stale value; (T3)
+`CutsceneBlobSampler.SampleTransform` is now `TrySampleTransform`, returning false on an empty key
+array, and both the runtime (`CutsceneTimelineSystem.ApplyPose`) and the editor
+(`CutscenePreviewController.ApplyPose`) now skip the write instead of snapping to the origin — this
+is the exact live bug the owner's A61 playtesting already found; (T4) `CutsceneClipBlockBlob` gained
+`blendDuration`, baked from each block's true predecessor on the flat lane (`SchemaVersion` → 2), so
+a crossfade survives a hold instead of always hard-cutting; (T5) `CutscenePlaybackState` gained
+`appliedLayerSpeed`, and speed/pause now reach every bound actor's clip layer every frame,
+independent of hold state; (T6) a hold's release now falls through to the normal path with zero
+elapsed time instead of returning, so a block due at the new segment's time 0 fires on the release
+frame, and `CutsceneCameraPose` gained `isDriven` (cleared every frame, set only while a pose is
+actually live). Compile clean; `DotsAnimationToolkit.Tests.EditMode` 714/714 discovered, 713 passed — the one failure
+is the same pre-existing, unrelated asmdef-drift case HANDOFF already logged from the A61 session
+(`Conformance_A_AsmdefReferenceLists_MatchSection13Exactly`) — 712 baseline + 2 new
+(`CutsceneBlobBuilderTests`'s two cases; T1's refactor added none). `.PlayMode` 250/250, all green:
+247 baseline + 3 new (`EmptyRootLane_LeavesTheBoundTransformAlone`,
+`SpeedChange_IssuesSetSpeedOnEveryBoundActorLayer`, `BlockAtSegmentStart_IsIssuedOnTheReleaseFrame`),
+plus `SkippedAndPlayedThrough_…`'s existing case gaining two new `isDriven` assertions rather than a
+new test. Every new fixture was proved to fail on the pre-fix code before being kept. **Logged, not silently resolved**: the spec's own T4 test
+recipe (`Amendment_A62_CutsceneRuntimeCorrectness_Spec.md` §7) named a hold time that, per decision
+G-D8, cannot produce the segment assignment the recipe assumes — the fixture uses a corrected hold
+time instead. **Owed**: the owner's answer to that logged question, and — same standing note as
+every visual surface in this package — nobody has watched a cutscene actually play yet.
+
 **Cutscenes — the roadmap to completion (written 2026-09-04, nothing built yet).**
 `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` is the index: eight package amendments
 (A61 stage baking → A62 runtime correctness → A63 attach lane → A64 marks/rendezvous holds →

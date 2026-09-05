@@ -1,6 +1,6 @@
 # Amendment A62 — Cutscene Runtime Correctness
 
-> **Status:** ✅ spec, not built. Written 2026-09-04.
+> **Status:** ✅ built and gated green, 2026-09-04. T1–T7 done. Owed: owner's answer to the §7 spec/reality question, and the owner's own eyes on a live cutscene (no visual surface in this package has been watched yet).
 > **Roadmap:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` — read its §4 protocol first.
 > **Depends on:** nothing. **Parallel-safe with:** A61.
 > **Session budget:** one Sonnet session. Seven tasks; every one has a fixture that must fail on the old code.
@@ -74,8 +74,8 @@ Add `public bool isDriven;`. `CutsceneTimelineSystem.OnUpdate` clears it at the 
 - [x] **T4 — Baked blend (§3.4).** Test (EditMode, same builder fixture): `SeamAcrossAHold_KeepsItsBlendDuration` — blocks `[0, 3)` and `[2.5, 5)` with a hold at 2.7 → the second block (segment 1) has `blendDuration == 0.5f`. Bump `SchemaVersion`. **Numbers corrected — see §7**: the hold used is 2.4, not 2.7.
 - [x] **T5 — Speed/pause (§3.5).** Test (PlayMode): `SpeedChange_IssuesSetSpeedOnEveryBoundActorLayer` — set `CutsceneControl.speed = 0.5f`, advance, assert the actor's `AnimationCommand` buffer contains a `SetSpeed` with `speed == 0.5f` on the request's layer; set `paused = true`, advance, assert a `SetSpeed 0`. (The fixture's actor has no `CommandApplySystem` running, so the buffer keeps the commands — that is what makes the assertion possible.)
 - [x] **T6 — Release frame (§3.6) + `isDriven` (§3.7).** Test (PlayMode): `BlockAtSegmentStart_IsIssuedOnTheReleaseFrame` — two-segment hand-built blob (add a `BuildTwoSegmentCutsceneBlob` helper to the fixture file: hold at 1s, a block at segment-1 time 0), run to the hold, enable `CutsceneHoldRelease` with the id, advance **once**, assert the Play command is already in the buffer. `isDriven` needs no fixture; assert it inside `SkippedAndPlayedThrough_…` (false after completion) since that test already exists.
-- [ ] **T7 — Docs.** `Documentation~/cutscenes.md`: a short "Holds, pause and speed" subsection (hold keeps clips cycling; pause freezes layers; speed scales layers), and remove "Facing … no runtime-side application" from Known gaps only when A65 lands — leave it for now. `CHANGELOG.md` `[Unreleased]` → "Fixed — cutscene runtime" with the six defects in one sentence each. HANDOFF §4 paragraph.
-- [ ] **Full suites once** (EditMode + PlayMode), counts must not drop below 712 / 243 plus the fixtures added here.
+- [x] **T7 — Docs.** `Documentation~/cutscenes.md`: a short "Holds, pause and speed" subsection (hold keeps clips cycling; pause freezes layers; speed scales layers), and remove "Facing … no runtime-side application" from Known gaps only when A65 lands — leave it for now. `CHANGELOG.md` `[Unreleased]` → "Fixed — cutscene runtime" with the six defects in one sentence each. HANDOFF §4 paragraph.
+- [x] **Full suites once** (EditMode + PlayMode), counts must not drop below 712 / 247 plus the fixtures added here. Result: EditMode 714/714 discovered, 713 passed (1 pre-existing, unrelated `Conformance_A` failure already logged from the A61 session); PlayMode 250/250, all green.
 
 ## 6. Risks and traps
 

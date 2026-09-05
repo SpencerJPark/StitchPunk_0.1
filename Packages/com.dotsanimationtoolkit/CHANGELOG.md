@@ -28,6 +28,29 @@ no baked entity carried a cutscene's blob into a subscene at all.
   one Undo step. Explicit only — Bind and Place never write the stage on their own, so rehearsing a
   cast never dirties the scene.
 
+### Fixed — cutscene runtime (A62)
+
+Review found the runtime player and the editor preview quietly disagreeing on six points, none of
+them caught by the existing suite because it never built a two-segment (multi-hold) cutscene.
+
+- Motion into a hold used to be lost — a key authored at a hold's exact time landed in the next
+  segment, so the runtime sat at its last key for the whole segment then snapped on release, while
+  the editor's flat-list preview already interpolated correctly. `CutsceneBlobBuilder` now bakes
+  synthetic boundary keys into both segments at every hold, for every keyed lane.
+- A slot with no root keys was teleported to the world origin every frame, in both the runtime
+  player and the editor's Scene-view preview — both now leave an unkeyed lane's transform alone.
+- A crossfade spanning a hold was always a hard cut, because the blend was derived from "the
+  previous block in this segment" rather than the block's true predecessor on the flat lane — the
+  blend duration is now baked at bake time and survives the hold.
+- `CutsceneControl.speed` and `.paused` scaled only the cutscene clock; every bound actor's clip
+  layer kept playing at normal speed underneath. Both now reach every actor's layer every frame.
+- A clip block authored at a segment's own time 0 was issued one frame late after a hold released,
+  because the release handler returned before clip blocks were processed for that frame; it is now
+  issued on the release frame itself.
+- `CutsceneCameraPose` had no way to say "this cutscene has no camera lane this segment" or "this
+  cutscene just ended" apart from a stale pose sitting in the singleton forever; it now carries
+  `isDriven`, cleared every frame and set only while a running cutscene is actually writing a pose.
+
 ### Changed — Edit Prefab moved to the Rig Hierarchy header and became **Prefab**
 
 It opened the rig's prefab but sat in the top bar, a row away from the tree it acts on and reading
