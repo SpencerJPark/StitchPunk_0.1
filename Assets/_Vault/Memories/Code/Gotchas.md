@@ -129,6 +129,23 @@ which write `BoundsDirty` in both directions.
 
 ---
 
+## A `ComponentLookup` cached before a structural change throws `ObjectDisposedException` after it — silently
+
+A non-Burst `ISystem` that calls a managed API doing structural changes (e.g.
+`CutscenePlaybackApi.CreatePlayRequestFromStage` — `CreateEntity`/`AddComponentData`/`AddBuffer`) and then
+reuses a `ComponentLookup` obtained *before* that call throws `ObjectDisposedException: ... has been
+invalidated by a structural change` the moment the lookup is touched. No compile error, and the throw
+aborts the rest of `OnUpdate` — including any cleanup after the loop (a `DestroyEntity` call three lines
+later silently never runs). The exception lands in the Editor console, not as a test assertion, so a
+failing assert two calls downstream ("entity X still exists") is the only symptom in the test output itself.
+
+**Fix:** keep the lookups as `OnCreate` fields and call `.Update(ref state)` on each right after the
+structural change, before the next use — same shape as every Bursted job-scheduling system already does,
+it just also applies to plain managed code that intermixes lookups with structural changes in one method.
+Found 2026-09-04 in `CutsceneStartSystem` (G1): lookups for `CutsceneActor`/`ActionInterruptRequest`/
+`PathRequest`/`Movement`/`LocalTransform` were built once at the top of `OnUpdate`, then used after
+`CreatePlayRequestFromStage`'s structural change inside the same call.
+
 ## Baking
 
 ### Baker can only AddComponent on its own GO's entity
