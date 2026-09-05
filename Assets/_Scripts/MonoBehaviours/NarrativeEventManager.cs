@@ -220,6 +220,9 @@ public class NarrativeEventManager : MonoBehaviour
             case ZombifyAction zombifyAction:
                 return ExecuteZombifyAsync(zombifyAction, ct);
 
+            case PlayCutsceneAction playCutsceneAction:
+                return ExecutePlayCutsceneAsync(playCutsceneAction, ct);
+
             default:
                 Debug.LogWarning($"NarrativeEventManager: Unknown action type '{action.GetType().Name}'.");
                 return UniTask.CompletedTask;
@@ -373,6 +376,60 @@ public class NarrativeEventManager : MonoBehaviour
             await UniTask.WaitUntil(
                 () => !_entityManager.Exists(entity)
                       || !_entityManager.IsComponentEnabled<ZombifyRequest>(entity),
+                cancellationToken: ct);
+        }
+    }
+
+    private async UniTask ExecutePlayCutsceneAsync(PlayCutsceneAction action, CancellationToken ct)
+    {
+        if (action.cutscene == null)
+        {
+            Debug.LogWarning("NarrativeEventManager: PlayCutsceneAction has no cutscene assigned.");
+            return;
+        }
+
+        Entity signalEntity = _entityManager.CreateEntity();
+        _entityManager.AddComponentData(signalEntity, new CutsceneRequest
+        {
+            cutsceneKey = action.cutscene.StableId,
+            layerIndex  = (byte)action.layer,
+            speed       = action.speed,
+        });
+
+        if (action.overrides != null && action.overrides.Count > 0)
+        {
+            DynamicBuffer<CutsceneRequestBindingOverride> overridesBuffer =
+                _entityManager.AddBuffer<CutsceneRequestBindingOverride>(signalEntity);
+
+            for (int overrideIndex = 0; overrideIndex < action.overrides.Count; overrideIndex++)
+            {
+                CutsceneSlotEntityOverride slotOverride = action.overrides[overrideIndex];
+                if (!TryGetEntity(slotOverride.narrativeEntityId, out Entity targetEntity))
+                    continue;
+
+                overridesBuffer.Add(new CutsceneRequestBindingOverride
+                {
+                    slotId = slotOverride.slotId,
+                    target = targetEntity,
+                });
+            }
+        }
+
+        if (!action.waitForCompletion) return;
+
+        // CutsceneStartSystem consumes the signal on a later ECS tick — wait for the cutscene to
+        // actually become active (or be dropped, e.g. a stage lookup miss) before waiting for it
+        // to end. Checking "!ActiveCutscene enabled" alone would resolve immediately, since the
+        // request has not started yet the instant this signal is created.
+        await UniTask.WaitUntil(
+            () => _entityManager.IsComponentEnabled<ActiveCutscene>(_narrativeEntity)
+                || !_entityManager.Exists(signalEntity),
+            cancellationToken: ct);
+
+        if (_entityManager.IsComponentEnabled<ActiveCutscene>(_narrativeEntity))
+        {
+            await UniTask.WaitUntil(
+                () => !_entityManager.IsComponentEnabled<ActiveCutscene>(_narrativeEntity),
                 cancellationToken: ct);
         }
     }

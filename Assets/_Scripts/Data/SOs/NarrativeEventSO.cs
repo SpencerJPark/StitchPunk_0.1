@@ -168,6 +168,43 @@ public class CinematicCameraAction : NarrativeActionBase
     public Vector3 targetOffset;
 }
 
+/// <summary>
+/// Plays a baked cutscene (G1). Identity is <see cref="CutsceneAsset.StableId"/> — how
+/// <c>CutscenePlaybackApi.TryFindStage</c> finds the baked <c>CutsceneStage</c> — never the asset
+/// reference itself, which lives only in the editor. The group waits for the cutscene to complete
+/// when waitForCompletion is true (see NarrativeEventManager.ExecutePlayCutsceneAsync).
+/// </summary>
+[Serializable]
+public class PlayCutsceneAction : NarrativeActionBase
+{
+    [Tooltip("The cutscene to play.")]
+    public CutsceneAsset cutscene;
+
+    [Tooltip("Which playback layer clip blocks target on every bound actor.")]
+    public AnimationToolkitLayer layer = AnimationToolkitLayer.Override;
+
+    [Tooltip("Initial playback speed; 1 is normal.")]
+    public float speed = 1f;
+
+    [Tooltip("When true, the group waits until the cutscene completes before advancing.")]
+    public bool waitForCompletion = true;
+
+    [Tooltip("Binds a cutscene slot to a scene entity by its NarrativeEntityId, overriding the " +
+             "stage's own baked binding for that slot — for actors spawned rather than staged.")]
+    public List<CutsceneSlotEntityOverride> overrides = new List<CutsceneSlotEntityOverride>();
+}
+
+/// <summary>One slot to NarrativeEntityId override entry for <see cref="PlayCutsceneAction"/>.</summary>
+[Serializable]
+public class CutsceneSlotEntityOverride
+{
+    [Tooltip("The CutsceneSlot.SlotId this entry binds.")]
+    public uint slotId;
+
+    [Tooltip("NarrativeIds.Entities constant for the entity to bind.")]
+    public int narrativeEntityId = -1;
+}
+
 // ---------------------------------------------------------------------------
 // Toggle type enum
 // ---------------------------------------------------------------------------
