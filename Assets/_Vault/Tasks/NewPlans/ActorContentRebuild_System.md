@@ -106,7 +106,7 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   `BaseHead`. Record the chosen list and the tag name per target in §7.
   *Gate: no code change; the recorded list is the deliverable.*
 
-- [ ] **T2 — Strip the seven dead script GUIDs.** [parallel-safe]
+- [x] **T2 — Strip the seven dead script GUIDs.** [parallel-safe]
   Remove the missing-script components from `MaleCitizen.prefab` and `BaseUnit.prefab`. The GUIDs:
   `14d360c5a6f8d4d4cbd374a60bdfa72a`, `2034f872939f04e44b67cda7f1a00afa`,
   `40345665c1986bb47860365174cf5dd9` (×31), `703e04cde0134e57aa50cefdd628be22`,
@@ -210,6 +210,34 @@ box → commit that task alone (`G0-Tn: <what>`, stage paths explicitly, never `
   (both guid `c7df5a12f0afc5a4186c4dc99eba6f7f`) instantiate. `PlayerUnit` gaining a walk is a
   follow-up: the same rig applies, but the components have to be added a second time on
   `Visuals/MaleUnitVisual.prefab`.
+
+- **(T2, done 2026-09-05) One of the "seven dead GUIDs" is alive, and there were four more dead
+  ones the spec never listed.** `c16549610bfe4458aa9389201d072bb6` resolves to
+  `Packages/com.unity.entities/Unity.Entities.Hybrid/Baking/LinkedEntityGroupAuthoring.cs` — a live
+  Unity Entities script that both `BaseUnit` and `MaleCitizen` legitimately carry. It only *looked*
+  dead because a `grep` for its guid over `Assets/**.meta` + `Packages/**.meta` misses every script
+  that lives in a resolved package; `AssetDatabase.GUIDToAssetPath` is the check that does not lie.
+  `GameObjectUtility.RemoveMonoBehavioursWithMissingScript` never touched it, which is the second
+  reason the spec's "prefer the API over YAML surgery" line was right — hand YAML surgery against
+  the spec's list would have deleted a working baker component from every unit in the game.
+
+  Six of the seven were dead as described. Four more, on prefabs the spec did not name, were found
+  by scanning **all 29 prefabs** under `Assets/`: `91f157b4…` (`EntityLibraries/AnimationLibrary`),
+  `eb82636b…` (`EntityLibraries/ScoringLibrary`), `42b941a8…` (`Units/Brains/CitizenBrain`),
+  `925b5fd8…` (`Units/Brains/ZombieBrain`). All four bake into the checkpoint subscene, so the
+  task's own gate ("zero missing-script warnings") could not have been met without them.
+
+  **145 missing-script components removed across 9 prefabs**, project-wide count now 0:
+  `Units/Visuals/MaleUnitVisual` 32, `Units/MaleCitizen` 36, `Units/BaseUnit` 2,
+  `Units/Visuals/MaleHead` 2, `MaleHead Variant` 1, the two `EntityLibraries` 1 each, the two
+  `Brains` 1 each — plus 34 on `Units/PlayerUnit` that were all inherited and cleared themselves
+  once `BaseUnit` and `Visuals/MaleUnitVisual` were fixed (strip base prefabs before variants, or
+  every removal lands as a variant override). The checkpoint's own scene files carry no dead
+  scripts; the ten unresolved guids a raw grep finds in `CutsceneG1Checkpoint.unity` are all uGUI,
+  Cinemachine, Input System and `SubScene`.
+
+  *Gate result:* Play entered on `CutsceneG1Checkpoint.unity`, both `CutsceneStage` entities baked,
+  console carries **zero** "The referenced script is missing" entries (previously ~100).
 
 - **(T1) The 16 animated targets and their tags.** Face details, jacket flaps, belt and bulge ride
   their parents and get no tracks (decision D3). Tag names follow the vocabulary the registry already

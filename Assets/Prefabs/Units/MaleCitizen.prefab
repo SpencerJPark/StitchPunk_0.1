@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 6582243281492301231}
   - component: {fileID: 4261450646190607030}
   - component: {fileID: 5175437925113875879}
-  - component: {fileID: 7875713787249629587}
   - component: {fileID: 63097504958467350}
   - component: {fileID: 4448640947294592250}
   m_Layer: 0
@@ -93,21 +92,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7875713787249629587
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 611135734285851967}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 22
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &63097504958467350
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -144,7 +128,6 @@ GameObject:
   - component: {fileID: 171347151538549323}
   - component: {fileID: 5156774406423417871}
   - component: {fileID: 4516035438850849657}
-  - component: {fileID: 4525246032952958320}
   - component: {fileID: 6082555596445708689}
   - component: {fileID: 5555932285046531508}
   m_Layer: 0
@@ -226,21 +209,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4525246032952958320
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 931086575458771125}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 14
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &6082555596445708689
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -367,7 +335,6 @@ GameObject:
   - component: {fileID: 4613041637077698671}
   - component: {fileID: 6416168289099633930}
   - component: {fileID: 7786159717769186268}
-  - component: {fileID: 2408197927171748579}
   - component: {fileID: 7967261035080145879}
   - component: {fileID: 598591333089182757}
   m_Layer: 0
@@ -449,21 +416,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &2408197927171748579
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1132879814373537819}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 5
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &7967261035080145879
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -500,7 +452,6 @@ GameObject:
   - component: {fileID: 7629718939963691507}
   - component: {fileID: 2201935942377582224}
   - component: {fileID: 5163746673630238130}
-  - component: {fileID: 5186967080066423122}
   - component: {fileID: 5810930460387026324}
   - component: {fileID: 5208267745964666936}
   m_Layer: 0
@@ -582,21 +533,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5186967080066423122
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177653470753664924}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 24
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &5810930460387026324
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -633,7 +569,6 @@ GameObject:
   - component: {fileID: 7246110960652423973}
   - component: {fileID: 3348299733697452101}
   - component: {fileID: 4206190778515886575}
-  - component: {fileID: 6410299110579232312}
   - component: {fileID: 3399102213948935319}
   - component: {fileID: 2738671108027014714}
   m_Layer: 0
@@ -716,21 +651,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6410299110579232312
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1605978085274449659}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 2
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &3399102213948935319
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -767,7 +687,6 @@ GameObject:
   - component: {fileID: 8644095910743062619}
   - component: {fileID: 231289823337345863}
   - component: {fileID: 2916640012416705559}
-  - component: {fileID: 5473068942958975046}
   - component: {fileID: 2824240786071226789}
   - component: {fileID: 7464042042193868524}
   m_Layer: 0
@@ -849,21 +768,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5473068942958975046
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1712510412753938001}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 30
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &2824240786071226789
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -900,7 +804,6 @@ GameObject:
   - component: {fileID: 4604246331707058924}
   - component: {fileID: 3919324108685814789}
   - component: {fileID: 8803525904725242249}
-  - component: {fileID: 5012303407548755028}
   - component: {fileID: 583263892950030168}
   - component: {fileID: 2491290938818564386}
   m_Layer: 0
@@ -983,21 +886,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5012303407548755028
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1818198835163919025}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 4
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &583263892950030168
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1034,7 +922,6 @@ GameObject:
   - component: {fileID: 8686176398899713627}
   - component: {fileID: 6974303368082961671}
   - component: {fileID: 1816768235529586214}
-  - component: {fileID: 616719841311708790}
   - component: {fileID: 3559399326514361256}
   - component: {fileID: 5108188630842897074}
   m_Layer: 0
@@ -1116,21 +1003,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &616719841311708790
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1829652459452292244}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 6
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &3559399326514361256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1167,7 +1039,6 @@ GameObject:
   - component: {fileID: 4437295007513709903}
   - component: {fileID: 3079883684015936876}
   - component: {fileID: 1856190966470207451}
-  - component: {fileID: 3659467278497028313}
   - component: {fileID: 7794204233358258453}
   - component: {fileID: 1641957111775463579}
   m_Layer: 0
@@ -1252,21 +1123,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3659467278497028313
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2198680534970862452}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 9
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &7794204233358258453
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1303,7 +1159,6 @@ GameObject:
   - component: {fileID: 6226726571242710888}
   - component: {fileID: 7899516820478467182}
   - component: {fileID: 5012654106216557220}
-  - component: {fileID: 2197090294768892598}
   - component: {fileID: 4524878769288114675}
   - component: {fileID: 4368196499140498301}
   m_Layer: 0
@@ -1385,21 +1240,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &2197090294768892598
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2699631245674403349}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 23
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &4524878769288114675
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1436,7 +1276,6 @@ GameObject:
   - component: {fileID: 6720385877016036092}
   - component: {fileID: 6748020857324329699}
   - component: {fileID: 6405952512691644956}
-  - component: {fileID: 5520886179250836104}
   - component: {fileID: 5406727304966279137}
   - component: {fileID: 4921848997313952197}
   m_Layer: 0
@@ -1519,21 +1358,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5520886179250836104
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2793443842951905063}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 12
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &5406727304966279137
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1570,7 +1394,6 @@ GameObject:
   - component: {fileID: 1604849269004531223}
   - component: {fileID: 4848918442618370263}
   - component: {fileID: 4569925800184956281}
-  - component: {fileID: 1457146645190614135}
   - component: {fileID: 3363818895075473111}
   - component: {fileID: 3119643433358150806}
   m_Layer: 0
@@ -1652,21 +1475,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1457146645190614135
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2820428712034707050}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 17
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &3363818895075473111
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1703,7 +1511,6 @@ GameObject:
   - component: {fileID: 2425429788073271666}
   - component: {fileID: 4817649849799666617}
   - component: {fileID: 762824711905173657}
-  - component: {fileID: 3847153142780733520}
   - component: {fileID: 5556634892679736172}
   - component: {fileID: 3986905548465459307}
   m_Layer: 0
@@ -1786,21 +1593,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3847153142780733520
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3106109558775310792}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 13
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &5556634892679736172
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1883,7 +1675,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 332314884621582417}
-  - component: {fileID: 7055886323699654155}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -1908,19 +1699,6 @@ Transform:
   - {fileID: 1081169466429454957}
   m_Father: {fileID: 6621476877874542357}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7055886323699654155
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3235498514924300147}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2034f872939f04e44b67cda7f1a00afa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  parentGameObject: {fileID: 9101195342176660511}
 --- !u!1 &3271744655631085733
 GameObject:
   m_ObjectHideFlags: 0
@@ -1932,7 +1710,6 @@ GameObject:
   - component: {fileID: 2253509642784590495}
   - component: {fileID: 1005093892371165138}
   - component: {fileID: 5423423446734517798}
-  - component: {fileID: 8266184305932930927}
   - component: {fileID: 6227331681561670214}
   - component: {fileID: 7200275109390196469}
   m_Layer: 0
@@ -2014,21 +1791,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8266184305932930927
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3271744655631085733}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 15
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &6227331681561670214
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2065,7 +1827,6 @@ GameObject:
   - component: {fileID: 6529007788708922443}
   - component: {fileID: 4657629229771715868}
   - component: {fileID: 9157990371037349709}
-  - component: {fileID: 8292139511264067480}
   - component: {fileID: 7964888395680943672}
   - component: {fileID: 2560933336343884891}
   m_Layer: 0
@@ -2147,21 +1908,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8292139511264067480
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3420010238202682184}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 22
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &7964888395680943672
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2198,7 +1944,6 @@ GameObject:
   - component: {fileID: 5445249004561892246}
   - component: {fileID: 8574881643788967433}
   - component: {fileID: 2384183966582874024}
-  - component: {fileID: 8135257220376988181}
   - component: {fileID: 8831627797750634901}
   - component: {fileID: 7541784874031821376}
   m_Layer: 0
@@ -2280,21 +2025,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8135257220376988181
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4011237959605794965}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 0
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &8831627797750634901
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2331,7 +2061,6 @@ GameObject:
   - component: {fileID: 6595246738524381088}
   - component: {fileID: 2828485768132142313}
   - component: {fileID: 1587711402862318565}
-  - component: {fileID: 8968191735037001045}
   - component: {fileID: 5177583447018485395}
   - component: {fileID: 6705330533423006649}
   m_Layer: 0
@@ -2413,21 +2142,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8968191735037001045
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4077449098754414061}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 29
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &5177583447018485395
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2464,7 +2178,6 @@ GameObject:
   - component: {fileID: 2994085987834843631}
   - component: {fileID: 499896834598508514}
   - component: {fileID: 202962692276087138}
-  - component: {fileID: 4521393892916207352}
   - component: {fileID: 5058858478413726630}
   - component: {fileID: 7571871285302227157}
   m_Layer: 0
@@ -2547,21 +2260,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4521393892916207352
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4301437577614999533}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 32
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &5058858478413726630
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2598,7 +2296,6 @@ GameObject:
   - component: {fileID: 601311761561155749}
   - component: {fileID: 9033666496822829498}
   - component: {fileID: 5234412572318912481}
-  - component: {fileID: 5838260654820423049}
   - component: {fileID: 9083753584520476326}
   - component: {fileID: 2028534286734617247}
   m_Layer: 0
@@ -2681,21 +2378,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5838260654820423049
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4857314316255899760}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 10
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &9083753584520476326
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2732,7 +2414,6 @@ GameObject:
   - component: {fileID: 1740319646291573547}
   - component: {fileID: 8537144972028665150}
   - component: {fileID: 7139360833813867376}
-  - component: {fileID: 1176335945693019734}
   - component: {fileID: 2310129143537385773}
   - component: {fileID: 6985841751422160073}
   m_Layer: 0
@@ -2815,21 +2496,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1176335945693019734
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5645857117973728562}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 11
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &2310129143537385773
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2866,7 +2532,6 @@ GameObject:
   - component: {fileID: 2372267470411511248}
   - component: {fileID: 6241616737768231262}
   - component: {fileID: 126026408025993355}
-  - component: {fileID: 1252757137209088169}
   - component: {fileID: 7318317102742747123}
   - component: {fileID: 8808155360905445084}
   m_Layer: 0
@@ -2949,21 +2614,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1252757137209088169
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5913586954817689161}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 3
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &7318317102742747123
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3000,7 +2650,6 @@ GameObject:
   - component: {fileID: 4645903213189596695}
   - component: {fileID: 4163711325321952233}
   - component: {fileID: 5900370102229058765}
-  - component: {fileID: 5209451566149648586}
   - component: {fileID: 8739283867169983255}
   - component: {fileID: 5197900853732956951}
   m_Layer: 0
@@ -3087,21 +2736,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5209451566149648586
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5945333620248794271}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 26
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &8739283867169983255
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3138,7 +2772,6 @@ GameObject:
   - component: {fileID: 2029928441473366982}
   - component: {fileID: 3554660273808192615}
   - component: {fileID: 5145098103161940246}
-  - component: {fileID: 1280694381469846034}
   - component: {fileID: 6213530395434057585}
   - component: {fileID: 7641991561402056799}
   m_Layer: 0
@@ -3220,21 +2853,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1280694381469846034
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6070736960350805383}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 20
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &6213530395434057585
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3271,7 +2889,6 @@ GameObject:
   - component: {fileID: 1484445872233121088}
   - component: {fileID: 4304315558939140894}
   - component: {fileID: 5332035692144084044}
-  - component: {fileID: 8400880237391837263}
   - component: {fileID: 6775675747306071832}
   - component: {fileID: 3802994706926526942}
   m_Layer: 0
@@ -3353,21 +2970,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8400880237391837263
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6116213830098624810}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 23
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &6775675747306071832
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3404,7 +3006,6 @@ GameObject:
   - component: {fileID: 970867288312618354}
   - component: {fileID: 9218544816456953449}
   - component: {fileID: 7991542555854027070}
-  - component: {fileID: 1743483731001188478}
   - component: {fileID: 1911570909748185274}
   - component: {fileID: 5112038560601026316}
   m_Layer: 0
@@ -3486,21 +3087,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1743483731001188478
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6616035439334814931}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 31
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &1911570909748185274
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3627,7 +3213,6 @@ GameObject:
   - component: {fileID: 6009369213426300916}
   - component: {fileID: 4153973667784636293}
   - component: {fileID: 3832837739164726808}
-  - component: {fileID: 4766198394647145198}
   - component: {fileID: 3689582091142436885}
   - component: {fileID: 9038951308732393097}
   m_Layer: 0
@@ -3710,21 +3295,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4766198394647145198
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6946358484204244637}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 28
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &3689582091142436885
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3761,7 +3331,6 @@ GameObject:
   - component: {fileID: 1825635585313671560}
   - component: {fileID: 7354033897527970404}
   - component: {fileID: 7357262620558547293}
-  - component: {fileID: 7606228588499296997}
   - component: {fileID: 4520703909183852283}
   - component: {fileID: 7929161375620800940}
   m_Layer: 0
@@ -3843,21 +3412,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7606228588499296997
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7078668552627854934}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 18
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &4520703909183852283
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3894,7 +3448,6 @@ GameObject:
   - component: {fileID: 1365371708848070918}
   - component: {fileID: 8077755233539933651}
   - component: {fileID: 5293948782683976615}
-  - component: {fileID: 3875246521357034139}
   - component: {fileID: 1449747340643508457}
   - component: {fileID: 9075180598144084148}
   m_Layer: 0
@@ -3986,21 +3539,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3875246521357034139
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7375585534706214761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 16
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &1449747340643508457
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4037,7 +3575,6 @@ GameObject:
   - component: {fileID: 2791218150013684225}
   - component: {fileID: 5396691998585599184}
   - component: {fileID: 7253674353491580082}
-  - component: {fileID: 8756416235685078136}
   - component: {fileID: 8373475014266034841}
   - component: {fileID: 7055489984579977635}
   m_Layer: 0
@@ -4119,21 +3656,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8756416235685078136
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7573434779292915580}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 19
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &8373475014266034841
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4170,7 +3692,6 @@ GameObject:
   - component: {fileID: 6697204274583449756}
   - component: {fileID: 4334375850653764036}
   - component: {fileID: 8099044404527368633}
-  - component: {fileID: 2669042121098447654}
   - component: {fileID: 2465231886132978536}
   - component: {fileID: 4191877602286084064}
   m_Layer: 0
@@ -4253,21 +3774,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &2669042121098447654
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8346345280746603786}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 1
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &2465231886132978536
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4394,7 +3900,6 @@ GameObject:
   - component: {fileID: 6038533611327262936}
   - component: {fileID: 6774471848436202942}
   - component: {fileID: 6370737526959721987}
-  - component: {fileID: 3710548229998119336}
   - component: {fileID: 2397162576616285140}
   - component: {fileID: 8049256351165399830}
   m_Layer: 0
@@ -4476,21 +3981,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3710548229998119336
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9082205655030906697}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 34
-  characterRoot: {fileID: 9101195342176660511}
-  baseImageIndex: 0
 --- !u!114 &2397162576616285140
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4533,14 +4023,11 @@ GameObject:
   - component: {fileID: 2024714973468264229}
   - component: {fileID: 6720368948588221369}
   - component: {fileID: 3547184892287536240}
-  - component: {fileID: 6968009521234229065}
   - component: {fileID: 3485874398458451963}
   - component: {fileID: 4090640193069371708}
   - component: {fileID: 6836798298145647292}
   - component: {fileID: 81547783365101107}
-  - component: {fileID: 3781486699761808551}
   - component: {fileID: 5385637352373302489}
-  - component: {fileID: 1792128399591610932}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -4687,43 +4174,6 @@ MonoBehaviour:
   preferredMode: 0
   repathInterval: 0.5
   hordeFormationThreshold: 10
---- !u!114 &6968009521234229065
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9101195342176660511}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da03443cf962d5341bcf2132bae8432d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterAnimationAuthoring
-  startingLayers:
-  - layer: 0
-    animation: 1
-    speed: 1
-    looping: 1
-  - layer: 1
-    animation: 10
-    speed: 1
-    looping: 1
-  - layer: 4
-    animation: 18
-    speed: 1
-    looping: 1
-  - layer: 5
-    animation: 0
-    speed: 1
-    looping: 1
-  - layer: 2
-    animation: 0
-    speed: 1
-    looping: 1
-  - layer: 6
-    animation: 0
-    speed: 1
-    looping: 1
 --- !u!114 &3485874398458451963
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4779,53 +4229,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c16549610bfe4458aa9389201d072bb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &3781486699761808551
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9101195342176660511}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 14d360c5a6f8d4d4cbd374a60bdfa72a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::Ragdoll2DRootAuthoring
-  visualChild: {fileID: 9171255052455601309}
-  joints:
-  - joint: {fileID: 4857314316255899760}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 2793443842951905063}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 5645857117973728562}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 3106109558775310792}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 7375585534706214761}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 8346345280746603786}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 5913586954817689161}
-    settleSpeed: 0
-    landingZones: []
-  - joint: {fileID: 1605978085274449659}
-    settleSpeed: 7
-    landingZones:
-    - min: -160
-      max: -185
-    - min: 22
-      max: -6
-  bodyFallSpeed: 200
-  groundBufferForward: 0.35
-  groundBufferBackward: 0.29
-  tiltOffsetForward: 5
-  tiltOffsetBackward: 0
 --- !u!114 &5385637352373302489
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4840,28 +4243,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionAuthoring
   actionType: 10
   playerInteractable: 1
---- !u!114 &1792128399591610932
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9101195342176660511}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dfa4a7c782bd420c820466dd6ace6f18, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::DesignAuthoring
-  reloadDesign: 1
-  parts:
-  - target: 16
-    ranges:
-    - min: 0
-      max: 39
-  - target: 22
-    ranges:
-    - min: 0
-      max: 63
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0
@@ -4903,7 +4284,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1081169466429454957}
-  - component: {fileID: 952103172796328573}
   - component: {fileID: 839270692250789620}
   m_Layer: 0
   m_Name: MaleUnitVisual
@@ -4930,20 +4310,6 @@ Transform:
   - {fileID: 1740319646291573547}
   m_Father: {fileID: 332314884621582417}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &952103172796328573
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9171255052455601309}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 703e04cde0134e57aa50cefdd628be22, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetNoIndexAuthoring
-  animationTarget: 0
-  characterRoot: {fileID: 9101195342176660511}
 --- !u!114 &839270692250789620
 MonoBehaviour:
   m_ObjectHideFlags: 0

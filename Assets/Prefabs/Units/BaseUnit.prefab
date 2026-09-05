@@ -99,7 +99,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1637979671052500160}
-  - component: {fileID: 8534807842313457732}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -124,19 +123,6 @@ Transform:
   - {fileID: 8609432990601024047}
   m_Father: {fileID: 7273244649239706813}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8534807842313457732
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2772220204455685815}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2034f872939f04e44b67cda7f1a00afa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  parentGameObject: {fileID: 3094532311958105572}
 --- !u!1 &3094532311958105572
 GameObject:
   m_ObjectHideFlags: 0
@@ -153,7 +139,6 @@ GameObject:
   - component: {fileID: 6575585675197493464}
   - component: {fileID: 123114018271666235}
   - component: {fileID: 323249702145562905}
-  - component: {fileID: 3004038991711854641}
   m_Layer: 6
   m_Name: BaseUnit
   m_TagString: Untagged
@@ -214,6 +199,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 3
+  runSpeed: 9
   rotationSpeed: 15
 --- !u!114 &8570070412925931212
 MonoBehaviour:
@@ -281,43 +267,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   unitLibrary: {fileID: 0}
---- !u!114 &3004038991711854641
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3094532311958105572}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da03443cf962d5341bcf2132bae8432d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterAnimationAuthoring
-  startingLayers:
-  - layer: 0
-    animation: 1
-    speed: 1
-    looping: 1
-  - layer: 1
-    animation: 10
-    speed: 1
-    looping: 1
-  - layer: 4
-    animation: 18
-    speed: 1
-    looping: 1
-  - layer: 5
-    animation: 0
-    speed: 1
-    looping: 1
-  - layer: 2
-    animation: 0
-    speed: 1
-    looping: 1
-  - layer: 6
-    animation: 0
-    speed: 1
-    looping: 1
 --- !u!1001 &4233715775177122149
 PrefabInstance:
   m_ObjectHideFlags: 0

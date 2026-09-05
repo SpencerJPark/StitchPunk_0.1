@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5098511238007994994}
-  - component: {fileID: 477456395578001795}
   m_Layer: 0
   m_Name: ZombieBrain
   m_TagString: Untagged
@@ -32,17 +31,3 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &477456395578001795
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4270300297337098239}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 925b5fd86637ba64a87517998712e4cd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::ZombieBrainAuthoring
-  body: {fileID: 0}
-  awarenessRange: 20

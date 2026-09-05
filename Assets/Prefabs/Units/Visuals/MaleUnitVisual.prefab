@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 4650810858914279370}
   - component: {fileID: 7143085203822978692}
   - component: {fileID: 4131085915082185503}
-  - component: {fileID: 8137483800058707321}
   m_Layer: 0
   m_Name: Buldge
   m_TagString: Untagged
@@ -91,21 +90,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8137483800058707321
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 231218743712430050}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 31
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &673077679732726553
 GameObject:
   m_ObjectHideFlags: 0
@@ -117,7 +101,6 @@ GameObject:
   - component: {fileID: 3862407533182655957}
   - component: {fileID: 3658513394152607134}
   - component: {fileID: 378202479249968097}
-  - component: {fileID: 3725577711801501605}
   m_Layer: 0
   m_Name: Hair
   m_TagString: Untagged
@@ -197,21 +180,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3725577711801501605
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 673077679732726553}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 21
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &716861604377810144
 GameObject:
   m_ObjectHideFlags: 0
@@ -223,7 +191,6 @@ GameObject:
   - component: {fileID: 365417164055793632}
   - component: {fileID: 2117727657922285581}
   - component: {fileID: 4123996174458042147}
-  - component: {fileID: 4158851075521306631}
   m_Layer: 0
   m_Name: LeftEyeBrow
   m_TagString: Untagged
@@ -303,21 +270,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4158851075521306631
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 716861604377810144}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 17
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &890867778621142482
 GameObject:
   m_ObjectHideFlags: 0
@@ -329,7 +281,6 @@ GameObject:
   - component: {fileID: 6098670669643317786}
   - component: {fileID: 1865725092733265565}
   - component: {fileID: 8837112177976825896}
-  - component: {fileID: 5354914094200351974}
   m_Layer: 0
   m_Name: RightUpperArm
   m_TagString: Untagged
@@ -410,21 +361,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5354914094200351974
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 890867778621142482}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 2
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &1787781365355838275
 GameObject:
   m_ObjectHideFlags: 0
@@ -436,7 +372,6 @@ GameObject:
   - component: {fileID: 4377214621906680832}
   - component: {fileID: 3964765449077561963}
   - component: {fileID: 4150967965890518224}
-  - component: {fileID: 5915632126814815737}
   m_Layer: 0
   m_Name: Ear
   m_TagString: Untagged
@@ -516,21 +451,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5915632126814815737
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1787781365355838275}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 24
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &1931605672402180542
 GameObject:
   m_ObjectHideFlags: 0
@@ -542,7 +462,6 @@ GameObject:
   - component: {fileID: 109452273023595976}
   - component: {fileID: 4954522486156962428}
   - component: {fileID: 6080898118977523630}
-  - component: {fileID: 7496082221849485249}
   m_Layer: 0
   m_Name: Faceware
   m_TagString: Untagged
@@ -622,21 +541,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7496082221849485249
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1931605672402180542}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 34
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &1938121985942176540
 GameObject:
   m_ObjectHideFlags: 0
@@ -648,7 +552,6 @@ GameObject:
   - component: {fileID: 9002868926679140966}
   - component: {fileID: 6373280628938548550}
   - component: {fileID: 9054087126926306925}
-  - component: {fileID: 4494343861961189366}
   m_Layer: 0
   m_Name: LeftJacket
   m_TagString: Untagged
@@ -728,21 +631,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4494343861961189366
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1938121985942176540}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 23
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &2442332366276156195
 GameObject:
   m_ObjectHideFlags: 0
@@ -754,7 +642,6 @@ GameObject:
   - component: {fileID: 5431721832970159296}
   - component: {fileID: 165254596128654340}
   - component: {fileID: 4237572530843135966}
-  - component: {fileID: 4078954880398599977}
   m_Layer: 0
   m_Name: Mustache
   m_TagString: Untagged
@@ -834,21 +721,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4078954880398599977
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2442332366276156195}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 22
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &2770332140269537159
 GameObject:
   m_ObjectHideFlags: 0
@@ -858,7 +730,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5601342829359788874}
-  - component: {fileID: 3163088766351882176}
   m_Layer: 0
   m_Name: MaleUnitVisual
   m_TagString: Untagged
@@ -884,20 +755,6 @@ Transform:
   - {fileID: 139963261219588447}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3163088766351882176
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2770332140269537159}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 703e04cde0134e57aa50cefdd628be22, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::AnimationTargetNoIndexAuthoring
-  animationTarget: 0
-  characterRoot: {fileID: 0}
 --- !u!1 &3159875313974331218
 GameObject:
   m_ObjectHideFlags: 0
@@ -909,7 +766,6 @@ GameObject:
   - component: {fileID: 139963261219588447}
   - component: {fileID: 5203735847470854573}
   - component: {fileID: 5580128319105131108}
-  - component: {fileID: 5084230774531173270}
   m_Layer: 0
   m_Name: RightUpperLeg
   m_TagString: Untagged
@@ -990,21 +846,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5084230774531173270
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3159875313974331218}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 11
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &3162065987987976754
 GameObject:
   m_ObjectHideFlags: 0
@@ -1016,7 +857,6 @@ GameObject:
   - component: {fileID: 7089875412580723952}
   - component: {fileID: 1779268017172862035}
   - component: {fileID: 7748990171911537132}
-  - component: {fileID: 8444592568873747722}
   m_Layer: 0
   m_Name: RightLowerLeg
   m_TagString: Untagged
@@ -1097,21 +937,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8444592568873747722
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3162065987987976754}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 13
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &3292459603127527520
 GameObject:
   m_ObjectHideFlags: 0
@@ -1123,7 +948,6 @@ GameObject:
   - component: {fileID: 715152485214003342}
   - component: {fileID: 6172853549679443236}
   - component: {fileID: 5475635212282657687}
-  - component: {fileID: 7285250593911039626}
   m_Layer: 0
   m_Name: Nose
   m_TagString: Untagged
@@ -1203,21 +1027,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7285250593911039626
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3292459603127527520}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 23
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &3411829820813603956
 GameObject:
   m_ObjectHideFlags: 0
@@ -1229,7 +1038,6 @@ GameObject:
   - component: {fileID: 4864707250713620737}
   - component: {fileID: 4231206259735269083}
   - component: {fileID: 3959775502658570353}
-  - component: {fileID: 8835937910161526760}
   m_Layer: 0
   m_Name: RightLowerArm
   m_TagString: Untagged
@@ -1310,21 +1118,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8835937910161526760
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3411829820813603956}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 4
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &3509694908504450614
 GameObject:
   m_ObjectHideFlags: 0
@@ -1336,7 +1129,6 @@ GameObject:
   - component: {fileID: 3899063117741411467}
   - component: {fileID: 5686186844217224499}
   - component: {fileID: 3805715094488131122}
-  - component: {fileID: 469638256029708503}
   m_Layer: 0
   m_Name: RightJacketInside
   m_TagString: Untagged
@@ -1416,21 +1208,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &469638256029708503
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3509694908504450614}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 29
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &3900202409969793398
 GameObject:
   m_ObjectHideFlags: 0
@@ -1442,7 +1219,6 @@ GameObject:
   - component: {fileID: 2161024321464456803}
   - component: {fileID: 225512929451193163}
   - component: {fileID: 8448479389646531252}
-  - component: {fileID: 4200404658251305377}
   m_Layer: 0
   m_Name: RightFoot
   m_TagString: Untagged
@@ -1522,21 +1298,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4200404658251305377
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3900202409969793398}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 15
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &4356341347550439438
 GameObject:
   m_ObjectHideFlags: 0
@@ -1548,7 +1309,6 @@ GameObject:
   - component: {fileID: 4492419313656376648}
   - component: {fileID: 5067488186072060468}
   - component: {fileID: 7946868902319156805}
-  - component: {fileID: 6014016423215967674}
   m_Layer: 0
   m_Name: Mouth
   m_TagString: Untagged
@@ -1628,21 +1388,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6014016423215967674
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4356341347550439438}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 20
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &4715068896997769564
 GameObject:
   m_ObjectHideFlags: 0
@@ -1654,7 +1399,6 @@ GameObject:
   - component: {fileID: 3006180226487982138}
   - component: {fileID: 2998164238212529011}
   - component: {fileID: 3889280369689652782}
-  - component: {fileID: 2800511422336481670}
   m_Layer: 0
   m_Name: LeftLowerLeg
   m_TagString: Untagged
@@ -1735,21 +1479,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &2800511422336481670
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4715068896997769564}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 12
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &4864989680941038702
 GameObject:
   m_ObjectHideFlags: 0
@@ -1761,7 +1490,6 @@ GameObject:
   - component: {fileID: 1473079586713965079}
   - component: {fileID: 1151394717633348600}
   - component: {fileID: 3157809196475220604}
-  - component: {fileID: 1973914372264936446}
   m_Layer: 0
   m_Name: Neck
   m_TagString: Untagged
@@ -1842,21 +1570,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1973914372264936446
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4864989680941038702}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 32
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &4944353364649212957
 GameObject:
   m_ObjectHideFlags: 0
@@ -1868,7 +1581,6 @@ GameObject:
   - component: {fileID: 5334408381556979212}
   - component: {fileID: 6295982600844951731}
   - component: {fileID: 1447531347722968847}
-  - component: {fileID: 5703105569559028675}
   m_Layer: 0
   m_Name: Facedetails
   m_TagString: Untagged
@@ -1948,21 +1660,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5703105569559028675
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4944353364649212957}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AnimationTargetAuthoring
-  animationTarget: 0
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &5966309147499776874
 GameObject:
   m_ObjectHideFlags: 0
@@ -1974,7 +1671,6 @@ GameObject:
   - component: {fileID: 6650828010596206170}
   - component: {fileID: 4539770270678656403}
   - component: {fileID: 1601951869741985527}
-  - component: {fileID: 6056754924607754028}
   m_Layer: 0
   m_Name: RightEyeBrow
   m_TagString: Untagged
@@ -2054,21 +1750,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6056754924607754028
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5966309147499776874}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 18
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &6135778856927942047
 GameObject:
   m_ObjectHideFlags: 0
@@ -2080,7 +1761,6 @@ GameObject:
   - component: {fileID: 2141092513817673947}
   - component: {fileID: 9065180240437766509}
   - component: {fileID: 1203036094677802785}
-  - component: {fileID: 5875716392612807216}
   m_Layer: 0
   m_Name: RightHand
   m_TagString: Untagged
@@ -2160,21 +1840,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5875716392612807216
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6135778856927942047}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 6
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &6378716546927602683
 GameObject:
   m_ObjectHideFlags: 0
@@ -2186,7 +1851,6 @@ GameObject:
   - component: {fileID: 4601792811150471433}
   - component: {fileID: 6369654221050425152}
   - component: {fileID: 8796529237804397390}
-  - component: {fileID: 3444274398866641607}
   m_Layer: 0
   m_Name: Torso
   m_TagString: Untagged
@@ -2271,21 +1935,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3444274398866641607
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6378716546927602683}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 26
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &6517722987388305846
 GameObject:
   m_ObjectHideFlags: 0
@@ -2297,7 +1946,6 @@ GameObject:
   - component: {fileID: 426305561762581684}
   - component: {fileID: 1171159431262722243}
   - component: {fileID: 7074411363471327034}
-  - component: {fileID: 3223813769709816223}
   m_Layer: 0
   m_Name: Pelvis
   m_TagString: Untagged
@@ -2380,21 +2028,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3223813769709816223
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6517722987388305846}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 9
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &6657147703575187301
 GameObject:
   m_ObjectHideFlags: 0
@@ -2406,7 +2039,6 @@ GameObject:
   - component: {fileID: 6699787611414108551}
   - component: {fileID: 2579175534774755904}
   - component: {fileID: 6070831011984932101}
-  - component: {fileID: 8352750888620060722}
   m_Layer: 0
   m_Name: LeftLowerArm
   m_TagString: Untagged
@@ -2487,21 +2119,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8352750888620060722
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6657147703575187301}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 3
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &6733687311004829793
 GameObject:
   m_ObjectHideFlags: 0
@@ -2513,7 +2130,6 @@ GameObject:
   - component: {fileID: 8787278958016974590}
   - component: {fileID: 649626549868020262}
   - component: {fileID: 5866164636053553994}
-  - component: {fileID: 7711560898325615219}
   m_Layer: 0
   m_Name: LeftUpperArm
   m_TagString: Untagged
@@ -2594,21 +2210,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7711560898325615219
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6733687311004829793}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 1
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &6843897687933018521
 GameObject:
   m_ObjectHideFlags: 0
@@ -2620,7 +2221,6 @@ GameObject:
   - component: {fileID: 6827048643404186123}
   - component: {fileID: 7771508137364493362}
   - component: {fileID: 7087491201642573544}
-  - component: {fileID: 8857118648787029904}
   m_Layer: 0
   m_Name: LeftUpperLeg
   m_TagString: Untagged
@@ -2701,21 +2301,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &8857118648787029904
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6843897687933018521}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 10
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &7002559748565593482
 GameObject:
   m_ObjectHideFlags: 0
@@ -2727,7 +2312,6 @@ GameObject:
   - component: {fileID: 5108816135640660154}
   - component: {fileID: 4228135463205121839}
   - component: {fileID: 3263573476667557682}
-  - component: {fileID: 9188270300752996384}
   m_Layer: 0
   m_Name: LeftHand
   m_TagString: Untagged
@@ -2807,21 +2391,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &9188270300752996384
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7002559748565593482}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 5
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &7390935684808438661
 GameObject:
   m_ObjectHideFlags: 0
@@ -2833,7 +2402,6 @@ GameObject:
   - component: {fileID: 6583579748628766048}
   - component: {fileID: 182298992174244857}
   - component: {fileID: 1767766565320245823}
-  - component: {fileID: 305790264081048373}
   m_Layer: 0
   m_Name: LeftFoot
   m_TagString: Untagged
@@ -2913,21 +2481,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &305790264081048373
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7390935684808438661}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 14
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &7467603110773283841
 GameObject:
   m_ObjectHideFlags: 0
@@ -2939,7 +2492,6 @@ GameObject:
   - component: {fileID: 4500767407377359556}
   - component: {fileID: 1170503725115502269}
   - component: {fileID: 2784101195401359195}
-  - component: {fileID: 3551619296099782780}
   m_Layer: 0
   m_Name: RightJacket
   m_TagString: Untagged
@@ -3020,21 +2572,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3551619296099782780
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7467603110773283841}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 28
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &8831742166445880403
 GameObject:
   m_ObjectHideFlags: 0
@@ -3046,7 +2583,6 @@ GameObject:
   - component: {fileID: 1477156941877870708}
   - component: {fileID: 8212518476925055627}
   - component: {fileID: 7725006308160254204}
-  - component: {fileID: 4726497728466088311}
   m_Layer: 0
   m_Name: Eyes
   m_TagString: Untagged
@@ -3126,21 +2662,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4726497728466088311
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8831742166445880403}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 19
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &9125150300711364707
 GameObject:
   m_ObjectHideFlags: 0
@@ -3152,7 +2673,6 @@ GameObject:
   - component: {fileID: 3606356523781279298}
   - component: {fileID: 5475926298279083224}
   - component: {fileID: 8154153813989202057}
-  - component: {fileID: 5643030602255234369}
   m_Layer: 0
   m_Name: Belt
   m_TagString: Untagged
@@ -3232,21 +2752,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5643030602255234369
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9125150300711364707}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 30
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
 --- !u!1 &9185108049438039865
 GameObject:
   m_ObjectHideFlags: 0
@@ -3258,7 +2763,6 @@ GameObject:
   - component: {fileID: 1605930534250951286}
   - component: {fileID: 5531823067135236467}
   - component: {fileID: 1240252074213816930}
-  - component: {fileID: 5802153759356783800}
   m_Layer: 0
   m_Name: BaseHead
   m_TagString: Untagged
@@ -3348,18 +2852,3 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5802153759356783800
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9185108049438039865}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40345665c1986bb47860365174cf5dd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BodyPartAuthoring
-  animationTarget: 16
-  characterRoot: {fileID: 0}
-  baseImageIndex: 0
