@@ -138,6 +138,41 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.IsTrue(sawStop, "skip must release the actor's clip layer, per spec §6's end/skip contract");
         }
 
+        /// <summary>Amendment A61-T1: <c>CreatePlayRequestFromStage</c> must copy every <c>CutsceneStageBinding</c> into the request's <c>CutsceneActorBinding</c> buffer, in order.</summary>
+        [Test]
+        public void CreatePlayRequestFromStage_CopiesEveryStageBinding()
+        {
+            const uint SecondSlotId = SlotId + 1;
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTestCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+
+            Entity boundEntityA = testWorld.EntityManager.CreateEntity();
+            Entity boundEntityB = testWorld.EntityManager.CreateEntity();
+
+            Entity stageEntity = testWorld.EntityManager.CreateEntity();
+            testWorld.EntityManager.AddComponentData(stageEntity, new CutsceneStage
+            {
+                blob = cutsceneBlob,
+                cutsceneKey = cutsceneBlob.Value.cutsceneKey
+            });
+            DynamicBuffer<CutsceneStageBinding> stageBindings =
+                testWorld.EntityManager.AddBuffer<CutsceneStageBinding>(stageEntity);
+            stageBindings.Add(new CutsceneStageBinding { slotId = SlotId, target = boundEntityA });
+            stageBindings.Add(new CutsceneStageBinding { slotId = SecondSlotId, target = boundEntityB });
+
+            Entity requestEntity =
+                CutscenePlaybackApi.CreatePlayRequestFromStage(testWorld.EntityManager, stageEntity);
+
+            DynamicBuffer<CutsceneActorBinding> actorBindings =
+                testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity);
+            Assert.AreEqual(2, actorBindings.Length, "one CutsceneActorBinding per CutsceneStageBinding");
+            Assert.AreEqual(SlotId, actorBindings[0].slotId);
+            Assert.AreEqual(boundEntityA, actorBindings[0].actorEntity);
+            Assert.AreEqual(SecondSlotId, actorBindings[1].slotId);
+            Assert.AreEqual(boundEntityB, actorBindings[1].actorEntity);
+        }
+
         private void RunToCompletion(bool playThrough, out float3 finalPosition, out int finalEventCount)
         {
             World runWorld = new World("CutsceneTimelineSystemTests_Run");

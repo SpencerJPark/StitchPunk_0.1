@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using Unity.Collections;
 using Unity.Entities;
 
 namespace DotsAnimationToolkit
@@ -79,6 +80,63 @@ namespace DotsAnimationToolkit
             CutsceneControl control = entityManager.GetComponentData<CutsceneControl>(requestEntity);
             control.skipRequested = true;
             entityManager.SetComponentData(requestEntity, control);
+        }
+
+        /// <summary>
+        /// Creates a play request from a baked <see cref="CutsceneStage"/> (amendment A61): the same
+        /// as <see cref="CreatePlayRequest"/>, plus every <see cref="CutsceneStageBinding"/> on
+        /// <paramref name="stageEntity"/> copied into the new request's <see cref="CutsceneActorBinding"/>
+        /// buffer. The host may still add or overwrite entries afterward for actors the stage's
+        /// subscene never baked (spec §3.1's cross-scene trap) or that were spawned at runtime.
+        /// </summary>
+        public static Entity CreatePlayRequestFromStage(
+            EntityManager entityManager,
+            Entity stageEntity,
+            byte layerIndex = 0,
+            float speed = 1f)
+        {
+            CutsceneStage stage = entityManager.GetComponentData<CutsceneStage>(stageEntity);
+            Entity requestEntity = CreatePlayRequest(entityManager, stage.blob, layerIndex, speed);
+
+            DynamicBuffer<CutsceneStageBinding> stageBindings =
+                entityManager.GetBuffer<CutsceneStageBinding>(stageEntity);
+            DynamicBuffer<CutsceneActorBinding> actorBindings =
+                entityManager.GetBuffer<CutsceneActorBinding>(requestEntity);
+            for (int bindingIndex = 0; bindingIndex < stageBindings.Length; bindingIndex++)
+            {
+                actorBindings.Add(new CutsceneActorBinding
+                {
+                    slotId = stageBindings[bindingIndex].slotId,
+                    actorEntity = stageBindings[bindingIndex].target
+                });
+            }
+
+            return requestEntity;
+        }
+
+        /// <summary>
+        /// Finds the <see cref="CutsceneStage"/> whose <see cref="CutsceneStage.cutsceneKey"/> matches
+        /// <paramref name="cutsceneKey"/> (amendment A61, decision A61-D3 — identity by stable id,
+        /// never asset path or name). A linear scan over a temporary query; a host with many stages
+        /// should cache the result rather than call this every frame.
+        /// </summary>
+        public static bool TryFindStage(EntityManager entityManager, ulong cutsceneKey, out Entity stageEntity)
+        {
+            EntityQuery stageQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<CutsceneStage>());
+            using (NativeArray<Entity> stageEntities = stageQuery.ToEntityArray(Allocator.Temp))
+            {
+                for (int stageIndex = 0; stageIndex < stageEntities.Length; stageIndex++)
+                {
+                    CutsceneStage stage = entityManager.GetComponentData<CutsceneStage>(stageEntities[stageIndex]);
+                    if (stage.cutsceneKey == cutsceneKey)
+                    {
+                        stageEntity = stageEntities[stageIndex];
+                        return true;
+                    }
+                }
+            }
+            stageEntity = Entity.Null;
+            return false;
         }
     }
 }

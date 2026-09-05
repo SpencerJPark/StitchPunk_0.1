@@ -7,6 +7,36 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
+    /// A baked, scene-resident cutscene (amendment A61): the blob and its scene bindings, ready for
+    /// a host to hand to <c>CutscenePlaybackApi.CreatePlayRequestFromStage</c>. One entity per
+    /// <c>CutsceneAsset</c> staged via <c>CutsceneStageAuthoring</c>.
+    /// </summary>
+    public struct CutsceneStage : IComponentData
+    {
+        /// <summary>The baked cutscene, owned by the bake-time <c>BlobAssetStore</c> — never disposed by a reader.</summary>
+        public BlobAssetReference<CutsceneBlob> blob;
+
+        /// <summary>The source <c>CutsceneAsset.StableId</c> — how <see cref="CutscenePlaybackApi.TryFindStage"/> finds this stage.</summary>
+        public ulong cutsceneKey;
+    }
+
+    /// <summary>
+    /// One slot's scene binding, baked from the cutscene editor's cast panel (amendment A61). Parallel
+    /// in spirit to <see cref="CutsceneActorBinding"/>, but authored rather than host-filled — a host
+    /// still may add or overwrite <see cref="CutsceneActorBinding"/> entries after
+    /// <c>CreatePlayRequestFromStage</c> copies these in, for actors spawned rather than staged.
+    /// </summary>
+    [InternalBufferCapacity(4)]
+    public struct CutsceneStageBinding : IBufferElementData
+    {
+        /// <summary>The <c>CutsceneSlot.SlotId</c> this entry binds.</summary>
+        public uint slotId;
+
+        /// <summary>The actor root (Actor slot) or transform-only entity (Prop slot) baked for this slot, or <c>Entity.Null</c> when the bound object lived outside this stage's subscene.</summary>
+        public Entity target;
+    }
+
+    /// <summary>
     /// The identity half of a running cutscene request (Phase G §6): which cutscene, and which
     /// playback layer its clip blocks target on every bound actor. Immutable once created — the
     /// mutable half is <see cref="CutsceneControl"/>.
