@@ -26,8 +26,13 @@ namespace DotsAnimationToolkit
         /// <see cref="Unity.Transforms.LocalTransform.Rotation"/>) converts once, at the point it
         /// actually applies the pose.
         /// </summary>
+        /// <returns>
+        /// False when <paramref name="keys"/> is empty (amendment A62 defect 2) — every out
+        /// parameter is the identity pose, and the caller must leave the target's current transform
+        /// alone rather than writing it, or an unkeyed slot snaps to the world origin every frame.
+        /// </returns>
         [BurstCompile]
-        public static void SampleTransform(
+        public static bool TrySampleTransform(
             ref BlobArray<CutsceneTransformKeyBlob> keys, float time,
             out float3 position, out float3 rotation, out float3 scale)
         {
@@ -37,20 +42,20 @@ namespace DotsAnimationToolkit
                 position = float3.zero;
                 rotation = float3.zero;
                 scale = new float3(1f, 1f, 1f);
-                return;
+                return false;
             }
 
             if (count == 1 || time <= keys[0].time)
             {
                 ToOut(in keys[0], out position, out rotation, out scale);
-                return;
+                return true;
             }
 
             int lastIndex = count - 1;
             if (time >= keys[lastIndex].time)
             {
                 ToOut(in keys[lastIndex], out position, out rotation, out scale);
-                return;
+                return true;
             }
 
             int segmentStart = 0;
@@ -73,6 +78,7 @@ namespace DotsAnimationToolkit
             position = math.lerp(fromKey.position, toKey.position, easedTime);
             rotation = math.lerp(fromKey.rotation, toKey.rotation, easedTime);
             scale = math.lerp(fromKey.scale, toKey.scale, easedTime);
+            return true;
         }
 
         /// <summary>

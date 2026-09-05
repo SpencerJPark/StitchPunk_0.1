@@ -108,9 +108,12 @@ namespace DotsAnimationToolkit
                     float3 sampledPosition;
                     float3 sampledRotation;
                     float3 sampledScale;
-                    CutsceneBlobSampler.SampleTransform(
+                    if (!CutsceneBlobSampler.TrySampleTransform(
                         ref track.keys, playbackState.timeInSegment,
-                        out sampledPosition, out sampledRotation, out sampledScale);
+                        out sampledPosition, out sampledRotation, out sampledScale))
+                    {
+                        continue;
+                    }
 
                     TargetPose pose = entityManager.GetComponentData<TargetPose>(partEntity);
 

@@ -115,6 +115,34 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 testWorld.EntityManager.GetComponentData<CutscenePlaybackState>(requestEntity).isComplete);
         }
 
+        /// <summary>
+        /// Covers amendment A62 defect 2: a slot with no root keys must not be teleported to the
+        /// world origin every frame. Both <c>CutsceneBlobSampler.SampleTransform</c>'s old zero
+        /// default and the editor's identical <c>CutscenePoseSampler.Sample</c> wrote it unconditionally.
+        /// </summary>
+        [Test]
+        public void EmptyRootLane_LeavesTheBoundTransformAlone()
+        {
+            Entity propEntity = testWorld.EntityManager.CreateEntity();
+            testWorld.EntityManager.AddComponentData(propEntity, LocalTransform.FromPosition(new float3(3f, 0f, 0f)));
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildEmptyRootLaneCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
+            {
+                slotId = SlotId,
+                actorEntity = propEntity
+            });
+
+            Advance(0.5f);
+
+            float3 position = testWorld.EntityManager.GetComponentData<LocalTransform>(propEntity).Position;
+            Assert.AreEqual(3f, position.x, 1e-4f, "a slot with no root keys must not be moved at all");
+            Assert.AreEqual(0f, position.y, 1e-4f);
+            Assert.AreEqual(0f, position.z, 1e-4f);
+        }
+
         [Test]
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {
@@ -286,6 +314,44 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                     scale = new float3(1f, 1f, 1f),
                     interpolation = Interpolation.Linear
                 };
+                builder.Allocate(ref slotSegment.facingKeys, 0);
+                builder.Allocate(ref slotSegment.partTracks, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>One Prop slot, one segment, zero root keys — the amendment A62 defect 2 shape.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildEmptyRootLaneCutsceneBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 1;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Prop };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 1f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                builder.Allocate(ref slotSegment.clipBlocks, 0);
+                builder.Allocate(ref slotSegment.transformKeys, 0);
                 builder.Allocate(ref slotSegment.facingKeys, 0);
                 builder.Allocate(ref slotSegment.partTracks, 0);
 

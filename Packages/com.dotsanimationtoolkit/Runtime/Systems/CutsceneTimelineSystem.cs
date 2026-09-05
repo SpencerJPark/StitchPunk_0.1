@@ -374,8 +374,13 @@ namespace DotsAnimationToolkit
                 float3 position;
                 float3 rotationEuler;
                 float3 scale;
-                CutsceneBlobSampler.SampleTransform(
-                    ref slotSegment.transformKeys, playbackState.timeInSegment, out position, out rotationEuler, out scale);
+                if (!CutsceneBlobSampler.TrySampleTransform(
+                    ref slotSegment.transformKeys, playbackState.timeInSegment, out position, out rotationEuler, out scale))
+                {
+                    // No root keys authored for this slot (amendment A62 defect 2): leave the bound
+                    // entity's transform exactly as it is rather than snapping it to the world origin.
+                    continue;
+                }
 
                 LocalTransform localTransform = entityManager.GetComponentData<LocalTransform>(boundEntity);
                 localTransform.Position = position;

@@ -307,10 +307,14 @@ namespace DotsAnimationToolkit.Editor
                 float3 position;
                 float3 eulerDegrees;
                 float3 scale;
-                CutsceneKeySampler.TrySampleTransform(slot.transformKeys, timeSeconds, out position, out eulerDegrees, out scale);
-                boundObject.transform.localPosition = new Vector3(position.x, position.y, position.z);
-                boundObject.transform.localRotation = Quaternion.Euler(eulerDegrees.x, eulerDegrees.y, eulerDegrees.z);
-                boundObject.transform.localScale = new Vector3(scale.x, scale.y, scale.z);
+                if (CutsceneKeySampler.TrySampleTransform(slot.transformKeys, timeSeconds, out position, out eulerDegrees, out scale))
+                {
+                    boundObject.transform.localPosition = new Vector3(position.x, position.y, position.z);
+                    boundObject.transform.localRotation = Quaternion.Euler(eulerDegrees.x, eulerDegrees.y, eulerDegrees.z);
+                    boundObject.transform.localScale = new Vector3(scale.x, scale.y, scale.z);
+                }
+                // No root keys authored for this slot (amendment A62 defect 2): leave the bound
+                // GameObject's captured rest transform alone rather than snapping it to the origin.
 
                 if (slot.kind != CutsceneSlotKind.Actor)
                 {
