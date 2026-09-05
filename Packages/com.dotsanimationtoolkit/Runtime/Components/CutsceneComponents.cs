@@ -155,5 +155,16 @@ namespace DotsAnimationToolkit
 
         /// <summary>True on the exact frame a camera cut marker fires (decision G-D7) — the host's cue to snap rather than let its own camera rig ease toward this pose.</summary>
         public bool isCut;
+
+        /// <summary>
+        /// True while a running, not-yet-complete cutscene's current segment has a camera lane of
+        /// its own to write a pose from (amendment A62 defect 6). Cleared at the start of every
+        /// frame before any cutscene runs, so a segment with no camera keys, or a cutscene that just
+        /// completed or was skipped, reads as "not driven" instead of leaving a host unable to tell
+        /// that from a genuinely live pose — and instead of the singleton holding a stale pose
+        /// forever once the cutscene it belonged to ends. A host applies <see cref="position"/>/
+        /// <see cref="rotation"/>/<see cref="fieldOfView"/> only while this is true.
+        /// </summary>
+        public bool isDriven;
     }
 }

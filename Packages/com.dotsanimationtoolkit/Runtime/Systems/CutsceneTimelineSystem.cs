@@ -45,6 +45,13 @@ namespace DotsAnimationToolkit
             }
             Entity cameraPoseEntity = SystemAPI.GetSingletonEntity<CutsceneCameraPose>();
 
+            // Cleared every frame (amendment A62 defect 6) so a segment with no camera lane, or a
+            // cutscene that just completed, reads as "not driven" rather than holding the last
+            // frame's flag along with its stale pose.
+            CutsceneCameraPose cameraPose = entityManager.GetComponentData<CutsceneCameraPose>(cameraPoseEntity);
+            cameraPose.isDriven = false;
+            entityManager.SetComponentData(cameraPoseEntity, cameraPose);
+
             float deltaTime = SystemAPI.Time.DeltaTime;
 
             foreach ((RefRO<CutscenePlay> _, Entity requestEntity) in
@@ -96,6 +103,7 @@ namespace DotsAnimationToolkit
             if (playbackState.isPausedOnHold)
             {
                 ref CutsceneSegmentBlob heldSegment = ref blob.segments[playbackState.segmentIndex];
+                bool releasedThisFrame = false;
                 if (entityManager.IsComponentEnabled<CutsceneHoldRelease>(requestEntity))
                 {
                     CutsceneHoldRelease holdRelease = entityManager.GetComponentData<CutsceneHoldRelease>(requestEntity);
@@ -103,12 +111,23 @@ namespace DotsAnimationToolkit
                     {
                         AdvanceToNextSegment(slotStates, ref playbackState);
                         entityManager.SetComponentEnabled<CutsceneHoldRelease>(requestEntity, false);
+                        releasedThisFrame = true;
                     }
                 }
-                ApplyPose(entityManager, ref blob, bindings, ref playbackState);
-                ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
-                entityManager.SetComponentData(requestEntity, playbackState);
-                return;
+
+                if (!releasedThisFrame)
+                {
+                    ApplyPose(entityManager, ref blob, bindings, ref playbackState);
+                    ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
+                    entityManager.SetComponentData(requestEntity, playbackState);
+                    return;
+                }
+
+                // Released this frame (amendment A62 defect 5): fall through to the normal path
+                // with zero elapsed time instead of returning, so ProcessClipBlocks/ProcessEvents
+                // still fire everything authored at the new segment's own time 0 on this exact
+                // frame rather than waiting one frame for it.
+                deltaTime = 0f;
             }
 
             if (!control.paused && effectiveLayerSpeed > 0f)
@@ -461,7 +480,11 @@ namespace DotsAnimationToolkit
                 position = position,
                 rotation = rotation,
                 fieldOfView = fieldOfView,
-                isCut = isCut
+                isCut = isCut,
+                // False once the cutscene has completed (amendment A62 defect 6) even though a
+                // pose is still written here — a host's exit transition must fire exactly once, not
+                // keep re-triggering on a stale-but-still-"driven" pose every frame after the end.
+                isDriven = !playbackState.isComplete
             });
         }
     }

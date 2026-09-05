@@ -73,11 +73,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             float3 playedThroughPosition;
             int playedThroughEventCount;
-            RunToCompletion(playThrough: true, out playedThroughPosition, out playedThroughEventCount);
+            bool playedThroughIsDriven;
+            RunToCompletion(playThrough: true, out playedThroughPosition, out playedThroughEventCount, out playedThroughIsDriven);
 
             float3 skippedPosition;
             int skippedEventCount;
-            RunToCompletion(playThrough: false, out skippedPosition, out skippedEventCount);
+            bool skippedIsDriven;
+            RunToCompletion(playThrough: false, out skippedPosition, out skippedEventCount, out skippedIsDriven);
 
             Assert.AreEqual(playedThroughPosition.x, skippedPosition.x, 1e-4f, "root x position must match exactly");
             Assert.AreEqual(playedThroughPosition.y, skippedPosition.y, 1e-4f, "root y position must match exactly");
@@ -85,6 +87,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.AreEqual(10f, playedThroughPosition.x, 1e-4f, "sanity: the played-through run actually reached the final key");
             Assert.AreEqual(playedThroughEventCount, skippedEventCount, "a skip must fire every event a play-through would have");
             Assert.AreEqual(1, skippedEventCount, "sanity: exactly one event was authored");
+            Assert.IsFalse(playedThroughIsDriven, "amendment A62 defect 6: isDriven must not stay true once a played-through cutscene completes");
+            Assert.IsFalse(skippedIsDriven, "amendment A62 defect 6: isDriven must not stay true once a skipped cutscene completes");
         }
 
         /// <summary>
@@ -182,6 +186,49 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             return false;
         }
 
+        /// <summary>
+        /// Covers amendment A62 defect 5: a hold's release used to return before
+        /// <c>ProcessClipBlocks</c> ran, so a block authored at the new segment's own time 0 was
+        /// issued one frame late instead of on the release frame itself.
+        /// </summary>
+        [Test]
+        public void BlockAtSegmentStart_IsIssuedOnTheReleaseFrame()
+        {
+            const string HoldId = "H1";
+
+            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 2);
+            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTwoSegmentCutsceneBlob(HoldId);
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
+            {
+                slotId = SlotId,
+                actorEntity = actorEntity
+            });
+
+            Advance(1f);
+            Assert.IsTrue(
+                testWorld.EntityManager.GetComponentData<CutscenePlaybackState>(requestEntity).isPausedOnHold,
+                "sanity: segment 0's 1s duration must have been reached and the cutscene must be holding");
+
+            testWorld.EntityManager.SetComponentData(requestEntity, new CutsceneHoldRelease { holdId = HoldId });
+            testWorld.EntityManager.SetComponentEnabled<CutsceneHoldRelease>(requestEntity, true);
+            Advance(0.1f);
+
+            DynamicBuffer<AnimationCommand> commands = testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
+            bool sawPlay = false;
+            for (int i = 0; i < commands.Length; i++)
+            {
+                if (commands[i].kind == CommandKind.Play && commands[i].clip.Value == WalkClipId)
+                {
+                    sawPlay = true;
+                }
+            }
+            Assert.IsTrue(sawPlay, "a block at segment 1's own time 0 must be issued on the exact frame the hold releases");
+        }
+
         [Test]
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {
@@ -240,7 +287,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.AreEqual(boundEntityB, actorBindings[1].actorEntity);
         }
 
-        private void RunToCompletion(bool playThrough, out float3 finalPosition, out int finalEventCount)
+        private void RunToCompletion(bool playThrough, out float3 finalPosition, out int finalEventCount, out bool finalIsDriven)
         {
             World runWorld = new World("CutsceneTimelineSystemTests_Run");
             try
@@ -274,6 +321,11 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
                 finalPosition = runWorld.EntityManager.GetComponentData<LocalTransform>(actorEntity).Position;
                 finalEventCount = runWorld.EntityManager.GetBuffer<AnimEventOutput>(requestEntity).Length;
+
+                using (EntityQuery cameraPoseQuery = runWorld.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CutsceneCameraPose>()))
+                {
+                    finalIsDriven = cameraPoseQuery.GetSingleton<CutsceneCameraPose>().isDriven;
+                }
             }
             finally
             {
@@ -397,6 +449,62 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 builder.Allocate(ref segment.cameraKeys, 0);
                 builder.Allocate(ref segment.cameraCutTimes, 0);
                 builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Two segments, one Actor slot: segment 0 is empty and 1s long, ending on
+        /// <paramref name="holdId"/>; segment 1 has one clip block starting at its own time 0 — the
+        /// amendment A62 defect 5 shape (a block due the instant a hold releases).
+        /// </summary>
+        private static BlobAssetReference<CutsceneBlob> BuildTwoSegmentCutsceneBlob(string holdId)
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 2;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Actor };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 2);
+
+                ref CutsceneSegmentBlob segment0 = ref segments[0];
+                segment0.duration = 1f;
+                FixedString64Bytes segment0HoldId = default;
+                segment0HoldId.CopyFromTruncated(holdId);
+                segment0.holdId = segment0HoldId;
+                BlobBuilderArray<CutsceneSlotSegmentBlob> segment0SlotTracks = builder.Allocate(ref segment0.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob segment0SlotSegment = ref segment0SlotTracks[0];
+                builder.Allocate(ref segment0SlotSegment.clipBlocks, 0);
+                builder.Allocate(ref segment0SlotSegment.transformKeys, 0);
+                builder.Allocate(ref segment0SlotSegment.facingKeys, 0);
+                builder.Allocate(ref segment0SlotSegment.partTracks, 0);
+                builder.Allocate(ref segment0.cameraKeys, 0);
+                builder.Allocate(ref segment0.cameraCutTimes, 0);
+                builder.Allocate(ref segment0.events, 0);
+
+                ref CutsceneSegmentBlob segment1 = ref segments[1];
+                segment1.duration = 2f;
+                segment1.holdId = default;
+                BlobBuilderArray<CutsceneSlotSegmentBlob> segment1SlotTracks = builder.Allocate(ref segment1.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob segment1SlotSegment = ref segment1SlotTracks[0];
+                BlobBuilderArray<CutsceneClipBlockBlob> segment1ClipBlocks = builder.Allocate(ref segment1SlotSegment.clipBlocks, 1);
+                segment1ClipBlocks[0] = new CutsceneClipBlockBlob { clipId = WalkClipId, start = 0f, duration = 2f, loop = false, blendDuration = 0f };
+                builder.Allocate(ref segment1SlotSegment.transformKeys, 0);
+                builder.Allocate(ref segment1SlotSegment.facingKeys, 0);
+                builder.Allocate(ref segment1SlotSegment.partTracks, 0);
+                builder.Allocate(ref segment1.cameraKeys, 0);
+                builder.Allocate(ref segment1.cameraCutTimes, 0);
+                builder.Allocate(ref segment1.events, 0);
 
                 return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
             }
