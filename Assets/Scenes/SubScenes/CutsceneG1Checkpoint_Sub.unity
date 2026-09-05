@@ -1310,6 +1310,50 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 548270450}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &655629339
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 655629341}
+  - component: {fileID: 655629340}
+  m_Layer: 0
+  m_Name: NarrativeEvents
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &655629340
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 655629339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 359949025b8ea6a439f0714d9674852c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::NarrativeEventAuthoring
+--- !u!4 &655629341
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 655629339}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &672873448
 GameObject:
   m_ObjectHideFlags: 0
@@ -1703,6 +1747,7 @@ GameObject:
   - component: {fileID: 795723644}
   - component: {fileID: 795723643}
   - component: {fileID: 795723645}
+  - component: {fileID: 795723646}
   m_Layer: 0
   m_Name: EntityLibraries
   m_TagString: Untagged
@@ -1793,6 +1838,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::SoundLibraryAuthoring
   library: {fileID: 11400000, guid: 4f505c160197d164bb9898afe331f479, type: 2}
+--- !u!114 &795723646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d865d4767577fb641ad2af2d928e49ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::AnimSoundEventLibraryAuthoring
+  library: {fileID: 11400000, guid: af213c4d4eecfb6419aab9ed1671068d, type: 2}
 --- !u!1 &878687314
 GameObject:
   m_ObjectHideFlags: 0
@@ -4003,3 +4061,4 @@ SceneRoots:
   - {fileID: 1780870238}
   - {fileID: 1827694338}
   - {fileID: 1879175322}
+  - {fileID: 655629341}

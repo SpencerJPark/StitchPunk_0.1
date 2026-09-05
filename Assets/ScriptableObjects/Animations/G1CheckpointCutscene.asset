@@ -27,9 +27,9 @@ MonoBehaviour:
     transformKeys:
     - time: 0
       position:
-        x: 0
+        x: -4
         y: 0
-        z: 0
+        z: -1
       rotation:
         x: 0
         y: 0
@@ -47,9 +47,9 @@ MonoBehaviour:
         y: 0
     - time: 4
       position:
-        x: 0
+        x: -4
         y: 0
-        z: 5
+        z: 4
       rotation:
         x: 0
         y: 0
@@ -78,9 +78,9 @@ MonoBehaviour:
     transformKeys:
     - time: 0
       position:
-        x: 0
+        x: -1.5
         y: 0
-        z: 0
+        z: -1
       rotation:
         x: 0
         y: 0
@@ -98,9 +98,9 @@ MonoBehaviour:
         y: 0
     - time: 4
       position:
-        x: 0
+        x: -1.5
         y: 0
-        z: 5
+        z: 4
       rotation:
         x: 0
         y: 0
@@ -122,14 +122,14 @@ MonoBehaviour:
     keys:
     - time: 0
       position:
-        x: -2
-        y: 3
+        x: -2.75
+        y: 2.2
         z: -6
       rotation:
-        x: 20
+        x: 12
         y: 0
         z: 0
-      fieldOfView: 60
+      fieldOfView: 50
       interpolation: 0
       bezierStartHandle:
         x: 0
@@ -139,14 +139,14 @@ MonoBehaviour:
         y: 0
     - time: 3
       position:
-        x: -2
-        y: 3
-        z: 1
+        x: -2.75
+        y: 2.2
+        z: -2.25
       rotation:
-        x: 20
+        x: 12
         y: 0
         z: 0
-      fieldOfView: 60
+      fieldOfView: 50
       interpolation: 0
       bezierStartHandle:
         x: 0
@@ -156,12 +156,12 @@ MonoBehaviour:
         y: 0
     - time: 3.05
       position:
-        x: 3
-        y: 1.5
-        z: 3
+        x: -2.75
+        y: 1.7
+        z: 8
       rotation:
-        x: 10
-        y: -140
+        x: 8
+        y: 180
         z: 0
       fieldOfView: 45
       interpolation: 0
@@ -173,12 +173,12 @@ MonoBehaviour:
         y: 0
     - time: 4
       position:
-        x: 3
-        y: 1.5
-        z: 3
+        x: -2.75
+        y: 1.7
+        z: 8
       rotation:
-        x: 10
-        y: -140
+        x: 8
+        y: 180
         z: 0
       fieldOfView: 45
       interpolation: 0

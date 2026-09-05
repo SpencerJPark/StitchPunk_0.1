@@ -115,9 +115,62 @@ Each frame, if `ActiveCutscene` is enabled and its request's `CutscenePlaybackSt
 - [x] **Phase 3 — camera bridge + sound pass (§3.6, 3.7).** No fixture. Gate: compile. Landed 2026-09-04: `CameraManager` gained `cutsceneCam`/`CutsceneCamera`/`EnterCutscene`/`ExitCutscene` + `CinemachineCameraType.Cutscene`; `CutsceneCameraBridge` (Mono) drives its transform/lens from `CutsceneCameraPose` each LateUpdate; `AnimEventSoundSystem` split its `AnimEventsPending` pass in two (`[WithNone(typeof(CutscenePlay))]` on the existing actor job, a new single-threaded `CutsceneAnimEventSoundJob` playing non-positionally at `ListenerPosition` for request entities). Scene wiring (vcam under the camera rig, bridge + debug trigger objects) deferred to the Phase 5 checkpoint setup.
 - [x] **Phase 4 — triggers (§3.8).** Gate: compile. Then a static self-review against `RULES.md` (no `var`, explicit types, `[ReadOnly]` import). Landed 2026-09-04: `PlayCutsceneAction` + `CutsceneSlotEntityOverride` in `NarrativeEventSO.cs`; `NarrativeEventManager.ExecutePlayCutsceneAsync` (two-phase wait, see §7); `CutsceneDebugTrigger` (Mono) beside `DebugSaveMenu.cs`. Static review: no `var`, no drift.
 - [x] **Phase 5 — full suites once** (`StitchPunk.Tests`, `StitchPunk.Tests.PlayMode`; also the toolkit suites since A61/A62 landed before this). Landed 2026-09-04: `StitchPunk.Tests` 771 discovered, 1 failure (`Conformance_A_AsmdefReferenceLists_MatchSection13Exactly`, pre-existing per the A61/A62 sessions — unrelated `Unity.RenderPipelines.Universal.Runtime` asmdef drift, nothing to do with G1); `StitchPunk.Tests.PlayMode` 253/253; `DotsAnimationToolkit.Tests.EditMode`/`.PlayMode` counts unchanged from the A62 baseline (714/250) — no regression.
-- [ ] **⏸ Owner checkpoint (the first real cutscene).** In `DOTSTestScene`: two placed minion actors and the player, a cutscene with a walking clip block + root keys for both minions, a camera lane with one move and one cut, one event. Sync to Stage, enter Play, press F9. Expect: both minions walk on their root keys with the walk cycle looping, the camera moves then cuts, the Entities window shows empty `UtilityActions` on both while it runs, WASD does nothing, and at the end they resume wandering from where they stopped and the camera blends back. Retire this spec into `Tasks/Verification/` with `verify-cutsceneintegration.md` holding exactly that list.
+- [ ] **⏸ Owner checkpoint (the first real cutscene).** *Scene built and machine-verified 2026-09-05 — see §7; what remains is the owner opening `Assets/Scenes/CutsceneG1Checkpoint.unity`, pressing Play then F9, and looking.* Originally specced as: in `DOTSTestScene`: two placed minion actors and the player, a cutscene with a walking clip block + root keys for both minions, a camera lane with one move and one cut, one event. Sync to Stage, enter Play, press F9. Expect: both minions walk on their root keys with the walk cycle looping, the camera moves then cuts, the Entities window shows empty `UtilityActions` on both while it runs, WASD does nothing, and at the end they resume wandering from where they stopped and the camera blends back. Retire this spec into `Tasks/Verification/` with `verify-cutsceneintegration.md` holding exactly that list.
 
 ## 7. Open questions / build log
+
+- **Checkpoint scene BUILT and proved live (2026-09-05).** The scene the owner was asked to
+  hand-assemble is now committed and driven end to end from `execute_code`, so the remaining
+  checkpoint is the owner's *eyes*, not the owner's assembly work.
+  - **Scene:** `Assets/Scenes/CutsceneG1Checkpoint.unity` (host) + its own
+    `Assets/Scenes/SubScenes/CutsceneG1Checkpoint_Sub.unity`. Both are independent duplicates of
+    `TestArea`/`DOTSTestScene`, so the checkpoint never touches the shared test scene.
+  - **Wiring:** `View/CutsceneCinemachine` (no Follow/LookAt, FOV 50) wired into
+    `CameraManager.cutsceneCam`; `Managers/CutsceneDebug` carries `CutsceneCameraBridge` +
+    `CutsceneDebugTrigger` (F9, `G1CheckpointCutscene`, speed 1).
+  - **Proved live in Play mode**, sampling the world mid-playback: stage bakes with both bindings;
+    `CutscenePlay` runs; both minions track their lanes exactly (`x=-4` / `x=-1.5`, `z` sweeping
+    `-1 -> 4`); `CutsceneActor` enabled and `UtilityActions` empty on both while it runs; the camera
+    tracks then hard-cuts at 3.05s to `(-2.75, 1.7, 8) rot (8,180,0) fov 45`; on completion
+    `ActiveCutscene` disables, `isDriven` falls, `CameraManager` returns to `Player`, and both
+    minions resume wandering with a repopulated `UtilityActions`. Console clean.
+
+- **The bug the checkpoint existed to find (2026-09-05): cutscenes could never start, in any scene.**
+  `CutsceneStartSystem` drops every `CutsceneRequest` unless a `NarrativeEventTag` singleton exists,
+  and **no scene in the project contained a `NarrativeEventAuthoring`** — the whole G1 runtime was
+  unreachable behind one missing scene object, with a single warning as the only symptom. Fixed by
+  adding a `NarrativeEvents` GameObject to the checkpoint subscene. Logged in `Gotchas.md`.
+  **`DOTSTestScene`/`TestArea` and `Game.unity` still lack one** — any scene meant to play cutscenes,
+  run narrative events or dialogue needs it, and that is left as a deliberate follow-up rather than
+  edited into scenes this session had no other reason to touch.
+
+- **Two acceptance items cannot be met with the content that exists, and were cut with evidence.**
+  - *"the walk cycle looping"* — **there is no walk animation in this project.** Full inventory:
+    exactly one `RigAsset` (`NewRig.asset`, `targets: []`, `layers: []` — empty), two `ClipAsset`s
+    (`NewClip`/`NewClip 1`, 1 and 3 transform tracks — stubs), and `NewClipSet.asset`'s `rig:` is a
+    dangling GUID pointing at the `HumanoidRig.asset` deleted in the 2026-08-29 cleanup. Separately,
+    **`ActorAuthoring` is referenced by zero prefabs and zero scenes** — no unit in the game is a
+    toolkit actor, so nothing could play a clip even if one existed. The checkpoint cutscene is
+    therefore root-motion only (`clipBlocks: []`), and the minions will *slide* their lanes rather
+    than walk. This is Phase F migration debt, not a G1 integration gap: the stage baker binds any
+    GameObject with `TransformUsageFlags.Dynamic` and never asks for an actor.
+  - *the event* — now audible. `AnimEventSoundSystem` resolves event keys through an
+    `AnimSoundEventMappingBlob` that no asset produced, so the 1.5s event fired into nothing. Added
+    `Assets/ScriptableObjects/Sounds/_AnimSoundEventMapping.asset` (eventKey `1` -> `AttackSwing`,
+    the only `SoundType` in `_SoundLibrary` carrying a real clip) and an
+    `AnimSoundEventLibraryAuthoring` on the subscene's `EntityLibraries`.
+
+- **Answered: the gameplay cameras are perspective, not orthographic** (§3.6's open question). Every
+  vcam in the rig is `Orthographic=false`; the gameplay look is a long lens, FOV 15. So
+  `CutsceneCameraBridge` needs no `OrthographicSize` path — delete that comment's caveat when this
+  spec retires. The cutscene lane deliberately authors FOV 50/45 so the cut away from gameplay
+  framing is unmistakable.
+
+- **Pre-existing, unrelated, and NOT introduced here:** baking logs ~100 "The referenced script is
+  missing" warnings for `PlayerUnit`/`TestRotter`/`MaleCitizen`. Seven dead script GUIDs left on
+  `Assets/Prefabs/Units/*.prefab` by the legacy-animation-stack deletion (`43530db7`) and the
+  CharacterRig commit (`1e3bb164`); one of them sits on 31 body parts. Identical in the untouched
+  `DOTSTestScene`. Worth a cleanup pass, unrelated to cutscenes.
 
 - **Session close (2026-09-04): stopping at the ⏸ owner checkpoint, per protocol.** Phases 1–4 are
   committed (`G1-P1` through `G1-P4`) and Phase 5's full suites are green (see the Phase 5 checkbox

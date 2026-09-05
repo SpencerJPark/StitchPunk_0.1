@@ -193,6 +193,24 @@ authored two-actor cutscene synced to stage), deliberately left to the owner rat
 scene edit while `TestArea.unity`/`DOTSTestScene.unity` already carry uncommitted changes from
 concurrent activity this session did not make.
 
+**G1 checkpoint scene — built and machine-verified 2026-09-05.** `Assets/Scenes/CutsceneG1Checkpoint.unity`
+plus its own `SubScenes/CutsceneG1Checkpoint_Sub.unity` (independent duplicates, so the shared test
+scene stays untouched) are wired and committed: `CutsceneCinemachine` vcam → `CameraManager.cutsceneCam`,
+`Managers/CutsceneDebug` carrying `CutsceneCameraBridge` + `CutsceneDebugTrigger` (F9). Driven end to
+end from `execute_code` in Play mode — stage bakes, both minions track their authored lanes with
+`UtilityActions` empty, the camera tracks then hard-cuts, and on completion the actors are released and
+the camera returns to `Player`. Console clean. **The remaining checkpoint is the owner's eyes.**
+Building it surfaced the bug it existed to find: **`CutsceneStartSystem` drops every request without a
+`NarrativeEventTag` singleton, and no scene in the project had a `NarrativeEventAuthoring`** — cutscenes
+could never have played anywhere. Fixed in the checkpoint subscene; `DOTSTestScene`/`TestArea`/`Game.unity`
+still lack one. Two acceptance items were cut with evidence rather than silently: there is **no walk
+animation content in this project** (one empty `RigAsset`, two stub clips, a dangling `ClipSet.rig`, and
+`ActorAuthoring` referenced by zero prefabs and zero scenes), so the checkpoint is root-motion only and
+the minions slide rather than walk — Phase F migration debt, not a G1 gap; and the event lane needed a
+new `_AnimSoundEventMapping.asset` to be audible at all. Also answered: **the gameplay cameras are
+perspective (FOV 15), not orthographic**, so `CutsceneCameraBridge` needs no `OrthographicSize` path.
+Full detail in `Assets/_Vault/Tasks/NewPlans/CutsceneIntegration_System.md` §7.
+
 **A60 + A59-T1 — Cutscene UI overhaul and the in-tab viewport. Built 2026-08-30, gated, smoke-
 verified live; THE ACTIVE ITEM IS THE OWNER'S VISUAL PASS.** After the owner judged the A58-era
 tab "unusable … pretty bad ui wise", `Amendment_A60_CutsceneUiOverhaul_Spec.md` records the

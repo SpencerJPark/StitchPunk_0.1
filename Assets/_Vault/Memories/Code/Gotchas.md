@@ -326,3 +326,23 @@ already taken (reflection nodes), and the wrong number reached ~55 places across
 comments before it was caught. `grep -nE "^## Amendment A[0-9]+"` the architecture doc first — and
 note that some **event-window** source comments cite "amendment A45" for something else again, a
 pre-existing inconsistency that predates this.
+
+### A cutscene needs a `NarrativeEventAuthoring` in the scene or every request is silently dropped
+`CutsceneStartSystem` tracks the running cutscene on the `NarrativeEventTag` singleton (that entity
+carries `ActiveCutscene`). With no such entity it consumes the `CutsceneRequest` signal, logs one
+warning, and drops it — playback never starts, nothing else complains, and the debug trigger looks
+broken. Found 2026-09-05 building the G1 checkpoint: **no scene in the project had a
+`NarrativeEventAuthoring` at all**, so cutscenes could never have played anywhere. Any scene that
+plays a cutscene (or runs narrative events, dialogue, or the pickup/attack cutscene gates) needs one
+`NarrativeEventAuthoring` GameObject in its **subscene**, not the host scene — it bakes.
+
+### `CutsceneStage` root transform keys are ABSOLUTE world positions
+`CutsceneTimelineSystem.ApplyPose` assigns `LocalTransform.Position = position` outright, so a slot's
+keys stage the actor wherever they say. Two slots sharing one key track walk the actors through each
+other, and a wandering unit *teleports* to the first key when the cutscene starts. That snap is the
+toolkit working as designed (a cutscene stages its cast); author each slot its own lane.
+
+### An enableable component needs `EntityQueryOptions.IgnoreComponentEnabledState` to be counted
+`CreateEntityQuery(typeof(CutsceneActor)).CalculateEntityCount()` returns only entities whose
+`CutsceneActor` is *enabled*. Debugging "the component vanished" when a cutscene ends is this: the
+entity still has it, the bit is off.
