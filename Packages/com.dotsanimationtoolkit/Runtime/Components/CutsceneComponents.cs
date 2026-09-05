@@ -125,6 +125,36 @@ namespace DotsAnimationToolkit
     {
         /// <summary>Cursor into the current segment's clip block array for this slot — the next not-yet-issued block.</summary>
         public int nextClipBlockIndex;
+
+        /// <summary>Cursor into the current segment's attach marker array (amendment A63).</summary>
+        public int nextAttachMarkerIndex;
+
+        /// <summary>
+        /// Index into <see cref="CutsceneBlob.slots"/> of the host this slot is currently riding, or
+        /// −1 when it is free. While this is set the slot's root lane is ignored — the host owns the
+        /// transform.
+        /// </summary>
+        public int attachedHostSlotIndex;
+
+        /// <summary>The socket the current attachment rides, or 0 for a root attach.</summary>
+        public uint attachedSocketId;
+
+        /// <summary>Whether this slot's renderers are currently suppressed by its attachment.</summary>
+        public bool isHiddenByAttachment;
+    }
+
+    /// <summary>
+    /// Enabled on the detached entity for the frame a Detach marker fires (amendment A63, decision
+    /// A63-D2). The host reads it and disables it — a sellable package cannot assume a physics
+    /// stack, so the toolkit hands over an impulse and applies none of its own.
+    /// </summary>
+    public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
+    {
+        /// <summary>The authored impulse, rotated out of host space at the instant of detachment.</summary>
+        public float3 worldImpulse;
+
+        /// <summary>Whatever the entity was riding, so a host can credit the throw to it.</summary>
+        public Entity previousHost;
     }
 
     /// <summary>

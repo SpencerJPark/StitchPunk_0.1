@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using Unity.Transforms;
 
 namespace DotsAnimationToolkit
@@ -54,15 +56,29 @@ namespace DotsAnimationToolkit
 
             float deltaTime = SystemAPI.Time.DeltaTime;
 
-            foreach ((RefRO<CutscenePlay> _, Entity requestEntity) in
-                SystemAPI.Query<RefRO<CutscenePlay>>().WithEntityAccess())
+            // Structural changes are illegal inside a SystemAPI.Query loop, and an attach is nothing
+            // but structural changes (amendment A63 §6). Every cutscene appends its operations here
+            // and they are applied once, after the loop, in the order they were collected.
+            NativeList<PendingAttachOp> pendingAttachOps = new NativeList<PendingAttachOp>(Allocator.Temp);
+            try
             {
-                ProcessCutscene(entityManager, requestEntity, cameraPoseEntity, deltaTime);
+                foreach ((RefRO<CutscenePlay> _, Entity requestEntity) in
+                    SystemAPI.Query<RefRO<CutscenePlay>>().WithEntityAccess())
+                {
+                    ProcessCutscene(entityManager, requestEntity, cameraPoseEntity, deltaTime, pendingAttachOps);
+                }
+
+                ApplyPendingAttachOps(entityManager, pendingAttachOps);
+            }
+            finally
+            {
+                pendingAttachOps.Dispose();
             }
         }
 
         private static void ProcessCutscene(
-            EntityManager entityManager, Entity requestEntity, Entity cameraPoseEntity, float deltaTime)
+            EntityManager entityManager, Entity requestEntity, Entity cameraPoseEntity, float deltaTime,
+            NativeList<PendingAttachOp> pendingAttachOps)
         {
             CutscenePlaybackState playbackState = entityManager.GetComponentData<CutscenePlaybackState>(requestEntity);
             if (playbackState.isComplete)
@@ -92,7 +108,9 @@ namespace DotsAnimationToolkit
 
             if (control.skipRequested)
             {
-                PerformSkip(entityManager, ref blob, layerIndex, bindings, ref playbackState, eventOutput, requestEntity);
+                PerformSkip(
+                    entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState,
+                    eventOutput, requestEntity, pendingAttachOps);
                 control.skipRequested = false;
                 entityManager.SetComponentData(requestEntity, control);
                 entityManager.SetComponentData(requestEntity, playbackState);
@@ -117,7 +135,7 @@ namespace DotsAnimationToolkit
 
                 if (!releasedThisFrame)
                 {
-                    ApplyPose(entityManager, ref blob, bindings, ref playbackState);
+                    ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
                     ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
                     entityManager.SetComponentData(requestEntity, playbackState);
                     return;
@@ -136,6 +154,7 @@ namespace DotsAnimationToolkit
 
                 ProcessClipBlocks(entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates, ref playbackState);
                 ProcessEvents(entityManager, ref blob, ref playbackState, eventOutput, requestEntity);
+                ProcessAttachMarkers(ref blob, bindings, slotStates, ref playbackState, pendingAttachOps);
 
                 ref CutsceneSegmentBlob currentSegment = ref blob.segments[playbackState.segmentIndex];
                 if (playbackState.timeInSegment >= currentSegment.duration)
@@ -153,7 +172,7 @@ namespace DotsAnimationToolkit
                 }
             }
 
-            ApplyPose(entityManager, ref blob, bindings, ref playbackState);
+            ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
             ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
             entityManager.SetComponentData(requestEntity, playbackState);
         }
@@ -353,7 +372,13 @@ namespace DotsAnimationToolkit
             playbackState.nextEventIndex = 0;
             for (int i = 0; i < slotStates.Length; i++)
             {
-                slotStates[i] = new CutsceneSlotRuntimeState { nextClipBlockIndex = 0 };
+                // Cursors rebase onto the new segment's own arrays; the attachment fields do not
+                // reset — a rider that boarded before a hold is still aboard after it (§3.3's
+                // "attachments are left in place").
+                CutsceneSlotRuntimeState slotState = slotStates[i];
+                slotState.nextClipBlockIndex = 0;
+                slotState.nextAttachMarkerIndex = 0;
+                slotStates[i] = slotState;
             }
         }
 
@@ -373,8 +398,9 @@ namespace DotsAnimationToolkit
         /// </summary>
         private static void PerformSkip(
             EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
-            DynamicBuffer<CutsceneActorBinding> bindings, ref CutscenePlaybackState playbackState,
-            DynamicBuffer<AnimEventOutput> eventOutput, Entity requestEntity)
+            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
+            ref CutscenePlaybackState playbackState, DynamicBuffer<AnimEventOutput> eventOutput,
+            Entity requestEntity, NativeList<PendingAttachOp> pendingAttachOps)
         {
             bool firedAny = false;
             for (int segmentIndex = playbackState.segmentIndex; segmentIndex < blob.segments.Length; segmentIndex++)
@@ -404,14 +430,324 @@ namespace DotsAnimationToolkit
                 entityManager.SetComponentEnabled<AnimEventsPending>(requestEntity, true);
             }
 
+            // Every remaining attach marker applies, in order, so a skipped run and a watched one
+            // leave the same world (decision A63-D3) — including the detach signals a host may have
+            // been waiting on.
+            SkipAttachMarkers(ref blob, bindings, slotStates, ref playbackState, pendingAttachOps);
+
             playbackState.segmentIndex = blob.segments.Length - 1;
             ref CutsceneSegmentBlob finalSegment = ref blob.segments[playbackState.segmentIndex];
             playbackState.timeInSegment = finalSegment.duration;
             playbackState.isPausedOnHold = false;
             playbackState.nextEventIndex = finalSegment.events.Length;
+            for (int slotIndex = 0; slotIndex < slotStates.Length; slotIndex++)
+            {
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                slotState.nextAttachMarkerIndex = finalSegment.slotTracks[slotIndex].attachMarkers.Length;
+                slotStates[slotIndex] = slotState;
+            }
 
-            ApplyPose(entityManager, ref blob, bindings, ref playbackState);
+            ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
             CompleteNaturally(entityManager, ref blob, layerIndex, bindings, ref playbackState);
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Attach lane (amendment A63). Collected here, applied after the query loop: every one of
+        // these operations is a structural change, which SystemAPI.Query forbids mid-iteration.
+        // -----------------------------------------------------------------------------------
+
+        private struct PendingAttachOp
+        {
+            public CutsceneAttachKind kind;
+            public Entity entity;
+            public Entity host;
+            public uint socketId;
+            public float3 localOffset;
+            public quaternion localRotation;
+            public bool hide;
+            public float3 detachImpulse;
+        }
+
+        /// <summary>
+        /// Walks each slot's attach cursor up to the playhead, updating the slot's own bookkeeping
+        /// immediately (so <see cref="ApplyPose"/> already suppresses an attached root this frame)
+        /// and queuing the structural half for after the loop.
+        /// </summary>
+        private static void ProcessAttachMarkers(
+            ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, ref CutscenePlaybackState playbackState,
+            NativeList<PendingAttachOp> pendingAttachOps)
+        {
+            ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
+            for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
+            {
+                ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                while (slotState.nextAttachMarkerIndex < slotSegment.attachMarkers.Length &&
+                       slotSegment.attachMarkers[slotState.nextAttachMarkerIndex].time <= playbackState.timeInSegment)
+                {
+                    ApplyMarkerToSlotState(
+                        ref blob, ref slotSegment.attachMarkers[slotState.nextAttachMarkerIndex],
+                        slotIndex, bindings, ref slotState, pendingAttachOps);
+                    slotState.nextAttachMarkerIndex++;
+                }
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        /// <summary>Decision A63-D3: a skip replays every marker it jumped over, in order.</summary>
+        private static void SkipAttachMarkers(
+            ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, ref CutscenePlaybackState playbackState,
+            NativeList<PendingAttachOp> pendingAttachOps)
+        {
+            for (int segmentIndex = playbackState.segmentIndex; segmentIndex < blob.segments.Length; segmentIndex++)
+            {
+                ref CutsceneSegmentBlob segment = ref blob.segments[segmentIndex];
+                for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
+                {
+                    ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
+                    CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                    int startMarkerIndex =
+                        segmentIndex == playbackState.segmentIndex ? slotState.nextAttachMarkerIndex : 0;
+                    for (int markerIndex = startMarkerIndex; markerIndex < slotSegment.attachMarkers.Length; markerIndex++)
+                    {
+                        ApplyMarkerToSlotState(
+                            ref blob, ref slotSegment.attachMarkers[markerIndex], slotIndex, bindings,
+                            ref slotState, pendingAttachOps);
+                    }
+                    slotStates[slotIndex] = slotState;
+                }
+            }
+        }
+
+        /// <summary>
+        /// One marker's effect on its slot: the bookkeeping now, the structural work queued. An
+        /// Attach on an already-attached slot is a hand-over — silent, with no signal and no impulse
+        /// — because the queued op removes whichever mechanism the slot was using before adding the
+        /// new one.
+        /// </summary>
+        private static void ApplyMarkerToSlotState(
+            ref CutsceneBlob blob, ref CutsceneAttachMarkerBlob marker, int slotIndex,
+            DynamicBuffer<CutsceneActorBinding> bindings, ref CutsceneSlotRuntimeState slotState,
+            NativeList<PendingAttachOp> pendingAttachOps)
+        {
+            Entity boundEntity;
+            if (!TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out boundEntity))
+            {
+                return;
+            }
+
+            if (marker.kind == CutsceneAttachKind.Attach)
+            {
+                Entity hostEntity;
+                if (marker.hostSlotIndex < 0 || marker.hostSlotIndex >= blob.slots.Length ||
+                    !TryResolveBinding(bindings, blob.slots[marker.hostSlotIndex].slotId, out hostEntity))
+                {
+                    // Warned at bake (§3.2); silently skipped here, rule T2's shape.
+                    return;
+                }
+
+                pendingAttachOps.Add(new PendingAttachOp
+                {
+                    kind = CutsceneAttachKind.Attach,
+                    entity = boundEntity,
+                    host = hostEntity,
+                    socketId = marker.socketId,
+                    localOffset = marker.localOffset,
+                    localRotation = marker.localRotation,
+                    hide = marker.hideWhileAttached
+                });
+
+                slotState.attachedHostSlotIndex = marker.hostSlotIndex;
+                slotState.attachedSocketId = marker.socketId;
+                slotState.isHiddenByAttachment = marker.hideWhileAttached;
+                return;
+            }
+
+            if (slotState.attachedHostSlotIndex < 0)
+            {
+                // Nothing to release. Not an error: a cutscene may author a defensive Detach.
+                return;
+            }
+
+            Entity previousHostEntity;
+            TryResolveBinding(bindings, blob.slots[slotState.attachedHostSlotIndex].slotId, out previousHostEntity);
+            pendingAttachOps.Add(new PendingAttachOp
+            {
+                kind = CutsceneAttachKind.Detach,
+                entity = boundEntity,
+                host = previousHostEntity,
+                socketId = slotState.attachedSocketId,
+                detachImpulse = marker.detachImpulse
+            });
+
+            slotState.attachedHostSlotIndex = -1;
+            slotState.attachedSocketId = 0u;
+            slotState.isHiddenByAttachment = false;
+        }
+
+        private static void ApplyPendingAttachOps(
+            EntityManager entityManager, NativeList<PendingAttachOp> pendingAttachOps)
+        {
+            for (int opIndex = 0; opIndex < pendingAttachOps.Length; opIndex++)
+            {
+                PendingAttachOp op = pendingAttachOps[opIndex];
+                if (!entityManager.Exists(op.entity))
+                {
+                    continue;
+                }
+
+                if (op.kind == CutsceneAttachKind.Attach)
+                {
+                    ApplyAttach(entityManager, op);
+                }
+                else
+                {
+                    ApplyDetach(entityManager, op);
+                }
+            }
+        }
+
+        private static void ApplyAttach(EntityManager entityManager, in PendingAttachOp op)
+        {
+            // A socket attach needs the host to expose sockets at all; without a SocketRegistry
+            // nothing would ever write the transform, so the attachment falls back to the host root
+            // rather than freezing the prop wherever it happened to be standing.
+            bool useSocket = op.socketId != 0u && entityManager.HasComponent<SocketRegistry>(op.host);
+
+            // Both mechanisms are cleared first, always: Parent and SocketAttachment on one entity
+            // transform it twice (SocketAttachment's own remark), and a hand-over routinely swaps
+            // one for the other.
+            if (entityManager.HasComponent<Parent>(op.entity))
+            {
+                entityManager.RemoveComponent<Parent>(op.entity);
+            }
+            if (entityManager.HasComponent<SocketAttachment>(op.entity))
+            {
+                entityManager.RemoveComponent<SocketAttachment>(op.entity);
+            }
+
+            if (useSocket)
+            {
+                entityManager.AddComponentData(op.entity, new SocketAttachment
+                {
+                    actorRoot = op.host,
+                    socketId = op.socketId,
+                    localOffset = op.localOffset
+                });
+            }
+            else
+            {
+                entityManager.AddComponentData(op.entity, new Parent { Value = op.host });
+                if (entityManager.HasComponent<LocalTransform>(op.entity))
+                {
+                    LocalTransform localTransform = entityManager.GetComponentData<LocalTransform>(op.entity);
+                    localTransform.Position = op.localOffset;
+                    localTransform.Rotation = op.localRotation;
+                    entityManager.SetComponentData(op.entity, localTransform);
+                }
+            }
+
+            SetRenderingDisabled(entityManager, op.entity, op.hide);
+        }
+
+        private static void ApplyDetach(EntityManager entityManager, in PendingAttachOp op)
+        {
+            bool wasParented = entityManager.HasComponent<Parent>(op.entity);
+            quaternion hostRotation = quaternion.identity;
+            LocalTransform hostTransform = LocalTransform.Identity;
+            bool hasHostTransform = op.host != Entity.Null
+                && entityManager.Exists(op.host)
+                && entityManager.HasComponent<LocalTransform>(op.host);
+            if (hasHostTransform)
+            {
+                hostTransform = entityManager.GetComponentData<LocalTransform>(op.host);
+                hostRotation = hostTransform.Rotation;
+            }
+
+            if (wasParented)
+            {
+                // A parented entity's LocalTransform is host-relative, so the world pose it must
+                // keep is the composition. A socket attachment's already is world — SocketResolveSystem
+                // writes it there — so that case needs no rewrite at all.
+                if (hasHostTransform && entityManager.HasComponent<LocalTransform>(op.entity))
+                {
+                    LocalTransform localTransform = entityManager.GetComponentData<LocalTransform>(op.entity);
+                    entityManager.RemoveComponent<Parent>(op.entity);
+                    entityManager.SetComponentData(op.entity, hostTransform.TransformTransform(localTransform));
+                }
+                else
+                {
+                    entityManager.RemoveComponent<Parent>(op.entity);
+                }
+            }
+
+            if (entityManager.HasComponent<SocketAttachment>(op.entity))
+            {
+                entityManager.RemoveComponent<SocketAttachment>(op.entity);
+            }
+
+            SetRenderingDisabled(entityManager, op.entity, false);
+
+            if (!entityManager.HasComponent<CutsceneDetachSignal>(op.entity))
+            {
+                entityManager.AddComponent<CutsceneDetachSignal>(op.entity);
+            }
+            entityManager.SetComponentData(op.entity, new CutsceneDetachSignal
+            {
+                worldImpulse = math.rotate(hostRotation, op.detachImpulse),
+                previousHost = op.host
+            });
+            entityManager.SetComponentEnabled<CutsceneDetachSignal>(op.entity, true);
+        }
+
+        /// <summary>
+        /// Hides or reveals an attached entity and every rendering member of its linked group
+        /// (decision A63-D4: <c>DisableRendering</c>, never <c>AnimVisible</c>, which a host's own
+        /// visibility system rewrites every frame). The member list is read fresh each time — a
+        /// spawned actor's <c>LinkedEntityGroup</c> is rebuilt by its host's spawn-init (§6).
+        /// </summary>
+        private static void SetRenderingDisabled(EntityManager entityManager, Entity entity, bool disable)
+        {
+            SetOneEntityRenderingDisabled(entityManager, entity, disable);
+            if (!entityManager.HasBuffer<LinkedEntityGroup>(entity))
+            {
+                return;
+            }
+
+            DynamicBuffer<LinkedEntityGroup> linkedGroup = entityManager.GetBuffer<LinkedEntityGroup>(entity);
+            NativeArray<LinkedEntityGroup> members = linkedGroup.ToNativeArray(Allocator.Temp);
+            try
+            {
+                for (int memberIndex = 0; memberIndex < members.Length; memberIndex++)
+                {
+                    SetOneEntityRenderingDisabled(entityManager, members[memberIndex].Value, disable);
+                }
+            }
+            finally
+            {
+                members.Dispose();
+            }
+        }
+
+        private static void SetOneEntityRenderingDisabled(EntityManager entityManager, Entity entity, bool disable)
+        {
+            if (entity == Entity.Null || !entityManager.Exists(entity)
+                || !entityManager.HasComponent<MaterialMeshInfo>(entity))
+            {
+                return;
+            }
+
+            bool isDisabled = entityManager.HasComponent<DisableRendering>(entity);
+            if (disable && !isDisabled)
+            {
+                entityManager.AddComponent<DisableRendering>(entity);
+            }
+            else if (!disable && isDisabled)
+            {
+                entityManager.RemoveComponent<DisableRendering>(entity);
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -420,11 +756,20 @@ namespace DotsAnimationToolkit
 
         private static void ApplyPose(
             EntityManager entityManager, ref CutsceneBlob blob,
-            DynamicBuffer<CutsceneActorBinding> bindings, ref CutscenePlaybackState playbackState)
+            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
+            ref CutscenePlaybackState playbackState)
         {
             ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
             for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
             {
+                // An attached slot's transform belongs to its host (§3.1) — SocketResolveSystem or
+                // Unity's own parent hierarchy writes it, and a root key written here would fight
+                // that every frame.
+                if (slotStates[slotIndex].attachedHostSlotIndex >= 0)
+                {
+                    continue;
+                }
+
                 Entity boundEntity;
                 if (!TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out boundEntity) ||
                     !entityManager.HasComponent<LocalTransform>(boundEntity))

@@ -69,7 +69,14 @@ namespace DotsAnimationToolkit
             slotStates.ResizeUninitialized(slotCount);
             for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
             {
-                slotStates[slotIndex] = new CutsceneSlotRuntimeState { nextClipBlockIndex = 0 };
+                slotStates[slotIndex] = new CutsceneSlotRuntimeState
+                {
+                    nextClipBlockIndex = 0,
+                    nextAttachMarkerIndex = 0,
+                    // −1, not 0: 0 is a real slot index, so a zeroed struct would read as "riding
+                    // slot 0" and suppress the root lane of every slot before anything attached.
+                    attachedHostSlotIndex = -1
+                };
             }
 
             return requestEntity;

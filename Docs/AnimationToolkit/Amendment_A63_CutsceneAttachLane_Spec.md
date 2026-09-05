@@ -114,8 +114,8 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
   zero offset — added through `RigAsset.EnsureStableIds`. Gate: reload from disk, socket id non-zero
   and `SocketId.IsValid`, `SocketRegistryBuilder.HasSockets` true, `ClipValidation.ValidateRig` clean.
 - [x] **T1 — Data + enum + blob + builder (§3.1–3.2).** Test (EditMode, `CutsceneBlobBuilderTests.cs`): `AttachMarker_ResolvesHostSlotIndex_AndWarnsOnUnknownHost` — two slots, one Attach naming the other → `hostSlotIndex == 1`; one naming id 0xFFFF → `−1` and exactly one warning.
-- [ ] **T2 — Runtime attach/detach (§3.3).** Tests (PlayMode, `CutsceneTimelineSystemTests.cs` helpers or a new `CutsceneAttachTests.cs`): `AttachToSocket_AddsSocketAttachment_AndSuspendsRootLane` (prop slot with root keys and an Attach at 0.5 s to an actor entity that carries an empty `SocketRegistry` — build a minimal `SocketRegistryBlob` in the fixture, or assert the root-attach fallback if that is too heavy; say which in §7); `Detach_RestoresIndependence_AndRaisesTheSignal` (after Detach: no `SocketAttachment`, `CutsceneDetachSignal` enabled, `worldImpulse` equals the authored impulse for an identity host rotation); `Skip_AppliesRemainingAttachMarkers`.
-- [ ] **T3 — Hide/unhide.** Extend T2's detach test: with `hideWhileAttached`, `DisableRendering` present while attached and gone after detach on an entity that has `MaterialMeshInfo` (add the component in the fixture; no renderer needed).
+- [x] **T2 — Runtime attach/detach (§3.3).** Tests (PlayMode, `CutsceneTimelineSystemTests.cs` helpers or a new `CutsceneAttachTests.cs`): `AttachToSocket_AddsSocketAttachment_AndSuspendsRootLane` (prop slot with root keys and an Attach at 0.5 s to an actor entity that carries an empty `SocketRegistry` — build a minimal `SocketRegistryBlob` in the fixture, or assert the root-attach fallback if that is too heavy; say which in §7); `Detach_RestoresIndependence_AndRaisesTheSignal` (after Detach: no `SocketAttachment`, `CutsceneDetachSignal` enabled, `worldImpulse` equals the authored impulse for an identity host rotation); `Skip_AppliesRemainingAttachMarkers`.
+- [x] **T3 — Hide/unhide.** Extend T2's detach test: with `hideWhileAttached`, `DisableRendering` present while attached and gone after detach on an entity that has `MaterialMeshInfo` (add the component in the fixture; no renderer needed).
 - [ ] **T4 — Editor lane + inspector (§3.4).** **[parallel-safe with T5]** No fixture. Prove live via `execute_code`: add an Attach through the private insert method, select it, inspector builds without exception, host/socket dropdowns list the right names.
 - [ ] **T5 — Preview (§3.4).** **[parallel-safe with T4]** No fixture. Prove live: two bound objects, an Attach at 1 s with offset (0, 1, 0) to the host root, scrub to 2 s → the attached object's world position equals host position + (0, 1, 0); scrub to 0.5 s → back on its own keys; hide flag → renderers disabled and restored on `ExitPreview` (assert `Renderer.enabled` before/after).
 - [ ] **T6 — Docs.** `cutscenes.md` "Attach lane" section (three recipes: carry & throw, board a cart, hand-over) + `CutsceneDetachSignal` in the runtime section. CHANGELOG, HANDOFF §4.
@@ -137,3 +137,18 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
   under `PlayerUnit.prefab` — which is not a toolkit actor, so it is inert. §5's owner checkpoint
   ("actor with a hand socket") was unreachable. Added one `RigTarget` socket on the RightHand target
   (id `1287933773`, minted by `EnsureStableIds`); gate passed on a reload from disk.
+- **T2's socket fixture builds a real `SocketRegistryBlob`** rather than falling back to a root
+  attach, as §5 left open: `RagdollSystemOrderTests` already had the hand-built-registry shape to
+  copy, so the socket path is covered rather than approximated.
+- **T3 folded into T2's detach fixture** rather than getting one of its own — hide and detach ride
+  the same attachment, and a second fixture would have been the first one retyped.
+- **A hand-over needs no silent-detach op.** §3.1 describes attach-while-attached as "silent detach,
+  then attach"; the implementation gets it for free because the attach op clears both `Parent` and
+  `SocketAttachment` before adding either (§6's double-transform trap forces that anyway), and sets
+  or clears `DisableRendering` from the incoming marker. One op, same semantics, no signal.
+- **`AdvanceToNextSegment` must not reset the attachment fields**, only the two cursors. A rider that
+  boarded before a hold is still aboard after it (§3.3's "attachments are left in place"), and the
+  original wholesale `new CutsceneSlotRuntimeState` reset would have dropped every rider at every hold.
+- **`attachedHostSlotIndex` defaults to −1, never 0.** A zeroed struct would read as "riding slot 0"
+  and suppress the root lane of every slot before anything had attached — `CutscenePlaybackApi`
+  initialises it explicitly for that reason.
