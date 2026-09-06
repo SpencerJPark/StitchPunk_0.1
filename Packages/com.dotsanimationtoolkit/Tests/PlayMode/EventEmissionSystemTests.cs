@@ -101,7 +101,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void AMarkerCrossedThisFrame_IsEmittedWithItsPayload()
         {
-            SeedActiveLayer(0, WalkClipIndex, WalkClipId, advanceStartTime: 0.4f, time: 0.6f, loop: LoopMode.Loop);
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.4f, time: 0.6f, loop: LoopMode.Loop);
 
             RunEmission();
 
@@ -122,7 +122,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void AMarkerOutsideThisFramesWindow_IsNotEmitted()
         {
-            SeedActiveLayer(0, WalkClipIndex, WalkClipId, advanceStartTime: 0.6f, time: 0.8f, loop: LoopMode.Loop);
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.6f, time: 0.8f, loop: LoopMode.Loop);
 
             RunEmission();
 
@@ -131,7 +131,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
         /// <summary>
         /// <strong>A27's window, end to end.</strong> Catches: recomputing the opening edge as
-        /// <c>time − dt × speed</c> instead of reading <c>advanceStartTime</c>. On the frame a Once
+        /// <c>time − dt × speed</c> instead of reading <c>timeAtFrameStart</c>. On the frame a Once
         /// clip clamps, the two differ — the clamp shortens the real interval — and the subtraction
         /// describes a window running past the clip's end, so the marker at 0.95 is missed. That
         /// marker is a hit frame: the difference is an attack that never lands.
@@ -139,7 +139,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void AMarkerInTheLastSegmentOfAFinishingClip_StillFires()
         {
-            SeedActiveLayer(0, AttackClipIndex, AttackClipId, advanceStartTime: 0.9f, time: 0.9f, loop: LoopMode.Once);
+            SeedActiveLayer(0, AttackClipIndex, AttackClipId, timeAtFrameStart: 0.9f, time: 0.9f, loop: LoopMode.Once);
 
             // A full frame: the advance clamps at the end and raises the completion, then emission
             // reads the window the advance recorded.
@@ -158,7 +158,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void AnEmittedEvent_NamesTheLayerItCameFrom()
         {
-            SeedActiveLayer(1, WalkClipIndex, WalkClipId, advanceStartTime: 0.4f, time: 0.6f, loop: LoopMode.Loop);
+            SeedActiveLayer(1, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.4f, time: 0.6f, loop: LoopMode.Loop);
 
             RunEmission();
 
@@ -176,7 +176,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             PlaybackLayer layer = PlaybackTestActor.NewLayer();
             layer.clip = new ClipId(WalkClipId);
             layer.clipIndex = WalkClipIndex;
-            layer.advanceStartTime = 0.4f;
+            layer.timeAtFrameStart = 0.4f;
             layer.time = 0.6f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.None;
@@ -200,7 +200,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void AClipThatFinishedAndDeactivated_StillReportsItsCompletion()
         {
-            SeedActiveLayer(0, AttackClipIndex, AttackClipId, advanceStartTime: 0.99f, time: 0.99f, loop: LoopMode.Once);
+            SeedActiveLayer(0, AttackClipIndex, AttackClipId, timeAtFrameStart: 0.99f, time: 0.99f, loop: LoopMode.Once);
 
             AdvanceAndEmit(0.5f);
 
@@ -224,7 +224,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(AttackClipId);
             layer.clipIndex = AttackClipIndex;
             layer.time = 0.99f;
-            layer.advanceStartTime = 0.99f;
+            layer.timeAtFrameStart = 0.99f;
             layer.speed = 1f;
             layer.loop = LoopMode.Once;
             layer.queuedClip = new ClipId(WalkClipId);
@@ -252,7 +252,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void ACompletion_IsReportedOnceNotOnEveryFrameAfterwards()
         {
-            SeedActiveLayer(0, AttackClipIndex, AttackClipId, advanceStartTime: 0.99f, time: 0.99f, loop: LoopMode.Once);
+            SeedActiveLayer(0, AttackClipIndex, AttackClipId, timeAtFrameStart: 0.99f, time: 0.99f, loop: LoopMode.Once);
 
             AdvanceAndEmit(0.5f);
             Assert.AreEqual(
@@ -276,7 +276,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void EmittingAnEvent_EnablesThePendingFlag()
         {
-            SeedActiveLayer(0, WalkClipIndex, WalkClipId, advanceStartTime: 0.4f, time: 0.6f, loop: LoopMode.Loop);
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.4f, time: 0.6f, loop: LoopMode.Loop);
 
             RunEmission();
 
@@ -290,7 +290,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void EmittingNothing_LeavesThePendingFlagAlone()
         {
-            SeedActiveLayer(0, WalkClipIndex, WalkClipId, advanceStartTime: 0.6f, time: 0.8f, loop: LoopMode.Loop);
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.6f, time: 0.8f, loop: LoopMode.Loop);
 
             RunEmission();
 
@@ -307,7 +307,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void AResolveFailureRaisedEarlierInTheFrame_SurvivesEmission()
         {
-            SeedActiveLayer(0, WalkClipIndex, WalkClipId, advanceStartTime: 0.4f, time: 0.4f, loop: LoopMode.Loop);
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.4f, time: 0.4f, loop: LoopMode.Loop);
             PlaybackTestActor.EnqueueCommand(
                 testWorld,
                 actor,
@@ -334,7 +334,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void EventsFromTheFrameBefore_AreGoneByTheNextEmission()
         {
-            SeedActiveLayer(0, WalkClipIndex, WalkClipId, advanceStartTime: 0.4f, time: 0.4f, loop: LoopMode.Loop);
+            SeedActiveLayer(0, WalkClipIndex, WalkClipId, timeAtFrameStart: 0.4f, time: 0.4f, loop: LoopMode.Loop);
 
             AdvanceAndEmit(0.2f);
             Assert.AreEqual(1, Events().Length, "Guard: the 0.5 s marker fires as the layer crosses it.");
@@ -362,14 +362,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             int layerIndex,
             int clipIndex,
             ulong clipId,
-            float advanceStartTime,
+            float timeAtFrameStart,
             float time,
             LoopMode loop)
         {
             PlaybackLayer layer = PlaybackTestActor.NewLayer();
             layer.clip = new ClipId(clipId);
             layer.clipIndex = clipIndex;
-            layer.advanceStartTime = advanceStartTime;
+            layer.timeAtFrameStart = timeAtFrameStart;
             layer.time = time;
             layer.speed = 1f;
             layer.loop = loop;

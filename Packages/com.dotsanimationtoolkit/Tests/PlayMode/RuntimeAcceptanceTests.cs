@@ -475,7 +475,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(WalkClipId);
             layer.clipIndex = WalkClipIndex;
             layer.time = 0.9f;
-            layer.advanceStartTime = 0.9f;
+            layer.timeAtFrameStart = 0.9f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.Active;
@@ -660,7 +660,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(WalkClipId);
             layer.clipIndex = WalkClipIndex;
             layer.time = 0f;
-            layer.advanceStartTime = 0f;
+            layer.timeAtFrameStart = 0f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.Active;
@@ -674,7 +674,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(RunClipId);
             layer.clipIndex = RunClipIndex;
             layer.time = 0f;
-            layer.advanceStartTime = 0f;
+            layer.timeAtFrameStart = 0f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.previousClip = new ClipId(WalkClipId);

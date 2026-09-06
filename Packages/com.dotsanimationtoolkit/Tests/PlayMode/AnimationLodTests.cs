@@ -489,7 +489,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             PlaybackLayer layer = PlaybackTestActor.GetLayer(testWorld, actor, 0);
             layer.time = playbackTime;
-            layer.advanceStartTime = playbackTime;
+            layer.timeAtFrameStart = playbackTime;
             PlaybackTestActor.SetLayer(testWorld, actor, 0, layer);
         }
 
@@ -499,7 +499,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(clipId);
             layer.clipIndex = clipIndex;
             layer.time = 0f;
-            layer.advanceStartTime = 0f;
+            layer.timeAtFrameStart = 0f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.Active;

@@ -300,7 +300,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(BoneClipId);
             layer.clipIndex = 0;
             layer.time = 0.5f;
-            layer.advanceStartTime = 0.5f;
+            layer.timeAtFrameStart = 0.5f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.Active;
@@ -349,7 +349,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(BoneClipId);
             layer.clipIndex = 0;
             layer.time = 0.5f;
-            layer.advanceStartTime = 0.5f;
+            layer.timeAtFrameStart = 0.5f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.None;

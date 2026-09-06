@@ -248,7 +248,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(FlipClipId);
             layer.clipIndex = FlipClipIndex;
             layer.time = 0f;
-            layer.advanceStartTime = 0f;
+            layer.timeAtFrameStart = 0f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.flags = PlaybackFlags.Active;

@@ -329,7 +329,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.AreEqual(AttackClipIndex, layer.clipIndex, "The promotion must not have happened yet.");
             Assert.AreEqual(AttackClipId, layer.clip.Value);
             Assert.AreEqual(AttackDuration, layer.time, 1e-5f, "It holds its final pose.");
-            Assert.AreEqual(0.9f, layer.advanceStartTime, 1e-5f, "The finishing clip keeps its own event window.");
+            Assert.AreEqual(0.9f, layer.timeAtFrameStart, 1e-5f, "The finishing clip keeps its own event window.");
             Assert.IsTrue((layer.flags & PlaybackFlags.FinishedThisFrame) != 0);
             Assert.IsTrue((layer.flags & PlaybackFlags.HasQueued) != 0, "Still queued, not yet promoted.");
             Assert.IsTrue((layer.flags & PlaybackFlags.Active) != 0, "A queued layer does not deactivate on finish.");
@@ -440,7 +440,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         // -------------------------------------------------------------------------------------
 
         /// <summary>
-        /// Catches: deleting the <c>advanceStartTime</c> snapshot. <c>EventEmissionSystem</c> runs
+        /// Catches: deleting the <c>timeAtFrameStart</c> snapshot. <c>EventEmissionSystem</c> runs
         /// after the advance and has no other record of where the frame began; without it every
         /// marker crossing has to be reconstructed by subtraction, which is wrong on exactly the
         /// frames a clip clamps or a queue promotes.
@@ -453,12 +453,12 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Advance(0.25f);
 
             PlaybackLayer layer = GetLayer(0);
-            Assert.AreEqual(0.5f, layer.advanceStartTime, 1e-5f, "The window opens where the frame began.");
+            Assert.AreEqual(0.5f, layer.timeAtFrameStart, 1e-5f, "The window opens where the frame began.");
             Assert.AreEqual(0.75f, layer.time, 1e-5f, "And closes where it ended.");
         }
 
         /// <summary>
-        /// Catches: leaving <c>advanceStartTime</c> at the finished clip's time through a promotion.
+        /// Catches: leaving <c>timeAtFrameStart</c> at the finished clip's time through a promotion.
         /// The promoted clip would be credited with a window running from the previous clip's end
         /// time — a sweep across markers it never played, on the frame it starts.
         /// </summary>
@@ -471,7 +471,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Advance(0.25f);
 
             PlaybackLayer layer = GetLayer(0);
-            Assert.AreEqual(0f, layer.advanceStartTime, 1e-5f, "The window opens where the promoted clip opens.");
+            Assert.AreEqual(0f, layer.timeAtFrameStart, 1e-5f, "The window opens where the promoted clip opens.");
             Assert.AreEqual(0.25f, layer.time, 1e-5f);
         }
 
@@ -490,7 +490,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(clipId);
             layer.clipIndex = clipIndex;
             layer.time = time;
-            layer.advanceStartTime = time;
+            layer.timeAtFrameStart = time;
             layer.speed = speed;
             layer.loop = loop;
             layer.flags = PlaybackFlags.Active;
@@ -509,7 +509,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(AttackClipId);
             layer.clipIndex = AttackClipIndex;
             layer.time = 0.1f;
-            layer.advanceStartTime = 0.1f;
+            layer.timeAtFrameStart = 0.1f;
             layer.speed = 1f;
             layer.loop = LoopMode.Loop;
             layer.previousClip = new ClipId(WalkClipId);
@@ -534,7 +534,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.clip = new ClipId(AttackClipId);
             layer.clipIndex = AttackClipIndex;
             layer.time = 0.9f;
-            layer.advanceStartTime = 0.9f;
+            layer.timeAtFrameStart = 0.9f;
             layer.speed = 1f;
             layer.loop = LoopMode.Once;
             layer.queuedClip = new ClipId(WalkClipId);

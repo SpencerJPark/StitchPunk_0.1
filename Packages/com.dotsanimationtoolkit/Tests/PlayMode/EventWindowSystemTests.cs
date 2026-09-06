@@ -248,7 +248,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             PlaybackLayer layer = PlaybackTestActor.NewLayer();
             layer.clip = new ClipId(clipId);
             layer.clipIndex = clipIndex;
-            layer.advanceStartTime = time;
+            layer.timeAtFrameStart = time;
             layer.time = time;
             layer.speed = 1f;
             layer.loop = loop;
