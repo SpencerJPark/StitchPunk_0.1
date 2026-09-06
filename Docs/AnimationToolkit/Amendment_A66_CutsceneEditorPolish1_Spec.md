@@ -62,7 +62,7 @@ In `BuildTransformKeyInspector` and `BuildCameraKeyInspector`, after the Interpo
 
 ## 5. Tasks
 
-- [ ] **T1 — Selection set + modifiers + multi-drag + delete (§3.1).** Test (EditMode, new `CutsceneSelectionMathTests.cs`): `ShiftTimes_ClampsAtZero_AndPreservesOrder` for the pure delta function you extract (`CutsceneSelectionMath.ShiftTimes(List<float>, indices, delta)`). Live proof: select three markers across two lanes, drag one, all three move, one Undo reverts all.
+- [x] **T1 — Selection set + modifiers + multi-drag + delete (§3.1).** Test (EditMode, new `CutsceneSelectionMathTests.cs`): `ShiftTimes_ClampsAtZero_AndPreservesOrder` for the pure delta function you extract (`CutsceneSelectionMath.ShiftTimes(List<float>, indices, delta)`). Live proof: select three markers across two lanes, drag one, all three move, one Undo reverts all.
 - [ ] **T2 — Box select.** Live proof only.
 - [ ] **T3 — Clipboard + shortcuts (§3.2).** Test (EditMode, `CutsceneKeyClipboardTests.cs`): `Paste_AnchorsRelativeTimesAtThePlayhead` (copy keys at 1.0 and 2.5, paste at 5 → 5.0 and 6.5) and `Paste_PartTrack_CreatesTheTaggedTrackWhenMissing`. Both against an in-memory `CutsceneAsset` + `SerializedObject`.
 - [ ] **T4 — Auto Key (§3.3).** **[parallel-safe with T5]** No fixture. Live proof via `execute_code`: enable, move a bound object's transform *with the preview active* (simulate `hotControl` by calling the private detect method with a forced "released" state), assert a key was upserted at the playhead and that scrubbing (which writes poses) adds **no** key.

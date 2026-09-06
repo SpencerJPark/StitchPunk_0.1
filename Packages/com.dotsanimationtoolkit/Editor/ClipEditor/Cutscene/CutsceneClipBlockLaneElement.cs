@@ -42,6 +42,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly List<VisualElement> blockElements = new List<VisualElement>();
         private readonly List<CutsceneClipBlockDisplay> blocks = new List<CutsceneClipBlockDisplay>();
+        private readonly List<float> dragStartStarts = new List<float>();
         private int selectedIndex = -1;
 
         private DragKind dragKind = DragKind.None;
@@ -56,11 +57,28 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Minimum block length a resize may leave behind — a zero-length block has no meaningful crossfade math.</summary>
         public float minimumDurationSeconds = 0.05f;
 
+        // Asked per block on every rebuild and every in-place refresh, so a lane draws the panel's
+        // whole selection set rather than the one index it was handed. Null means "only selectedIndex".
+        /// <summary>Whether the block at an index is in the panel's selection.</summary>
+        public Func<int, bool> isItemSelected;
+
         public event Action<int> BlockSelected;
         public event Action<int, float, float> BlockChanged; // live, during drag: index, start, duration
         public event Action<int, float, float> BlockChangeCommitted; // index, start, duration
         public event Action<float> EmptySpaceDoubleClicked;
         public event Action<int> BlockDeleteRequested;
+
+        /// <summary>Raised on a block press, before any drag, with (index, toggles the item, adds to the set).</summary>
+        public event Action<int, bool, bool> BlockPointerDown;
+
+        /// <summary>Raised on every pointer move while moving a block, with the drag's total time delta. Never raised by a resize.</summary>
+        public event Action<float> SelectionDragMoved;
+
+        /// <summary>Raised once on release of a move, with the final time delta to write across the selection.</summary>
+        public event Action<float> SelectionDragCommitted;
+
+        /// <summary>Raised on a press in empty lane space, handing over the event so the panel can start a band drag.</summary>
+        public event Action<PointerDownEvent> BackgroundPointerDown;
 
         public CutsceneClipBlockLaneElement()
         {
@@ -89,7 +107,7 @@ namespace DotsAnimationToolkit.Editor
                 int capturedIndex = index;
                 VisualElement block = new VisualElement();
                 block.AddToClassList(BlockUssClassName);
-                block.EnableInClassList(SelectedBlockUssClassName, capturedIndex == selectedIndex);
+                block.EnableInClassList(SelectedBlockUssClassName, IsSelected(capturedIndex));
                 block.EnableInClassList(LoopBlockUssClassName, blocks[capturedIndex].loop);
                 block.style.position = Position.Absolute;
                 block.style.top = 2f;
@@ -147,6 +165,71 @@ namespace DotsAnimationToolkit.Editor
             block.style.width = Mathf.Max(2f, display.duration * geometry.pixelsPerSecond);
         }
 
+        private bool IsSelected(int index)
+        {
+            return isItemSelected != null ? isItemSelected(index) : index == selectedIndex;
+        }
+
+        /// <summary>Repaints which blocks look selected, without tearing the lane down mid-gesture.</summary>
+        public void RefreshSelectionVisuals()
+        {
+            for (int index = 0; index < blockElements.Count; index++)
+            {
+                blockElements[index].EnableInClassList(SelectedBlockUssClassName, IsSelected(index));
+            }
+        }
+
+        /// <summary>Draws every selected block shifted by a delta, previewing a group drag before anything is written.</summary>
+        public void PreviewOffsetForSelected(float deltaSeconds)
+        {
+            if (dragStartStarts.Count != blocks.Count)
+            {
+                CaptureDragStartStarts();
+            }
+            for (int index = 0; index < blockElements.Count && index < dragStartStarts.Count; index++)
+            {
+                if (!IsSelected(index))
+                {
+                    continue;
+                }
+                CutsceneClipBlockDisplay display = blocks[index];
+                blocks[index] = new CutsceneClipBlockDisplay(
+                    display.label, Mathf.Max(0f, dragStartStarts[index] + deltaSeconds),
+                    display.duration, display.loop);
+                PositionBlock(blockElements[index], blocks[index]);
+            }
+        }
+
+        /// <summary>Every block whose span overlaps a band given in this lane's own space.</summary>
+        public void CollectItemsInBand(Rect bandInLaneSpace, List<int> collected)
+        {
+            if (collected == null)
+            {
+                return;
+            }
+            CutsceneTimelineGeometry geometry = CutsceneTimelineGeometry.Create(pixelsPerSecond);
+            for (int index = 0; index < blocks.Count; index++)
+            {
+                float blockLeft = geometry.TimeToX(blocks[index].start);
+                float blockRight = geometry.TimeToX(blocks[index].start + blocks[index].duration);
+                if (blockRight >= bandInLaneSpace.xMin && blockLeft <= bandInLaneSpace.xMax)
+                {
+                    collected.Add(index);
+                }
+            }
+        }
+
+        // The pre-drag starts, so every preview frame offsets from where the group started rather
+        // than from where the previous frame left it.
+        private void CaptureDragStartStarts()
+        {
+            dragStartStarts.Clear();
+            for (int index = 0; index < blocks.Count; index++)
+            {
+                dragStartStarts.Add(blocks[index].start);
+            }
+        }
+
         private void BeginDrag(PointerDownEvent pointerEvent, int index, VisualElement block, DragKind kind)
         {
             block.CapturePointer(pointerEvent.pointerId);
@@ -156,6 +239,14 @@ namespace DotsAnimationToolkit.Editor
             dragStartPointerX = pointerEvent.position.x;
             dragStartStart = blocks[index].start;
             dragStartDuration = blocks[index].duration;
+            CaptureDragStartStarts();
+
+            // Selection resolves on press, not on release: a drag has to know what it is moving
+            // before it starts moving it, and the panel answers isItemSelected out of that set.
+            BlockPointerDown?.Invoke(
+                index,
+                pointerEvent.ctrlKey || pointerEvent.commandKey,
+                pointerEvent.shiftKey);
             pointerEvent.StopPropagation();
         }
 
@@ -181,6 +272,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 case DragKind.Move:
                     newStart = Mathf.Max(0f, dragStartStart + deltaSeconds);
+                    // A resize stays single-item by design; only a move carries the rest of the set.
+                    SelectionDragMoved?.Invoke(Mathf.Max(deltaSeconds, -dragStartStart));
                     break;
                 case DragKind.ResizeStart:
                     newStart = Mathf.Min(
@@ -211,6 +304,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (draggedPastThreshold)
             {
+                if (endedKind == DragKind.Move)
+                {
+                    SelectionDragCommitted?.Invoke(
+                        Mathf.Max(blocks[index].start - dragStartStart, -dragStartStart));
+                    return;
+                }
                 BlockChangeCommitted?.Invoke(index, blocks[index].start, blocks[index].duration);
             }
             else if (endedKind == DragKind.Move)
@@ -231,11 +330,11 @@ namespace DotsAnimationToolkit.Editor
                 float time = CutsceneTimelineGeometry.Create(pixelsPerSecond)
                     .XToTime(pointerEvent.localPosition.x);
                 EmptySpaceDoubleClicked?.Invoke(time);
+                return;
             }
-            else
-            {
-                BlockSelected?.Invoke(-1);
-            }
+
+            BackgroundPointerDown?.Invoke(pointerEvent);
+            BlockSelected?.Invoke(-1);
         }
     }
 }

@@ -20,6 +20,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<float> times = new List<float>();
         private readonly List<string> variantClasses = new List<string>();
         private readonly List<bool> readOnlyFlags = new List<bool>();
+        private readonly List<float> dragStartTimes = new List<float>();
         private int selectedIndex = -1;
         private int draggingIndex = -1;
         private float dragStartPointerX;
@@ -32,8 +33,25 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Marker fill color — distinguishes a facing lane from an event lane at a glance.</summary>
         public Color markerColor = new Color(0.55f, 0.75f, 0.95f);
 
+        // Asked per marker on every rebuild and every in-place refresh, so a lane draws the panel's
+        // whole selection set rather than the one index it was handed. Null means "only selectedIndex".
+        /// <summary>Whether the item at an index is in the panel's selection.</summary>
+        public Func<int, bool> isItemSelected;
+
         /// <summary>Raised when a marker is clicked (selected), or -1 when empty space is clicked.</summary>
         public event Action<int> MomentSelected;
+
+        /// <summary>Raised on a marker press, before any drag, with (index, toggles the item, adds to the set).</summary>
+        public event Action<int, bool, bool> MomentPointerDown;
+
+        /// <summary>Raised on every pointer move while dragging, with the drag's total time delta.</summary>
+        public event Action<float> SelectionDragMoved;
+
+        /// <summary>Raised once on release, with the final time delta to write across the selection.</summary>
+        public event Action<float> SelectionDragCommitted;
+
+        /// <summary>Raised on a press in empty lane space, handing over the event so the panel can start a band drag.</summary>
+        public event Action<PointerDownEvent> BackgroundPointerDown;
 
         /// <summary>Raised on every pointer move while dragging a marker — visual/live-preview only, never authored.</summary>
         public event Action<int, float> MomentMoved;
@@ -126,7 +144,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     marker.AddToClassList(variantClasses[capturedIndex]);
                 }
-                marker.EnableInClassList(SelectedMarkerUssClassName, capturedIndex == selectedIndex);
+                marker.EnableInClassList(SelectedMarkerUssClassName, IsSelected(capturedIndex));
                 PositionMarker(marker, times[capturedIndex]);
 
                 if (capturedIndex < readOnlyFlags.Count && readOnlyFlags[capturedIndex])
@@ -154,6 +172,69 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        private bool IsSelected(int index)
+        {
+            return isItemSelected != null ? isItemSelected(index) : index == selectedIndex;
+        }
+
+        /// <summary>Repaints which markers look selected, without tearing the lane down mid-gesture.</summary>
+        public void RefreshSelectionVisuals()
+        {
+            for (int index = 0; index < markerElements.Count; index++)
+            {
+                markerElements[index].EnableInClassList(SelectedMarkerUssClassName, IsSelected(index));
+            }
+        }
+
+        /// <summary>Draws every selected marker shifted by a delta, previewing a group drag before anything is written.</summary>
+        public void PreviewOffsetForSelected(float deltaSeconds)
+        {
+            if (dragStartTimes.Count != times.Count)
+            {
+                CaptureDragStartTimes();
+            }
+            for (int index = 0; index < markerElements.Count && index < dragStartTimes.Count; index++)
+            {
+                if (!IsSelected(index))
+                {
+                    continue;
+                }
+                float previewTime = Mathf.Max(0f, dragStartTimes[index] + deltaSeconds);
+                times[index] = previewTime;
+                PositionMarker(markerElements[index], previewTime);
+            }
+        }
+
+        /// <summary>Every item whose marker falls inside a band given in this lane's own space.</summary>
+        public void CollectItemsInBand(Rect bandInLaneSpace, List<int> collected)
+        {
+            if (collected == null)
+            {
+                return;
+            }
+            CutsceneTimelineGeometry geometry = CutsceneTimelineGeometry.Create(pixelsPerSecond);
+            for (int index = 0; index < times.Count; index++)
+            {
+                if (index < readOnlyFlags.Count && readOnlyFlags[index])
+                {
+                    continue;
+                }
+                float markerX = geometry.TimeToX(times[index]);
+                if (markerX >= bandInLaneSpace.xMin && markerX <= bandInLaneSpace.xMax)
+                {
+                    collected.Add(index);
+                }
+            }
+        }
+
+        // The pre-drag times, so every preview frame offsets from where the group started rather
+        // than from where the previous frame left it.
+        private void CaptureDragStartTimes()
+        {
+            dragStartTimes.Clear();
+            dragStartTimes.AddRange(times);
+        }
+
         private void PositionMarker(VisualElement marker, float timeSeconds)
         {
             float x = CutsceneTimelineGeometry.Create(pixelsPerSecond).TimeToX(timeSeconds);
@@ -167,6 +248,14 @@ namespace DotsAnimationToolkit.Editor
             draggedPastThreshold = false;
             dragStartPointerX = pointerEvent.position.x;
             dragStartTime = times[index];
+            CaptureDragStartTimes();
+
+            // Selection resolves on press, not on release: a drag has to know what it is moving
+            // before it starts moving it, and the panel answers isItemSelected out of that set.
+            MomentPointerDown?.Invoke(
+                index,
+                pointerEvent.ctrlKey || pointerEvent.commandKey,
+                pointerEvent.shiftKey);
             pointerEvent.StopPropagation();
         }
 
@@ -184,11 +273,14 @@ namespace DotsAnimationToolkit.Editor
             }
             draggedPastThreshold = true;
 
-            CutsceneTimelineGeometry geometry = CutsceneTimelineGeometry.Create(pixelsPerSecond);
-            float newTime = Mathf.Max(0f, dragStartTime + deltaPixels / geometry.pixelsPerSecond);
-            times[index] = newTime;
-            PositionMarker(marker, newTime);
-            MomentMoved?.Invoke(index, newTime);
+            float deltaSeconds = deltaPixels
+                / CutsceneTimelineGeometry.Create(pixelsPerSecond).pixelsPerSecond;
+
+            // Clamped against the dragged marker alone; the commit re-clamps against whatever else
+            // is selected, which may reach further left than this one does.
+            deltaSeconds = Mathf.Max(deltaSeconds, -dragStartTime);
+            SelectionDragMoved?.Invoke(deltaSeconds);
+            MomentMoved?.Invoke(index, dragStartTime + deltaSeconds);
         }
 
         private void OnMarkerPointerUp(PointerUpEvent upEvent, int index, VisualElement marker)
@@ -202,7 +294,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (draggedPastThreshold)
             {
-                MomentMoveCommitted?.Invoke(index, times[index]);
+                float deltaSeconds = Mathf.Max(
+                    (upEvent.position.x - dragStartPointerX)
+                        / CutsceneTimelineGeometry.Create(pixelsPerSecond).pixelsPerSecond,
+                    -dragStartTime);
+                SelectionDragCommitted?.Invoke(deltaSeconds);
+                MomentMoveCommitted?.Invoke(index, dragStartTime + deltaSeconds);
             }
             else
             {
@@ -224,11 +321,11 @@ namespace DotsAnimationToolkit.Editor
                 float time = CutsceneTimelineGeometry.Create(pixelsPerSecond)
                     .XToTime(pointerEvent.localPosition.x);
                 EmptySpaceDoubleClicked?.Invoke(time);
+                return;
             }
-            else
-            {
-                MomentSelected?.Invoke(-1);
-            }
+
+            BackgroundPointerDown?.Invoke(pointerEvent);
+            MomentSelected?.Invoke(-1);
         }
     }
 }

@@ -16,21 +16,6 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Cutscene Editor tab's content: a slot/lane timeline plus an inspector for whatever is selected. Unity's own Scene view is the viewport.</summary>
     public sealed class CutsceneEditorPanel : VisualElement
     {
-        private enum SelectedLaneKind
-        {
-            None,
-            ClipBlock,
-            RootTransformKey,
-            FacingKey,
-            PartTrackHeader,
-            PartTrackKey,
-            AttachMarker,
-            MarkKey,
-            CameraKey,
-            Event,
-            Hold
-        }
-
         private const float LaneRowHeight = 22f;
         private const float RulerHeight = 24f;
         private const float HeaderColumnWidth = 150f;
@@ -86,10 +71,47 @@ namespace DotsAnimationToolkit.Editor
         private EffectiveHold gatingHold;
         private bool isGatingOnHold;
 
+        // The four fields below are the primary selection, unpacked: they drive the inspector, the
+        // Key button and the Scene-view sync, and they always mirror primaryItem.
         private int selectedSlotIndex = -1;
         private SelectedLaneKind selectedLaneKind = SelectedLaneKind.None;
         private int selectedPartTrackIndex = -1;
         private int selectedItemIndex = -1;
+
+        private readonly HashSet<CutsceneItemAddress> selectedItems = new HashSet<CutsceneItemAddress>();
+
+        /// <summary>The last item clicked — what the inspector edits when several are selected.</summary>
+        private CutsceneItemAddress? primaryItem;
+
+        // Every lane currently on screen, so a selection change can repaint the markers in place and
+        // a band drag can ask each lane what it holds. Rebuilt with the timeline.
+        private readonly List<RegisteredLane> registeredLanes = new List<RegisteredLane>();
+
+        private VisualElement timelineContent;
+        private BoxSelectElement boxSelectElement;
+        private VisualElement boxSelectLane;
+        private Vector2 boxSelectOriginInContent;
+        private bool isBoxSelectArmed;
+        private bool isBoxSelectActive;
+        private bool isBoxSelectAdditive;
+
+        /// <summary>Pointer travel, squared, before a press on empty lane space becomes a band rather than a click.</summary>
+        private const float BoxSelectStartToleranceSquared = 9f;
+
+        private bool inspectorRebuildPending;
+        private bool timelineRebuildPending;
+
+        private struct RegisteredLane
+        {
+            public CutsceneItemAddress laneAddress;
+            public CutsceneMomentLaneElement momentLane;
+            public CutsceneClipBlockLaneElement blockLane;
+
+            public VisualElement Element
+            {
+                get { return momentLane != null ? (VisualElement)momentLane : blockLane; }
+            }
+        }
 
         private readonly CutscenePreviewController previewController = new CutscenePreviewController();
         private readonly CutsceneMarkSceneOverlay markSceneOverlay = new CutsceneMarkSceneOverlay();
@@ -102,8 +124,15 @@ namespace DotsAnimationToolkit.Editor
             // G-D1: a scrub must never survive into a saved scene. Exiting before the write is the
             // only correct order — sceneSaving fires before the scene file is actually written.
             EditorSceneManager.sceneSaving += OnSceneSaving;
+            focusable = true;
+            RegisterCallback<KeyDownEvent>(OnPanelKeyDown);
+
+            // Runs whether or not the transport is playing: it is what flushes a rebuild deferred
+            // out of a live drag, so nothing may gate it on isPlaying.
+            RegisterCallback<AttachToPanelEvent>(_ => EditorApplication.update += OnEditorTick);
             RegisterCallback<DetachFromPanelEvent>(_ =>
             {
+                EditorApplication.update -= OnEditorTick;
                 EditorSceneManager.sceneSaving -= OnSceneSaving;
                 StopPlayback();
                 previewController.ExitPreview();
@@ -221,6 +250,8 @@ namespace DotsAnimationToolkit.Editor
             }
             SessionState.SetString(SessionCutsceneKey, cutsceneGuid);
             serializedObject = cutscene != null ? new SerializedObject(cutscene) : null;
+            selectedItems.Clear();
+            primaryItem = null;
             selectedSlotIndex = -1;
             selectedLaneKind = SelectedLaneKind.None;
             selectedPartTrackIndex = -1;
@@ -531,6 +562,13 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>Turns the transport's status line into a banner while the clock is stopped on a hold.</summary>
         private const string HoldingStatusUssClassName = "cutscene-editor__transport-status--holding";
+
+        // The panel's own heartbeat, separate from the transport's: it runs while the tab is open
+        // whether or not anything is playing.
+        private void OnEditorTick()
+        {
+            FlushDeferredPaneRebuilds();
+        }
 
         // One transport frame: advance the elastic clock, stop dead on a hold, and re-pose. A hold
         // freezes the cutscene clock, not the actors — matching the runtime, where every layer keeps
@@ -1312,12 +1350,15 @@ namespace DotsAnimationToolkit.Editor
 
         private void SelectSlotHeader(int slotIndex)
         {
+            selectedItems.Clear();
+            primaryItem = null;
             selectedSlotIndex = slotIndex;
             selectedLaneKind = SelectedLaneKind.None;
             selectedPartTrackIndex = -1;
+            selectedItemIndex = -1;
             SyncSceneSelectionToTimelineSelection();
-            RebuildTimeline();
-            RebuildInspector();
+            RequestTimelineRebuild();
+            RequestInspectorRebuild();
             RefreshCastPanel();
         }
 
@@ -1657,6 +1698,9 @@ namespace DotsAnimationToolkit.Editor
         {
             Vector2 preservedScroll = timelineScrollView.scrollOffset;
             timelineScrollView.Clear();
+            registeredLanes.Clear();
+            timelineContent = null;
+            boxSelectElement = null;
 
             if (cutscene == null || serializedObject == null)
             {
@@ -1691,6 +1735,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement content = new VisualElement();
             content.style.flexDirection = FlexDirection.Column;
             content.style.position = Position.Relative;
+            timelineContent = content;
 
             CutsceneTimelineRulerElement ruler = new CutsceneTimelineRulerElement
             {
@@ -1725,6 +1770,16 @@ namespace DotsAnimationToolkit.Editor
             playheadElement.style.bottom = 0f;
             playheadElement.style.width = contentWidth;
             content.Add(playheadElement);
+
+            // Above the lanes and below the playhead, ignoring the pointer: the lane underneath owns
+            // the band drag, this only draws it.
+            boxSelectElement = new BoxSelectElement();
+            boxSelectElement.style.position = Position.Absolute;
+            boxSelectElement.style.left = 0f;
+            boxSelectElement.style.right = 0f;
+            boxSelectElement.style.top = 0f;
+            boxSelectElement.style.bottom = 0f;
+            content.Add(boxSelectElement);
 
             timelineScrollView.Add(content);
             timelineScrollView.scrollOffset = preservedScroll;
@@ -1925,9 +1980,17 @@ namespace DotsAnimationToolkit.Editor
                     pixelsPerSecond = pixelsPerSecond,
                     style = { width = contentWidth, height = LaneRowHeight }
                 };
+                RegisterBlockLane(clipLane, slotIndex);
                 clipLane.SetBlocks(blockDisplays,
                     selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.ClipBlock ? selectedItemIndex : -1);
-                clipLane.BlockSelected += index => SelectItem(slotIndex, SelectedLaneKind.ClipBlock, -1, index);
+                // Only the empty-space case: a press on a block already resolved its own selection.
+                clipLane.BlockSelected += index =>
+                {
+                    if (index < 0)
+                    {
+                        SelectSlotHeader(slotIndex);
+                    }
+                };
                 clipLane.BlockChangeCommitted += (index, start, duration) =>
                     CommitClipBlockChange(clipBlocksProperty, index, start, duration);
                 clipLane.EmptySpaceDoubleClicked += time => AddClipBlock(slotIndex, clipBlocksProperty, time);
@@ -2018,8 +2081,9 @@ namespace DotsAnimationToolkit.Editor
             };
             bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == laneKind
                 && selectedPartTrackIndex == partTrackIndex;
+            RegisterMomentLane(lane, slotIndex, laneKind, partTrackIndex);
             lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1);
-            lane.MomentSelected += index => SelectItem(slotIndex, laneKind, partTrackIndex, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(index, slotIndex, laneKind, partTrackIndex);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
@@ -2049,8 +2113,9 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == laneKind;
+            RegisterMomentLane(lane, slotIndex, laneKind, partTrackIndex);
             lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1);
-            lane.MomentSelected += index => SelectItem(slotIndex, laneKind, partTrackIndex, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(index, slotIndex, laneKind, partTrackIndex);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
@@ -2080,8 +2145,9 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == laneKind;
+            RegisterMomentLane(lane, slotIndex, laneKind, partTrackIndex);
             lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1);
-            lane.MomentSelected += index => SelectItem(slotIndex, laneKind, partTrackIndex, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(index, slotIndex, laneKind, partTrackIndex);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
@@ -2115,8 +2181,10 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.AttachMarker;
+            RegisterMomentLane(lane, slotIndex, SelectedLaneKind.AttachMarker, -1);
             lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1, variantClasses);
-            lane.MomentSelected += index => SelectItem(slotIndex, SelectedLaneKind.AttachMarker, -1, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(
+                index, slotIndex, SelectedLaneKind.AttachMarker, -1);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(attachMarkersProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertAttachMarkerDefault(slotIndex, attachMarkersProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(attachMarkersProperty, index);
@@ -2144,8 +2212,10 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.CameraKey;
+            RegisterMomentLane(lane, -1, SelectedLaneKind.CameraKey, -1);
             lane.SetTimes(times, isSelected ? selectedItemIndex : -1);
-            lane.MomentSelected += index => SelectItem(-1, SelectedLaneKind.CameraKey, -1, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(
+                index, -1, SelectedLaneKind.CameraKey, -1);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertCameraKeyDefault(keysProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
@@ -2192,8 +2262,10 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.Event;
+            RegisterMomentLane(lane, -1, SelectedLaneKind.Event, -1);
             lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses);
-            lane.MomentSelected += index => SelectItem(-1, SelectedLaneKind.Event, -1, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(
+                index, -1, SelectedLaneKind.Event, -1);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertEventDefault(eventsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(eventsProperty, index);
@@ -2238,8 +2310,10 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.Hold;
+            RegisterMomentLane(lane, -1, SelectedLaneKind.Hold, -1);
             lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses, readOnlyFlags);
-            lane.MomentSelected += index => SelectItem(-1, SelectedLaneKind.Hold, -1, index);
+            lane.MomentSelected += index => SelectItemFromLaneBackground(
+                index, -1, SelectedLaneKind.Hold, -1);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(holdsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertHoldDefault(holdsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(holdsProperty, index);
@@ -2269,24 +2343,598 @@ namespace DotsAnimationToolkit.Editor
         // Selection.
         // -----------------------------------------------------------------------------------
 
+        // A lane raises MomentSelected on release for both an unmoved marker and a click on empty
+        // space. The marker case already resolved on the press, so only the empty one reaches here.
+        private void SelectItemFromLaneBackground(
+            int itemIndex, int slotIndex, SelectedLaneKind laneKind, int partTrackIndex)
+        {
+            if (itemIndex >= 0)
+            {
+                return;
+            }
+            SelectItem(slotIndex, laneKind, partTrackIndex, -1);
+        }
+
         private void SelectItem(int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, int itemIndex)
         {
-            selectedSlotIndex = slotIndex;
-            selectedLaneKind = laneKind;
-            selectedPartTrackIndex = partTrackIndex;
-            selectedItemIndex = itemIndex;
+            CutsceneItemAddress address =
+                new CutsceneItemAddress(slotIndex, laneKind, partTrackIndex, itemIndex);
+            selectedItems.Clear();
+            if (address.HasItem)
+            {
+                selectedItems.Add(address);
+            }
+            primaryItem = address;
+            ApplyPrimarySelectionSideEffects();
+            RequestTimelineRebuild();
+            RequestInspectorRebuild();
+        }
+
+        // -----------------------------------------------------------------------------------
+        // The selection set: several items across several lanes, dragged and deleted as one.
+        // -----------------------------------------------------------------------------------
+
+        // Resolved on the press rather than the release, because a drag has to know what it is about
+        // to move. Nothing here rebuilds a lane: the press that raised this owns a pointer capture,
+        // and rebuilding would release it and kill the drag one pixel in.
+        private void ApplyItemPointerDown(CutsceneItemAddress address, bool toggles, bool adds)
+        {
+            if (toggles && selectedItems.Contains(address))
+            {
+                selectedItems.Remove(address);
+                if (primaryItem.HasValue && primaryItem.Value.Equals(address))
+                {
+                    primaryItem = null;
+                }
+            }
+            else
+            {
+                // Clicking something already selected keeps the whole set, so a drag started on one
+                // of several moves all of them.
+                if (!toggles && !adds && !selectedItems.Contains(address))
+                {
+                    selectedItems.Clear();
+                }
+                selectedItems.Add(address);
+                primaryItem = address;
+            }
+
+            UnpackPrimarySelection();
+            ApplyPrimarySelectionSideEffects();
+            RefreshLaneSelectionVisuals();
+            RequestInspectorRebuild();
+        }
+
+        private void UnpackPrimarySelection()
+        {
+            if (!primaryItem.HasValue)
+            {
+                selectedSlotIndex = -1;
+                selectedLaneKind = SelectedLaneKind.None;
+                selectedPartTrackIndex = -1;
+                selectedItemIndex = -1;
+                return;
+            }
+            CutsceneItemAddress address = primaryItem.Value;
+            selectedSlotIndex = address.slotIndex;
+            selectedLaneKind = address.laneKind;
+            selectedPartTrackIndex = address.partTrackIndex;
+            selectedItemIndex = address.itemIndex;
+        }
+
+        private void ApplyPrimarySelectionSideEffects()
+        {
+            UnpackPrimarySelection();
             markSceneOverlay.SetSelection(
-                laneKind == SelectedLaneKind.MarkKey ? slotIndex : -1,
-                laneKind == SelectedLaneKind.MarkKey ? itemIndex : -1);
+                selectedLaneKind == SelectedLaneKind.MarkKey ? selectedSlotIndex : -1,
+                selectedLaneKind == SelectedLaneKind.MarkKey ? selectedItemIndex : -1);
             SceneView.RepaintAll();
             SyncSceneSelectionToTimelineSelection();
-            RebuildTimeline();
-            RebuildInspector();
+        }
+
+        private bool IsItemSelected(CutsceneItemAddress laneAddress, int itemIndex)
+        {
+            return selectedItems.Contains(new CutsceneItemAddress(
+                laneAddress.slotIndex, laneAddress.laneKind, laneAddress.partTrackIndex, itemIndex));
+        }
+
+        private void RefreshLaneSelectionVisuals()
+        {
+            for (int laneIndex = 0; laneIndex < registeredLanes.Count; laneIndex++)
+            {
+                RegisteredLane lane = registeredLanes[laneIndex];
+                if (lane.momentLane != null)
+                {
+                    lane.momentLane.RefreshSelectionVisuals();
+                }
+                else if (lane.blockLane != null)
+                {
+                    lane.blockLane.RefreshSelectionVisuals();
+                }
+            }
+        }
+
+        private void PreviewSelectionDrag(float deltaSeconds)
+        {
+            for (int laneIndex = 0; laneIndex < registeredLanes.Count; laneIndex++)
+            {
+                RegisteredLane lane = registeredLanes[laneIndex];
+                if (lane.momentLane != null)
+                {
+                    lane.momentLane.PreviewOffsetForSelected(deltaSeconds);
+                }
+                else if (lane.blockLane != null)
+                {
+                    lane.blockLane.PreviewOffsetForSelected(deltaSeconds);
+                }
+            }
+        }
+
+        /// <summary>The name of the field a lane's items carry their timeline position in.</summary>
+        private static string TimeFieldNameFor(SelectedLaneKind laneKind)
+        {
+            return laneKind == SelectedLaneKind.ClipBlock ? "start" : "time";
+        }
+
+        /// <summary>The serialized list one lane's items live in, or false when the address no longer resolves.</summary>
+        private bool TryGetLaneListProperty(CutsceneItemAddress laneAddress, out SerializedProperty listProperty)
+        {
+            listProperty = null;
+            if (cutscene == null || serializedObject == null)
+            {
+                return false;
+            }
+
+            switch (laneAddress.laneKind)
+            {
+                case SelectedLaneKind.CameraKey:
+                    listProperty = serializedObject.FindProperty("cameraLane").FindPropertyRelative("keys");
+                    return true;
+                case SelectedLaneKind.Event:
+                    listProperty = serializedObject.FindProperty("events");
+                    return true;
+                case SelectedLaneKind.Hold:
+                    listProperty = serializedObject.FindProperty("holdMarkers");
+                    return true;
+            }
+
+            SerializedProperty slotsProperty = serializedObject.FindProperty("slots");
+            if (laneAddress.slotIndex < 0 || laneAddress.slotIndex >= slotsProperty.arraySize)
+            {
+                return false;
+            }
+            SerializedProperty slotProperty = slotsProperty.GetArrayElementAtIndex(laneAddress.slotIndex);
+
+            switch (laneAddress.laneKind)
+            {
+                case SelectedLaneKind.ClipBlock:
+                    listProperty = slotProperty.FindPropertyRelative("clipBlocks");
+                    return true;
+                case SelectedLaneKind.RootTransformKey:
+                    listProperty = slotProperty.FindPropertyRelative("transformKeys");
+                    return true;
+                case SelectedLaneKind.FacingKey:
+                    listProperty = slotProperty.FindPropertyRelative("facingKeys");
+                    return true;
+                case SelectedLaneKind.AttachMarker:
+                    listProperty = slotProperty.FindPropertyRelative("attachMarkers");
+                    return true;
+                case SelectedLaneKind.MarkKey:
+                    listProperty = slotProperty.FindPropertyRelative("markKeys");
+                    return true;
+                case SelectedLaneKind.PartTrackKey:
+                {
+                    SerializedProperty partTracksProperty = slotProperty.FindPropertyRelative("partTracks");
+                    if (laneAddress.partTrackIndex < 0
+                        || laneAddress.partTrackIndex >= partTracksProperty.arraySize)
+                    {
+                        return false;
+                    }
+                    listProperty = partTracksProperty
+                        .GetArrayElementAtIndex(laneAddress.partTrackIndex).FindPropertyRelative("keys");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The selection grouped by lane, each lane's item indices ascending.</summary>
+        private List<KeyValuePair<CutsceneItemAddress, List<int>>> GroupSelectionByLane()
+        {
+            List<KeyValuePair<CutsceneItemAddress, List<int>>> grouped =
+                new List<KeyValuePair<CutsceneItemAddress, List<int>>>();
+            foreach (CutsceneItemAddress address in selectedItems)
+            {
+                if (!address.HasItem)
+                {
+                    continue;
+                }
+                CutsceneItemAddress laneAddress = address.LaneOnly();
+                int existing = -1;
+                for (int laneIndex = 0; laneIndex < grouped.Count; laneIndex++)
+                {
+                    if (grouped[laneIndex].Key.Equals(laneAddress))
+                    {
+                        existing = laneIndex;
+                        break;
+                    }
+                }
+                if (existing < 0)
+                {
+                    grouped.Add(new KeyValuePair<CutsceneItemAddress, List<int>>(laneAddress, new List<int>()));
+                    existing = grouped.Count - 1;
+                }
+                grouped[existing].Value.Add(address.itemIndex);
+            }
+            for (int laneIndex = 0; laneIndex < grouped.Count; laneIndex++)
+            {
+                grouped[laneIndex].Value.Sort();
+            }
+            return grouped;
+        }
+
+        // One SerializedObject commit for the whole drag, across every lane it touched. The delta is
+        // reduced once against the earliest selected item anywhere, so the group travels rigidly
+        // rather than piling up on zero lane by lane.
+        private void CommitSelectionDrag(float deltaSeconds)
+        {
+            List<KeyValuePair<CutsceneItemAddress, List<int>>> grouped = GroupSelectionByLane();
+            if (grouped.Count == 0)
+            {
+                return;
+            }
+
+            float earliestSelectedTime = float.MaxValue;
+            for (int laneIndex = 0; laneIndex < grouped.Count; laneIndex++)
+            {
+                SerializedProperty listProperty;
+                if (!TryGetLaneListProperty(grouped[laneIndex].Key, out listProperty))
+                {
+                    continue;
+                }
+                string timeFieldName = TimeFieldNameFor(grouped[laneIndex].Key.laneKind);
+                List<int> indices = grouped[laneIndex].Value;
+                for (int cursor = 0; cursor < indices.Count; cursor++)
+                {
+                    if (indices[cursor] < 0 || indices[cursor] >= listProperty.arraySize)
+                    {
+                        continue;
+                    }
+                    float itemTime = listProperty.GetArrayElementAtIndex(indices[cursor])
+                        .FindPropertyRelative(timeFieldName).floatValue;
+                    if (itemTime < earliestSelectedTime)
+                    {
+                        earliestSelectedTime = itemTime;
+                    }
+                }
+            }
+            if (earliestSelectedTime == float.MaxValue)
+            {
+                return;
+            }
+            float appliedDelta = earliestSelectedTime + deltaSeconds < 0f
+                ? -earliestSelectedTime
+                : deltaSeconds;
+
+            selectedItems.Clear();
+            List<float> times = new List<float>();
+            for (int laneIndex = 0; laneIndex < grouped.Count; laneIndex++)
+            {
+                CutsceneItemAddress laneAddress = grouped[laneIndex].Key;
+                SerializedProperty listProperty;
+                if (!TryGetLaneListProperty(laneAddress, out listProperty))
+                {
+                    continue;
+                }
+                string timeFieldName = TimeFieldNameFor(laneAddress.laneKind);
+
+                times.Clear();
+                for (int itemIndex = 0; itemIndex < listProperty.arraySize; itemIndex++)
+                {
+                    times.Add(listProperty.GetArrayElementAtIndex(itemIndex)
+                        .FindPropertyRelative(timeFieldName).floatValue);
+                }
+                List<int> indices = grouped[laneIndex].Value;
+                CutsceneSelectionMath.ShiftTimes(times, indices, appliedDelta);
+                for (int itemIndex = 0; itemIndex < listProperty.arraySize; itemIndex++)
+                {
+                    listProperty.GetArrayElementAtIndex(itemIndex)
+                        .FindPropertyRelative(timeFieldName).floatValue = times[itemIndex];
+                }
+
+                SortByTimeTrackingSelection(listProperty, timeFieldName, indices);
+                for (int cursor = 0; cursor < indices.Count; cursor++)
+                {
+                    selectedItems.Add(new CutsceneItemAddress(
+                        laneAddress.slotIndex, laneAddress.laneKind, laneAddress.partTrackIndex,
+                        indices[cursor]));
+                }
+            }
+
+            primaryItem = null;
+            foreach (CutsceneItemAddress address in selectedItems)
+            {
+                primaryItem = address;
+                break;
+            }
+            CommitStructuralChange();
+        }
+
+        /// <summary>Deletes every selected item, highest index first so the lower ones stay addressable.</summary>
+        private void DeleteSelectedItems()
+        {
+            List<KeyValuePair<CutsceneItemAddress, List<int>>> grouped = GroupSelectionByLane();
+            if (grouped.Count == 0)
+            {
+                return;
+            }
+            for (int laneIndex = 0; laneIndex < grouped.Count; laneIndex++)
+            {
+                SerializedProperty listProperty;
+                if (!TryGetLaneListProperty(grouped[laneIndex].Key, out listProperty))
+                {
+                    continue;
+                }
+                List<int> indices = grouped[laneIndex].Value;
+                for (int cursor = indices.Count - 1; cursor >= 0; cursor--)
+                {
+                    if (indices[cursor] >= 0 && indices[cursor] < listProperty.arraySize)
+                    {
+                        listProperty.DeleteArrayElementAtIndex(indices[cursor]);
+                    }
+                }
+            }
+            selectedItems.Clear();
+            primaryItem = null;
+            selectedItemIndex = -1;
+            CommitStructuralChange();
+        }
+
+        // The same insertion sort SortByTime runs, carrying a selected flag alongside each element so
+        // the caller learns where its items landed. Matching by time afterwards would be wrong the
+        // moment two items share one.
+        private static void SortByTimeTrackingSelection(
+            SerializedProperty listProperty, string timeFieldName, List<int> selectedIndices)
+        {
+            int count = listProperty.arraySize;
+            bool[] isSelected = new bool[count];
+            for (int cursor = 0; cursor < selectedIndices.Count; cursor++)
+            {
+                if (selectedIndices[cursor] >= 0 && selectedIndices[cursor] < count)
+                {
+                    isSelected[selectedIndices[cursor]] = true;
+                }
+            }
+
+            for (int upper = 1; upper < count; upper++)
+            {
+                int cursor = upper;
+                while (cursor > 0 &&
+                    listProperty.GetArrayElementAtIndex(cursor - 1).FindPropertyRelative(timeFieldName).floatValue >
+                    listProperty.GetArrayElementAtIndex(cursor).FindPropertyRelative(timeFieldName).floatValue)
+                {
+                    listProperty.MoveArrayElement(cursor, cursor - 1);
+                    bool swapped = isSelected[cursor - 1];
+                    isSelected[cursor - 1] = isSelected[cursor];
+                    isSelected[cursor] = swapped;
+                    cursor--;
+                }
+            }
+
+            selectedIndices.Clear();
+            for (int itemIndex = 0; itemIndex < count; itemIndex++)
+            {
+                if (isSelected[itemIndex])
+                {
+                    selectedIndices.Add(itemIndex);
+                }
+            }
+        }
+
+        // The panel is focusable so it can hear shortcuts, which means every text field inside it
+        // routes its keystrokes through here first — Ctrl+C in a Hold Id field must stay a text copy.
+        private static bool IsEditableTarget(IEventHandler target)
+        {
+            VisualElement targetElement = target as VisualElement;
+            while (targetElement != null)
+            {
+                // Every editable field in UI Toolkit — text, int, float, the vector fields' parts —
+                // derives from this one open generic, so one walk covers all of them.
+                Type elementType = targetElement.GetType();
+                while (elementType != null)
+                {
+                    if (elementType.IsGenericType
+                        && elementType.GetGenericTypeDefinition() == typeof(TextInputBaseField<>))
+                    {
+                        return true;
+                    }
+                    elementType = elementType.BaseType;
+                }
+                targetElement = targetElement.parent;
+            }
+            return false;
+        }
+
+        private void OnPanelKeyDown(KeyDownEvent keyEvent)
+        {
+            if (cutscene == null || IsEditableTarget(keyEvent.target))
+            {
+                return;
+            }
+
+            if (keyEvent.keyCode == KeyCode.Delete || keyEvent.keyCode == KeyCode.Backspace)
+            {
+                if (selectedItems.Count == 0)
+                {
+                    return;
+                }
+                DeleteSelectedItems();
+                keyEvent.StopPropagation();
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Box select: a band over the lane stack picks up whatever it crosses.
+        // -----------------------------------------------------------------------------------
+
+        private void BeginBoxSelect(PointerDownEvent pointerEvent)
+        {
+            VisualElement lane = pointerEvent.currentTarget as VisualElement;
+            if (lane == null || timelineContent == null || boxSelectElement == null)
+            {
+                return;
+            }
+
+            boxSelectOriginInContent = lane.ChangeCoordinatesTo(timelineContent, pointerEvent.localPosition);
+            boxSelectLane = lane;
+            isBoxSelectArmed = true;
+            isBoxSelectActive = false;
+            isBoxSelectAdditive =
+                pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
+
+            lane.CapturePointer(pointerEvent.pointerId);
+            lane.RegisterCallback<PointerMoveEvent>(OnBoxSelectMove);
+            lane.RegisterCallback<PointerUpEvent>(OnBoxSelectEnd);
+        }
+
+        private void OnBoxSelectMove(PointerMoveEvent moveEvent)
+        {
+            VisualElement lane = moveEvent.currentTarget as VisualElement;
+            if (!isBoxSelectArmed || lane == null || timelineContent == null)
+            {
+                return;
+            }
+
+            Vector2 currentInContent = lane.ChangeCoordinatesTo(timelineContent, moveEvent.localPosition);
+            if (!isBoxSelectActive
+                && (currentInContent - boxSelectOriginInContent).sqrMagnitude < BoxSelectStartToleranceSquared)
+            {
+                return;
+            }
+            isBoxSelectActive = true;
+            boxSelectElement.SetBand(BandBetween(boxSelectOriginInContent, currentInContent));
+        }
+
+        private void OnBoxSelectEnd(PointerUpEvent upEvent)
+        {
+            VisualElement lane = upEvent.currentTarget as VisualElement;
+            if (lane != null)
+            {
+                lane.ReleasePointer(upEvent.pointerId);
+                lane.UnregisterCallback<PointerMoveEvent>(OnBoxSelectMove);
+                lane.UnregisterCallback<PointerUpEvent>(OnBoxSelectEnd);
+            }
+            if (!isBoxSelectArmed)
+            {
+                return;
+            }
+            isBoxSelectArmed = false;
+            boxSelectLane = null;
+            if (!isBoxSelectActive)
+            {
+                return;
+            }
+            isBoxSelectActive = false;
+
+            Vector2 endInContent = lane != null && timelineContent != null
+                ? lane.ChangeCoordinatesTo(timelineContent, upEvent.localPosition)
+                : boxSelectOriginInContent;
+            SelectItemsInsideBand(BandBetween(boxSelectOriginInContent, endInContent));
+            boxSelectElement.HideBand();
+
+            RefreshLaneSelectionVisuals();
+            RequestInspectorRebuild();
+        }
+
+        private static Rect BandBetween(Vector2 origin, Vector2 current)
+        {
+            return Rect.MinMaxRect(
+                Mathf.Min(origin.x, current.x), Mathf.Min(origin.y, current.y),
+                Mathf.Max(origin.x, current.x), Mathf.Max(origin.y, current.y));
+        }
+
+        private void SelectItemsInsideBand(Rect bandInContent)
+        {
+            if (!isBoxSelectAdditive)
+            {
+                selectedItems.Clear();
+                primaryItem = null;
+            }
+
+            List<int> collected = new List<int>();
+            for (int laneIndex = 0; laneIndex < registeredLanes.Count; laneIndex++)
+            {
+                RegisteredLane lane = registeredLanes[laneIndex];
+                VisualElement laneElement = lane.Element;
+                if (laneElement == null)
+                {
+                    continue;
+                }
+                Rect laneRectInContent = laneElement.ChangeCoordinatesTo(timelineContent, laneElement.contentRect);
+                if (laneRectInContent.yMax < bandInContent.yMin || laneRectInContent.yMin > bandInContent.yMax)
+                {
+                    continue;
+                }
+
+                Rect bandInLane = Rect.MinMaxRect(
+                    bandInContent.xMin - laneRectInContent.xMin, 0f,
+                    bandInContent.xMax - laneRectInContent.xMin, laneRectInContent.height);
+                collected.Clear();
+                if (lane.momentLane != null)
+                {
+                    lane.momentLane.CollectItemsInBand(bandInLane, collected);
+                }
+                else if (lane.blockLane != null)
+                {
+                    lane.blockLane.CollectItemsInBand(bandInLane, collected);
+                }
+
+                for (int cursor = 0; cursor < collected.Count; cursor++)
+                {
+                    CutsceneItemAddress address = new CutsceneItemAddress(
+                        lane.laneAddress.slotIndex, lane.laneAddress.laneKind,
+                        lane.laneAddress.partTrackIndex, collected[cursor]);
+                    selectedItems.Add(address);
+                    primaryItem = address;
+                }
+            }
+
+            UnpackPrimarySelection();
+            ApplyPrimarySelectionSideEffects();
         }
 
         // -----------------------------------------------------------------------------------
         // Mutations shared by every moment lane.
         // -----------------------------------------------------------------------------------
+
+        // Every lane hooks up the same way: it answers "is this item selected" from the panel's set,
+        // resolves selection on the press, and previews and commits a group drag as one delta.
+        private void RegisterMomentLane(
+            CutsceneMomentLaneElement lane, int slotIndex, SelectedLaneKind laneKind, int partTrackIndex)
+        {
+            CutsceneItemAddress laneAddress =
+                new CutsceneItemAddress(slotIndex, laneKind, partTrackIndex, -1);
+            lane.isItemSelected = itemIndex => IsItemSelected(laneAddress, itemIndex);
+            lane.MomentPointerDown += (itemIndex, toggles, adds) => ApplyItemPointerDown(
+                new CutsceneItemAddress(slotIndex, laneKind, partTrackIndex, itemIndex), toggles, adds);
+            lane.SelectionDragMoved += PreviewSelectionDrag;
+            lane.SelectionDragCommitted += CommitSelectionDrag;
+            lane.BackgroundPointerDown += BeginBoxSelect;
+            registeredLanes.Add(new RegisteredLane { laneAddress = laneAddress, momentLane = lane });
+        }
+
+        private void RegisterBlockLane(CutsceneClipBlockLaneElement lane, int slotIndex)
+        {
+            CutsceneItemAddress laneAddress =
+                new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, -1, -1);
+            lane.isItemSelected = itemIndex => IsItemSelected(laneAddress, itemIndex);
+            lane.BlockPointerDown += (itemIndex, toggles, adds) => ApplyItemPointerDown(
+                new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, -1, itemIndex), toggles, adds);
+            lane.SelectionDragMoved += PreviewSelectionDrag;
+            lane.SelectionDragCommitted += CommitSelectionDrag;
+            lane.BackgroundPointerDown += BeginBoxSelect;
+            registeredLanes.Add(new RegisteredLane { laneAddress = laneAddress, blockLane = lane });
+        }
 
         private void CommitMomentTime(SerializedProperty listProperty, int index, float time)
         {
@@ -2302,6 +2950,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             listProperty.DeleteArrayElementAtIndex(index);
+            selectedItems.Clear();
+            primaryItem = null;
             selectedItemIndex = -1;
             CommitStructuralChange();
         }
@@ -2689,6 +3339,55 @@ namespace DotsAnimationToolkit.Editor
                 || EqualityComparer<TValue>.Default.Equals(changeEvent.previousValue, changeEvent.newValue);
         }
 
+        // A field's drag handle captures the pointer on the element itself, so a rebuild's Clear()
+        // releases the capture and ends the drag after roughly one pixel — this guard stops that.
+        private bool IsPointerGestureInProgress()
+        {
+            return panel != null && panel.GetCapturingElement(PointerId.mousePointerId) != null;
+        }
+
+        /// <summary>Rebuilds the inspector, or defers it to the end of a live drag.</summary>
+        private void RequestInspectorRebuild()
+        {
+            if (IsPointerGestureInProgress())
+            {
+                inspectorRebuildPending = true;
+                return;
+            }
+            RebuildInspector();
+        }
+
+        /// <summary>Rebuilds the timeline, or defers it to the end of a live drag.</summary>
+        private void RequestTimelineRebuild()
+        {
+            if (IsPointerGestureInProgress())
+            {
+                timelineRebuildPending = true;
+                return;
+            }
+            RebuildTimeline();
+        }
+
+        // Driven from the editor tick, not from a pointer-capture-out callback: a capture released
+        // by the element's own removal has no handler left to notify.
+        private void FlushDeferredPaneRebuilds()
+        {
+            if (IsPointerGestureInProgress())
+            {
+                return;
+            }
+            if (timelineRebuildPending)
+            {
+                timelineRebuildPending = false;
+                RebuildTimeline();
+            }
+            if (inspectorRebuildPending)
+            {
+                inspectorRebuildPending = false;
+                RebuildInspector();
+            }
+        }
+
         private void RebuildInspector()
         {
             isRebuildingInspector = true;
@@ -2716,6 +3415,16 @@ namespace DotsAnimationToolkit.Editor
             {
                 BuildCutsceneLevelInspector();
                 return;
+            }
+
+            if (selectedItems.Count > 1)
+            {
+                Label multiSelectionNote = new Label(
+                    "+ " + (selectedItems.Count - 1).ToString() + " more selected — editing the last "
+                    + "one clicked. Drag, Delete and copy act on all of them.");
+                multiSelectionNote.style.whiteSpace = WhiteSpace.Normal;
+                multiSelectionNote.style.opacity = 0.8f;
+                inspectorScroll.Add(multiSelectionNote);
             }
 
             switch (selectedLaneKind)
