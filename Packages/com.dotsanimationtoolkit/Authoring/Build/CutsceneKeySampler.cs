@@ -195,55 +195,87 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// Resolves the facing angle in effect at <paramref name="timeSeconds"/> (spec §2): the
-        /// last override key at or before it, or a derivation from root travel direction when none
-        /// has fired yet.
+        /// last override key at or before it, or the direction the root lane is travelling when
+        /// none has fired yet. The list twin of <c>CutsceneBlobSampler.TryResolveFacingAngle</c>,
+        /// down to the return value — false means "no answer at all", never "derived rather than
+        /// authored". Ask <see cref="TryResolveFacingOverride"/> for that distinction.
         /// </summary>
         public static bool TryResolveFacingAngle(
             List<CutsceneFacingKey> facingKeys, List<CutsceneTransformKey> rootKeys,
             float timeSeconds, out float angleDegrees)
         {
-            if (facingKeys != null)
+            if (TryResolveFacingOverride(facingKeys, timeSeconds, out angleDegrees))
             {
-                int bestIndex = -1;
-                for (int i = 0; i < facingKeys.Count; i++)
-                {
-                    if (facingKeys[i].time <= timeSeconds &&
-                        (bestIndex < 0 || facingKeys[i].time > facingKeys[bestIndex].time))
-                    {
-                        bestIndex = i;
-                    }
-                }
-                if (bestIndex >= 0)
-                {
-                    angleDegrees = facingKeys[bestIndex].angleDegrees;
-                    return true;
-                }
+                return true;
             }
+            return TryDeriveFacingFromRootTravel(rootKeys, timeSeconds, out angleDegrees);
+        }
 
-            // No override yet: derive from travel direction, comparing this instant against a hair
-            // earlier — the same finite-difference a live actor's movement vector would give
-            // FacingResolver.FromMovement.
-            const float LookBackSeconds = 0.05f;
-            float3 positionNow;
-            float3 rotationNow;
-            float3 scaleNow;
-            TrySampleTransform(rootKeys, timeSeconds, out positionNow, out rotationNow, out scaleNow);
-            float3 positionBefore;
-            TrySampleTransform(rootKeys, math.max(0f, timeSeconds - LookBackSeconds), out positionBefore, out rotationNow, out scaleNow);
-
-            float3 delta = positionNow - positionBefore;
-            if (math.lengthsq(delta) < 1e-8f)
+        /// <summary>The last facing override key at or before <paramref name="timeSeconds"/>.</summary>
+        public static bool TryResolveFacingOverride(
+            List<CutsceneFacingKey> facingKeys, float timeSeconds, out float angleDegrees)
+        {
+            angleDegrees = 0f;
+            if (facingKeys == null)
             {
-                angleDegrees = 0f;
                 return false;
             }
 
-            angleDegrees = math.degrees(math.atan2(delta.x, delta.z));
-            if (angleDegrees < 0f)
+            int bestIndex = -1;
+            for (int i = 0; i < facingKeys.Count; i++)
             {
-                angleDegrees += 360f;
+                if (facingKeys[i].time <= timeSeconds &&
+                    (bestIndex < 0 || facingKeys[i].time > facingKeys[bestIndex].time))
+                {
+                    bestIndex = i;
+                }
             }
-            return false;
+            if (bestIndex < 0)
+            {
+                return false;
+            }
+            angleDegrees = facingKeys[bestIndex].angleDegrees;
+            return true;
+        }
+
+        /// <summary>
+        /// The direction the root lane travels at <paramref name="timeSeconds"/>, by finite
+        /// difference against a hair earlier — the movement vector a live actor would hand
+        /// <c>FacingResolver.FromMovement</c>. Forward-differenced at 0, which has nothing behind it.
+        /// </summary>
+        public static bool TryDeriveFacingFromRootTravel(
+            List<CutsceneTransformKey> rootKeys, float timeSeconds, out float angleDegrees)
+        {
+            const float LookBackSeconds = 1f / 60f;
+            angleDegrees = 0f;
+            if (rootKeys == null || rootKeys.Count == 0)
+            {
+                return false;
+            }
+
+            float earlierTime = timeSeconds - LookBackSeconds;
+            float laterTime = timeSeconds;
+            if (earlierTime < 0f)
+            {
+                earlierTime = 0f;
+                laterTime = LookBackSeconds;
+            }
+
+            float3 earlierPosition;
+            float3 laterPosition;
+            float3 unusedRotation;
+            float3 unusedScale;
+            TrySampleTransform(rootKeys, earlierTime, out earlierPosition, out unusedRotation, out unusedScale);
+            TrySampleTransform(rootKeys, laterTime, out laterPosition, out unusedRotation, out unusedScale);
+
+            float3 travel = laterPosition - earlierPosition;
+            if (math.lengthsq(travel) < 1e-8f)
+            {
+                return false;
+            }
+
+            angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in travel);
+            return true;
         }
 
         private static void ToOut(

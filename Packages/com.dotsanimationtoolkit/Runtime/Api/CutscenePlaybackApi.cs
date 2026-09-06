@@ -75,7 +75,10 @@ namespace DotsAnimationToolkit
                     nextAttachMarkerIndex = 0,
                     // −1, not 0: 0 is a real slot index, so a zeroed struct would read as "riding
                     // slot 0" and suppress the root lane of every slot before anything attached.
-                    attachedHostSlotIndex = -1
+                    attachedHostSlotIndex = -1,
+                    // Same reason: 0 is a real segment index, and "no block playing yet" has to be
+                    // distinguishable from "playing the first block of segment 0".
+                    activeBlockSegmentIndex = -1
                 };
             }
 

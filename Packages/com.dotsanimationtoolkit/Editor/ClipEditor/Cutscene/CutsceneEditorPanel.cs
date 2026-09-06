@@ -2904,8 +2904,12 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 float facingAngle;
-                bool isOverride = CutsceneKeySampler.TryResolveFacingAngle(
-                    slot.facingKeys, slot.transformKeys, playheadSeconds, out facingAngle);
+                CutsceneKeySampler.TryResolveFacingAngle(
+                    slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot),
+                    playheadSeconds, out facingAngle);
+                float overrideAngle;
+                bool isOverride = CutsceneKeySampler.TryResolveFacingOverride(
+                    slot.facingKeys, playheadSeconds, out overrideAngle);
                 Label facingLabel = new Label(
                     "Facing at playhead: " + facingAngle.ToString("0.#") + "°"
                     + (isOverride ? " (override key)" : " (derived from root travel)")

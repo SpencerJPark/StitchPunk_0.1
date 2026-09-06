@@ -188,6 +188,95 @@ namespace DotsAnimationToolkit
             fieldOfView = math.lerp(fromKey.fieldOfView, toKey.fieldOfView, easedTime);
         }
 
+        /// <summary>
+        /// The facing angle in effect at <paramref name="time"/> (amendment A65 §3.2), in the
+        /// <see cref="CutsceneFacing"/> model: the last override key at or before it, else the
+        /// direction the root lane is travelling. The blob twin of
+        /// <c>CutsceneKeySampler.TryResolveFacingAngle</c>.
+        /// </summary>
+        /// <returns>
+        /// False when neither answer exists — no override key yet and a root lane that is not
+        /// moving — and the caller must leave whatever facing is already in effect alone.
+        /// </returns>
+        [BurstCompile]
+        public static bool TryResolveFacingAngle(
+            ref BlobArray<CutsceneFacingKeyBlob> facingKeys,
+            ref BlobArray<CutsceneTransformKeyBlob> rootKeys,
+            float time,
+            out float angleDegrees)
+        {
+            if (TryResolveFacingOverride(ref facingKeys, time, out angleDegrees))
+            {
+                return true;
+            }
+            return TryDeriveFacingFromRootTravel(ref rootKeys, time, out angleDegrees);
+        }
+
+        /// <summary>The last facing override key at or before <paramref name="time"/>.</summary>
+        [BurstCompile]
+        public static bool TryResolveFacingOverride(
+            ref BlobArray<CutsceneFacingKeyBlob> facingKeys, float time, out float angleDegrees)
+        {
+            int bestIndex = -1;
+            for (int keyIndex = 0; keyIndex < facingKeys.Length; keyIndex++)
+            {
+                if (facingKeys[keyIndex].time <= time &&
+                    (bestIndex < 0 || facingKeys[keyIndex].time > facingKeys[bestIndex].time))
+                {
+                    bestIndex = keyIndex;
+                }
+            }
+            if (bestIndex < 0)
+            {
+                angleDegrees = 0f;
+                return false;
+            }
+            angleDegrees = math.degrees(facingKeys[bestIndex].angleRadians);
+            return true;
+        }
+
+        /// <summary>
+        /// The direction the root lane travels at <paramref name="time"/>, by finite difference
+        /// against a hair earlier — the same movement vector a live actor would hand
+        /// <c>FacingResolver.FromMovement</c>. Forward-differenced at <c>t == 0</c>, where there is
+        /// no earlier sample to look back at.
+        /// </summary>
+        [BurstCompile]
+        public static bool TryDeriveFacingFromRootTravel(
+            ref BlobArray<CutsceneTransformKeyBlob> rootKeys, float time, out float angleDegrees)
+        {
+            const float LookBackSeconds = 1f / 60f;
+            angleDegrees = 0f;
+            if (rootKeys.Length == 0)
+            {
+                return false;
+            }
+
+            float earlierTime = time - LookBackSeconds;
+            float laterTime = time;
+            if (earlierTime < 0f)
+            {
+                earlierTime = 0f;
+                laterTime = LookBackSeconds;
+            }
+
+            float3 earlierPosition;
+            float3 laterPosition;
+            float3 unusedRotation;
+            float3 unusedScale;
+            TrySampleTransform(ref rootKeys, earlierTime, out earlierPosition, out unusedRotation, out unusedScale);
+            TrySampleTransform(ref rootKeys, laterTime, out laterPosition, out unusedRotation, out unusedScale);
+
+            float3 travel = laterPosition - earlierPosition;
+            if (math.lengthsq(travel) < 1e-8f)
+            {
+                return false;
+            }
+
+            angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in travel);
+            return true;
+        }
+
         private static void ToOut(
             in CutsceneTransformKeyBlob key, out float3 position, out float3 rotation, out float3 scale)
         {

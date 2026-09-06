@@ -146,6 +146,24 @@ namespace DotsAnimationToolkit
         public int nextMarkIndex;
 
         /// <summary>
+        /// The clip id currently playing for this slot's active block after facing has had its say
+        /// (amendment A65 §3.2) — the authored id when the block has no direction variants. What a
+        /// re-pick compares against, so turning issues one Play rather than one per frame.
+        /// </summary>
+        public ulong activeVariantClipId;
+
+        /// <summary>
+        /// Where the block this slot is playing was found: its segment and its index within that
+        /// segment's array, or −1 for "nothing playing". Kept rather than derived from
+        /// <see cref="nextClipBlockIndex"/> because that cursor rebases at every hold, and a walk
+        /// carried across one is exactly when a re-pick still has to work.
+        /// </summary>
+        public int activeBlockSegmentIndex;
+
+        /// <summary>Index into the active block's own segment array. Meaningless while <see cref="activeBlockSegmentIndex"/> is −1.</summary>
+        public int activeBlockIndex;
+
+        /// <summary>
         /// Whether this slot has been ordered to a mark it has not yet reached. While it is set the
         /// slot's root lane is ignored — whatever is walking the entity owns the transform, exactly
         /// as a host does while <see cref="attachedHostSlotIndex"/> is set. Survives a hold: a mark
@@ -176,6 +194,23 @@ namespace DotsAnimationToolkit
 
         /// <summary>Real seconds this order has been outstanding — written by the player, never by a host. Frozen while the cutscene is paused (decision A64-D3).</summary>
         public float elapsedSeconds;
+    }
+
+    /// <summary>
+    /// The facing a cutscene is driving a bound Actor slot toward (amendment A65 §3.2), written
+    /// every frame the cutscene has an answer and disabled when it ends. The host maps it onto
+    /// whatever its own facing model is; the toolkit never writes <c>PartFacing</c> itself
+    /// (decision A65-D2 — a host's own facing system already owns that, and two writers would fight).
+    /// </summary>
+    public struct CutsceneFacing : IComponentData, IEnableableComponent
+    {
+        /// <summary>
+        /// Degrees about the world up axis, measured from +X toward +Z: 0 is east, 90 is north
+        /// (away from the camera). The same 0–360 model the Direction Sets pane's slider uses and
+        /// <c>FacingResolver.FromMovement</c> reads, <em>not</em> a <c>LocalTransform</c> Y euler,
+        /// which measures from +Z instead.
+        /// </summary>
+        public float angleDegrees;
     }
 
     /// <summary>

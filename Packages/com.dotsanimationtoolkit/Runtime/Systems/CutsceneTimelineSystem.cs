@@ -61,28 +61,33 @@ namespace DotsAnimationToolkit
             // and they are applied once, after the loop, in the order they were collected.
             NativeList<PendingAttachOp> pendingAttachOps = new NativeList<PendingAttachOp>(Allocator.Temp);
             NativeList<PendingMarkOp> pendingMarkOps = new NativeList<PendingMarkOp>(Allocator.Temp);
+            NativeList<PendingFacingOp> pendingFacingOps = new NativeList<PendingFacingOp>(Allocator.Temp);
             try
             {
                 foreach ((RefRO<CutscenePlay> _, Entity requestEntity) in
                     SystemAPI.Query<RefRO<CutscenePlay>>().WithEntityAccess())
                 {
                     ProcessCutscene(
-                        entityManager, requestEntity, cameraPoseEntity, deltaTime, pendingAttachOps, pendingMarkOps);
+                        entityManager, requestEntity, cameraPoseEntity, deltaTime,
+                        pendingAttachOps, pendingMarkOps, pendingFacingOps);
                 }
 
                 ApplyPendingAttachOps(entityManager, pendingAttachOps);
                 ApplyPendingMarkOps(entityManager, pendingMarkOps);
+                ApplyPendingFacingOps(entityManager, pendingFacingOps);
             }
             finally
             {
                 pendingAttachOps.Dispose();
                 pendingMarkOps.Dispose();
+                pendingFacingOps.Dispose();
             }
         }
 
         private static void ProcessCutscene(
             EntityManager entityManager, Entity requestEntity, Entity cameraPoseEntity, float deltaTime,
-            NativeList<PendingAttachOp> pendingAttachOps, NativeList<PendingMarkOp> pendingMarkOps)
+            NativeList<PendingAttachOp> pendingAttachOps, NativeList<PendingMarkOp> pendingMarkOps,
+            NativeList<PendingFacingOp> pendingFacingOps)
         {
             CutscenePlaybackState playbackState = entityManager.GetComponentData<CutscenePlaybackState>(requestEntity);
             if (playbackState.isComplete)
@@ -149,6 +154,11 @@ namespace DotsAnimationToolkit
 
                 if (!releasedThisFrame)
                 {
+                    // A held clock still faces somewhere, and a rendezvous hold is exactly when an
+                    // actor is walking: facing must keep resolving while the timeline does not.
+                    ProcessFacing(
+                        entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates,
+                        ref playbackState, pendingFacingOps);
                     ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
                     ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
                     entityManager.SetComponentData(requestEntity, playbackState);
@@ -187,6 +197,9 @@ namespace DotsAnimationToolkit
                 }
             }
 
+            ProcessFacing(
+                entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates,
+                ref playbackState, pendingFacingOps);
             ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
             ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
             entityManager.SetComponentData(requestEntity, playbackState);
@@ -244,6 +257,16 @@ namespace DotsAnimationToolkit
                 {
                     CutsceneClipBlockBlob block = slotSegment.clipBlocks[slotState.nextClipBlockIndex];
 
+                    // The variant is picked here rather than left to the next frame's re-pick: a
+                    // block issued as its authored side and swapped one frame later is a visible pop
+                    // at the start of every turn (amendment A65 §3.2).
+                    ulong clipId = ResolveVariantClipIdForSlot(
+                        entityManager, ref blob, ref segment, slotIndex, actorEntity, in slotState,
+                        playbackState.timeInSegment, in block.directionVariants, block.clipId);
+                    slotState.activeVariantClipId = clipId;
+                    slotState.activeBlockSegmentIndex = playbackState.segmentIndex;
+                    slotState.activeBlockIndex = slotState.nextClipBlockIndex;
+
                     // The crossfade window from this block's true predecessor on the slot's flat
                     // lane (amendment A62 defect 3, decision A62-D3) — baked by CutsceneBlobBuilder,
                     // never derived here from "the previous block in this segment", which would
@@ -253,7 +276,7 @@ namespace DotsAnimationToolkit
                     {
                         kind = CommandKind.Play,
                         layerIndex = layerIndex,
-                        clip = new ClipId(block.clipId),
+                        clip = new ClipId(clipId),
                         // The layer's currently-applied speed (amendment A62 defect 4), not a flat
                         // 1 — a block issued while the host has slowed or paused playback must not
                         // silently resume at normal speed.
@@ -271,6 +294,256 @@ namespace DotsAnimationToolkit
                     entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
                 }
                 slotStates[slotIndex] = slotState;
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Facing (amendment A65 §3.2). The toolkit writes an angle and re-picks the direction set's
+        // variant clip; it never writes PartFacing (decision A65-D2) — the host owns that.
+        // -----------------------------------------------------------------------------------
+
+        private struct PendingFacingOp
+        {
+            public Entity entity;
+            public float angleDegrees;
+        }
+
+        /// <summary>
+        /// Writes every bound Actor slot's facing and re-picks its direction variant when the angle
+        /// has turned far enough to call for a different clip.
+        /// </summary>
+        /// <remarks>
+        /// Adding <see cref="CutsceneFacing"/> is a structural change and is queued; setting its
+        /// value and its enabled bit is not, and stays inline so the common frame — every frame
+        /// after the first — costs nothing but a write.
+        /// </remarks>
+        private static void ProcessFacing(
+            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
+            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
+            ref CutscenePlaybackState playbackState, NativeList<PendingFacingOp> pendingFacingOps)
+        {
+            ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
+            int slotCount = math.min(blob.slots.Length, slotStates.Length);
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                if (blob.slots[slotIndex].kind != CutsceneSlotKind.Actor)
+                {
+                    continue;
+                }
+                Entity actorEntity;
+                if (!TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out actorEntity))
+                {
+                    continue;
+                }
+
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                float angleDegrees;
+                if (!TryResolveSlotFacingAngle(
+                        entityManager, ref segment, slotIndex, actorEntity, in slotState,
+                        playbackState.timeInSegment, out angleDegrees))
+                {
+                    // No override key and nothing moving: leave whatever facing is in effect alone
+                    // rather than snapping the actor east.
+                    continue;
+                }
+
+                if (entityManager.HasComponent<CutsceneFacing>(actorEntity))
+                {
+                    entityManager.SetComponentData(
+                        actorEntity, new CutsceneFacing { angleDegrees = angleDegrees });
+                    entityManager.SetComponentEnabled<CutsceneFacing>(actorEntity, true);
+                }
+                else
+                {
+                    pendingFacingOps.Add(new PendingFacingOp
+                    {
+                        entity = actorEntity,
+                        angleDegrees = angleDegrees
+                    });
+                }
+
+                ReissueDirectionVariant(
+                    entityManager, ref blob, layerIndex, layerSpeed, slotIndex, actorEntity,
+                    angleDegrees, ref slotState);
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        /// <summary>
+        /// The facing angle a slot is under at <paramref name="timeInSegment"/>: an override key
+        /// first, then — while the slot is walking to a mark — the direction of the mark it has been
+        /// sent to, and otherwise the direction its root lane is travelling.
+        /// </summary>
+        /// <remarks>
+        /// The mark branch exists because A64 suspends a slot's root lane while a mark is
+        /// outstanding (the host is walking the actor and owns the transform), so the lane says
+        /// where the rehearsal would have put it, not where the actor is going. Facing off the
+        /// vector to the mark is what the actor is actually doing, and it costs no new state
+        /// (decision A65-D4).
+        /// </remarks>
+        private static bool TryResolveSlotFacingAngle(
+            EntityManager entityManager, ref CutsceneSegmentBlob segment, int slotIndex, Entity boundEntity,
+            in CutsceneSlotRuntimeState slotState, float timeInSegment, out float angleDegrees)
+        {
+            ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
+            if (CutsceneBlobSampler.TryResolveFacingOverride(
+                    ref slotSegment.facingKeys, timeInSegment, out angleDegrees))
+            {
+                return true;
+            }
+
+            if (slotState.hasOutstandingMark
+                && entityManager.HasComponent<CutsceneMoveToMark>(boundEntity)
+                && entityManager.IsComponentEnabled<CutsceneMoveToMark>(boundEntity)
+                && entityManager.HasComponent<LocalTransform>(boundEntity))
+            {
+                CutsceneMoveToMark order = entityManager.GetComponentData<CutsceneMoveToMark>(boundEntity);
+                float3 toMark = order.position - entityManager.GetComponentData<LocalTransform>(boundEntity).Position;
+                toMark.y = 0f;
+                if (math.lengthsq(toMark) < 1e-6f)
+                {
+                    return false;
+                }
+                angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in toMark);
+                return true;
+            }
+
+            return CutsceneBlobSampler.TryDeriveFacingFromRootTravel(
+                ref slotSegment.transformKeys, timeInSegment, out angleDegrees);
+        }
+
+        /// <summary>The clip a block plays once facing has had its say, or its authored clip when the block has no variants.</summary>
+        private static ulong ResolveVariantClipIdForSlot(
+            EntityManager entityManager, ref CutsceneBlob blob, ref CutsceneSegmentBlob segment, int slotIndex,
+            Entity boundEntity, in CutsceneSlotRuntimeState slotState, float timeInSegment,
+            in CutsceneDirectionVariantsBlob variants, ulong authoredClipId)
+        {
+            if (!variants.hasVariants)
+            {
+                return authoredClipId;
+            }
+
+            float angleDegrees;
+            if (!TryResolveSlotFacingAngle(
+                    entityManager, ref segment, slotIndex, boundEntity, in slotState, timeInSegment,
+                    out angleDegrees))
+            {
+                return authoredClipId;
+            }
+
+            Direction clipFacing;
+            bool mirrorX;
+            CutsceneFacingVariants.Resolve(
+                angleDegrees, variants.targetDirections, variants.effectiveDirections,
+                out clipFacing, out mirrorX);
+            ulong variantClipId = CutsceneFacingVariants.SelectVariantClipId(in variants, clipFacing);
+            return variantClipId != 0UL ? variantClipId : authoredClipId;
+        }
+
+        /// <summary>
+        /// Swaps the clip a playing block is showing when the actor has turned onto a different
+        /// variant: <c>Play</c> with no blend, then <c>SetTime</c> carrying the phase over
+        /// (decision A65-D3, no new command kind). The layer's time is read <em>before</em> the
+        /// commands are appended — <c>CommandApplySystem</c> drains the buffer in order, so the
+        /// <c>Play</c> that resets the clock has not run yet.
+        /// </summary>
+        private static void ReissueDirectionVariant(
+            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
+            int slotIndex, Entity actorEntity, float angleDegrees, ref CutsceneSlotRuntimeState slotState)
+        {
+            if (slotState.activeBlockSegmentIndex < 0
+                || slotState.activeBlockSegmentIndex >= blob.segments.Length
+                || !entityManager.HasComponent<AnimationCommand>(actorEntity)
+                || !entityManager.HasBuffer<PlaybackLayer>(actorEntity))
+            {
+                return;
+            }
+
+            ref CutsceneSlotSegmentBlob activeSlotSegment =
+                ref blob.segments[slotState.activeBlockSegmentIndex].slotTracks[slotIndex];
+            if (slotState.activeBlockIndex < 0 || slotState.activeBlockIndex >= activeSlotSegment.clipBlocks.Length)
+            {
+                return;
+            }
+
+            ref CutsceneClipBlockBlob activeBlock = ref activeSlotSegment.clipBlocks[slotState.activeBlockIndex];
+            if (!activeBlock.directionVariants.hasVariants)
+            {
+                return;
+            }
+
+            Direction clipFacing;
+            bool mirrorX;
+            CutsceneFacingVariants.Resolve(
+                angleDegrees, activeBlock.directionVariants.targetDirections,
+                activeBlock.directionVariants.effectiveDirections, out clipFacing, out mirrorX);
+            ulong variantClipId =
+                CutsceneFacingVariants.SelectVariantClipId(in activeBlock.directionVariants, clipFacing);
+            if (variantClipId == 0UL || variantClipId == slotState.activeVariantClipId)
+            {
+                return;
+            }
+
+            DynamicBuffer<PlaybackLayer> layers = entityManager.GetBuffer<PlaybackLayer>(actorEntity);
+            float carriedTime = layerIndex < layers.Length ? layers[layerIndex].time : 0f;
+
+            DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
+            commands.Add(new AnimationCommand
+            {
+                kind = CommandKind.Play,
+                layerIndex = layerIndex,
+                clip = new ClipId(variantClipId),
+                speed = layerSpeed,
+                loop = activeBlock.loop ? LoopMode.Loop : LoopMode.Once,
+                blendDuration = 0f,
+                time = 0f
+            });
+            commands.Add(new AnimationCommand
+            {
+                kind = CommandKind.SetTime,
+                layerIndex = layerIndex,
+                clip = default,
+                speed = 0f,
+                loop = LoopMode.UseClipDefault,
+                blendDuration = float.NaN,
+                time = carriedTime
+            });
+            entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+            slotState.activeVariantClipId = variantClipId;
+        }
+
+        private static void ApplyPendingFacingOps(
+            EntityManager entityManager, NativeList<PendingFacingOp> pendingFacingOps)
+        {
+            for (int opIndex = 0; opIndex < pendingFacingOps.Length; opIndex++)
+            {
+                PendingFacingOp op = pendingFacingOps[opIndex];
+                if (!entityManager.Exists(op.entity))
+                {
+                    continue;
+                }
+                if (!entityManager.HasComponent<CutsceneFacing>(op.entity))
+                {
+                    entityManager.AddComponent<CutsceneFacing>(op.entity);
+                }
+                entityManager.SetComponentData(
+                    op.entity, new CutsceneFacing { angleDegrees = op.angleDegrees });
+                entityManager.SetComponentEnabled<CutsceneFacing>(op.entity, true);
+            }
+        }
+
+        /// <summary>A completed cutscene stops steering: the host's own facing takes over again.</summary>
+        private static void DisableActorFacing(
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings)
+        {
+            for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
+            {
+                Entity actorEntity;
+                if (TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out actorEntity)
+                    && entityManager.HasComponent<CutsceneFacing>(actorEntity))
+                {
+                    entityManager.SetComponentEnabled<CutsceneFacing>(actorEntity, false);
+                }
             }
         }
 
@@ -405,6 +678,7 @@ namespace DotsAnimationToolkit
         {
             StopActorLayers(entityManager, ref blob, layerIndex, bindings);
             ClearOutstandingMarks(entityManager, ref blob, bindings, slotStates);
+            DisableActorFacing(entityManager, ref blob, bindings);
             playbackState.isComplete = true;
         }
 

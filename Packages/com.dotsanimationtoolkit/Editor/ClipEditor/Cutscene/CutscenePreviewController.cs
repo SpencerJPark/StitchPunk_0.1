@@ -739,12 +739,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Walks the runtime facing path for a slot's angle at <paramref name="timeSeconds"/>, the
-        /// way the Direction Sets pane does: angle to a facing vector,
-        /// <see cref="FacingResolver.FromMovement"/> at the set's own turn granularity,
-        /// <see cref="FacingResolver.Snap"/> into the coverage the filled slots actually give, then
-        /// <see cref="FacingResolver.ToAuthoredSide"/>. Unresolved without a direction set — there is
-        /// then nothing that says which art serves which angle.
+        /// The slot's facing at <paramref name="timeSeconds"/>, resolved through the same
+        /// <see cref="CutsceneFacingVariants.Resolve"/> the runtime player calls. Unresolved without
+        /// a direction set — there is then nothing that says which art serves which angle.
         /// </summary>
         private static SlotFacing ResolveSlotFacing(CutsceneSlot slot, float timeSeconds)
         {
@@ -758,20 +755,13 @@ namespace DotsAnimationToolkit.Editor
             CutsceneKeySampler.TryResolveFacingAngle(
                 slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot), timeSeconds, out angleDegrees);
 
-            float angleRadians = Mathf.Deg2Rad * angleDegrees;
-            float2 facingVector = new float2(Mathf.Cos(angleRadians), Mathf.Sin(angleRadians));
-            // No hysteresis seed: the angle is authored rather than sampled from noisy movement, so
-            // the same playhead must always resolve to the same facing however it was scrubbed to.
-            Direction memberFacing = FacingResolver.FromMovement(
-                in facingVector, slot.directionSet.targetDirections, Direction.SouthEast);
-
             AnimationDirections coverage;
             slot.directionSet.TryGetEffectiveDirections(out coverage);
-            Direction foldedFacing = FacingResolver.Snap(memberFacing, coverage);
 
             Direction clipFacing;
             bool mirrorX;
-            FacingResolver.ToAuthoredSide(foldedFacing, out clipFacing, out mirrorX);
+            CutsceneFacingVariants.Resolve(
+                angleDegrees, slot.directionSet.targetDirections, coverage, out clipFacing, out mirrorX);
 
             facing.isResolved = true;
             facing.clipFacing = clipFacing;
@@ -793,25 +783,13 @@ namespace DotsAnimationToolkit.Editor
         private static ulong ResolveFacingVariantClipId(
             CutsceneSlot slot, in SlotFacing facing, ulong authoredClipId)
         {
-            if (!facing.isResolved || authoredClipId == 0UL || !IsDirectionSetMember(slot.directionSet, authoredClipId))
+            if (!facing.isResolved
+                || !CutsceneDirectionVariants.IsDirectionSetMember(slot.directionSet, authoredClipId))
             {
                 return authoredClipId;
             }
             ClipAsset variantClip = slot.directionSet.GetSlot(facing.clipFacing);
             return variantClip != null ? variantClip.Id.Value : authoredClipId;
-        }
-
-        private static bool IsDirectionSetMember(DirectionSetAsset directionSet, ulong clipId)
-        {
-            for (int slotIndex = 0; slotIndex < DirectionSlotOrder.Length; slotIndex++)
-            {
-                ClipAsset slotClip = directionSet.GetSlot(DirectionSlotOrder[slotIndex]);
-                if (slotClip != null && slotClip.Id.Value == clipId)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         /// <summary>What the slot's facing resolves to at a time, for the slot inspector's readout.</summary>
@@ -824,12 +802,6 @@ namespace DotsAnimationToolkit.Editor
             }
             return "plays the " + facing.clipFacing + " variant" + (facing.mirrorX ? ", mirrored" : string.Empty);
         }
-
-        /// <summary>The five east-side slots a direction set authors, in the order the queue lists them.</summary>
-        private static readonly Direction[] DirectionSlotOrder =
-        {
-            Direction.South, Direction.SouthEast, Direction.East, Direction.NorthEast, Direction.North
-        };
 
         /// <summary>
         /// Reflects every facing part about the actor's vertical axis when the resolved facing is

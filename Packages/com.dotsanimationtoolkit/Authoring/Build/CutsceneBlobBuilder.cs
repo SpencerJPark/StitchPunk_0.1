@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Authoring
     public static class CutsceneBlobBuilder
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
-        public const int SchemaVersion = 4;
+        public const int SchemaVersion = 5;
 
         private const float BoundaryEpsilon = 1e-5f;
 
@@ -660,7 +660,8 @@ namespace DotsAnimationToolkit.Authoring
                     start = block.start - segmentStart,
                     duration = block.duration,
                     loop = block.loop,
-                    blendDuration = blendDuration
+                    blendDuration = blendDuration,
+                    directionVariants = CutsceneDirectionVariants.Build(slot, block.clipId)
                 });
 
                 previousBlock = block;

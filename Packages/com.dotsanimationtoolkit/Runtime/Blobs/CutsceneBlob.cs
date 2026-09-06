@@ -177,6 +177,49 @@ namespace DotsAnimationToolkit
         /// gap (a hard cut).
         /// </summary>
         public float blendDuration;
+
+        /// <summary>
+        /// The direction set's siblings for this block's clip (amendment A65 3.2), or
+        /// <see cref="CutsceneDirectionVariantsBlob.hasVariants"/> false when the block names a clip
+        /// the slot's set has never heard of - a wave stays a wave whichever way the actor turns.
+        /// </summary>
+        public CutsceneDirectionVariantsBlob directionVariants;
+    }
+
+    /// <summary>
+    /// One clip block's turn table (amendment A65 3.2): the five east-side clips its direction set
+    /// authors, plus the two direction counts the resolve chain needs. Baked because the runtime has
+    /// no <c>DirectionSetAsset</c> to read - the same reason a part track's tag is resolved at bake
+    /// (decision G-D9).
+    /// </summary>
+    public struct CutsceneDirectionVariantsBlob
+    {
+        /// <summary>False when this block's clip is not a member of the slot's direction set, or the slot has none.</summary>
+        public bool hasVariants;
+
+        /// <summary>Clip id of the set's slot for that east-side facing; 0 where the set leaves one empty.</summary>
+        public ulong south;
+
+        /// <summary>See <see cref="south"/>.</summary>
+        public ulong southEast;
+
+        /// <summary>See <see cref="south"/>.</summary>
+        public ulong east;
+
+        /// <summary>See <see cref="south"/>.</summary>
+        public ulong northEast;
+
+        /// <summary>See <see cref="south"/>.</summary>
+        public ulong north;
+
+        /// <summary>
+        /// The actor's own turn granularity (<c>DirectionSetAsset.targetDirections</c>) - what a
+        /// facing angle quantizes to before the set's coverage folds it.
+        /// </summary>
+        public AnimationDirections targetDirections;
+
+        /// <summary>What the set's filled slots actually cover, derived at bake by <c>TryGetEffectiveDirections</c>.</summary>
+        public AnimationDirections effectiveDirections;
     }
 
     /// <summary>One baked transform key (Phase G §2). Rotation is stored in radians (converted at bake; authoring is degrees, matching <c>TransformKeyBlob</c>'s own convention).</summary>
