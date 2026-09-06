@@ -31,6 +31,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<VisualElement> markerElements = new List<VisualElement>();
         private readonly List<float> times = new List<float>();
         private readonly List<string> variantClasses = new List<string>();
+        private readonly List<bool> readOnlyFlags = new List<bool>();
         private int selectedIndex = -1;
         private int draggingIndex = -1;
         private float dragStartPointerX;
@@ -77,6 +78,18 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public void SetTimes(IReadOnlyList<float> newTimes, int newSelectedIndex, IReadOnlyList<string> markerVariantClasses)
         {
+            SetTimes(newTimes, newSelectedIndex, markerVariantClasses, null);
+        }
+
+        /// <summary>
+        /// As the variant-class overload, plus a per-marker read-only flag: a read-only marker is
+        /// drawn and never picked, so a lane can show a moment it does not own — the ghost a holding
+        /// event casts onto the Holds row (amendment A65 §3.1), whose editable half is the event.
+        /// </summary>
+        public void SetTimes(
+            IReadOnlyList<float> newTimes, int newSelectedIndex,
+            IReadOnlyList<string> markerVariantClasses, IReadOnlyList<bool> markerReadOnlyFlags)
+        {
             times.Clear();
             if (newTimes != null)
             {
@@ -88,6 +101,14 @@ namespace DotsAnimationToolkit.Editor
                 for (int index = 0; index < markerVariantClasses.Count; index++)
                 {
                     variantClasses.Add(markerVariantClasses[index]);
+                }
+            }
+            readOnlyFlags.Clear();
+            if (markerReadOnlyFlags != null)
+            {
+                for (int index = 0; index < markerReadOnlyFlags.Count; index++)
+                {
+                    readOnlyFlags.Add(markerReadOnlyFlags[index]);
                 }
             }
             selectedIndex = newSelectedIndex;
@@ -117,6 +138,16 @@ namespace DotsAnimationToolkit.Editor
                 }
                 marker.EnableInClassList(SelectedMarkerUssClassName, capturedIndex == selectedIndex);
                 PositionMarker(marker, times[capturedIndex]);
+
+                if (capturedIndex < readOnlyFlags.Count && readOnlyFlags[capturedIndex])
+                {
+                    // Ignored rather than merely callback-less, so a click falls through to the
+                    // lane behind it and still selects (or double-click-adds) as if it were empty.
+                    marker.pickingMode = PickingMode.Ignore;
+                    Add(marker);
+                    markerElements.Add(marker);
+                    continue;
+                }
 
                 marker.RegisterCallback<PointerDownEvent>(
                     pointerEvent => OnMarkerPointerDown(pointerEvent, capturedIndex, marker));

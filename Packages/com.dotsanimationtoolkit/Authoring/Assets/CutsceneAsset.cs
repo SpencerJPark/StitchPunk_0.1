@@ -389,6 +389,14 @@ namespace DotsAnimationToolkit.Authoring
         /// leave the same world state as a watched one unless a marker explicitly opts out.
         /// </summary>
         public bool fireOnSkip = true;
+
+        /// <summary>
+        /// Makes this event a <em>cue</em> (amendment A65 §3.1, decision A65-D1): the clock pauses
+        /// the instant the event fires and resumes when the host releases a hold named after the
+        /// event's registry name. One marker instead of an event plus a hold whose id an author has
+        /// to keep matching by hand.
+        /// </summary>
+        public bool holdUntilReleased;
     }
 
     /// <summary>

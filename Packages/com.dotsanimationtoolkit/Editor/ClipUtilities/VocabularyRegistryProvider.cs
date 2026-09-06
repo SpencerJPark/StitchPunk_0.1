@@ -148,6 +148,19 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        /// <summary>
+        /// Hands the event vocabulary to <c>Authoring/</c>, which bakes a holding event's hold under
+        /// the event's own name (amendment A65 §3.1) but may not name <c>UnityEditor</c> to find it.
+        /// </summary>
+        [InitializeOnLoadMethod]
+        private static void PublishEventVocabularyToAuthoring()
+        {
+            // A lazy accessor, not the registry: this runs on every domain reload, and reading the
+            // property here would load (and on a fresh project create) the settings file whether or
+            // not anything ever bakes a cutscene.
+            CutsceneDerivedHolds.EventNameRegistrySource = () => AnimEventKeys;
+        }
+
         private static TRegistry LoadOrCreate<TRegistry>(string filePath)
             where TRegistry : ScriptableObject
         {

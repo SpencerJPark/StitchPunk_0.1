@@ -71,7 +71,7 @@ namespace DotsAnimationToolkit.Authoring
             // the boundary pass, the content end and the bucketing all see the same lane the editor
             // preview walks.
             List<CutsceneTransformKey>[] effectiveRootKeysBySlot = BuildEffectiveRootKeysBySlot(cutscene);
-            List<SegmentBoundary> boundaries = ComputeSegmentBoundaries(cutscene, effectiveRootKeysBySlot);
+            List<SegmentBoundary> boundaries = ComputeSegmentBoundaries(cutscene, effectiveRootKeysBySlot, warnings);
             WarnOnMarksWalkingThroughARendezvousHold(cutscene, warnings);
 
             BlobBuilder builder = new BlobBuilder(Allocator.Temp);
@@ -169,17 +169,22 @@ namespace DotsAnimationToolkit.Authoring
         /// segment <c>i</c> pauses on (empty for the final, synthetic end-of-content boundary).
         /// </summary>
         private static List<SegmentBoundary> ComputeSegmentBoundaries(
-            CutsceneAsset cutscene, List<CutsceneTransformKey>[] effectiveRootKeysBySlot)
+            CutsceneAsset cutscene, List<CutsceneTransformKey>[] effectiveRootKeysBySlot, List<string> warnings)
         {
             List<SegmentBoundary> boundaries = new List<SegmentBoundary> { new SegmentBoundary { time = 0f, holdId = null } };
 
+            // Hold boundaries are collected apart from the opening one and only then appended: a
+            // hold authored at 0 shares its time with the opening boundary, and a sort over the
+            // whole list could put it first, where its id would be read as "the timeline opens" and
+            // silently lost.
+            List<SegmentBoundary> holdBoundaries = new List<SegmentBoundary>();
             if (cutscene.holdMarkers != null)
             {
                 List<CutsceneHoldMarker> sortedHolds = new List<CutsceneHoldMarker>(cutscene.holdMarkers);
                 sortedHolds.Sort((left, right) => left.time.CompareTo(right.time));
                 for (int i = 0; i < sortedHolds.Count; i++)
                 {
-                    boundaries.Add(new SegmentBoundary
+                    holdBoundaries.Add(new SegmentBoundary
                     {
                         time = Mathf.Max(0f, sortedHolds[i].time),
                         holdId = sortedHolds[i].holdId ?? string.Empty,
@@ -187,6 +192,10 @@ namespace DotsAnimationToolkit.Authoring
                     });
                 }
             }
+
+            AddDerivedHoldBoundaries(cutscene, holdBoundaries, warnings);
+            SortByTimeKeepingOrder(holdBoundaries);
+            boundaries.AddRange(holdBoundaries);
 
             float naturalEnd = ComputeContentEndSeconds(cutscene, effectiveRootKeysBySlot);
             float lastBoundaryTime = boundaries[boundaries.Count - 1].time;
@@ -196,6 +205,80 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             return boundaries;
+        }
+
+        /// <summary>
+        /// Adds one boundary per holding event (amendment A65 3.1). A derived hold never
+        /// auto-releases: marks resolve a rendezvous, a cue is resolved by whoever the cue started.
+        /// </summary>
+        /// <remarks>
+        /// Two holding events at one instant share a boundary and both fire; an authored hold at
+        /// that instant keeps its own id and the event pauses on that, because a host waiting on the
+        /// authored name would otherwise never see the hold it was told about.
+        /// </remarks>
+        private static void AddDerivedHoldBoundaries(
+            CutsceneAsset cutscene, List<SegmentBoundary> holdBoundaries, List<string> warnings)
+        {
+            List<CutsceneDerivedHolds.DerivedHold> derivedHolds = CutsceneDerivedHolds.Collect(cutscene);
+            for (int derivedIndex = 0; derivedIndex < derivedHolds.Count; derivedIndex++)
+            {
+                CutsceneDerivedHolds.DerivedHold derivedHold = derivedHolds[derivedIndex];
+                float boundaryTime = Mathf.Max(0f, derivedHold.time);
+
+                int existingIndex = FindHoldBoundaryAt(holdBoundaries, boundaryTime);
+                if (existingIndex >= 0)
+                {
+                    warnings.Add(
+                        "Cutscene event " + derivedHold.eventIndex + " holds at "
+                        + boundaryTime.ToString("0.###") + "s, where hold '" + holdBoundaries[existingIndex].holdId
+                        + "' already pauses the clock. One hold is baked and the first id wins - "
+                        + "release '" + holdBoundaries[existingIndex].holdId + "', not '" + derivedHold.holdId + "'.");
+                    continue;
+                }
+
+                if (!derivedHold.nameResolved)
+                {
+                    warnings.Add(
+                        "Cutscene event " + derivedHold.eventIndex + " holds the clock but its key is not "
+                        + "in the project event vocabulary. Baked as hold '" + derivedHold.holdId
+                        + "' - the host must release that exact id.");
+                }
+
+                holdBoundaries.Add(new SegmentBoundary { time = boundaryTime, holdId = derivedHold.holdId });
+            }
+        }
+
+        /// <summary>
+        /// Insertion sort, so boundaries sharing an instant keep the order they were collected in —
+        /// authored holds before derived ones, and each group in its own authored order.
+        /// <c>List.Sort</c> is unstable and would make "the first hold at this time" a coin flip.
+        /// </summary>
+        private static void SortByTimeKeepingOrder(List<SegmentBoundary> boundaries)
+        {
+            for (int index = 1; index < boundaries.Count; index++)
+            {
+                SegmentBoundary boundary = boundaries[index];
+                int insertAt = index - 1;
+                while (insertAt >= 0 && boundaries[insertAt].time > boundary.time)
+                {
+                    boundaries[insertAt + 1] = boundaries[insertAt];
+                    insertAt--;
+                }
+                boundaries[insertAt + 1] = boundary;
+            }
+        }
+
+        /// <summary>The hold boundary already sitting at <paramref name="time"/>, or -1 for none.</summary>
+        private static int FindHoldBoundaryAt(List<SegmentBoundary> boundaries, float time)
+        {
+            for (int boundaryIndex = 0; boundaryIndex < boundaries.Count; boundaryIndex++)
+            {
+                if (Mathf.Abs(boundaries[boundaryIndex].time - time) <= BoundaryEpsilon)
+                {
+                    return boundaryIndex;
+                }
+            }
+            return -1;
         }
 
         private static float ComputeContentEndSeconds(
@@ -301,7 +384,31 @@ namespace DotsAnimationToolkit.Authoring
         /// </summary>
         private static int AssignToSegment(List<SegmentBoundary> boundaries, float time, out float segmentStart)
         {
+            return AssignToSegment(boundaries, time, false, out segmentStart);
+        }
+
+        /// <param name="inclusiveEnd">
+        /// Assigns a moment sitting exactly on a boundary to the segment that <em>ends</em> there
+        /// rather than the one that starts (amendment A65 3.1). Used only by a holding event, which
+        /// must fire on the frame its own hold engages - the host sees the cue, starts its thing,
+        /// and the clock is already waiting for the release.
+        /// </param>
+        private static int AssignToSegment(
+            List<SegmentBoundary> boundaries, float time, bool inclusiveEnd, out float segmentStart)
+        {
             int segmentCount = boundaries.Count - 1;
+            if (inclusiveEnd)
+            {
+                for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
+                {
+                    if (Mathf.Abs(boundaries[segmentIndex + 1].time - time) <= BoundaryEpsilon)
+                    {
+                        segmentStart = boundaries[segmentIndex].time;
+                        return segmentIndex;
+                    }
+                }
+            }
+
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
                 float windowStart = boundaries[segmentIndex].time;
@@ -789,7 +896,8 @@ namespace DotsAnimationToolkit.Authoring
             for (int i = 0; i < events.Count; i++)
             {
                 float segmentStart;
-                int segmentIndex = AssignToSegment(boundaries, events[i].time, out segmentStart);
+                int segmentIndex = AssignToSegment(
+                    boundaries, events[i].time, events[i].holdUntilReleased, out segmentStart);
                 bucket[segmentIndex].Add(new CutsceneEventMarkerBlob
                 {
                     time = events[i].time - segmentStart,

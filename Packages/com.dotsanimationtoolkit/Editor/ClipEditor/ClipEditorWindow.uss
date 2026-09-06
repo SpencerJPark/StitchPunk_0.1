@@ -1407,6 +1407,21 @@
     border-width: 2px;
 }
 
+/* An event that holds the clock wears the hold lane's colour as its border — the event's own fill
+   still says "event", the ring says "and the clock stops here". */
+.cutscene-editor__moment-marker--holding {
+    border-width: 3px;
+    border-color: rgb(242, 217, 77);
+}
+
+/* The hold a holding event implies, drawn on the Holds row but owned by the event: dimmed, and
+   not selectable, so nobody edits the shadow instead of the thing casting it. */
+.cutscene-editor__moment-marker--derived {
+    opacity: 0.45;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
 .cutscene-editor__transport {
     flex-direction: row;
     align-items: center;

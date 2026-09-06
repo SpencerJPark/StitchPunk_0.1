@@ -102,8 +102,13 @@ namespace DotsAnimationToolkit.Editor
         private float playbackSpeed = 1f;
         private float prePlayPlayheadSeconds;
 
-        /// <summary>Index into <see cref="CutsceneAsset.holdMarkers"/> the transport is waiting on, or −1.</summary>
-        private int gatingHoldIndex = -1;
+        /// <summary>
+        /// The hold the transport is waiting on, valid only while <see cref="isGatingOnHold"/>.
+        /// Held by value rather than by index because a derived hold (amendment A65 3.1) has no row
+        /// in <see cref="CutsceneAsset.holdMarkers"/> to index into.
+        /// </summary>
+        private EffectiveHold gatingHold;
+        private bool isGatingOnHold;
 
         private int selectedSlotIndex = -1;
         private SelectedLaneKind selectedLaneKind = SelectedLaneKind.None;
@@ -490,15 +495,15 @@ namespace DotsAnimationToolkit.Editor
             }
             prePlayPlayheadSeconds = playheadSeconds;
             previewController.HoldClipPhaseSeconds = 0f;
-            gatingHoldIndex = -1;
+            isGatingOnHold = false;
             SetPlaying(true);
         }
 
         private void StopPlayback()
         {
-            bool wasRunning = isPlaying || gatingHoldIndex >= 0;
+            bool wasRunning = isPlaying || isGatingOnHold;
             SetPlaying(false);
-            gatingHoldIndex = -1;
+            isGatingOnHold = false;
             previewController.HoldClipPhaseSeconds = 0f;
             if (wasRunning)
             {
@@ -533,12 +538,12 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReleaseHold()
         {
-            if (gatingHoldIndex < 0)
+            if (!isGatingOnHold)
             {
                 return;
             }
             // Stepping a hair past the marker so the same hold is not re-detected on the next tick.
-            gatingHoldIndex = -1;
+            isGatingOnHold = false;
             playheadSeconds += HoldReleaseEpsilon;
             RefreshTransportStatus();
         }
@@ -568,7 +573,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (gatingHoldIndex >= 0)
+            if (isGatingOnHold)
             {
                 previewController.HoldClipPhaseSeconds += elapsed * playbackSpeed;
                 ApplyPreviewAtPlayhead();
@@ -577,13 +582,14 @@ namespace DotsAnimationToolkit.Editor
 
             float advancedTime = playheadSeconds + elapsed * playbackSpeed;
 
-            int crossedHoldIndex = skipHoldsToggle != null && skipHoldsToggle.value
-                ? -1
-                : FindFirstHoldCrossed(playheadSeconds, advancedTime);
-            if (crossedHoldIndex >= 0)
+            EffectiveHold crossedHold = default;
+            bool crossedAHold = (skipHoldsToggle == null || !skipHoldsToggle.value)
+                && TryFindFirstHoldCrossed(playheadSeconds, advancedTime, out crossedHold);
+            if (crossedAHold)
             {
-                gatingHoldIndex = crossedHoldIndex;
-                SetPlayhead(cutscene.holdMarkers[crossedHoldIndex].time);
+                gatingHold = crossedHold;
+                isGatingOnHold = true;
+                SetPlayhead(crossedHold.time);
                 RefreshTransportStatus();
                 return;
             }
@@ -606,31 +612,114 @@ namespace DotsAnimationToolkit.Editor
             SetPlayhead(advancedTime);
         }
 
-        /// <summary>The first hold marker strictly after <paramref name="fromSeconds"/> and at or before <paramref name="toSeconds"/>.</summary>
-        private int FindFirstHoldCrossed(float fromSeconds, float toSeconds)
+        /// <summary>
+        /// One point where the transport stops: an authored hold marker, or the hold a holding
+        /// event derives (amendment A65 3.1). The bake merges the two the same way, so the
+        /// transport has to rehearse both or Continue would rehearse a release the runtime never
+        /// waits for.
+        /// </summary>
+        private struct EffectiveHold
         {
-            int firstIndex = -1;
+            public float time;
+            public string holdId;
+            public bool autoReleaseWhenMarksReached;
+
+            /// <summary>True for a hold an event implies, which has no <see cref="CutsceneAsset.holdMarkers"/> row of its own.</summary>
+            public bool isDerivedFromEvent;
+        }
+
+        /// <summary>Authored holds plus every holding event's derived hold, ascending by time.</summary>
+        private List<EffectiveHold> BuildEffectiveHolds()
+        {
+            List<EffectiveHold> effectiveHolds = new List<EffectiveHold>();
+            if (cutscene == null)
+            {
+                return effectiveHolds;
+            }
+
+            if (cutscene.holdMarkers != null)
+            {
+                for (int holdIndex = 0; holdIndex < cutscene.holdMarkers.Count; holdIndex++)
+                {
+                    CutsceneHoldMarker holdMarker = cutscene.holdMarkers[holdIndex];
+                    if (holdMarker == null)
+                    {
+                        continue;
+                    }
+                    effectiveHolds.Add(new EffectiveHold
+                    {
+                        time = holdMarker.time,
+                        holdId = holdMarker.holdId,
+                        autoReleaseWhenMarksReached = holdMarker.autoReleaseWhenMarksReached
+                    });
+                }
+            }
+
+            List<CutsceneDerivedHolds.DerivedHold> derivedHolds = CutsceneDerivedHolds.Collect(cutscene);
+            for (int derivedIndex = 0; derivedIndex < derivedHolds.Count; derivedIndex++)
+            {
+                // The bake drops a derived hold that lands on an authored one, so the rehearsal
+                // must too, or the transport would stop twice where playback stops once.
+                if (HasAuthoredHoldAt(derivedHolds[derivedIndex].time))
+                {
+                    continue;
+                }
+                effectiveHolds.Add(new EffectiveHold
+                {
+                    time = derivedHolds[derivedIndex].time,
+                    holdId = derivedHolds[derivedIndex].holdId,
+                    isDerivedFromEvent = true
+                });
+            }
+
+            effectiveHolds.Sort((left, right) => left.time.CompareTo(right.time));
+            return effectiveHolds;
+        }
+
+        private bool HasAuthoredHoldAt(float timeSeconds)
+        {
             if (cutscene.holdMarkers == null)
             {
-                return -1;
+                return false;
             }
             for (int holdIndex = 0; holdIndex < cutscene.holdMarkers.Count; holdIndex++)
             {
                 CutsceneHoldMarker holdMarker = cutscene.holdMarkers[holdIndex];
-                if (holdMarker == null || holdMarker.time <= fromSeconds || holdMarker.time > toSeconds)
+                if (holdMarker != null && Mathf.Abs(holdMarker.time - timeSeconds) <= HoldMergeEpsilon)
                 {
-                    continue;
-                }
-                if (RendezvousIsSatisfiedAt(holdMarker))
-                {
-                    continue;
-                }
-                if (firstIndex < 0 || holdMarker.time < cutscene.holdMarkers[firstIndex].time)
-                {
-                    firstIndex = holdIndex;
+                    return true;
                 }
             }
-            return firstIndex;
+            return false;
+        }
+
+        /// <summary>Matches <c>CutsceneBlobBuilder</c>'s own boundary epsilon, so editor and bake merge the same holds.</summary>
+        private const float HoldMergeEpsilon = 1e-5f;
+
+        /// <summary>The first hold strictly after <paramref name="fromSeconds"/> and at or before <paramref name="toSeconds"/>.</summary>
+        private bool TryFindFirstHoldCrossed(float fromSeconds, float toSeconds, out EffectiveHold crossedHold)
+        {
+            crossedHold = default;
+            bool found = false;
+            List<EffectiveHold> effectiveHolds = BuildEffectiveHolds();
+            for (int holdIndex = 0; holdIndex < effectiveHolds.Count; holdIndex++)
+            {
+                EffectiveHold effectiveHold = effectiveHolds[holdIndex];
+                if (effectiveHold.time <= fromSeconds || effectiveHold.time > toSeconds)
+                {
+                    continue;
+                }
+                if (RendezvousIsSatisfiedAt(effectiveHold))
+                {
+                    continue;
+                }
+                if (!found || effectiveHold.time < crossedHold.time)
+                {
+                    crossedHold = effectiveHold;
+                    found = true;
+                }
+            }
+            return found;
         }
 
         /// <summary>
@@ -640,9 +729,9 @@ namespace DotsAnimationToolkit.Editor
         /// runtime's own auto-release would. A mark that is still walking gates the transport and
         /// waits for Continue, and the bake warns about that shape as well.
         /// </summary>
-        private bool RendezvousIsSatisfiedAt(CutsceneHoldMarker holdMarker)
+        private bool RendezvousIsSatisfiedAt(in EffectiveHold effectiveHold)
         {
-            if (!holdMarker.autoReleaseWhenMarksReached || cutscene.slots == null)
+            if (!effectiveHold.autoReleaseWhenMarksReached || cutscene.slots == null)
             {
                 return false;
             }
@@ -656,8 +745,8 @@ namespace DotsAnimationToolkit.Editor
                 for (int markIndex = 0; markIndex < slot.markKeys.Count; markIndex++)
                 {
                     CutsceneMarkKey mark = slot.markKeys[markIndex];
-                    if (mark.time <= holdMarker.time
-                        && CutsceneMarkMerge.ArrivalTime(mark) > holdMarker.time + HoldReleaseEpsilon)
+                    if (mark.time <= effectiveHold.time
+                        && CutsceneMarkMerge.ArrivalTime(mark) > effectiveHold.time + HoldReleaseEpsilon)
                     {
                         return false;
                     }
@@ -691,11 +780,12 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (gatingHoldIndex >= 0 && cutscene != null && gatingHoldIndex < cutscene.holdMarkers.Count)
+            if (isGatingOnHold && cutscene != null)
             {
-                string holdId = cutscene.holdMarkers[gatingHoldIndex].holdId;
+                string holdId = gatingHold.holdId;
                 transportStatusLabel.text =
-                    "Holding on '" + (string.IsNullOrEmpty(holdId) ? "(unnamed hold)" : holdId) + "'.";
+                    "Holding on '" + (string.IsNullOrEmpty(holdId) ? "(unnamed hold)" : holdId) + "'"
+                    + (gatingHold.isDerivedFromEvent ? " (event cue)." : ".");
                 continueButton.style.display = DisplayStyle.Flex;
                 return;
             }
@@ -2141,9 +2231,13 @@ namespace DotsAnimationToolkit.Editor
         {
             SerializedProperty eventsProperty = serializedObject.FindProperty("events");
             List<float> times = new List<float>(cutscene.events.Count);
+            List<string> variantClasses = new List<string>(cutscene.events.Count);
             for (int i = 0; i < cutscene.events.Count; i++)
             {
                 times.Add(cutscene.events[i].time);
+                variantClasses.Add(cutscene.events[i].holdUntilReleased
+                    ? "cutscene-editor__moment-marker--holding"
+                    : null);
             }
 
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
@@ -2153,7 +2247,7 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.Event;
-            lane.SetTimes(times, isSelected ? selectedItemIndex : -1);
+            lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses);
             lane.MomentSelected += index => SelectItem(-1, SelectedLaneKind.Event, -1, index);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertEventDefault(eventsProperty, time);
@@ -2163,13 +2257,36 @@ namespace DotsAnimationToolkit.Editor
                 isGroup: true, accentClass: "events"));
         }
 
+        /// <summary>
+        /// The Holds lane: every authored marker, then one read-only ghost per holding event
+        /// (amendment A65 3.1). The ghosts are not selectable - the thing to edit is the event,
+        /// which is one row up - but they have to be visible, or the timeline would show a clock
+        /// that stops somewhere nothing is drawn.
+        /// </summary>
         private void BuildHoldRows(VisualElement content, float contentWidth)
         {
             SerializedProperty holdsProperty = serializedObject.FindProperty("holdMarkers");
-            List<float> times = new List<float>(cutscene.holdMarkers.Count);
-            for (int i = 0; i < cutscene.holdMarkers.Count; i++)
+            int authoredHoldCount = cutscene.holdMarkers.Count;
+            List<float> times = new List<float>(authoredHoldCount);
+            List<string> variantClasses = new List<string>(authoredHoldCount);
+            List<bool> readOnlyFlags = new List<bool>(authoredHoldCount);
+            for (int i = 0; i < authoredHoldCount; i++)
             {
                 times.Add(cutscene.holdMarkers[i].time);
+                variantClasses.Add(null);
+                readOnlyFlags.Add(false);
+            }
+
+            List<CutsceneDerivedHolds.DerivedHold> derivedHolds = CutsceneDerivedHolds.Collect(cutscene);
+            for (int derivedIndex = 0; derivedIndex < derivedHolds.Count; derivedIndex++)
+            {
+                if (HasAuthoredHoldAt(derivedHolds[derivedIndex].time))
+                {
+                    continue;
+                }
+                times.Add(derivedHolds[derivedIndex].time);
+                variantClasses.Add("cutscene-editor__moment-marker--derived");
+                readOnlyFlags.Add(true);
             }
 
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
@@ -2179,7 +2296,7 @@ namespace DotsAnimationToolkit.Editor
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.Hold;
-            lane.SetTimes(times, isSelected ? selectedItemIndex : -1);
+            lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses, readOnlyFlags);
             lane.MomentSelected += index => SelectItem(-1, SelectedLaneKind.Hold, -1, index);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(holdsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertHoldDefault(holdsProperty, time);
@@ -3250,6 +3367,31 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField(eventProperty, "intParam", "Int Param");
             AddBoundField(eventProperty, "floatParam", "Float Param");
             AddBoundField(eventProperty, "fireOnSkip", "Fire On Skip");
+
+            // Not AddBoundField: this one changes the marker's glyph and adds a ghost to the Holds
+            // row, so it rebuilds the timeline - and a rebuild driven by an unfiltered bind echo is
+            // the flicker ShouldIgnoreBindingEcho exists for.
+            PropertyField holdField = new PropertyField(
+                eventProperty.FindPropertyRelative("holdUntilReleased"), "Hold Until Released");
+            holdField.Bind(serializedObject);
+            holdField.RegisterCallback<ChangeEvent<bool>>(changeEvent =>
+            {
+                if (ShouldIgnoreBindingEcho(changeEvent))
+                {
+                    return;
+                }
+                RebuildTimeline();
+            });
+            inspectorScroll.Add(holdField);
+
+            string derivedHoldId;
+            CutsceneDerivedHolds.TryResolveHoldId(cutscene.events[eventIndex].eventKey, out derivedHoldId);
+            Label holdNote = new Label(cutscene.events[eventIndex].holdUntilReleased
+                ? "Holds the clock as '" + derivedHoldId + "' until the host releases that id."
+                : "Fires and moves on.");
+            holdNote.style.whiteSpace = WhiteSpace.Normal;
+            holdNote.style.marginTop = 2f;
+            inspectorScroll.Add(holdNote);
         }
 
         private void BuildHoldInspector(int holdIndex)

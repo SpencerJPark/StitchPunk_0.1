@@ -91,6 +91,46 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
+        /// The id of the hold the cutscene is currently paused on (amendment A65 §3.1), so a host
+        /// can answer "what is the clock waiting for?" without reaching into the blob — the hold a
+        /// dialogue cue derives is named after the event, and the host learns that name only here.
+        /// </summary>
+        /// <returns>False whenever the request is not paused on a hold.</returns>
+        public static bool TryGetCurrentHoldId(
+            EntityManager entityManager, Entity requestEntity, out FixedString64Bytes holdId)
+        {
+            holdId = default;
+            if (!entityManager.Exists(requestEntity)
+                || !entityManager.HasComponent<CutscenePlay>(requestEntity)
+                || !entityManager.HasComponent<CutscenePlaybackState>(requestEntity))
+            {
+                return false;
+            }
+
+            CutscenePlaybackState playbackState =
+                entityManager.GetComponentData<CutscenePlaybackState>(requestEntity);
+            if (!playbackState.isPausedOnHold)
+            {
+                return false;
+            }
+
+            CutscenePlay play = entityManager.GetComponentData<CutscenePlay>(requestEntity);
+            if (!play.blob.IsCreated)
+            {
+                return false;
+            }
+
+            ref CutsceneBlob blob = ref play.blob.Value;
+            if (playbackState.segmentIndex < 0 || playbackState.segmentIndex >= blob.segments.Length)
+            {
+                return false;
+            }
+
+            holdId = blob.segments[playbackState.segmentIndex].holdId;
+            return true;
+        }
+
+        /// <summary>
         /// Creates a play request from a baked <see cref="CutsceneStage"/> (amendment A61): the same
         /// as <see cref="CreatePlayRequest"/>, plus every <see cref="CutsceneStageBinding"/> on
         /// <paramref name="stageEntity"/> copied into the new request's <see cref="CutsceneActorBinding"/>

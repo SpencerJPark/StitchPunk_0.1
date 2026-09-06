@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
@@ -21,13 +22,21 @@ namespace DotsAnimationToolkit.Tests.EditMode
     public sealed class CutsceneBlobBuilderTests
     {
         private CutsceneAsset cutscene;
+        private Func<IVocabularyRegistry> previousEventNameRegistrySource;
+
+        [SetUp]
+        public void SetUp()
+        {
+            previousEventNameRegistrySource = CutsceneDerivedHolds.EventNameRegistrySource;
+        }
 
         [TearDown]
         public void TearDown()
         {
+            CutsceneDerivedHolds.EventNameRegistrySource = previousEventNameRegistrySource;
             if (cutscene != null)
             {
-                Object.DestroyImmediate(cutscene);
+                UnityEngine.Object.DestroyImmediate(cutscene);
             }
         }
 
@@ -163,6 +172,65 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
+        /// Amendment A65-T1, decision A65-D1: a cue is one marker. An event marked
+        /// <c>holdUntilReleased</c> has to bake into the segment that <em>ends</em> at its own time,
+        /// so it fires on the very frame its hold engages — a host that never sees the cue cannot
+        /// release the hold it starts, and the cutscene stops forever.
+        /// </summary>
+        [Test]
+        public void HoldingEvent_BakesABoundaryNamedAfterTheEvent_AndFiresBeforeIt()
+        {
+            const uint DialogueEventKey = 0x0000ABCDu;
+            CutsceneDerivedHolds.EventNameRegistrySource =
+                () => new StubEventVocabulary(DialogueEventKey, "Dialogue");
+
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            CutsceneSlot propSlot = new CutsceneSlot { name = "Prop", kind = CutsceneSlotKind.Prop };
+            propSlot.transformKeys.Add(new CutsceneTransformKey
+            {
+                time = 0f,
+                position = float3.zero,
+                scale = new float3(1f, 1f, 1f),
+                interpolation = Interpolation.Linear
+            });
+            propSlot.transformKeys.Add(new CutsceneTransformKey
+            {
+                time = 4f,
+                position = new float3(8f, 0f, 0f),
+                scale = new float3(1f, 1f, 1f),
+                interpolation = Interpolation.Linear
+            });
+            cutscene.slots.Add(propSlot);
+            cutscene.events.Add(new CutsceneEventMarker
+            {
+                time = 2f,
+                eventKey = DialogueEventKey,
+                holdUntilReleased = true
+            });
+            cutscene.EnsureStableIds();
+
+            List<string> warnings = new List<string>();
+            BlobAssetReference<CutsceneBlob> blob;
+            CutsceneBlobBuilder.Build(cutscene, out blob, warnings);
+            try
+            {
+                Assert.AreEqual(2, blob.Value.segments.Length, "the holding event splits the timeline");
+                Assert.AreEqual("Dialogue", blob.Value.segments[0].holdId.ToString(),
+                    "the derived hold carries the event's own registry name, which is the whole host contract");
+                Assert.AreEqual(1, blob.Value.segments[0].events.Length,
+                    "the event belongs to the segment that ends at its time, not the one that starts there");
+                Assert.AreEqual(2f, blob.Value.segments[0].events[0].time, 1e-4f,
+                    "and it sits at that segment's own duration, so it fires on the frame the hold engages");
+                Assert.AreEqual(0, blob.Value.segments[1].events.Length);
+                Assert.IsEmpty(warnings, "a named event needs no warning");
+            }
+            finally
+            {
+                blob.Dispose();
+            }
+        }
+
+        /// <summary>
         /// Decision A64-D2: a mark is also a root key, at the instant the rehearsed walk arrives.
         /// Without the merge the editor shows no travel at all and A62's boundary pass has no
         /// arrival pose to bake, so the segment after a rendezvous hold starts wherever the actor
@@ -206,7 +274,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 blob.Dispose();
             }
 
-            Object.DestroyImmediate(cutscene);
+            UnityEngine.Object.DestroyImmediate(cutscene);
             cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
             CutsceneSlot heldSlot = new CutsceneSlot { name = "Walker", kind = CutsceneSlotKind.Actor };
             heldSlot.markKeys.Add(new CutsceneMarkKey
@@ -242,6 +310,54 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 heldBlob.Dispose();
             }
+        }
+
+        /// <summary>
+        /// A one-entry event vocabulary, so the derived hold's name is the fixture's rather than
+        /// whatever this project happens to have in <c>ProjectSettings/</c>.
+        /// </summary>
+        private sealed class StubEventVocabulary : IVocabularyRegistry
+        {
+            private readonly uint entryId;
+            private readonly string entryName;
+
+            public StubEventVocabulary(uint id, string name)
+            {
+                entryId = id;
+                entryName = name;
+            }
+
+            public int VocabularyEntryCount
+            {
+                get { return 1; }
+            }
+
+            public string VocabularyEntryName(int entryIndex)
+            {
+                return entryName;
+            }
+
+            public uint VocabularyEntryId(int entryIndex)
+            {
+                return entryId;
+            }
+
+            public string FindName(uint id)
+            {
+                return id == entryId ? entryName : null;
+            }
+
+            public bool ContainsId(uint id)
+            {
+                return id == entryId;
+            }
+
+            public uint CreateVocabularyEntry(string name)
+            {
+                throw new NotSupportedException("The fixture's vocabulary is read-only.");
+            }
+
+            public string GeneratedConstantsPath { get; set; }
         }
     }
 }

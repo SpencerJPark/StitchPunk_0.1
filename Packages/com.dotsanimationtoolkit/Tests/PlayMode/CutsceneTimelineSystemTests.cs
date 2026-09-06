@@ -2,11 +2,13 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
+using DotsAnimationToolkit.Authoring;
 using Unity.Collections;
 using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.PlayMode
 {
@@ -227,6 +229,95 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 }
             }
             Assert.IsTrue(sawPlay, "a block at segment 1's own time 0 must be issued on the exact frame the hold releases");
+        }
+
+        /// <summary>
+        /// Amendment A65-T1: an event marked <c>holdUntilReleased</c> fires and stops the clock in
+        /// the same frame, and only a release naming the hold the bake derived starts it again.
+        /// </summary>
+        /// <remarks>
+        /// The one test in this suite that bakes rather than hand-building its blob: the feature
+        /// <em>is</em> the pairing of a bake-time boundary with the runtime's existing hold
+        /// mechanics, and a hand-built blob would assert the pairing by writing it out itself. The
+        /// hold id is read back through <see cref="CutscenePlaybackApi.TryGetCurrentHoldId"/> rather
+        /// than spelled out, so the fixture does not depend on this project's event vocabulary.
+        /// </remarks>
+        [Test]
+        public void HoldingEvent_FiresThenPausesUntilReleasedByName()
+        {
+            const uint DialogueEventKey = 0x0000ABCDu;
+
+            CutsceneAsset cutsceneAsset = ScriptableObject.CreateInstance<CutsceneAsset>();
+            try
+            {
+                CutsceneSlot propSlot = new CutsceneSlot { name = "Prop", kind = CutsceneSlotKind.Prop };
+                propSlot.transformKeys.Add(new CutsceneTransformKey
+                {
+                    time = 0f,
+                    position = float3.zero,
+                    scale = new float3(1f, 1f, 1f),
+                    interpolation = Interpolation.Linear
+                });
+                propSlot.transformKeys.Add(new CutsceneTransformKey
+                {
+                    time = 4f,
+                    position = new float3(8f, 0f, 0f),
+                    scale = new float3(1f, 1f, 1f),
+                    interpolation = Interpolation.Linear
+                });
+                cutsceneAsset.slots.Add(propSlot);
+                cutsceneAsset.events.Add(new CutsceneEventMarker
+                {
+                    time = 2f,
+                    eventKey = DialogueEventKey,
+                    holdUntilReleased = true
+                });
+                cutsceneAsset.EnsureStableIds();
+
+                BlobAssetReference<CutsceneBlob> cutsceneBlob;
+                CutsceneBlobBuilder.Build(cutsceneAsset, out cutsceneBlob, null);
+                cutsceneBlobs.Add(cutsceneBlob);
+
+                Entity requestEntity =
+                    CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+
+                Advance(2f);
+
+                DynamicBuffer<AnimEventOutput> firedEvents =
+                    testWorld.EntityManager.GetBuffer<AnimEventOutput>(requestEntity);
+                bool sawTheCue = false;
+                for (int eventIndex = 0; eventIndex < firedEvents.Length; eventIndex++)
+                {
+                    if (firedEvents[eventIndex].eventKey == DialogueEventKey)
+                    {
+                        sawTheCue = true;
+                    }
+                }
+                Assert.IsTrue(sawTheCue,
+                    "the cue must reach the host on the frame the hold engages, or nobody can release it");
+
+                FixedString64Bytes holdId;
+                Assert.IsTrue(
+                    CutscenePlaybackApi.TryGetCurrentHoldId(testWorld.EntityManager, requestEntity, out holdId),
+                    "the clock stops at the hold the event derived");
+
+                Advance(1f);
+                Assert.AreEqual(0,
+                    testWorld.EntityManager.GetComponentData<CutscenePlaybackState>(requestEntity).segmentIndex,
+                    "and it stays stopped until the host says otherwise");
+
+                testWorld.EntityManager.SetComponentData(requestEntity, new CutsceneHoldRelease { holdId = holdId });
+                testWorld.EntityManager.SetComponentEnabled<CutsceneHoldRelease>(requestEntity, true);
+                Advance(0.1f);
+
+                Assert.AreEqual(1,
+                    testWorld.EntityManager.GetComponentData<CutscenePlaybackState>(requestEntity).segmentIndex,
+                    "releasing the derived id resumes the cutscene");
+            }
+            finally
+            {
+                Object.DestroyImmediate(cutsceneAsset);
+            }
         }
 
         [Test]
