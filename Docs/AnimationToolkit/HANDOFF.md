@@ -112,6 +112,16 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A69 — Code Style Unification (naming + comment audit). SPECCED 2026-09-06, not started.**
+Owner-requested: one suffix per static-class role (`Api`/`Builder`/`Sampler`/`Resolver`/`Math`/
+`Validation`/`Utility`/`Editing`, with `Util`/`Query`/`Helper` banned), the runtime API merged into
+`PlaybackApi`/`CutsceneApi`/`BillboardApi`/`ClipRegistryApi`, and the package's doc-comment
+volume cut from 25% of lines to under 6% with every `<remarks>` essay and spec citation removed.
+Spec: `Amendment_A69_CodeStyleUnification_Spec.md`; session prompt beside it:
+`Amendment_A69_CodeStyleUnification_Prompt.md`. Breaking renames, so it lands as **0.15.0** and
+touches nine game files under `Assets/_Scripts/` in the same commit. Run it before any new
+feature spec so the new code is written under the new rule.
+
 **A65 — Cutscene Cues, Runtime Facing, Block Playback Controls. T1-T5 built and gated 2026-09-06;
 stopped at its ⏸ owner checkpoint.** Three independent features, each committed on its own.
 *Holding events*: `CutsceneEventMarker.holdUntilReleased` bakes a boundary whose hold id is the
