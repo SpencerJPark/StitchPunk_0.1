@@ -447,6 +447,30 @@ handler on `EventType.Repaint`, picked with `HandleUtility.GUIPointToWorldRay` a
 `CutsceneMarkSceneOverlay.cs` for a worked example, and `PreviewSceneGizmos.cs`, which explains the
 same constraint from the other side.
 
+### `Authoring/` may not even *mention* the editor assembly, comments included
+`PackagingConformanceTests.Conformance_C_NoUnityEditorReference_OutsideEditorOrTests` greps the raw
+text of every file outside `Editor/` and `Tests/` for `UnityEditor` — a doc comment explaining *why*
+a seam exists ("`Authoring/` may not name `UnityEditor`") fails the same test it is describing.
+Found 2026-09-06 building A65's hold-name seam. Say "the editor assembly" in prose there.
+
+### Two facing-angle conventions live in the cutscene code, and they were silently mixed
+A facing angle in this toolkit is measured **from +X toward +Z** — 0 east, 90 north — because
+`FacingResolver.FromMovement` reads a vector whose x is east and y is north, and every consumer
+builds that vector with `(cos, sin)`. A `LocalTransform` Y euler measures from +Z instead, so the two
+are a reflection about 45°. `CutsceneKeySampler.TryResolveFacingAngle` derived travel facing with
+`atan2(delta.x, delta.z)` — the euler convention — so an actor walking **east** resolved as facing
+**north**, and with a Two-coverage direction set an east→west turn produced no mirror at all. Fixed
+in A65-T3 (both twins now use `CutsceneFacingVariants.AngleDegreesFromTravel`). A mark's
+`facingDegrees` really *is* a world Y rotation (`PlaceAtMark` feeds it to `quaternion.RotateY`) and
+is deliberately not the same model — check which of the two an angle is before comparing them.
+
+### A `[BurstCompile]` static cannot take a blob struct that contains a `bool`
+BC1063: a struct crossing a Burst entry point must be blittable, and `bool` is not. A blob struct is
+the usual way to hit this — `CutsceneDirectionVariantsBlob.hasVariants` broke the whole Runtime
+assembly's Burst compile the moment a `[BurstCompile]` static took it by `in`. Either
+`[MarshalAs(UnmanagedType.U1)]` the field or, when every caller is managed anyway, drop the attribute
+from that one method (the class attribute is harmless).
+
 ### An unfocused Editor never repaints its Scene view, so `duringSceneGui` probes never fire
 Driving the Editor over MCP with the window in the background, `SceneView.RepaintAll()`,
 `sceneView.Repaint()` and even the internal `EditorWindow.RepaintImmediately()` all leave a
