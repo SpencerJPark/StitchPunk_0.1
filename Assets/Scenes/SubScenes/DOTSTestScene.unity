@@ -3109,6 +3109,100 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1628872342
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1628872344}
+  - component: {fileID: 1628872343}
+  m_Layer: 0
+  m_Name: Cutscene Stage - G2 Checkpoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1628872343
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628872342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ecaf8b537f6471b4d9ecfe4cf235c820, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneStageAuthoring
+  cutscene: {fileID: 11400000, guid: 06643dd396eb0f641be5c41a658920b3, type: 2}
+  bindings:
+  - slotId: 3481545115
+    target: {fileID: 1794040443}
+  - slotId: 568478475
+    target: {fileID: 7653187856236759798}
+--- !u!4 &1628872344
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628872342}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1667401000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1667401002}
+  - component: {fileID: 1667401001}
+  m_Layer: 0
+  m_Name: DialogueManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1667401001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1667401000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d440b86ef535204dbc45c9749ceea0c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::DialogueManagerAuthoring
+--- !u!4 &1667401002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1667401000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1743135620
 GameObject:
   m_ObjectHideFlags: 0
@@ -3443,6 +3537,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
+--- !u!1 &1794040443 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6406896981973988313, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
+  m_PrefabInstance: {fileID: 1794040442}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1822350936
 GameObject:
   m_ObjectHideFlags: 0
@@ -3608,6 +3707,50 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::DialogueProviderAuthoring
   dialogueSequence: {fileID: 0}
+--- !u!1 &2091193555
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2091193557}
+  - component: {fileID: 2091193556}
+  m_Layer: 0
+  m_Name: NarrativeEvents
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2091193556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2091193555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 359949025b8ea6a439f0714d9674852c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::NarrativeEventAuthoring
+--- !u!4 &2091193557
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2091193555}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1493502905610116526
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3935,3 +4078,6 @@ SceneRoots:
   - {fileID: 526580278}
   - {fileID: 1780870238}
   - {fileID: 1827694338}
+  - {fileID: 2091193557}
+  - {fileID: 1667401002}
+  - {fileID: 1628872344}

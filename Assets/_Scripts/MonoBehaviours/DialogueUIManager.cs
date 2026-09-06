@@ -108,6 +108,10 @@ public class DialogueUIManager : MonoBehaviour
     private bool awaitingChoice;
     private int activeSequenceId = -1;  // -1 means no dialogue is displayed
 
+    private const float UnresolvedGraceSeconds = 5f;
+    private float unresolvedSeconds;
+    private bool hasReportedUnresolvedEntities;
+
     // Captures the current Decision node's branches while awaiting a choice,
     // so the button callbacks know which branch portId to follow.
     private List<DialogueDecisionBranch> pendingBranches = new List<DialogueDecisionBranch>();
@@ -135,45 +139,38 @@ public class DialogueUIManager : MonoBehaviour
         }
     }
 
-    private void Start()
+    /// <summary>
+    /// Resolves the three entities this manager writes through. Called from Update until it
+    /// succeeds, never once from Start: in a SubScene project the baked entities stream in a frame
+    /// or more after Start runs, so a one-shot resolve there finds an empty world and never retries
+    /// — the manager then sits inert for the whole session with one misleading "no entity found"
+    /// error behind it. Found 2026-09-06 wiring dialogue into DOTSTestScene for the first time.
+    /// </summary>
+    private bool TryResolveEcsReferences()
     {
         World world = World.DefaultGameObjectInjectionWorld;
-        if (world == null)
-        {
-            Debug.LogError("DialogueUIManager: No default DOTS world found.");
-            return;
-        }
+        if (world == null || !world.IsCreated) return false;
 
         entityManager = world.EntityManager;
 
         EntityQuery managerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<DialogueManagerTag>());
-        if (managerQuery.IsEmpty)
-        {
-            Debug.LogError("DialogueUIManager: No DialogueManagerAuthoring entity found in the scene.");
-            return;
-        }
-        managerEntity = managerQuery.GetSingletonEntity();
-
         EntityQuery playerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
-        if (playerQuery.IsEmpty)
-        {
-            Debug.LogError("DialogueUIManager: No Player entity found.");
-            return;
-        }
-        playerEntity = playerQuery.GetSingletonEntity();
-
         EntityQuery gameDataQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<GameDataTag>());
-        if (gameDataQuery.IsEmpty)
-        {
-            Debug.LogError("DialogueUIManager: No GameDataTag entity found.");
-            return;
-        }
+        if (managerQuery.IsEmpty || playerQuery.IsEmpty || gameDataQuery.IsEmpty) return false;
+
+        managerEntity  = managerQuery.GetSingletonEntity();
+        playerEntity   = playerQuery.GetSingletonEntity();
         gameDataEntity = gameDataQuery.GetSingletonEntity();
+        return true;
     }
 
     private void Update()
     {
-        if (managerEntity == Entity.Null || playerEntity == Entity.Null) return;
+        if (managerEntity == Entity.Null && !TryResolveEcsReferences())
+        {
+            ReportUnresolvedEntitiesOnce();
+            return;
+        }
 
         bool isDialogueActive = entityManager.IsComponentEnabled<ActiveDialogue>(managerEntity);
 
@@ -321,6 +318,22 @@ public class DialogueUIManager : MonoBehaviour
 
         entityManager.SetComponentEnabled<ActiveDialogue>(managerEntity, false);
         CloseDialoguePanel();
+    }
+
+    // A scene that genuinely has no DialogueManagerAuthoring, Player or GameDataTag looks exactly
+    // like one whose SubScene has not streamed in yet, so the complaint waits until it cannot be the
+    // second — and is said once rather than every frame.
+    private void ReportUnresolvedEntitiesOnce()
+    {
+        if (hasReportedUnresolvedEntities) return;
+
+        unresolvedSeconds += Time.unscaledDeltaTime;
+        if (unresolvedSeconds < UnresolvedGraceSeconds) return;
+
+        hasReportedUnresolvedEntities = true;
+        Debug.LogError(
+            "DialogueUIManager: still no DialogueManagerAuthoring / Player / GameDataTag entity after "
+            + UnresolvedGraceSeconds + "s. Dialogue will not display in this scene.");
     }
 
     private void CloseDialoguePanel()

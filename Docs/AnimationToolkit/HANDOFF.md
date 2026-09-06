@@ -112,6 +112,43 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**G2 — Cutscene Interactions. Phases 1-5 built and gated 2026-09-06; stopped at its ⏸ owner
+checkpoint.** Game-side, not a package amendment. The four host contracts the toolkit raises during
+playback now have consumers: `CutsceneMoveToMarkSystem` walks the cast to their marks through
+`MovementAPI` and **never paths the `Player`**, whose input `CutscenePlayerControlSystem` hands back
+while a hold is waiting on their own mark; `CutsceneDialogueCueSystem` turns an `AnimEvents.Dialogue`
+cue into a real `ActiveDialogue` and releases the hold the cue derived when the conversation closes;
+`UnitFacingJob` stops excluding cutscene actors and reads `CutsceneFacing` instead; and
+`CutsceneDetachSystem` turns a detach signal into a `ThrownItemRequest` on items while leaving units
+placed. The editor seam (`CutsceneDialogueEventInspectorProvider`) makes the cue's payload a
+`DialogueSequenceSO` picker and a speaker dropdown. Suites: toolkit EditMode 718/717 (the same
+pre-existing `Conformance_A` drift), toolkit PlayMode 261/261, `StitchPunk.Tests` 59/59,
+`StitchPunk.Tests.PlayMode` 7/7. Every new fixture was watched failing with its fix reverted.
+
+**Four traps this cost, all now in the game vault's `Gotchas.md`:** `[WithDisabled]` is not a
+reliable "react to a switch-off" filter (a job matched zero entities while a hand-built query with
+the identical constraints matched one) - use `[WithPresent]` plus a `ValueRO` check; an `in`
+parameter beside an `EnabledRefRW` of the same type is a run-time aliasing throw; a newly added
+`[BurstCompile]` job can run as somebody else's compiled code for a run or two, so a failure naming
+a job you did not touch, or a revert that stubbornly passes, means recompile and re-run; and a UI
+Toolkit field outside a panel dispatches no change events, so an editor seam probed off-panel looks
+inert when it is not.
+
+**The checkpoint is built in `TestArea` + `DOTSTestScene` and machine-verified end to end** - marks
+issued to exactly the mark position and never to the player, the rendezvous hold releasing on real
+arrival, input handed back and taken again, the dialogue panel opening with the authored line and
+releasing hold `'Dialogue'` on its End node, and the minion walking its lane afterwards. **What is
+owed is the owner's eyes**, and three findings sit with it: `DialogueUIManager` resolved its ECS
+singletons in `Start()` and so could never work in a SubScene project (fixed, resolved lazily now -
+`NarrativeEventManager` has the same shape and will hit it next); `CutsceneDebugTrigger` defaulted to
+the `Override` layer while `NewRig` declares one, so every clip block was silently dropped (this is
+what "the minions slide instead of walking" was); and **the `CutsceneFacing` → `UnitFacing` bridge has
+no content to land on anywhere in the project** - `UnitFacing`/`BodyPart` come from
+`CharacterRigAuthoring` and no prefab has one (measured live: `unitFacingEntities=0`,
+`bodyPartBuffers=0`, `partFacingEntities=6`), so the actor cannot turn on screen yet. The toolkit's
+half is confirmed: `CutsceneFacing` swung `186.6° → 0°` on the bound actor as its root keys reversed.
+Full detail in `Assets/_Vault/Tasks/NewPlans/CutsceneInteractions_System.md` §6.
+
 **A69 — Code Style Unification (naming + comment audit). SPECCED 2026-09-06, not started.**
 Owner-requested: one suffix per static-class role (`Api`/`Builder`/`Sampler`/`Resolver`/`Math`/
 `Validation`/`Utility`/`Editing`, with `Util`/`Query`/`Helper` banned), the runtime API merged into

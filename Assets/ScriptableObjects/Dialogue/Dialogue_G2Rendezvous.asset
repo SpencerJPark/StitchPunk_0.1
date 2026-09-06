@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58f600855dfec6f4782662b5c7db1dd9, type: 3}
+  m_Name: Dialogue_G2Rendezvous
+  m_EditorClassIdentifier: StitchPunk.Data::DialogueSequenceSO
+  sequenceId: 1
+  nodes:
+  - rid: 8430509953006698574
+  - rid: 8430509953006698575
+  - rid: 8430509953006698576
+  - rid: 8430509953006698577
+  connections:
+  - fromNodeId: g2-start
+    fromPortId: out
+    toNodeId: g2-line-1
+    toPortId: in
+  - fromNodeId: g2-line-1
+    fromPortId: out
+    toNodeId: g2-line-2
+    toPortId: in
+  - fromNodeId: g2-line-2
+    fromPortId: out
+    toNodeId: g2-end
+    toPortId: in
+  references:
+    version: 2
+    RefIds:
+    - rid: 8430509953006698574
+      type: {class: DialogueStartNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: g2-start
+        editorPosition: {x: 200, y: 200}
+    - rid: 8430509953006698575
+      type: {class: DialogueLineNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: g2-line-1
+        editorPosition: {x: 450, y: 200}
+        speakerName: Citizen
+        dialogueText: Right - we are both on our marks. The cutscene clock is waiting
+          on this conversation.
+    - rid: 8430509953006698576
+      type: {class: DialogueLineNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: g2-line-2
+        editorPosition: {x: 700, y: 200}
+        speakerName: Citizen
+        dialogueText: Press Interact once more and watch me walk it off.
+    - rid: 8430509953006698577
+      type: {class: DialogueEndNodeData, ns: , asm: StitchPunk.Data}
+      data:
+        nodeId: g2-end
+        editorPosition: {x: 950, y: 200}

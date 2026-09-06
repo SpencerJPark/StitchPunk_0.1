@@ -1,0 +1,144 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa76dfa59491ed241b6458959d0c55e3, type: 3}
+  m_Name: G2CheckpointCutscene
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneAsset
+  stableId: 936148452665553662
+  sceneGuid: 0b34cb0768f070741990d8d5a5dfa9e2
+  scenePath: Assets/Scenes/SubScenes/DOTSTestScene.unity
+  slots:
+  - name: Player
+    slotId: 3481545115
+    kind: 1
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys: []
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys:
+    - time: 0
+      position:
+        x: 2
+        y: 0
+        z: 2.3
+      facingDegrees: 0
+      toleranceMeters: 0.9
+      timeoutSeconds: 20
+      previewTravelSeconds: 2
+  - name: Minion
+    slotId: 568478475
+    kind: 0
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 2
+      duration: 6.5
+      loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
+    transformKeys:
+    - time: 2.2
+      position:
+        x: -0.9
+        y: 0
+        z: 2.3
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 5.2
+      position:
+        x: 4.5
+        y: 0
+        z: 2.3
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 8.2
+      position:
+        x: -4.5
+        y: 0
+        z: 2.3
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys:
+    - time: 0
+      position:
+        x: -0.9
+        y: 0
+        z: 2.3
+      facingDegrees: 0
+      toleranceMeters: 0.9
+      timeoutSeconds: 20
+      previewTravelSeconds: 2
+  cameraLane:
+    keys: []
+    cutMarkers: []
+  events:
+  - time: 0.2
+    eventKey: 19
+    intParam: 1
+    floatParam: 1
+    fireOnSkip: 1
+    holdUntilReleased: 1
+  holdMarkers:
+  - time: 0.1
+    holdId: Rendezvous
+    autoReleaseWhenMarksReached: 1
+  sceneBindings: []

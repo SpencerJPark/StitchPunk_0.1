@@ -552,3 +552,32 @@ its `DropdownField` wrote anything, which reads exactly like a broken binding an
 container into a live `EditorWindow.rootVisualElement` first (any open window will do — find one with
 `Resources.FindObjectsOfTypeAll<EditorWindow>()`, never `GetWindow<T>()`), drive the fields, then
 remove it. With a panel, every write landed. Found 2026-09-06 building G2's editor seam.
+
+## A MonoBehaviour that resolves an ECS singleton in `Start()` cannot work in a SubScene project
+
+`Start()` runs before a SubScene's baked entities stream in, so the query is empty, the bridge logs
+one "no entity found" error and never retries — it then sits inert for the whole session with a
+misleading message behind it. Found 2026-09-06 wiring dialogue into `DOTSTestScene` for the first
+time: `DialogueUIManager` had never displayed a line in any scene in this project. It now resolves
+lazily from `Update` until it succeeds, and defers the complaint 5 s so "the scene really has no
+`DialogueManagerAuthoring`" is distinguishable from "the subscene has not loaded yet".
+**`NarrativeEventManager.ResolveEcsReferences` still has the `Start()` shape** and is the next thing
+to hit this.
+
+## The cutscene layer must exist on the rig, or every clip block is silently dropped
+
+`CutsceneDebugTrigger`'s default layer is `Override` (index 2) and `NewRig` declares **one** layer.
+A cutscene fired on a layer the bound actor does not have plays no clip at all and the actor just
+slides along its root lane — which is exactly what "the minions slide instead of walking" was in the
+G1 checkpoint. Check `PlaybackLayer` buffer length on a bound actor before blaming the clip or the
+block. The G2 checkpoint's trigger is set to `Base`.
+
+## The game's facing pipeline and the toolkit's actor pipeline are on different prefabs
+
+`UnitFacing` and the `BodyPart` buffer come from `CharacterRigAuthoring`; the toolkit's rig comes
+from `ActorAuthoring`. As of 2026-09-06 **no prefab in this project has `CharacterRigAuthoring`** (all
+42 scanned) and only `MaleCitizen.prefab` has an `ActorAuthoring`. Measured in a live world:
+`unitFacingEntities=0`, `bodyPartBuffers=0`, `partFacingEntities=6`. So `UnitFacingSystem` matches
+nothing at all, and anything that ends in "→ `UnitFacing` → `PartFacing`" — including G2's
+`CutsceneFacing` branch — is code-complete with no content to run on. Check the entity counts before
+concluding a facing feature is broken.

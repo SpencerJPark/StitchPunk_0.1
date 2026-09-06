@@ -72,7 +72,7 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 - [x] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
 - [x] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
 - [x] **Phase 5 — full suites once**, `Contracts.md` rows, `Systems_AI.md`/`Systems_Animation.md` one line each.
-- [ ] **⏸ Owner checkpoint.** In `DOTSTestScene`: a cutscene with marks for the player and one minion beside a crate, a rendezvous hold, then a Dialogue holding event, then a clip. Press F9: the minion pathfinds to its disc; you walk to yours; the moment both arrive the hold releases and WASD stops working; dialogue opens; closing it continues the cutscene; the minion faces the way its root keys carry it.
+- [x] **⏸ Owner checkpoint — built and machine-verified 2026-09-06; awaiting the owner's eyes.** In `DOTSTestScene`: a cutscene with marks for the player and one minion beside a crate, a rendezvous hold, then a Dialogue holding event, then a clip. Press F9: the minion pathfinds to its disc; you walk to yours; the moment both arrive the hold releases and WASD stops working; dialogue opens; closing it continues the cutscene; the minion faces the way its root keys carry it.
 
 ## 6. Notes / build log
 
@@ -185,3 +185,68 @@ Docs updated: `Contracts.md` gained four rows (`CutsceneMoveToMark`, `CutsceneFa
 `AnimEventOutput` row and `CutsceneDetachSystem` as a second `ThrownItemRequest` producer;
 `Systems.md` gained the three new systems and the rendezvous exception; `Systems_AI.md` and
 `Systems_Animation.md` one entry each; `Gotchas.md` four traps.
+
+### The checkpoint, built 2026-09-06 in DOTSTestScene
+
+**What was authored.** `G2CheckpointCutscene.asset` (key `936148452665553662`): two slots — *Player*
+(a Prop slot with a mark and no root keys, so nothing stages the player) and *Minion* (an Actor slot
+on `NewRig`/`NewClipSet`). Marks at `(2, 0, 2.3)` and `(-0.9, 0, 2.3)`, beside the crates; a
+rendezvous hold `"Rendezvous"` at 0.1 s with `autoReleaseWhenMarksReached`; a holding `Dialogue`
+event at 0.2 s carrying sequence id 1 and speaker slot index 1; then a looping `Walk` block and root
+keys that carry the minion east to `x = +4.5` and back west to `x = −4.5`, so the facing has to turn.
+It bakes to three segments, verified through `CutsceneBlobBuilder` before any scene was touched.
+
+`Dialogue_G2Rendezvous.asset` (sequence id 1) is a Start → Line → Line → End graph. In
+`DOTSTestScene`'s subscene: a `NarrativeEventAuthoring` (the trap G1 found — this scene had none), a
+`DialogueManagerAuthoring` (nor one of these), and a `Cutscene Stage - G2 Checkpoint` binding the
+Player slot to `PlayerUnit` and the Minion slot to `TestRotter`. In `TestArea`: a `DialoguePanel`
+under the existing Canvas with speaker/subtitle labels, a `DialogueUIManager` wired to them, and
+`Managers/CutsceneDebug` carrying the F9 `CutsceneDebugTrigger`.
+
+**Three things the checkpoint found, all content or host wiring rather than G2 code.**
+
+1. **`DialogueUIManager` resolved its ECS singletons in `Start()`**, which in a SubScene project runs
+   before the baked entities stream in. It logged `"No DialogueManagerAuthoring entity found"` once
+   and then sat inert for the whole session — dialogue could never have displayed in a subscene
+   scene. Now resolved lazily from `Update` until it succeeds, with the complaint deferred 5 s and
+   said once. `NarrativeEventManager.ResolveEcsReferences` has the same `Start()` shape and is the
+   next thing to hit this; left alone because nothing this checkpoint exercises goes through it.
+2. **`CutsceneDebugTrigger` defaulted to the `Override` layer, and `NewRig` declares one layer.**
+   Every clip block was silently dropped — the actor slid its root lane with no clip, which is
+   exactly the symptom G1's checkpoint reported as "the minions slide instead of walking". The
+   trigger in `TestArea` is set to `Base`; measured after the change, the bound actor's layer 0
+   carries `clip=17929205651740358465` (Walk) at the cutscene's own `speed`.
+3. **The `CutsceneFacing` → `UnitFacing` bridge has no content to land on, project-wide.** `UnitFacing`
+   and the `BodyPart` buffer are added by `CharacterRigAuthoring`, and **no prefab in the project has
+   one** (scanned all 42; only `MaleCitizen.prefab` has an `ActorAuthoring`, and it has no
+   `CharacterRigAuthoring`). Measured in a live world: `unitFacingEntities=0`, `bodyPartBuffers=0`,
+   while `partFacingEntities=6` — the toolkit's own mirror points exist and nothing game-side can
+   write them. So `UnitFacingJob` never runs on a cutscene actor, and the turn cannot be seen yet.
+   The *input* half is confirmed live: the toolkit wrote `CutsceneFacing` on the bound minion and it
+   swung `186.6° → 0°` as the root keys reversed, which is the east/west convention the branch reads.
+   Closing this is content work of G0's kind (a `CharacterRigAuthoring` + body-part tree on
+   `MaleCitizen`, bridging `BodyPart.entity` to the toolkit's rig parts), not G2 code.
+
+**Machine-verified, live, in `TestArea` + `DOTSTestScene`** (numbers from `execute_code` against the
+running world, not from reading the code):
+
+- The stage bakes with both bindings resolved to real entities.
+- On the request, the minion is pathed to **exactly its mark** (`pathTarget=(-0.9, 0, 2.3)`,
+  `markIssued=True`), and the player is **not** pathed (no `PathRequest` at all, and the query
+  excludes them anyway).
+- While the player's mark is outstanding the clock is paused on `'Rendezvous'` and
+  `CutsceneActiveTag` is **False** — the player has input. The frame their mark resolves it is
+  **True** again.
+- The minion arrives by distance (`markEnabled=False` at 0.78 s, far inside the 20 s timeout), its
+  flag clears and its `PathRequest.requestedMode` becomes `Stop`.
+- The `Dialogue` cue opens the real panel: `activeSequenceId=1`, `panelActive=True`,
+  speaker `'Citizen'`, subtitle text as authored, and `TryGetCurrentHoldId` reports `'Dialogue'`.
+- Two Interact presses walk the graph to its End node; the hold is released with
+  `holdId='Dialogue'`, the clock resumes into segment 2, and the minion walks its lane
+  (`x: −0.9 → −0.28 …`) with `CutsceneFacing` reading `0` (east).
+- A mark that is never reached times out and places the actor — seen for real when the first bound
+  actor was killed by the sandbox mid-walk, and the scene continued rather than softlocking.
+
+**Not machine-verifiable, and the reason the owner has to look:** whether any of it reads correctly
+on screen — the panel's legibility, the minion's walk cycle, and above all whether it *turns*, which
+per finding 3 it currently cannot.
