@@ -57,11 +57,17 @@ it today (the game's own `BillboardSystem` is a separate path), so this is a gap
 
 **Write less prose than the surrounding code does.**
 
-- **Doc comments: one or two lines, and only where the *why* is not obvious.** Say why the code is
-  shaped this way when a reader would otherwise change it back. Never restate the signature, never
-  narrate what the body does, and no multi-paragraph `<remarks>` essays — parts of this package
-  have them and they are not the model to copy. If a method needs a paragraph to explain itself,
-  the method is wrong.
+- **Doc comments (Amendment A69, replaces the older one-or-two-line rule verbatim):** One
+  `<summary>` per file, on the file's primary type, at most three lines, stating what the type is
+  and the one contract a caller must know. Nothing else in the file gets a `<summary>` unless the
+  name cannot carry it. No `<remarks>`. No `<para>`, `<strong>`, `<em>`, `<list>`. No citations of
+  the architecture doc, amendments, phases or spec sections — customers do not have those
+  documents. A `<param>` only for a sentinel or a unit (`NaN = clip default`, `seconds`, `−1 =
+  none`). A field comment only for a sentinel, a unit, or an ordering/aliasing trap, as **one**
+  line. An inline `//` only for a *why* the code cannot express — a trap, an ordering constraint, a
+  reason a reader would otherwise "fix" — at most two lines. If a method needs a paragraph, the
+  method is wrong: split it or rename it. Enforced by `Conformance_F` in
+  `PackagingConformanceTests.cs`.
 - **Test only what matters.** The behaviour the feature exists for, and any regression you fix.
   That is the ceiling — roughly two tests per task, often zero for pure UI wiring.
   **Before keeping a test, revert the fix and watch it fail.** If it passes either way, delete it;
@@ -83,6 +89,14 @@ it today (the game's own `BillboardSystem` is a separate path), so this is a gap
 - **`Authoring/` must never reference `UnityEditor`** — it ships to players and `Conformance_C`
   scans raw file text including comments. Editor-only machinery lives in the Editor assembly.
 - An `EnabledRefRW`/`RO` parameter is named *component name* + `Enabled`.
+- **Static-class suffixes: §2.1 of Amendment A69.** One suffix per role — `Api` (the public surface
+  a host game calls, `Runtime/Api/` only), `Builder` (bake-time authoring→blob), `Sampler`
+  (pure blob+time→pose), `Resolver` (pure id/tag/angle→index), `Math` (pure numeric functions),
+  `Validation` (rule checks), `Utility` (editor-only asset surgery, `Editor/ClipUtilities/` only),
+  `Editing` (editor-only clip-editing operations). Banned anywhere: `Util`, `Utils`, `Helper`,
+  `Helpers`, `Query`, `Manager`, `Common`, `Misc`, `Ext`, `Extensions`. A static class that is none
+  of these roles is named as a plain noun for the thing it models. Enforced by `Conformance_G`/
+  `Conformance_H`.
 
 ## 3. Verification gate
 
@@ -149,15 +163,27 @@ no content to land on anywhere in the project** - `UnitFacing`/`BodyPart` come f
 half is confirmed: `CutsceneFacing` swung `186.6° → 0°` on the bound actor as its root keys reversed.
 Full detail in `Assets/_Vault/Tasks/NewPlans/CutsceneInteractions_System.md` §6.
 
-**A69 — Code Style Unification (naming + comment audit). SPECCED 2026-09-06, not started.**
-Owner-requested: one suffix per static-class role (`Api`/`Builder`/`Sampler`/`Resolver`/`Math`/
-`Validation`/`Utility`/`Editing`, with `Util`/`Query`/`Helper` banned), the runtime API merged into
-`PlaybackApi`/`CutsceneApi`/`BillboardApi`/`ClipRegistryApi`, and the package's doc-comment
-volume cut from 25% of lines to under 6% with every `<remarks>` essay and spec citation removed.
-Spec: `Amendment_A69_CodeStyleUnification_Spec.md`; session prompt beside it:
-`Amendment_A69_CodeStyleUnification_Prompt.md`. Breaking renames, so it lands as **0.15.0** and
-touches nine game files under `Assets/_Scripts/` in the same commit. Run it before any new
-feature spec so the new code is written under the new rule.
+**A69 — Code Style Unification (naming + comment audit). T1–T7 built and gated green 2026-09-06;
+stopped at its ⏸ owner checkpoint.** One suffix per static-class role across the public API —
+`PlaybackApi` (merged from `AnimationCommandUtil` + `PlaybackQuery`), `CutsceneApi` (from
+`CutscenePlaybackApi`), `BillboardApi`, `ClipRegistryApi`, `ToolkitWorldApi`, `StableIdMinting`,
+`RagdollTransformMath`, `AnimationLodResolver`, `CutsceneSceneBinding` — and the package's
+doc-comment volume cut from 25% of lines to 7.0%, with every `<remarks>`/`<para>`/`<strong>`/`<em>`
+and every architecture-section/amendment/Phase/rule/`§` citation removed from shipped sources
+(`Conformance_F`/`G`/`H` now gate all three, permanently). Landed as **0.15.0**; nine game files
+under `Assets/_Scripts/` updated in the T2 rename commit. Two rounds of T1-allowlist drift were
+found and logged in the spec's own §6 rather than argued into the spec (`RagdollSolver` and
+`StableIdMinting` are plain-noun static classes the eight role suffixes don't fit); a case-sensitivity
+gap in `Conformance_F` itself (a capitalized "Architecture section" citation) was found and fixed
+alongside it. Toolkit EditMode 721/720 (the one pre-existing `Conformance_A` asmdef drift,
+untouched), PlayMode 261/261, `StitchPunk.Tests` 59/59, `StitchPunk.Tests.PlayMode` 7/7 — all
+unchanged from the pre-A69 baseline. 18 files still sit above the spec's 25%-comment-ratio target
+(the ratio and file count are declared targets, not gates); every one is a small, field- or
+enum-member-dense file where a compliant one-line-per-member comment inflates the ratio, not an
+essay — detail in the spec's §6. **Owed:** the owner's eyes on `Runtime/Api/PlaybackApi.cs`,
+`Runtime/Blobs/ClipRegistryBlob.cs` and `Runtime/Systems/CommandApplySystem.cs` side by side with
+the pre-A69 commit — the spec's own checkpoint question is one of taste (is the surviving comment
+volume right?), not correctness. Run any new feature spec after this one, under the new rule.
 
 **A65 — Cutscene Cues, Runtime Facing, Block Playback Controls. T1-T5 built and gated 2026-09-06;
 stopped at its ⏸ owner checkpoint.** Three independent features, each committed on its own.

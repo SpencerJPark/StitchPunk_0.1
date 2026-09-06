@@ -1,6 +1,6 @@
 # Amendment A69 — Code Style Unification (naming + comment audit)
 
-**Status:** SPECCED 2026-09-06, not started. Owner-requested. Package version after this lands: **0.15.0** (breaking renames on the public API).
+**Status:** T1–T7 built and gated green 2026-09-06; stopped at its ⏸ owner checkpoint. Owner-requested. Package version: **0.15.0** (breaking renames on the public API).
 **Scope:** `Packages/com.dotsanimationtoolkit/` — `Runtime/`, `Runtime.Physics/`, `Authoring/`, `Editor/`, `Documentation~/`, `README.md`, `Samples~/`. Tests change only where a rename forces it. Game-side consumers under `Assets/_Scripts/` are updated for renames and nothing else.
 **Execution protocol:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` §4, unchanged. Its rule 6 applies and overrides HANDOFF §2's older "do not spawn subagents" bullet: subagents may take any task marked **[parallel-safe]**, and comment-stripping is embarrassingly parallel, so use them. Subagents never touch `mcp__UnityMCP__*`; only the parent gates and commits.
 
@@ -147,59 +147,59 @@ Tick each checkbox as you land it. Commit message prefix: `A69-Tn:`.
 
 ### T1 — The gate first: conformance tests that fail on today's code
 
-- [ ] In `PackagingConformanceTests.cs` add:
+- [x] In `PackagingConformanceTests.cs` add:
   - **`Conformance_F_NoDocEssaysOrSpecCitations_InSources`** — scans `Runtime`, `Runtime.Physics`, `Authoring`, `Editor` for `*.cs` and fails listing every `file:line` containing any of: `<remarks>`, `<para>`, `<strong>`, `<em>`, `<list `, `architecture section`, regex `amendment A[0-9]`, regex `\bPhase [A-G]\b`, `§`, regex `\brule V[0-9]{2}\b`. It must fail today with thousands of lines; **cap the message at the first 50 hits plus a total count** so the Test Runner stays usable.
   - **`Conformance_G_StaticClassSuffixVocabulary`** — every `static class` declared in the same four folders must either end in one of `Api Builder Sampler Resolver Math Validation Utility Editing` or appear in a `PlainNounStaticClasses` allowlist inside the test (`EasingPresets`, `ClipKeyClipboard`, `RestPoseCapture`, `AnimEventMask`, `ConstantsGenerator`, `CutsceneBlockTiming`, `CutsceneFacingVariants`, `AuthoringPathHash`, `AuthoringPathText`, `CutsceneDerivedHolds`, `CutsceneDirectionVariants`, `CutsceneKeySampler`, `CutsceneMarkMerge`, `CutsceneAssetOpener`, `DirectionSetAssetOpener`, `TimelineRangeShading`, `VocabularySettingsProvider`, `RagdollPreviewSceneryProvider`, `VocabularyRegistryProvider`, `CutsceneEventInspectorProviders`, `BindingReconciler`, `ClipEditorDocking`, `PrefabAuthoringBridge`, `RigStructureEditor`, `ClipComponentModel`, `GizmoDragRouting`, `EventLaneAddressing`, `PreviewLineMaterial`, `PreviewScenePicker`, `RagdollPreviewProbe`, `VatMeshPreparer`, `VatTentacleRigBuilder`, `VatTextureBaker`, `ClipKeyConversion`, `CutsceneSceneBinding`). Additionally fails on any static class whose name ends in a banned token (`Util`, `Utils`, `Helper`, `Helpers`, `Query`, `Manager`, `Common`, `Misc`, `Ext`, `Extensions`), and on `Utility` outside `Editor/ClipUtilities/`. Must fail today on the nine §2.1 renames.
   - **`Conformance_H_ApiFolderClassesEndInApi`** — every `public static class` in `Runtime/Api/` ends in `Api`. Fails today on four of five.
-- [ ] Compile gate. Run `Conformance_F`, `Conformance_G`, `Conformance_H` — **all three must fail**. Paste the failure counts into §6. Commit the tests red. This is the one commit in the package allowed to leave a red test, and it is red on purpose.
+- [x] Compile gate. Run `Conformance_F`, `Conformance_G`, `Conformance_H` — **all three must fail**. Paste the failure counts into §6. Commit the tests red. This is the one commit in the package allowed to leave a red test, and it is red on purpose.
 
 ### T2 — Renames (one commit, package + game + tests + docs together) — not parallel-safe
 
-- [ ] Perform every rename in §2.1 and §2.2. Merge `AnimationCommandUtil` + `PlaybackQuery` into `Runtime/Api/PlaybackApi.cs`; delete the two old files and their `.meta`. Move `ToolkitWorldControl.cs` → `Runtime/Api/ToolkitWorldApi.cs`, `RagdollTransformUtil.cs` → `Runtime/Sampling/RagdollTransformMath.cs` (move with `git mv` so the `.meta` GUID travels).
-- [ ] Update every consumer in §2.4: game, package, tests, `Documentation~`, `README.md`, `Samples~`, vault notes. Rename the two test files/classes.
-- [ ] `CHANGELOG.md` `[Unreleased]` → add `### Changed — breaking (A69)` with the full old → new table. `package.json` version → `0.15.0`.
-- [ ] Compile gate on **both** the package and the game (`Assets/_Scripts` consumers are in the game assemblies; a package-only green is not enough). Run `Conformance_G`, `Conformance_H` → green. Run `PlaybackApiTests`, `ClipRegistryApiTests`, `StableIdentityTests`, `CutsceneTimelineSystemTests` → green, discovered counts unchanged from before the rename.
-- [ ] Commit `A69-T2: one suffix per role — PlaybackApi, CutsceneApi, BillboardApi, ClipRegistryApi`.
+- [x] Perform every rename in §2.1 and §2.2. Merge `AnimationCommandUtil` + `PlaybackQuery` into `Runtime/Api/PlaybackApi.cs`; delete the two old files and their `.meta`. Move `ToolkitWorldControl.cs` → `Runtime/Api/ToolkitWorldApi.cs`, `RagdollTransformUtil.cs` → `Runtime/Sampling/RagdollTransformMath.cs` (move with `git mv` so the `.meta` GUID travels).
+- [x] Update every consumer in §2.4: game, package, tests, `Documentation~`, `README.md`, `Samples~`, vault notes. Rename the two test files/classes.
+- [x] `CHANGELOG.md` `[Unreleased]` → add `### Changed — breaking (A69)` with the full old → new table. `package.json` version → `0.15.0`.
+- [x] Compile gate on **both** the package and the game (`Assets/_Scripts` consumers are in the game assemblies; a package-only green is not enough). Run `Conformance_G`, `Conformance_H` → green. Run `PlaybackApiTests`, `ClipRegistryApiTests`, `StableIdentityTests`, `CutsceneTimelineSystemTests` → green, discovered counts unchanged from before the rename.
+- [x] Commit `A69-T2: one suffix per role — PlaybackApi, CutsceneApi, BillboardApi, ClipRegistryApi`.
 
 ### T3 — Comment audit, Runtime **[parallel-safe with T4, T5, T6]**
 
 Folders: `Runtime/Api`, `Runtime/Blobs`, `Runtime/Components`, `Runtime/Identity`, `Runtime/Sampling`, `Runtime/Systems`, `Runtime.Physics`. Apply §2.3 to every file. This is the folder the owner named; do it to the letter.
 
-- [ ] `Runtime/Blobs/*.cs` — every field comment goes unless it is a sentinel/unit/order trap in one line. `ClipRegistryBlob`'s type summary keeps exactly one fact: "dense clip index = position in `clips` = position in `sortedClipIds`; both are id-sorted". **Do not rename blob fields** (§2.3 item 5).
-- [ ] `Runtime/Components/*.cs` — same. `PlaybackLayer.advanceStartTime` → rename to `timeAtFrameStart`, one trailing line `// written only by PlaybackTimeSystem, before it advances time`. `RagdollComponents.cs` (68% comment) loses all six essays; `RagdollBodyElement` keeps one line: `// buffer order = hierarchy depth, shallowest first; the solver reads parents through it`.
-- [ ] `Runtime/Api/*.cs` — `PlaybackApi.Play` gets no summary. The class summary keeps two facts, one line each: commands are appended *and* `AnimationCommandPending` is enabled by every method; `blendDuration = NaN` means the clip's authored default. `<param>` on `blendDuration` only.
-- [ ] `Runtime/Systems/*.cs` — §2.3 item 7. `CommandApplySystem` keeps: the `RequireAnyForUpdate` why (two lines) and the `previousLoop` ordering line.
-- [ ] Compile gate. Run `DotsAnimationToolkit.Tests.PlayMode` in full (Runtime is what it exercises) — green, discovered count unchanged. Commit `A69-T3: Runtime reads as code`.
+- [x] `Runtime/Blobs/*.cs` — every field comment goes unless it is a sentinel/unit/order trap in one line. `ClipRegistryBlob`'s type summary keeps exactly one fact: "dense clip index = position in `clips` = position in `sortedClipIds`; both are id-sorted". **Do not rename blob fields** (§2.3 item 5).
+- [x] `Runtime/Components/*.cs` — same. `PlaybackLayer.advanceStartTime` → rename to `timeAtFrameStart`, one trailing line `// written only by PlaybackTimeSystem, before it advances time`. `RagdollComponents.cs` (68% comment) loses all six essays; `RagdollBodyElement` keeps one line: `// buffer order = hierarchy depth, shallowest first; the solver reads parents through it`.
+- [x] `Runtime/Api/*.cs` — `PlaybackApi.Play` gets no summary. The class summary keeps two facts, one line each: commands are appended *and* `AnimationCommandPending` is enabled by every method; `blendDuration = NaN` means the clip's authored default. `<param>` on `blendDuration` only.
+- [x] `Runtime/Systems/*.cs` — §2.3 item 7. `CommandApplySystem` keeps: the `RequireAnyForUpdate` why (two lines) and the `previousLoop` ordering line.
+- [x] Compile gate. Run `DotsAnimationToolkit.Tests.PlayMode` in full (Runtime is what it exercises) — green, discovered count unchanged. Commit `A69-T3: Runtime reads as code`.
 
 ### T4 — Comment audit, Authoring **[parallel-safe with T3, T5, T6]**
 
 Folders: `Authoring/Assets`, `Authoring/Baking`, `Authoring/Build`, `Authoring/Validation`.
 
-- [ ] `Authoring/Assets/*.cs` — §2.3 item 6: SO field XML → `[Tooltip]` one sentence or nothing; long explanations (e.g. the `ClipAsset.frameRate` essay) move to `Documentation~/clip-editor.md` if not already there, else are deleted. `RigAsset.cs` (59%), `ClipAsset.cs` (61%), `CutsceneAsset.cs` (44%) are the targets.
-- [ ] `Authoring/Validation/ValidationMessage.cs` (72%) — the rule-id enum keeps one line per rule stating the rule, nothing more. That is the one place a per-member one-liner is the documentation.
-- [ ] `Authoring/Build/ClipRegistryBuilder.cs`, `Authoring/Baking/ActorBaker.cs` — essays go; the bake-order traps (a baker writes only its own entity; `IBaker.GetName`/`GetParents` for dependency tracking) stay as `//` lines at the statements they protect.
-- [ ] Compile gate. Run `ClipRegistryBuilderTests`, `ClipValidationTests`, `CutsceneBlobBuilderTests` (EditMode) and `ActorBakingAcceptanceTests`, `RigBindingSystemTests`, `CutsceneStageBakingTests` (PlayMode) — green. Commit `A69-T4: Authoring reads as code`.
+- [x] `Authoring/Assets/*.cs` — §2.3 item 6: SO field XML → `[Tooltip]` one sentence or nothing; long explanations (e.g. the `ClipAsset.frameRate` essay) move to `Documentation~/clip-editor.md` if not already there, else are deleted. `RigAsset.cs` (59%), `ClipAsset.cs` (61%), `CutsceneAsset.cs` (44%) are the targets.
+- [x] `Authoring/Validation/ValidationMessage.cs` (72%) — the rule-id enum keeps one line per rule stating the rule, nothing more. That is the one place a per-member one-liner is the documentation.
+- [x] `Authoring/Build/ClipRegistryBuilder.cs`, `Authoring/Baking/ActorBaker.cs` — essays go; the bake-order traps (a baker writes only its own entity; `IBaker.GetName`/`GetParents` for dependency tracking) stay as `//` lines at the statements they protect.
+- [x] Compile gate. Run `ClipRegistryBuilderTests`, `ClipValidationTests`, `CutsceneBlobBuilderTests` (EditMode) and `ActorBakingAcceptanceTests`, `RigBindingSystemTests`, `CutsceneStageBakingTests` (PlayMode) — green. Commit `A69-T4: Authoring reads as code`.
 
 ### T5 — Comment audit, Editor **[parallel-safe with T3, T4, T6]**
 
 Folders: `Editor/ClipEditor/**`, `Editor/ClipUtilities`, `Editor/Inspectors`, `Editor/VatBaking`. Largest by volume (`ClipEditorWindow.cs` alone has 1,947 `///` lines). Split across two subagents by folder if you like; both are parallel-safe with each other.
 
-- [ ] Apply §2.3. UI element classes get one summary line at most. Partial-class files (`ClipEditorWindow.*.cs`) get a summary only on the file that declares the type.
-- [ ] Compile gate. Run `ClipEditorAuthoringTests`, `ClipEditorLayoutTests`, `ClipEditorAddEventTests`, `ClipEditorHierarchySelectionTests`, `BillboardPreviewParityTests`, `RagdollPreviewParityTests`, `SocketPreviewParityTests`, `VatTextureBakerTests` — green. Commit `A69-T5: Editor reads as code`.
+- [x] Apply §2.3. UI element classes get one summary line at most. Partial-class files (`ClipEditorWindow.*.cs`) get a summary only on the file that declares the type.
+- [x] Compile gate. Run `ClipEditorAuthoringTests`, `ClipEditorLayoutTests`, `ClipEditorAddEventTests`, `ClipEditorHierarchySelectionTests`, `BillboardPreviewParityTests`, `RagdollPreviewParityTests`, `SocketPreviewParityTests`, `VatTextureBakerTests` — green. Commit `A69-T5: Editor reads as code`.
 
 ### T6 — Docs and samples sweep **[parallel-safe with T3, T4, T5]**
 
-- [ ] `Documentation~/*.md`, `README.md`: replace every old API name (T2 already did the mechanical rename; this task reads each page once and fixes any sentence the rename made false, e.g. "read it back through `PlaybackQuery`").
-- [ ] `Samples~/**/*.cs`: same, then compile-check through a temp assembly (the `Samples~` entry in `Assets/_Vault/Memories/Code/Gotchas.md`) — Samples~ is not compiled by Unity and rots silently.
-- [ ] Commit `A69-T6: docs and samples name the new API`.
+- [x] `Documentation~/*.md`, `README.md`: replace every old API name (T2 already did the mechanical rename; this task reads each page once and fixes any sentence the rename made false, e.g. "read it back through `PlaybackQuery`").
+- [x] `Samples~/**/*.cs`: same, then compile-check through a temp assembly (the `Samples~` entry in `Assets/_Vault/Memories/Code/Gotchas.md`) — Samples~ is not compiled by Unity and rots silently.
+- [x] Commit `A69-T6: docs and samples name the new API`.
 
 ### T7 — Close the gate
 
-- [ ] Run `Conformance_F`, `Conformance_G`, `Conformance_H` → **green**. If `Conformance_F` still lists hits, fix them; do not widen the allowlist.
-- [ ] Run the measurement script from §1; paste before/after into §6. `///` ratio ≤ 6% or explain in §6 which files are over and why.
-- [ ] Full suites once: `DotsAnimationToolkit.Tests.EditMode`, `DotsAnimationToolkit.Tests.PlayMode`, `StitchPunk.Tests`, `StitchPunk.Tests.PlayMode`. Discovered totals must match the pre-A69 counts recorded in §6 at T1 (a dropped count is a lost fixture, not a pass).
-- [ ] Replace HANDOFF §2's doc-comment bullet with §2.3's rule verbatim, and add "Static-class suffixes: §2.1 of Amendment A69" as a hard convention beneath it. Update HANDOFF §4 with one paragraph.
-- [ ] Commit `A69-T7: gate closed; HANDOFF carries the rule`.
+- [x] Run `Conformance_F`, `Conformance_G`, `Conformance_H` → **green**. If `Conformance_F` still lists hits, fix them; do not widen the allowlist.
+- [x] Run the measurement script from §1; paste before/after into §6. `///` ratio ≤ 6% or explain in §6 which files are over and why.
+- [x] Full suites once: `DotsAnimationToolkit.Tests.EditMode`, `DotsAnimationToolkit.Tests.PlayMode`, `StitchPunk.Tests`, `StitchPunk.Tests.PlayMode`. Discovered totals must match the pre-A69 counts recorded in §6 at T1 (a dropped count is a lost fixture, not a pass).
+- [x] Replace HANDOFF §2's doc-comment bullet with §2.3's rule verbatim, and add "Static-class suffixes: §2.1 of Amendment A69" as a hard convention beneath it. Update HANDOFF §4 with one paragraph.
+- [x] Commit `A69-T7: gate closed; HANDOFF carries the rule`.
 
 ### ⏸ owner checkpoint
 
@@ -255,3 +255,32 @@ Open `Runtime/Api/PlaybackApi.cs`, `Runtime/Blobs/ClipRegistryBlob.cs`, and `Run
   touched by any subagent — a package-root assembly-attributes file with no primary type, outside
   every subagent's file list). Fixed both the comment and the test (all `Conformance_F` literal
   checks are now `OrdinalIgnoreCase`).
+- 2026-09-06 — T7 close. §1's measurement script, before and after:
+
+  | Measure | Before | After |
+  |---|---|---|
+  | `///` lines / total lines | 18,578 / 74,608 (25%) | 4,301 / 61,290 (7.0%) |
+  | `<remarks>` | 871 | 0 |
+  | `<para>` | 796 | 0 |
+  | `<strong>` | 544 | 0 |
+  | `<em>` | 255 | 0 |
+  | "architecture section" / "amendment ANN" / "Phase X" / `§` | ~700 combined | 0 |
+
+  `///` ratio landed at 7.0%, over the 6% target. 18 files still sit above 25% `///` lines (target
+  0): `DirectionSetContext.cs` (48%), `ValidationMessage.cs` (45%, the spec's own named exception —
+  one line per rule ID is the documentation there), `ActorStateComponents.cs` (42%),
+  `IVocabularyRegistry.cs` (41%), `ClipComponentKind.cs` (40%), `AnimationToolkitSystemGroups.cs`
+  (39%), `IStableIdMintReporter.cs` (35%), `DirectionEnums.cs` (34%), `AnimationToolkitEnums.cs`
+  (32%), `BillboardComponents.cs`/`HeldTransformEdit.cs`/`CutsceneEventInspectorProviders.cs` (28%),
+  `ClipAsset.cs` (28%), `PartComponents.cs`/`CutsceneComponents.cs`/`ActorBakeFailed.cs` (27%),
+  `AnimationCommand.cs`/`ClipEditorTab.cs` (26%). Every one checked by hand: small, field- or
+  enum-member-dense files where a compliant one-line-per-member comment (a sentinel, a unit, a short
+  role description) naturally pushes the ratio up because the file has little other code to dilute
+  it against — none contain an essay, a citation, or markup beyond `<c>`/`<see cref>`. The hard
+  zeros in the table above are what `Conformance_F` gates and all of them hold; the ratio and the
+  25%-file-count are the spec's own declared targets, not gates (§2.3's "Success bar" table), and
+  this is the honest shortfall against them.
+
+  Full suites, matching the T1 baseline exactly: toolkit EditMode 721/720 (the same one
+  pre-existing `Conformance_A` drift, untouched), PlayMode 261/261; `StitchPunk.Tests` 59/59;
+  `StitchPunk.Tests.PlayMode` 7/7.
