@@ -70,7 +70,7 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 - [x] **Phase 1 — marks (§3.1, 3.2) + `CutsceneMarkIssued` baking.** Test (PlayMode): `MoveToMark_IssuesAPathRequestForUnitsButNotThePlayer` (two entities, one with `Player`; enable marks; update; assert `PathRequest` enabled only on the unit with the mark's position) and `MarkResolved_HaltsPathing`.
 - [x] **Phase 2 — dialogue cue (§3.3, 3.6) + registry entry.** Test (PlayMode): `DialogueCue_StartsActiveDialogue_AndReleasesTheHoldWhenItEnds` (hand-built request entity with an `AnimEventOutput` Dialogue event and a playback state paused on hold `"Dialogue"`; update; assert `ActiveDialogue` enabled; disable it; update; assert `CutsceneHoldRelease` enabled with the id).
 - [x] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
-- [ ] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
+- [x] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
 - [ ] **Phase 5 — full suites once**, `Contracts.md` rows, `Systems_AI.md`/`Systems_Animation.md` one line each.
 - [ ] **⏸ Owner checkpoint.** In `DOTSTestScene`: a cutscene with marks for the player and one minion beside a crate, a rendezvous hold, then a Dialogue holding event, then a clip. Press F9: the minion pathfinds to its disc; you walk to yours; the moment both arrive the hold releases and WASD stops working; dialogue opens; closing it continues the cutscene; the minion faces the way its root keys carry it.
 
@@ -144,3 +144,27 @@ reflection about 45 degrees that cost the toolkit an amendment.
 update. Doing so needs baked `UnitDataLibrary`/`PartLibrary` blob singletons, and the fixture would
 mostly assert `FacingResolver`'s own quantization, which the toolkit's suite already pins. The
 observable — a minion turning as its root keys carry it — is a checkpoint item for the owner's eyes.
+
+### Phase 4 — detach (2026-09-06)
+
+`CutsceneDetachSystem` is one `.Schedule()`d job over the enabled signal, writing `ThrownItemRequest`
+through a `ComponentLookup`; a unit's signal is consumed and nothing else happens to it. Three things
+this phase paid for:
+
+1. **An `in` parameter alongside `EnabledRefRW` of the same type is a run-time aliasing throw.** The
+   generator emits both an RO and an RW `ComponentTypeHandle` for the type and the job safety system
+   rejects the pair — `InvalidOperationException: ... two containers may not be the same (aliasing)`,
+   no compile error. Taking the signal by `ref` makes it one handle. (The marks jobs already had
+   matching access modes by luck: `ref` + `EnabledRefRW`, and `in` + `EnabledRefRO`.)
+2. **A newly added `[BurstCompile]` job can run as somebody else's compiled code for a run or two.**
+   The first PlayMode run threw `ObjectDisposedException` naming `ComponentTypeHandle<OnAttackPlayerInput>`
+   and an `execute_code` probe threw an NRE whose Burst stack pointed at `CutsceneAnimEventSoundJob`
+   — neither type appears anywhere in this system, and the probe's world contained no `CutscenePlay`
+   entity at all. Dropping `[BurstCompile]` made it run correctly; putting it back, after another
+   compile cycle, also ran correctly. Same family as the Burst JIT cache note already in the vault:
+   **a bogus failure naming a job you did not touch is a reason to recompile and re-run before
+   debugging**, and a green run taken too soon after an edit may be running the previous binary.
+3. **A revert that only removed `SetComponentEnabled` did not fail the test** — the component still
+   read enabled after the lookup's indexer write. Removing the whole throw branch does fail it, which
+   is the revert kept on record. The explicit `SetComponentEnabled` call stays: what the job means is
+   "enable the request", and that must not depend on a side effect of an indexer assignment.
