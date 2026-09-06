@@ -164,6 +164,12 @@ namespace DotsAnimationToolkit
         public int activeBlockIndex;
 
         /// <summary>
+        /// The active block's authored speed (amendment A65 §3.3), so a later <c>SetSpeed</c> from a
+        /// host slowing the cutscene multiplies it rather than replacing it. 1 while nothing plays.
+        /// </summary>
+        public float activeBlockSpeed;
+
+        /// <summary>
         /// Whether this slot has been ordered to a mark it has not yet reached. While it is set the
         /// slot's root lane is ignored — whatever is walking the entity owns the transform, exactly
         /// as a host does while <see cref="attachedHostSlotIndex"/> is set. Survives a hold: a mark

@@ -661,6 +661,8 @@ namespace DotsAnimationToolkit.Authoring
                     duration = block.duration,
                     loop = block.loop,
                     blendDuration = blendDuration,
+                    speed = CutsceneBlockTiming.EffectiveBlockSpeed(block.speed),
+                    clipStartOffset = Mathf.Max(0f, block.clipStartOffsetSeconds),
                     directionVariants = CutsceneDirectionVariants.Build(slot, block.clipId)
                 });
 

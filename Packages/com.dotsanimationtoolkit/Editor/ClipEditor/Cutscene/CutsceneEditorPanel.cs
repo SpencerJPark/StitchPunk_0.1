@@ -3001,6 +3001,8 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField(blockProperty, "start", "Start (s)");
             AddBoundField(blockProperty, "duration", "Duration (s)");
             AddBoundField(blockProperty, "loop", "Loop");
+            AddBoundField(blockProperty, "speed", "Speed");
+            AddBoundField(blockProperty, "clipStartOffsetSeconds", "Start Offset (s)");
         }
 
         private void BuildTransformKeyInspector(string listPropertyPath, int keyIndex, int keyCount)

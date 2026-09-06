@@ -648,8 +648,9 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            float activeClipTime = CutsceneBlockTiming.ClipTimeInBlock(activeBlock.start, timeSeconds)
-                + HoldClipPhaseSeconds;
+            float activeClipTime = CutsceneBlockTiming.ClipTimeInBlock(
+                    activeBlock.start, timeSeconds, activeBlock.speed, activeBlock.clipStartOffsetSeconds)
+                + HoldClipPhaseSeconds * CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed);
             float activePhase = CutsceneBlockTiming.LoopPhaseNormalized(
                 activeClipTime, clipPreview.GetClipDuration(activeClipIndex), activeBlock.loop);
 
@@ -668,9 +669,10 @@ namespace DotsAnimationToolkit.Editor
                 {
                     // The outgoing clip keeps running on its own clock while the weight climbs —
                     // PlaybackTimeSystem.AdvanceBlend's behaviour, not a frozen last frame.
-                    float previousClipTime =
-                        CutsceneBlockTiming.ClipTimeInBlock(previousBlock.start, timeSeconds)
-                        + HoldClipPhaseSeconds;
+                    float previousClipTime = CutsceneBlockTiming.ClipTimeInBlock(
+                            previousBlock.start, timeSeconds, previousBlock.speed,
+                            previousBlock.clipStartOffsetSeconds)
+                        + HoldClipPhaseSeconds * CutsceneBlockTiming.EffectiveBlockSpeed(previousBlock.speed);
                     previousPhase = CutsceneBlockTiming.LoopPhaseNormalized(
                         previousClipTime, clipPreview.GetClipDuration(previousClipIndex), previousBlock.loop);
                 }

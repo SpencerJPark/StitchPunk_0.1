@@ -78,7 +78,8 @@ namespace DotsAnimationToolkit
                     attachedHostSlotIndex = -1,
                     // Same reason: 0 is a real segment index, and "no block playing yet" has to be
                     // distinguishable from "playing the first block of segment 0".
-                    activeBlockSegmentIndex = -1
+                    activeBlockSegmentIndex = -1,
+                    activeBlockSpeed = 1f
                 };
             }
 

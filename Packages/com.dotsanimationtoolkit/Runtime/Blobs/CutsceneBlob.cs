@@ -179,6 +179,16 @@ namespace DotsAnimationToolkit
         public float blendDuration;
 
         /// <summary>
+        /// Playback speed for this block's clip (amendment A65 §3.3), multiplied by the cutscene's
+        /// own speed when the Play command is issued. 0 means a bake older than schema 5 — see
+        /// <c>CutsceneBlockTiming.EffectiveBlockSpeed</c>.
+        /// </summary>
+        public float speed;
+
+        /// <summary>Seconds into the clip this block starts, issued as a <c>SetTime</c> after the Play.</summary>
+        public float clipStartOffset;
+
+        /// <summary>
         /// The direction set's siblings for this block's clip (amendment A65 3.2), or
         /// <see cref="CutsceneDirectionVariantsBlob.hasVariants"/> false when the block names a clip
         /// the slot's set has never heard of - a wave stays a wave whichever way the actor turns.

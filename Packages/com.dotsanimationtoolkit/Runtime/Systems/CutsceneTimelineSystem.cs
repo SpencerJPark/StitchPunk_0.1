@@ -111,7 +111,8 @@ namespace DotsAnimationToolkit
             float effectiveLayerSpeed = control.paused ? 0f : math.max(0f, control.speed);
             if (effectiveLayerSpeed != playbackState.appliedLayerSpeed)
             {
-                ApplyLayerSpeedToAllActorSlots(entityManager, ref blob, layerIndex, bindings, effectiveLayerSpeed);
+                ApplyLayerSpeedToAllActorSlots(
+                    entityManager, ref blob, layerIndex, bindings, slotStates, effectiveLayerSpeed);
                 playbackState.appliedLayerSpeed = effectiveLayerSpeed;
             }
 
@@ -266,6 +267,7 @@ namespace DotsAnimationToolkit
                     slotState.activeVariantClipId = clipId;
                     slotState.activeBlockSegmentIndex = playbackState.segmentIndex;
                     slotState.activeBlockIndex = slotState.nextClipBlockIndex;
+                    slotState.activeBlockSpeed = CutsceneBlockTiming.EffectiveBlockSpeed(block.speed);
 
                     // The crossfade window from this block's true predecessor on the slot's flat
                     // lane (amendment A62 defect 3, decision A62-D3) — baked by CutsceneBlobBuilder,
@@ -277,14 +279,32 @@ namespace DotsAnimationToolkit
                         kind = CommandKind.Play,
                         layerIndex = layerIndex,
                         clip = new ClipId(clipId),
-                        // The layer's currently-applied speed (amendment A62 defect 4), not a flat
-                        // 1 — a block issued while the host has slowed or paused playback must not
-                        // silently resume at normal speed.
-                        speed = layerSpeed,
+                        // The layer's currently-applied speed (amendment A62 defect 4) times the
+                        // block's own (amendment A65 §3.3), never a flat 1 — a block issued while
+                        // the host has slowed or paused playback must not silently resume at normal
+                        // speed, and "the second half of the swing, slowed" is authored per block.
+                        speed = layerSpeed * slotState.activeBlockSpeed,
                         loop = block.loop ? LoopMode.Loop : LoopMode.Once,
                         blendDuration = block.blendDuration,
                         time = 0f
                     });
+
+                    // Play always starts a clip at 0 (or its end, in reverse) — CommandApplySystem
+                    // ignores the command's own time — so an offset is a second command, drained
+                    // right after it in the same frame.
+                    if (block.clipStartOffset > 0f)
+                    {
+                        commands.Add(new AnimationCommand
+                        {
+                            kind = CommandKind.SetTime,
+                            layerIndex = layerIndex,
+                            clip = default,
+                            speed = 0f,
+                            loop = LoopMode.UseClipDefault,
+                            blendDuration = float.NaN,
+                            time = block.clipStartOffset
+                        });
+                    }
                     issuedAny = true;
                     slotState.nextClipBlockIndex++;
                 }
@@ -493,7 +513,7 @@ namespace DotsAnimationToolkit
                 kind = CommandKind.Play,
                 layerIndex = layerIndex,
                 clip = new ClipId(variantClipId),
-                speed = layerSpeed,
+                speed = layerSpeed * CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed),
                 loop = activeBlock.loop ? LoopMode.Loop : LoopMode.Once,
                 blendDuration = 0f,
                 time = 0f
@@ -585,7 +605,8 @@ namespace DotsAnimationToolkit
         /// </summary>
         private static void ApplyLayerSpeedToAllActorSlots(
             EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
-            DynamicBuffer<CutsceneActorBinding> bindings, float layerSpeed)
+            DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, float layerSpeed)
         {
             for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
             {
@@ -606,7 +627,11 @@ namespace DotsAnimationToolkit
                     kind = CommandKind.SetSpeed,
                     layerIndex = layerIndex,
                     clip = default,
-                    speed = layerSpeed,
+                    // The block's own speed multiplies the cutscene's (amendment A65 §3.3): a host
+                    // halving playback must halve a half-speed block to a quarter, not reset it.
+                    speed = layerSpeed * (slotIndex < slotStates.Length
+                        ? CutsceneBlockTiming.EffectiveBlockSpeed(slotStates[slotIndex].activeBlockSpeed)
+                        : 1f),
                     loop = LoopMode.UseClipDefault,
                     blendDuration = float.NaN,
                     time = 0f

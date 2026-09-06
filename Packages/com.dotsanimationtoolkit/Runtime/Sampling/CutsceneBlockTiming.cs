@@ -36,10 +36,35 @@ namespace DotsAnimationToolkit
             return math.max(0f, previousBlockStart + previousBlockDuration - blockStart);
         }
 
-        /// <summary>Seconds a block's clip has been playing at <paramref name="timeSeconds"/>.</summary>
-        public static float ClipTimeInBlock(float blockStart, float timeSeconds)
+        /// <summary>Seconds of timeline a block has been running at <paramref name="timeSeconds"/>.</summary>
+        public static float ElapsedInBlock(float blockStart, float timeSeconds)
         {
             return math.max(0f, timeSeconds - blockStart);
+        }
+
+        /// <summary>
+        /// Where in its clip a block is at <paramref name="timeSeconds"/> (amendment A65 §3.3):
+        /// its start offset plus the elapsed timeline seconds run at the block's own speed. A block
+        /// playing at half speed covers half a clip in a second of timeline; a crossfade window,
+        /// which is timeline geometry, is <see cref="ElapsedInBlock"/> and is not scaled by it.
+        /// </summary>
+        public static float ClipTimeInBlock(
+            float blockStart, float timeSeconds, float speed, float clipStartOffset)
+        {
+            return clipStartOffset + ElapsedInBlock(blockStart, timeSeconds) * EffectiveBlockSpeed(speed);
+        }
+
+        /// <summary>
+        /// A block's speed, reading 0 as "unset" rather than "frozen".
+        /// </summary>
+        /// <remarks>
+        /// A block baked before amendment A65 (schema 4 and earlier) has no speed field, and the
+        /// authored one cannot be set below 0.01, so a 0 here is always an absent value rather than
+        /// an author asking for a stopped clip — which is what <c>CutsceneControl.paused</c> is for.
+        /// </remarks>
+        public static float EffectiveBlockSpeed(float speed)
+        {
+            return speed > 0f ? speed : 1f;
         }
 
         /// <summary>
@@ -53,7 +78,7 @@ namespace DotsAnimationToolkit
             {
                 return 1f;
             }
-            return math.saturate(ClipTimeInBlock(blockStart, timeSeconds) / blendDuration);
+            return math.saturate(ElapsedInBlock(blockStart, timeSeconds) / blendDuration);
         }
 
         /// <summary>

@@ -35,6 +35,30 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
+        /// Catches: applying a block's speed to its start offset, or measuring the crossfade in
+        /// clip seconds instead of timeline ones (amendment A65 §3.3). "Play the second half of the
+        /// swing, slowed" means starting at the offset and then running slowly — scaling the offset
+        /// too starts a half-speed block in the middle of the half it was told to play, and scaling
+        /// the blend window makes a slowed block's crossfade outlast the overlap it was derived from.
+        /// </summary>
+        [Test]
+        public void BlockSpeedAndOffset_StartAtTheOffset_AndScaleOnlyTheElapsedTime()
+        {
+            // A block starting at 1s, playing from 0.25s into its clip at half speed. Two seconds of
+            // timeline later, the clip has advanced one second.
+            Assert.AreEqual(0.25f, CutsceneBlockTiming.ClipTimeInBlock(1f, 1f, 0.5f, 0.25f), 1e-5f,
+                "A block starts exactly at its authored offset, whatever its speed.");
+            Assert.AreEqual(1.25f, CutsceneBlockTiming.ClipTimeInBlock(1f, 3f, 0.5f, 0.25f), 1e-5f,
+                "Only the elapsed time runs at the block's speed.");
+
+            Assert.AreEqual(0.5f, CutsceneBlockTiming.SeamBlendWeight(1f, 1f, 1.5f), 1e-5f,
+                "A crossfade is timeline geometry and is not stretched by the block's speed.");
+
+            Assert.AreEqual(1f, CutsceneBlockTiming.EffectiveBlockSpeed(0f), 1e-5f,
+                "0 is an older bake with no speed field, never a request for a frozen clip.");
+        }
+
+        /// <summary>
         /// Catches: a zero-length blend window reading as weight 0. The weight lerps
         /// <em>from</em> the outgoing clip <em>to</em> the incoming one, so 0 on a hard cut leaves
         /// the previous clip on screen forever — every non-overlapping block after the first would

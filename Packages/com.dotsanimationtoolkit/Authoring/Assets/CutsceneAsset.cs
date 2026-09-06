@@ -246,6 +246,16 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>Whether the clip loops for the block's duration rather than playing once.</summary>
         public bool loop;
+
+        /// <summary>
+        /// Playback speed for this block's clip (amendment A65 §3.3), multiplied into whatever speed
+        /// the host has the cutscene running at. Floored well above 0 — a stopped clip is
+        /// <c>CutsceneControl.paused</c>, and 0 in the baked blob means "an older bake, no opinion".
+        /// </summary>
+        [Min(0.01f)] public float speed = 1f;
+
+        /// <summary>Seconds into the clip the block starts, for playing the second half of a swing.</summary>
+        [Min(0f)] public float clipStartOffsetSeconds;
     }
 
     /// <summary>

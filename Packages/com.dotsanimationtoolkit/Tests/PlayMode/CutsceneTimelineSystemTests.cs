@@ -320,6 +320,49 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             }
         }
 
+        /// <summary>
+        /// Amendment A65-T4: a block's authored speed and start offset have to survive as far as the
+        /// commands the actor receives — the fields exist so an author can play the second half of a
+        /// swing, slowed, and a Play that ignores them looks exactly like a block that was never
+        /// edited.
+        /// </summary>
+        [Test]
+        public void BlockSpeedAndOffset_ReachThePlayCommand()
+        {
+            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 2);
+            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildSpeedAndOffsetCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity =
+                CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob, layerIndex: 0);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
+            {
+                slotId = SlotId,
+                actorEntity = actorEntity
+            });
+
+            Advance(0.1f);
+
+            DynamicBuffer<AnimationCommand> commands =
+                testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
+            int playIndex = -1;
+            for (int commandIndex = 0; commandIndex < commands.Length; commandIndex++)
+            {
+                if (commands[commandIndex].kind == CommandKind.Play)
+                {
+                    playIndex = commandIndex;
+                }
+            }
+            Assert.GreaterOrEqual(playIndex, 0, "sanity: the block at time 0 is issued");
+            Assert.AreEqual(0.5f, commands[playIndex].speed, 1e-4f,
+                "the block's own speed multiplies the cutscene's, which is 1 here");
+            Assert.Less(playIndex + 1, commands.Length, "an offset block needs the SetTime after its Play");
+            Assert.AreEqual(CommandKind.SetTime, commands[playIndex + 1].kind);
+            Assert.AreEqual(0.25f, commands[playIndex + 1].time, 1e-4f,
+                "Play always starts a clip at 0, so the offset only exists if SetTime carries it");
+        }
+
         [Test]
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {
@@ -454,6 +497,58 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             SystemHandle timelineSystem = testWorld.GetOrCreateSystem<CutsceneTimelineSystem>();
             timelineSystem.Update(testWorld.Unmanaged);
             testWorld.EntityManager.CompleteAllTrackedJobs();
+        }
+
+        /// <summary>One Actor slot, one segment, one clip block at half speed starting 0.25s into its clip.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildSpeedAndOffsetCutsceneBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 5;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Actor };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 2f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                BlobBuilderArray<CutsceneClipBlockBlob> clipBlocks =
+                    builder.Allocate(ref slotSegment.clipBlocks, 1);
+                clipBlocks[0] = new CutsceneClipBlockBlob
+                {
+                    clipId = WalkClipId,
+                    start = 0f,
+                    duration = 2f,
+                    loop = false,
+                    blendDuration = 0f,
+                    speed = 0.5f,
+                    clipStartOffset = 0.25f
+                };
+
+                builder.Allocate(ref slotSegment.transformKeys, 0);
+                builder.Allocate(ref slotSegment.facingKeys, 0);
+                builder.Allocate(ref slotSegment.partTracks, 0);
+                builder.Allocate(ref slotSegment.attachMarkers, 0);
+                builder.Allocate(ref slotSegment.markKeys, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
         }
 
         /// <summary>One Prop slot, one segment, no holds: root motion only, spanning [0, 1].</summary>
