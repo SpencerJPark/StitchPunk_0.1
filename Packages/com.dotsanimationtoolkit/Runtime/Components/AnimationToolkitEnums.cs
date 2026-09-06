@@ -5,10 +5,9 @@ using System;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// How playback time maps onto a clip's duration (architecture sections 3.2, 5.4, 8 M3).
-    /// Baked blob data always stores a resolved mode (<see cref="Once"/>, <see cref="Loop"/>, or
-    /// <see cref="PingPong"/>); <see cref="UseClipDefault"/> is a command-side sentinel resolved
-    /// against <see cref="ClipBlob.defaultLoop"/> when the command is applied.
+    /// How playback time maps onto a clip's duration. Baked blob data always stores a resolved
+    /// mode (<see cref="Once"/>, <see cref="Loop"/>, <see cref="PingPong"/>);
+    /// <see cref="UseClipDefault"/> is a command-side sentinel resolved against the clip's default when applied.
     /// </summary>
     public enum LoopMode : byte
     {
@@ -29,9 +28,8 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
-    /// How a target's animation reaches the screen (architecture section 2.2). One clip may span
-    /// several techniques across its targets. Billboarding is not a technique — it is a per-target
-    /// render modifier (architecture section 6).
+    /// How a target's animation reaches the screen. One clip may span several techniques across
+    /// its targets. Billboarding is not a technique — it is a per-target render modifier.
     /// </summary>
     public enum AnimTechnique : byte
     {
@@ -51,9 +49,7 @@ namespace DotsAnimationToolkit
         VertexVat = 4
     }
 
-    /// <summary>
-    /// The presentation kind of a rig target (architecture section 3.1).
-    /// </summary>
+    /// <summary>The presentation kind of a rig target.</summary>
     public enum TargetKind : byte
     {
         /// <summary>A 2D cutout part quad driven by transform tracks.</summary>
@@ -66,52 +62,27 @@ namespace DotsAnimationToolkit
         FlipbookPlane = 2
     }
 
-    /// <summary>
-    /// How a track combines with the pose composited so far (architecture sections 3.2, 5.6).
-    /// </summary>
-    /// <summary>
-    /// Whether a sprite track's slice keys are absolute frame indices or offsets from the part's
-    /// rest slice (architecture section 5.7, amendment A37).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <see cref="Absolute"/> is the default and the original behaviour: a key names the frame
-    /// outright, and the <c>-1</c> "no change" sentinel applies.
-    /// </para>
-    /// <para>
-    /// <see cref="RelativeToRest"/> exists because a design-driven target's rest slice is chosen
-    /// per character — the ear shape a citizen rolled — so a clip that names an absolute frame
-    /// destroys that choice. A relative key says "one view along from whatever this character has",
-    /// which is the only form that survives a randomised variant. In this mode <c>0</c> is the
-    /// natural no-op and negative offsets are legal, so the <c>-1</c> sentinel does **not** apply.
-    /// </para>
-    /// </remarks>
-    public enum SpriteSliceSpace : byte
-    {
-        /// <summary>Keys name the frame outright; <c>-1</c> means "leave the current frame alone".</summary>
-        Absolute = 0,
-
-        /// <summary>Keys are offsets added to the part's rest slice; <c>0</c> is a no-op.</summary>
-        RelativeToRest = 1
-    }
-
+    /// <summary>How a track combines with the pose composited so far.</summary>
     public enum TrackBlendOp : byte
     {
         /// <summary>Replace exactly the channels in the track's <see cref="AnimatedChannels"/> mask.</summary>
         Override = 0,
 
-        /// <summary>
-        /// Add position/rotation and multiply scale onto the composited result of the layers below
-        /// (architecture section 5.6 — additive over composited lower layers, never over rest).
-        /// </summary>
+        /// <summary>Add position/rotation and multiply scale onto the composited result of the layers below.</summary>
         Additive = 1
     }
 
-    /// <summary>
-    /// Channel mask declaring which pose channels a transform track animates
-    /// (architecture section 3.2). Sprite frames are not a transform channel — sprite tracks are a
-    /// separate track kind.
-    /// </summary>
+    /// <summary>Whether a sprite track's slice keys are absolute frame indices or offsets from the part's rest slice.</summary>
+    public enum SpriteSliceSpace : byte
+    {
+        /// <summary>Keys name the frame outright; <c>-1</c> means "leave the current frame alone".</summary>
+        Absolute = 0,
+
+        /// <summary>Keys are offsets added to the part's rest slice; <c>0</c> is a no-op, and the <c>-1</c> sentinel does not apply.</summary>
+        RelativeToRest = 1
+    }
+
+    /// <summary>Channel mask declaring which pose channels a transform track animates. Sprite frames are a separate track kind, not a channel.</summary>
     [Flags]
     public enum AnimatedChannels : byte
     {
@@ -121,32 +92,19 @@ namespace DotsAnimationToolkit
         /// <summary>Local x/y position offset.</summary>
         PositionXY = 1 << 0,
 
-        /// <summary>
-        /// Local z position. Depth for a 3D rig; the draw-layer order channel for a 2.5D one.
-        /// </summary>
-        /// <remarks>
-        /// Named <c>LayerZ</c> until 3D rigs were supported. The bit value is unchanged, so existing
-        /// masks still mean what they meant — an enum serializes as its number, not its name.
-        /// </remarks>
+        // Depth for a 3D rig, draw-layer order for a 2.5D one. Bit unchanged since this was named
+        // LayerZ — an enum serializes as its number, not its name.
         PositionZ = 1 << 1,
 
-        /// <summary>
-        /// Rotation on all three axes.
-        /// </summary>
-        /// <remarks>
-        /// Named <c>RotationZ</c> when a rotation was a single angle. Same bit, wider meaning: a
-        /// track that masks rotation in now carries x and y as well, and a clip authored before this
-        /// keeps working because its unused axes are zero.
-        /// </remarks>
+        // All three axes. Bit unchanged since this was named RotationZ and meant one angle; a clip
+        // authored before this keeps working because its unused axes are zero.
         Rotation = 1 << 2,
 
         /// <summary>Non-uniform x/y/z scale (negative components flip).</summary>
         Scale = 1 << 3
     }
 
-    /// <summary>
-    /// How a sprite track's keys address their frames (architecture section 3.2).
-    /// </summary>
+    /// <summary>How a sprite track's keys address their frames.</summary>
     public enum SpriteFrameMode : byte
     {
         /// <summary>Keys select a Texture2DArray slice index (−1 = no change).</summary>
@@ -156,9 +114,7 @@ namespace DotsAnimationToolkit
         AtlasRect = 1
     }
 
-    /// <summary>
-    /// Which vertex-animation-texture encoding a texture set carries (architecture section 3.3).
-    /// </summary>
+    /// <summary>Which vertex-animation-texture encoding a texture set carries.</summary>
     public enum VatFlavor : byte
     {
         /// <summary>Per-bone object-space 3×4 skinning matrices; mesh carries indices/weights in UV1/UV2.</summary>
@@ -168,10 +124,7 @@ namespace DotsAnimationToolkit
         VertexPosition = 1
     }
 
-    /// <summary>
-    /// The request kinds games write through <see cref="AnimationCommand"/>
-    /// (architecture sections 5.2, 5.4).
-    /// </summary>
+    /// <summary>The request kinds games write through <see cref="AnimationCommand"/>.</summary>
     public enum CommandKind : byte
     {
         /// <summary>Start a clip on a layer, optionally crossfading from the current clip.</summary>
@@ -190,9 +143,7 @@ namespace DotsAnimationToolkit
         SetTime = 4
     }
 
-    /// <summary>
-    /// Per-layer playback state flags (architecture sections 5.2, 5.4).
-    /// </summary>
+    /// <summary>Per-layer playback state flags.</summary>
     [Flags]
     public enum PlaybackFlags : byte
     {
@@ -215,10 +166,7 @@ namespace DotsAnimationToolkit
         FinishedThisFrame = 1 << 4
     }
 
-    /// <summary>
-    /// Per-key easing between a key and the next one (architecture section 3.2). The left key's
-    /// mode drives the segment; interpolation is resolved per key at bake.
-    /// </summary>
+    /// <summary>Per-key easing between a key and the next one. The left key's mode drives the segment.</summary>
     public enum Interpolation : byte
     {
         /// <summary>Straight linear blend to the next key.</summary>
@@ -236,62 +184,28 @@ namespace DotsAnimationToolkit
         /// <summary>Piecewise quadratic ease-in-out: <c>t &lt; ½ ? 2t² : 1 − 2(1 − t)²</c>.</summary>
         EaseInOut = 4,
 
-        /// <summary>
-        /// A cubic Bézier ease shaped by the key's two editable handles.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The curve warps the segment's blend weight, exactly as the four fixed modes above do —
-        /// it is not a per-channel value curve. That keeps one key driving position, rotation and
-        /// scale together, which is the shape the whole track model is built on; per-channel curves
-        /// would mean per-channel keys.
-        /// </para>
-        /// <para>
-        /// Handles are constrained to the unit square (validation rule V17). x outside [0, 1] makes
-        /// the curve non-functional — two weights for one time — and y outside it makes the eased
-        /// weight leave the segment, which is overshoot. Overshoot is expressive and deliberately
-        /// not allowed yet: the bake's bounds union assumes the keys bound the sampled extremes
-        /// (architecture section 4.6), so a curve that travels past its keys would produce a box
-        /// too small and parts that cull while still on screen.
-        /// </para>
-        /// </remarks>
+        /// <summary>A cubic Bézier ease shaped by the key's two editable handles.</summary>
+        // Handles are clamped to the unit square: x outside [0, 1] breaks monotonicity (two
+        // weights for one time), and y outside it causes overshoot, which the bake's bounds union
+        // does not account for.
         Bezier = 5
     }
 
     /// <summary>
     /// Whether a flipbook key names an array index outright or an offset from its track's
-    /// <c>baseIndex</c>.
+    /// <c>baseIndex</c>. Per-key, independent from <see cref="SpriteSliceSpace"/>, which is per-track.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Per <em>key</em>, unlike <see cref="SpriteSliceSpace"/>, which is per track. The two are
-    /// different axes and both apply: this one decides how a key's stored number becomes a track
-    /// value, and <see cref="SpriteSliceSpace"/> decides whether that value replaces the pose's
-    /// slice or is added to the rest slice the character's variant chose.
-    /// </para>
-    /// <para>
-    /// <strong>A relative key stores its offset, never the resolved index.</strong> That is the
-    /// whole point: moving a track's <c>baseIndex</c> retargets every relative key at once, and no
-    /// offset is recomputed or lost in the process. Storing the resolved value instead would make
-    /// <c>baseIndex</c> a one-shot edit that silently bakes itself into the keys.
-    /// </para>
-    /// </remarks>
     public enum SpriteIndexMode : byte
     {
         /// <summary>The stored number is the array index itself; −1 still means "no change".</summary>
         Absolute = 0,
 
-        /// <summary>The stored number is an offset; the index is the track's <c>baseIndex</c> plus it.</summary>
+        // Stores the offset, not the resolved index: moving the track's baseIndex retargets every
+        // relative key at once.
         RelativeToBase = 1
     }
 
-    /// <summary>
-    /// Whether a cutscene slot is a rigged, clip-playing actor or a bare transform target (Phase G
-    /// spec §2). Lives here rather than in <c>Authoring</c> because both the authored
-    /// <c>CutsceneSlot</c> and the baked <see cref="CutsceneSlotMetaBlob"/> need it, and an
-    /// authoring type nests inside this namespace precisely so it can see enums declared here — not
-    /// the other way around.
-    /// </summary>
+    /// <summary>Whether a cutscene slot is a rigged, clip-playing actor or a bare transform target.</summary>
     public enum CutsceneSlotKind : byte
     {
         /// <summary>Plays clip blocks on a rig and moves via root keys.</summary>
@@ -301,11 +215,7 @@ namespace DotsAnimationToolkit
         Prop = 1
     }
 
-    /// <summary>
-    /// What one cutscene attach marker does (amendment A63): bind this slot to a host, or release it.
-    /// Lives here rather than in <c>Authoring</c> for the same reason <see cref="CutsceneSlotKind"/>
-    /// does — both the authored marker and its baked form need it.
-    /// </summary>
+    /// <summary>What one cutscene attach marker does: bind this slot to a host, or release it.</summary>
     public enum CutsceneAttachKind : byte
     {
         /// <summary>Bind this slot to a host slot's socket, or to the host's root.</summary>
@@ -316,9 +226,8 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
-    /// Reserved event-key values (architecture sections 5.4, 5.5). Keys 0–15 belong to the
-    /// package: 0 is invalid, 1–2 are the shipped built-ins, 3–15 are reserved for future
-    /// built-ins. User-authored keys start at <see cref="FirstUserKey"/> (validation rule V09).
+    /// Reserved event-key values. Keys 0-15 belong to the package: 0 is invalid, 1-2 are the
+    /// shipped built-ins, 3-15 are reserved for future built-ins. User-authored keys start at <see cref="FirstUserKey"/>.
     /// </summary>
     public enum ReservedEventKeys : uint
     {
@@ -331,7 +240,7 @@ namespace DotsAnimationToolkit
         /// <summary>Emitted when a Play/Queue command's <see cref="ClipId"/> fails to resolve.</summary>
         ClipResolveFailed = 2,
 
-        /// <summary>Inclusive lower bound for user-authored event keys (validation rule V09).</summary>
+        /// <summary>Inclusive lower bound for user-authored event keys.</summary>
         FirstUserKey = 16
     }
 }

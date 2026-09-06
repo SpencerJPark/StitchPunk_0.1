@@ -6,21 +6,16 @@ using UnityEngine;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Per-actor link between the baked registry and its VAT textures
-    /// (architecture section 4.4). The primary GPU binding is material-level (shared material →
-    /// shared batch); this component exists for bake-time validation and for advanced hosts that
-    /// build materials at runtime. Per-instance texture properties would break BRG batching and do
-    /// not exist in the contract (section 6.6).
+    /// Per-actor link between the baked registry and its VAT textures. The primary GPU binding is
+    /// material-level (shared material, shared batch); this component exists for bake-time
+    /// validation and for advanced hosts building materials at runtime.
     /// </summary>
     public struct VatTextureBinding : IComponentData
     {
-        /// <summary>The texture set's stable key; matches <see cref="ClipRegistryBlob.vatSetKey"/>.</summary>
-        public ulong setKey;
+        public ulong setKey; // matches ClipRegistryBlob.vatSetKey
 
-        /// <summary>Bone texture (bone flavor) or position texture (vertex flavor), resolved from the texture set at bake.</summary>
-        public UnityObjectRef<Texture2D> boneOrPositionTexture;
+        public UnityObjectRef<Texture2D> boneOrPositionTexture; // bone texture (bone flavor) or position texture (vertex flavor)
 
-        /// <summary>Optional vertex-flavor normal texture; default (null-equivalent) when absent.</summary>
-        public UnityObjectRef<Texture2D> normalTexture;
+        public UnityObjectRef<Texture2D> normalTexture; // optional, vertex flavor only; default (null-equivalent) when absent
     }
 }

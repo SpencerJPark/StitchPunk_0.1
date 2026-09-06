@@ -6,29 +6,17 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Turns a cutscene facing angle into the clip a direction set serves it with (amendment A65
-    /// §3.2): quantize to the actor's turn granularity, fold onto what the set actually covers, then
-    /// take the east-side sibling.
+    /// Turns a cutscene facing angle into the clip a direction set serves it with: quantize to the
+    /// actor's turn granularity, fold onto what the set actually covers, then take the east-side sibling.
     /// </summary>
-    /// <remarks>
-    /// <strong>One copy, called by the runtime player and by the Cutscene Editor's preview.</strong>
-    /// The preview picked a variant this way first (A58); a second implementation for playback is
-    /// exactly the preview-versus-play divergence the single-sampler rule exists to prevent, and
-    /// facing is the one lane where a divergence looks like working art pointing the wrong way
-    /// rather than like a bug.
-    /// </remarks>
     [BurstCompile]
     public static class CutsceneFacingVariants
     {
-        /// <summary>
-        /// Resolves <paramref name="angleDegrees"/> (0 = east, 90 = north, the
-        /// <see cref="CutsceneFacing"/> model) into the east-side clip facing that serves it.
-        /// </summary>
+        /// <summary>Resolves <paramref name="angleDegrees"/> (0 = east, 90 = north) into the east-side clip facing that serves it.</summary>
         /// <param name="mirrorX">
         /// True when the resolved facing is a west-side one served by mirroring. The toolkit does
-        /// not apply it (decision A65-D2) — the host's facing system does, from
-        /// <see cref="CutsceneFacing"/> — but the preview mirrors on it, and a caller that wants to
-        /// know whether a turn is a mirror or a different clip needs it.
+        /// not apply the mirror itself — the host's facing system does, from
+        /// <see cref="CutsceneFacing"/> — but a caller distinguishing a mirror from a different clip needs this.
         /// </param>
         [BurstCompile]
         public static void Resolve(
@@ -42,7 +30,7 @@ namespace DotsAnimationToolkit
             float2 facingVector = new float2(math.cos(angleRadians), math.sin(angleRadians));
 
             // No hysteresis seed: a cutscene's angle is authored or derived from an authored lane,
-            // so the same instant must resolve the same way however it was reached — scrubbed
+            // so the same instant must resolve the same way regardless of direction — scrubbed
             // backwards in the editor, or played forwards.
             Direction memberFacing =
                 FacingResolver.FromMovement(in facingVector, targetDirections, Direction.SouthEast);
@@ -50,12 +38,9 @@ namespace DotsAnimationToolkit
             FacingResolver.ToAuthoredSide(foldedFacing, out clipFacing, out mirrorX);
         }
 
+        // Deliberately not a [BurstCompile] entry point: the blob it reads carries a bool, which is
+        // not blittable across one (BC1063), and both callers are managed anyway.
         /// <summary>The set's clip for an east-side facing, or 0 where the set leaves that slot empty.</summary>
-        /// <remarks>
-        /// Deliberately not a <c>[BurstCompile]</c> entry point: the blob it reads carries a
-        /// <c>bool</c>, which is not blittable across one (BC1063), and both callers — the timeline
-        /// player and the editor preview — are managed anyway.
-        /// </remarks>
         public static ulong SelectVariantClipId(
             in CutsceneDirectionVariantsBlob variants, Direction clipFacing)
         {
@@ -70,16 +55,10 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// The facing angle a travel vector implies, in the <see cref="CutsceneFacing"/> model.
-        /// </summary>
-        /// <remarks>
-        /// <c>atan2(z, x)</c>, not <c>atan2(x, z)</c>: the y component of the vector
-        /// <see cref="FacingResolver.FromMovement"/> reads is north, which is world +Z, and the x
-        /// component is east. Measuring from +Z instead — the <c>LocalTransform</c> Y-euler
-        /// convention — reflects every derived facing about the 45° line and quietly turns an actor
-        /// walking east into one facing north.
-        /// </remarks>
+        // atan2(z, x), not atan2(x, z): the vector's y component (read by FacingResolver.FromMovement)
+        // is north (world +Z) and x is east. Measuring from +Z instead (the LocalTransform Y-euler
+        // convention) reflects every derived facing about the 45-degree line.
+        /// <summary>The facing angle a travel vector implies, in the <see cref="CutsceneFacing"/> model.</summary>
         [BurstCompile]
         public static float AngleDegreesFromTravel(in float3 travel)
         {

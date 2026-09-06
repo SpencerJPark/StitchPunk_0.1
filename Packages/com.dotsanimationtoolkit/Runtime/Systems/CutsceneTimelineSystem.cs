@@ -9,26 +9,13 @@ using Unity.Transforms;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Advances every running cutscene's elastic clock, issues clip-block Play commands through the
-    /// existing <see cref="AnimationCommand"/> API, writes root/prop transforms and the camera
-    /// singleton, fires events, and handles hold-pause/release and skip (Phase G §6).
+    /// Runs in <see cref="AnimationToolkitLogicSystemGroup"/>: advances every running cutscene's
+    /// elastic clock, issues clip-block Play commands through the existing
+    /// <see cref="AnimationCommand"/> API, writes root/prop transforms and the camera singleton,
+    /// fires events, and handles hold-pause/release and skip. Part-track overrides are not applied
+    /// here — they need to land between <c>TransformSampleSystem</c> and <c>TransformApplySystem</c>
+    /// in the Presentation group; see <see cref="CutscenePartOverrideSystem"/>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Deliberately not <c>[BurstCompile]</c>, and not scheduled as a job.</strong> A handful
-    /// of cutscenes ever run at once — this is nothing like the per-part sampling hot path — and the
-    /// logic reaches across entities (a cutscene's own state, every bound actor's command buffer,
-    /// one world camera singleton) in a way a single <c>IJobEntity</c> query cannot express cleanly.
-    /// Plain <c>SystemAPI</c> calls in <c>OnUpdate</c> are not the banned pattern: CLAUDE.md forbids
-    /// <c>.Run()</c> on a job, and there is no job object here to call it on.
-    /// </para>
-    /// <para>
-    /// <strong>Part-track overrides are not applied here.</strong> They need to land after
-    /// <c>TransformSampleSystem</c> composites the clip pose and before <c>TransformApplySystem</c>
-    /// writes it — a Presentation-group ordering this Logic-group system cannot reach. See
-    /// <see cref="CutscenePartOverrideSystem"/>.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitLogicSystemGroup))]
     public partial struct CutsceneTimelineSystem : ISystem
     {
@@ -47,9 +34,9 @@ namespace DotsAnimationToolkit
             }
             Entity cameraPoseEntity = SystemAPI.GetSingletonEntity<CutsceneCameraPose>();
 
-            // Cleared every frame (amendment A62 defect 6) so a segment with no camera lane, or a
-            // cutscene that just completed, reads as "not driven" rather than holding the last
-            // frame's flag along with its stale pose.
+            // Cleared every frame so a segment with no camera lane, or a cutscene that just
+            // completed, reads as "not driven" rather than holding the last frame's flag along
+            // with its stale pose.
             CutsceneCameraPose cameraPose = entityManager.GetComponentData<CutsceneCameraPose>(cameraPoseEntity);
             cameraPose.isDriven = false;
             entityManager.SetComponentData(cameraPoseEntity, cameraPose);
@@ -57,8 +44,8 @@ namespace DotsAnimationToolkit
             float deltaTime = SystemAPI.Time.DeltaTime;
 
             // Structural changes are illegal inside a SystemAPI.Query loop, and an attach is nothing
-            // but structural changes (amendment A63 §6). Every cutscene appends its operations here
-            // and they are applied once, after the loop, in the order they were collected.
+            // but structural changes. Every cutscene appends its operations here and they are
+            // applied once, after the loop, in the order they were collected.
             NativeList<PendingAttachOp> pendingAttachOps = new NativeList<PendingAttachOp>(Allocator.Temp);
             NativeList<PendingMarkOp> pendingMarkOps = new NativeList<PendingMarkOp>(Allocator.Temp);
             NativeList<PendingFacingOp> pendingFacingOps = new NativeList<PendingFacingOp>(Allocator.Temp);
@@ -106,8 +93,8 @@ namespace DotsAnimationToolkit
             CutsceneControl control = entityManager.GetComponentData<CutsceneControl>(requestEntity);
 
             // Speed/pause reach every bound actor's clip layer every frame, independent of hold
-            // state (amendment A62 defect 4, decision A62-D4): a hold freezes only the clock, never
-            // layer speed — looping clips keep cycling under it by owner call (Phase G §2).
+            // state: a hold freezes only the clock, never layer speed — looping clips keep cycling
+            // under it by owner call.
             float effectiveLayerSpeed = control.paused ? 0f : math.max(0f, control.speed);
             if (effectiveLayerSpeed != playbackState.appliedLayerSpeed)
             {
@@ -130,7 +117,7 @@ namespace DotsAnimationToolkit
 
             // Arrival and timeout are judged every frame, including while the clock is stopped - a
             // rendezvous hold exists precisely to be resolved by movement happening while nothing
-            // else advances (amendment A64 3.3).
+            // else advances.
             ResolveOutstandingMarks(entityManager, ref blob, bindings, slotStates, deltaTime, control.paused);
 
             if (playbackState.isPausedOnHold)
@@ -166,10 +153,10 @@ namespace DotsAnimationToolkit
                     return;
                 }
 
-                // Released this frame (amendment A62 defect 5): fall through to the normal path
-                // with zero elapsed time instead of returning, so ProcessClipBlocks/ProcessEvents
-                // still fire everything authored at the new segment's own time 0 on this exact
-                // frame rather than waiting one frame for it.
+                // Released this frame: fall through to the normal path with zero elapsed time
+                // instead of returning, so ProcessClipBlocks/ProcessEvents still fire everything
+                // authored at the new segment's own time 0 on this exact frame rather than waiting
+                // one frame for it.
                 deltaTime = 0f;
             }
 
@@ -226,7 +213,7 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Clip blocks → the existing AnimationCommand API (spec §6: "no second animation pipeline").
+        // Clip blocks go through the existing AnimationCommand API — no second animation pipeline.
         // -----------------------------------------------------------------------------------
 
         private static void ProcessClipBlocks(
@@ -260,7 +247,7 @@ namespace DotsAnimationToolkit
 
                     // The variant is picked here rather than left to the next frame's re-pick: a
                     // block issued as its authored side and swapped one frame later is a visible pop
-                    // at the start of every turn (amendment A65 §3.2).
+                    // at the start of every turn.
                     ulong clipId = ResolveVariantClipIdForSlot(
                         entityManager, ref blob, ref segment, slotIndex, actorEntity, in slotState,
                         playbackState.timeInSegment, in block.directionVariants, block.clipId);
@@ -270,19 +257,18 @@ namespace DotsAnimationToolkit
                     slotState.activeBlockSpeed = CutsceneBlockTiming.EffectiveBlockSpeed(block.speed);
 
                     // The crossfade window from this block's true predecessor on the slot's flat
-                    // lane (amendment A62 defect 3, decision A62-D3) — baked by CutsceneBlobBuilder,
-                    // never derived here from "the previous block in this segment", which would
-                    // always read 0 for the first block after a hold even when its real predecessor
-                    // overlaps it.
+                    // lane — baked by CutsceneBlobBuilder, never derived here from "the previous
+                    // block in this segment", which would always read 0 for the first block after a
+                    // hold even when its real predecessor overlaps it.
                     commands.Add(new AnimationCommand
                     {
                         kind = CommandKind.Play,
                         layerIndex = layerIndex,
                         clip = new ClipId(clipId),
-                        // The layer's currently-applied speed (amendment A62 defect 4) times the
-                        // block's own (amendment A65 §3.3), never a flat 1 — a block issued while
-                        // the host has slowed or paused playback must not silently resume at normal
-                        // speed, and "the second half of the swing, slowed" is authored per block.
+                        // The layer's currently-applied speed times the block's own, never a flat 1
+                        // — a block issued while the host has slowed or paused playback must not
+                        // silently resume at normal speed, and "the second half of the swing,
+                        // slowed" is authored per block.
                         speed = layerSpeed * slotState.activeBlockSpeed,
                         loop = block.loop ? LoopMode.Loop : LoopMode.Once,
                         blendDuration = block.blendDuration,
@@ -318,8 +304,8 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Facing (amendment A65 §3.2). The toolkit writes an angle and re-picks the direction set's
-        // variant clip; it never writes PartFacing (decision A65-D2) — the host owns that.
+        // Facing. The toolkit writes an angle and re-picks the direction set's variant clip; it
+        // never writes PartFacing — the host owns that.
         // -----------------------------------------------------------------------------------
 
         private struct PendingFacingOp
@@ -330,13 +316,10 @@ namespace DotsAnimationToolkit
 
         /// <summary>
         /// Writes every bound Actor slot's facing and re-picks its direction variant when the angle
-        /// has turned far enough to call for a different clip.
+        /// has turned far enough to call for a different clip. Adding <see cref="CutsceneFacing"/>
+        /// is a structural change and is queued; setting its value and enabled bit is not, and stays
+        /// inline so every frame after the first costs nothing but a write.
         /// </summary>
-        /// <remarks>
-        /// Adding <see cref="CutsceneFacing"/> is a structural change and is queued; setting its
-        /// value and its enabled bit is not, and stays inline so the common frame — every frame
-        /// after the first — costs nothing but a write.
-        /// </remarks>
         private static void ProcessFacing(
             EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
             DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
@@ -389,18 +372,15 @@ namespace DotsAnimationToolkit
             }
         }
 
+        // The mark branch exists because an outstanding mark suspends a slot's root lane (the host
+        // is walking the actor and owns the transform), so the lane says where the rehearsal would
+        // have put it, not where the actor is going; facing off the vector to the mark is what the
+        // actor is actually doing.
         /// <summary>
         /// The facing angle a slot is under at <paramref name="timeInSegment"/>: an override key
         /// first, then — while the slot is walking to a mark — the direction of the mark it has been
         /// sent to, and otherwise the direction its root lane is travelling.
         /// </summary>
-        /// <remarks>
-        /// The mark branch exists because A64 suspends a slot's root lane while a mark is
-        /// outstanding (the host is walking the actor and owns the transform), so the lane says
-        /// where the rehearsal would have put it, not where the actor is going. Facing off the
-        /// vector to the mark is what the actor is actually doing, and it costs no new state
-        /// (decision A65-D4).
-        /// </remarks>
         private static bool TryResolveSlotFacingAngle(
             EntityManager entityManager, ref CutsceneSegmentBlob segment, int slotIndex, Entity boundEntity,
             in CutsceneSlotRuntimeState slotState, float timeInSegment, out float angleDegrees)
@@ -462,10 +442,9 @@ namespace DotsAnimationToolkit
 
         /// <summary>
         /// Swaps the clip a playing block is showing when the actor has turned onto a different
-        /// variant: <c>Play</c> with no blend, then <c>SetTime</c> carrying the phase over
-        /// (decision A65-D3, no new command kind). The layer's time is read <em>before</em> the
-        /// commands are appended — <c>CommandApplySystem</c> drains the buffer in order, so the
-        /// <c>Play</c> that resets the clock has not run yet.
+        /// variant: <c>Play</c> with no blend, then <c>SetTime</c> carrying the phase over. The
+        /// layer's time is read before the commands are appended — <c>CommandApplySystem</c>
+        /// drains the buffer in order, so the <c>Play</c> that resets the clock has not run yet.
         /// </summary>
         private static void ReissueDirectionVariant(
             EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
@@ -599,9 +578,9 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Issues <c>SetSpeed</c> to every bound Actor slot's clip layer (amendment A62 defect 4).
-        /// Not gated on the layer being active — a block issued later on a currently-idle layer
-        /// must still inherit the speed already in effect, not the command API's own speed-1 default.
+        /// Issues <c>SetSpeed</c> to every bound Actor slot's clip layer. Not gated on the layer
+        /// being active — a block issued later on a currently-idle layer must still inherit the
+        /// speed already in effect, not the command API's own speed-1 default.
         /// </summary>
         private static void ApplyLayerSpeedToAllActorSlots(
             EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
@@ -627,8 +606,8 @@ namespace DotsAnimationToolkit
                     kind = CommandKind.SetSpeed,
                     layerIndex = layerIndex,
                     clip = default,
-                    // The block's own speed multiplies the cutscene's (amendment A65 §3.3): a host
-                    // halving playback must halve a half-speed block to a quarter, not reset it.
+                    // The block's own speed multiplies the cutscene's: a host halving playback must
+                    // halve a half-speed block to a quarter, not reset it.
                     speed = layerSpeed * (slotIndex < slotStates.Length
                         ? CutsceneBlockTiming.EffectiveBlockSpeed(slotStates[slotIndex].activeBlockSpeed)
                         : 1f),
@@ -641,8 +620,8 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Events → the same AnimEventOutput shape a clip's own events use (spec §6), on the
-        // cutscene request entity itself rather than any one bound actor.
+        // Events use the same AnimEventOutput shape a clip's own events use, on the cutscene
+        // request entity itself rather than any one bound actor.
         // -----------------------------------------------------------------------------------
 
         private static void ProcessEvents(
@@ -686,8 +665,7 @@ namespace DotsAnimationToolkit
             for (int i = 0; i < slotStates.Length; i++)
             {
                 // Cursors rebase onto the new segment's own arrays; the attachment fields do not
-                // reset — a rider that boarded before a hold is still aboard after it (§3.3's
-                // "attachments are left in place").
+                // reset — a rider that boarded before a hold is still aboard after it.
                 CutsceneSlotRuntimeState slotState = slotStates[i];
                 slotState.nextClipBlockIndex = 0;
                 slotState.nextAttachMarkerIndex = 0;
@@ -708,7 +686,7 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Jumps straight to the cutscene's final instant (spec §4). Reaches the exact same
+        /// Jumps straight to the cutscene's final instant. Reaches the exact same
         /// <c>(segmentIndex, timeInSegment)</c> — and therefore the exact same sampled pose — a full
         /// play-through eventually settles on, which is what makes skipped and watched end states
         /// identical rather than merely close.
@@ -748,8 +726,7 @@ namespace DotsAnimationToolkit
             }
 
             // Every remaining attach marker applies, in order, so a skipped run and a watched one
-            // leave the same world (decision A63-D3) — including the detach signals a host may have
-            // been waiting on.
+            // leave the same world — including the detach signals a host may have been waiting on.
             SkipAttachMarkers(ref blob, bindings, slotStates, ref playbackState, pendingAttachOps);
 
             // An outstanding order resolves the way a timeout resolves one - placed, and not warned
@@ -774,8 +751,8 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Attach lane (amendment A63). Collected here, applied after the query loop: every one of
-        // these operations is a structural change, which SystemAPI.Query forbids mid-iteration.
+        // Attach lane. Collected here, applied after the query loop: every one of these operations
+        // is a structural change, which SystemAPI.Query forbids mid-iteration.
         // -----------------------------------------------------------------------------------
 
         private struct PendingAttachOp
@@ -866,7 +843,7 @@ namespace DotsAnimationToolkit
                 if (marker.hostSlotIndex < 0 || marker.hostSlotIndex >= blob.slots.Length ||
                     !TryResolveBinding(bindings, blob.slots[marker.hostSlotIndex].slotId, out hostEntity))
                 {
-                    // Warned at bake (§3.2); silently skipped here, rule T2's shape.
+                    // Warned at bake; silently skipped here rather than erroring.
                     return;
                 }
 
@@ -1025,10 +1002,10 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Hides or reveals an attached entity and every rendering member of its linked group
-        /// (decision A63-D4: <c>DisableRendering</c>, never <c>AnimVisible</c>, which a host's own
-        /// visibility system rewrites every frame). The member list is read fresh each time — a
-        /// spawned actor's <c>LinkedEntityGroup</c> is rebuilt by its host's spawn-init (§6).
+        /// Hides or reveals an attached entity and every rendering member of its linked group, via
+        /// <c>DisableRendering</c> — never <c>AnimVisible</c>, which a host's own visibility system
+        /// rewrites every frame. The member list is read fresh each time, since a spawned actor's
+        /// <c>LinkedEntityGroup</c> is rebuilt by its host's spawn-init.
         /// </summary>
         private static void SetRenderingDisabled(EntityManager entityManager, Entity entity, bool disable)
         {
@@ -1073,8 +1050,8 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Marks lane (amendment A64). The toolkit orders a move and judges arrival; it never walks
-        // the entity itself (decision A64-D1) - pathfinding belongs to the host.
+        // Marks lane. The toolkit orders a move and judges arrival; it never walks the entity
+        // itself - pathfinding belongs to the host.
         // -----------------------------------------------------------------------------------
 
         private struct PendingMarkOp
@@ -1131,8 +1108,8 @@ namespace DotsAnimationToolkit
         /// <summary>
         /// Judges every outstanding order: arrived (XZ distance within tolerance), or timed out and
         /// therefore placed. <paramref name="isPaused"/> freezes the timeout clock only - a paused
-        /// cutscene must not tick one down (decision A64-D3) - while arrival still resolves, because
-        /// whatever is moving the entity may not be paused with it.
+        /// cutscene must not tick one down - while arrival still resolves, because whatever is
+        /// moving the entity may not be paused with it.
         /// </summary>
         private static void ResolveOutstandingMarks(
             EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
@@ -1161,7 +1138,7 @@ namespace DotsAnimationToolkit
                     ? entityManager.GetComponentData<LocalTransform>(boundEntity).Position
                     : order.position;
 
-                // XZ only (6): a mark authored off the walkable plane still resolves, and the Y an
+                // XZ only: a mark authored off the walkable plane still resolves, and the Y an
                 // arriving entity stands at is its own, never the mark's.
                 float2 planarOffset = new float2(
                     currentPosition.x - order.position.x, currentPosition.z - order.position.z);
@@ -1204,7 +1181,7 @@ namespace DotsAnimationToolkit
             return false;
         }
 
-        /// <summary>Skip (3.3): every outstanding order is resolved by placement, silently.</summary>
+        /// <summary>On skip, every outstanding order is resolved by placement, silently.</summary>
         private static void TeleportOutstandingMarks(
             EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
             DynamicBuffer<CutsceneSlotRuntimeState> slotStates)
@@ -1232,7 +1209,7 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>Completion (3.3): an order nobody fulfilled must not outlive the cutscene that gave it.</summary>
+        /// <summary>On completion, an order nobody fulfilled must not outlive the cutscene that gave it.</summary>
         private static void ClearOutstandingMarks(
             EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
             DynamicBuffer<CutsceneSlotRuntimeState> slotStates)
@@ -1296,17 +1273,16 @@ namespace DotsAnimationToolkit
             ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
             for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
             {
-                // An attached slot's transform belongs to its host (§3.1) — SocketResolveSystem or
-                // Unity's own parent hierarchy writes it, and a root key written here would fight
-                // that every frame.
+                // An attached slot's transform belongs to its host — SocketResolveSystem or Unity's
+                // own parent hierarchy writes it, and a root key written here would fight that every frame.
                 if (slotStates[slotIndex].attachedHostSlotIndex >= 0)
                 {
                     continue;
                 }
 
-                // Same rule for a slot still walking to a mark (3.3): whatever the host moves it
-                // with owns the transform, and the merged arrival key (A64-D2) must not drag it
-                // along the rehearsed path while the real walk is still happening.
+                // Same rule for a slot still walking to a mark: whatever the host moves it with owns
+                // the transform, and the merged arrival key must not drag it along the rehearsed
+                // path while the real walk is still happening.
                 if (slotStates[slotIndex].hasOutstandingMark)
                 {
                     continue;
@@ -1326,8 +1302,8 @@ namespace DotsAnimationToolkit
                 if (!CutsceneBlobSampler.TrySampleTransform(
                     ref slotSegment.transformKeys, playbackState.timeInSegment, out position, out rotationEuler, out scale))
                 {
-                    // No root keys authored for this slot (amendment A62 defect 2): leave the bound
-                    // entity's transform exactly as it is rather than snapping it to the world origin.
+                    // No root keys authored for this slot: leave the bound entity's transform
+                    // exactly as it is rather than snapping it to the world origin.
                     continue;
                 }
 
@@ -1368,9 +1344,9 @@ namespace DotsAnimationToolkit
                 rotation = rotation,
                 fieldOfView = fieldOfView,
                 isCut = isCut,
-                // False once the cutscene has completed (amendment A62 defect 6) even though a
-                // pose is still written here — a host's exit transition must fire exactly once, not
-                // keep re-triggering on a stale-but-still-"driven" pose every frame after the end.
+                // False once the cutscene has completed, even though a pose is still written here —
+                // a host's exit transition must fire exactly once, not keep re-triggering on a
+                // stale-but-still-"driven" pose every frame after the end.
                 isDriven = !playbackState.isComplete
             });
         }

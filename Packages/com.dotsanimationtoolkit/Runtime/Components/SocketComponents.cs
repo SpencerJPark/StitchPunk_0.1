@@ -5,47 +5,23 @@ using Unity.Mathematics;
 
 namespace DotsAnimationToolkit
 {
-    /// <summary>
-    /// The actor's link to its baked socket data. Present only on actors whose rig declares
-    /// sockets — a rig without them bakes nothing and carries nothing.
-    /// </summary>
+    /// <summary>The actor's link to its baked socket data. Present only on actors whose rig declares sockets.</summary>
     public struct SocketRegistry : IComponentData
     {
-        /// <summary>The baked socket blob, owned by the bake-time <c>BlobAssetStore</c>.</summary>
-        public BlobAssetReference<SocketRegistryBlob> Value;
+        public BlobAssetReference<SocketRegistryBlob> Value; // owned by the bake-time BlobAssetStore
     }
 
     /// <summary>
-    /// Marks an entity as riding a socket on some actor (architecture section 5.2's part model,
-    /// extended to attachments).
+    /// Marks an entity as riding a socket on some actor. The attached entity must be a transform
+    /// root, not a child of the actor: <c>SocketResolveSystem</c> writes a world transform into
+    /// <c>LocalTransform</c>, and parenting it too would apply the actor's transform twice.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The attached entity must be a transform root.</strong> <c>SocketResolveSystem</c>
-    /// writes a world transform into <c>LocalTransform</c>, which is only the same thing when the
-    /// entity has no <c>Parent</c>. Parenting the attachment to the actor and *also* driving it
-    /// from a socket would apply the actor's transform twice — the classic double-transform bug,
-    /// and one that looks like a subtle scale error rather than an obvious break. Attachments are
-    /// independent entities that follow; they are not children.
-    /// </para>
-    /// <para>
-    /// This is why the socket carries its own offset rather than expecting the attachment to be
-    /// pre-positioned: the entity's own transform is overwritten every frame, so any offset stored
-    /// there would be lost on the first update.
-    /// </para>
-    /// </remarks>
     public struct SocketAttachment : IComponentData
     {
-        /// <summary>The actor whose socket this entity follows.</summary>
-        public Entity actorRoot;
+        public Entity actorRoot; // whose socket this entity follows
 
-        /// <summary>Which socket, by stable id.</summary>
-        public uint socketId;
+        public uint socketId; // stable id
 
-        /// <summary>
-        /// Extra offset applied after the socket's own, in socket space. Lets two things share one
-        /// socket without needing two sockets authored on the rig.
-        /// </summary>
-        public float3 localOffset;
+        public float3 localOffset; // extra offset after the socket's own, in socket space; lets two things share one socket
     }
 }

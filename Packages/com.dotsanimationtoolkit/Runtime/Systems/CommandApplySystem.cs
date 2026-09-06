@@ -8,32 +8,10 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Turns the requests a game wrote through <c>PlaybackApi</c> into playback state
-    /// (architecture section 5.4), and opens the frame's event window (amendment A28).
+    /// Runs first in <see cref="AnimationToolkitLogicSystemGroup"/>: clears last frame's events
+    /// before applying queued commands. <c>EventEmissionSystem</c> runs after this system and would
+    /// otherwise erase resolve-failure events raised in the same frame.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Two passes, in this order.</strong> First every actor holding last frame's events has
-    /// its <see cref="AnimEventOutput"/> buffer cleared; then commands are applied. The clear lives
-    /// here rather than in <c>EventEmissionSystem</c> because this system is specified to emit
-    /// <see cref="ReservedEventKeys.ClipResolveFailed"/> and <c>EventEmissionSystem</c> runs
-    /// <em>after</em> it — a buffer cleared there would destroy every resolve-failure event in the
-    /// same frame it was raised, and the only test that could catch it is one that runs both systems
-    /// in order. Amendment A28 records the move and how to revert it.
-    /// </para>
-    /// <para>
-    /// <strong>The ordering that matters.</strong> On a crossfading Play, the outgoing clip's loop
-    /// mode is copied into <see cref="PlaybackLayer.previousLoop"/> <em>before</em>
-    /// <see cref="PlaybackLayer.loop"/> is overwritten with the incoming request. That single
-    /// statement order is the whole reason the field exists (section 5.2): get it wrong and a clip
-    /// that was played <see cref="LoopMode.Once"/> starts wrapping to zero as it fades out, which
-    /// pops in precisely the transition the crossfade was added to smooth.
-    /// </para>
-    /// <para>
-    /// <strong>Parallel safety.</strong> Each actor writes only its own buffers and its own
-    /// enableable components, so there is nothing to coordinate between workers.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitLogicSystemGroup), OrderFirst = true)]
     [BurstCompile]
     public partial struct CommandApplySystem : ISystem
@@ -41,10 +19,8 @@ namespace DotsAnimationToolkit
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            // Two independent reasons to run, so neither may gate the other: an actor can have
-            // stale events and no commands (the usual case a frame after anything happened), or
-            // commands and no events. RequireForUpdate would AND them and skip both jobs whenever
-            // either side was empty.
+            // Two independent reasons to run — stale events or pending commands — so a single
+            // RequireForUpdate (AND semantics) would skip both jobs whenever either side was empty.
             EntityQuery pendingCommandQuery = SystemAPI.QueryBuilder()
                 .WithAll<AnimationCommandPending, AnimationCommand, PlaybackLayer, ClipRegistry>()
                 .Build();
@@ -70,15 +46,6 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Drops last frame's events, so that everything written during this frame's logic group
-    /// survives to the end of it (amendment A28).
-    /// </summary>
-    /// <remarks>
-    /// The query is the enabled <see cref="AnimEventsPending"/> set — exactly the actors that have
-    /// something to drop. Actors that emitted nothing are not visited at all, which is the same
-    /// bargain the enableable was introduced for on the consumer side.
-    /// </remarks>
     [BurstCompile]
     [WithAll(typeof(AnimEventsPending))]
     internal partial struct ClearStaleAnimEventsJob : IJobEntity
@@ -92,19 +59,9 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Applies one actor's queued commands to its playback layers, then empties the command buffer.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <see cref="BoundsDirty"/> and <see cref="AnimEventsPending"/> are declared
-    /// <c>WithPresent</c>, not <c>WithAll</c>. An <c>EnabledRefRW&lt;T&gt;</c> parameter puts
-    /// <c>T</c> into the query as an <em>All</em> component by default, which would silently
-    /// restrict this job to actors whose bounds happened to be dirty and whose events happened to be
-    /// pending — a filter that is false for almost every actor almost every frame, and one that
-    /// produces no error at all, just commands that quietly never apply.
-    /// </para>
-    /// </remarks>
+    // WithPresent, not WithAll: an EnabledRefRW<T> parameter defaults T into an All query filter,
+    // which would silently restrict this job to actors whose bounds/events already happened to be
+    // dirty/pending — no error, just commands that quietly never apply.
     [BurstCompile]
     [WithAll(typeof(AnimationCommandPending))]
     [WithPresent(typeof(BoundsDirty), typeof(AnimEventsPending))]
@@ -130,8 +87,7 @@ namespace DotsAnimationToolkit
                 AnimationCommand command = commands[commandIndex];
 
                 // A layer index that no longer exists is a routine consequence of swapping a rig for
-                // one with fewer layers, not a corrupt asset. The command is dropped and the layers
-                // are left alone; amendment A29 records why no event is emitted for it.
+                // one with fewer layers, not a corrupt asset. The command is dropped, no event fires.
                 if (command.layerIndex >= layers.Length)
                 {
                     continue;
@@ -174,14 +130,9 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Starts a clip on the layer, demoting whatever was playing into the crossfade source.
+        /// Starts a clip on the layer, demoting whatever was playing into the crossfade source. The
+        /// queue slot is left alone — Play addresses only the current slot; Stop is what clears the queue.
         /// </summary>
-        /// <remarks>
-        /// The queue slot is deliberately left alone. Play addresses the current slot; a game that
-        /// set up "swing, then return to idle" and then interrupts the swing with a stagger still
-        /// wants the idle afterwards. Stop is the request that means "and nothing after this", and
-        /// it is the one that clears the queue.
-        /// </remarks>
         private static void ApplyPlay(
             ref PlaybackLayer layer,
             ref ClipRegistryBlob registry,
@@ -216,19 +167,13 @@ namespace DotsAnimationToolkit
                     layer.previousClipIndex = outgoingClipIndex;
                     layer.previousTime = layer.time;
                     layer.previousSpeed = layer.speed;
-
-                    // Section 5.2's whole reason for previousLoop: the mode the outgoing clip was
-                    // ACTUALLY playing under, captured before the line below destroys it. Moving
-                    // this assignment after `layer.loop = command.loop` compiles, runs, and makes
-                    // every crossfade out of a Once-played clip wrap to zero instead of holding.
-                    layer.previousLoop = layer.loop;
+                    layer.previousLoop = layer.loop; // must run before layer.loop is overwritten below, or a crossfading Once clip wraps instead of holding
                 }
                 else if (!isLayerActive || layer.previousClipIndex < 0)
                 {
                     // Nothing to fade from on this layer, so fade in from the pose the layers below
-                    // composited (amendment A32). ClipSampler.CompositeLayers already reads an empty
-                    // previous slot as "lerp from the incoming pose", which is exactly a layer
-                    // easing in over the ones beneath it.
+                    // composited. ClipSampler.CompositeLayers reads an empty previous slot as "lerp
+                    // from the incoming pose", which is exactly a layer easing in over the ones beneath it.
                     ClearPreviousSlot(ref layer);
                 }
 
@@ -252,7 +197,7 @@ namespace DotsAnimationToolkit
             // Reverse playback starts at the end, or the first advance would immediately clamp a
             // Once clip and report it finished before a single frame of it was shown.
             layer.time = command.speed < 0f ? incomingClip.duration : 0f;
-            layer.advanceStartTime = layer.time;
+            layer.timeAtFrameStart = layer.time;
 
             layer.flags |= PlaybackFlags.Active;
             layer.flags &= ~(PlaybackFlags.Finished | PlaybackFlags.FinishedThisFrame);
@@ -265,14 +210,10 @@ namespace DotsAnimationToolkit
 
         /// <summary>
         /// Stores a clip in the layer's one-deep queue slot, to be promoted when the current clip
-        /// finishes.
+        /// finishes. Resolved eagerly, even though only the promotion needs the index, so a NaN
+        /// blend resolves against the incoming clip's own default and a bad clip id is reported at
+        /// queue time rather than seconds later.
         /// </summary>
-        /// <remarks>
-        /// The clip is resolved here even though only the promotion needs its index, for two
-        /// reasons: a NaN blend has to be resolved against the incoming clip's authored blend-in,
-        /// and a game that queues a clip belonging to another set should learn about it when it
-        /// queues, not seconds later when the current clip happens to end (amendment A29).
-        /// </remarks>
         private static void ApplyQueue(
             ref PlaybackLayer layer,
             ref ClipRegistryBlob registry,
@@ -297,9 +238,7 @@ namespace DotsAnimationToolkit
             layer.flags |= PlaybackFlags.HasQueued;
         }
 
-        /// <summary>
-        /// Stops the layer, either at once or by fading the current clip out to nothing.
-        /// </summary>
+        /// <summary>Stops the layer, either at once or by fading the current clip out to nothing.</summary>
         private static void ApplyStop(
             ref PlaybackLayer layer,
             ref ClipRegistryBlob registry,
@@ -343,7 +282,7 @@ namespace DotsAnimationToolkit
                 layer.clip = default;
                 layer.clipIndex = -1;
                 layer.time = 0f;
-                layer.advanceStartTime = 0f;
+                layer.timeAtFrameStart = 0f;
                 layer.speed = 0f;
                 layer.loop = LoopMode.UseClipDefault;
             }
@@ -353,7 +292,7 @@ namespace DotsAnimationToolkit
                 layer.clip = default;
                 layer.clipIndex = -1;
                 layer.time = 0f;
-                layer.advanceStartTime = 0f;
+                layer.timeAtFrameStart = 0f;
                 layer.speed = 0f;
                 layer.loop = LoopMode.UseClipDefault;
                 layer.flags = PlaybackFlags.None;
@@ -365,7 +304,6 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>Empties the crossfade-source slot and cancels any running blend.</summary>
         private static void ClearBlendSource(ref PlaybackLayer layer)
         {
             ClearPreviousSlot(ref layer);
@@ -374,10 +312,8 @@ namespace DotsAnimationToolkit
             layer.flags &= ~PlaybackFlags.Blending;
         }
 
-        /// <summary>
-        /// Empties the crossfade-source slot without touching the blend itself — an empty slot with
-        /// a running blend is the "fade in from the layers below" state (amendment A32).
-        /// </summary>
+        // An empty previous slot with a running blend is the "fade in from the layers below" state;
+        // this clears the slot without touching the blend itself.
         private static void ClearPreviousSlot(ref PlaybackLayer layer)
         {
             layer.previousClip = default;
@@ -387,7 +323,6 @@ namespace DotsAnimationToolkit
             layer.previousLoop = LoopMode.UseClipDefault;
         }
 
-        /// <summary>Empties the one-deep queue slot.</summary>
         private static void ClearQueue(ref PlaybackLayer layer)
         {
             layer.queuedClip = default;
@@ -397,16 +332,7 @@ namespace DotsAnimationToolkit
             layer.flags &= ~PlaybackFlags.HasQueued;
         }
 
-        /// <summary>
-        /// Reports a Play/Queue whose clip id is not a member of this actor's registry, leaving the
-        /// layer untouched (architecture section 5.4).
-        /// </summary>
-        /// <remarks>
-        /// The id is carried through on the event so a listener can name the clip that failed. The
-        /// alternative — dropping the request silently — is the failure mode this package has spent
-        /// four gates removing: an animation that simply never plays, with no error and a plausible
-        /// innocent explanation.
-        /// </remarks>
+        /// <summary>Reports a Play/Queue whose clip id is not a member of this actor's registry, leaving the layer untouched.</summary>
         private static void EmitResolveFailure(
             ref DynamicBuffer<AnimEventOutput> animEvents,
             EnabledRefRW<AnimEventsPending> animEventsPendingEnabled,

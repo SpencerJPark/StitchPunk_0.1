@@ -7,342 +7,215 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// The baked form of a <c>CutsceneAsset</c> (Phase G §5): every slot's clip blocks and keys, a
-    /// camera lane, and an event lane, split into <see cref="segments"/> at hold points so the
-    /// runtime clock is <c>(segmentIndex, timeInSegment)</c> rather than one elastic time value —
-    /// the containment that keeps a hold from infecting every "time → what's playing" lookup (spec
-    /// §5, §9 risk). Built by <c>CutsceneBlobBuilder</c>, beside <c>ClipRegistryBuilder</c>.
+    /// Baked form of a <c>CutsceneAsset</c>: slot clip blocks/keys, a camera lane, and an event
+    /// lane, split into <see cref="segments"/> at hold points so the clock is (segmentIndex,
+    /// timeInSegment). Carries no clip registry of its own — clips resolve against the bound actor's own <see cref="ClipRegistryBlob"/>.
     /// </summary>
-    /// <remarks>
-    /// Carries no clip registry of its own: a clip block's <c>clipId</c> resolves at play time
-    /// against whichever <see cref="ClipRegistryBlob"/> the bound actor entity already carries from
-    /// its own actor bake (spec §5 — "a cutscene rides the same registry blobs the actors already
-    /// use"). This is what keeps the player a consumer of the existing playback machinery rather
-    /// than a second animation pipeline (spec §6).
-    /// </remarks>
     public struct CutsceneBlob
     {
-        /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
-        public int schemaVersion;
+        public int schemaVersion; // bumped on any layout change, stamped at bake
 
-        /// <summary>The source <c>CutsceneAsset</c>'s stable id. Diagnostic only — nothing resolves a cutscene by it.</summary>
-        public ulong cutsceneKey;
+        public ulong cutsceneKey; // diagnostic only; nothing resolves a cutscene by it
 
-        /// <summary>Every slot this cutscene stages, in authored order — what a host's binding buffer (spec §6) must cover.</summary>
-        public BlobArray<CutsceneSlotMetaBlob> slots;
+        public BlobArray<CutsceneSlotMetaBlob> slots; // authored order; what a host's binding buffer must cover
 
-        /// <summary>The timeline split at hold points, in chronological order. Always at least one element, even for a cutscene with no holds at all.</summary>
-        public BlobArray<CutsceneSegmentBlob> segments;
+        public BlobArray<CutsceneSegmentBlob> segments; // chronological order; always at least one element
     }
 
-    /// <summary>One slot's identity as the runtime sees it (Phase G §3, §6): who it is and what kind of thing it is, never what it is bound to — that is the host's job via <c>CutsceneActorBinding</c>.</summary>
+    /// <summary>One slot's identity as the runtime sees it: who it is and its kind, never what it's bound to (the host's job via <c>CutsceneActorBinding</c>).</summary>
     public struct CutsceneSlotMetaBlob
     {
-        /// <summary>Stable id a host's binding buffer entry names (<c>CutsceneSlot.SlotId</c>).</summary>
-        public uint slotId;
+        public uint slotId; // names a host's CutsceneActorBinding entry
 
-        /// <summary>Whether this slot plays clips on a rig or is a bare transform target.</summary>
-        public CutsceneSlotKind kind;
+        public CutsceneSlotKind kind; // rig-driven clip player vs bare transform target
     }
 
     /// <summary>
-    /// One elastic-time segment (Phase G §5): the clock runs for <see cref="duration"/> seconds,
-    /// then — unless this is the final segment — pauses at <see cref="holdId"/> until the host
-    /// releases it. Every per-slot/camera/event time inside a segment is already rebased to be
-    /// relative to the segment's own start, so nothing downstream ever subtracts a hold boundary.
+    /// One elastic-time segment: the clock runs for <see cref="duration"/> seconds, then — unless
+    /// this is the final segment — pauses at <see cref="holdId"/> until the host releases it. Every
+    /// per-slot/camera/event time inside is already rebased relative to the segment's own start.
     /// </summary>
     public struct CutsceneSegmentBlob
     {
-        /// <summary>How long this segment plays before it either pauses at <see cref="holdId"/> or (the final segment) simply ends.</summary>
-        public float duration;
+        public float duration; // seconds before pausing at holdId, or (final segment) ending
 
-        /// <summary>The hold this segment ends on, or empty for the final segment — nothing pauses after the cutscene's own last moment.</summary>
-        public FixedString64Bytes holdId;
+        public FixedString64Bytes holdId; // empty for the final segment
 
-        /// <summary>Per-slot clip blocks and keys, parallel to <see cref="CutsceneBlob.slots"/>.</summary>
-        public BlobArray<CutsceneSlotSegmentBlob> slotTracks;
+        public BlobArray<CutsceneSlotSegmentBlob> slotTracks; // parallel to CutsceneBlob.slots
 
-        /// <summary>The camera's keyed pose/FOV curve within this segment.</summary>
         public BlobArray<CutsceneCameraKeyBlob> cameraKeys;
 
-        /// <summary>Camera hard-cut times within this segment, segment-relative.</summary>
-        public BlobArray<float> cameraCutTimes;
+        public BlobArray<float> cameraCutTimes; // segment-relative
 
-        /// <summary>Event markers within this segment, segment-relative.</summary>
-        public BlobArray<CutsceneEventMarkerBlob> events;
+        public BlobArray<CutsceneEventMarkerBlob> events; // segment-relative
 
-        /// <summary>
-        /// Whether the hold this segment ends on resumes by itself once every outstanding mark has
-        /// been reached (amendment A64 §3.2). Always false for the final segment, which ends on
-        /// nothing.
-        /// </summary>
-        public bool autoReleaseWhenMarksReached;
+        public bool autoReleaseWhenMarksReached; // always false for the final segment
     }
 
-    /// <summary>One slot's baked timeline for one segment (Phase G §2).</summary>
+    /// <summary>One slot's baked timeline for one segment.</summary>
     public struct CutsceneSlotSegmentBlob
     {
-        /// <summary>Which clip plays when, within this segment. Empty for a Prop slot.</summary>
-        public BlobArray<CutsceneClipBlockBlob> clipBlocks;
+        public BlobArray<CutsceneClipBlockBlob> clipBlocks; // empty for a Prop slot
 
-        /// <summary>The slot's own transform through the segment: root motion for an Actor, or the whole authored motion for a Prop.</summary>
-        public BlobArray<CutsceneTransformKeyBlob> transformKeys;
+        public BlobArray<CutsceneTransformKeyBlob> transformKeys; // root motion (Actor) or full authored motion (Prop)
 
-        /// <summary>Facing override keys within this segment. Empty for a Prop slot.</summary>
-        public BlobArray<CutsceneFacingKeyBlob> facingKeys;
+        public BlobArray<CutsceneFacingKeyBlob> facingKeys; // empty for a Prop slot
 
-        /// <summary>Tag-addressed per-part override tracks within this segment. Empty for a Prop slot.</summary>
-        public BlobArray<CutscenePartTrackBlob> partTracks;
+        public BlobArray<CutscenePartTrackBlob> partTracks; // empty for a Prop slot
 
-        /// <summary>Attach/detach moments within this segment, segment-relative (amendment A63).</summary>
         public BlobArray<CutsceneAttachMarkerBlob> attachMarkers;
 
-        /// <summary>Move-to marks within this segment, segment-relative (amendment A64).</summary>
         public BlobArray<CutsceneMarkKeyBlob> markKeys;
     }
 
-    /// <summary>One baked move-to mark (amendment A64 §3.2), bucketed by the instant its order is issued.</summary>
+    /// <summary>One baked move-to mark, bucketed by the instant its order is issued.</summary>
     public struct CutsceneMarkKeyBlob
     {
-        /// <summary>When the move order is issued, segment-relative seconds.</summary>
-        public float time;
+        public float time; // segment-relative seconds
 
-        /// <summary>The world position to reach.</summary>
         public float3 position;
 
-        /// <summary>Arrival facing in radians, converted from the authored degrees at bake.</summary>
         public float facingRadians;
 
-        /// <summary>XZ distance that counts as arrived.</summary>
-        public float toleranceMeters;
+        public float toleranceMeters; // XZ distance that counts as arrived
 
-        /// <summary>0 waits forever; otherwise the mark resolves by teleport after this many real seconds.</summary>
-        public float timeoutSeconds;
+        public float timeoutSeconds; // 0 waits forever; otherwise resolves by teleport after this long
     }
 
-    /// <summary>One baked attach/detach moment (amendment A63 §3.2), bucketed by its own instant like an event.</summary>
+    /// <summary>One baked attach/detach moment, bucketed by its own instant like an event.</summary>
     public struct CutsceneAttachMarkerBlob
     {
-        /// <summary>Marker time, segment-relative seconds.</summary>
-        public float time;
+        public float time; // segment-relative seconds
 
-        /// <summary>Whether this marker binds the slot to a host or releases it.</summary>
         public CutsceneAttachKind kind;
 
-        /// <summary>
-        /// Index into <see cref="CutsceneBlob.slots"/> of the host, or −1 when the authored host slot
-        /// id resolved to nothing. Warned at bake and skipped at play time rather than erroring —
-        /// the same lenient rule an unresolved part-track tag follows.
-        /// </summary>
-        public int hostSlotIndex;
+        public int hostSlotIndex; // index into CutsceneBlob.slots; -1 = host slot id didn't resolve, warned at bake and skipped at play
 
-        /// <summary>A socket id on the host's rig, or 0 for the host's root.</summary>
-        public uint socketId;
+        public uint socketId; // 0 = the host's root
 
-        /// <summary>Extra offset in socket space, or host-root space for a root attach.</summary>
-        public float3 localOffset;
+        public float3 localOffset; // socket space, or host-root space for a root attach
 
-        /// <summary>Root-attach rotation, converted from the authored Euler degrees at bake.</summary>
-        public quaternion localRotation;
+        public quaternion localRotation; // root-attach only
 
-        /// <summary>Whether the slot's renderers are suppressed while the attachment lasts.</summary>
         public bool hideWhileAttached;
 
-        /// <summary>Detach only: the host-space impulse handed on through <c>CutsceneDetachSignal</c>.</summary>
-        public float3 detachImpulse;
+        public float3 detachImpulse; // detach only; host-space impulse handed on via CutsceneDetachSignal
     }
 
-    /// <summary>One baked clip block (Phase G §2): overlap with the previous block on the slot's flat lane is the crossfade window; blocks that merely touch are a hard cut.</summary>
+    /// <summary>One baked clip block: overlap with the previous block on the slot's flat lane is the crossfade window; blocks that merely touch are a hard cut.</summary>
     public struct CutsceneClipBlockBlob
     {
-        /// <summary>The clip's stable id, resolved against whichever <see cref="ClipRegistryBlob"/> the bound actor carries.</summary>
-        public ulong clipId;
+        public ulong clipId; // resolved against whichever ClipRegistryBlob the bound actor carries
 
-        /// <summary>Block start, segment-relative seconds.</summary>
-        public float start;
+        public float start; // segment-relative seconds
 
-        /// <summary>Block length in seconds.</summary>
         public float duration;
 
-        /// <summary>Whether the clip loops for the block's duration rather than playing once.</summary>
         public bool loop;
 
-        /// <summary>
-        /// The crossfade window from the block immediately before this one on the slot's flat
-        /// (pre-segment-split) clip lane, baked at bake time (amendment A62 defect 3, decision
-        /// A62-D3) rather than derived at play time from "the previous block in this segment" — a
-        /// hold can fall between two overlapping blocks, and the incoming one is still the first
-        /// block of its own segment even though it has a real predecessor to blend from. 0 for the
-        /// slot's first block on the flat lane, or when the previous block only touches or leaves a
-        /// gap (a hard cut).
-        /// </summary>
+        // Crossfade window from the previous block on the slot's flat (pre-segment-split) lane,
+        // baked rather than derived at play time: a hold can split two overlapping blocks across
+        // segments, and the incoming one is still its segment's first block despite having a real
+        // predecessor to blend from. 0 for the slot's first block, or a touching/gapped predecessor.
         public float blendDuration;
 
-        /// <summary>
-        /// Playback speed for this block's clip (amendment A65 §3.3), multiplied by the cutscene's
-        /// own speed when the Play command is issued. 0 means a bake older than schema 5 — see
-        /// <c>CutsceneBlockTiming.EffectiveBlockSpeed</c>.
-        /// </summary>
-        public float speed;
+        public float speed; // multiplied by the cutscene's own speed at Play; 0 = pre-schema-5 bake, see CutsceneBlockTiming.EffectiveBlockSpeed
 
-        /// <summary>Seconds into the clip this block starts, issued as a <c>SetTime</c> after the Play.</summary>
-        public float clipStartOffset;
+        public float clipStartOffset; // seconds into the clip, issued as a SetTime after the Play
 
-        /// <summary>
-        /// The direction set's siblings for this block's clip (amendment A65 3.2), or
-        /// <see cref="CutsceneDirectionVariantsBlob.hasVariants"/> false when the block names a clip
-        /// the slot's set has never heard of - a wave stays a wave whichever way the actor turns.
-        /// </summary>
-        public CutsceneDirectionVariantsBlob directionVariants;
+        public CutsceneDirectionVariantsBlob directionVariants; // hasVariants false when the block's clip isn't in the slot's direction set
     }
 
-    /// <summary>
-    /// One clip block's turn table (amendment A65 3.2): the five east-side clips its direction set
-    /// authors, plus the two direction counts the resolve chain needs. Baked because the runtime has
-    /// no <c>DirectionSetAsset</c> to read - the same reason a part track's tag is resolved at bake
-    /// (decision G-D9).
-    /// </summary>
+    /// <summary>One clip block's turn table: the five east-side clips its direction set authors, plus the direction counts the resolve chain needs.</summary>
     public struct CutsceneDirectionVariantsBlob
     {
-        /// <summary>False when this block's clip is not a member of the slot's direction set, or the slot has none.</summary>
-        public bool hasVariants;
+        public bool hasVariants; // false when the block's clip isn't a member of the slot's direction set, or the slot has none
 
-        /// <summary>Clip id of the set's slot for that east-side facing; 0 where the set leaves one empty.</summary>
-        public ulong south;
+        public ulong south; // clip id for that facing; 0 = the set leaves it empty
 
-        /// <summary>See <see cref="south"/>.</summary>
-        public ulong southEast;
+        public ulong southEast; // see south
 
-        /// <summary>See <see cref="south"/>.</summary>
-        public ulong east;
+        public ulong east; // see south
 
-        /// <summary>See <see cref="south"/>.</summary>
-        public ulong northEast;
+        public ulong northEast; // see south
 
-        /// <summary>See <see cref="south"/>.</summary>
-        public ulong north;
+        public ulong north; // see south
 
-        /// <summary>
-        /// The actor's own turn granularity (<c>DirectionSetAsset.targetDirections</c>) - what a
-        /// facing angle quantizes to before the set's coverage folds it.
-        /// </summary>
-        public AnimationDirections targetDirections;
+        public AnimationDirections targetDirections; // the actor's own turn granularity, before the set's coverage folds it
 
-        /// <summary>What the set's filled slots actually cover, derived at bake by <c>TryGetEffectiveDirections</c>.</summary>
-        public AnimationDirections effectiveDirections;
+        public AnimationDirections effectiveDirections; // what the set's filled slots actually cover
     }
 
-    /// <summary>One baked transform key (Phase G §2). Rotation is stored in radians (converted at bake; authoring is degrees, matching <c>TransformKeyBlob</c>'s own convention).</summary>
+    /// <summary>One baked transform key. Rotation is stored in radians (authoring is degrees, matching <c>TransformKeyBlob</c>'s convention).</summary>
     public struct CutsceneTransformKeyBlob
     {
-        /// <summary>Key time, segment-relative seconds.</summary>
-        public float time;
+        public float time; // segment-relative seconds
 
-        /// <summary>Local offset.</summary>
         public float3 position;
 
-        /// <summary>Local rotation in radians, Euler ZXY.</summary>
-        public float3 rotation;
+        public float3 rotation; // radians, Euler ZXY
 
-        /// <summary>Non-uniform x/y/z scale.</summary>
         public float3 scale;
 
-        /// <summary>Easing from this key to the next one.</summary>
         public Interpolation interpolation;
 
-        /// <summary>First Bézier handle (time, weight); read only for <see cref="Interpolation.Bezier"/>.</summary>
-        public float2 bezierStartHandle;
+        public float2 bezierStartHandle; // (time, weight); read only for Interpolation.Bezier
 
-        /// <summary>Second Bézier handle. See <see cref="bezierStartHandle"/>.</summary>
-        public float2 bezierEndHandle;
+        public float2 bezierEndHandle; // see bezierStartHandle
     }
 
-    /// <summary>One baked facing override key (Phase G §2, decision G-D3). The angle is stored in radians (converted at bake; authoring is degrees, 0–360).</summary>
+    /// <summary>One baked facing override key. The angle is stored in radians (authoring is degrees, 0-360).</summary>
     public struct CutsceneFacingKeyBlob
     {
-        /// <summary>Key time, segment-relative seconds.</summary>
-        public float time;
+        public float time; // segment-relative seconds
 
-        /// <summary>The facing angle in radians.</summary>
         public float angleRadians;
     }
 
-    /// <summary>One baked per-part override track (Phase G §2), addressed by tag at authoring time.</summary>
-    /// <remarks>
-    /// <strong>Decision G-D9: resolved to a dense target index at cutscene bake time, not looked up
-    /// live at play time.</strong> The runtime has nothing to look a tag up against —
-    /// <see cref="ClipRegistryBlob"/> resolves a tag-bound clip track down to a dense index during
-    /// the clip's own bake and carries no tag map of its own, so there is no existing baked
-    /// structure a player could query at play time. <see cref="targetIndex"/> is therefore resolved
-    /// here, against the slot's rig, using the exact same canonical (ascending stable id) ordering
-    /// <c>ClipRegistryBuilder</c> uses — the same rig always yields the same ordering regardless of
-    /// which builder computes it, so this index agrees with whatever dense index the bound actor's
-    /// own <see cref="RigPartRef"/> buffer resolves to. <strong>The cost:</strong> a slot recast to a
-    /// different rig at play time (spec §3's "the same cutscene can be recast") does not re-resolve
-    /// tags against the new rig; only the Scene-view editor preview (G3) does that live. Recasting a
-    /// slot's rig for the runtime player needs a rebake until a follow-up amendment gives the
-    /// runtime registry its own tag map.
-    /// </remarks>
+    /// <summary>One baked per-part override track, addressed by tag at authoring time.</summary>
     public struct CutscenePartTrackBlob
     {
-        /// <summary>The authored role, kept for diagnostics — the runtime never looks it up again.</summary>
-        public uint tagId;
+        public uint tagId; // diagnostics only; the runtime never looks it up again
 
-        /// <summary>
-        /// Dense target index resolved at bake (matches <see cref="RigPartRef.targetIndex"/> for the
-        /// bound actor's own rig), or −1 when the tag did not resolve against the slot's rig at bake
-        /// time — skipped at play time, never an error (rule T2).
-        /// </summary>
+        // -1 = the tag didn't resolve against the slot's rig at bake (skipped at play, never an
+        // error). Resolved once at cutscene bake time; recasting a slot's rig at play time does
+        // NOT re-resolve tags — that needs a rebake.
         public int targetIndex;
 
-        /// <summary>Which pose channels this track owns; channels outside the mask are left to the composited clip beneath it.</summary>
-        public AnimatedChannels channels;
+        public AnimatedChannels channels; // channels outside the mask fall through to the composited clip beneath
 
-        /// <summary>Keys sorted by <see cref="CutsceneTransformKeyBlob.time"/>.</summary>
-        public BlobArray<CutsceneTransformKeyBlob> keys;
+        public BlobArray<CutsceneTransformKeyBlob> keys; // sorted by time
     }
 
-    /// <summary>One baked camera pose key (Phase G §2, §4).</summary>
+    /// <summary>One baked camera pose key.</summary>
     public struct CutsceneCameraKeyBlob
     {
-        /// <summary>Key time, segment-relative seconds.</summary>
-        public float time;
+        public float time; // segment-relative seconds
 
-        /// <summary>World-space position.</summary>
-        public float3 position;
+        public float3 position; // world space
 
-        /// <summary>World-space rotation in radians, Euler ZXY.</summary>
-        public float3 rotation;
+        public float3 rotation; // world space, radians, Euler ZXY
 
-        /// <summary>Vertical field of view in degrees.</summary>
-        public float fieldOfView;
+        public float fieldOfView; // degrees, vertical
 
-        /// <summary>Easing from this key to the next one.</summary>
         public Interpolation interpolation;
 
-        /// <summary>First Bézier handle (time, weight); read only for <see cref="Interpolation.Bezier"/>.</summary>
-        public float2 bezierStartHandle;
+        public float2 bezierStartHandle; // (time, weight); read only for Interpolation.Bezier
 
-        /// <summary>Second Bézier handle. See <see cref="bezierStartHandle"/>.</summary>
-        public float2 bezierEndHandle;
+        public float2 bezierEndHandle; // see bezierStartHandle
     }
 
-    /// <summary>One baked event marker (Phase G §2, decision G-D4), same vocabulary and payload shape as a clip's own <see cref="EventMarkerBlob"/>.</summary>
+    /// <summary>One baked event marker, same vocabulary and payload shape as a clip's own <see cref="EventMarkerBlob"/>.</summary>
     public struct CutsceneEventMarkerBlob
     {
-        /// <summary>Marker time, segment-relative seconds.</summary>
-        public float time;
+        public float time; // segment-relative seconds
 
-        /// <summary>User event key, same vocabulary as <see cref="EventMarkerBlob.eventKey"/>.</summary>
-        public uint eventKey;
+        public uint eventKey; // same vocabulary as EventMarkerBlob.eventKey
 
-        /// <summary>User integer payload.</summary>
         public int intParam;
 
-        /// <summary>User float payload.</summary>
         public float floatParam;
 
-        /// <summary>Whether a skip still fires this event (decision G-D4; default authored on).</summary>
-        public bool fireOnSkip;
+        public bool fireOnSkip; // authored on by default
     }
 }

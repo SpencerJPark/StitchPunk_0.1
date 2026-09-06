@@ -7,54 +7,17 @@ using Unity.Entities;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Samples every visible actor's layers into its parts' <see cref="TargetPose"/>
-    /// (architecture section 5.6). The first half of the transform technique; the second half is
-    /// <c>TransformApplySystem</c>.
+    /// Runs after <c>AnimLodDistanceSystem</c>: samples every visible actor's layers into its
+    /// parts' <see cref="TargetPose"/>. Gated on <see cref="AnimVisible"/>, unlike the logic group.
+    /// All sampling lives in <see cref="ClipSampler.CompositeLayers"/> — this system only decides
+    /// which actors and parts to call it for.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>It composites nothing itself.</strong> All of the actual sampling — bottom-up layer
-    /// order, channel masks, additive-over-composited, crossfade lerping, loop-mode time mapping —
-    /// lives in <see cref="ClipSampler.CompositeLayers"/>, and this system's whole job is to decide
-    /// <em>which</em> actors and parts to call it for. That is section 5.11 as a structural
-    /// guarantee rather than a convention: the divergence between an editor sampler and a runtime
-    /// sampler is the defect the source audit found in the host game (§3.4), and it is
-    /// unrepresentable when there is only one function.
-    /// </para>
-    /// <para>
-    /// <strong>Gated on <see cref="AnimVisible"/>, unlike the logic group.</strong> An off-screen
-    /// actor keeps exact time and keeps firing events — it simply does not compute poses nobody can
-    /// see. Re-appearing needs no dirty tracking: this runs every frame for every visible actor, so
-    /// the first visible frame re-samples everything from scratch.
-    /// </para>
-    /// <para>
-    /// <strong>Sample-rate quantization is per actor, phase-offset per instance.</strong> An actor
-    /// with a positive rate samples only on frames where its phase-offset sample index advances
-    /// (<see cref="ClipSampler.ShouldSample"/>), with <see cref="SampleSettings.phase01"/> spreading
-    /// a crowd across frames instead of spiking on one. Playback <em>time</em> is never quantized —
-    /// only how often it is read.
-    /// </para>
-    /// <para>
-    /// <strong>LOD arrives here as three separate effects, not one</strong> (§5.10, via
-    /// <see cref="AnimationLodResolver"/>): it scales the effective sample rate, it snaps crossfade
-    /// weights from level 2, and it freezes the pose from level 3 until the actor's clips change.
-    /// All three are presentation-only — nothing below touches a timer or an event, so a
-    /// distant actor stays frame-accurate to the simulation and merely looks cheaper.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(AnimLodDistanceSystem))]
     [BurstCompile]
     public partial struct TransformSampleSystem : ISystem
     {
-        /// <summary>
-        /// World elapsed time at the previous update, the other edge of the quantization interval.
-        /// </summary>
-        /// <remarks>
-        /// System state rather than a component: the interval is a property of the frame, and every
-        /// actor's own contribution to the decision is already carried by its rate and phase.
-        /// </remarks>
-        private float previousElapsedTime;
+        private float previousElapsedTime; // system state, not a component: the interval is a property of the frame, not of any one actor
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -70,7 +33,7 @@ namespace DotsAnimationToolkit
 
             // The config singleton is created by ConfigBootstrapSystem, which lives in a different
             // group; a world that has not run it yet falls back to sampling every frame rather than
-            // to not sampling at all. Zero is the "every frame" value, so the default is the safe one.
+            // to not sampling at all.
             float defaultSampleRateHz = 0f;
             if (SystemAPI.TryGetSingleton(out AnimationToolkitConfig toolkitConfig))
             {
@@ -94,19 +57,6 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Composites one actor's layers into each of its bound parts' poses.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Parallel safety.</strong> Parts are reached through
-    /// <see cref="RigPartRef"/>, which <c>RigBindingSystem</c> rebuilds per instance so that it
-    /// lists only this actor's own children. An entity belongs to exactly one actor, so no two
-    /// workers can write the same <see cref="TargetPose"/> — that is what makes the
-    /// <see cref="NativeDisableParallelForRestrictionAttribute"/> a claim about the data rather than
-    /// a suppression of the check.
-    /// </para>
-    /// </remarks>
     [BurstCompile]
     [WithAll(typeof(AnimVisible))]
     internal partial struct SampleActorPosesJob : IJobEntity
@@ -115,28 +65,19 @@ namespace DotsAnimationToolkit
         public float currentElapsedTime;
         public float defaultSampleRateHz;
 
-        /// <summary>
-        /// A lookup rather than an <c>in</c> parameter because <see cref="AnimLod"/> is opt-in and
-        /// its absence is conformant (amendment A23). Taking it as a parameter would quietly
-        /// restrict this job to the actors that enabled distance LOD — which is most of them
-        /// excluded, sampling nothing, with no error anywhere.
-        /// </summary>
+        // A lookup, not an `in` parameter: AnimLod is opt-in, and taking it as a parameter would
+        // quietly restrict this job to actors that enabled distance LOD, excluding most of them
+        // from sampling with no error anywhere.
         [ReadOnly] public ComponentLookup<AnimLod> animLodLookup;
 
         [ReadOnly] public ComponentLookup<TargetRestPose> restPoseLookup;
 
-        /// <summary>
-        /// A lookup rather than an <c>in</c> parameter for the same reason as
-        /// <see cref="animLodLookup"/>: <see cref="PartFacing"/> is opt-in (amendment A37, on
-        /// the A23 precedent), so taking it as a parameter would restrict this job to parts that
-        /// face somewhere — excluding every ordinary part, silently.
-        /// </summary>
+        // Same reason as animLodLookup: PartFacing is opt-in, so taking it as a parameter would
+        // silently exclude every ordinary part that doesn't face anywhere.
         [ReadOnly] public ComponentLookup<PartFacing> partFacingLookup;
 
-        /// <summary>Baked, and read here only to decide whether this part mirrors itself or inherits one.</summary>
         [ReadOnly] public ComponentLookup<PartMirrorFromAncestor> mirrorFromAncestorLookup;
 
-        /// <summary>Written on part entities, never on the actor being iterated — see the type-level remarks.</summary>
         [NativeDisableParallelForRestriction] public ComponentLookup<TargetPose> targetPoseLookup;
 
         private void Execute(
@@ -171,10 +112,9 @@ namespace DotsAnimationToolkit
             NativeArray<PlaybackLayer> layerArray = layerBuffer.AsNativeArray();
 
             // LOD 3 holds the last pose until the clips change; every lower level ignores the
-            // signature entirely, which is what lets an actor walking toward the camera resume on
-            // the ordinary rate rule rather than waiting for a clip change that may never come.
-            // The signature is nonetheless recorded at every level so that raising the level does
-            // not begin with a spurious extra sample.
+            // signature entirely, so an actor walking back into view resumes the ordinary rate rule
+            // rather than waiting for a clip change that may never come. Recorded at every level
+            // regardless, so raising the level doesn't begin with a spurious extra sample.
             int clipSignature = ComputeClipSignature(in layerArray);
             if (AnimationLodResolver.FreezesPose(lodLevel) && clipSignature == sampleState.sampledClipSignature)
             {
@@ -188,10 +128,9 @@ namespace DotsAnimationToolkit
             {
                 RigPartRef partRef = partRefs[partRefIndex];
 
-                // targetIndex stays −1 for a part whose target id never resolved against the rig
-                // (RigTargetBaker leaves it so deliberately, rather than defaulting to 0 and
-                // animating the wrong part). Such a part holds its rest pose forever, which is the
-                // intended inert behaviour.
+                // targetIndex stays -1 for a part whose target id never resolved against the rig
+                // (deliberate, rather than defaulting to 0 and animating the wrong part); such a
+                // part holds its rest pose forever.
                 if (partRef.targetIndex < 0)
                 {
                     continue;
@@ -210,9 +149,8 @@ namespace DotsAnimationToolkit
                     snapBlendWeights,
                     out TargetPose sampledPose);
 
-                // The facing terms (amendment A37), applied after composition so that no clip on any
-                // layer can outrank them. Skipped entirely for a part that never opted in, which
-                // keeps the ordinary case exactly as it was.
+                // Facing terms, applied after composition so that no clip on any layer can outrank
+                // them. Skipped entirely for a part that never opted in.
                 if (partFacingLookup.HasComponent(partRef.part))
                 {
                     PartFacing partFacing = partFacingLookup[partRef.part];
@@ -227,26 +165,14 @@ namespace DotsAnimationToolkit
                         partFacing.viewOffset,
                         framesPerVariant);
 
-                    // A mirror reflects the whole part about the actor's vertical axis, which is
-                    // three negations rather than one:
-                    //
-                    //   position.x — the plane moves to the other side. An ear sits left of the
-                    //                head at rest; mirrored, it belongs on the right. Flipping only
-                    //                the art leaves it pinned to the wrong side of the skull.
-                    //   rotation   — rotation is handed. An arm swung +30° reflects to −30°;
-                    //                leaving it alone makes a mirrored pose lean the wrong way.
-                    //                Reflecting about x negates the y and z angles and leaves the
-                    //                x angle alone: a roll about the mirror axis survives a
-                    //                reflection, a yaw and a pitch reverse.
-                    //   scale.x    — the art itself, so the drawn shape faces the other way.
-                    //
-                    // All are negations rather than assignments, so a part authored already
-                    // offset, rotated or flipped composes with facing instead of being overridden.
-                    //
-                    // A part under a mirror point is skipped: scale composes down the hierarchy, so
-                    // the ancestor's negated x already reflects this part and negating again would
-                    // cancel it back to unmirrored (PartMirrorFromAncestor). The rule the owner set
-                    // is that a mirror point flips its whole subtree, animations included.
+                    // A mirror reflects the whole part about the actor's vertical axis: position.x
+                    // (the plane moves to the other side), rotation.y/z (rotation is handed — a roll
+                    // about the mirror axis survives, yaw and pitch reverse), and scale.x (the art
+                    // itself faces the other way). All are negations, not assignments, so a part
+                    // authored already offset/rotated/flipped composes with facing rather than being
+                    // overridden. Skipped under a mirrored ancestor: scale composes down the
+                    // hierarchy, so the ancestor's negated x already reflects this part, and
+                    // negating again would cancel it back to unmirrored.
                     if (partFacing.mirrorX && !mirrorFromAncestorLookup.HasComponent(partRef.part))
                     {
                         sampledPose.localPosition.x = -sampledPose.localPosition.x;
@@ -260,23 +186,11 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// Folds which clips an actor's layers are showing into one comparable int.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Order-sensitive and cheap, deliberately. It is only ever compared against the previous
-        /// frame's value, never decoded, and the cost of a collision is one skipped re-sample on an
-        /// actor already frozen at LOD 3 — so a real hash would buy accuracy nobody could perceive
-        /// at a price paid every frame by every actor.
-        /// </para>
-        /// <para>
-        /// The crossfade source is folded in as well as the current clip: a blend that has just
-        /// begun shows both, and treating a layer as unchanged while its outgoing clip swapped
-        /// would hold the wrong pose. An inactive layer contributes a constant, so deactivating one
-        /// counts as a change.
-        /// </para>
-        /// </remarks>
+        // Order-sensitive and cheap, deliberately: compared only against the previous frame's
+        // value, never decoded, so a collision just costs one skipped re-sample on an actor already
+        // frozen at LOD 3. The crossfade source is folded in too — a blend that has just begun shows
+        // both clips, and ignoring the outgoing one would hold the wrong pose when it changes. An
+        // inactive layer contributes a constant, so deactivating one still counts as a change.
         private static int ComputeClipSignature(in NativeArray<PlaybackLayer> layers)
         {
             int signature = 17;

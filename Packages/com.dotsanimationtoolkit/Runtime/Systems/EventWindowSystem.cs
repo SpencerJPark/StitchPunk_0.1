@@ -6,30 +6,11 @@ using Unity.Entities;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Rebuilds every actor's <see cref="AnimEventMask"/> from where its layers currently stand
-    /// (architecture section 5.5, amendment A45) — the sustained counterpart to
-    /// <see cref="EventEmissionSystem"/>'s one-frame pulses.
+    /// Runs after <c>EventEmissionSystem</c> in <see cref="AnimationToolkitLogicSystemGroup"/>:
+    /// rebuilds every actor's <see cref="AnimEventMask"/> from where its layers currently stand.
+    /// The ordering isn't a data dependency — it fixes which channel of a shared marker lands first
+    /// within the frame, pulse then window.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Rebuilt from zero, never accumulated.</strong> The job ORs together the windows open
-    /// on each active layer and assigns the result; it never reads the previous frame's bits. That
-    /// is the whole interrupt story: a Play command swaps the layer's clip, this system reads the
-    /// new clip's markers on the very next frame, and the interrupted swing's damage window closes
-    /// without any command path having to know windows exist. A countdown-based design would have
-    /// needed a cancel on every one of those paths.
-    /// </para>
-    /// <para>
-    /// <strong>Runs after <see cref="EventEmissionSystem"/>.</strong> Not because it reads anything
-    /// that system writes — it does not — but so the two channels of one marker land in a fixed
-    /// order within the frame: the pulse first, the state second. A consumer reading both for the
-    /// same marker therefore never sees the window open on a frame before the pulse it belongs to.
-    /// </para>
-    /// <para>
-    /// <strong>Never gated on <see cref="AnimVisible"/></strong>, for the same reason event emission
-    /// is not: a window is gameplay. An actor swinging behind the camera still connects.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitLogicSystemGroup))]
     [UpdateAfter(typeof(EventEmissionSystem))]
     [BurstCompile]
@@ -49,17 +30,9 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Recomputes one actor's open-window mask across all of its playback layers.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="AnimEventMask"/> is declared <c>WithPresent</c> for the same reason
-    /// <see cref="AnimEventsPending"/> is in <c>EmitAnimationEventsJob</c>: it is disabled on every
-    /// actor holding no window, which is most of them on most frames, and an
-    /// <c>EnabledRefRW&lt;T&gt;</c> parameter alone would enrol it as an enabled-only filter — so
-    /// the job would only ever run for actors that already had a window open, and no actor's first
-    /// window could ever be set.
-    /// </remarks>
+    // AnimEventMask is WithPresent for the same reason AnimEventsPending is in
+    // EmitAnimationEventsJob: it is disabled on most actors, and a plain EnabledRefRW<T> parameter
+    // would enrol it as an enabled-only filter, so no actor's first window could ever be set.
     [BurstCompile]
     [WithPresent(typeof(AnimEventMask))]
     internal partial struct RebuildEventWindowsJob : IJobEntity
@@ -94,9 +67,6 @@ namespace DotsAnimationToolkit
             eventMaskEnabled.ValueRW = openBits != 0UL;
         }
 
-        /// <summary>
-        /// The bits held open by one layer's current clip at that layer's current time.
-        /// </summary>
         private static ulong CollectLayerWindows(ref ClipRegistryBlob registry, in PlaybackLayer layer)
         {
             if (layer.clipIndex < 0 || layer.clipIndex >= registry.clips.Length)
@@ -125,8 +95,8 @@ namespace DotsAnimationToolkit
                 ulong markerBit = AnimEventMaskKeys.BitOf(marker.eventKey);
                 if (markerBit == 0UL)
                 {
-                    // A pulse-only key that was nonetheless authored with a window. Validation
-                    // rule V20 reports this at bake time; at runtime it simply has no bit to set.
+                    // A pulse-only key that was nonetheless authored with a window; at runtime it
+                    // simply has no bit to set.
                     continue;
                 }
 

@@ -7,36 +7,11 @@ using Unity.Entities;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Turns this frame's playback advance into animation events (architecture section 5.5): the
-    /// markers the layers crossed, plus a <see cref="ReservedEventKeys.ClipFinished"/> for every
-    /// clip that ended.
+    /// Runs after <c>PlaybackTimeSystem</c> in <see cref="AnimationToolkitLogicSystemGroup"/>: turns
+    /// this frame's playback advance into animation events. Appends and enables only —
+    /// <c>CommandApplySystem</c> owns clearing <see cref="AnimEventOutput"/>, at the top of the
+    /// group next frame; a clear here would destroy resolve-failure events raised earlier in the same frame.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>This system appends and enables only.</strong> It does not clear
-    /// <see cref="AnimEventOutput"/> and does not disable <see cref="AnimEventsPending"/> —
-    /// <c>CommandApplySystem</c> owns the clear, at the top of the group (amendment A28). Adding a
-    /// clear back here would destroy the <see cref="ReservedEventKeys.ClipResolveFailed"/> events
-    /// raised earlier in the same frame, which is the defect A28 exists to close.
-    /// </para>
-    /// <para>
-    /// <strong>The crossing window is read, not recomputed.</strong>
-    /// <see cref="PlaybackLayer.advanceStartTime"/> to <see cref="PlaybackLayer.time"/>, both on the
-    /// un-wrapped timeline (amendment A27). Deriving the opening edge as <c>time − dt × speed</c>
-    /// is wrong on exactly the frames a Once clip clamps or a queue promotes, and wrong quietly:
-    /// the events it drops are the last ones in a clip.
-    /// </para>
-    /// <para>
-    /// <strong>Never gated on <see cref="AnimVisible"/>.</strong> Events are gameplay, not
-    /// presentation. An actor behind the camera lands its hits on schedule.
-    /// </para>
-    /// <para>
-    /// <strong>Latency contract.</strong> Events are valid from this system's execution until the
-    /// next frame's <c>CommandApplySystem</c>. A host system ordered earlier in the frame sees the
-    /// previous frame's events; one that needs them same-frame orders itself after
-    /// <see cref="AnimationToolkitSystemGroup"/>.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitLogicSystemGroup))]
     [UpdateAfter(typeof(PlaybackTimeSystem))]
     [BurstCompile]
@@ -56,15 +31,9 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Collects one actor's marker crossings and clip completions into its event buffer.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="AnimEventsPending"/> is declared <c>WithPresent</c>: it is disabled on every actor
-    /// that emitted nothing last frame, which is most of them, and an <c>EnabledRefRW&lt;T&gt;</c>
-    /// parameter would otherwise enrol it as an enabled-only filter — so the system would emit
-    /// events only for actors that already had some, and an actor's first event would never fire.
-    /// </remarks>
+    // AnimEventsPending is WithPresent, not a plain EnabledRefRW parameter: it is disabled on most
+    // actors (whichever emitted nothing last frame), and an EnabledRefRW<T> parameter would enrol
+    // it as an enabled-only filter, so an actor's first-ever event would never fire.
     [BurstCompile]
     [WithPresent(typeof(AnimEventsPending))]
     internal partial struct EmitAnimationEventsJob : IJobEntity
@@ -102,10 +71,9 @@ namespace DotsAnimationToolkit
 
                 if (finishedThisFrame)
                 {
-                    // layer.clip is still the clip that finished, and that is a property of
-                    // amendment A30 rather than of this line: a queued follow-up is not promoted
-                    // until the next advance, precisely so that this event and the crossings above
-                    // it can be attributed to the clip they belong to.
+                    // layer.clip is still the clip that finished: a queued follow-up is not promoted
+                    // until the next advance, precisely so this event and the crossings above it can
+                    // be attributed to the clip they belong to.
                     animEvents.Add(new AnimEventOutput
                     {
                         eventKey = (uint)ReservedEventKeys.ClipFinished,
@@ -129,9 +97,6 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// Emits the markers the layer's current clip crossed during this frame's advance.
-        /// </summary>
         /// <returns>How many events were appended.</returns>
         private static int EmitLayerCrossings(
             ref ClipRegistryBlob registry,
@@ -140,8 +105,8 @@ namespace DotsAnimationToolkit
             ref NativeList<int> crossedEventIndices,
             ref DynamicBuffer<AnimEventOutput> animEvents)
         {
-            // A layer fading out of a Stop has no current clip. The crossfade source deliberately
-            // emits nothing (amendment A27, limitation R11), so there is nothing to collect.
+            // A layer fading out of a Stop has no current clip; the crossfade source deliberately
+            // emits nothing, so there is nothing to collect.
             if (layer.clipIndex < 0 || layer.clipIndex >= registry.clips.Length)
             {
                 return 0;
@@ -156,9 +121,12 @@ namespace DotsAnimationToolkit
             LoopMode resolvedLoopMode = ClipSampler.ResolveLoopMode(layer.loop, clip.defaultLoop);
 
             crossedEventIndices.Clear();
+            // The window is read (timeAtFrameStart to time), never recomputed as time - dt * speed:
+            // that formula is wrong on exactly the frames a Once clip clamps or a queue promotes,
+            // silently dropping the last events of a finishing clip.
             int crossingCount = EventWrapMath.CollectCrossings(
                 ref clip.events,
-                layer.advanceStartTime,
+                layer.timeAtFrameStart,
                 layer.time,
                 clip.duration,
                 resolvedLoopMode,

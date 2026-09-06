@@ -10,28 +10,11 @@ using Unity.Transforms;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Places every socket-attached entity on the socket it follows.
+    /// Runs after <c>TransformApplySystem</c>: places every socket-attached entity on the socket it
+    /// follows. Composes the world transform from the actor's <c>LocalToWorld</c> and the part's
+    /// freshly written <c>LocalTransform</c>, rather than reading the part's own <c>LocalToWorld</c>
+    /// — Unity's transform systems run after this group, so that would still be last frame's.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Runs after <see cref="TransformApplySystem"/>, so the part transforms it reads are the ones
-    /// this frame's sampling produced rather than last frame's.
-    /// </para>
-    /// <para>
-    /// <strong>The world transform is composed, not read from <c>LocalToWorld</c>.</strong> Unity's
-    /// transform systems run after this group, so a part's <c>LocalToWorld</c> is still last
-    /// frame's when this executes — attaching to it would leave every sword a frame behind the hand
-    /// holding it. Composing the actor's <c>LocalToWorld</c> with the part's freshly written
-    /// <c>LocalTransform</c> instead puts the attachment exactly where the part will be drawn,
-    /// because both derive from the same actor matrix.
-    /// </para>
-    /// <para>
-    /// A bone socket has no part to read — its bone exists only inside a VAT texture — so it uses
-    /// the baked sample track, addressed by the same time-to-frame mapping
-    /// <c>VatMaterialSystem</c> uses. Sharing <see cref="ClipSampler.MapTime"/> is what stops an
-    /// attachment and the mesh it rides on disagreeing about which frame "now" is at a loop seam.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(TransformApplySystem))]
     [BurstCompile]
@@ -59,13 +42,6 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>Writes one attachment's world transform.</summary>
-    /// <remarks>
-    /// Every lookup is read-only and the only write lands on the iterated entity, so there is
-    /// nothing to coordinate between workers. The attachment entity is required to be a transform
-    /// root — see <see cref="SocketAttachment"/> for why writing world values into
-    /// <c>LocalTransform</c> is only correct there.
-    /// </remarks>
     [BurstCompile]
     [WithNone(typeof(RigPartBinding))]
     internal partial struct ResolveSocketsJob : IJobEntity
@@ -74,25 +50,12 @@ namespace DotsAnimationToolkit
         [ReadOnly] public ComponentLookup<ClipRegistry> clipRegistryLookup;
         [ReadOnly] public ComponentLookup<LocalToWorld> localToWorldLookup;
 
-        /// <summary>
-        /// The parts' transforms, read while this job writes the attachment's own.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The safety restriction is disabled because the two sets are disjoint, and the
-        /// job cannot run at all without it.</strong> <c>LocalTransform</c> appears twice here —
-        /// written through the <c>ref</c> parameter for the entity being iterated, and read through
-        /// this lookup for the part being followed. Unity's job safety system sees one component
-        /// type used both writably and as a lookup and rejects it as aliasing, which threw
-        /// <c>InvalidOperationException</c> on every update.
-        /// </para>
-        /// <para>
-        /// Disjointness is enforced, not assumed: <c>[WithNone(typeof(RigPartBinding))]</c> excludes
-        /// every part entity from this query, so an entity can never be both the attachment being
-        /// written and a part being read. Putting <c>SocketAttachment</c> on a part is now a
-        /// no-op rather than a self-referential write.
-        /// </para>
-        /// </remarks>
+        // NativeDisableContainerSafetyRestriction is required, not just convenient: LocalTransform
+        // appears both written (via the ref parameter, for the attachment entity) and read (via this
+        // lookup, for the part being followed), which Unity's job safety system otherwise rejects as
+        // aliasing (InvalidOperationException on every update). Disjointness is enforced by
+        // [WithNone(typeof(RigPartBinding))] above, which excludes every part entity from this query,
+        // so an entity can never be both the one written and one read.
         [ReadOnly] [NativeDisableContainerSafetyRestriction]
         public ComponentLookup<LocalTransform> localTransformLookup;
         [ReadOnly] public BufferLookup<RigPartRef> partRefLookup;
@@ -166,7 +129,6 @@ namespace DotsAnimationToolkit
             localTransform.Scale = socketLocalScale;
         }
 
-        /// <summary>Binary search of the ascending socket-id key array.</summary>
         private static int ResolveSocketIndex(ref SocketRegistryBlob registry, uint socketId)
         {
             int low = 0;
@@ -191,7 +153,6 @@ namespace DotsAnimationToolkit
             return -1;
         }
 
-        /// <summary>Reads the part bound to <paramref name="targetIndex"/> on this actor.</summary>
         private bool TryResolvePartLocal(
             Entity actorEntity,
             int targetIndex,
@@ -229,7 +190,7 @@ namespace DotsAnimationToolkit
             return false;
         }
 
-        /// <summary>Samples a bone socket's baked track at the driving layer's current time.</summary>
+        /// <summary>Samples a bone socket's baked track at the driving layer's current time, using the same time-to-frame mapping <c>VatMaterialSystem</c> uses so an attachment never disagrees with the mesh it rides on.</summary>
         private bool TryResolveBoneLocal(
             Entity actorEntity,
             ref SocketRegistryBlob registry,
@@ -295,7 +256,6 @@ namespace DotsAnimationToolkit
             return true;
         }
 
-        /// <summary>Finds the track for one clip/socket pair in the (clipId, socketIndex) ordering.</summary>
         private static int ResolveClipTrackIndex(ref SocketRegistryBlob registry, ulong clipId, int socketIndex)
         {
             for (int trackIndex = 0; trackIndex < registry.clipTracks.Length; trackIndex++)

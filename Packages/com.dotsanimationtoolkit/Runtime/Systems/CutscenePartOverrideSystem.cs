@@ -6,36 +6,10 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Composes a cutscene's per-part override tracks onto <see cref="TargetPose"/> — the Override
-    /// layer spec §2 calls for, applied the same way <c>ApplyHeldTargetPose</c> applies a held edit
-    /// in the editor: written directly onto the composited pose, after composition, before it
-    /// reaches a renderer.
+    /// Runs between <c>TransformSampleSystem</c> and <c>TransformApplySystem</c>: composes a
+    /// cutscene's per-part override tracks onto <see cref="TargetPose"/> after clip composition but
+    /// before the pose reaches <c>LocalTransform</c>/<c>PostTransformMatrix</c>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Ordering is the whole mechanism.</strong> Running after <c>TransformSampleSystem</c>
-    /// means every part already holds this frame's clip-composited pose; running before
-    /// <c>TransformApplySystem</c> means the override is what actually reaches
-    /// <c>LocalTransform</c>/<c>PostTransformMatrix</c>. No second sampler, no new component the
-    /// render path has to know about — see <see cref="CutsceneTimelineSystem"/>'s own remarks for
-    /// why that system (a Logic-group concern: time, commands, events) cannot reach this point in
-    /// the frame itself.
-    /// </para>
-    /// <para>
-    /// <strong>An unmasked channel is left at the part's already-composited value, not its rest
-    /// pose.</strong> A track's <see cref="AnimatedChannels"/> mask names only the channels it
-    /// owns; the rest of the pose is whatever the actor's own clip layers already decided this
-    /// frame, exactly like a clip transform track's own <c>TrackBlendOp.Override</c> only replaces
-    /// its masked channels rather than the whole pose.
-    /// </para>
-    /// <para>
-    /// <strong>Recast caveat (decision G-D9).</strong> <see cref="CutscenePartTrackBlob.targetIndex"/>
-    /// was resolved once at cutscene bake time against the slot's authored rig; it is matched here
-    /// against the bound actor's own <see cref="RigPartRef"/> buffer, which only agrees when the
-    /// bound actor still uses that same rig. A slot recast to a different rig for the runtime player
-    /// needs a rebake — see the blob's own remarks.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(TransformSampleSystem))]
     [UpdateBefore(typeof(TransformApplySystem))]
@@ -86,6 +60,9 @@ namespace DotsAnimationToolkit
                 for (int trackIndex = 0; trackIndex < slotSegment.partTracks.Length; trackIndex++)
                 {
                     ref CutscenePartTrackBlob track = ref slotSegment.partTracks[trackIndex];
+                    // targetIndex was resolved once at cutscene bake time against the slot's
+                    // authored rig; it only agrees with RigPartRef below when the bound actor still
+                    // uses that same rig. A slot recast to a different rig needs a rebake.
                     if (track.targetIndex < 0 || track.keys.Length == 0)
                     {
                         continue;
@@ -117,6 +94,8 @@ namespace DotsAnimationToolkit
 
                     TargetPose pose = entityManager.GetComponentData<TargetPose>(partEntity);
 
+                    // An unmasked channel is left at the part's already-composited value, not its
+                    // rest pose: the track's mask names only the channels it owns.
                     float3 position = pose.localPosition;
                     if ((track.channels & AnimatedChannels.PositionXY) != 0)
                     {

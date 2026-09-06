@@ -9,40 +9,12 @@ using Unity.Rendering;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Recomputes an actor's render bounds when the set of clips it references changes
-    /// (architecture section 5.8).
+    /// Runs after <c>TransformSampleSystem</c>: recomputes an actor's render bounds when the set of
+    /// clips it references changes. Gated on the <see cref="BoundsDirty"/> enableable, never a
+    /// change-version filter — <c>PlaybackTimeSystem</c> writes <c>time</c> into
+    /// <see cref="PlaybackLayer"/> every frame, so a change filter there degenerates to always-true.
+    /// This system is the sole path that disables the tag again.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Gated on the <see cref="BoundsDirty"/> enableable, never on a change filter.</strong>
-    /// A change-version filter on <see cref="PlaybackLayer"/> is the obvious implementation and it
-    /// cannot work: <c>PlaybackTimeSystem</c> writes <c>time</c> into that buffer every frame for
-    /// every active actor, so the buffer's change version bumps every frame and the filter
-    /// degenerates to always-true. The failure is invisible — the bounds stay correct, they are just
-    /// recomputed for every actor forever.
-    /// </para>
-    /// <para>
-    /// <strong>This system is the sole reset path.</strong> `CommandApplySystem` and
-    /// `PlaybackTimeSystem` enable the tag; nothing else disables it. A frame that only advances
-    /// time therefore leaves the tag disabled, this system's query empty, and every
-    /// <see cref="RenderBounds"/> untouched.
-    /// </para>
-    /// <para>
-    /// <strong>Offset space is not actor space (amendment A13).</strong>
-    /// <see cref="ClipBlob.offsetBounds"/> is built from transform keys, which are offsets from a
-    /// part's rest pose, so every box the clip bake produces is centred on the origin. Writing one
-    /// into <see cref="RenderBounds"/> directly would give any rig whose parts sit away from the
-    /// origin a box smaller than its own silhouette, and it would cull visibly. The actor-space
-    /// answer is the Minkowski sum of the rest box and the offset box — centres add, extents add —
-    /// which is exactly "every part could be anywhere in its rest box, displaced by anything in the
-    /// offset box".
-    /// </para>
-    /// <para>
-    /// Parts receive the actor's union rather than their own tightened box. Per-part tightening is
-    /// an explicit non-goal (§5.8): it would need a per-part offset union the clip bake does not
-    /// produce, to save culling precision on entities that are already inside the actor's box.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(TransformSampleSystem))]
     [BurstCompile]
@@ -65,14 +37,6 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Unions one actor's referenced clip bounds into actor space and publishes them.
-    /// </summary>
-    /// <remarks>
-    /// Each actor writes only its own root and the parts in its own <see cref="RigPartRef"/> buffer,
-    /// and an entity belongs to exactly one actor — the same ownership argument that makes
-    /// <c>RigBindingSystem</c>'s lookup sound.
-    /// </remarks>
     [BurstCompile]
     [WithAll(typeof(BoundsDirty))]
     internal partial struct UpdateActorBoundsJob : IJobEntity
@@ -106,8 +70,7 @@ namespace DotsAnimationToolkit
                 EncapsulateClipOffsets(ref registry, layer.clipIndex, ref offsetMinimum, ref offsetMaximum);
 
                 // A crossfading layer still shows the outgoing clip, so its box stays in the union
-                // until the blend completes — which is one of the three moments PlaybackTimeSystem
-                // re-dirties the tag.
+                // until the blend completes — which is one of the moments PlaybackTimeSystem re-dirties the tag.
                 if ((layer.flags & PlaybackFlags.Blending) != 0)
                 {
                     EncapsulateClipOffsets(
@@ -115,6 +78,9 @@ namespace DotsAnimationToolkit
                 }
             }
 
+            // Offset bounds are origin-centered, not actor space (transform keys are offsets from a
+            // part's rest pose); the actor-space box is the Minkowski sum of the rest box and the
+            // offset box — centres add, extents add.
             float3 offsetCentre = (offsetMaximum + offsetMinimum) * 0.5f;
             float3 offsetExtents = (offsetMaximum - offsetMinimum) * 0.5f;
 
@@ -142,10 +108,7 @@ namespace DotsAnimationToolkit
             boundsDirtyEnabled.ValueRW = false;
         }
 
-        /// <summary>
-        /// Grows an offset-space min/max by one clip's <see cref="ClipBlob.offsetBounds"/>.
-        /// Unresolved clip indices contribute nothing.
-        /// </summary>
+        /// <summary>Grows an offset-space min/max by one clip's <see cref="ClipBlob.offsetBounds"/>. Unresolved clip indices contribute nothing.</summary>
         private static void EncapsulateClipOffsets(
             ref ClipRegistryBlob registry,
             int clipIndex,

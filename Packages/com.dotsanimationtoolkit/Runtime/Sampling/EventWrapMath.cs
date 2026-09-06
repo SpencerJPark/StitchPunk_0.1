@@ -8,36 +8,27 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Wrap-correct event-marker crossing math (architecture section 5.5) — the audited host's
-    /// loop-boundary window math absorbed verbatim and generalized to multi-wrap large deltas,
-    /// reverse playback, Once clamping, and PingPong reflection. Pure, allocation-free,
-    /// Burst-compatible; shared by <c>EventEmissionSystem</c>, tests, and the editor preview.
+    /// Wrap-correct event-marker crossing math, generalized to multi-wrap large deltas, reverse
+    /// playback, Once clamping, and PingPong reflection. Pure, allocation-free, Burst-compatible;
+    /// shared by <c>EventEmissionSystem</c>, tests, and the editor preview.
     /// </summary>
     [BurstCompile]
     public static class EventWrapMath
     {
         /// <summary>
         /// Collects every event marker crossed while playback advanced from
-        /// <paramref name="previousTime"/> to <paramref name="currentTime"/> on the clip's
-        /// un-wrapped timeline, appending marker indices to
-        /// <paramref name="crossedEventIndices"/> in chronological crossing order (a marker may
-        /// appear multiple times when a large delta wraps more than once).
-        ///
-        /// Window convention (host convention absorbed): forward motion uses the half-open window
-        /// <c>(previous, current]</c>, so a marker exactly at normalized time 0 fires on each loop
-        /// wrap but not at initial play start, and a marker exactly at 1 fires when the end is
-        /// reached; reverse motion mirrors it as <c>[current, previous)</c>. Once clamps both
-        /// times to [0, duration] and never wraps. PingPong crossings occur on both the forward
-        /// and reflected legs; endpoint markers (0 and 1) fire once per reflection, never twice.
-        /// <see cref="LoopMode.UseClipDefault"/> must be resolved by the caller
-        /// (<see cref="ClipSampler.ResolveLoopMode"/>); unresolved input collects nothing.
+        /// <paramref name="previousTime"/> to <paramref name="currentTime"/>, appending marker
+        /// indices to <paramref name="crossedEventIndices"/> in chronological crossing order (a
+        /// marker may appear more than once when a large delta wraps more than once). Forward
+        /// motion uses the half-open window (previous, current]; reverse mirrors it as
+        /// [current, previous). A marker at normalized time 0 therefore fires on each loop wrap but
+        /// not at initial play start, and a marker at 1 fires when the end is reached. Once clamps
+        /// both times to [0, duration] and never wraps. PingPong checks both the forward and
+        /// reflected legs; endpoint markers (0 and 1) fire once per reflection, never twice.
+        /// Unresolved <see cref="LoopMode.UseClipDefault"/> collects nothing — resolve it first via
+        /// <see cref="ClipSampler.ResolveLoopMode"/>.
         /// </summary>
         /// <param name="events">The clip's event markers, sorted ascending by normalized time.</param>
-        /// <param name="previousTime">Playback time in seconds before the advance, un-wrapped.</param>
-        /// <param name="currentTime">Playback time in seconds after the advance, un-wrapped.</param>
-        /// <param name="duration">Clip duration in seconds.</param>
-        /// <param name="resolvedLoopMode">The layer's resolved loop mode.</param>
-        /// <param name="crossedEventIndices">Caller-owned list the crossed marker indices are appended to.</param>
         /// <returns>The number of crossings appended by this call.</returns>
         [BurstCompile]
         public static int CollectCrossings(

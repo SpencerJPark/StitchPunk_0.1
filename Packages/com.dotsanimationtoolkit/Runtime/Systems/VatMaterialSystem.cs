@@ -8,54 +8,16 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Publishes each visible VAT part's frame addressing to its per-instance shader properties
-    /// (architecture sections 5.8, 6.5).
+    /// Runs after <c>TransformSampleSystem</c>: publishes each visible VAT part's frame addressing
+    /// to its shader properties. LOD scales publish rate but never freezes frames (a VAT mesh has
+    /// no rest pose to fall back to) — the one place this diverges from the transform path's LOD 3 freeze.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// A VAT part is driven by exactly one playback layer, named per part by
-    /// <see cref="VatDriven.layerIndex"/> — a torso and a cape on the same actor may follow
-    /// different layers. This system reads that layer, converts its playback time into a
-    /// <em>fractional global frame index</em> into the texture, and hands the shader two of them
-    /// plus a blend weight: <c>_VatFrameA</c> for the current clip, <c>_VatFrameB</c> for the
-    /// crossfade source, <c>_VatBlend</c> for the weight between them.
-    /// </para>
-    /// <para>
-    /// <strong>Time mapping goes through <see cref="ClipSampler.MapTime"/>.</strong> Frames are just
-    /// playback time in another unit, so the loop/pingpong/clamp behaviour of a VAT part has to be
-    /// the same function the transform path uses, or the same clip drifts between techniques on one
-    /// actor. That is section 5.11 doing its job in a place where re-deriving `fmod` would have been
-    /// the obvious shortcut.
-    /// </para>
-    /// <para>
-    /// <strong>Why <c>_VatFrameB</c> defaults to <c>_VatFrameA</c> rather than 0.</strong> With
-    /// <c>_VatBlend = 0</c> the shader ignores B entirely, so its value is free — but a 0 there
-    /// points at the first frame of the whole texture, and any future shader that lerps before
-    /// testing the weight would snap the mesh to another clip's pose. Pointing B at A makes the
-    /// blend a no-op under every reading.
-    /// </para>
-    /// <para>
-    /// Loop seams need no special case: loop-safe clips carry a duplicated final frame (§4.7), so
-    /// <c>floor(frame) + 1</c> never leaves the clip's row range.
-    /// </para>
-    /// <para>
-    /// <strong>LOD scales how often frames are published, and never freezes them</strong> (§5.10).
-    /// A VAT mesh holds whatever row it was last given, so a frozen frame is a frozen *mesh* — and
-    /// since GPU cost does not depend on CPU LOD, there is nothing to gain by it. Level 3 therefore
-    /// keeps publishing at quarter rate while the transform path stops entirely, which is the one
-    /// place the two techniques deliberately diverge.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(TransformSampleSystem))]
     [BurstCompile]
     public partial struct VatMaterialSystem : ISystem
     {
-        /// <summary>
-        /// World elapsed time at the previous update — the other edge of the quantization interval,
-        /// held per system for the same reason <c>TransformSampleSystem</c> holds it.
-        /// </summary>
-        private float previousElapsedTime;
+        private float previousElapsedTime; // other edge of the quantization interval, held per system like TransformSampleSystem's own
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -91,15 +53,6 @@ namespace DotsAnimationToolkit
         }
     }
 
-    /// <summary>
-    /// Converts one VAT part's driving layer into frame addressing.
-    /// </summary>
-    /// <remarks>
-    /// Iterates <em>parts</em> rather than actor roots, because <see cref="VatDriven"/> is exactly
-    /// the VAT archetype and the actor is reachable through <see cref="RigPartBinding.actorRoot"/>.
-    /// Both lookups are read-only, so there is nothing to coordinate between workers — unlike the
-    /// sampling systems, this one writes only components on the entity it is iterating.
-    /// </remarks>
     [BurstCompile]
     [WithAll(typeof(AnimVisible))]
     internal partial struct WriteVatPropertiesJob : IJobEntity
@@ -112,8 +65,7 @@ namespace DotsAnimationToolkit
         [ReadOnly] public ComponentLookup<ClipRegistry> clipRegistryLookup;
         [ReadOnly] public ComponentLookup<SampleSettings> sampleSettingsLookup;
 
-        /// <summary>Opt-in per amendment A23 — see the identical note in <c>SampleActorPosesJob</c>.</summary>
-        [ReadOnly] public ComponentLookup<AnimLod> animLodLookup;
+        [ReadOnly] public ComponentLookup<AnimLod> animLodLookup; // opt-in — see the identical note in SampleActorPosesJob
 
         private void Execute(
             in VatDriven vatDriven,
@@ -167,6 +119,10 @@ namespace DotsAnimationToolkit
             }
 
             float blendWeight = 0f;
+            // Defaults to A, not 0: with blend at 0 the shader ignores B entirely, but a stray 0
+            // would point at the texture's first frame, and any future shader that lerped before
+            // testing the weight would snap to another clip's pose. Pointing B at A makes the blend
+            // a no-op under every reading.
             float sourceFrame = currentFrame;
             if ((layer.flags & PlaybackFlags.Blending) != 0 && layer.blendDuration > 0f
                 && TryResolveGlobalFrame(
@@ -177,7 +133,7 @@ namespace DotsAnimationToolkit
                 blendWeight = math.saturate(layer.blendElapsed / layer.blendDuration);
             }
 
-            // A is the destination and B the source, so the weight runs 0 → 1 from the outgoing clip
+            // A is the destination and B the source, so the weight runs 0 -> 1 from the outgoing clip
             // to the incoming one, matching how blendElapsed advances.
             vatFrameA.Value = currentFrame;
             vatFrameB.Value = sourceFrame;
@@ -186,28 +142,12 @@ namespace DotsAnimationToolkit
 
         /// <summary>
         /// Maps a layer's playback time onto a fractional global frame index into the VAT texture,
-        /// for the specific part requesting it.
+        /// for the specific part requesting it. The part's own dense <paramref name="targetIndex"/>
+        /// is checked first against <see cref="ClipBlob.vatTargetRanges"/>, falling back to the
+        /// clip-wide range only when no entry names it — the same two-step rule bake time uses, and
+        /// what lets a torso and a cape on one actor, both bound to the same clip, play
+        /// independently baked motion.
         /// </summary>
-        /// <remarks>
-        /// <strong>C10, multi-source VAT tracks.</strong> A part resolves its own dense
-        /// <paramref name="targetIndex"/> first against <see cref="ClipBlob.vatTargetRanges"/> and
-        /// only falls back to the clip-wide <see cref="ClipBlob.vatFrameStart"/> /
-        /// <see cref="ClipBlob.vatFrameCount"/> / <see cref="ClipBlob.vatFps"/> range when no entry
-        /// names its target — the same two-step rule <c>VatTextureSetAsset.TryGetTrackRange</c>
-        /// performs at bake time (see its remarks for why the two must agree). This is what lets a
-        /// torso and a cape on one actor, both bound to the same clip identity, play independently
-        /// baked motion: the torso's part keeps resolving the shared range exactly as it always did,
-        /// while the cape's part — whose <see cref="RigPartBinding.targetIndex"/> matches an entry in
-        /// <see cref="ClipBlob.vatTargetRanges"/> — resolves its own.
-        /// </remarks>
-        /// <param name="registry">The actor's clip registry blob.</param>
-        /// <param name="clipIndex">Dense index of the clip the driving layer is playing.</param>
-        /// <param name="playbackTime">The layer's current playback time in seconds.</param>
-        /// <param name="requestedLoopMode">The layer's requested loop mode.</param>
-        /// <param name="targetIndex">
-        /// Dense target index of the VAT part asking for a frame (<see cref="RigPartBinding.targetIndex"/>).
-        /// </param>
-        /// <param name="globalFrame">The resolved fractional global frame index on success.</param>
         /// <returns>False when the clip index is unresolved or the resolved range is empty.</returns>
         private static bool TryResolveGlobalFrame(
             ref ClipRegistryBlob registry,
@@ -246,6 +186,10 @@ namespace DotsAnimationToolkit
                 return false;
             }
 
+            // Time mapping goes through the same ClipSampler function the transform path uses, so a
+            // loop/pingpong/clamp clip does not drift between techniques on one actor. Loop seams
+            // need no special case: loop-safe clips carry a duplicated final frame, so
+            // floor(frame) + 1 never leaves the clip's row range.
             LoopMode resolvedLoopMode = ClipSampler.ResolveLoopMode(requestedLoopMode, clip.defaultLoop);
             float mappedTime = ClipSampler.MapTime(playbackTime, clip.duration, resolvedLoopMode);
 

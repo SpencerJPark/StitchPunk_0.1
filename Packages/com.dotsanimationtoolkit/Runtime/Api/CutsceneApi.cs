@@ -6,11 +6,9 @@ using Unity.Entities;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// The write side of starting and skipping a cutscene (Phase G §6). Everything else a host
-    /// needs to steer a running cutscene is a direct field write on the public components
-    /// (<see cref="CutsceneControl"/>, <see cref="CutsceneHoldRelease"/>) — this exists only for the
-    /// one operation that has more than one field to get right: standing up a fresh request with
-    /// its internal bookkeeping correctly sized.
+    /// Write side of starting and skipping a cutscene. Everything else a host needs to steer a
+    /// running cutscene is a direct field write on the public components (<see cref="CutsceneControl"/>,
+    /// <see cref="CutsceneHoldRelease"/>); this exists only for multi-field setup.
     /// </summary>
     public static class CutsceneApi
     {
@@ -20,10 +18,7 @@ namespace DotsAnimationToolkit
         /// <see cref="CutsceneActorBinding"/> buffer for the host to fill, and the internal
         /// <see cref="CutsceneSlotRuntimeState"/> bookkeeping pre-sized to the blob's slot count.
         /// </summary>
-        /// <param name="entityManager">The world to create the request in.</param>
         /// <param name="blob">The baked cutscene. The player never disposes it.</param>
-        /// <param name="layerIndex">Which playback layer clip blocks target on every bound actor.</param>
-        /// <param name="speed">Initial playback speed; 1 is normal.</param>
         /// <returns>The new request entity. The host must still fill <see cref="CutsceneActorBinding"/> before the player can do anything with an Actor/Prop slot.</returns>
         public static Entity CreatePlayRequest(
             EntityManager entityManager,
@@ -57,8 +52,8 @@ namespace DotsAnimationToolkit
             entityManager.AddComponentData(requestEntity, default(CutsceneHoldRelease));
             entityManager.SetComponentEnabled<CutsceneHoldRelease>(requestEntity, false);
 
-            // Same output shape a clip's own events use (spec §6), scoped to this request entity
-            // rather than any one bound actor — a cutscene event is not about one slot.
+            // Same output shape a clip's own events use, scoped to this request entity rather than
+            // any one bound actor — a cutscene event is not about one slot.
             entityManager.AddBuffer<AnimEventOutput>(requestEntity);
             entityManager.AddComponent<AnimEventsPending>(requestEntity);
             entityManager.SetComponentEnabled<AnimEventsPending>(requestEntity, false);
@@ -86,7 +81,7 @@ namespace DotsAnimationToolkit
             return requestEntity;
         }
 
-        /// <summary>Requests an immediate jump to the cutscene's end (spec §4). Equivalent to writing <see cref="CutsceneControl.skipRequested"/> directly; a convenience for the common one-field case.</summary>
+        /// <summary>Equivalent to writing <see cref="CutsceneControl.skipRequested"/> directly; a convenience for the common one-field case.</summary>
         public static void RequestSkip(EntityManager entityManager, Entity requestEntity)
         {
             CutsceneControl control = entityManager.GetComponentData<CutsceneControl>(requestEntity);
@@ -95,9 +90,8 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// The id of the hold the cutscene is currently paused on (amendment A65 §3.1), so a host
-        /// can answer "what is the clock waiting for?" without reaching into the blob — the hold a
-        /// dialogue cue derives is named after the event, and the host learns that name only here.
+        /// The id of the hold the cutscene is currently paused on, so a host can answer "what is
+        /// the clock waiting for?" without reaching into the blob.
         /// </summary>
         /// <returns>False whenever the request is not paused on a hold.</returns>
         public static bool TryGetCurrentHoldId(
@@ -135,11 +129,9 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Creates a play request from a baked <see cref="CutsceneStage"/> (amendment A61): the same
-        /// as <see cref="CreatePlayRequest"/>, plus every <see cref="CutsceneStageBinding"/> on
-        /// <paramref name="stageEntity"/> copied into the new request's <see cref="CutsceneActorBinding"/>
-        /// buffer. The host may still add or overwrite entries afterward for actors the stage's
-        /// subscene never baked (spec §3.1's cross-scene trap) or that were spawned at runtime.
+        /// Same as <see cref="CreatePlayRequest"/>, plus every <see cref="CutsceneStageBinding"/> on
+        /// <paramref name="stageEntity"/> copied into the new request's <see cref="CutsceneActorBinding"/>.
+        /// The host may still add entries for actors the stage never baked or that spawned at runtime.
         /// </summary>
         public static Entity CreatePlayRequestFromStage(
             EntityManager entityManager,
@@ -168,9 +160,8 @@ namespace DotsAnimationToolkit
 
         /// <summary>
         /// Finds the <see cref="CutsceneStage"/> whose <see cref="CutsceneStage.cutsceneKey"/> matches
-        /// <paramref name="cutsceneKey"/> (amendment A61, decision A61-D3 — identity by stable id,
-        /// never asset path or name). A linear scan over a temporary query; a host with many stages
-        /// should cache the result rather than call this every frame.
+        /// <paramref name="cutsceneKey"/>. A linear scan; a host with many stages should cache the
+        /// result rather than call this every frame.
         /// </summary>
         public static bool TryFindStage(EntityManager entityManager, ulong cutsceneKey, out Entity stageEntity)
         {

@@ -4,14 +4,9 @@ using Unity.Entities;
 
 namespace DotsAnimationToolkit
 {
-    /// <summary>
-    /// Actor-root component holding the baked clip registry (architecture section 5.2). Two actors
-    /// sharing a <c>ClipSetAsset</c> share one blob via the BlobAssetStore's content-hash dedup
-    /// (section 4.5).
-    /// </summary>
+    /// <summary>Actor-root component holding the baked clip registry. Two actors sharing a <c>ClipSetAsset</c> share one blob via the BlobAssetStore's content-hash dedup.</summary>
     public struct ClipRegistry : IComponentData
     {
-        /// <summary>The baked registry blob. BlobAssetStore-owned; never manually disposed.</summary>
-        public BlobAssetReference<ClipRegistryBlob> Value;
+        public BlobAssetReference<ClipRegistryBlob> Value; // BlobAssetStore-owned; never manually disposed
     }
 }

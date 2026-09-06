@@ -8,31 +8,16 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// The package's single sampler (architecture section 5.11): pure, allocation-free,
-    /// Burst-compatible static functions for easing, loop-mode time mapping, track sampling,
-    /// bottom-up layer composition, blend pose lerping, and sample-rate quantization. Runtime
-    /// jobs, PlayMode tests, EditMode tests, and the editor preview all call these same
-    /// functions — sampler divergence is eliminated structurally, not by discipline.
+    /// The package's single sampler: pure, allocation-free, Burst-compatible functions for easing,
+    /// loop-mode time mapping, track sampling, layer composition, and sample-rate quantization.
+    /// Runtime jobs, tests, and the editor preview all call these same functions.
     /// </summary>
     [BurstCompile]
     public static class ClipSampler
     {
-        /// <summary>
-        /// The identity atlas rect (scale 1,1 / offset 0,0 — the full texture), used for a pose
-        /// until an atlas-mode sprite track writes a frame.
-        /// </summary>
-        public static readonly float4 IdentityAtlasRect = new float4(1f, 1f, 0f, 0f);
+        public static readonly float4 IdentityAtlasRect = new float4(1f, 1f, 0f, 0f); // full texture; used until an atlas-mode sprite track writes a frame
 
-        /// <summary>
-        /// Applies the per-key easing curve to a linear 0–1 segment position
-        /// (architecture section 3.2; curves absorbed verbatim from the audited host sampler).
-        /// <see cref="Interpolation.Step"/> returns 0 (full hold of the segment's left key);
-        /// track sampling short-circuits Step before easing, so the 0 is a consistent fallback for
-        /// direct callers.
-        /// </summary>
-        /// <param name="linearTime">Linear position inside the key segment, in [0, 1].</param>
-        /// <param name="interpolation">The left key's easing mode.</param>
-        /// <returns>The eased blend weight toward the segment's right key.</returns>
+        /// <returns>The eased blend weight toward the segment's right key; <see cref="Interpolation.Step"/> returns 0.</returns>
         [BurstCompile]
         public static float Ease(float linearTime, Interpolation interpolation)
         {
@@ -53,15 +38,7 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// Applies the per-key easing curve, including <see cref="Interpolation.Bezier"/>, which
-        /// needs the key's handles and so cannot be served by the parameterless overload.
-        /// </summary>
-        /// <remarks>
-        /// Kept as an overload rather than replacing <see cref="Ease(float, Interpolation)"/>,
-        /// because that signature is the one the four fixed curves need and callers that never
-        /// author Bézier should not have to carry handles they do not use.
-        /// </remarks>
+        /// <summary>Overload for <see cref="Interpolation.Bezier"/>, which needs the key's handles.</summary>
         [BurstCompile]
         public static float Ease(
             float linearTime, Interpolation interpolation,
@@ -74,28 +51,14 @@ namespace DotsAnimationToolkit
             return EaseBezier(linearTime, in bezierStartHandle, in bezierEndHandle);
         }
 
-        /// <summary>
-        /// Evaluates a cubic Bézier ease with endpoints pinned at (0,0) and (1,1).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The curve is parametric, so finding the weight for a time means solving x(s) = t for the
-        /// parameter s first and then reading y(s). Newton's method converges in a handful of
-        /// iterations for the monotonic-x curves validation rule V17 permits; the bisection fallback
-        /// covers the flat-derivative case Newton cannot make progress on, so the loop always
-        /// terminates with a bounded error rather than sometimes not terminating.
-        /// </para>
-        /// <para>
-        /// Two zero handles mean "these fields did not exist when this asset was written", not "a
-        /// curve that collapses to the origin". Reading that as linear is what stops an old clip,
-        /// or a key switched to Bézier by something that did not initialise it, from freezing at
-        /// the segment's left key.
-        /// </para>
-        /// </remarks>
+        /// <summary>Cubic Bézier ease with endpoints pinned at (0,0) and (1,1).</summary>
         [BurstCompile]
         public static float EaseBezier(
             float linearTime, in float2 bezierStartHandle, in float2 bezierEndHandle)
         {
+            // Two zero handles mean these fields predate this asset's schema, not a curve
+            // collapsing to the origin; treating that as linear stops an old or uninitialized key
+            // from freezing at the segment's left value.
             if (math.all(bezierStartHandle == float2.zero) && math.all(bezierEndHandle == float2.zero))
             {
                 return linearTime;
@@ -115,7 +78,6 @@ namespace DotsAnimationToolkit
             return CubicBezierComponent(parameter, bezierStartHandle.y, bezierEndHandle.y);
         }
 
-        /// <summary>One axis of a cubic Bézier with endpoints pinned at 0 and 1.</summary>
         [BurstCompile]
         private static float CubicBezierComponent(float parameter, float firstHandle, float secondHandle)
         {
@@ -125,7 +87,6 @@ namespace DotsAnimationToolkit
                 + parameter * parameter * parameter;
         }
 
-        /// <summary>Derivative of <see cref="CubicBezierComponent"/> with respect to the parameter.</summary>
         [BurstCompile]
         private static float CubicBezierDerivative(
             float parameter, float firstHandle, float secondHandle)
@@ -186,13 +147,6 @@ namespace DotsAnimationToolkit
             return parameter;
         }
 
-        /// <summary>
-        /// Resolves the <see cref="LoopMode.UseClipDefault"/> command sentinel against a clip's
-        /// authored default (architecture section 5.4).
-        /// </summary>
-        /// <param name="requested">The requested mode, possibly <see cref="LoopMode.UseClipDefault"/>.</param>
-        /// <param name="clipDefault">The clip's authored default loop mode.</param>
-        /// <returns>The resolved loop mode.</returns>
         [BurstCompile]
         public static LoopMode ResolveLoopMode(LoopMode requested, LoopMode clipDefault)
         {
@@ -200,16 +154,10 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Maps un-wrapped playback time onto the clip's [0, duration] sampling window per loop
-        /// mode (architecture section 5.4): Once clamps; Loop wraps (negative times wrap into
-        /// range, supporting reverse playback); PingPong reflects via
-        /// <c>duration − |duration − mod(time, 2 × duration)|</c>. An unresolved
-        /// <see cref="LoopMode.UseClipDefault"/> clamps defensively — callers resolve it first via
-        /// <see cref="ResolveLoopMode"/>.
+        /// Maps un-wrapped playback time onto [0, duration] per loop mode: Once clamps; Loop wraps
+        /// (negative times wrap too, supporting reverse playback); PingPong reflects. An unresolved
+        /// <see cref="LoopMode.UseClipDefault"/> clamps defensively — callers resolve it first via <see cref="ResolveLoopMode"/>.
         /// </summary>
-        /// <param name="rawTime">Playback time in seconds on the clip's un-wrapped timeline.</param>
-        /// <param name="duration">Clip duration in seconds.</param>
-        /// <param name="resolvedLoopMode">The resolved loop mode.</param>
         /// <returns>The mapped time in [0, duration]; 0 when duration is not positive.</returns>
         [BurstCompile]
         public static float MapTime(float rawTime, float duration, LoopMode resolvedLoopMode)
@@ -232,13 +180,7 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// <see cref="MapTime"/> divided by duration: the normalized sampling time in [0, 1].
-        /// </summary>
-        /// <param name="rawTime">Playback time in seconds on the clip's un-wrapped timeline.</param>
-        /// <param name="duration">Clip duration in seconds.</param>
-        /// <param name="resolvedLoopMode">The resolved loop mode.</param>
-        /// <returns>The normalized time in [0, 1]; 0 when duration is not positive.</returns>
+        /// <returns><see cref="MapTime"/> divided by duration, in [0, 1]; 0 when duration is not positive.</returns>
         [BurstCompile]
         public static float MapTimeNormalized(float rawTime, float duration, LoopMode resolvedLoopMode)
         {
@@ -250,18 +192,10 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Samples one transform track at a normalized time (architecture section 5.6; key scan
-        /// and easing absorbed verbatim from the audited host sampler). Times before the first key
-        /// clamp to it, times after the last key clamp to it, and a single-key track returns that
-        /// key at every time. The left key's <see cref="Interpolation"/> drives the segment;
-        /// <see cref="Interpolation.Step"/> holds the left key. An empty track returns the neutral
-        /// values (zero position/rotation, unit scale) — composition skips empty tracks entirely.
+        /// Samples one transform track at a normalized time. Times before the first key or after
+        /// the last clamp to it; a single-key track returns that key always. The left key's
+        /// <see cref="Interpolation"/> drives the segment; an empty track returns the neutral pose.
         /// </summary>
-        /// <param name="track">The track to sample.</param>
-        /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
-        /// <param name="position">Sampled local position (z = draw-layer order).</param>
-        /// <param name="rotation">Sampled Euler rotation in radians.</param>
-        /// <param name="scale">Sampled non-uniform x/y/z scale.</param>
         [BurstCompile]
         public static void SampleTransformTrack(
             ref TransformTrackBlob track,
@@ -307,34 +241,9 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Samples one sprite track at a normalized time (architecture section 5.7): the key at or
-        /// before the time holds until the next key's time is reached, with slice index −1 meaning
-        /// "no change" (host convention absorbed). Slice mode writes <paramref name="sliceIndex"/>;
-        /// atlas mode writes <paramref name="atlasRect"/>; an empty track writes nothing.
-        /// </summary>
-        /// <param name="track">The track to sample.</param>
-        /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
-        /// <param name="sliceIndex">Current slice value; overwritten when the holding key selects a frame ≥ 0.</param>
-        /// <param name="atlasRect">Current atlas rect; overwritten in atlas mode.</param>
-        /// <summary>
         /// Applies the facing term to an already-composed slice and keeps the result inside the
-        /// character's own variant block (architecture section 5.7, amendment A37).
+        /// character's own variant block.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The block is derived from <paramref name="restSliceIndex"/> rather than from the composed
-        /// slice, because the rest slice is the one value that reliably names the character's
-        /// variant — the composed slice may already have been moved by a relative key, and flooring
-        /// *that* would let a large animation offset silently redefine which block the part belongs
-        /// to.
-        /// </para>
-        /// <para>
-        /// With <paramref name="framesPerVariant"/> at or below 1 there are no blocks, so the offset
-        /// is a plain addition clamped at 0 — the lower clamp is what stops a negative relative key
-        /// producing a negative slice, which is the fifth route to a negative index that A37 opened
-        /// and section 5.7's original "no guard needed" argument did not anticipate.
-        /// </para>
-        /// </remarks>
         /// <param name="composedSlice">The slice after clip composition.</param>
         /// <param name="restSliceIndex">The part's rest slice — which variant this character has.</param>
         /// <param name="viewOffset">Frames to step for the direction the part faces.</param>
@@ -352,6 +261,9 @@ namespace DotsAnimationToolkit
                 return math.max(0, composedSlice + viewOffset);
             }
 
+            // The block is derived from restSliceIndex, not the composed slice: the composed slice
+            // may already have moved via a relative key, and flooring that would let a large
+            // animation offset silently redefine which block the part belongs to.
             int blockBase = (restSliceIndex / framesPerVariant) * framesPerVariant;
             int frameInBlock = composedSlice - blockBase + viewOffset;
 
@@ -365,6 +277,11 @@ namespace DotsAnimationToolkit
             return math.max(0, blockBase + wrapped);
         }
 
+        /// <summary>
+        /// Samples one sprite track at a normalized time: the key at or before the time holds until
+        /// the next key's time, with slice index -1 meaning "no change". Slice mode writes
+        /// <paramref name="sliceIndex"/>; atlas mode writes <paramref name="atlasRect"/>; an empty track writes nothing.
+        /// </summary>
         [BurstCompile]
         public static void SampleSpriteTrack(
             ref SpriteTrackBlob track,
@@ -378,39 +295,31 @@ namespace DotsAnimationToolkit
                 return;
             }
 
-            // The key at or before the time wins outright, and holds until the next key's own time
-            // is reached. A frame index is not a quantity that can be part-way between two values,
-            // so the change has to land on the key the author placed — a midpoint crossover put it
-            // half a segment early or late, and on an evenly spaced flipbook that reads as the whole
-            // animation running offset from its own timeline.
+            // The key at or before the time wins outright and holds until the next key's own time
+            // is reached — a frame index cannot be part-way between two values, so a midpoint
+            // crossover would read as the whole animation running offset from its own timeline.
             int chosenIndex = FindHoldingSpriteKey(ref keys, normalizedTime);
 
             if (track.mode == SpriteFrameMode.Slice)
             {
-                // Two independent bases compose here, and the order matters. The key's own mode
-                // resolves it against the track's authored baseIndex first, producing the track's
-                // value; sliceSpace then decides whether that value replaces the pose's slice or is
-                // added to the rest slice the character's variant chose. Collapsing them would cost
-                // one of the two retargeting behaviours: an authored base that moves a whole track
-                // onto another span of the array, and a runtime base that follows the character.
+                // Two independent bases compose here, in order: the key's own mode resolves it
+                // against the track's authored baseIndex first, then sliceSpace decides whether that
+                // value replaces the pose's slice or is added to the rest slice the variant chose.
                 int trackValue = SpriteIndexResolver.Resolve(
                     keys[chosenIndex].sliceIndex, keys[chosenIndex].indexMode, track.baseIndex);
 
                 if (track.sliceSpace == SpriteSliceSpace.RelativeToRest)
                 {
-                    // Amendment A37: the key is an offset from whatever the seed carries, which is
-                    // the rest slice the host's design system chose for this character. There is no
-                    // -1 sentinel here — 0 is the no-op, and a negative offset is a legitimate step
+                    // No -1 sentinel here: 0 is the no-op, and a negative offset is a legitimate step
                     // backwards through the variant's frames.
                     sliceIndex += trackValue;
                 }
                 else if (trackValue >= 0
                     || keys[chosenIndex].indexMode == SpriteIndexMode.RelativeToBase)
                 {
-                    // The −1 sentinel belongs to absolute keys only. A relative key that resolves
-                    // below zero is a base and offset that disagree, not a request to hold the
-                    // current frame — validation rule V18 reports it, and clamping keeps the
-                    // material on a renderable slice meanwhile.
+                    // -1 belongs to absolute keys only. A relative key resolving below zero is a
+                    // base/offset disagreement, not a "hold the current frame" request; clamped to
+                    // stay on a renderable slice.
                     sliceIndex = math.max(0, trackValue);
                 }
             }
@@ -420,13 +329,6 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// Initializes a sampled pose from a part's rest pose (architecture section 5.6):
-        /// position/rotation/scale copied, slice index from <see cref="TargetRestPose.restSliceIndex"/>,
-        /// atlas rect set to <see cref="IdentityAtlasRect"/>.
-        /// </summary>
-        /// <param name="restPose">The part's rest pose.</param>
-        /// <param name="pose">The initialized output pose.</param>
         [BurstCompile]
         public static void RestToPose(in TargetRestPose restPose, out TargetPose pose)
         {
@@ -442,41 +344,12 @@ namespace DotsAnimationToolkit
 
         /// <summary>
         /// Applies every track of one clip bound to a target onto an existing pose, in canonical
-        /// order — transform tracks before sprite tracks, all tracks applied, no first-match break
-        /// (architecture sections 4.5, 5.6).
+        /// order. Keys are always deltas, never absolute values: <see cref="TrackBlendOp.Override"/>
+        /// anchors to <paramref name="restPose"/> (masked channels become rest + key), while
+        /// <see cref="TrackBlendOp.Additive"/> anchors to the incoming composited pose. Channels
+        /// outside a track's mask are left exactly as the layers below composited them.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Keys are offsets from the rest pose, never absolute local values</strong>
-        /// (architecture sections 3.2, 4.6; amendment A31). The two track ops differ in what they
-        /// anchor to, not in whether the key is a delta:
-        /// </para>
-        /// <list type="bullet">
-        /// <item><description>
-        /// <see cref="TrackBlendOp.Override"/> anchors to the <em>rest pose</em>, so the masked
-        /// channels become <c>rest + key</c> (scale: <c>rest × key</c>) and whatever lower layers
-        /// composited into those channels is replaced.
-        /// </description></item>
-        /// <item><description>
-        /// <see cref="TrackBlendOp.Additive"/> anchors to the <em>incoming composited pose</em>, so
-        /// the masked channels become <c>composited + key</c> (scale: <c>composited × key</c>).
-        /// </description></item>
-        /// </list>
-        /// <para>
-        /// Channels outside the mask are untouched by either op, so they keep whatever the layers
-        /// below left there — which for the bottom layer is the rest pose the composition seeded.
-        /// </para>
-        /// <para>
-        /// This is why <paramref name="restPose"/> is a parameter rather than something the caller
-        /// could bake into the incoming pose: an Override track must reach past every lower layer's
-        /// contribution to the rest value, which the incoming pose no longer carries.
-        /// </para>
-        /// </remarks>
-        /// <param name="clip">The clip whose tracks to apply.</param>
-        /// <param name="targetIndex">The part's dense target index.</param>
-        /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
-        /// <param name="restPose">The part's rest pose — the frame Override keys are offsets from.</param>
-        /// <param name="pose">The pose the tracks apply onto.</param>
+        /// <param name="restPose">The frame Override keys are offsets from — needed because an Override must reach past every lower layer's contribution.</param>
         [BurstCompile]
         public static void ApplyClipToPose(
             ref ClipBlob clip,
@@ -502,7 +375,7 @@ namespace DotsAnimationToolkit
 
                 // The only difference between the two ops is the frame the key is added to: the
                 // rest pose for Override, the composited-so-far pose for Additive. Both treat the
-                // key as a delta (amendment A31).
+                // key as a delta.
                 bool isAdditive = track.blendOp == TrackBlendOp.Additive;
                 if ((track.channels & AnimatedChannels.PositionXY) != 0)
                 {
@@ -542,16 +415,7 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// Samples one clip for one target starting from the rest pose (architecture
-        /// section 5.11) — the single-clip entry point shared by the editor preview and tests. An
-        /// empty clip (no tracks bound to the target) returns the rest pose.
-        /// </summary>
-        /// <param name="clip">The clip to sample.</param>
-        /// <param name="targetIndex">The part's dense target index.</param>
-        /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
-        /// <param name="rest">The part's rest pose.</param>
-        /// <param name="pose">The sampled output pose.</param>
+        /// <summary>Samples one clip for one target starting from the rest pose — the single-clip entry point shared by the editor preview and tests.</summary>
         [BurstCompile]
         public static void SamplePose(
             ref ClipBlob clip,
@@ -564,15 +428,9 @@ namespace DotsAnimationToolkit
             ApplyClipToPose(ref clip, targetIndex, normalizedTime, in rest, ref pose);
         }
 
-        /// <summary>
-        /// Lerps two sampled poses by a 0–1 blend weight (architecture sections 5.4, 5.6):
-        /// position, rotation, and scale interpolate linearly; sprite frames never blend — the
-        /// nearest pose wins at the blend midpoint (snap, architecture section 10 answer 2).
-        /// </summary>
+        /// <summary>Lerps two sampled poses by a blend weight: position/rotation/scale interpolate linearly; sprite frames never blend — the nearest pose wins at the midpoint.</summary>
         /// <param name="fromPose">The pose at weight 0 (the blend's "previous" side).</param>
         /// <param name="toPose">The pose at weight 1 (the blend's "current" side).</param>
-        /// <param name="weight">Blend weight in [0, 1].</param>
-        /// <param name="result">The blended output pose.</param>
         [BurstCompile]
         public static void LerpPose(in TargetPose fromPose, in TargetPose toPose, float weight, out TargetPose result)
         {
@@ -587,31 +445,20 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Composites all playback layers for one target, bottom-up — lowest layer index first,
-        /// upper layers composite later and win contested channels (architecture section 5.6).
-        /// Inactive layers are skipped. Per active layer: the current clip's tracks apply onto the
-        /// incoming pose; while blending, the previous clip's tracks apply onto the same incoming
-        /// pose independently and the two results lerp by
-        /// <c>blendElapsed / blendDuration</c> before compositing continues. A fading-out layer
-        /// with no current clip (<see cref="PlaybackLayer.clipIndex"/> = −1) lerps toward the
-        /// incoming pose. Each clip's time maps through the loop mode it is actually playing
-        /// under — the current clip through <see cref="PlaybackLayer.loop"/>, the crossfade source
-        /// through <see cref="PlaybackLayer.previousLoop"/>, which is captured when the clip is
-        /// demoted precisely so the outgoing side does not fade out under the incoming request's
-        /// mode.
+        /// Composites all playback layers for one target, bottom-up: lowest layer index first,
+        /// upper layers win contested channels. Inactive layers are skipped. While blending, the
+        /// previous clip's tracks sample independently and lerp against the current clip's by
+        /// <c>blendElapsed / blendDuration</c>. The crossfade source maps time through
+        /// <see cref="PlaybackLayer.previousLoop"/> rather than the current request's loop mode,
+        /// since it was captured when the clip was demoted — otherwise the outgoing side could pop
+        /// mid-crossfade if a command had overridden its loop away from its own default.
         /// </summary>
-        /// <param name="registry">The actor's baked clip registry.</param>
         /// <param name="layers">The actor's playback layers (buffer index = layer index); pass a <c>DynamicBuffer</c> via <c>AsNativeArray()</c>.</param>
-        /// <param name="targetIndex">The part's dense target index.</param>
-        /// <param name="restPose">The part's rest pose.</param>
         /// <param name="snapBlendWeights">
-        /// True to render every crossfade as a hard cut — LOD 2's behaviour (architecture section
-        /// 5.10). The weight snaps; nothing here touches <see cref="PlaybackLayer.blendElapsed"/>,
-        /// so a layer that changes LOD mid-blend rejoins the true weight rather than restarting.
-        /// There is deliberately no overload defaulting this to false: one production caller exists
-        /// and a silent default is how half the callers would stop honouring LOD.
+        /// True to render every crossfade as a hard cut (LOD 2). Only the weight snaps —
+        /// <see cref="PlaybackLayer.blendElapsed"/> is untouched, so a layer that changes LOD
+        /// mid-blend rejoins the true weight. No overload defaults this to false, deliberately.
         /// </param>
-        /// <param name="pose">The composited output pose.</param>
         [BurstCompile]
         public static void CompositeLayers(
             ref ClipRegistryBlob registry,
@@ -670,15 +517,6 @@ namespace DotsAnimationToolkit
             }
         }
 
-        /// <summary>
-        /// The phase-offset sample frame index behind sample-rate quantization
-        /// (architecture section 5.6): <c>floor(elapsedTime × rateHz + phase01)</c>, algebraically
-        /// identical to the documented <c>floor((elapsedTime + phase01 / rateHz) × rateHz)</c>.
-        /// </summary>
-        /// <param name="elapsedTime">World elapsed time in seconds.</param>
-        /// <param name="rateHz">Sample rate in Hz; must be positive.</param>
-        /// <param name="phase01">Per-entity phase offset in [0, 1).</param>
-        /// <returns>The sample frame index at the given time.</returns>
         [BurstCompile]
         public static long SampleFrameIndex(float elapsedTime, float rateHz, float phase01)
         {
@@ -686,16 +524,10 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Whether a quantized actor samples this frame (architecture section 5.6): true when the
-        /// phase-offset sample frame index advanced between the two elapsed times, or always when
-        /// <paramref name="rateHz"/> is 0 or negative (0 = sample every frame). Per-entity phase
-        /// spreads crowd sampling across frames; playback time itself is never quantized.
+        /// Whether a quantized actor samples this frame: true when the phase-offset sample frame
+        /// index advanced between the two elapsed times, or always when <paramref name="rateHz"/>
+        /// is 0 or negative. Playback time itself is never quantized, only sampling frequency.
         /// </summary>
-        /// <param name="previousElapsedTime">World elapsed time at the previous frame, in seconds.</param>
-        /// <param name="currentElapsedTime">World elapsed time at this frame, in seconds.</param>
-        /// <param name="rateHz">Sample rate in Hz; 0 or negative = sample every frame.</param>
-        /// <param name="phase01">Per-entity phase offset in [0, 1).</param>
-        /// <returns>True when the actor should sample this frame.</returns>
         [BurstCompile]
         public static bool ShouldSample(float previousElapsedTime, float currentElapsedTime, float rateHz, float phase01)
         {
@@ -737,35 +569,11 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// The key holding a sprite track at a time: the last one at or before it.
+        /// Samples one billboard track's three channels at a time. The angle offset and blend
+        /// weight interpolate; the enable flag is a discrete instruction and is held from the last
+        /// key at or before the time, never eased. An empty track resolves to the neutral values a
+        /// root with no track has, so adding one is a no-op rather than a silent disable.
         /// </summary>
-        /// <remarks>
-        /// A single index rather than a surrounding pair, because a flipbook has nothing to
-        /// interpolate — the key that has most recently fired is the whole answer. Before the first
-        /// key that is the first key, which holds frame 0's value rather than showing nothing.
-        /// </remarks>
-        /// <summary>
-        /// Samples one billboard track's three channels at a time (amendment A44).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Two channels interpolate and one does not.</strong> The angle offset and the
-        /// blend weight are continuous values being approximated between keys, so they ease. The
-        /// enable flag is a discrete instruction that fires at a moment, so it is <em>held</em> from
-        /// the last key at or before the time — amendment A43's rule for flipbook indices, applied
-        /// to the other channel in this package that is an instruction rather than an approximation.
-        /// </para>
-        /// <para>
-        /// An empty track resolves to the neutral values a root with no track has: no extra offset,
-        /// full blend, enabled. That is what makes adding an empty track a no-op rather than a
-        /// silent disabling.
-        /// </para>
-        /// </remarks>
-        /// <param name="track">The track to sample.</param>
-        /// <param name="normalizedTime">Sampling time normalized to the clip's duration.</param>
-        /// <param name="angleOffsetRadians">Sampled rotation off the resolved facing.</param>
-        /// <param name="blendWeight">Sampled blend against the animated pose.</param>
-        /// <param name="enabled">Whether the root billboards at this time.</param>
         [BurstCompile]
         public static void SampleBillboardTrack(
             ref BillboardTrackBlob track,
@@ -810,11 +618,8 @@ namespace DotsAnimationToolkit
             blendWeight = math.lerp(previousKey.blendWeight, nextKey.blendWeight, easedWeight);
         }
 
-        /// <summary>
-        /// The keys surrounding a time on a billboard track. Mirrors <c>FindKeySegment</c>; the two
-        /// cannot share code because a <c>BlobArray</c> of one key type is a different type from a
-        /// <c>BlobArray</c> of another and neither is generic.
-        /// </summary>
+        // Mirrors FindKeySegment; the two cannot share code because a BlobArray of one key type is
+        // a different type from a BlobArray of another and neither is generic.
         private static void FindBillboardKeySegment(
             ref BlobArray<BillboardKeyBlob> keys,
             float normalizedTime,
@@ -838,6 +643,9 @@ namespace DotsAnimationToolkit
             }
         }
 
+        // A single index, not a surrounding pair: a flipbook has nothing to interpolate, so the
+        // most recently fired key is the whole answer. Before the first key, that key still holds
+        // (frame 0's value), rather than showing nothing.
         private static int FindHoldingSpriteKey(
             ref BlobArray<SpriteKeyBlob> keys, float normalizedTime)
         {

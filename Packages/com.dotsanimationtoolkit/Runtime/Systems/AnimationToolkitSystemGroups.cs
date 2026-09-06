@@ -5,55 +5,30 @@ using Unity.Entities;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// The toolkit's single insertion point into a host frame (architecture section 5.1). Everything
-    /// this package runs lives under it, so a host can reason about — and disable — the whole feature
-    /// as one unit.
+    /// The toolkit's single insertion point into a host frame; everything this package runs lives
+    /// under it. No scene gating and no host tags — a host that wants the feature off uses
+    /// <see cref="ToolkitWorldApi.SetEnabled"/> instead.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>No scene gating and no host tags.</strong> The group runs whenever its queries match,
-    /// and an empty world costs nothing. This is deliberate: requiring a tag component would make the
-    /// package's systems refuse to run in any world that had not been taught about it, which is the
-    /// coupling the source audit flagged in the host game (its systems require a `GameSceneTag`).
-    /// A host that wants the feature off uses <see cref="ToolkitWorldApi.SetEnabled"/>.
-    /// </para>
-    /// <para>
-    /// <strong>This type declares no <c>UpdateBefore</c>/<c>UpdateAfter</c> edges</strong>, only its
-    /// parent group. Ordering edges here would be ordering opinions about assemblies this package has
-    /// never seen, and two such opinions in one project deadlock the sort. A host orders *its own*
-    /// groups against this type instead — the attribute lives on the host's type and references ours,
-    /// so expressing an order costs the host nothing and costs this package no changes at all.
-    /// </para>
-    /// </remarks>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial class AnimationToolkitSystemGroup : ComponentSystemGroup
     {
     }
 
     /// <summary>
-    /// Spawn-time re-binding, before anything reads a binding (architecture section 5.1).
+    /// Spawn-time re-binding, before anything reads a binding. <c>OrderFirst</c> because an
+    /// ECB-instantiated actor's <c>RigPartRef</c> buffer still points at the prefab's part entities
+    /// until <c>RigBindingSystem</c> rebuilds it.
     /// </summary>
-    /// <remarks>
-    /// <c>OrderFirst</c> because an ECB-instantiated actor's <c>RigPartRef</c> buffer still points at
-    /// the prefab's part entities until <c>RigBindingSystem</c> rebuilds it. Any system that read a
-    /// binding before this group ran would read a stale entity reference — reliably, every spawn.
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitSystemGroup), OrderFirst = true)]
     public partial class AnimationToolkitBindingSystemGroup : ComponentSystemGroup
     {
     }
 
     /// <summary>
-    /// Playback state, time and events — the half of the toolkit that is gameplay-visible
-    /// (architecture section 5.1).
+    /// Playback state, time and events — the gameplay-visible half of the toolkit. Never gated on
+    /// <see cref="AnimVisible"/>: timers advance and events fire for off-screen actors, so animation
+    /// stays in sync with simulation regardless of what's on screen.
     /// </summary>
-    /// <remarks>
-    /// <strong>Never gated on <see cref="AnimVisible"/>.</strong> Timers advance and events fire for
-    /// off-screen actors, so an actor that finishes a clip behind the camera still reports it and
-    /// still holds exact time when it comes back into view. Gating logic on visibility is what makes
-    /// animation-driven gameplay desync from the simulation; the split between this group and
-    /// <see cref="AnimationToolkitPresentationSystemGroup"/> is the whole point of the design.
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitSystemGroup))]
     [UpdateAfter(typeof(AnimationToolkitBindingSystemGroup))]
     [UpdateBefore(typeof(AnimationToolkitPresentationSystemGroup))]
@@ -62,50 +37,23 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
-    /// Sampling and the writes that feed rendering (architecture section 5.1).
+    /// Sampling and the writes that feed rendering. Runs last; its systems skip actors whose
+    /// <see cref="AnimVisible"/> is disabled, and re-enabling needs no dirty tracking since every
+    /// enabled actor is fully re-sampled every frame.
     /// </summary>
-    /// <remarks>
-    /// Runs last, and its systems skip actors whose <see cref="AnimVisible"/> is disabled. Re-enabling
-    /// is self-healing and needs no dirty tracking: these systems run every frame for every enabled
-    /// actor, so the first visible frame re-samples and re-writes every property from scratch.
-    /// </remarks>
     [UpdateInGroup(typeof(AnimationToolkitSystemGroup), OrderLast = true)]
     public partial class AnimationToolkitPresentationSystemGroup : ComponentSystemGroup
     {
     }
 
     /// <summary>
-    /// The ragdoll's five systems (Phase D, amendment A50, spec §7): capture, the fallback world
-    /// probe, the solver, the write-back, and release.
+    /// The ragdoll's five systems: capture, the fallback world probe, the solver, the write-back,
+    /// and release — <c>OrderFirst</c>/<c>OrderLast</c> capture/release, with explicit
+    /// <c>UpdateAfter</c> chaining probe → solve → apply between them.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Two ordering edges, both load-bearing (spec §7's own emphasis).</strong>
-    /// </para>
-    /// <list type="bullet">
-    /// <item><description>
-    /// <strong>After <see cref="BillboardResolveSystem"/>.</strong> The gravity frame a Planar2D
-    /// ragdoll falls in must be this frame's billboard resolution, not last frame's — reading a
-    /// stale frame here is exactly the kind of one-frame lag amendment A44 already fought once.
-    /// </description></item>
-    /// <item><description>
-    /// <strong>Before <see cref="SocketResolveSystem"/>.</strong> A socket resolving before this
-    /// group writes puts an attached item in the hand one frame late — <c>rigged-characters.md</c>
-    /// already lists that symptom. <see cref="SocketResolveSystem"/>'s own
-    /// <c>UpdateAfter(TransformApplySystem)</c> cannot order it against a group that did not exist
-    /// when that attribute was written, so the edge has to go here, on this group, instead.
-    /// </description></item>
-    /// </list>
-    /// <para>
-    /// Inside the group, <see cref="RagdollCaptureSystem"/> is <c>OrderFirst</c> and
-    /// <see cref="RagdollReleaseSystem"/> is <c>OrderLast</c>; the three systems between them chain
-    /// explicit <c>UpdateAfter</c> edges in the exact sequence spec §7 lists
-    /// (probe → solve → apply) rather than relying on the sort's tie-break for systems with no
-    /// declared relationship to each other — this package's convention throughout (CLAUDE.md: "never
-    /// ad-hoc ordering"), and doubly so here, since an unordered probe/solve/apply trio would let the
-    /// solver read a stale or empty contact buffer on some runs and not others.
-    /// </para>
-    /// </remarks>
+    // Must run after BillboardResolveSystem (a Planar2D ragdoll needs this frame's billboard
+    // frame, not last frame's) and before SocketResolveSystem (otherwise an attached item lags
+    // the hand by one frame).
     [UpdateInGroup(typeof(AnimationToolkitPresentationSystemGroup))]
     [UpdateAfter(typeof(BillboardResolveSystem))]
     [UpdateBefore(typeof(SocketResolveSystem))]

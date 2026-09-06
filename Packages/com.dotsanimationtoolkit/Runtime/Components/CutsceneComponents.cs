@@ -7,251 +7,169 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// A baked, scene-resident cutscene (amendment A61): the blob and its scene bindings, ready for
-    /// a host to hand to <c>CutsceneApi.CreatePlayRequestFromStage</c>. One entity per
-    /// <c>CutsceneAsset</c> staged via <c>CutsceneStageAuthoring</c>.
+    /// A baked, scene-resident cutscene: the blob and its scene bindings, ready for a host to hand
+    /// to <c>CutsceneApi.CreatePlayRequestFromStage</c>. One entity per <c>CutsceneAsset</c> staged
+    /// via <c>CutsceneStageAuthoring</c>.
     /// </summary>
     public struct CutsceneStage : IComponentData
     {
-        /// <summary>The baked cutscene, owned by the bake-time <c>BlobAssetStore</c> — never disposed by a reader.</summary>
-        public BlobAssetReference<CutsceneBlob> blob;
+        public BlobAssetReference<CutsceneBlob> blob; // BlobAssetStore-owned; never disposed by a reader
 
-        /// <summary>The source <c>CutsceneAsset.StableId</c> — how <see cref="CutsceneApi.TryFindStage"/> finds this stage.</summary>
-        public ulong cutsceneKey;
+        public ulong cutsceneKey; // source CutsceneAsset.StableId; how CutsceneApi.TryFindStage finds this stage
     }
 
     /// <summary>
-    /// One slot's scene binding, baked from the cutscene editor's cast panel (amendment A61). Parallel
-    /// in spirit to <see cref="CutsceneActorBinding"/>, but authored rather than host-filled — a host
-    /// still may add or overwrite <see cref="CutsceneActorBinding"/> entries after
+    /// One slot's scene binding, baked from the cutscene editor's cast panel. A host may still add
+    /// or overwrite <see cref="CutsceneActorBinding"/> entries after
     /// <c>CreatePlayRequestFromStage</c> copies these in, for actors spawned rather than staged.
     /// </summary>
     [InternalBufferCapacity(4)]
     public struct CutsceneStageBinding : IBufferElementData
     {
-        /// <summary>The <c>CutsceneSlot.SlotId</c> this entry binds.</summary>
-        public uint slotId;
+        public uint slotId; // CutsceneSlot.SlotId this entry binds
 
-        /// <summary>The actor root (Actor slot) or transform-only entity (Prop slot) baked for this slot, or <c>Entity.Null</c> when the bound object lived outside this stage's subscene.</summary>
-        public Entity target;
+        public Entity target; // the baked actor/transform entity, or Entity.Null when it lived outside this stage's subscene
     }
 
     /// <summary>
-    /// The identity half of a running cutscene request (Phase G §6): which cutscene, and which
-    /// playback layer its clip blocks target on every bound actor. Immutable once created — the
-    /// mutable half is <see cref="CutsceneControl"/>.
+    /// The identity half of a running cutscene request: which cutscene, and which playback layer
+    /// its clip blocks target on every bound actor. Immutable once created — the mutable half is
+    /// <see cref="CutsceneControl"/>.
     /// </summary>
     public struct CutscenePlay : IComponentData
     {
-        /// <summary>The baked cutscene. Ownership stays with whoever built or cached it — the player never disposes it.</summary>
-        public BlobAssetReference<CutsceneBlob> blob;
+        public BlobAssetReference<CutsceneBlob> blob; // ownership stays with whoever built/cached it; the player never disposes it
 
-        /// <summary>Which <c>PlaybackLayer</c> index clip blocks are played on, for every Actor slot.</summary>
-        public byte layerIndex;
+        public byte layerIndex; // PlaybackLayer index clip blocks play on, for every Actor slot
     }
 
     /// <summary>
-    /// The live control surface a host writes to steer a running cutscene (Phase G §4, §6): pause,
-    /// speed, and skip. Created at <see cref="CutsceneApi.CreatePlayRequest"/> and free for
-    /// the host to keep rewriting afterward — there is no second copy of this state anywhere the
-    /// player owns.
+    /// The live control surface a host writes to steer a running cutscene: pause, speed, and skip.
+    /// Created at <see cref="CutsceneApi.CreatePlayRequest"/> and free for the host to keep
+    /// rewriting afterward.
     /// </summary>
     public struct CutsceneControl : IComponentData
     {
-        /// <summary>
-        /// Freezes the clock and every bound actor's clip layer (amendment A62 decision A62-D4: the
-        /// host is saying "freeze everything"). Distinct from a hold, which freezes only the clock —
-        /// looping clips keep cycling under a hold by owner call (Phase G §2).
-        /// </summary>
-        public bool paused;
+        public bool paused; // freezes the clock AND every bound actor's clip layer; a hold freezes only the clock
 
-        /// <summary>Playback speed multiplier. 1 = normal. Time only ever moves forward (elastic length assumes it); a non-positive value is clamped to 0 by the player, which behaves like <see cref="paused"/>.</summary>
-        public float speed;
+        public float speed; // 1 = normal; clamped to 0 (behaves like paused) if non-positive; time only moves forward
 
-        /// <summary>Set by the host to request an immediate jump to the cutscene's end (spec §4). The player clears it once processed.</summary>
-        public bool skipRequested;
+        public bool skipRequested; // set by the host to jump to the end; cleared by the player once processed
     }
 
     /// <summary>The player's own advance state for one cutscene request — never written by a host.</summary>
     public struct CutscenePlaybackState : IComponentData
     {
-        /// <summary>Index into <see cref="CutsceneBlob.segments"/> of the segment currently playing.</summary>
-        public int segmentIndex;
+        public int segmentIndex; // index into CutsceneBlob.segments of the segment currently playing
 
-        /// <summary>Seconds elapsed within the current segment (spec §5's <c>(segmentIndex, timeInSegment)</c> clock).</summary>
-        public float timeInSegment;
+        public float timeInSegment; // seconds elapsed within the current segment
 
-        /// <summary>True while the clock is paused at the current segment's hold, waiting on a matching <see cref="CutsceneHoldRelease"/>.</summary>
-        public bool isPausedOnHold;
+        public bool isPausedOnHold; // true while waiting on a matching CutsceneHoldRelease
 
-        /// <summary>True once the cutscene has reached its end or been skipped. The player takes no further action on this request.</summary>
-        public bool isComplete;
+        public bool isComplete; // true once ended or skipped; the player takes no further action
 
-        /// <summary>Cursor into the current segment's event array — the next not-yet-fired event, never re-read from the start (mirrors this package's existing "advance a cursor, never re-scan" playback convention).</summary>
-        public int nextEventIndex;
+        public int nextEventIndex; // cursor into the current segment's event array; never re-scanned from the start
 
-        /// <summary>
-        /// The layer speed last issued to every bound Actor slot via <c>SetSpeed</c> (amendment A62
-        /// defect 4). <c>-1</c> means "never applied" — a value no real speed can equal, since the
-        /// player clamps a negative <see cref="CutsceneControl.speed"/> to 0 — so the very first
-        /// frame always issues at least one <c>SetSpeed</c> even when the host leaves speed at its
-        /// default of 1.
-        /// </summary>
-        public float appliedLayerSpeed;
+        public float appliedLayerSpeed; // last SetSpeed issued to every bound Actor slot; -1 = never applied (forces one on the first frame)
     }
 
-    /// <summary>
-    /// One slot's binding, host-filled (Phase G §6): which live entity plays <c>CutsceneSlot</c>
-    /// <paramref name="slotId"/>. Explicit casting, no discovery magic — the toolkit ships no
-    /// component that marks "this entity is Bertha" (decision G-D6).
-    /// </summary>
+    /// <summary>One slot's binding, host-filled: which live entity plays <c>CutsceneSlot</c> <paramref name="slotId"/>. Explicit casting; the toolkit has no "this entity is Bertha" marker.</summary>
     [InternalBufferCapacity(4)]
     public struct CutsceneActorBinding : IBufferElementData
     {
-        /// <summary>The <c>CutsceneSlot.SlotId</c> this entry binds.</summary>
-        public uint slotId;
+        public uint slotId; // CutsceneSlot.SlotId this entry binds
 
-        /// <summary>The actor root (Actor slot) or transform-only entity (Prop slot) that plays this slot.</summary>
-        public Entity actorEntity;
+        public Entity actorEntity; // the actor root (Actor slot) or transform-only entity (Prop slot) that plays this slot
     }
 
     /// <summary>
-    /// Player-owned per-slot bookkeeping, parallel to <see cref="CutsceneBlob.slots"/> by index (not
-    /// by <see cref="CutsceneActorBinding"/> order, which a host controls and this must not depend
-    /// on). Internal: a host never reads or writes this directly.
+    /// Player-owned per-slot bookkeeping, parallel to <see cref="CutsceneBlob.slots"/> by index
+    /// (never by <see cref="CutsceneActorBinding"/> order, which a host controls). Internal: a host
+    /// never reads or writes this directly.
     /// </summary>
     [InternalBufferCapacity(4)]
     internal struct CutsceneSlotRuntimeState : IBufferElementData
     {
-        /// <summary>Cursor into the current segment's clip block array for this slot — the next not-yet-issued block.</summary>
-        public int nextClipBlockIndex;
+        public int nextClipBlockIndex; // cursor into the current segment's clip block array
 
-        /// <summary>Cursor into the current segment's attach marker array (amendment A63).</summary>
-        public int nextAttachMarkerIndex;
+        public int nextAttachMarkerIndex; // cursor into the current segment's attach marker array
 
-        /// <summary>
-        /// Index into <see cref="CutsceneBlob.slots"/> of the host this slot is currently riding, or
-        /// −1 when it is free. While this is set the slot's root lane is ignored — the host owns the
-        /// transform.
-        /// </summary>
-        public int attachedHostSlotIndex;
+        public int attachedHostSlotIndex; // index into CutsceneBlob.slots of the host being ridden; -1 = free. While set, this slot's root lane is ignored.
 
-        /// <summary>The socket the current attachment rides, or 0 for a root attach.</summary>
-        public uint attachedSocketId;
+        public uint attachedSocketId; // socket the current attachment rides; 0 = root attach
 
-        /// <summary>Whether this slot's renderers are currently suppressed by its attachment.</summary>
         public bool isHiddenByAttachment;
 
-        /// <summary>Cursor into the current segment's mark array (amendment A64).</summary>
-        public int nextMarkIndex;
+        public int nextMarkIndex; // cursor into the current segment's mark array
 
-        /// <summary>
-        /// The clip id currently playing for this slot's active block after facing has had its say
-        /// (amendment A65 §3.2) — the authored id when the block has no direction variants. What a
-        /// re-pick compares against, so turning issues one Play rather than one per frame.
-        /// </summary>
-        public ulong activeVariantClipId;
+        public ulong activeVariantClipId; // clip id currently playing after facing has had its say; what a re-pick compares against
 
-        /// <summary>
-        /// Where the block this slot is playing was found: its segment and its index within that
-        /// segment's array, or −1 for "nothing playing". Kept rather than derived from
-        /// <see cref="nextClipBlockIndex"/> because that cursor rebases at every hold, and a walk
-        /// carried across one is exactly when a re-pick still has to work.
-        /// </summary>
-        public int activeBlockSegmentIndex;
+        public int activeBlockSegmentIndex; // segment of the block this slot is playing, or -1 for "nothing playing"; kept rather than derived because nextClipBlockIndex rebases at every hold
 
-        /// <summary>Index into the active block's own segment array. Meaningless while <see cref="activeBlockSegmentIndex"/> is −1.</summary>
-        public int activeBlockIndex;
+        public int activeBlockIndex; // index into the active block's own segment array; meaningless while activeBlockSegmentIndex is -1
 
-        /// <summary>
-        /// The active block's authored speed (amendment A65 §3.3), so a later <c>SetSpeed</c> from a
-        /// host slowing the cutscene multiplies it rather than replacing it. 1 while nothing plays.
-        /// </summary>
-        public float activeBlockSpeed;
+        public float activeBlockSpeed; // active block's authored speed; a later host SetSpeed multiplies it rather than replacing it; 1 while nothing plays
 
-        /// <summary>
-        /// Whether this slot has been ordered to a mark it has not yet reached. While it is set the
-        /// slot's root lane is ignored — whatever is walking the entity owns the transform, exactly
-        /// as a host does while <see cref="attachedHostSlotIndex"/> is set. Survives a hold: a mark
-        /// outstanding when the clock stops is still outstanding when it starts again.
-        /// </summary>
-        public bool hasOutstandingMark;
+        public bool hasOutstandingMark; // ordered to a mark not yet reached; while set this slot's root lane is ignored. Survives a hold.
     }
 
     /// <summary>
-    /// Enabled on a bound entity when its slot's mark time is reached (amendment A64, decision
-    /// A64-D1): the host walks the entity there through whatever movement it has, and the toolkit
-    /// judges arrival by distance — or teleports on timeout so a stuck mover cannot softlock a
-    /// rendezvous hold.
+    /// Enabled on a bound entity when its slot's mark time is reached: the host walks the entity
+    /// there through whatever movement it has, and the toolkit judges arrival by distance — or
+    /// teleports on timeout so a stuck mover cannot softlock a rendezvous hold.
     /// </summary>
     public struct CutsceneMoveToMark : IComponentData, IEnableableComponent
     {
-        /// <summary>The world position to reach.</summary>
         public float3 position;
 
-        /// <summary>Arrival facing, applied by the toolkit only when the mark times out.</summary>
-        public float facingRadians;
+        public float facingRadians; // applied by the toolkit only when the mark times out
 
-        /// <summary>XZ distance that counts as arrived. Y is ignored — author marks on the ground (§6).</summary>
-        public float toleranceMeters;
+        public float toleranceMeters; // XZ distance that counts as arrived; Y is ignored
 
-        /// <summary>0 waits forever; otherwise the mark resolves by teleport after this many real seconds.</summary>
-        public float timeoutSeconds;
+        public float timeoutSeconds; // 0 waits forever; otherwise resolves by teleport after this long
 
-        /// <summary>Real seconds this order has been outstanding — written by the player, never by a host. Frozen while the cutscene is paused (decision A64-D3).</summary>
-        public float elapsedSeconds;
+        public float elapsedSeconds; // written by the player only; frozen while the cutscene is paused
     }
 
     /// <summary>
-    /// The facing a cutscene is driving a bound Actor slot toward (amendment A65 §3.2), written
-    /// every frame the cutscene has an answer and disabled when it ends. The host maps it onto
-    /// whatever its own facing model is; the toolkit never writes <c>PartFacing</c> itself
-    /// (decision A65-D2 — a host's own facing system already owns that, and two writers would fight).
+    /// The facing a cutscene is driving a bound Actor slot toward, written every frame the
+    /// cutscene has an answer and disabled when it ends. The host maps it onto its own facing
+    /// model; the toolkit never writes <c>PartFacing</c> itself.
     /// </summary>
     public struct CutsceneFacing : IComponentData, IEnableableComponent
     {
-        /// <summary>
-        /// Degrees about the world up axis, measured from +X toward +Z: 0 is east, 90 is north
-        /// (away from the camera). The same 0–360 model the Direction Sets pane's slider uses and
-        /// <c>FacingResolver.FromMovement</c> reads, <em>not</em> a <c>LocalTransform</c> Y euler,
-        /// which measures from +Z instead.
-        /// </summary>
+        // Degrees about world up, measured from +X toward +Z (0 = east, 90 = north) — the Direction
+        // Sets/FacingResolver.FromMovement convention, NOT a LocalTransform Y euler, which measures
+        // from +Z instead.
         public float angleDegrees;
     }
 
     /// <summary>
-    /// Enabled on the detached entity for the frame a Detach marker fires (amendment A63, decision
-    /// A63-D2). The host reads it and disables it — a sellable package cannot assume a physics
-    /// stack, so the toolkit hands over an impulse and applies none of its own.
+    /// Enabled on the detached entity for the frame a Detach marker fires. The host reads it and
+    /// disables it — a sellable package cannot assume a physics stack, so the toolkit hands over an
+    /// impulse and applies none of its own.
     /// </summary>
     public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
     {
-        /// <summary>The authored impulse, rotated out of host space at the instant of detachment.</summary>
-        public float3 worldImpulse;
+        public float3 worldImpulse; // authored impulse, rotated out of host space at the instant of detachment
 
-        /// <summary>Whatever the entity was riding, so a host can credit the throw to it.</summary>
-        public Entity previousHost;
+        public Entity previousHost; // whatever the entity was riding, so a host can credit the throw to it
     }
 
     /// <summary>
-    /// Releases the hold the cutscene is currently paused on (Phase G §4, §6). The host sets
-    /// <see cref="holdId"/> and enables the component; the player consumes and disables it the
-    /// frame it matches the current segment's hold — a mismatched id is left enabled and ignored
-    /// rather than erroring, so a host that fires a release slightly early or for the wrong hold
-    /// simply waits.
+    /// Releases the hold the cutscene is currently paused on. The host sets <see cref="holdId"/>
+    /// and enables the component; the player consumes and disables it the frame it matches the
+    /// current segment's hold. A mismatched id is left enabled and ignored, not an error.
     /// </summary>
     public struct CutsceneHoldRelease : IComponentData, IEnableableComponent
     {
-        /// <summary>Which hold to release. Must match the current segment's hold id exactly.</summary>
-        public FixedString64Bytes holdId;
+        public FixedString64Bytes holdId; // must match the current segment's hold id exactly
     }
 
     /// <summary>
-    /// The cutscene camera's current pose (Phase G §6), a world-scoped singleton — only one camera
-    /// exists, so only one cutscene's shot ever drives it (multiple concurrent cutscenes are out of
-    /// scope, spec §8). The host reads this every frame it wants the camera driven and applies it
-    /// however it applies a camera (Cinemachine, in Stitch Punk's case) — the toolkit never touches
-    /// <c>Camera.main</c> itself.
+    /// The cutscene camera's current pose, a world-scoped singleton (only one camera, so only one
+    /// cutscene's shot ever drives it). The host reads this every frame and applies it however it
+    /// applies a camera; the toolkit never touches <c>Camera.main</c> itself.
     /// </summary>
     public struct CutsceneCameraPose : IComponentData
     {
@@ -259,18 +177,12 @@ namespace DotsAnimationToolkit
         public quaternion rotation;
         public float fieldOfView;
 
-        /// <summary>True on the exact frame a camera cut marker fires (decision G-D7) — the host's cue to snap rather than let its own camera rig ease toward this pose.</summary>
-        public bool isCut;
+        public bool isCut; // true on the exact frame a camera cut marker fires; the host's cue to snap instead of easing
 
-        /// <summary>
-        /// True while a running, not-yet-complete cutscene's current segment has a camera lane of
-        /// its own to write a pose from (amendment A62 defect 6). Cleared at the start of every
-        /// frame before any cutscene runs, so a segment with no camera keys, or a cutscene that just
-        /// completed or was skipped, reads as "not driven" instead of leaving a host unable to tell
-        /// that from a genuinely live pose — and instead of the singleton holding a stale pose
-        /// forever once the cutscene it belonged to ends. A host applies <see cref="position"/>/
-        /// <see cref="rotation"/>/<see cref="fieldOfView"/> only while this is true.
-        /// </summary>
+        // True while a running, incomplete cutscene's current segment has a camera lane to write a
+        // pose from. Cleared every frame before any cutscene runs, so "no camera keys" or "just
+        // ended/skipped" reads as not-driven instead of leaving a stale pose. Apply position/
+        // rotation/fieldOfView only while this is true.
         public bool isDriven;
     }
 }

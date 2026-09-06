@@ -8,28 +8,20 @@ namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Evaluates baked <see cref="CutsceneTransformKeyBlob"/>/<see cref="CutsceneCameraKeyBlob"/>
-    /// arrays at a segment-relative second, for the runtime player (Phase G §6). The Burst-jobbable
-    /// twin of <c>CutsceneKeySampler</c> (Authoring) — same math, reusing <see cref="ClipSampler.Ease"/>
-    /// for the same reason that one does, but written against <see cref="BlobArray{T}"/> rather than
-    /// <c>List&lt;T&gt;</c> so it can run inside a per-frame job.
+    /// arrays at a segment-relative second, for the runtime player. The Burst-jobbable twin of
+    /// <c>CutsceneKeySampler</c> (Authoring) — same math, against <see cref="BlobArray{T}"/> instead of <c>List&lt;T&gt;</c>.
     /// </summary>
     [BurstCompile]
     public static class CutsceneBlobSampler
     {
         /// <summary>
-        /// Samples a transform key array. Holds the nearest key outside the authored range.
-        /// Rotation is per-component Euler lerp, never a quaternion slerp — the same choice
-        /// <c>ClipSampler</c> makes for clip transform tracks (its own remarks: slerping would take
-        /// a different path between the same two keys and quietly disagree with the curve editor).
-        /// <paramref name="rotation"/> is radians, the same convention as <see cref="TargetPose.rotation"/>
-        /// and <see cref="TargetRestPose.rotation"/>; a caller that needs a quaternion (a root's own
-        /// <see cref="Unity.Transforms.LocalTransform.Rotation"/>) converts once, at the point it
-        /// actually applies the pose.
+        /// Samples a transform key array, holding the nearest key outside the authored range.
+        /// Rotation is a per-component Euler lerp, never a quaternion slerp, matching <c>ClipSampler</c>.
         /// </summary>
         /// <returns>
-        /// False when <paramref name="keys"/> is empty (amendment A62 defect 2) — every out
-        /// parameter is the identity pose, and the caller must leave the target's current transform
-        /// alone rather than writing it, or an unkeyed slot snaps to the world origin every frame.
+        /// False when <paramref name="keys"/> is empty — every out parameter is the identity pose,
+        /// and the caller must leave the target's current transform alone rather than write it, or
+        /// an unkeyed slot snaps to the world origin every frame.
         /// </returns>
         [BurstCompile]
         public static bool TrySampleTransform(
@@ -81,10 +73,7 @@ namespace DotsAnimationToolkit
             return true;
         }
 
-        /// <summary>
-        /// Samples the camera lane the way it plays (decision G-D7): a cut marker splits the lane
-        /// into independent interpolation windows rather than blending across it.
-        /// </summary>
+        /// <summary>Samples the camera lane the way it plays: a cut marker splits the lane into independent interpolation windows rather than blending across it.</summary>
         [BurstCompile]
         public static void SampleCamera(
             ref BlobArray<CutsceneCameraKeyBlob> keys, ref BlobArray<float> cutTimes, float time,
@@ -182,22 +171,14 @@ namespace DotsAnimationToolkit
                 linearTime, fromKey.interpolation, fromKey.bezierStartHandle, fromKey.bezierEndHandle);
 
             position = math.lerp(fromKey.position, toKey.position, easedTime);
-            // Per-component Euler lerp, converted once — matching SampleTransform's own choice and
-            // ClipSampler's precedent, never a quaternion slerp between the two keys.
+            // Per-component Euler lerp, converted once — matching TrySampleTransform, never a
+            // quaternion slerp between the two keys.
             rotation = quaternion.Euler(math.lerp(fromKey.rotation, toKey.rotation, easedTime));
             fieldOfView = math.lerp(fromKey.fieldOfView, toKey.fieldOfView, easedTime);
         }
 
-        /// <summary>
-        /// The facing angle in effect at <paramref name="time"/> (amendment A65 §3.2), in the
-        /// <see cref="CutsceneFacing"/> model: the last override key at or before it, else the
-        /// direction the root lane is travelling. The blob twin of
-        /// <c>CutsceneKeySampler.TryResolveFacingAngle</c>.
-        /// </summary>
-        /// <returns>
-        /// False when neither answer exists — no override key yet and a root lane that is not
-        /// moving — and the caller must leave whatever facing is already in effect alone.
-        /// </returns>
+        /// <summary>The facing angle at <paramref name="time"/>: the last override key at or before it, else the direction the root lane is travelling.</summary>
+        /// <returns>False when neither answer exists (no override key yet and a root lane that isn't moving); the caller must leave the current facing alone.</returns>
         [BurstCompile]
         public static bool TryResolveFacingAngle(
             ref BlobArray<CutsceneFacingKeyBlob> facingKeys,
@@ -212,7 +193,6 @@ namespace DotsAnimationToolkit
             return TryDeriveFacingFromRootTravel(ref rootKeys, time, out angleDegrees);
         }
 
-        /// <summary>The last facing override key at or before <paramref name="time"/>.</summary>
         [BurstCompile]
         public static bool TryResolveFacingOverride(
             ref BlobArray<CutsceneFacingKeyBlob> facingKeys, float time, out float angleDegrees)
@@ -235,12 +215,7 @@ namespace DotsAnimationToolkit
             return true;
         }
 
-        /// <summary>
-        /// The direction the root lane travels at <paramref name="time"/>, by finite difference
-        /// against a hair earlier — the same movement vector a live actor would hand
-        /// <c>FacingResolver.FromMovement</c>. Forward-differenced at <c>t == 0</c>, where there is
-        /// no earlier sample to look back at.
-        /// </summary>
+        /// <summary>The direction the root lane travels at <paramref name="time"/>, by finite difference against a hair earlier (forward-differenced at t == 0).</summary>
         [BurstCompile]
         public static bool TryDeriveFacingFromRootTravel(
             ref BlobArray<CutsceneTransformKeyBlob> rootKeys, float time, out float angleDegrees)
