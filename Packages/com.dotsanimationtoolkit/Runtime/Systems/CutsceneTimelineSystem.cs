@@ -60,25 +60,29 @@ namespace DotsAnimationToolkit
             // but structural changes (amendment A63 §6). Every cutscene appends its operations here
             // and they are applied once, after the loop, in the order they were collected.
             NativeList<PendingAttachOp> pendingAttachOps = new NativeList<PendingAttachOp>(Allocator.Temp);
+            NativeList<PendingMarkOp> pendingMarkOps = new NativeList<PendingMarkOp>(Allocator.Temp);
             try
             {
                 foreach ((RefRO<CutscenePlay> _, Entity requestEntity) in
                     SystemAPI.Query<RefRO<CutscenePlay>>().WithEntityAccess())
                 {
-                    ProcessCutscene(entityManager, requestEntity, cameraPoseEntity, deltaTime, pendingAttachOps);
+                    ProcessCutscene(
+                        entityManager, requestEntity, cameraPoseEntity, deltaTime, pendingAttachOps, pendingMarkOps);
                 }
 
                 ApplyPendingAttachOps(entityManager, pendingAttachOps);
+                ApplyPendingMarkOps(entityManager, pendingMarkOps);
             }
             finally
             {
                 pendingAttachOps.Dispose();
+                pendingMarkOps.Dispose();
             }
         }
 
         private static void ProcessCutscene(
             EntityManager entityManager, Entity requestEntity, Entity cameraPoseEntity, float deltaTime,
-            NativeList<PendingAttachOp> pendingAttachOps)
+            NativeList<PendingAttachOp> pendingAttachOps, NativeList<PendingMarkOp> pendingMarkOps)
         {
             CutscenePlaybackState playbackState = entityManager.GetComponentData<CutscenePlaybackState>(requestEntity);
             if (playbackState.isComplete)
@@ -118,11 +122,21 @@ namespace DotsAnimationToolkit
                 return;
             }
 
+            // Arrival and timeout are judged every frame, including while the clock is stopped - a
+            // rendezvous hold exists precisely to be resolved by movement happening while nothing
+            // else advances (amendment A64 3.3).
+            ResolveOutstandingMarks(entityManager, ref blob, bindings, slotStates, deltaTime, control.paused);
+
             if (playbackState.isPausedOnHold)
             {
                 ref CutsceneSegmentBlob heldSegment = ref blob.segments[playbackState.segmentIndex];
                 bool releasedThisFrame = false;
-                if (entityManager.IsComponentEnabled<CutsceneHoldRelease>(requestEntity))
+                if (heldSegment.autoReleaseWhenMarksReached && !AnySlotHasAnOutstandingMark(slotStates))
+                {
+                    AdvanceToNextSegment(slotStates, ref playbackState);
+                    releasedThisFrame = true;
+                }
+                else if (entityManager.IsComponentEnabled<CutsceneHoldRelease>(requestEntity))
                 {
                     CutsceneHoldRelease holdRelease = entityManager.GetComponentData<CutsceneHoldRelease>(requestEntity);
                     if (holdRelease.holdId == heldSegment.holdId)
@@ -155,6 +169,7 @@ namespace DotsAnimationToolkit
                 ProcessClipBlocks(entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates, ref playbackState);
                 ProcessEvents(entityManager, ref blob, ref playbackState, eventOutput, requestEntity);
                 ProcessAttachMarkers(ref blob, bindings, slotStates, ref playbackState, pendingAttachOps);
+                ProcessMarks(ref blob, bindings, slotStates, ref playbackState, pendingMarkOps);
 
                 ref CutsceneSegmentBlob currentSegment = ref blob.segments[playbackState.segmentIndex];
                 if (playbackState.timeInSegment >= currentSegment.duration)
@@ -163,7 +178,7 @@ namespace DotsAnimationToolkit
                     bool isFinalSegment = playbackState.segmentIndex == blob.segments.Length - 1;
                     if (isFinalSegment)
                     {
-                        CompleteNaturally(entityManager, ref blob, layerIndex, bindings, ref playbackState);
+                        CompleteNaturally(entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState);
                     }
                     else
                     {
@@ -378,15 +393,18 @@ namespace DotsAnimationToolkit
                 CutsceneSlotRuntimeState slotState = slotStates[i];
                 slotState.nextClipBlockIndex = 0;
                 slotState.nextAttachMarkerIndex = 0;
+                slotState.nextMarkIndex = 0;
                 slotStates[i] = slotState;
             }
         }
 
         private static void CompleteNaturally(
             EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
-            DynamicBuffer<CutsceneActorBinding> bindings, ref CutscenePlaybackState playbackState)
+            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
+            ref CutscenePlaybackState playbackState)
         {
             StopActorLayers(entityManager, ref blob, layerIndex, bindings);
+            ClearOutstandingMarks(entityManager, ref blob, bindings, slotStates);
             playbackState.isComplete = true;
         }
 
@@ -435,6 +453,10 @@ namespace DotsAnimationToolkit
             // been waiting on.
             SkipAttachMarkers(ref blob, bindings, slotStates, ref playbackState, pendingAttachOps);
 
+            // An outstanding order resolves the way a timeout resolves one - placed, and not warned
+            // about: a skip is a deliberate jump to the end, not a mover that failed to arrive.
+            TeleportOutstandingMarks(entityManager, ref blob, bindings, slotStates);
+
             playbackState.segmentIndex = blob.segments.Length - 1;
             ref CutsceneSegmentBlob finalSegment = ref blob.segments[playbackState.segmentIndex];
             playbackState.timeInSegment = finalSegment.duration;
@@ -444,11 +466,12 @@ namespace DotsAnimationToolkit
             {
                 CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
                 slotState.nextAttachMarkerIndex = finalSegment.slotTracks[slotIndex].attachMarkers.Length;
+                slotState.nextMarkIndex = finalSegment.slotTracks[slotIndex].markKeys.Length;
                 slotStates[slotIndex] = slotState;
             }
 
             ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
-            CompleteNaturally(entityManager, ref blob, layerIndex, bindings, ref playbackState);
+            CompleteNaturally(entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState);
         }
 
         // -----------------------------------------------------------------------------------
@@ -751,6 +774,218 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
+        // Marks lane (amendment A64). The toolkit orders a move and judges arrival; it never walks
+        // the entity itself (decision A64-D1) - pathfinding belongs to the host.
+        // -----------------------------------------------------------------------------------
+
+        private struct PendingMarkOp
+        {
+            public Entity entity;
+            public CutsceneMoveToMark order;
+        }
+
+        /// <summary>
+        /// Walks each slot's mark cursor up to the playhead, flagging the slot as outstanding now
+        /// (so <see cref="ApplyPose"/> already suspends its root lane this frame) and queuing the
+        /// structural half - adding the order component - for after the query loop.
+        /// </summary>
+        private static void ProcessMarks(
+            ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, ref CutscenePlaybackState playbackState,
+            NativeList<PendingMarkOp> pendingMarkOps)
+        {
+            ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
+            for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
+            {
+                ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                while (slotState.nextMarkIndex < slotSegment.markKeys.Length &&
+                       slotSegment.markKeys[slotState.nextMarkIndex].time <= playbackState.timeInSegment)
+                {
+                    CutsceneMarkKeyBlob mark = slotSegment.markKeys[slotState.nextMarkIndex];
+                    slotState.nextMarkIndex++;
+
+                    Entity boundEntity;
+                    if (!TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out boundEntity))
+                    {
+                        continue;
+                    }
+
+                    pendingMarkOps.Add(new PendingMarkOp
+                    {
+                        entity = boundEntity,
+                        order = new CutsceneMoveToMark
+                        {
+                            position = mark.position,
+                            facingRadians = mark.facingRadians,
+                            toleranceMeters = mark.toleranceMeters,
+                            timeoutSeconds = mark.timeoutSeconds,
+                            elapsedSeconds = 0f
+                        }
+                    });
+                    slotState.hasOutstandingMark = true;
+                }
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        /// <summary>
+        /// Judges every outstanding order: arrived (XZ distance within tolerance), or timed out and
+        /// therefore placed. <paramref name="isPaused"/> freezes the timeout clock only - a paused
+        /// cutscene must not tick one down (decision A64-D3) - while arrival still resolves, because
+        /// whatever is moving the entity may not be paused with it.
+        /// </summary>
+        private static void ResolveOutstandingMarks(
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, float deltaTime, bool isPaused)
+        {
+            int slotCount = math.min(blob.slots.Length, slotStates.Length);
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                if (!slotState.hasOutstandingMark)
+                {
+                    continue;
+                }
+
+                Entity boundEntity;
+                if (!TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out boundEntity)
+                    || !entityManager.HasComponent<CutsceneMoveToMark>(boundEntity)
+                    || !entityManager.IsComponentEnabled<CutsceneMoveToMark>(boundEntity))
+                {
+                    // The order was queued this frame and is applied after the loop; judge it next frame.
+                    continue;
+                }
+
+                CutsceneMoveToMark order = entityManager.GetComponentData<CutsceneMoveToMark>(boundEntity);
+                float3 currentPosition = entityManager.HasComponent<LocalTransform>(boundEntity)
+                    ? entityManager.GetComponentData<LocalTransform>(boundEntity).Position
+                    : order.position;
+
+                // XZ only (6): a mark authored off the walkable plane still resolves, and the Y an
+                // arriving entity stands at is its own, never the mark's.
+                float2 planarOffset = new float2(
+                    currentPosition.x - order.position.x, currentPosition.z - order.position.z);
+                if (math.lengthsq(planarOffset) <= order.toleranceMeters * order.toleranceMeters)
+                {
+                    entityManager.SetComponentEnabled<CutsceneMoveToMark>(boundEntity, false);
+                    slotState.hasOutstandingMark = false;
+                    slotStates[slotIndex] = slotState;
+                    continue;
+                }
+
+                if (!isPaused)
+                {
+                    order.elapsedSeconds += deltaTime;
+                    entityManager.SetComponentData(boundEntity, order);
+                }
+
+                if (order.timeoutSeconds > 0f && order.elapsedSeconds >= order.timeoutSeconds)
+                {
+                    PlaceAtMark(entityManager, boundEntity, order);
+                    entityManager.SetComponentEnabled<CutsceneMoveToMark>(boundEntity, false);
+                    slotState.hasOutstandingMark = false;
+                    slotStates[slotIndex] = slotState;
+                    UnityEngine.Debug.LogWarning(
+                        "[DOTS Animation Toolkit] Cutscene slot " + slotIndex + " did not reach its mark within "
+                        + order.timeoutSeconds + "s and was placed there, so the scene could continue.");
+                }
+            }
+        }
+
+        private static bool AnySlotHasAnOutstandingMark(DynamicBuffer<CutsceneSlotRuntimeState> slotStates)
+        {
+            for (int slotIndex = 0; slotIndex < slotStates.Length; slotIndex++)
+            {
+                if (slotStates[slotIndex].hasOutstandingMark)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Skip (3.3): every outstanding order is resolved by placement, silently.</summary>
+        private static void TeleportOutstandingMarks(
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates)
+        {
+            int slotCount = math.min(blob.slots.Length, slotStates.Length);
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                if (!slotState.hasOutstandingMark)
+                {
+                    continue;
+                }
+
+                Entity boundEntity;
+                if (TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out boundEntity)
+                    && entityManager.HasComponent<CutsceneMoveToMark>(boundEntity))
+                {
+                    PlaceAtMark(
+                        entityManager, boundEntity,
+                        entityManager.GetComponentData<CutsceneMoveToMark>(boundEntity));
+                    entityManager.SetComponentEnabled<CutsceneMoveToMark>(boundEntity, false);
+                }
+                slotState.hasOutstandingMark = false;
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        /// <summary>Completion (3.3): an order nobody fulfilled must not outlive the cutscene that gave it.</summary>
+        private static void ClearOutstandingMarks(
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates)
+        {
+            int slotCount = math.min(blob.slots.Length, slotStates.Length);
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                Entity boundEntity;
+                if (TryResolveBinding(bindings, blob.slots[slotIndex].slotId, out boundEntity)
+                    && entityManager.HasComponent<CutsceneMoveToMark>(boundEntity)
+                    && entityManager.IsComponentEnabled<CutsceneMoveToMark>(boundEntity))
+                {
+                    entityManager.SetComponentEnabled<CutsceneMoveToMark>(boundEntity, false);
+                }
+                slotState.hasOutstandingMark = false;
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        private static void PlaceAtMark(EntityManager entityManager, Entity entity, in CutsceneMoveToMark order)
+        {
+            if (!entityManager.HasComponent<LocalTransform>(entity))
+            {
+                return;
+            }
+            LocalTransform localTransform = entityManager.GetComponentData<LocalTransform>(entity);
+            localTransform.Position = order.position;
+            localTransform.Rotation = quaternion.RotateY(order.facingRadians);
+            entityManager.SetComponentData(entity, localTransform);
+        }
+
+        private static void ApplyPendingMarkOps(
+            EntityManager entityManager, NativeList<PendingMarkOp> pendingMarkOps)
+        {
+            for (int opIndex = 0; opIndex < pendingMarkOps.Length; opIndex++)
+            {
+                PendingMarkOp op = pendingMarkOps[opIndex];
+                if (!entityManager.Exists(op.entity))
+                {
+                    continue;
+                }
+                if (!entityManager.HasComponent<CutsceneMoveToMark>(op.entity))
+                {
+                    entityManager.AddComponent<CutsceneMoveToMark>(op.entity);
+                }
+                entityManager.SetComponentData(op.entity, op.order);
+                entityManager.SetComponentEnabled<CutsceneMoveToMark>(op.entity, true);
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
         // Root/prop transform and camera output.
         // -----------------------------------------------------------------------------------
 
@@ -766,6 +1001,14 @@ namespace DotsAnimationToolkit
                 // Unity's own parent hierarchy writes it, and a root key written here would fight
                 // that every frame.
                 if (slotStates[slotIndex].attachedHostSlotIndex >= 0)
+                {
+                    continue;
+                }
+
+                // Same rule for a slot still walking to a mark (3.3): whatever the host moves it
+                // with owns the transform, and the merged arrival key (A64-D2) must not drag it
+                // along the rehearsed path while the real walk is still happening.
+                if (slotStates[slotIndex].hasOutstandingMark)
                 {
                     continue;
                 }

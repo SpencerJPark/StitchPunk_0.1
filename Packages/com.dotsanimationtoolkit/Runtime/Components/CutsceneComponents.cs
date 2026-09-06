@@ -141,6 +141,41 @@ namespace DotsAnimationToolkit
 
         /// <summary>Whether this slot's renderers are currently suppressed by its attachment.</summary>
         public bool isHiddenByAttachment;
+
+        /// <summary>Cursor into the current segment's mark array (amendment A64).</summary>
+        public int nextMarkIndex;
+
+        /// <summary>
+        /// Whether this slot has been ordered to a mark it has not yet reached. While it is set the
+        /// slot's root lane is ignored — whatever is walking the entity owns the transform, exactly
+        /// as a host does while <see cref="attachedHostSlotIndex"/> is set. Survives a hold: a mark
+        /// outstanding when the clock stops is still outstanding when it starts again.
+        /// </summary>
+        public bool hasOutstandingMark;
+    }
+
+    /// <summary>
+    /// Enabled on a bound entity when its slot's mark time is reached (amendment A64, decision
+    /// A64-D1): the host walks the entity there through whatever movement it has, and the toolkit
+    /// judges arrival by distance — or teleports on timeout so a stuck mover cannot softlock a
+    /// rendezvous hold.
+    /// </summary>
+    public struct CutsceneMoveToMark : IComponentData, IEnableableComponent
+    {
+        /// <summary>The world position to reach.</summary>
+        public float3 position;
+
+        /// <summary>Arrival facing, applied by the toolkit only when the mark times out.</summary>
+        public float facingRadians;
+
+        /// <summary>XZ distance that counts as arrived. Y is ignored — author marks on the ground (§6).</summary>
+        public float toleranceMeters;
+
+        /// <summary>0 waits forever; otherwise the mark resolves by teleport after this many real seconds.</summary>
+        public float timeoutSeconds;
+
+        /// <summary>Real seconds this order has been outstanding — written by the player, never by a host. Frozen while the cutscene is paused (decision A64-D3).</summary>
+        public float elapsedSeconds;
     }
 
     /// <summary>
