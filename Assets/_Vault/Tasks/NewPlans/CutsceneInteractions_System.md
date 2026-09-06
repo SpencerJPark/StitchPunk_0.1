@@ -1,6 +1,6 @@
 # Cutscene Interactions — Design Spec (G2)
 
-> **Status:** ✅ spec ready, not built. Written 2026-09-04.
+> **Status:** ✅ Phases 1–5 built and gated 2026-09-06; stopped at the ⏸ owner checkpoint. Written 2026-09-04.
 > **Roadmap:** [`Cutscene_Roadmap.md`](Cutscene_Roadmap.md) — read its §4 protocol first.
 > **Depends on:** G1 (`CutsceneSystemGroup`, `CutsceneActor`, `ActiveCutscene`), toolkit A63 (`CutsceneDetachSignal`, hide), A64 (`CutsceneMoveToMark`), A65 (holding events, `ICutsceneEventInspectorProvider`, `CutsceneFacing`). **Parallel-safe with:** A66.
 > **Executor:** one Sonnet session.
@@ -71,7 +71,7 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 - [x] **Phase 2 — dialogue cue (§3.3, 3.6) + registry entry.** Test (PlayMode): `DialogueCue_StartsActiveDialogue_AndReleasesTheHoldWhenItEnds` (hand-built request entity with an `AnimEventOutput` Dialogue event and a playback state paused on hold `"Dialogue"`; update; assert `ActiveDialogue` enabled; disable it; update; assert `CutsceneHoldRelease` enabled with the id).
 - [x] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
 - [x] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
-- [ ] **Phase 5 — full suites once**, `Contracts.md` rows, `Systems_AI.md`/`Systems_Animation.md` one line each.
+- [x] **Phase 5 — full suites once**, `Contracts.md` rows, `Systems_AI.md`/`Systems_Animation.md` one line each.
 - [ ] **⏸ Owner checkpoint.** In `DOTSTestScene`: a cutscene with marks for the player and one minion beside a crate, a rendezvous hold, then a Dialogue holding event, then a clip. Press F9: the minion pathfinds to its disc; you walk to yours; the moment both arrive the hold releases and WASD stops working; dialogue opens; closing it continues the cutscene; the minion faces the way its root keys carry it.
 
 ## 6. Notes / build log
@@ -168,3 +168,20 @@ this phase paid for:
    read enabled after the lookup's indexer write. Removing the whole throw branch does fail it, which
    is the revert kept on record. The explicit `SetComponentEnabled` call stays: what the job means is
    "enable the request", and that must not depend on a side effect of an indexer assignment.
+
+### Phase 5 — suites and docs (2026-09-06)
+
+Full suites, all four, run once at this point:
+
+| Suite | Discovered | Passed |
+|---|---|---|
+| `DotsAnimationToolkit.Tests.EditMode` | 718 | 717 — the one pre-existing `Conformance_A_AsmdefReferenceLists_MatchSection13Exactly` asmdef-drift failure, unrelated to G2 |
+| `DotsAnimationToolkit.Tests.PlayMode` | 261 | 261 |
+| `StitchPunk.Tests` (EditMode) | 59 | 59 — baseline was 57; +2 facing cases. `SystemPlacementConformanceTests` passes, so the three new system files sit in the folder their group is named after |
+| `StitchPunk.Tests.PlayMode` | 7 | 7 — baseline was 3; +2 marks, +1 dialogue cue, +1 detach. **First time this assembly's own count is recorded** |
+
+Docs updated: `Contracts.md` gained four rows (`CutsceneMoveToMark`, `CutsceneFacing`,
+`CutsceneDetachSignal`, `CutsceneHoldRelease`) plus the `AnimEvents.Dialogue` consumer on the
+`AnimEventOutput` row and `CutsceneDetachSystem` as a second `ThrownItemRequest` producer;
+`Systems.md` gained the three new systems and the rendezvous exception; `Systems_AI.md` and
+`Systems_Animation.md` one entry each; `Gotchas.md` four traps.

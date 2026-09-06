@@ -50,6 +50,11 @@ separate, ongoing task — nothing here assumes real assets exist yet.
   **2D Direction Sets** toggle pane (`Packages/com.dotsanimationtoolkit/Editor/ClipEditor/DirectionSets/`),
   fed the game's units through `UnitDirectionSetContextProvider` (see [[Editor]]). Phase 5 (real
   Six-direction art) is still owner-pending — see the spec's status header.
+- **Cutscene facing (G2)** — `UnitFacingJob` includes cutscene actors rather than excluding them:
+  an enabled `CutsceneFacing` supplies the facing vector, and an actor the cutscene has no answer for
+  keeps the facing it had. The angle is measured **from +X toward +Z** (0 east, 90 north), so
+  `(cos, sin)` lands in facing space directly — it is *not* a `LocalTransform` Y euler, and the two
+  are a reflection about 45° (`UnitFacingJob.CutsceneAngleToFacingSpace`, pinned by `FacingSpaceTests`).
 - **The command seam** — every write site issues `AnimationCommandUtil.Play`/`Stop` against
   `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
   `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem` (`PlayAnimation`/

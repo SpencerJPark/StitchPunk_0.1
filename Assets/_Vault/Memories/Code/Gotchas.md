@@ -120,7 +120,43 @@ internal partial struct ApplyAnimationCommandsJob : IJobEntity
 ```
 
 Rule of thumb: **if the job only ever turns the bit off, `[WithAll]` is right (and is the default).
-If it ever turns the bit on, you need `[WithPresent]`.** Source: the Entities source generator treats
+If it ever turns the bit on, you need `[WithPresent]`.**
+
+### `[WithDisabled]` is not a reliable way to react to a switch-off either (2026-09-06)
+
+`ClearResolvedMarkJob` (G2) was written as `[WithDisabled(typeof(CutsceneMoveToMark))]` on a job that
+also took `EnabledRefRW<CutsceneMarkIssued>`, and it matched **zero entities every frame** while a
+hand-built `EntityQueryBuilder` carrying the *identical* five constraints matched the entity
+(measured live: `handQueryCount=1`, job body never entered, no error anywhere). Rewriting it as
+`[WithPresent(typeof(T))]` plus an explicit `EnabledRefRO<T>`/`ValueRO` check in the body — the shape
+the entry above already prescribes — made it match.
+
+**So `[WithPresent]` + a body check is the only reliable "run when T is switched off"**, even where
+`[WithDisabled]` reads like it says exactly that. Same conclusion the toolkit's own ragdoll note
+reaches from the other side.
+
+### An `in` parameter beside an `EnabledRefRW` of the *same* type is a run-time aliasing throw
+
+`InvalidOperationException: The writeable ComponentTypeHandle<T> ... is the same
+ComponentTypeHandle<T> as ... _RO_ComponentTypeHandle, two containers may not be the same (aliasing)`
+— thrown the first time the job is scheduled, with no compile error. The generator emits one handle
+per access mode, and an `in T` + `EnabledRefRW<T>` pair asks for both. Match the modes: `ref T` with
+`EnabledRefRW<T>`, `in T` with `EnabledRefRO<T>`. Found 2026-09-06 in `CutsceneDetachSystem`.
+
+### A newly added `[BurstCompile]` job can run as somebody else's compiled code for a run or two
+
+The first PlayMode run of a brand-new Bursted job threw `ObjectDisposedException` naming
+`ComponentTypeHandle<OnAttackPlayerInput>`, and an `execute_code` probe of the same system threw an
+NRE whose Burst stack pointed at `CutsceneAnimEventSoundJob` — **neither type appears anywhere in the
+system under test**, and the probe's world held no `CutscenePlay` entity at all. Dropping
+`[BurstCompile]` ran it correctly; restoring it, one compile cycle later, also ran correctly.
+Symmetrically, a *green* run taken immediately after an edit may be running the previous binary: a
+revert that removed one line still passed, and only failed once the recompile had settled.
+
+**A failure naming a job you did not touch, or a revert that stubbornly passes, is a reason to
+recompile and re-run before debugging.** Same family as the Burst JIT cache note.
+
+ Source: the Entities source generator treats
 every iterable enableable type as an `All` component unless a `WithAny`/`WithNone`/`WithDisabled`/
 `WithPresent` names it (`SystemGenerator.SystemAPI.Query/IfeDescription.cs`).
 
@@ -506,3 +542,13 @@ so rather than reporting it as proven. And a probe delegate subscribed to `durin
 stays attached and fires later, mutating assets long after the session thought it was done. Remove
 it explicitly: reflect the static `duringSceneGui` field, walk `GetInvocationList()`, and drop the
 entries whose `Method.DeclaringType.Assembly` is the dynamic compile assembly.
+
+## A UI Toolkit field that is not in a panel dispatches no change events
+
+`RegisterValueChangedCallback` is wired through the panel's event dispatcher, so a `VisualElement`
+built standing alone — as an `execute_code` probe naturally builds one — never fires it. The first
+live probe of `CutsceneDialogueEventInspectorProvider` reported that neither its `ObjectField` nor
+its `DropdownField` wrote anything, which reads exactly like a broken binding and is not. Parent the
+container into a live `EditorWindow.rootVisualElement` first (any open window will do — find one with
+`Resources.FindObjectsOfTypeAll<EditorWindow>()`, never `GetWindow<T>()`), drive the fields, then
+remove it. With a panel, every write landed. Found 2026-09-06 building G2's editor seam.

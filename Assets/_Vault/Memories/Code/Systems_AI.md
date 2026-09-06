@@ -183,6 +183,10 @@ present-but-disabled, keeps `in/ref UtilityBrain` readable): `BehaviorExecutionS
   uncommanded — "self-defend unless ordered" with no extra state.
 - *Limitation:* `MotivationChangeRequest` is not drained for minions (system stays UtilityBrain-gated);
   benign for zero-decay zombies, cleared on death.
+- **Cutscene = a third gate, `CutsceneActor`** (`CutsceneSystemGroup`, [[Contracts]]): while it is
+  enabled the unit is off AI and off pathing, *except* that `CutsceneMoveToMarkSystem` deliberately
+  pathfinds it to the cutscene's marks — a cutscene walking its cast uses the game's own legs
+  (G2, `Tasks/NewPlans/CutsceneInteractions_System.md`). The `Player` is never pathed this way.
 
 ## Item pickup flow (Phase 3, current)
 
