@@ -21,6 +21,8 @@ namespace DotsAnimationToolkit.Editor
         private const float HeaderColumnWidth = 150f;
         private const float TrailingSeconds = 5f;
 
+        private const string EasingCurveEditorElementName = "cutscene-easing-curve";
+
         private CutsceneAsset cutscene;
         // Every mutation is a SerializedProperty write plus ApplyModifiedProperties, buying Undo and
         // dirtying for free. The one exception is EnsureStableIds, which writes the object directly
@@ -3007,6 +3009,19 @@ namespace DotsAnimationToolkit.Editor
             float3Property.FindPropertyRelative("z").floatValue = z;
         }
 
+        private static void WriteFloat2(SerializedProperty float2Property, float2 value)
+        {
+            float2Property.FindPropertyRelative("x").floatValue = value.x;
+            float2Property.FindPropertyRelative("y").floatValue = value.y;
+        }
+
+        private static float2 ReadFloat2(SerializedProperty float2Property)
+        {
+            return new float2(
+                float2Property.FindPropertyRelative("x").floatValue,
+                float2Property.FindPropertyRelative("y").floatValue);
+        }
+
         private static void ResetTransformKeyDefaults(SerializedProperty element, float time)
         {
             element.FindPropertyRelative("time").floatValue = time;
@@ -3699,7 +3714,8 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField(keyProperty, "position", "Position");
             AddBoundField(keyProperty, "rotation", "Rotation");
             AddBoundField(keyProperty, "scale", "Scale");
-            AddBoundField(keyProperty, "interpolation", "Interpolation");
+            AddEasingCurveEditor(
+                keyProperty, AddBoundField(keyProperty, "interpolation", "Interpolation"));
         }
 
         private void BuildFacingKeyInspector(int slotIndex, int keyIndex)
@@ -4013,7 +4029,8 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField(keyProperty, "position", "Position");
             AddBoundField(keyProperty, "rotation", "Rotation");
             AddBoundField(keyProperty, "fieldOfView", "Field Of View");
-            AddBoundField(keyProperty, "interpolation", "Interpolation");
+            AddEasingCurveEditor(
+                keyProperty, AddBoundField(keyProperty, "interpolation", "Interpolation"));
 
             Button alignButton = new Button(() => AlignCameraKeyToSceneView(keyIndex)) { text = "Align to Scene View" };
             alignButton.style.marginTop = 6f;
@@ -4104,19 +4121,76 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField(holdProperty, "holdId", "Hold Id");
         }
 
-        private void AddBoundField(SerializedProperty parent, string relativePropertyName, string label)
+        private PropertyField AddBoundField(
+            SerializedProperty parent, string relativePropertyName, string label)
         {
-            AddBoundField(parent, relativePropertyName, label, inspectorScroll);
+            return AddBoundField(parent, relativePropertyName, label, inspectorScroll);
         }
 
-        private void AddBoundField(
+        private PropertyField AddBoundField(
             SerializedProperty parent, string relativePropertyName, string label, VisualElement container)
         {
             SerializedProperty property = parent.FindPropertyRelative(relativePropertyName);
             PropertyField field = new PropertyField(property, label);
             field.Bind(serializedObject);
-            field.RegisterCallback<SerializedPropertyChangeEvent>(_ => RebuildTimeline());
+            // Requested, never direct: a bound field's own drag handle captures the pointer on
+            // itself, so rebuilding the timeline here would end the drag after about one pixel.
+            field.RegisterCallback<SerializedPropertyChangeEvent>(_ => RequestTimelineRebuild());
             container.Add(field);
+            return field;
+        }
+
+        private void AddEasingCurveEditor(SerializedProperty keyProperty, PropertyField interpolationField)
+        {
+            SerializedProperty interpolationProperty = keyProperty.FindPropertyRelative("interpolation");
+            SerializedProperty startHandleProperty = keyProperty.FindPropertyRelative("bezierStartHandle");
+            SerializedProperty endHandleProperty = keyProperty.FindPropertyRelative("bezierEndHandle");
+
+            EasingCurveEditorElement curveEditor = new EasingCurveEditorElement();
+            curveEditor.name = EasingCurveEditorElementName;
+            ShowKeyCurve(curveEditor, interpolationProperty, startHandleProperty, endHandleProperty);
+
+            // Safe to run straight from the change event because it rebuilds no pane: it repaints
+            // the widget in place, so a pointer captured on it is never released mid-drag.
+            interpolationField.RegisterCallback<SerializedPropertyChangeEvent>(
+                _ => ShowKeyCurve(
+                    curveEditor, interpolationProperty, startHandleProperty, endHandleProperty));
+
+            curveEditor.curveEdited += (draggedStartHandle, draggedEndHandle) =>
+            {
+                // Reshaping any preset is what makes the key a Bezier, so the mode is written with
+                // the handles. Unity collapses the whole gesture's writes into one Undo step.
+                interpolationProperty.enumValueIndex = (int)Interpolation.Bezier;
+                WriteFloat2(startHandleProperty, draggedStartHandle);
+                WriteFloat2(endHandleProperty, draggedEndHandle);
+                serializedObject.ApplyModifiedProperties();
+
+                // Re-poses the scene rather than rebuilding a pane, so the new easing is visible
+                // while the handle is still held and the captured pointer survives the write.
+                ApplyPreviewAtPlayhead();
+            };
+
+            inspectorScroll.Add(curveEditor);
+            inspectorScroll.Add(BuildInspectorNote(
+                "Drag the handles to reshape the curve - that turns the key into a custom Bezier. "
+                + "On every other mode the shape is drawn for reference and does not accept a drag."));
+        }
+
+        // A key on a fixed mode ignores its stored handles, so the widget draws that mode's shape
+        // but must not let a drag rewrite the key: input is switched off rather than the widget
+        // hidden, because the shape is what tells the author what the mode does.
+        private static void ShowKeyCurve(
+            EasingCurveEditorElement curveEditor,
+            SerializedProperty interpolationProperty,
+            SerializedProperty startHandleProperty,
+            SerializedProperty endHandleProperty)
+        {
+            Interpolation interpolation = (Interpolation)interpolationProperty.enumValueIndex;
+            curveEditor.SetCurveWithoutNotify(
+                interpolation, ReadFloat2(startHandleProperty), ReadFloat2(endHandleProperty));
+            curveEditor.pickingMode = interpolation == Interpolation.Bezier
+                ? PickingMode.Position
+                : PickingMode.Ignore;
         }
 
         private static Label BuildHeading(string text)
