@@ -10,6 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene marks and rendezvous holds (A64)
+
+Actors can be sent to a spot and the cutscene can wait for them: everyone hops
+in the car, and it does not leave without them.
+
+- `CutsceneMarkKey` on every `CutsceneSlot` — a time, a world position, an
+  arrival facing, a tolerance, a timeout and an editor rehearsal duration —
+  baked into `CutsceneMarkKeyBlob` per segment.
+  `CutsceneHoldMarker.autoReleaseWhenMarksReached` bakes onto the segment it
+  ends as `CutsceneSegmentBlob.autoReleaseWhenMarksReached`.
+  `CutsceneBlob.schemaVersion` is now **4**.
+- Every mark also merges into its slot's flat root lane as a Linear key at
+  `time + previewTravelSeconds`, before bucketing and before the hold-boundary
+  pass. The editor preview walks that same merged lane, so preview and playback
+  cannot disagree, and the segment after a rendezvous hold starts at the
+  arrival pose rather than snapping. The bake warns when a rehearsed walk
+  straddles the hold that waits for it.
+- `CutsceneMoveToMark`, enabled on the bound entity at the mark's time. The
+  toolkit never walks the entity — the host does — but it judges arrival by XZ
+  distance and disables the component itself, and places the entity on the mark
+  if a timeout expires. Timeouts are real seconds and do not tick while the
+  cutscene is paused. A slot with an outstanding mark has its root lane
+  suspended exactly as an attached slot does.
+- A hold whose segment carries the rendezvous flag resumes on its own once
+  nothing is outstanding; a host's `CutsceneHoldRelease` still overrides it.
+  A skip resolves outstanding orders by placement, silently.
+- Cutscene Editor: a **Marks** lane on every slot, an inspector for all six
+  fields with a **Set From Object** button, Scene-view discs that can be
+  clicked and dragged along their own ground plane, and a transport that plays
+  through a rendezvous hold once every rehearsed walk has arrived.
+
 ### Added — Cutscene attach lane (A63)
 
 Cutscenes could move things independently and nothing else. Actors and props can now touch: carry

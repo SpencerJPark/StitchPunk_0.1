@@ -112,6 +112,29 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A64 — Cutscene Marks and Rendezvous Holds. T1–T5 built and gated 2026-09-05; stopped at its ⏸
+owner checkpoint.** A cutscene can now send its cast to a spot and wait for them. `CutsceneMarkKey`
+on every slot bakes to `CutsceneMarkKeyBlob` (schema **4**) alongside
+`CutsceneSegmentBlob.autoReleaseWhenMarksReached`; `CutsceneMoveToMark` is enabled on the bound
+entity at the mark's time and the toolkit judges arrival by XZ distance itself, placing the entity
+only if a timeout expires. The load-bearing idea is A64-D2: a mark is *also* a root key, merged at
+`time + previewTravelSeconds` by `CutsceneMarkMerge`, which the builder and the editor preview both
+call — merging at bake alone would leave the editor showing no travel at all. While a mark is
+outstanding the slot's root lane is suspended exactly as an attached slot's is, so that merged key
+cannot drag the actor along the rehearsed path while the host is still walking it there. EditMode
+`CutsceneBlobBuilderTests` 4/4, PlayMode `CutsceneMarkTests` 3/3, both reverts exercised.
+
+**What is owed on A64.** Two things. (1) **An escalation, in the spec's §7:** A64 §3.4 prescribed
+`Handles.DrawWireDisc` / `Handles.PositionHandle`, which `Conformance_E` bans outright in this
+package's Editor sources — so `CutsceneMarkSceneOverlay` draws line meshes and drags marks on their
+own ground plane instead. Per-mark labels and the 3-axis handle are gone; the owner should say
+whether the planar drag is accepted or `Conformance_E` should be relaxed for Scene-view overlays.
+(2) **The drag is machine-unproven.** Picking and dragging both need a live Scene-view GUI context,
+and a background Editor never repaints its Scene view, so no probe could reach them. Everything
+else in T4 was exercised live: the overlay is registered on `duringSceneGui` and repaints without
+exception, and the transport plays through a rendezvous hold whose rehearsed walks have all arrived
+(1.8 s / 1.2 s against a 2 s hold) while gating one that has not (3 s).
+
 **A63 — Cutscene Attach Lane. T0–T6 built and gated green 2026-09-05; stopped at its ⏸ owner
 checkpoint.** Actors and props can now touch. `CutsceneAttachMarker` on every slot bakes to
 `CutsceneAttachMarkerBlob` (schema **3**) with the host slot id resolved to a dense index at bake;

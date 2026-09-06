@@ -230,6 +230,80 @@ The **baked runtime player does not**: a part track's tag is resolved to a
 dense target index once, at bake time, against the rig the slot had *then*.
 Recasting a slot onto a different rig for the runtime path needs a rebake.
 
+## Marks and rendezvous holds
+
+A **mark** is a spot a slot has to reach. Marks live on their own lane, on
+Actor and Prop slots alike — a self-driving cart is an actor without a rig, and
+your game decides what "move" means for it.
+
+The toolkit does not walk anything there. At the mark's time it enables
+`CutsceneMoveToMark` on the bound entity and leaves the walking to you; it then
+watches the entity's own `LocalTransform` and disables the component the moment
+it is within **Tolerance** of the mark, measured on XZ only. Author marks on
+the ground: a mark floating above the walkable plane still resolves, and the Y
+an arriving entity stands at is its own.
+
+A hold with **Auto Release When Marks Reached** ticked is a *rendezvous*: the
+clock waits there until nothing is outstanding, then resumes on its own. Your
+own `CutsceneHoldRelease` still overrides it — leaving without them stays
+possible.
+
+**Timeout** is the safety catch, in real seconds and frozen while the cutscene
+is paused. Left at 0 the mark waits forever; set to anything else, a mover that
+has not arrived in time is placed on the mark, facing the authored angle, with
+one warning. A stuck NPC then cannot softlock the scene.
+
+### Authoring one
+
+1. Double-click the slot's **Marks** lane at the moment the order should go
+   out — usually t = 0, so everyone starts walking as the cutscene opens.
+2. Drag its disc in the Scene view, or press **Set From Object** to drop it
+   where the slot's bound object currently stands.
+3. Set **Tolerance** (how close counts as there) and **Preview Travel** (how
+   long the editor pretends the walk takes — see below).
+4. Add a hold after the last arrival and leave **Auto Release When Marks
+   Reached** ticked.
+
+### Preview Travel, and why a mark is also a root key
+
+The editor has no pathfinding either, so it *rehearses*: every mark bakes an
+extra Linear key into its slot's root lane at `time + previewTravelSeconds`, and
+scrubbing lerps the actor along it. That is not what run time does — run time
+waits for your movement and a distance test — but it means one sampler draws
+both, so the preview cannot quietly disagree with playback about where an actor
+ends up.
+
+It also gives the segment after a rendezvous hold a real starting pose: the
+boundary key baked at the hold carries the arrival position, so the root lane
+resumes from where the actor arrived instead of snapping.
+
+Keep each mark's rehearsed arrival **at or before** the hold that waits for it.
+A walk that straddles the hold releases it mid-walk in the editor (the bake
+warns about exactly this) — run time plays it correctly either way, but preview
+and playback stop agreeing, which is the whole point of the rehearsal.
+
+While a mark is outstanding the slot's **root lane is suspended**, the same way
+an attached slot's is: whatever is moving the entity owns the transform. An
+actor with root keys *during* the walk therefore ignores them.
+
+### The host contract
+
+```csharp
+// Somewhere in your own movement system.
+foreach ((RefRO<CutsceneMoveToMark> order, Entity entity) in
+    SystemAPI.Query<RefRO<CutsceneMoveToMark>>().WithEntityAccess())
+{
+    // Walk `entity` toward order.ValueRO.position however your game walks things.
+    // Do not disable the component and do not teleport: the toolkit judges
+    // arrival itself and disables it, and a player-driven entity is one you
+    // simply decline to path — the arrival test is the same for everyone.
+}
+```
+
+The component is enabled while the order stands and disabled the frame it is
+resolved, so a query over enabled `CutsceneMoveToMark` *is* the list of things
+still on their way.
+
 ## Attach lane
 
 Actors and props can touch. An **Attach** marker binds the slot it sits on to
@@ -282,6 +356,11 @@ onto a new host *is* the release of the old one.
 
 ## Known gaps
 
+- Mark discs in the Scene view carry no text label; which disc is which is
+  read off the inspector after clicking one. `Handles.Label` is the obvious
+  tool and this package's Editor sources may not use `Handles`.
+- A mark disc drags on its own ground plane only. Height is authored in the
+  inspector, never pulled by a gizmo axis.
 - No box-select or multi-key drag in the timeline; one item at a time.
 - No Auto Key — move with the gizmo, then press Key.
 - The header column scrolls horizontally with the lanes rather than staying

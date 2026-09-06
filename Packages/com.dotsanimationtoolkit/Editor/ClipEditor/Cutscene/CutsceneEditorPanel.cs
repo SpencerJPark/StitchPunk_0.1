@@ -111,6 +111,7 @@ namespace DotsAnimationToolkit.Editor
         private int selectedItemIndex = -1;
 
         private readonly CutscenePreviewController previewController = new CutscenePreviewController();
+        private readonly CutsceneMarkSceneOverlay markSceneOverlay = new CutsceneMarkSceneOverlay();
 
         public CutsceneEditorPanel()
         {
@@ -182,6 +183,13 @@ namespace DotsAnimationToolkit.Editor
             Selection.selectionChanged += OnUnitySelectionChanged;
             RegisterCallback<DetachFromPanelEvent>(_ => Selection.selectionChanged -= OnUnitySelectionChanged);
 
+            markSceneOverlay.MarkClicked += (slotIndex, markIndex) =>
+                SelectItem(slotIndex, SelectedLaneKind.MarkKey, -1, markIndex);
+            markSceneOverlay.MarkDragged += OnMarkDraggedInSceneView;
+            // A duringSceneGui handler that outlives its panel draws against a disposed
+            // SerializedObject and comes back after a domain reload with nothing behind it.
+            RegisterCallback<DetachFromPanelEvent>(_ => markSceneOverlay.Disable());
+
             RestoreSessionCutscene();
             RebuildAll();
         }
@@ -237,6 +245,8 @@ namespace DotsAnimationToolkit.Editor
             selectedPartTrackIndex = -1;
             selectedItemIndex = -1;
             cutsceneField.SetValueWithoutNotify(cutscene);
+            markSceneOverlay.SetSource(cutscene, serializedObject);
+            markSceneOverlay.SetSelection(-1, -1);
             RebuildAll();
         }
 
@@ -245,6 +255,7 @@ namespace DotsAnimationToolkit.Editor
         {
             StopPlayback();
             previewController.ExitPreview();
+            markSceneOverlay.Disable();
         }
 
         /// <summary>
@@ -610,12 +621,49 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
+                if (RendezvousIsSatisfiedAt(holdMarker))
+                {
+                    continue;
+                }
                 if (firstIndex < 0 || holdMarker.time < cutscene.holdMarkers[firstIndex].time)
                 {
                     firstIndex = holdIndex;
                 }
             }
             return firstIndex;
+        }
+
+        /// <summary>
+        /// Whether a rendezvous hold has nothing left to wait for by its own time (3.4). In
+        /// rehearsal, arrival IS timeline time - the merged arrival key is the walk - so a hold
+        /// every mark issued before it has already arrived at simply plays through, the way the
+        /// runtime's own auto-release would. A mark that is still walking gates the transport and
+        /// waits for Continue, and the bake warns about that shape as well.
+        /// </summary>
+        private bool RendezvousIsSatisfiedAt(CutsceneHoldMarker holdMarker)
+        {
+            if (!holdMarker.autoReleaseWhenMarksReached || cutscene.slots == null)
+            {
+                return false;
+            }
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                CutsceneSlot slot = cutscene.slots[slotIndex];
+                if (slot == null || slot.markKeys == null)
+                {
+                    continue;
+                }
+                for (int markIndex = 0; markIndex < slot.markKeys.Count; markIndex++)
+                {
+                    CutsceneMarkKey mark = slot.markKeys[markIndex];
+                    if (mark.time <= holdMarker.time
+                        && CutsceneMarkMerge.ArrivalTime(mark) > holdMarker.time + HoldReleaseEpsilon)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -1001,11 +1049,47 @@ namespace DotsAnimationToolkit.Editor
         {
             RefreshSceneStatus();
             SyncPreviewActivation();
+            SyncMarkOverlayActivation();
             RebuildTimeline();
             RebuildInspector();
             RefreshCastPanel();
             RefreshViewportOverlay();
             RenderViewport();
+        }
+
+        /// <summary>
+        /// The marks overlay lives or dies by the same gate the preview does: a disc drawn over a
+        /// scene the cutscene was not authored against is measuring nothing.
+        /// </summary>
+        private void SyncMarkOverlayActivation()
+        {
+            markSceneOverlay.SetSource(cutscene, serializedObject);
+            bool shouldDraw = cutscene != null
+                && !string.IsNullOrEmpty(cutscene.sceneGuid)
+                && CutsceneSceneBindingUtility.CurrentSceneGuid() == cutscene.sceneGuid;
+            if (shouldDraw)
+            {
+                markSceneOverlay.Enable();
+            }
+            else
+            {
+                markSceneOverlay.Disable();
+            }
+        }
+
+        /// <summary>
+        /// A Scene-view drag writes straight to the asset; this pulls the change back through the
+        /// bound inspector fields live and rebuilds the rest only once the drag ends - a rebuild per
+        /// pointer move is exactly the churn A58 6 warned about.
+        /// </summary>
+        private void OnMarkDraggedInSceneView(bool isFinished)
+        {
+            if (isFinished)
+            {
+                serializedObject.Update();
+                RebuildAll();
+            }
+            ApplyPreviewAtPlayhead();
         }
 
         /// <summary>
@@ -2133,6 +2217,10 @@ namespace DotsAnimationToolkit.Editor
             selectedLaneKind = laneKind;
             selectedPartTrackIndex = partTrackIndex;
             selectedItemIndex = itemIndex;
+            markSceneOverlay.SetSelection(
+                laneKind == SelectedLaneKind.MarkKey ? slotIndex : -1,
+                laneKind == SelectedLaneKind.MarkKey ? itemIndex : -1);
+            SceneView.RepaintAll();
             SyncSceneSelectionToTimelineSelection();
             RebuildTimeline();
             RebuildInspector();

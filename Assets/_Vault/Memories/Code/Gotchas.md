@@ -433,3 +433,28 @@ ShouldIgnoreBindingEcho` does both, and the equality half is the half that fires
 To tell a flicker like this from a stable panel without watching it: sample the inspector's child
 `GetHashCode()`s from two separate `execute_code` calls seconds apart. Same instances = stable; all
 different = rebuilding every frame.
+
+### The toolkit package's Editor sources may not use `Handles` at all
+`PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources` greps every
+`Packages/com.dotsanimationtoolkit/Editor/**/*.cs` (comments stripped) for
+`\bOnGUI\b|\bGUILayout\b|\bHandles\.` and fails on any hit. There is no exemption list. So
+`Handles.DrawWireDisc`, `Handles.PositionHandle` and `Handles.Label` are all off the table for
+Scene-view work in that package, and a spec that prescribes them (A64 §3.4 did) is prescribing a
+build break. What works instead, and is already the package's own idiom: a line-topology `Mesh`
+drawn with `Graphics.DrawMeshNow` after `material.SetPass(0)` inside a `SceneView.duringSceneGui`
+handler on `EventType.Repaint`, picked with `HandleUtility.GUIPointToWorldRay` against a `Plane`.
+`HandleUtility` does **not** match the regex — only `Handles.` does. See
+`CutsceneMarkSceneOverlay.cs` for a worked example, and `PreviewSceneGizmos.cs`, which explains the
+same constraint from the other side.
+
+### An unfocused Editor never repaints its Scene view, so `duringSceneGui` probes never fire
+Driving the Editor over MCP with the window in the background, `SceneView.RepaintAll()`,
+`sceneView.Repaint()` and even the internal `EditorWindow.RepaintImmediately()` all leave a
+`SceneView.duringSceneGui` handler uncalled — the repaint is queued and never serviced. Anything
+that only runs inside scene GUI (`HandleUtility.GUIPointToWorldRay`, `HandleUtility.WorldToGUIPoint`,
+click picking, gizmo drags) therefore **cannot be machine-verified from a background Editor**; say
+so rather than reporting it as proven. And a probe delegate subscribed to `duringSceneGui` from
+`execute_code` outlives the call that added it, so a self-unsubscribing handler that never runs
+stays attached and fires later, mutating assets long after the session thought it was done. Remove
+it explicitly: reflect the static `duringSceneGui` field, walk `GetInvocationList()`, and drop the
+entries whose `Method.DeclaringType.Assembly` is the dynamic compile assembly.

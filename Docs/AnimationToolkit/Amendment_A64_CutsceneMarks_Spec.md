@@ -1,6 +1,6 @@
 # Amendment A64 — Cutscene Marks and Rendezvous Holds
 
-> **Status:** ✅ spec, not built. Written 2026-09-04.
+> **Status:** T1–T5 built 2026-09-05, machine-verified; ⏸ owner checkpoint open. Written 2026-09-04.
 > **Roadmap:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` — read its §4 protocol first.
 > **Depends on:** A63 (schema 3, pending-op pattern in `CutsceneTimelineSystem`).
 > **Session budget:** one Sonnet session.
@@ -93,8 +93,8 @@ public struct CutsceneMoveToMark : IComponentData, IEnableableComponent
 - [x] **T1 — Data, blob, builder merge (§3.1–3.2).** Test (EditMode, `CutsceneBlobBuilderTests.cs`): `Mark_IsMergedIntoTheRootLaneAtArrivalTime` — one mark at 1 s, travel 2 s, position (5,0,0), no other keys → segment 0 has a root key at 3 s at (5,0,0); with a rendezvous hold at 2 s the builder emits the mid-walk warning.
 - [x] **T2 — Runtime issue, arrival, timeout, release (§3.3).** Tests (PlayMode, new `CutsceneMarkTests.cs`): `MarkTime_EnablesMoveToMarkOnTheBoundEntity`; `RendezvousHold_AutoReleasesWhenEveryMarkIsReached` (advance to the hold, move the entity within tolerance by writing `LocalTransform`, advance, assert `segmentIndex == 1`); `MarkTimeout_TeleportsAndReleases` (timeout 0.5 s, never move the entity, advance past it, assert position == mark and the hold released).
 - [x] **T3 — Editor lane + inspector + Set From Object.** **[parallel-safe with T4]** Live proof via `execute_code`.
-- [ ] **T4 — Scene-view handles + transport auto-continue.** **[parallel-safe with T3]** Live proof: register, open the scene view, `SceneView.RepaintAll`, confirm no exception in the console; move a mark via the handle in the owner checkpoint.
-- [ ] **T5 — Docs.** `cutscenes.md` "Marks and rendezvous holds" (author flow + the host contract for `CutsceneMoveToMark`), CHANGELOG, HANDOFF §4.
+- [x] **T4 — Scene-view handles + transport auto-continue.** **[parallel-safe with T3]** Live proof: register, open the scene view, `SceneView.RepaintAll`, confirm no exception in the console; move a mark via the handle in the owner checkpoint.
+- [x] **T5 — Docs.** `cutscenes.md` "Marks and rendezvous holds" (author flow + the host contract for `CutsceneMoveToMark`), CHANGELOG, HANDOFF §4.
 - [ ] **⏸ Owner checkpoint.** Two actor slots, marks beside a crate, rendezvous hold, then a clip block after it. Scrub in the editor: both walk (slide) to their discs and the hold releases at arrival. Drag a disc in the Scene view; the inspector position follows.
 
 ## 6. Risks and traps
@@ -104,3 +104,49 @@ public struct CutsceneMoveToMark : IComponentData, IEnableableComponent
 - `Handles.PositionHandle` inside `duringSceneGui` needs `EditorGUI.BeginChangeCheck`/`EndChangeCheck` around it; write to the property only inside the check or every repaint dirties the asset.
 
 ## 7. Build log
+
+**2026-09-05 — T1–T5 built.** EditMode `CutsceneBlobBuilderTests` 4/4, PlayMode
+`CutsceneMarkTests` 3/3 (each proven to fail with the fix reverted), attach and timeline suites
+still green. The A64 checkpoint is `Assets/Scenes/CutsceneA64Checkpoint.unity` +
+`Assets/ScriptableObjects/Animations/A64CheckpointCutscene.asset`, copied from A63's pair rather
+than edited into it.
+
+### ESCALATION — §3.4's `Handles` prescription is banned by a shipped conformance test
+
+`PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources` fails any package Editor
+source matching `\bOnGUI\b|\bGUILayout\b|\bHandles\.`, with no exemption list.
+`Handles.DrawWireDisc`, `Handles.PositionHandle` and `Handles.Label` are therefore all unavailable,
+and §2's pointer at `Preview/PreviewSceneGizmos.cs` "for how this package draws `Handles`" is
+itself wrong — that file draws line meshes precisely *because* of this ban, and says so.
+
+Built instead, in `CutsceneMarkSceneOverlay.cs`: a `SceneView.duringSceneGui` handler that draws
+each mark as a line-mesh ring (`Graphics.DrawMeshNow` with `Hidden/Internal-Colored`, the same
+idiom `PreviewSceneGizmos` uses) scaled to its tolerance with a facing tick, picks a mark by
+casting `HandleUtility.GUIPointToWorldRay` at the mark's own Y plane, and drags it on that plane
+with one `Undo.RegisterCompleteObjectUndo` per drag. **Two capabilities are lost against the spec:**
+the per-mark text label, and the 3-axis position handle — a mark now drags on its ground plane
+only, with height authored in the inspector. For a spot on the ground that is arguably the better
+interaction, but it is a change from what was specified. *Question for the owner: accept the planar
+drag, or relax `Conformance_E` for the Scene-view overlay?*
+
+### Not machine-verified
+
+The overlay registers on `SceneView.duringSceneGui` and repainting raises no exception, and the
+transport's `RendezvousIsSatisfiedAt` / `FindFirstHoldCrossed` were exercised live (arrivals
+1.8 s / 1.2 s against a 2 s hold → plays through; travel raised to 3 s → gates and waits for
+Continue). **The click-and-drag path itself is unproven**: the pick and drag both need a live
+Scene-view GUI context, and an unfocused Editor never repaints its Scene view, so the probe that
+would have exercised them never ran. This is the one thing the owner checkpoint has to establish
+by eye.
+
+### Notes worth keeping
+
+- The merge helper (`CutsceneMarkMerge`) is deliberately shared by the builder and the editor
+  preview. A64-D2 is only true if *both* walk the merged lane; merging at bake alone would leave
+  the editor showing no travel at all.
+- Marks resolve every frame, including while the clock is stopped — a rendezvous hold exists to be
+  released by movement happening while nothing else advances.
+- T3 and T4 were **not** split across subagents despite the [parallel-safe] markers: both land in
+  `CutsceneEditorPanel.cs`, so two writers would have collided in one file. HANDOFF §2's
+  "do not spawn subagents" stood.
+
