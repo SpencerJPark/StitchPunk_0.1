@@ -14,7 +14,7 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>The Cutscene Editor tab's content: a slot/lane timeline plus an inspector for whatever is selected. Unity's own Scene view is the viewport.</summary>
-    public sealed class CutsceneEditorPanel : VisualElement
+    public sealed partial class CutsceneEditorPanel : VisualElement
     {
         private const float LaneRowHeight = 22f;
         private const float RulerHeight = 24f;
@@ -380,6 +380,8 @@ namespace DotsAnimationToolkit.Editor
             keyButton.Insert(0, keyIcon);
             toolbar.Add(keyButton);
 
+            toolbar.Add(BuildAutoKeyToggle());
+
             // Off by default: the in-tab viewport's Shot mode shows the framed movie, so yanking the
             // author's Scene view camera around on every scrub is opt-in.
             previewShotToggle = new Toggle { text = "Drive Scene View", value = false };
@@ -571,6 +573,7 @@ namespace DotsAnimationToolkit.Editor
         private void OnEditorTick()
         {
             FlushDeferredPaneRebuilds();
+            AutoKeyTick();
         }
 
         // One transport frame: advance the elastic clock, stop dead on a hold, and re-pose. A hold

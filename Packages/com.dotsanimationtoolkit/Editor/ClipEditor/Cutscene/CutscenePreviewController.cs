@@ -28,12 +28,16 @@ namespace DotsAnimationToolkit.Editor
 
             public static TransformSnapshot Capture(Transform transform)
             {
-                return new TransformSnapshot
-                {
-                    localPosition = transform.localPosition,
-                    localRotation = transform.localRotation,
-                    localScale = transform.localScale
-                };
+                TransformSnapshot snapshot = new TransformSnapshot();
+                snapshot.CaptureFrom(transform);
+                return snapshot;
+            }
+
+            public void CaptureFrom(Transform transform)
+            {
+                localPosition = transform.localPosition;
+                localRotation = transform.localRotation;
+                localScale = transform.localScale;
             }
 
             public void RestoreTo(Transform transform)
@@ -71,6 +75,12 @@ namespace DotsAnimationToolkit.Editor
             new Dictionary<uint, Dictionary<uint, PartBinding>>();
         private readonly Dictionary<uint, CutsceneSlotClipPreview> clipPreviewsBySlot =
             new Dictionary<uint, CutsceneSlotClipPreview>();
+
+        // The exact local pose this controller last left on each transform it poses. Auto Key
+        // compares against this and never against the sampled value: only a difference from what
+        // the preview itself applied can be a human's gizmo drag.
+        private readonly Dictionary<EntityId, TransformSnapshot> lastAppliedPoses =
+            new Dictionary<EntityId, TransformSnapshot>();
 
         // Reused every tick, so a 30s vignette does not churn the editor with a fresh allocation
         // per part per frame.
@@ -232,6 +242,7 @@ namespace DotsAnimationToolkit.Editor
             rootSnapshots.Clear();
             rendererSnapshots.Clear();
             partsBySlot.Clear();
+            lastAppliedPoses.Clear();
             DisposeClipPreviews();
             HoldClipPhaseSeconds = 0f;
             IsActive = false;
@@ -358,6 +369,149 @@ namespace DotsAnimationToolkit.Editor
 
             PlaceAttachedSlots(cutscene);
             ApplyAttachmentVisibility(cutscene);
+            RecordAppliedPoses();
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Gizmo-edit detection: what the preview left behind, so a human's drag can be told apart
+        // from the preview's own writes.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>A transform the preview poses whose local pose no longer matches what the preview left on it.</summary>
+        public struct DriftedPreviewTransform
+        {
+            public uint slotId;
+
+            /// <summary>0 for the slot's own root transform; otherwise the bound part's rig target.</summary>
+            public uint targetStableId;
+
+            public Transform transform;
+        }
+
+        /// <summary>Per-channel difference beyond which a posed transform counts as moved by something other than the preview.</summary>
+        private const float PoseDriftEpsilon = 1e-4f;
+
+        // Read back from the live transforms rather than from the values just written, so setter
+        // normalisation cannot leave the baseline a hair off what the next comparison will read.
+        // Runs after the attachment placement pass, or an attached slot's baseline would be the
+        // pose it held before its host moved it.
+        private void RecordAppliedPoses()
+        {
+            foreach (KeyValuePair<uint, GameObject> boundObjectEntry in boundObjects)
+            {
+                if (boundObjectEntry.Value != null)
+                {
+                    RecordAppliedPose(boundObjectEntry.Value.transform);
+                }
+            }
+            foreach (KeyValuePair<uint, Dictionary<uint, PartBinding>> slotPartsEntry in partsBySlot)
+            {
+                foreach (KeyValuePair<uint, PartBinding> partEntry in slotPartsEntry.Value)
+                {
+                    if (partEntry.Value.partTransform != null)
+                    {
+                        RecordAppliedPose(partEntry.Value.partTransform);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Takes the transform's current local pose as the preview's own baseline, so it stops reading as drifted.</summary>
+        public void AcceptCurrentPoseAsApplied(Transform posedTransform)
+        {
+            if (posedTransform != null)
+            {
+                RecordAppliedPose(posedTransform);
+            }
+        }
+
+        private void RecordAppliedPose(Transform posedTransform)
+        {
+            EntityId posedTransformId = posedTransform.GetEntityId();
+            TransformSnapshot recorded;
+            if (!lastAppliedPoses.TryGetValue(posedTransformId, out recorded))
+            {
+                recorded = new TransformSnapshot();
+                lastAppliedPoses[posedTransformId] = recorded;
+            }
+            recorded.CaptureFrom(posedTransform);
+        }
+
+        /// <summary>Fills <paramref name="results"/> with every posed transform that has moved since the preview last posed it.</summary>
+        public void CollectTransformsMovedSinceLastAppliedPose(List<DriftedPreviewTransform> results)
+        {
+            results.Clear();
+            if (!IsActive)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<uint, GameObject> boundObjectEntry in boundObjects)
+            {
+                if (boundObjectEntry.Value != null
+                    && HasDriftedFromLastAppliedPose(boundObjectEntry.Value.transform))
+                {
+                    results.Add(new DriftedPreviewTransform
+                    {
+                        slotId = boundObjectEntry.Key,
+                        targetStableId = 0u,
+                        transform = boundObjectEntry.Value.transform
+                    });
+                }
+            }
+
+            foreach (KeyValuePair<uint, Dictionary<uint, PartBinding>> slotPartsEntry in partsBySlot)
+            {
+                foreach (KeyValuePair<uint, PartBinding> partEntry in slotPartsEntry.Value)
+                {
+                    Transform partTransform = partEntry.Value.partTransform;
+                    if (partTransform != null && HasDriftedFromLastAppliedPose(partTransform))
+                    {
+                        results.Add(new DriftedPreviewTransform
+                        {
+                            slotId = slotPartsEntry.Key,
+                            targetStableId = partEntry.Key,
+                            transform = partTransform
+                        });
+                    }
+                }
+            }
+        }
+
+        private bool HasDriftedFromLastAppliedPose(Transform posedTransform)
+        {
+            TransformSnapshot lastApplied;
+            // Nothing recorded means the preview has not posed this transform yet, so there is no
+            // baseline that could call the current pose a human's edit.
+            if (!lastAppliedPoses.TryGetValue(posedTransform.GetEntityId(), out lastApplied))
+            {
+                return false;
+            }
+            return DiffersBeyondEpsilon(posedTransform.localPosition, lastApplied.localPosition)
+                || DiffersBeyondEpsilon(posedTransform.localScale, lastApplied.localScale)
+                || RotationDiffersBeyondEpsilon(posedTransform.localRotation, lastApplied.localRotation);
+        }
+
+        private static bool DiffersBeyondEpsilon(Vector3 current, Vector3 lastApplied)
+        {
+            return Mathf.Abs(current.x - lastApplied.x) > PoseDriftEpsilon
+                || Mathf.Abs(current.y - lastApplied.y) > PoseDriftEpsilon
+                || Mathf.Abs(current.z - lastApplied.z) > PoseDriftEpsilon;
+        }
+
+        private static bool RotationDiffersBeyondEpsilon(Quaternion current, Quaternion lastApplied)
+        {
+            // A quaternion and its negation are the same rotation; without this flip a drag that
+            // carries one through the far hemisphere reads as a full-turn difference.
+            if (Quaternion.Dot(current, lastApplied) < 0f)
+            {
+                lastApplied = new Quaternion(
+                    -lastApplied.x, -lastApplied.y, -lastApplied.z, -lastApplied.w);
+            }
+            return Mathf.Abs(current.x - lastApplied.x) > PoseDriftEpsilon
+                || Mathf.Abs(current.y - lastApplied.y) > PoseDriftEpsilon
+                || Mathf.Abs(current.z - lastApplied.z) > PoseDriftEpsilon
+                || Mathf.Abs(current.w - lastApplied.w) > PoseDriftEpsilon;
         }
 
         // -----------------------------------------------------------------------------------
