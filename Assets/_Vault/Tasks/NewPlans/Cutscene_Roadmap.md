@@ -43,13 +43,13 @@ Toolkit amendments live in `Docs/AnimationToolkit/` (the package's own doc syste
 | A63 | ✅ **T0–T6 done 2026-09-05, awaiting the owner's eyes.** [`Amendment_A63_CutsceneAttachLane_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A63_CutsceneAttachLane_Spec.md) | attach lane: socket attach, root attach (ride), hand-over, detach with impulse signal, hide-while-attached; editor lane + preview | A62 | G1 |
 | A64 | ✅ **T1–T5 done 2026-09-05, awaiting the owner's eyes.** [`Amendment_A64_CutsceneMarks_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A64_CutsceneMarks_Spec.md) | marks lane + rendezvous holds: `CutsceneMoveToMark` request, arrival detection, timeout teleport; editor lane, Scene-view mark handles, preview travel | A63 | — |
 | A65 | ✅ **T1–T5 done 2026-09-06, awaiting the owner's eyes.** [`Amendment_A65_CutsceneCuesFacingBlocks_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A65_CutsceneCuesFacingBlocks_Spec.md) | holding events (the dialogue cue), host inspector seam for event payloads, runtime facing (`CutsceneFacing` + direction-variant re-pick), per-block speed and start offset | A64 | — |
-| G2 | [`CutsceneInteractions_System.md`](CutsceneInteractions_System.md) | game consumers: marks → `MovementAPI`, dialogue cue ↔ `ActiveDialogue`, `CutsceneFacing` → `UnitFacing`, detach → `ThrownItemRequest`, player-control rule during rendezvous | A63, A64, A65, G1 | A66 |
+| G2 | ✅ **Phases 1–5 done 2026-09-06, checkpoint built, awaiting the owner's eyes.** [`CutsceneInteractions_System.md`](CutsceneInteractions_System.md) | game consumers: marks → `MovementAPI`, dialogue cue ↔ `ActiveDialogue`, `CutsceneFacing` → `UnitFacing`, detach → `ThrownItemRequest`, player-control rule during rendezvous | A63, A64, A65, G1 | A66 |
 | A66 | [`Amendment_A66_CutsceneEditorPolish1_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A66_CutsceneEditorPolish1_Spec.md) | Auto Key, multi-select / box-select / copy-paste across lanes, easing curve editor for cutscene keys | A65 | G2 |
 | A67 | [`Amendment_A67_CutsceneEditorPolish2_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A67_CutsceneEditorPolish2_Spec.md) | viewport click-select, in-viewport gizmo + Key, frozen header column, cast/inspector compaction, viewport navigation parity | A66 | — |
 | G3 | [`CutsceneAcceptance_System.md`](CutsceneAcceptance_System.md) | the "Rendezvous and Depart" cutscene authored with real assets, a debug trigger, the owner's verification checklist, perf check | everything above | — |
 | A68 | [`Amendment_A68_CutsceneDocsRelease_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A68_CutsceneDocsRelease_Spec.md) | `cutscenes.md` rewrite, new `cutscene-api.md` reference, `Samples~` cutscene sample compiled through a temp assembly, CHANGELOG, HANDOFF closure, version bump | G3 | — |
 
-**Critical path:** ~~A61 → G1 → G0 → A63 → A64 → A65~~ → **G2 (next)** → A66 → A67 → G3 → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing from a debug key — built and machine-verified 2026-09-05 in its own `Assets/Scenes/CutsceneG1Checkpoint.unity`, awaiting the owner's eyes.
+**Critical path:** ~~A61 → G1 → G0 → A63 → A64 → A65 → G2~~ → **A66 (next)** → A67 → G3 → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing from a debug key — built and machine-verified 2026-09-05 in its own `Assets/Scenes/CutsceneG1Checkpoint.unity`, awaiting the owner's eyes.
 
 > **A63 also grew a T0 (2026-09-05).** `NewRig.asset` declared zero sockets and the only
 > socket-shaped object in the project was an inert `HandSocket` GameObject under `PlayerUnit.prefab`,
@@ -109,3 +109,12 @@ t=+7.5  end. Actors stay where they stand; AI resumes; player input returns.
 ```
 
 Assets: the cart is any prop prefab with a transform (no vehicle exists in the game yet — a crate scaled up is fine for acceptance). Minions are `NewRig.asset` actors with the live clip set. Scene: `Assets/Scenes/SubScenes/DOTSTestScene.unity`.
+
+> **G2 found a facing content gap that G3 depends on (2026-09-06).** `UnitFacing` and the `BodyPart`
+> buffer come from `CharacterRigAuthoring`, and **no prefab in the project has one** — measured live,
+> `unitFacingEntities=0`, `bodyPartBuffers=0`. So the game's whole facing pipeline, G2's
+> `CutsceneFacing` branch included, is code-complete with nothing to run on: a cutscene actor cannot
+> turn on screen. The toolkit half is confirmed working (`CutsceneFacing` swung 186.6° → 0° on a bound
+> actor as its root keys reversed). Closing it is content work of G0's kind — a `CharacterRigAuthoring`
+> and body-part tree on `MaleCitizen`, with `BodyPart.entity` bridged to the toolkit's rig parts — and
+> §6's acceptance cutscene assumes actors that turn, so it belongs before G3.
