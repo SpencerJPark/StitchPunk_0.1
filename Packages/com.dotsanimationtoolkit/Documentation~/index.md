@@ -89,12 +89,12 @@ would fail the bake.
 
 ## Runtime API surface
 
-- **`PlaybackApi`** (Runtime/Api) — the write side: `Play`, `Queue`,
-  `Stop`, `SetSpeed`, `SetTime`. Always pairs an `AnimationCommand` buffer
-  append with enabling `AnimationCommandPending` — that pairing is why you
-  call this instead of writing buffer elements by hand.
-- **`PlaybackApi`** (Runtime/Api) — the read side: query a layer's current
-  clip, normalized time, and finished state.
+- **`PlaybackApi`** (Runtime/Api) — one class, both directions. The write
+  side (`Play`, `Queue`, `Stop`, `SetSpeed`, `SetTime`) always pairs an
+  `AnimationCommand` buffer append with enabling `AnimationCommandPending` —
+  that pairing is why you call this instead of writing buffer elements by
+  hand. The read side (`IsPlaying`, `NormalizedTime`, `HasFinishedThisFrame`)
+  queries a layer's current clip, normalized time, and finished state.
 - **`AnimEventOutput` buffer / `AnimEventMask` component** — the two event
   channels: a one-frame pulse carrying a payload, and a sustained "window" bit
   you can test on any frame. `AnimEventMaskKeys.IsOpen(mask, key)` is the
