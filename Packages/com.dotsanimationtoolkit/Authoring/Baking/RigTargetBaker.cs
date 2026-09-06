@@ -8,29 +8,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Bakes a <see cref="RigTargetAuthoring"/> into the part archetype of architecture section 5.2:
-    /// the binding back to its actor, the rest pose captured from this transform, the seeded output
-    /// pose, and the material-property components its <see cref="TargetKind"/> needs. It also runs
-    /// the managed half of bake validation — the material ↔ VAT-texture-set check of section 4.4 —
-    /// because a Baker may touch managed objects and the Bursted binding system may not.
+    /// Bakes a <see cref="RigTargetAuthoring"/> into a part entity: the binding back to its actor,
+    /// the rest pose, the seeded output pose, and the material-property components its
+    /// <see cref="TargetKind"/> needs. Also runs the managed material/VAT-texture-set check, since a
+    /// Baker can touch managed objects and the Bursted binding system cannot.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The dense target index is deliberately <em>not</em> resolved here. It comes from the actor's
-    /// registry blob, which lives on a different entity, and a Baker may only write the entity it is
-    /// baking; <see cref="RigBindingBakingSystem"/> completes the binding in
-    /// <c>PostBakingSystemGroup</c>. Until it does, <see cref="RigPartBinding.targetIndex"/> stays
-    /// −1, so a part whose id never resolves is inert rather than wrongly bound to target 0.
-    /// </para>
-    /// <para>
-    /// <c>PostTransformMatrix</c> is not added by hand: requesting
-    /// <see cref="TransformUsageFlags.NonUniformScale"/> makes transform baking add it, with the
-    /// value <c>float4x4.Scale(localScale)</c> — identity for the ordinary unit-scaled part — while
-    /// leaving <c>LocalTransform.Scale</c> at 1. That is exactly the channel
-    /// <c>TransformApplySystem</c> writes each frame (section 5.6), so live scale and flip work on
-    /// every part kind rather than only on the quads that happen to be authored scaled.
-    /// </para>
-    /// </remarks>
     public sealed class RigTargetBaker : Baker<RigTargetAuthoring>
     {
         private const string MessagePrefix = "[DOTS Animation Toolkit] ";
@@ -66,11 +48,16 @@ namespace DotsAnimationToolkit.Authoring
             RigTargetDefinition targetDefinition = FindTargetDefinition(effectiveRig, authoring.targetStableId);
             TargetKind targetKind = ResolveTargetKind(authoring, targetDefinition);
 
+            // NonUniformScale makes transform baking add PostTransformMatrix (identity for an
+            // ordinary unit-scaled part) while LocalTransform.Scale stays 1 — the exact channel
+            // TransformApplySystem writes each frame, so live scale/flip work on every part kind.
             Entity partEntity = GetEntity(
                 TransformUsageFlags.Dynamic | TransformUsageFlags.NonUniformScale);
 
-            // actorRoot and targetIndex are both filled by RigBindingBakingSystem; the neutral values
-            // here are what an unresolved part keeps.
+            // The dense target index is resolved later by RigBindingBakingSystem, on the actor's own
+            // entity — a baker may only write the entity it is baking, and the registry blob that
+            // index comes from lives on the actor. The neutral values here are what an unresolved
+            // part keeps.
             AddComponent(partEntity, new RigPartBinding
             {
                 actorRoot = Entity.Null,
@@ -78,13 +65,10 @@ namespace DotsAnimationToolkit.Authoring
             });
             if (targetDefinition == null)
             {
-                // Amendment A22 moved this error here from the binding pass. That pass is Bursted,
-                // so it can only name blittable values; this baker is managed, so it can name the
-                // GameObject, the rig, and the id that does not exist in it, and pass the object
-                // itself as the log context so clicking the message selects the offending part.
-                //
-                // The part is then left without a RigPartBakeLink, so the binding pass never sees it
-                // and the same mistake is not reported twice in two different vocabularies.
+                // Reported here, not by the (Bursted, managed-object-free) binding pass, so the
+                // message can name the GameObject, the rig, and pass the object as log context for
+                // click-to-select. The part is left without a RigPartBakeLink so the binding pass
+                // never sees it and the mistake is not reported a second time.
                 Debug.LogError(
                     MessagePrefix + "Rig target '" + authoring.name + "' on actor '" +
                     actorAuthoring.name + "' references target id " +
@@ -114,16 +98,12 @@ namespace DotsAnimationToolkit.Authoring
                 atlasRect = ClipSampler.IdentityAtlasRect
             });
 
-            // Propagated from the actor: a part animates unless some provider says otherwise (5.9).
+            // Propagated from the actor: a part animates unless some provider says otherwise.
             AddComponent<AnimVisible>(partEntity);
 
-            // Amendment A37. The opt-in is the target's explicit `facesDirection`, NOT
-            // `framesPerVariant > 1` as the first cut had it. That derivation looked tidier — one
-            // source of truth instead of two flags — but it was wrong: framesPerVariant describes
-            // alt-view blocks, and a mirror-only target (a nose that simply flips) has no blocks at
-            // all. Deriving the opt-in from it silently excluded exactly those parts, so mirroring
-            // was inert on the first rig that tried it.
-            // To revert: drop this block and the component is simply never baked.
+            // The opt-in is the target's explicit facesDirection, not framesPerVariant > 1 — that
+            // looked tidier but was wrong: framesPerVariant describes alt-view blocks, and a
+            // mirror-only target (e.g. a nose that just flips) has no blocks at all.
             if (targetDefinition != null && targetDefinition.facesDirection)
             {
                 AddComponent(partEntity, new PartFacing
@@ -133,8 +113,8 @@ namespace DotsAnimationToolkit.Authoring
                 });
 
                 // A mirror point flips its whole subtree, so a facing part under another facing part
-                // must not flip a second time and cancel it (owner rule 2026-09-06). Decided here,
-                // where the hierarchy is known, so the sampler pays one lookup rather than a walk.
+                // must not flip a second time and cancel it. Decided here, where the hierarchy is
+                // known, so the sampler pays one lookup rather than a walk.
                 if (HasFacingAncestorPart(authoring, effectiveRig))
                 {
                     AddComponent<PartMirrorFromAncestor>(partEntity);
@@ -151,15 +131,9 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// Whether a part above this one in the prefab is itself a mirror point, and so already
-        /// reflects this one.
-        /// </summary>
-        /// <remarks>
-        /// Walked through the baker's own <c>GetParent</c>/<c>GetComponent</c> rather than
-        /// <c>GetComponentInParent</c> so every node visited is registered as a baking dependency:
-        /// re-parenting a part, or ticking Faces Direction on an ancestor, has to re-bake this one.
-        /// </remarks>
+        // Walked through the baker's own GetParent/GetComponent, not GetComponentInParent, so every
+        // node visited registers as a baking dependency: re-parenting a part, or ticking Faces
+        // Direction on an ancestor, has to re-bake this one.
         private bool HasFacingAncestorPart(RigTargetAuthoring authoring, RigAsset effectiveRig)
         {
             GameObject ancestor = GetParent(authoring.gameObject);
@@ -180,27 +154,10 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
-        /// <summary>
-        /// Records which billboard root this part inherits, when it inherits one (amendment A44).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Only the nearest ancestor root is stored, and only when there is one.</strong>
-        /// The walk is inclusive of the part itself, so a part that <em>is</em> a billboard root
-        /// names itself — which is the override rule, and what lets a held item billboard
-        /// independently of the character holding it.
-        /// </para>
-        /// <para>
-        /// A part under no root gets no component, keeping billboarding as opt-in as
-        /// <c>AnimLod</c> and <c>PartFacing</c> (amendment A23's precedent).
-        /// </para>
-        /// <para>
-        /// The root is named by <em>id</em> rather than by its position in the actor's baked buffer.
-        /// Two bakers resolve this hierarchy independently — this one and <c>ActorBaker</c> — and an
-        /// index would require them to agree on an ordering neither can see the other compute. An
-        /// id is authored data both simply read.
-        /// </para>
-        /// </remarks>
+        // Only the nearest ancestor root is stored (the walk is inclusive of the part itself, so a
+        // part that IS a root names itself — the override that lets a held item billboard
+        // independently of its holder). Named by id, not by buffer position: this baker and
+        // ActorBaker resolve the hierarchy independently and have no shared ordering to agree on.
         private void AddBillboardMember(
             RigTargetAuthoring authoring,
             ActorAuthoring actorAuthoring,
@@ -220,8 +177,8 @@ namespace DotsAnimationToolkit.Authoring
             }
             else if (actorAuthoring.billboardMode != BillboardMode.Off)
             {
-                // The whole-actor billboard A41 shipped, expressed as the implicit root ActorBaker
-                // bakes with id 0. Every part inherits it, because it sits on the actor root.
+                // Whole-actor billboard: the implicit root ActorBaker bakes with id 0. Every part
+                // inherits it, since it sits on the actor root.
                 rootId = 0u;
             }
             else
@@ -275,15 +232,10 @@ namespace DotsAnimationToolkit.Authoring
             return null;
         }
 
-        /// <remarks>
-        /// A null <paramref name="targetDefinition"/> means the rig does not declare the part's
-        /// target id. <see cref="Bake"/> has already reported that (architecture section 4.1,
-        /// amendment A22) and withheld the part's <see cref="RigPartBakeLink"/>, so nothing is
-        /// reported a second time here — the part simply falls back to <see cref="TargetKind.Quad"/>
-        /// so its entity is well formed rather than half built. An explicit
-        /// <c>useKindOverride</c> still wins, because a part whose id is wrong may still have been
-        /// authored with the right technique.
-        /// </remarks>
+        // A null targetDefinition means the rig does not declare the part's target id; Bake has
+        // already reported that and withheld the RigPartBakeLink, so nothing is reported again here
+        // — the part falls back to Quad so its entity is well formed. An explicit useKindOverride
+        // still wins, since a part whose id is wrong may still have the right technique authored.
         private static TargetKind ResolveTargetKind(
             RigTargetAuthoring authoring,
             RigTargetDefinition targetDefinition)
@@ -299,37 +251,15 @@ namespace DotsAnimationToolkit.Authoring
         // Rest pose and technique components.
         // -----------------------------------------------------------------------------------
 
-        /// <remarks>
-        /// The transform is fetched through the Baker's own <c>GetComponent</c>, not read off
-        /// <c>authoring.transform</c>. Both return the same object, but only the former
-        /// records a bake dependency on it. Without that dependency, dragging a part in the scene
-        /// would move its rendered position (transform baking tracks its own components) while
-        /// <see cref="TargetRestPose"/> kept the position captured at the last full bake — so every
-        /// animated pose, which section 5.6 composes as an offset from the rest pose, would be
-        /// applied against a stale origin until something unrelated forced a rebake.
-        /// <c>ActorBaker.TryGetRestPoseInActorSpace</c> already takes the dependency this way.
-        /// <para>
-        /// The cost is over-invalidation, and it is accepted knowingly: <c>GetComponent</c> on a
-        /// <c>Transform</c> also registers a dependency on the <em>whole</em> parent hierarchy,
-        /// because <c>transform.position</c> and friends are computed from every ancestor. This
-        /// method reads only <c>localPosition</c> / <c>localRotation</c> / <c>localScale</c>, none
-        /// of which an ancestor can change, so dragging the actor root re-runs this baker for every
-        /// part beneath it without any baked byte differing. Correctness beats bake speed here, and
-        /// the narrower alternative — <c>DependsOn(authoring.transform)</c> — does not register a
-        /// transform-value dependency at all.
-        /// </para>
-        /// <para>
-        /// The result is returned unconditionally: every GameObject has a Transform, and
-        /// <c>GetComponentInternal</c> resolves it through <c>TryGetComponent</c> on that
-        /// GameObject, so the lookup cannot fail. A null guard here would be unreachable code whose
-        /// only possible behaviour — fabricating an identity rest pose in silence — is worse than
-        /// the null-reference it would be hiding.
-        /// </para>
-        /// </remarks>
+        // Fetched through the Baker's own GetComponent<Transform>, not authoring.transform directly:
+        // both return the same object, but only GetComponent registers the bake dependency. Without
+        // it, dragging a part would move its rendered position while TargetRestPose kept the stale
+        // captured one, until something unrelated forced a rebake. The over-invalidation this costs
+        // (GetComponent<Transform> also depends on the whole ancestor chain) is accepted knowingly.
         private TargetRestPose CaptureRestPose(RigTargetAuthoring authoring)
         {
-            // Through RestPoseCapture, not inline, because the Cutscene Editor's preview poses real
-            // scene parts and has to compose against the identical rest pose (amendment A58).
+            // Through RestPoseCapture, not inline, so the Cutscene Editor's preview poses real scene
+            // parts against the identical rest pose.
             return RestPoseCapture.FromTransform(
                 GetComponent<Transform>(authoring), authoring.restSliceIndex);
         }
@@ -343,8 +273,8 @@ namespace DotsAnimationToolkit.Authoring
             switch (targetKind)
             {
                 case TargetKind.FlipbookPlane:
-                    // Both flipbook rows of the section 6.2 table: which one a clip drives is a
-                    // per-track SpriteFrameMode decision, so one plane may use either across clips.
+                    // Which row a clip drives is a per-track SpriteFrameMode decision, so one plane
+                    // may use either across clips.
                     AddComponent(partEntity, new SpriteSliceProperty { Value = restPose.restSliceIndex });
                     AddComponent(partEntity, new AtlasFrameProperty { Value = ClipSampler.IdentityAtlasRect });
                     break;
@@ -368,13 +298,10 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Material ↔ VAT texture set validation (section 4.4). Managed, and therefore here.
+        // Material <-> VAT texture set validation. Managed, and therefore here.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The one VAT texture set the owning actor's bind addresses. Rule V39 makes a second one an
-        /// error, so the first set that supplies one is the answer.
-        /// </summary>
+        /// <summary>The one VAT texture set the owning actor's bind addresses (a second is a V39 error, so the first one found is the answer).</summary>
         private VatTextureSetAsset ResolveBindVatTextures(ActorAuthoring actorAuthoring)
         {
             List<ClipSetAsset> clipSets = actorAuthoring.clipSets;
@@ -406,7 +333,7 @@ namespace DotsAnimationToolkit.Authoring
             if (material == null)
             {
                 // Nothing to compare against: a VAT part whose renderer is supplied at runtime is a
-                // supported setup, and `expectedMaterial` is how such a part opts back into the check.
+                // supported setup, and expectedMaterial is how such a part opts back into the check.
                 return;
             }
 

@@ -7,13 +7,9 @@ namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Turns a part's authored transform into the <see cref="TargetRestPose"/> clips compose against
-    /// (architecture section 5.11: position and rotation additive, scale multiplicative).
+    /// (position and rotation additive, scale multiplicative). Shared by <see cref="RigTargetBaker"/>
+    /// and the Cutscene Editor's Scene-view preview, so both agree on where a part's rest pose sits.
     /// </summary>
-    /// <remarks>
-    /// Shared by <see cref="RigTargetBaker"/> and the Cutscene Editor's Scene-view preview
-    /// (amendment A58): a preview whose rest pose is derived differently from the bake's shows every
-    /// authored offset in the wrong place, and nothing about the clip data would look wrong.
-    /// </remarks>
     public static class RestPoseCapture
     {
         /// <summary>The rest pose a part authored at <paramref name="partTransform"/> composes from.</summary>
@@ -31,23 +27,7 @@ namespace DotsAnimationToolkit.Authoring
             };
         }
 
-        /// <summary>
-        /// Signed ZXY Euler angles, in radians, from a rotation.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// ZXY because that is the order <c>quaternion.Euler</c> and <c>Transform.eulerAngles</c>
-        /// both use, and <c>TransformApplySystem</c> rebuilds the pose with the former. Extracting
-        /// in a different order than the one used to rebuild would give a rest pose that is correct
-        /// only while two of the three angles are zero — that is, correct on every flat rig and
-        /// wrong on the first tilted one.
-        /// </para>
-        /// <para>
-        /// Signed, in (−π, π], rather than <c>localEulerAngles</c>'s [0, 360): a part authored at
-        /// −30° must not come back as +330°, because the two compose differently once a clip adds
-        /// a delta to them.
-        /// </para>
-        /// </remarks>
+        /// <summary>Signed ZXY Euler angles in radians, as (−π, π] rather than [0, 360) — a delta added later composes differently otherwise.</summary>
         public static float3 ExtractZxyEulerRadians(Quaternion rotation)
         {
             float x = rotation.x;
@@ -55,17 +35,18 @@ namespace DotsAnimationToolkit.Authoring
             float z = rotation.z;
             float w = rotation.w;
 
-            // sin(pitch) for the ZXY order; clamped because a value a hair outside [-1, 1] from
-            // accumulated float error would make asin return NaN at exactly the poles.
+            // ZXY order to match quaternion.Euler/TransformApplySystem's rebuild — extracting in a
+            // different order gives a rest pose correct only while two of the three angles are zero.
+            // sin(pitch) for that order; clamped since float error can push it a hair past [-1, 1],
+            // which would make asin return NaN at the poles.
             float sinPitch = math.clamp(2f * (w * x + y * z), -1f, 1f);
             float pitch = math.asin(sinPitch);
 
             float cosPitch = math.sqrt(math.max(0f, 1f - sinPitch * sinPitch));
             if (cosPitch < 1e-6f)
             {
-                // Gimbal lock: yaw and roll describe the same turn, so the split between them is
-                // arbitrary. Putting all of it in yaw is the conventional choice and keeps the
-                // rebuilt rotation identical.
+                // Gimbal lock: yaw and roll describe the same turn, so the split is arbitrary.
+                // Putting it all in yaw is the conventional choice and rebuilds identically.
                 return new float3(pitch, 2f * math.atan2(y, w), 0f);
             }
 

@@ -9,22 +9,21 @@ namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Bakes a <see cref="CutsceneAsset"/> and its scene-bound cast into one <see cref="CutsceneStage"/>
-    /// entity (amendment A61): the asset baked to a <see cref="CutsceneBlob"/>, plus a
-    /// <see cref="CutsceneStageBinding"/> per bound slot, ready for a host to hand to
-    /// <c>CutsceneApi.CreatePlayRequestFromStage</c>.
+    /// entity: the asset baked to a <see cref="CutsceneBlob"/>, plus a <see cref="CutsceneStageBinding"/>
+    /// per bound slot, ready for a host to hand to <c>CutsceneApi.CreatePlayRequestFromStage</c>.
     /// </summary>
     [AddComponentMenu("DOTS Animation Toolkit/Cutscene Stage")]
     [DisallowMultipleComponent]
     public sealed class CutsceneStageAuthoring : MonoBehaviour
     {
-        /// <summary>The cutscene this stage bakes. An unassigned cutscene bakes nothing.</summary>
+        [Tooltip("The cutscene this stage bakes. An unassigned cutscene bakes nothing.")]
         public CutsceneAsset cutscene;
 
-        /// <summary>Which live scene object plays each of <see cref="cutscene"/>'s slots.</summary>
+        [Tooltip("Which live scene object plays each of the cutscene's slots.")]
         public List<CutsceneStageSlotBinding> bindings = new List<CutsceneStageSlotBinding>();
     }
 
-    /// <summary>One slot's scene binding, authored by the cast panel's Sync to Stage action (amendment A61).</summary>
+    /// <summary>One slot's scene binding, authored by the cast panel's Sync to Stage action.</summary>
     [Serializable]
     public sealed class CutsceneStageSlotBinding
     {
@@ -35,13 +34,10 @@ namespace DotsAnimationToolkit.Authoring
         public GameObject target;
     }
 
+    // A baker's GetEntity(GameObject, TransformUsageFlags) only resolves GameObjects baked in the
+    // same subscene as this component. A binding whose target lives in another scene bakes that
+    // entry to Entity.Null — the host must supply that binding at play time instead.
     /// <summary>Bakes a <see cref="CutsceneStageAuthoring"/> into a <see cref="CutsceneStage"/> entity plus its <see cref="CutsceneStageBinding"/> buffer.</summary>
-    /// <remarks>
-    /// <strong>A baker's <c>GetEntity(GameObject, TransformUsageFlags)</c> only resolves GameObjects
-    /// baked in the same subscene as this component.</strong> A binding whose target lives in another
-    /// scene bakes that entry to <c>Entity.Null</c> — the host must supply that binding at play time
-    /// instead (the game's own runtime-spawned-unit override path does this).
-    /// </remarks>
     public sealed class CutsceneStageBaker : Baker<CutsceneStageAuthoring>
     {
         public override void Bake(CutsceneStageAuthoring authoring)

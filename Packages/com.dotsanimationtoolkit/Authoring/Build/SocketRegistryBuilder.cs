@@ -12,21 +12,6 @@ namespace DotsAnimationToolkit.Authoring
     /// Builds a <see cref="SocketRegistryBlob"/> from a rig's socket rows and the motion the VAT
     /// bake captured for its bone sockets.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Deliberately separate from <see cref="ClipRegistryBuilder"/>: sockets are an opt-in
-    /// attachment concern, and folding them into the clip registry would change that blob's layout
-    /// — bumping its schema version and invalidating its golden content hash — for every project,
-    /// including the ones that never attach anything.
-    /// </para>
-    /// <para>
-    /// <strong>Dense indices must agree with the clip registry's.</strong> A rig-target socket
-    /// stores a dense target index, and that index is only meaningful if it means the same row the
-    /// clip registry means. Both derive it the same way — position in the rig's target ids sorted
-    /// ascending — so the two stay in step by using one rule rather than by being checked against
-    /// each other.
-    /// </para>
-    /// </remarks>
     public static class SocketRegistryBuilder
     {
         /// <summary>Blob layout version; bump on any layout change.</summary>
@@ -50,14 +35,6 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
-        /// <summary>
-        /// Builds the socket blob for <paramref name="rig"/>.
-        /// </summary>
-        /// <param name="rig">The rig whose sockets are baked.</param>
-        /// <param name="vatTextures">
-        /// The texture set holding baked bone-socket motion, or null. Null is legitimate — a rig
-        /// whose sockets are all rig-target sockets needs no baked motion at all.
-        /// </param>
         /// <param name="registry">The built blob; <c>default</c> when the rig has no sockets.</param>
         /// <returns>False when there was nothing to build.</returns>
         public static bool TryBuild(
@@ -74,7 +51,7 @@ namespace DotsAnimationToolkit.Authoring
             List<uint> sortedTargetIds = BuildSortedTargetIds(rig);
 
             // Sorted by id so the runtime can binary-search, and so the same rig always produces
-            // byte-identical output whatever order the rows were authored in.
+            // byte-identical output regardless of authoring order.
             List<SocketDefinition> orderedSockets = new List<SocketDefinition>();
             for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
             {
@@ -106,6 +83,9 @@ namespace DotsAnimationToolkit.Authoring
                     int targetIndex = -1;
                     if (socket.mode == SocketAttachMode.RigTarget)
                     {
+                        // Must be the same dense index the clip registry assigns this target id —
+                        // both derive it the same way (position in sorted target ids) rather than
+                        // being cross-checked, so they stay in step.
                         targetIndex = sortedTargetIds.IndexOf(socket.targetId);
                     }
 
@@ -132,15 +112,6 @@ namespace DotsAnimationToolkit.Authoring
             return true;
         }
 
-        /// <summary>
-        /// Writes the baked bone-socket motion, skipping anything that does not line up.
-        /// </summary>
-        /// <remarks>
-        /// A track whose positions and rotations differ in length is dropped rather than truncated.
-        /// Mismatched lengths mean the bake wrote something it did not intend to, and truncating
-        /// would turn a loud bug into a socket that quietly drifts out of sync near the end of a
-        /// clip — far harder to trace back here.
-        /// </remarks>
         private static void AllocateClipTracks(
             BlobBuilder blobBuilder,
             ref SocketRegistryBlob root,
@@ -161,14 +132,16 @@ namespace DotsAnimationToolkit.Authoring
                     }
                     if (track.positions.Count == 0 || track.positions.Count != track.rotations.Count)
                     {
+                        // Dropped, not truncated: a length mismatch means the bake wrote something
+                        // wrong, and truncating would turn that into a socket that quietly drifts
+                        // near the end of a clip instead of an obvious gap.
                         continue;
                     }
 
                     int socketIndex = IndexOfSocketId(orderedSockets, track.socketId);
                     if (socketIndex < 0)
                     {
-                        // The socket row was deleted since the bake. Dropping the orphan is right:
-                        // nothing can reference it, and keeping it would only bloat the blob.
+                        // Socket row was deleted since the bake; nothing can reference this track.
                         continue;
                     }
                     usableTracks.Add(track);

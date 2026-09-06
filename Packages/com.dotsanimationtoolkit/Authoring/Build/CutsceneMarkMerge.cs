@@ -6,15 +6,10 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Folds a slot's move-to marks into its root lane (amendment A64, decision A64-D2): one Linear
-    /// key per mark, at the instant the rehearsed walk arrives.
+    /// Folds a slot's move-to marks into its root lane: one Linear key per mark, at the instant the
+    /// rehearsed walk arrives. Shared by <see cref="CutsceneBlobBuilder"/> and the editor preview so
+    /// both agree on where an actor stands after every mark.
     /// </summary>
-    /// <remarks>
-    /// Shared by <see cref="CutsceneBlobBuilder"/> and the editor preview on purpose. The merged key
-    /// is what makes the editor show the walk and what gives A62's boundary pass the arrival pose to
-    /// bake at a rendezvous hold; if only one of the two merged, preview and playback would disagree
-    /// about where an actor stands after every mark.
-    /// </remarks>
     internal static class CutsceneMarkMerge
     {
         /// <summary>When the rehearsed walk to <paramref name="mark"/> arrives, in raw timeline seconds.</summary>
@@ -48,7 +43,7 @@ namespace DotsAnimationToolkit.Authoring
                 CutsceneMarkKey mark = slot.markKeys[markIndex];
                 float arrivalTime = ArrivalTime(mark);
 
-                // Scale is sampled from the AUTHORED lane, never from the partly-merged list: a
+                // Scale is sampled from the authored lane, never from the partly-merged list: a
                 // merged key must not depend on which other mark happened to be folded in first.
                 float3 sampledPosition;
                 float3 sampledRotation;

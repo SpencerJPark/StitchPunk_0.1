@@ -6,16 +6,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// A rig-agnostic collection of motion (Phase F §2): clips plus the optional VAT texture set
-    /// they were baked into. An actor names a rig and one or more sets; which dense target a track
-    /// drives is resolved at bake against <em>that actor's</em> rig, never against anything stored
-    /// here.
+    /// A rig-agnostic collection of motion: clips plus the optional VAT texture set they were baked
+    /// into. A set pins no rig — one set plays on any rig whose tags partially align, with the
+    /// dense target a track drives resolved at bake against the actor's own rig.
     /// </summary>
-    /// <remarks>
-    /// A set no longer pins a rig. One rig takes several sets, and one set plays on any rig whose
-    /// tags partially align — only the aligning tracks animate, the rest skip with a warning
-    /// (rules T2 and T6).
-    /// </remarks>
     [CreateAssetMenu(
         fileName = "NewClipSet",
         menuName = "DOTS Animation Toolkit/Clip Set Asset",
@@ -26,26 +20,15 @@ namespace DotsAnimationToolkit.Authoring
 
         // A set names no rig at all — not even an editor-only "last opened against". The Clip
         // Editor holds its own rig as window state, so swapping the open set never swaps the rig
-        // and vice versa (owner directive 2026-08-28). Pairing happens in exactly one place:
-        // ActorAuthoring, which states a rig and the sets played on it.
+        // and vice versa. Pairing happens in exactly one place: ActorAuthoring.
 
-        /// <summary>
-        /// The clips this set registers. Duplicate entries are a warning (validation rule V11) and
-        /// are deduplicated at bake; two distinct clips sharing an id are an error (validation
-        /// rule V05).
-        /// </summary>
+        [Tooltip("Clips this set registers. Duplicates are deduplicated at bake; two distinct clips sharing an id fail validation.")]
         public List<ClipAsset> clips = new List<ClipAsset>();
 
-        /// <summary>
-        /// The baked VAT texture set. Required as soon as any clip in the set carries a
-        /// <see cref="VatClipSource"/> (validation rule V07); null otherwise.
-        /// </summary>
+        [Tooltip("Baked VAT texture set. Required as soon as any clip in the set carries a VAT source.")]
         public VatTextureSetAsset vatTextures;
 
-        /// <summary>
-        /// This set's stable 64-bit identity (architecture section 3.4), folded with the actor's rig
-        /// and its sibling sets into the baked <see cref="ClipRegistryBlob.setKey"/> bind key.
-        /// </summary>
+        /// <summary>This set's stable 64-bit identity, folded with the actor's rig and its sibling sets into the baked bind key.</summary>
         public ulong StableId
         {
             get { return stableId; }
@@ -87,7 +70,7 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // Not serialized: this describes an in-memory condition for the current session, and a
-        // persisted "needs persisting" flag would contradict itself (amendment A14).
+        // persisted "needs persisting" flag would contradict itself.
         [System.NonSerialized] private bool hasUnpersistedStableId;
 
         /// <inheritdoc />

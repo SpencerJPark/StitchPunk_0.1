@@ -11,33 +11,13 @@ namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// Turns a <see cref="CutsceneAsset"/> into the single <see cref="CutsceneBlob"/> the runtime
-    /// player reads (Phase G §5), beside <see cref="ClipRegistryBuilder"/>. Splits the authored
-    /// timeline into segments at hold points and validates clip/tag references the same
-    /// lenient-warn way rules T2/T6 already do for clips (spec §5, decision G-D8 below).
+    /// player reads. Splits the authored timeline into segments at hold points and validates
+    /// clip/tag references the same lenient-warn way clip validation does.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>A clip block is assigned to exactly one segment and never clipped across a hold
-    /// (decision G-D8).</strong> The segment split exists to make elastic time containable for
-    /// lookups (spec §5, §9), not to describe playback itself: once the player issues a block's
-    /// Play/Queue command at its start time, the clip keeps running through the existing
-    /// <c>PlaybackLayer</c>/<c>ClipSampler</c> machinery exactly as any other clip does, whether or
-    /// not a hold happens to land inside its span. Clipping a looping block at every segment
-    /// boundary and re-describing the remainder would restart its loop phase at each hold release —
-    /// exactly the "pop back to frame 0" spec §2 rules out with "looping clips keep cycling." Every
-    /// other lane item (a key, a cut marker, an event) is a single instant and carries no such
-    /// concern, so all of them — blocks included — are assigned to the one segment window
-    /// containing their own defining time, by the same half-open-interval rule
-    /// <see cref="AssignToSegment"/> applies uniformly.
-    /// </para>
-    /// <para>
-    /// <strong>No BlobAssetStore dedup, unlike <see cref="ClipRegistryBuilder"/>.</strong> That
-    /// type dedups because many actors can share one (rig, clip-sets) bind; a cutscene has no such
-    /// multi-instance fan-out — one <see cref="CutsceneAsset"/> bakes to one blob, and a caller
-    /// wanting to reuse it across concurrent plays of the same cutscene can cache the reference
-    /// itself (G6's concern, not this builder's).
-    /// </para>
-    /// </remarks>
+    // A clip block is assigned to exactly one segment and never clipped across a hold: once the
+    // player issues a block's Play/Queue command, the clip keeps running through the existing
+    // PlaybackLayer/ClipSampler machinery regardless of whether a hold lands inside its span.
+    // Clipping a looping block at a boundary would restart its loop phase at each hold release.
     public static class CutsceneBlobBuilder
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
@@ -51,9 +31,8 @@ namespace DotsAnimationToolkit.Authoring
         /// <param name="cutscene">The source asset. Must not be null.</param>
         /// <param name="blob">The built blob, allocated with <see cref="Allocator.Persistent"/>. Ownership passes to the caller.</param>
         /// <param name="validationWarnings">
-        /// Appended with one message per unresolved clip id or tag id found while baking (rules
-        /// T2/T6's lenient philosophy — reported, never a thrown error). Pass a fresh list to
-        /// collect them, or null to discard.
+        /// Appended with one message per unresolved clip id or tag id found while baking — reported,
+        /// never a thrown error. Pass a fresh list to collect them, or null to discard.
         /// </param>
         public static void Build(
             CutsceneAsset cutscene,
@@ -67,9 +46,8 @@ namespace DotsAnimationToolkit.Authoring
 
             List<string> warnings = validationWarnings ?? new List<string>();
 
-            // Marks fold into the root lane BEFORE anything else looks at it (decision A64-D2), so
-            // the boundary pass, the content end and the bucketing all see the same lane the editor
-            // preview walks.
+            // Marks fold into the root lane before anything else looks at it, so the boundary pass,
+            // the content end and the bucketing all see the same lane the editor preview walks.
             List<CutsceneTransformKey>[] effectiveRootKeysBySlot = BuildEffectiveRootKeysBySlot(cutscene);
             List<SegmentBoundary> boundaries = ComputeSegmentBoundaries(cutscene, effectiveRootKeysBySlot, warnings);
             WarnOnMarksWalkingThroughARendezvousHold(cutscene, warnings);
@@ -106,7 +84,7 @@ namespace DotsAnimationToolkit.Authoring
             public float time;
             public string holdId;
 
-            /// <summary>Whether the hold at this boundary is a rendezvous (amendment A64 §3.2). Meaningless on boundary 0 and on the final end-of-content boundary, neither of which is a hold.</summary>
+            /// <summary>Whether the hold at this boundary is a rendezvous. Meaningless on boundary 0 and the final end-of-content boundary, neither of which is a hold.</summary>
             public bool autoReleaseWhenMarksReached;
         }
 
@@ -122,8 +100,8 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Reports a mark whose rehearsed walk straddles a rendezvous hold (§3.2): in the editor the
-        /// hold would release mid-walk, because rehearsal arrival IS timeline time. Not fatal — the
+        /// Reports a mark whose rehearsed walk straddles a rendezvous hold: in the editor the hold
+        /// would release mid-walk, because rehearsal arrival is timeline time. Not fatal — the
         /// runtime, where arrival is a real distance test, plays it correctly either way.
         /// </summary>
         private static void WarnOnMarksWalkingThroughARendezvousHold(CutsceneAsset cutscene, List<string> warnings)
@@ -207,15 +185,9 @@ namespace DotsAnimationToolkit.Authoring
             return boundaries;
         }
 
-        /// <summary>
-        /// Adds one boundary per holding event (amendment A65 3.1). A derived hold never
-        /// auto-releases: marks resolve a rendezvous, a cue is resolved by whoever the cue started.
-        /// </summary>
-        /// <remarks>
-        /// Two holding events at one instant share a boundary and both fire; an authored hold at
-        /// that instant keeps its own id and the event pauses on that, because a host waiting on the
-        /// authored name would otherwise never see the hold it was told about.
-        /// </remarks>
+        // Adds one boundary per holding event. A derived hold never auto-releases: marks resolve a
+        // rendezvous, a cue is resolved by whoever the cue started. Two holding events at one
+        // instant share a boundary and both fire; an authored hold at that instant keeps its own id.
         private static void AddDerivedHoldBoundaries(
             CutsceneAsset cutscene, List<SegmentBoundary> holdBoundaries, List<string> warnings)
         {
@@ -388,10 +360,9 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <param name="inclusiveEnd">
-        /// Assigns a moment sitting exactly on a boundary to the segment that <em>ends</em> there
-        /// rather than the one that starts (amendment A65 3.1). Used only by a holding event, which
-        /// must fire on the frame its own hold engages - the host sees the cue, starts its thing,
-        /// and the clock is already waiting for the release.
+        /// Assigns a moment sitting exactly on a boundary to the segment that ends there rather than
+        /// the one that starts. Used only by a holding event, which must fire on the frame its own
+        /// hold engages — the host sees the cue, starts its thing, and the clock already waits.
         /// </param>
         private static int AssignToSegment(
             List<SegmentBoundary> boundaries, float time, bool inclusiveEnd, out float segmentStart)
@@ -613,8 +584,8 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Bucketing (decision G-D8: a clip block by its start time, everything else by its own
-        // instant — see class remarks for why a block is never clipped across a segment boundary).
+        // Bucketing: a clip block by its start time, everything else by its own instant — see the
+        // class comment for why a block is never clipped across a segment boundary.
         // -----------------------------------------------------------------------------------
 
         private static void BucketClipBlocks(
@@ -626,9 +597,9 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            // Sorted by start on the flat (pre-segment-split) lane, so each block's predecessor
-            // here is its true seam partner (amendment A62 defect 3) — never merely the previous
-            // entry in authoring order, and never reset at a segment boundary.
+            // Sorted by start on the flat (pre-segment-split) lane, so each block's predecessor here
+            // is its true seam partner — never merely the previous entry in authoring order, and
+            // never reset at a segment boundary.
             List<int> sortedIndices = new List<int>(slot.clipBlocks.Count);
             for (int i = 0; i < slot.clipBlocks.Count; i++)
             {
@@ -732,8 +703,8 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Buckets one slot's marks by the instant their order is issued (§3.2). The arrival key
-        /// they merge into the root lane is bucketed separately, by its own later time — the two
+        /// Buckets one slot's marks by the instant their order is issued. The arrival key they
+        /// merge into the root lane is bucketed separately, by its own later time — the two
         /// routinely land in different segments, which is exactly what a rendezvous hold is.
         /// </summary>
         private static void BucketMarkKeys(
@@ -821,8 +792,8 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>
         /// The dense target index <paramref name="tagId"/> resolves to on <paramref name="rig"/>, in
         /// the exact canonical (ascending stable id) order <c>ClipRegistryBuilder.BuildCanonicalTargets</c>
-        /// uses — see decision G-D9 on <see cref="CutscenePartTrackBlob.targetIndex"/> for why the two
-        /// must agree. Returns −1 when the tag is 0 or no target on the rig carries it.
+        /// uses — the two must agree, since the runtime carries no other way to cross-check them.
+        /// Returns −1 when the tag is 0 or no target on the rig carries it.
         /// </summary>
         private static int ResolveDenseTargetIndexForTag(RigAsset rig, uint tagId)
         {
@@ -914,9 +885,9 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Buckets one slot's attach lane (amendment A63 §3.2), resolving each Attach marker's host
-        /// slot id to a dense index once, here, the same way a part track's tag is resolved (G-D9) —
-        /// the runtime carries no slot-id map to look one up against.
+        /// Buckets one slot's attach lane, resolving each Attach marker's host slot id to a dense
+        /// index once, here, the same way a part track's tag is resolved — the runtime carries no
+        /// slot-id map to look one up against.
         /// </summary>
         private static void BucketAttachMarkers(
             CutsceneAsset cutscene, CutsceneSlot slot, List<SegmentBoundary> boundaries,
@@ -983,8 +954,8 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>
         /// Reports a slot that resolves a facing its rig cannot show — see
         /// <see cref="CutsceneDirectionVariants.DescribeFacingRigProblem"/> for the two ways that
-        /// happens. Both are silent otherwise: everything downstream works and the actor does not
-        /// turn, which cost an owner checkpoint on 2026-09-06.
+        /// happens. Both are silent otherwise: everything downstream works and the actor just
+        /// doesn't turn.
         /// </summary>
         private static void WarnOnFacingWithNothingToMirror(CutsceneSlot slot, List<string> warnings)
         {
@@ -1050,11 +1021,11 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Boundary continuity (amendment A62 defect 1, decision A62-D1): a per-segment array walk
-        // never reaches across a hold, so every keyed lane still playing across one needs its value
-        // at the boundary baked into both the segment that ends there and the one that starts —
-        // otherwise the ending segment holds its last authored key's stale value for the rest of its
-        // own duration, and the starting segment has nothing until its own first authored key.
+        // Boundary continuity: a per-segment array walk never reaches across a hold, so every keyed
+        // lane still playing across one needs its value at the boundary baked into both the segment
+        // that ends there and the one that starts — otherwise the ending segment holds its last
+        // authored key's stale value for the rest of its duration, and the starting segment has
+        // nothing until its own first authored key.
         // -----------------------------------------------------------------------------------
 
         private static void InsertBoundaryContinuityKeys(
@@ -1160,11 +1131,10 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Facing continuity across one boundary (§3.2): unlike a transform/camera lane, a facing
-        /// lane has no interpolated "current value" to hold — only the last override key at or
-        /// before the playhead matters (<c>CutsceneKeySampler.TryResolveFacingAngle</c>'s own rule).
-        /// So only the starting segment needs anything, and only when the override that was active
-        /// going into the hold would otherwise vanish from the segment that resumes after it.
+        /// Facing continuity across one boundary: unlike a transform/camera lane, a facing lane has
+        /// no interpolated "current value" to hold — only the last override key at or before the
+        /// playhead matters. So only the starting segment needs anything, and only when the override
+        /// active going into the hold would otherwise vanish from the segment that resumes after it.
         /// </summary>
         private static void InsertFacingContinuity(
             List<CutsceneFacingKey> flatKeys, float boundaryTime, List<CutsceneFacingKeyBlob> startingSegmentKeys)
@@ -1196,7 +1166,7 @@ namespace DotsAnimationToolkit.Authoring
             });
         }
 
-        /// <summary>Camera-lane counterpart of <see cref="InsertTransformContinuity"/>, sampled cut-aware (decision G-D7 stays authoritative even at a hold).</summary>
+        /// <summary>Camera-lane counterpart of <see cref="InsertTransformContinuity"/>, sampled cut-aware — a cut stays authoritative even at a hold.</summary>
         private static void InsertCameraContinuity(
             CutsceneCameraLane cameraLane, float boundaryTime, float endingSegmentDuration,
             List<CutsceneCameraKeyBlob> endingSegmentKeys, List<CutsceneCameraKeyBlob> startingSegmentKeys)

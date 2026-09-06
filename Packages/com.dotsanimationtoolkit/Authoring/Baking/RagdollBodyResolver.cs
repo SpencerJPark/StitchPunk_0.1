@@ -8,9 +8,7 @@ namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
     /// One ragdoll body matched to the transform it is welded to, plus the rest-hierarchy facts
-    /// <see cref="ActorBaker"/> needs to finish a <see cref="RagdollBodyParams"/> (Phase D,
-    /// amendment A50): which other resolved body is its implied parent, and the joint geometry
-    /// measured between the two at rest.
+    /// <see cref="ActorBaker"/> needs to finish a <see cref="RagdollBodyParams"/>.
     /// </summary>
     internal struct ResolvedRagdollBody
     {
@@ -35,50 +33,19 @@ namespace DotsAnimationToolkit.Authoring
 
     /// <summary>
     /// Matches a rig's authored ragdoll bodies to the transforms of an actor's prefab hierarchy, and
-    /// answers each body's implied parent and rest-pose joint geometry (Phase D, amendment A50).
+    /// answers each body's implied parent and rest-pose joint geometry.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Built the same way as <see cref="BillboardRootResolver"/>, on purpose.</strong>
-    /// Nearest-ancestor parenting and depth ordering are the same ordinary tree questions billboard
-    /// inheritance already answers, so this follows that file's shape closely enough that a reader
-    /// of one recognises the other: a resolve pass an EditMode fixture can exercise with a handful
-    /// of <c>GameObject</c>s, kept out of <see cref="ActorBaker"/> so the interesting part is not
-    /// tangled up with baking.
-    /// </para>
-    /// <para>
-    /// <strong>A <see cref="RigNodeAddressKind.Bone"/> address is never resolved here.</strong> This
-    /// is not a defect this resolver works around — it is spec §5's D1 finding stated in code: a VAT
-    /// actor's runtime prefab carries no bone <c>GameObject</c>s at all (the skeleton the VAT bake
-    /// sampled lived on a separate source rig, and <c>rigged-characters.md</c> is explicit that the
-    /// baked actor has "no GameObject bone hierarchy"). A skinned-bone ragdoll body is legal
-    /// authoring data — it is what makes editor preview complete for a rigged character — but it can
-    /// never name a transform under <paramref name="actorRoot"/>, so <see cref="Resolve"/> routes it
-    /// to <paramref name="boneOnlyBodies"/> rather than treating it as the same kind of failure a
-    /// broken <see cref="RigNodeAddressKind.RigTarget"/> or <see cref="RigNodeAddressKind.HierarchyPath"/>
-    /// address is. Reported, never silently dropped, but reported as the documented limitation it
-    /// is rather than as an authoring mistake — see <see cref="ActorBaker"/>'s caller for the exact
-    /// wording.
-    /// </para>
-    /// </remarks>
     internal static class RagdollBodyResolver
     {
-        /// <summary>
-        /// Matches every ragdoll body the rig declares to a transform under
-        /// <paramref name="actorRoot"/>, sorted shallowest first, with each body's implied parent and
-        /// rest-pose joint geometry filled in.
-        /// </summary>
-        /// <param name="rig">The rig whose bodies are being resolved. Null yields nothing.</param>
-        /// <param name="actorRoot">The actor's transform; addresses are relative to it.</param>
         /// <param name="unresolvedBodies">
-        /// Receives a description of every <see cref="RigNodeAddressKind.RigTarget"/> or
-        /// <see cref="RigNodeAddressKind.HierarchyPath"/> body whose address matched no transform —
-        /// a genuine authoring mistake (rule V-R1/V26's runtime half).
+        /// Receives every RigTarget- or HierarchyPath-addressed body whose address matched no
+        /// transform — a genuine authoring mistake.
         /// </param>
         /// <param name="boneOnlyBodies">
-        /// Receives a description of every <see cref="RigNodeAddressKind.Bone"/> body — legal
-        /// authoring data that never resolves against a VAT actor's runtime prefab (see the type
-        /// remarks).
+        /// Receives every Bone-addressed body. Legal authoring data, but a skinned-bone ragdoll body
+        /// never resolves against a VAT actor's runtime prefab — it has no bone GameObject hierarchy
+        /// at all — so it is reported here rather than treated as the same fault as an unresolved
+        /// RigTarget or HierarchyPath address.
         /// </param>
         /// <returns>The matched, runtime-simulatable bodies, shallowest first.</returns>
         public static List<ResolvedRagdollBody> Resolve(
@@ -158,17 +125,9 @@ namespace DotsAnimationToolkit.Authoring
         // measured against it.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Fills every resolved body's <c>parentBodyIndex</c>, <c>restRelativeRotation</c> and
-        /// <c>parentAnchorOffset</c> in place.
-        /// </summary>
-        /// <remarks>
-        /// Safe to search only among bodies already placed at a lower list index than the one being
-        /// resolved: <paramref name="resolvedBodies"/> is depth-sorted first, two bodies at the same
-        /// depth cannot be ancestors of one another (the same invariant
-        /// <see cref="BillboardRootResolver"/> relies on), and a body's parent — being strictly
-        /// shallower — has therefore always already been placed.
-        /// </remarks>
+        // Safe to search only among bodies already placed at a lower list index: resolvedBodies is
+        // depth-sorted first, so a body's parent — being strictly shallower — has always already
+        // been placed by the time this reaches it.
         private static void ResolveParentage(List<ResolvedRagdollBody> resolvedBodies, Transform actorRoot)
         {
             for (int bodyIndex = 0; bodyIndex < resolvedBodies.Count; bodyIndex++)
@@ -193,12 +152,8 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// The index, into <paramref name="resolvedBodies"/>, of the nearest ragdolled ancestor of
-        /// <paramref name="node"/> — strictly above it, unlike
-        /// <see cref="BillboardRootResolver.FindNearestRootIndex"/>'s inclusive walk, because a body
-        /// cannot be its own parent.
-        /// </summary>
+        // Strictly above the node, unlike BillboardRootResolver's inclusive walk — a body cannot be
+        // its own parent.
         private static int FindNearestAncestorBodyIndex(
             List<ResolvedRagdollBody> resolvedBodies, Transform node, Transform actorRoot)
         {
@@ -223,17 +178,10 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// The child's rest orientation relative to its parent, and the joint anchor as an offset
-        /// from the parent's rest centre of mass in the parent's own rest-local axes (D2's finding —
-        /// see <see cref="RagdollBodyParams.parentAnchorOffset"/>'s remarks for why the field exists
-        /// and why the child needs no matching offset of its own: a joint authored by hierarchy
-        /// places the child node <em>at</em> the joint).
+        /// from the parent's rest centre of mass in the parent's own rest-local axes.
         /// </summary>
-        /// <remarks>
-        /// Computed in the actor's own local space — position and rotation composed from each
-        /// node's local transform up to <paramref name="actorRoot"/> — never in scene-world space,
-        /// for the same reason <see cref="ActorBaker"/>'s own rest-bounds walk does the same: the
-        /// result must not change when the same prefab is placed somewhere else in the scene.
-        /// </remarks>
+        // Computed in the actor's own local space, never scene-world space, so the result does not
+        // change when the same prefab is placed elsewhere in the scene.
         private static void ComputeRestRelation(
             Transform childNode,
             Transform parentNode,
@@ -248,16 +196,13 @@ namespace DotsAnimationToolkit.Authoring
             quaternion inverseParentRotation = math.inverse(parentRotation);
             restRelativeRotation = math.mul(inverseParentRotation, childRotation);
 
-            // The parent's own centre of mass sits at its box centre, not at its node origin (the
-            // same "the body is the box" convention RagdollBodyParams' remarks establish) — the
-            // joint itself sits at the child node's origin, since the child was authored to be
-            // exactly where the joint is.
+            // The parent's centre of mass sits at its box centre, not its node origin; the joint
+            // itself sits at the child node's origin, since the child was authored to be there.
             float3 parentCenterOfMass = parentPosition + math.mul(parentRotation, parentBoxCenter);
             float3 jointOffsetFromParentCenter = childPosition - parentCenterOfMass;
             parentAnchorOffset = math.mul(inverseParentRotation, jointOffsetFromParentCenter);
         }
 
-        /// <summary>Composes a node's local transforms up to <paramref name="actorRoot"/> into an actor-space position and rotation.</summary>
         private static void ComputeActorSpaceRestPose(
             Transform node, Transform actorRoot, out float3 position, out quaternion rotation)
         {
@@ -283,10 +228,8 @@ namespace DotsAnimationToolkit.Authoring
                 new float3(localScale.x, localScale.y, localScale.z));
         }
 
-        /// <summary>
-        /// Extracts a pure rotation from a composed matrix that may carry non-uniform scale, by
-        /// orthonormalising its basis columns rather than assuming the matrix already is one.
-        /// </summary>
+        // Orthonormalises the composed matrix's basis columns rather than assuming it already is
+        // one, since the matrix may carry non-uniform scale.
         private static quaternion ExtractRotation(float4x4 matrix)
         {
             float3 columnX = math.normalizesafe(matrix.c0.xyz, new float3(1f, 0f, 0f));
@@ -311,11 +254,8 @@ namespace DotsAnimationToolkit.Authoring
             return depth;
         }
 
-        /// <summary>
-        /// Insertion sort by depth, ascending and stable — <see cref="List{T}.Sort"/> is introsort
-        /// and not stable, and the bake must be reproducible byte for byte (architecture section
-        /// 4.5). A rig has a handful of bodies, so the quadratic worst case is irrelevant.
-        /// </summary>
+        // Insertion sort, not List.Sort (introsort, not stable): stability keeps same-depth bodies
+        // in authoring order, which the bake must reproduce byte for byte.
         private static void SortByDepth(List<ResolvedRagdollBody> resolvedBodies)
         {
             for (int index = 1; index < resolvedBodies.Count; index++)

@@ -10,27 +10,16 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Bakes an <see cref="ActorAuthoring"/> into the actor-root archetype of architecture
-    /// section 5.2: the shared registry blob, the seeded playback layers, the command and event
-    /// channels, the binding/visibility/bounds enableables, and the actor-space
-    /// <see cref="ActorRestBounds"/>.
+    /// Bakes an <see cref="ActorAuthoring"/> into the actor-root archetype: the shared registry
+    /// blob, the seeded playback layers, the command and event channels, the
+    /// binding/visibility/bounds enableables, and the actor-space <see cref="ActorRestBounds"/>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The registry blob is built <em>here</em> rather than in a baking system (architecture
-    /// section 4.1's explicit decision): it is a pure function of ScriptableObject data with no
-    /// cross-entity input, and <c>DependsOn</c> plus <c>AddBlobAssetWithCustomHash</c> buy
-    /// incremental-rebake correctness and store-level deduplication for free. The store owns the
-    /// blob from the moment it is handed over — nothing in this package disposes a registry blob by
-    /// hand.
-    /// </para>
-    /// <para>
-    /// Cross-entity work stays out of this baker on purpose. A baker may only write components on
-    /// the entity it is baking, so the parts' dense indices, the <see cref="RigPartRef"/> buffer and
-    /// each part's <c>actorRoot</c> are completed by <see cref="RigBindingBakingSystem"/> in
-    /// <c>PostBakingSystemGroup</c>.
-    /// </para>
-    /// </remarks>
+    // The registry blob is built here, not in a baking system: it is a pure function of
+    // ScriptableObject data with no cross-entity input, so DependsOn plus
+    // AddBlobAssetWithCustomHash buy incremental-rebake correctness and store dedup for free.
+    // Cross-entity work stays out of this baker on purpose — a baker may only write components on
+    // the entity it is baking, so the parts' dense indices, the RigPartRef buffer and each part's
+    // actorRoot are completed by RigBindingBakingSystem in PostBakingSystemGroup instead.
     public sealed class ActorBaker : Baker<ActorAuthoring>
     {
         private const string MessagePrefix = "[DOTS Animation Toolkit] ";
@@ -90,10 +79,8 @@ namespace DotsAnimationToolkit.Authoring
 
             AddBuffer<RigPartRef>(actorEntity);
 
-            // Baked enabled: an ECB-instantiated copy starts enabled so that RigBindingSystem will
-            // rebind it once C4 adds that system (section 5.3); a first-frame bounds write is
-            // guaranteed (section 5.8); and everything animates until some provider says otherwise
-            // (section 5.9).
+            // Baked enabled: an ECB-instantiated copy starts enabled so RigBindingSystem rebinds it,
+            // a first-frame bounds write is guaranteed, and everything animates until some provider says otherwise.
             AddComponent<RigBindingUninitialized>(actorEntity);
             AddComponent<AnimVisible>(actorEntity);
             AddComponent<BoundsDirty>(actorEntity);
@@ -110,7 +97,7 @@ namespace DotsAnimationToolkit.Authoring
             AddComponent(actorEntity, BuildVatTextureBinding(vatTextures));
 
             // Unconditional, unlike AnimLod below: nothing queries on it, so a conditional add
-            // would split the root archetype in two to save four bytes (amendment A34).
+            // would split the root archetype in two to save four bytes.
             AddComponent(actorEntity, new AnimSampleState { sampledClipSignature = 0 });
 
             if (authoring.addDistanceLod)
@@ -123,34 +110,18 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Billboarding (amendment A44).
+        // Billboarding.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Resolves the rig's billboard roots against this actor's hierarchy and bakes them into the
-        /// actor's <see cref="BillboardRootElement"/> buffer, shallowest first.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>All of an actor's billboard state is baked here, on this one entity.</strong> A
-        /// billboard root may be any node of the prefab, including a bare grouping transform that
-        /// carries no authoring component and so has no baker of its own. A baker may only write the
-        /// entity it is baking, so collecting the roots into a buffer on the actor is what lets one
-        /// baker resolve the whole hierarchy without a cross-entity structural change.
-        /// </para>
-        /// <para>
-        /// <c>GetEntity</c> with <see cref="TransformUsageFlags.Dynamic"/> on each root node is not
-        /// incidental: it is what guarantees a bare grouping node survives baking as a real
-        /// transform entity rather than being stripped for having nothing to render.
-        /// </para>
-        /// <para>
-        /// <strong><c>ActorAuthoring.billboardMode</c> is sugar for one root on the actor
-        /// itself</strong> (A41's whole-actor billboard, kept working). It is folded in only when the
-        /// rig does not already declare a root for the actor root, so an explicit rig row always
-        /// wins over the checkbox — the rig is the shared, authoritative place and the component is
-        /// the convenience.
-        /// </para>
-        /// </remarks>
+        // All of an actor's billboard state is baked here, on this one entity: a billboard root may
+        // be any node of the prefab, including a bare grouping transform with no baker of its own,
+        // and a baker may only write the entity it is baking — so collecting roots into a buffer on
+        // the actor is what lets one baker resolve the whole hierarchy without a cross-entity change.
+        // GetEntity(..., Dynamic) on each root node is what guarantees a bare grouping node survives
+        // baking as a real transform entity rather than being stripped. ActorAuthoring.billboardMode
+        // is sugar for one root on the actor itself, folded in only when the rig does not already
+        // declare a root there, so an explicit rig row always wins over the checkbox.
+        /// <summary>Resolves the rig's billboard roots against this actor's hierarchy and bakes them into the actor's <see cref="BillboardRootElement"/> buffer, shallowest first.</summary>
         private void AddBillboardRoots(Entity actorEntity, ActorAuthoring authoring, RigAsset rig)
         {
             List<string> unresolvedRoots = new List<string>();
@@ -159,9 +130,8 @@ namespace DotsAnimationToolkit.Authoring
 
             for (int messageIndex = 0; messageIndex < unresolvedRoots.Count; messageIndex++)
             {
-                // Validation rule V21's path half. ClipValidation resolves target addresses against
-                // the rig; only here is the prefab in hand, and only managed code can hand the user
-                // a clickable object.
+                // V21's path half: only here is the prefab in hand, and only managed code can hand
+                // the user a clickable object.
                 Debug.LogError(
                     MessagePrefix + "Billboard root " + unresolvedRoots[messageIndex] +
                     " on rig '" + rig.name + "' matches no node under actor '" + authoring.name +
@@ -229,16 +199,9 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// Converts one authored billboard root into the runtime parameter block.
-        /// </summary>
-        /// <remarks>
-        /// Degrees become radians and the two opt-in booleans become sentinels, both once at bake:
-        /// degrees are what an author types and radians are what trigonometry consumes, and a
-        /// sentinel is one field rather than two to carry per actor per frame. The clamp arc is
-        /// halved here for the same reason — every use of it is symmetric about the rest
-        /// orientation.
-        /// </remarks>
+        // Degrees become radians and the two opt-in booleans become sentinels, both once at bake, so
+        // nothing per actor per frame carries an extra field. The clamp arc is halved here since
+        // every use of it is symmetric about the rest orientation.
         private static BillboardSettings BuildBillboardSettings(BillboardRootDefinition definition)
         {
             return new BillboardSettings
@@ -258,32 +221,21 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Ragdoll bodies (Phase D, amendment A50).
+        // Ragdoll bodies.
         // -----------------------------------------------------------------------------------
 
+        // Structured the same way as AddBillboardRoots, for the same reason: a ragdoll body can be
+        // any node of the prefab, including a bare grouping transform with no baker of its own.
+        // Opt-in twice over: a rig with no ragdollBodies bakes nothing, and so does a rig whose
+        // bodies exist but never resolve to a runtime node — either way there is nothing to
+        // simulate, and archetype-splitting every actor for a component with zero elements is what
+        // the opt-in components elsewhere in this package already refuse to do.
         /// <summary>
         /// Resolves the rig's ragdoll bodies against this actor's hierarchy and bakes them into the
         /// actor's <see cref="RagdollBody"/>/<see cref="RagdollRestPose"/> buffers, plus the
         /// <see cref="RagdollActor"/> toggle, <see cref="RagdollState"/> and
         /// <see cref="RagdollWorldContact"/> buffer every ragdoll needs alongside them.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Structured the same way as <see cref="AddBillboardRoots"/>, for the same reason: a
-        /// ragdoll body can be any node of the prefab, including a bare grouping transform with no
-        /// baker of its own, so collecting the resolved bodies into buffers on the actor is what
-        /// lets one baker finish the hierarchy walk without a cross-entity structural change.
-        /// </para>
-        /// <para>
-        /// <strong>Opt-in twice over.</strong> A rig with no <c>ragdollBodies</c> at all bakes
-        /// nothing (spec §3.1's free-by-default contract, identical to <c>billboardRoots</c>). So
-        /// does a rig whose bodies exist but never resolve to a runtime node — every address is
-        /// broken, or every body addresses a skinned bone, or both. Either way there is nothing this
-        /// actor can simulate, and archetype-splitting every actor in the project for a component
-        /// that would carry zero elements is exactly what the opt-in components elsewhere in this
-        /// package (<c>AnimLod</c>, the socket registry) already refuse to do.
-        /// </para>
-        /// </remarks>
         private void AddRagdollBodies(Entity actorEntity, ActorAuthoring authoring, RigAsset rig)
         {
             List<string> unresolvedBodies = new List<string>();
@@ -293,10 +245,9 @@ namespace DotsAnimationToolkit.Authoring
 
             for (int messageIndex = 0; messageIndex < unresolvedBodies.Count; messageIndex++)
             {
-                // Validation rule V26's runtime half, the ragdoll counterpart to V21's billboard
-                // half above: ClipValidation resolves target addresses against the rig; only here,
-                // with the prefab in hand, can a path or a target that matches nothing be reported
-                // against a clickable object.
+                // V26's runtime half, the ragdoll counterpart to V21's billboard half above: only
+                // here, with the prefab in hand, can an unresolved address be reported against a
+                // clickable object.
                 Debug.LogError(
                     MessagePrefix + "Ragdoll body " + unresolvedBodies[messageIndex] +
                     " on rig '" + rig.name + "' matches no node under actor '" + authoring.name +
@@ -307,13 +258,11 @@ namespace DotsAnimationToolkit.Authoring
 
             if (boneOnlyBodies.Count > 0)
             {
-                // Not an error and not a warning: this is spec §5's D1 finding working as designed,
-                // not a mistake to fix. A skinned bone has no GameObject under a VAT actor's runtime
-                // prefab at all (rigged-characters.md: "No GameObject bone hierarchy"), so these
-                // bodies author and editor-preview completely but never gain a runtime node to
-                // simulate. Logged rather than silently dropped so the gap is never a surprise, at
-                // the informational tier so a rig deliberately mixing guiding-part and skinned-bone
-                // bodies does not read as broken.
+                // Not an error and not a warning: a skinned bone has no GameObject under a VAT
+                // actor's runtime prefab at all, so these bodies author and editor-preview
+                // completely but never gain a runtime node to simulate. Logged at the informational
+                // tier so a rig deliberately mixing guiding-part and skinned-bone bodies does not
+                // read as broken.
                 StringBuilder boneListBuilder = new StringBuilder();
                 for (int boneIndex = 0; boneIndex < boneOnlyBodies.Count; boneIndex++)
                 {
@@ -358,9 +307,7 @@ namespace DotsAnimationToolkit.Authoring
                     state = default
                 });
 
-                // Identity, never read until RagdollCaptureSystem writes a real value into this
-                // slot — see RagdollRestPose's remarks on why the buffer is baked at full length
-                // rather than added to at capture time.
+                // Identity, never read until RagdollCaptureSystem writes a real value into this slot.
                 restPoseElements.Add(new RagdollRestPose
                 {
                     localTransform = LocalTransform.Identity,
@@ -372,9 +319,7 @@ namespace DotsAnimationToolkit.Authoring
             {
                 frameRotation = quaternion.identity,
                 planeNormal = new float3(0f, 0f, 1f),
-                // Never read until RagdollCaptureSystem seeds a real value on the first switch-on
-                // (see RagdollState.planeOrigin's remarks — a D4 finding, not part of this table
-                // when D3 shipped).
+                // Never read until RagdollCaptureSystem seeds a real value on the first switch-on.
                 planeOrigin = float3.zero,
                 substepAccumulator = 0f,
                 sleepTimer = 0f,
@@ -385,10 +330,8 @@ namespace DotsAnimationToolkit.Authoring
 
             AddBuffer<RagdollWorldContact>(actorEntity);
 
-            // D4 finding: RagdollRigSettings' rig-wide solver knobs (space, gravityScale,
-            // jointStiffness, jointDamping, solverIterations, substepHz) have nowhere else to land
-            // at runtime — see RagdollRigConfig's own remarks. Baked once, alongside every other
-            // ragdoll component, rather than re-read from RigAsset every step.
+            // RagdollRigSettings' rig-wide solver knobs have nowhere else to land at runtime, so
+            // they are baked once here rather than re-read from RigAsset every step.
             AddComponent(actorEntity, new RagdollRigConfig
             {
                 space = rigSettings.space,
@@ -400,14 +343,9 @@ namespace DotsAnimationToolkit.Authoring
             });
         }
 
-        /// <summary>
-        /// Reports rule V-R6/V31's runtime counterpart: more than one resolved body with no
-        /// ragdolled ancestor is a disconnected ragdoll (spec §4.1's D1 finding, made authoritative
-        /// here because this pass already walks the resolved hierarchy to compute
-        /// <c>parentBodyIndex</c> — counting how many come back −1 is free). A warning, not an
-        /// error: two disconnected articulations on one rig is odd but simulable, matching V-R6's
-        /// own severity.
-        /// </summary>
+        // Made authoritative here, not only at authoring time, because this pass already walks the
+        // resolved hierarchy to compute parentBodyIndex — counting how many come back -1 is free.
+        /// <summary>V31's runtime counterpart: more than one resolved body with no ragdolled ancestor is a disconnected ragdoll. A warning, since two articulations on one rig is odd but simulable.</summary>
         private static void WarnIfDisconnected(
             ActorAuthoring authoring, RigAsset rig, List<ResolvedRagdollBody> resolvedBodies)
         {
@@ -432,17 +370,9 @@ namespace DotsAnimationToolkit.Authoring
                 authoring);
         }
 
-        /// <summary>
-        /// Converts one resolved body into its baked, constant configuration.
-        /// </summary>
-        /// <remarks>
-        /// Degrees become radians, the box's full size becomes half-extents, mass and inertia are
-        /// inverted, and the −1 damping sentinels are resolved — all once, here, all through the
-        /// exact shared functions D6's preview builder is specified to call too
-        /// (<see cref="RagdollSolver.ComputeBoxInverseInertia"/>,
-        /// <see cref="RagdollSolver.ResolveDampingSentinel"/>), so neither side can drift from the
-        /// other by so much as a rounding rule.
-        /// </remarks>
+        // Degrees become radians, the box's full size becomes half-extents, mass and inertia are
+        // inverted, and the -1 damping sentinels are resolved — all through the same shared
+        // functions the editor preview builder calls too, so neither side can drift from the other.
         private static RagdollBodyParams BuildBodyParams(
             ResolvedRagdollBody resolvedBody, RagdollRigSettings rigSettings)
         {
@@ -491,25 +421,12 @@ namespace DotsAnimationToolkit.Authoring
             };
         }
 
-        /// <summary>
-        /// Records on the actor entity that this bake reported a failure and stopped, so
-        /// <see cref="RigBindingBakingSystem"/> knows the parts under it are unbound for a reason
-        /// that has already been printed (architecture section 4.1, amendment A22).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Every early return above must call this. The binding pass suppresses its per-part
-        /// complaint only when the tag is present, so an actor that loses its registry without one
-        /// is reported rather than passed over in silence — which is the whole point of making the
-        /// signal explicit instead of inferring it from "no registry".
-        /// </para>
-        /// <para>
-        /// <c>TransformUsageFlags.None</c> deliberately: this baker needs the entity to exist so it
-        /// can write the tag, and has no opinion left about how the actor should be transformed. A
-        /// failed actor with parts still gets <c>Dynamic</c> from <see cref="RigTargetBaker"/>,
-        /// which is the only remaining claim worth honouring.
-        /// </para>
-        /// </remarks>
+        // Every early return above must call this — the binding pass suppresses its per-part
+        // complaint only when the tag is present, so a registry loss without this tag would be
+        // silently unreported instead of already-explained.
+        // TransformUsageFlags.None deliberately: this baker only needs the entity to exist to write
+        // the tag and has no opinion on how the actor should be transformed.
+        /// <summary>Records on the actor entity that this bake reported a failure and stopped, so <see cref="RigBindingBakingSystem"/> knows why its parts are unbound.</summary>
         private void MarkBakeFailed()
         {
             AddComponent<ActorBakeFailed>(GetEntity(TransformUsageFlags.None));
@@ -538,7 +455,7 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// Registers a dependency on every clip and VAT texture the bound sets reach, and returns
-        /// the one texture set the bind addresses (rule V39 makes a second one an error).
+        /// the one texture set the bind addresses (a second one is an error).
         /// </summary>
         private VatTextureSetAsset DependsOnClipSetContents(List<ClipSetAsset> clipSets)
         {
@@ -594,24 +511,14 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Registry blob: the canonical probe / store-hit / build / register pattern (section 4.5).
+        // Registry blob: the canonical probe / store-hit / build / register pattern.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Adds the socket registry, when the rig declares sockets.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Absent by design on rigs without sockets, so <c>SocketResolveSystem</c>'s query excludes
-        /// them entirely rather than filtering them every frame — the same opt-in-component shape
-        /// the rest of the toolkit uses.
-        /// </para>
-        /// <para>
-        /// The blob is keyed on the rig and the texture set together. Socket motion is baked from
-        /// the textures' source, so a rebake that moves a hand must produce a different key or
-        /// every actor would keep the stale attachment path from the store.
-        /// </para>
-        /// </remarks>
+        // Absent by design on rigs without sockets, so SocketResolveSystem's query excludes them
+        // entirely rather than filtering every frame. Keyed on the rig and the texture set
+        // together: socket motion is baked from the textures' source, so a rebake that moves a hand
+        // must produce a different key or every actor keeps the stale attachment path from the store.
+        /// <summary>Adds the socket registry, when the rig declares sockets.</summary>
         private void AddSocketRegistry(Entity actorEntity, RigAsset rig, VatTextureSetAsset vatTextures)
         {
             if (!SocketRegistryBuilder.HasSockets(rig))
@@ -803,12 +710,9 @@ namespace DotsAnimationToolkit.Authoring
                 playbackLayer.time = 0f;
                 playbackLayer.speed = startingLayer.speed;
                 playbackLayer.loop = startingLayer.loop;
-                // Amendment A40: an explicitly seeded clip activates its layer, whatever the rig's
-                // `defaultActive` says. Gating this on the rig meant an actor could name a clip for
-                // a layer and have it silently never play — and there is no sensible authoring
-                // intent behind "start this layer with this clip, but stopped". `defaultActive`
-                // keeps its meaning for layers with no seeded clip, which is the case the warning
-                // below already flags.
+                // An explicitly seeded clip activates its layer, whatever the rig's defaultActive
+                // says — otherwise an actor could name a clip for a layer and have it silently
+                // never play. defaultActive keeps its meaning for layers with no seeded clip.
                 playbackLayer.flags |= PlaybackFlags.Active;
                 playbackLayers[startingLayer.layerIndex] = playbackLayer;
             }
@@ -846,23 +750,14 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         // -----------------------------------------------------------------------------------
-        // Actor-space rest bounds (section 4.6, amendment A13).
+        // Actor-space rest bounds.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Unions, in <strong>actor space</strong>, the box each bound part occupies at its rest
-        /// pose: the part's rest position relative to the actor root, inflated by the target's
-        /// authored half-extents scaled the same conservative way architecture section 4.6 scales
-        /// them for keys.
-        /// </summary>
-        /// <remarks>
-        /// This is the half of the bounds problem <c>ClipRegistryBuilder</c> structurally cannot
-        /// solve: <see cref="ClipBlob.offsetBounds"/> is offset space, centred on the origin, because
-        /// the builder sees only a <see cref="ClipSetAsset"/> graph and never the prefab that holds
-        /// the rest poses. This baker does see the prefab, so it measures the rest frame here and
-        /// section 5.8 combines the two at runtime. A rig whose parts sit far from the actor origin
-        /// gets a correct silhouette only because of this component.
-        /// </remarks>
+        // This is the half of the bounds problem ClipRegistryBuilder structurally cannot solve:
+        // its offset-space bounds are centred on the origin, because the builder sees only a
+        // ClipSetAsset graph and never the prefab holding the rest poses. This baker does see the
+        // prefab, so it measures the rest frame here and the runtime combines the two.
+        /// <summary>Unions, in actor space, the box each bound part occupies at its rest pose.</summary>
         private AABB ComputeActorRestBounds(
             ActorAuthoring authoring,
             BlobAssetReference<ClipRegistryBlob> registry)
@@ -870,13 +765,10 @@ namespace DotsAnimationToolkit.Authoring
             MinMaxAABB restBounds = MinMaxAABB.Empty;
             bool anyPartBounded = false;
 
-            // Inactive children are included, and that is deliberate even though nothing here says
-            // so: Baker.GetComponentsInChildren defaults to include-inactive, unlike the GameObject
-            // method of the same name, and takes no bool to say otherwise. The default is the
-            // behaviour this pass wants — RigBindingBakingSystem's queries carry
-            // IncludeDisabledEntities, so a part on a disabled GameObject is still bound and still
-            // animates, and leaving it out of the box would pop the actor the moment that part is
-            // re-enabled at runtime. The two passes have to agree about which parts exist.
+            // Inactive children included deliberately: Baker.GetComponentsInChildren defaults to
+            // include-inactive (unlike the GameObject method of the same name), which matches
+            // RigBindingBakingSystem's IncludeDisabledEntities queries — the two passes must agree
+            // on which parts exist, or the actor pops the moment a disabled part is re-enabled.
             RigTargetAuthoring[] parts = GetComponentsInChildren<RigTargetAuthoring>();
             for (int partIndex = 0; partIndex < parts.Length; partIndex++)
             {
@@ -885,9 +777,8 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     continue;
                 }
-                // Unknown targets are reported once, by RigTargetBaker, which can name the part and
-                // the rig that does not declare its id (amendment A22); this pass stays silent
-                // about them and simply leaves them out of the rest frame.
+                // Unknown targets are reported once, by RigTargetBaker; this pass stays silent and
+                // simply leaves them out of the rest frame.
                 if (!ClipRegistryApi.TryResolveTarget(
                         ref registry.Value,
                         new TargetId(part.targetStableId),
@@ -921,16 +812,9 @@ namespace DotsAnimationToolkit.Authoring
             return restBounds;
         }
 
-        /// <summary>
-        /// Accumulates the local transforms between a part and its actor root, taking a bake
-        /// dependency on every transform it multiplies so that moving any intermediate pivot
-        /// retriggers the bake.
-        /// </summary>
-        /// <remarks>
-        /// The chain is multiplied out rather than read from world matrices on purpose: the result
-        /// must not change when the same prefab is placed somewhere else in the scene, and a
-        /// world-space round trip would make the baked bounds depend on the actor's own placement.
-        /// </remarks>
+        // Multiplied out from local transforms rather than read from world matrices: the result
+        // must not change when the same prefab is placed elsewhere in the scene.
+        /// <summary>Accumulates the local transforms between a part and its actor root, taking a bake dependency on each one so moving any intermediate pivot retriggers the bake.</summary>
         /// <returns>False when the part is not under this actor, or is under a nested actor.</returns>
         private bool TryGetRestPoseInActorSpace(
             ActorAuthoring authoring,
@@ -992,30 +876,15 @@ namespace DotsAnimationToolkit.Authoring
         // Remaining root components.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Derives the actor's crowd-sampling phase (architecture section 5.6) so two actors baked
-        /// from the same prefab do not sample on the same frames. The baked value is the runtime
-        /// value today; <c>RigBindingSystem</c>, which build step C4 will add, is specified to
-        /// re-derive it per instance at spawn.
-        /// </summary>
-        /// <remarks>
-        /// Derived from the authoring hierarchy path, not from an instance id. An instance id is
-        /// session-local, so the same prefab would bake to a different phase every session and
-        /// subscene bakes would stop being reproducible — the property section 4.5 spends real
-        /// effort guaranteeing for the blob. A path hash keeps two sibling actors on different
-        /// phases while making the bake a function of the source rather than of the session.
-        /// Renaming or reparenting an actor changes its phase, which is harmless: the phase only
-        /// spreads sampling load and carries no visual meaning. Both of those edits retrigger the
-        /// bake, because <see cref="AuthoringPathHash"/> reads names and the ancestor chain through
-        /// the baker's dependency-taking API; reordering siblings does not, which is the one case
-        /// where an incremental bake and a clean bake can disagree, and it changes only which frame
-        /// the actor samples on.
-        /// </remarks>
+        // Derived from the authoring hierarchy path, not an instance id: an instance id is
+        // session-local, so the same prefab would bake to a different phase every session and
+        // subscene bakes would stop being reproducible. Renaming or reparenting an actor changes
+        // its phase, which is harmless — the phase only spreads sampling load.
+        /// <summary>Derives the actor's crowd-sampling phase, so two actors baked from the same prefab do not sample on the same frames.</summary>
         private float ComputeSamplePhase(ActorAuthoring authoring)
         {
-            // Bits 8–31, not 0–23: FNV-1a ends on a multiply, which propagates carries only upward,
-            // so the low byte is the least mixed. Untestable by construction and unobservable in
-            // this walk order — amendment A18 and open item A-4 in the architecture carry the why.
+            // Bits 8-31, not 0-23: FNV-1a ends on a multiply, which propagates carries only upward,
+            // so the low byte is the least mixed.
             uint pathHash = AuthoringPathHash.Of(this, authoring.transform);
             return (pathHash >> 8) * (1f / 16777216f);
         }

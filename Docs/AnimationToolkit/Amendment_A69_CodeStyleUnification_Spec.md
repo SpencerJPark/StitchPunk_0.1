@@ -244,3 +244,14 @@ Open `Runtime/Api/PlaybackApi.cs`, `Runtime/Blobs/ClipRegistryBlob.cs`, and `Run
   name that fits none of the eight role suffixes either — same shape as the `RagdollSolver` gap
   above, just discovered one step later because the rename target didn't exist until T2 ran. Added
   to the T1 allowlist rather than picking a ninth suffix or re-litigating the rename.
+- 2026-09-06 — T3/T4 gate-closing pass: after the five parallel comment-audit subagents (T3, T4,
+  T5a, T5b, T6) finished, `Conformance_F` dropped from 3,501 hits to 25, all `(rule Vnn)` citations
+  in `Authoring/` the T4 subagent's own final grep missed (its brief listed `"rule V08"` as one
+  example rather than the general `\brule V[0-9]{2}\b` pattern). Fixed by hand across `ClipAsset.cs`,
+  `RigAsset.cs`, `VatTextureSetAsset.cs`, `ActorBaker.cs`, `ClipRegistryBuilder.cs`,
+  `ValidationMessage.cs`. Also found and fixed a real gap in `Conformance_F` itself: its
+  `"architecture section"` literal was case-sensitive and missed a capitalized
+  `"Architecture section 8 M1"` at the start of a comment line in `Authoring/AssemblyInfo.cs` (not
+  touched by any subagent — a package-root assembly-attributes file with no primary type, outside
+  every subagent's file list). Fixed both the comment and the test (all `Conformance_F` literal
+  checks are now `OrdinalIgnoreCase`).

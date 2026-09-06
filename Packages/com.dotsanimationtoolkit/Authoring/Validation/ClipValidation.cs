@@ -7,29 +7,16 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// The single authoritative implementation of the architecture section 3.5 rule table
-    /// (V01–V37), shared by the inspectors, the clip editor, and the bake so that all three agree on
-    /// what is legal. Pure static managed code — no editor-assembly dependency, no ECS world, and
-    /// no side effects on the assets it inspects.
+    /// The single authoritative implementation of the validation rule table, shared by the
+    /// inspectors, the clip editor, and the bake so that all three agree on what is legal. Pure
+    /// static managed code with no side effects on the assets it inspects.
     /// </summary>
     public static class ClipValidation
     {
-        /// <summary>
-        /// Validates a rig against the rules that concern it: V13 (layer count), V05 (target id
-        /// uniqueness), V34 (target tag uniqueness, Phase E target-tags spec §6 rule T1), the
-        /// billboard-root rules V21, V22, V23 and V25 (amendment A44; V25 is the ragdoll spec's
-        /// V-R8), and the ragdoll-body rules V26–V32 (amendment A50, spec §4's V-R1–V-R7).
-        /// </summary>
-        /// <param name="rig">The rig to validate. A null rig reports V13, since a set without a rig
-        /// has no layers.</param>
+        /// <summary>Validates a rig: layer count, target/tag id uniqueness, billboard roots, ragdoll bodies.</summary>
         /// <returns>
-        /// The findings in discovery order — layer checks (V13) first, then per-target id
-        /// uniqueness (V05) and tag uniqueness (V34, rule T1) together in target-list order, then
-        /// the billboard roots (V21, V25, V23, V22) in
-        /// billboard-root order, then the ragdoll bodies (V27, V26, V28, V29, V30, V32 per body,
-        /// then V31 once for the whole rig) in ragdoll-body order. Deliberately not sorted by rule
-        /// number: the inspector and the clip editor list findings in the order the asset reads, so
-        /// a reader can walk the asset top to bottom. Empty when the rig is fully valid.
+        /// Findings in discovery order — the order the asset reads top to bottom, not sorted by
+        /// rule number. Empty when the rig is fully valid.
         /// </returns>
         public static List<ValidationMessage> ValidateRig(RigAsset rig)
         {
@@ -39,34 +26,16 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Validates one clip against the rules that concern a clip in isolation: V01, V03,
-        /// V04, V09, V10, V12, V14, V15, V16 and V36. <strong>No binding rule is judged here</strong> —
-        /// a clip names no rig, so nothing can answer whether a tag or a target id resolves; that is
-        /// <see cref="ValidateBind"/>'s question. Bind-scoped rules (V05, V07, V08,
-        /// V11, V39, V40) are checked there too; T4 (V37) is a project-wide rule about which
-        /// sets reference a clip, which a single clip or set cannot answer on its own, and is checked
-        /// by the Editor-assembly utility that can see the whole project. V16 (duplicate bone name)
-        /// is a clip-local sibling of V05 rather than a V05 case itself: a bone track has no stable
-        /// id, so its only identity is the name, and uniqueness of that name only ever needs judging
-        /// within one clip — there is no set- or rig-scoped notion of "the same bone" the way there
-        /// is for a <c>ClipId</c> or a <c>TargetId</c>.
+        /// Validates one clip in isolation — no binding rule is judged here, since a clip names no
+        /// rig and cannot answer whether a tag or target id resolves; that is
+        /// <see cref="ValidateBind"/>'s question.
         /// </summary>
-        /// <param name="clip">The clip to validate.</param>
         /// <param name="tagRegistry">
-        /// The project's target tag registry, used to judge T3 (V36) — a track's tag id that no
-        /// longer exists anywhere — and to name a tag in a T2 (V35) message instead of showing its
-        /// raw hex id. Optional, mirroring rule V08's own gap (architecture section 3.5): a caller
-        /// with no registry to hand still gets T2 findings (checking a rig's own target list needs
-        /// no registry), it just cannot tell a T2 "not on this rig" apart from a T3 "deleted
-        /// entirely" and reports the milder T2 for both rather than silently passing either.
+        /// Optional: without it, a track's tag id that no longer exists anywhere cannot be told
+        /// apart from one that just doesn't apply to a particular rig, and the milder finding is
+        /// reported for both rather than silently passing either.
         /// </param>
-        /// <returns>
-        /// The findings in discovery order — the clip-level rules (V01, V10, V12) first, then each
-        /// transform and sprite track in authoring order (V02/V35/V36, V03, V04, V14), then each
-        /// bone track in authoring order (V03, V04, V15, V16), then each event (V04, V09).
-        /// Deliberately not sorted by rule number, so a reader can walk the asset top to bottom.
-        /// Empty when the clip is fully valid.
-        /// </returns>
+        /// <returns>Findings in discovery order (asset reading order, not rule number). Empty when the clip is fully valid.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="clip"/> is null.</exception>
         public static List<ValidationMessage> ValidateClip(
             ClipAsset clip, TargetTagRegistry tagRegistry = null)
@@ -80,45 +49,25 @@ namespace DotsAnimationToolkit.Authoring
             return messages;
         }
 
-        /// <summary>
-        /// Validates one bind — a rig and the clip sets played on it (Phase F §2) — against the rig
-        /// rules, every clip in the merged union, and the bind-scoped rules V05, V07, V08, V11, V39
-        /// and V40.
-        /// </summary>
+        /// <summary>Validates one bind — a rig and the clip sets played on it — plus every clip in the merged union.</summary>
         /// <param name="rig">
-        /// The rig the sets are bound to: an actor's own rig at bake, whichever rig the Clip Editor
-        /// happens to be showing while authoring. Every track binding is resolved against it, and
-        /// nothing on a clip or a set is consulted for it.
-        /// <para>
-        /// <strong>Null means unbound, not broken.</strong> A clip set on its own genuinely has no
-        /// rig — that independence is the point — so a null rig judges everything a set can answer
-        /// alone (V01, V03–V05, V07–V12, V14–V20, V36, V39) and stays silent on every rule that
-        /// needs a rig to answer. An actor that reaches bake with no rig is a different matter and
-        /// is reported by <c>ActorBaker</c>, which will not call this at all.
-        /// </para>
+        /// The rig the sets are bound to. Null means unbound, not broken: a clip set on its own
+        /// genuinely has no rig, so a null rig judges everything a set can answer alone and stays
+        /// silent on every rule that needs a rig to answer.
         /// </param>
-        /// <param name="clipSets">
-        /// The sets bound to that rig. Nulls and repeated entries are ignored; order does not
-        /// matter, since the list is canonicalised by set id before anything is judged.
-        /// </param>
+        /// <param name="clipSets">Nulls and repeated entries are ignored; canonicalised by set id before anything is judged.</param>
         /// <param name="stage">
-        /// Which caller is validating. <see cref="ValidationStage.Bake"/> downgrades V08 to a
-        /// warning, because outdated VAT textures still render (architecture section 3.5), and
-        /// stops V02 being judged at all — see <see cref="ValidateTrackBindingInto"/>.
+        /// <see cref="ValidationStage.Bake"/> downgrades a stale VAT bake to a warning, since
+        /// outdated textures still render, and skips the rig-target-existence check entirely.
         /// </param>
         /// <param name="vatSourceHashRecomputed">
-        /// True when <paramref name="recomputedVatSourceHash"/> holds a freshly recomputed hash of
-        /// the texture set's sources. V08 can only be judged when it does; the authoring assembly
-        /// cannot recompute the hash itself, since that requires the editor-only VAT baker.
+        /// True when <paramref name="recomputedVatSourceHash"/> holds a freshly recomputed hash;
+        /// the stale-bake check can only run when it does, since recomputing needs the editor-only
+        /// VAT baker this assembly cannot reach.
         /// </param>
         /// <param name="recomputedVatSourceHash">
-        /// The freshly recomputed source hash to compare against
-        /// <see cref="VatTextureSetAsset.sourceHash"/>. Ignored unless
+        /// Compared against <see cref="VatTextureSetAsset.sourceHash"/>. Ignored unless
         /// <paramref name="vatSourceHashRecomputed"/> is true.
-        /// </param>
-        /// <param name="tagRegistry">
-        /// The project's target tag registry, passed through to each clip's T2/T3 (V35/V36) checks.
-        /// See <see cref="ValidateClip"/> for what a null registry costs.
         /// </param>
         /// <returns>The findings, rig first and then clip by clip in canonical bind order.</returns>
         public static List<ValidationMessage> ValidateBind(
@@ -213,15 +162,9 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Judges the VAT texture sets a bind carries — V39 (at most one across the whole bind) and
-        /// V40 (its source rig must be the rig being bound to) — and returns the one texture set the
-        /// registry blob will address, or null when the bind has none.
+        /// Judges the VAT texture sets a bind carries — at most one across the whole bind, and its
+        /// source rig must match — and returns the one the registry blob will address, or null.
         /// </summary>
-        /// <remarks>
-        /// On a V39 collision the first canonical set's textures are returned anyway, so the V07
-        /// coverage checks below still say something useful instead of collapsing into silence
-        /// behind a single error.
-        /// </remarks>
         private static VatTextureSetAsset ValidateVatTextureSetsInto(
             RigAsset rig,
             List<ClipSetAsset> canonicalClipSets,
@@ -244,6 +187,8 @@ namespace DotsAnimationToolkit.Authoring
                 }
                 else if (clipSet.vatTextures != bindVatTextures)
                 {
+                    // bindVatTextures is left pointing at the first set found, not cleared, so the
+                    // coverage checks below still have something to compare against.
                     messages.Add(new ValidationMessage(
                         ValidationSeverity.Error,
                         ValidationCode.V39,
@@ -253,8 +198,7 @@ namespace DotsAnimationToolkit.Authoring
                         clipSet.vatTextures.name + "'), but an actor addresses exactly one."));
                 }
 
-                // Key 0 is anything baked before sourceRigKey existed; it passes, consistent with
-                // Phase F's no-migration stance.
+                // Key 0 is anything baked before sourceRigKey existed; it passes rather than fails.
                 if (rig != null &&
                     clipSet.vatTextures.sourceRigKey != 0UL &&
                     clipSet.vatTextures.sourceRigKey != rig.StableId)
@@ -277,11 +221,7 @@ namespace DotsAnimationToolkit.Authoring
             return rig != null ? rig.name : "(none assigned)";
         }
 
-        /// <summary>
-        /// True when any finding in the list blocks baking.
-        /// </summary>
-        /// <param name="messages">The findings to scan; a null list counts as no errors.</param>
-        /// <returns>True when at least one finding has <see cref="ValidationSeverity.Error"/>.</returns>
+        /// <summary>True when any finding in the list blocks baking. A null list counts as no errors.</summary>
         public static bool HasErrors(IReadOnlyList<ValidationMessage> messages)
         {
             if (messages == null)
@@ -298,19 +238,7 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
-        /// <summary>
-        /// Validates a target tag registry against T5 (Phase E target-tags spec §6): every tag id
-        /// is non-zero and unique within the registry.
-        /// </summary>
-        /// <param name="registry">
-        /// The registry to validate. A null registry reports nothing — unlike a null
-        /// <see cref="RigAsset"/> in <see cref="ValidateRig"/>, a target tag registry is optional
-        /// project furniture with no required-presence rule of its own.
-        /// </param>
-        /// <returns>
-        /// The findings in entry order. Empty when every id is non-zero and unique, including when
-        /// <paramref name="registry"/> is null or holds no entries.
-        /// </returns>
+        /// <summary>Validates that every tag id in the registry is non-zero and unique. A null registry reports nothing.</summary>
         public static List<ValidationMessage> ValidateTargetTagRegistry(TargetTagRegistry registry)
         {
             List<ValidationMessage> messages = new List<ValidationMessage>();
@@ -331,9 +259,7 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            // Same duplicate-identity shape as ValidateRigInto's V05 pass: a name-keyed map of ids
-            // already seen, walked in entry order so a reader can match a finding back to the row
-            // it names without hunting.
+            // Walked in entry order so a reader can match a finding back to the row it names.
             Dictionary<uint, string> namesById = new Dictionary<uint, string>();
             for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
             {
@@ -400,8 +326,7 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             // Guarded rather than returned on: a rig with no target list still has billboard roots
-            // worth checking, and an early return here would make V21–V23 depend on a list they do
-            // not concern. A null target list simply resolves no target addresses.
+            // worth checking. A null target list simply resolves no target addresses.
             Dictionary<uint, string> targetNamesById = new Dictionary<uint, string>();
             Dictionary<uint, string> targetNamesByTagId = new Dictionary<uint, string>();
             int targetCount = rig.targets == null ? 0 : rig.targets.Count;
@@ -428,8 +353,8 @@ namespace DotsAnimationToolkit.Authoring
                     targetNamesById.Add(targetDefinition.stableId, targetDefinition.displayName);
                 }
 
-                // T1 (Phase E target-tags spec §6): a tag appears at most once per rig. 0 ("untagged")
-                // is exempt - it is the ordinary state for most targets, not a shared role.
+                // A tag appears at most once per rig. 0 ("untagged") is exempt - it is the ordinary
+                // state for most targets, not a shared role.
                 if (targetDefinition.tagId != 0u)
                 {
                     string previousTaggedTargetName;
@@ -455,32 +380,7 @@ namespace DotsAnimationToolkit.Authoring
             ValidateRagdollBodiesInto(rig, targetNamesById, messages);
         }
 
-        /// <summary>
-        /// Validates the rig's billboard roots (amendment A44): V21, V22, V23 and V25.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>V21 is only half-reachable here, and the reachable half is the target one.</strong>
-        /// A <see cref="RigNodeAddressKind.RigTarget"/> address names a row of this very asset, so
-        /// it can be resolved against <paramref name="targetNamesById"/> and reported now, while the
-        /// author is looking at the rig. A <see cref="RigNodeAddressKind.HierarchyPath"/> address
-        /// names a transform of the authoring prefab, which a <see cref="RigAsset"/> does not
-        /// reference and cannot see — the rig asset carries no hierarchy of its own. Path addresses
-        /// are therefore resolved by the entity bake, which does hold the prefab, and which reports
-        /// an unresolved one rather than silently dropping the root.
-        /// </para>
-        /// <para>
-        /// This is the same shape as V08's split (amendment A12): a rule whose evidence lives in an
-        /// assembly the validator cannot legally reach is checked where the evidence is, and saying
-        /// so here is what stops a later reader assuming the silence means "valid".
-        /// </para>
-        /// <para>
-        /// <strong>V25 needs no such split.</strong> A <see cref="RigNodeAddressKind.Bone"/> address
-        /// is wrong for a billboard root regardless of which bone it names — the rig asset does not
-        /// need to see the prefab to know that billboarding has no bone path — so it is fully
-        /// reachable here, unlike V21's path half.
-        /// </para>
-        /// </remarks>
+        /// <summary>Validates the rig's billboard roots: address resolution, duplicate addresses, and axis-constrained mode.</summary>
         private static void ValidateBillboardRootsInto(
             RigAsset rig,
             Dictionary<uint, string> targetNamesById,
@@ -500,6 +400,8 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
 
+                // Only a RigTarget address can be checked here — a HierarchyPath address names a
+                // prefab transform this asset cannot see, and is resolved by the entity bake instead.
                 bool addressResolves = true;
                 if (rootDefinition.address.kind == RigNodeAddressKind.RigTarget
                     && !targetNamesById.ContainsKey(rootDefinition.address.targetId))
@@ -514,10 +416,8 @@ namespace DotsAnimationToolkit.Authoring
                         "' does not define."));
                 }
 
-                // V-R8 (ragdoll spec): billboarding has no bone path. The Bone kind exists for the
-                // ragdoll body list that shares this address struct, not for billboard roots, so a
-                // row that carries one is treated the same as an unresolved address — it must not
-                // also be checked for an address-key duplicate below.
+                // Billboarding has no bone path. The Bone kind exists for the ragdoll body list that
+                // shares this address struct, so treat it as unresolved and skip the duplicate check below.
                 if (rootDefinition.address.kind == RigNodeAddressKind.Bone)
                 {
                     addressResolves = false;
@@ -542,9 +442,8 @@ namespace DotsAnimationToolkit.Authoring
                         "no axis to turn about."));
                 }
 
-                // An address that does not resolve cannot duplicate another one in any meaningful
-                // sense — two roots both pointing at a target that is not there is one fault, not
-                // two, and reporting it twice buries the fix under its own symptom.
+                // Two roots pointing at a target that isn't there is one fault, not two; skip the
+                // duplicate-address check so it isn't reported twice.
                 if (!addressResolves)
                 {
                     continue;
@@ -569,14 +468,7 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// Renders a billboard address as the key V22 compares on, and as the text it reports.
-        /// </summary>
-        /// <remarks>
-        /// The kind is part of the key because the two kinds address disjoint things: target id 7
-        /// and the path "7" are not the same node, and a key that could not tell them apart would
-        /// report a duplicate that is not one.
-        /// </remarks>
+        // The kind is part of the key: target id 7 and the path "7" are not the same node.
         private static string DescribeBillboardAddress(RigNodeAddress address)
         {
             if (address.kind == RigNodeAddressKind.RigTarget)
@@ -590,30 +482,7 @@ namespace DotsAnimationToolkit.Authoring
                 : "path '" + address.hierarchyPath + "'";
         }
 
-        /// <summary>
-        /// Validates the rig's ragdoll bodies (Phase D ragdoll spec, amendment A50): V26, V27, V28,
-        /// V29, V30, V31 and V32.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>V26 is only half-reachable here, mirroring V21's split for billboard roots.</strong>
-        /// A <see cref="RigNodeAddressKind.RigTarget"/> address names a row of this very asset and is
-        /// resolved against <paramref name="targetNamesById"/>; a
-        /// <see cref="RigNodeAddressKind.HierarchyPath"/> or <see cref="RigNodeAddressKind.Bone"/>
-        /// address names something a <see cref="RigAsset"/> cannot see on its own, and is left to the
-        /// entity bake (Phase D3) to resolve or report, the same way an unresolved billboard path is
-        /// left to <c>BillboardRootResolver</c>.
-        /// </para>
-        /// <para>
-        /// <strong>V31 checks only what this asset can itself confirm.</strong> Whether the ragdoll
-        /// bodies form a single tree is, in general, a question about the real prefab hierarchy —
-        /// exactly the gap V26 documents for address resolution. A
-        /// <see cref="RigNodeAddressKind.HierarchyPath"/> address is the one kind whose ancestry this
-        /// asset can verify unaided, by string prefix, so only those bodies are placed in the tree;
-        /// a rig whose bodies are entirely target- or bone-addressed never trips V31 at authoring
-        /// time, and that silence must not be read as "the hierarchy was checked and is fine".
-        /// </para>
-        /// </remarks>
+        /// <summary>Validates the rig's ragdoll bodies: id uniqueness, address resolution, box/limit/mass ranges, and tree shape.</summary>
         private static void ValidateRagdollBodiesInto(
             RigAsset rig,
             Dictionary<uint, string> targetNamesById,
@@ -636,7 +505,7 @@ namespace DotsAnimationToolkit.Authoring
                     continue;
                 }
 
-                // V-R2 (V27): the id must exist and must not repeat.
+                // V27: the id must exist and must not repeat.
                 if (bodyDefinition.stableId == 0u)
                 {
                     messages.Add(new ValidationMessage(
@@ -665,7 +534,8 @@ namespace DotsAnimationToolkit.Authoring
                     }
                 }
 
-                // V-R1 (V26): only the RigTarget half is reachable at rig scope.
+                // V26: only the RigTarget half is reachable at rig scope; a path or bone address
+                // names something this asset cannot see, and is left to the entity bake.
                 bool addressResolves = true;
                 if (bodyDefinition.address.kind == RigNodeAddressKind.RigTarget
                     && !targetNamesById.ContainsKey(bodyDefinition.address.targetId))
@@ -680,9 +550,8 @@ namespace DotsAnimationToolkit.Authoring
                         "' does not define."));
                 }
 
-                // V-R3 (V28): no two bodies on the same node. An address that does not resolve
-                // cannot meaningfully duplicate another - one fault, not two, mirroring V22's own
-                // discipline against V21's unresolved case.
+                // V28: no two bodies on the same node. An address that does not resolve cannot
+                // meaningfully duplicate another — one fault, not two.
                 bool isDuplicateNodeAddress = false;
                 if (addressResolves)
                 {
@@ -706,7 +575,7 @@ namespace DotsAnimationToolkit.Authoring
                     }
                 }
 
-                // V-R4 (V29): every box extent must be positive.
+                // V29: every box extent must be positive.
                 if (bodyDefinition.boxSize.x <= 0f
                     || bodyDefinition.boxSize.y <= 0f
                     || bodyDefinition.boxSize.z <= 0f)
@@ -721,8 +590,8 @@ namespace DotsAnimationToolkit.Authoring
                         "); every component must be greater than 0."));
                 }
 
-                // V-R5 (V30): both limit pairs are always stored, so both are always checked,
-                // regardless of the rig's current RagdollRigSettings.space.
+                // V30: both limit pairs are always stored, so both are always checked, regardless
+                // of the rig's current RagdollRigSettings.space.
                 if (bodyDefinition.limitMinDegrees > bodyDefinition.limitMaxDegrees
                     || bodyDefinition.limitMinDegrees < -180f || bodyDefinition.limitMinDegrees > 180f
                     || bodyDefinition.limitMaxDegrees < -180f || bodyDefinition.limitMaxDegrees > 180f)
@@ -758,7 +627,7 @@ namespace DotsAnimationToolkit.Authoring
                         " degrees; it must stay within [0, 180]."));
                 }
 
-                // V-R7 (V32): mass must be positive.
+                // V32: mass must be positive.
                 if (bodyDefinition.mass <= 0f)
                 {
                     messages.Add(new ValidationMessage(
@@ -769,10 +638,9 @@ namespace DotsAnimationToolkit.Authoring
                         "' has mass " + bodyDefinition.mass + "; it must be greater than 0."));
                 }
 
-                // V-R6 (V31) data collection: only a HierarchyPath address's ancestry is a fact this
-                // asset can confirm on its own. See this method's remarks. A duplicate node address
-                // is excluded here too - it already reported V28, and counting the same node twice
-                // toward the tree would report a second, unrelated-looking fault for one mistake.
+                // V31 data collection: only a HierarchyPath address's ancestry is a fact this asset
+                // can confirm on its own. A duplicate node address is excluded — it already
+                // reported V28, and counting the same node twice would be a second fault for one mistake.
                 if (bodyDefinition.address.kind == RigNodeAddressKind.HierarchyPath
                     && !isDuplicateNodeAddress)
                 {
@@ -785,11 +653,9 @@ namespace DotsAnimationToolkit.Authoring
             ValidateRagdollBodyTreeInto(rig, hierarchyPathBodies, messages);
         }
 
-        /// <summary>
-        /// V-R6 (V31): among the bodies whose ancestry this asset can confirm (hierarchy-path
-        /// addresses only - see <see cref="ValidateRagdollBodiesInto"/>'s remarks), exactly one must
-        /// have no other such body as an ancestor.
-        /// </summary>
+        // V31: among the bodies whose ancestry this asset can confirm (hierarchy-path addresses
+        // only — a target or bone address names something this asset cannot see the ancestry of),
+        // exactly one must have no other such body as an ancestor.
         private static void ValidateRagdollBodyTreeInto(
             RigAsset rig,
             List<KeyValuePair<string, string>> hierarchyPathBodies,
@@ -854,14 +720,8 @@ namespace DotsAnimationToolkit.Authoring
             return descendantPath.StartsWith(ancestorPath + "/", StringComparison.Ordinal);
         }
 
-        /// <summary>
-        /// Renders a ragdoll body address as the key V28 compares on, and as the text it reports.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="DescribeBillboardAddress"/>, this must also render
-        /// <see cref="RigNodeAddressKind.Bone"/>: billboard roots reject that kind outright (V25),
-        /// but a ragdoll body may legitimately be welded to a skinned bone.
-        /// </remarks>
+        // Unlike DescribeBillboardAddress, this must also render Bone: a ragdoll body may
+        // legitimately be welded to a skinned bone, where a billboard root rejects that kind outright.
         private static string DescribeRagdollAddress(RigNodeAddress address)
         {
             if (address.kind == RigNodeAddressKind.RigTarget)
@@ -877,33 +737,7 @@ namespace DotsAnimationToolkit.Authoring
                 : "path '" + address.hierarchyPath + "'";
         }
 
-        /// <summary>
-        /// Validates the clip's authored bone tracks (amendment A42): V03, V04, V15 and V16.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// A bone track is checked for a <em>name</em> where a transform or sprite track is checked
-        /// for a target binding. That asymmetry is the design: a rig target is a row this package
-        /// owns and can assign a stable id to, while a bone lives in an imported hierarchy it does
-        /// not own, so the name is the only handle Unity offers.
-        /// </para>
-        /// <para>
-        /// Whether the name resolves to a real bone is deliberately <strong>not</strong> checked
-        /// here. Validation sees only the asset graph, and the skeleton lives on a prefab the clip
-        /// does not reference — the VAT bake is the first point where the hierarchy exists, so that
-        /// is where an unresolved name is reported. Guessing here would produce false errors for
-        /// every clip authored before its rig was imported.
-        /// </para>
-        /// </remarks>
-        /// <summary>
-        /// Reports rule V17 for one key's Bézier handles, and says nothing for any other mode.
-        /// </summary>
-        /// <remarks>
-        /// The all-zero pair is exempt. That is the value a key deserializes to when these fields
-        /// did not exist yet, and <c>ClipSampler.EaseBezier</c> reads it as linear rather than as a
-        /// curve — so reporting it would flag every clip authored before Bézier existed for a shape
-        /// nothing will ever evaluate.
-        /// </remarks>
+        /// <summary>Reports V17 for one key's Bezier handles outside the unit square; says nothing for any other interpolation mode.</summary>
         private static void ValidateBezierHandlesInto(
             ClipAsset clip,
             Interpolation interpolation,
@@ -916,6 +750,9 @@ namespace DotsAnimationToolkit.Authoring
             {
                 return;
             }
+            // All-zero is the value a key deserializes to before these fields existed, and
+            // ClipSampler.EaseBezier reads it as linear rather than as a curve — exempt, or every
+            // pre-Bezier clip would fail for a shape nothing evaluates.
             if (startHandle.x == 0f && startHandle.y == 0f && endHandle.x == 0f && endHandle.y == 0f)
             {
                 return;
@@ -967,16 +804,9 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// Validates the clip's billboard tracks (amendment A44): V24, V03 and V04.
-        /// </summary>
-        /// <remarks>
-        /// V24 is T6's shape against a different id space — a billboard root rather than a rig
-        /// target — so it is checked here rather than folded into the transform-track loop, which
-        /// resolves ids against <c>rig.targets</c> and would report the wrong list. Like T6 it is
-        /// judged against the rig in hand, and skipped entirely when there is none: a billboard root
-        /// id is minted per rig, so an unbound clip has nothing to check it against.
-        /// </remarks>
+        // Checked separately from the transform-track loop, which resolves ids against rig.targets
+        // and would report the wrong list for a billboard-root id. Skipped entirely with no rig,
+        // since a billboard root id is minted per rig and an unbound clip has nothing to check against.
         private static void ValidateBillboardTracksInto(
             ClipAsset clip, RigAsset resolutionRig, List<ValidationMessage> messages)
         {
@@ -1048,6 +878,9 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
+        // Checked for a name, not a target binding: a bone lives in an imported hierarchy this
+        // package does not own, so the name is the only handle available. Whether it resolves to a
+        // real bone is checked later, at the VAT bake, where the skeleton actually exists.
         private static void ValidateBoneTracksInto(ClipAsset clip, List<ValidationMessage> messages)
         {
             int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
@@ -1309,16 +1142,8 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// Checks one marker's window duration: negative is an error (V19), and a window on a key
-        /// that owns no mask bit is a warning (V20).
-        /// </summary>
-        /// <remarks>
-        /// A window longer than the clip is deliberately <em>not</em> reported. On a looping clip it
-        /// is the ordinary way to say "open for the whole loop", and on a Once clip it simply means
-        /// the window outlives the clip, which the layer going inactive already resolves. Flagging
-        /// it would be flagging a legitimate authoring choice.
-        /// </remarks>
+        // A window longer than the clip is not reported: on a looping clip that just means "open for
+        // the whole loop", and on a Once clip the layer going inactive already resolves it.
         private static void ValidateEventWindowInto(
             ClipAsset clip,
             EventMarker eventMarker,
@@ -1375,23 +1200,9 @@ namespace DotsAnimationToolkit.Authoring
                 new TargetId(targetId).ToString() + ", which is not defined by " + rigLabel + "."));
         }
 
-        /// <summary>
-        /// Validates one <see cref="TransformTrack"/> or <see cref="SpriteTrack"/>'s binding: by tag
-        /// when <paramref name="tagId"/> is non-zero (T2/T3, V35/V36 — Phase E target-tags spec
-        /// §4.3), by target id otherwise (T6/V38 — Phase F §4).
-        /// </summary>
-        /// <remarks>
-        /// <strong>Both halves are warnings, and neither can be an error any more.</strong> A clip
-        /// records no rig, so "this id is wrong" is not a question anything can answer — only "this
-        /// id does not line up with the rig you are playing it on", which is exactly a skip. An
-        /// id-bound track is simply the narrow case that lines up with one rig; a tag-bound one is
-        /// the case that lines up with every rig carrying the tag.
-        /// <para>
-        /// T3 still suppresses T2: an id that cannot be resolved at all (deleted from the registry)
-        /// is one fault, not a second, unrelated-looking one about which rig happens to lack it —
-        /// the same discipline this file uses for V21/V22 and V26/V28.
-        /// </para>
-        /// </remarks>
+        // Validates one track's binding: by tag when tagId is non-zero, by target id otherwise. Both
+        // halves report a warning, never an error — a clip records no rig, so there is no "wrong id",
+        // only one that doesn't line up with the rig it happens to be playing on.
         private static void ValidateTrackBindingInto(
             ClipAsset clip,
             RigAsset resolutionRig,
@@ -1404,9 +1215,8 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (tagId == 0u)
             {
-                // T6 (V38): this rig does not declare the target the track names. The mirror of T2
-                // below, and lenient for the same reason — with no rig recorded on the clip there
-                // is no "home rig" this could be an error against, only the rig in hand.
+                // V38: this rig does not declare the target the track names — a warning, since a
+                // clip records no "home rig" this could be an error against.
                 if (resolutionRig != null && !RigContainsTarget(resolutionRig, targetId))
                 {
                     messages.Add(new ValidationMessage(
@@ -1421,9 +1231,8 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            // T3 (V36): the tag id no longer exists anywhere. Only judged when a registry was
-            // supplied — see ValidateClip's remarks on why an absent registry cannot tell this apart
-            // from T2 and reports the milder finding instead of staying silent.
+            // V36: the tag id no longer exists anywhere. Only judged when a registry is supplied —
+            // without one this cannot be told apart from V35 and reports the milder finding instead.
             if (tagRegistry != null && !tagRegistry.ContainsId(tagId))
             {
                 messages.Add(new ValidationMessage(
@@ -1436,11 +1245,8 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            // No rig to judge against - a shareable clip inspected on its own, outside any set.
-            // T2 asks "does the rig this will play on carry the tag?", and with no rig in hand there
-            // is no answer, only a guess. Staying silent is the same discipline T3 uses for an
-            // absent registry above: report what can be known, never invent a finding out of
-            // missing context. The set-scoped pass judges it properly once a rig is declared.
+            // No rig to judge against — a shareable clip inspected on its own, outside any set.
+            // Staying silent rather than guessing; the set-scoped pass judges it once a rig is declared.
             if (resolutionRig == null)
             {
                 return;
@@ -1451,9 +1257,8 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            // T2 (V35): the tag exists (or its existence could not be judged) but this rig has no
-            // target carrying it. Spec §6.1 requires the message to name all four things — clip,
-            // track, tag name, and rig — without the reader having to open anything else.
+            // V35: the tag exists but this rig has no target carrying it. The message names the
+            // clip, track, tag and rig so it is actionable without opening anything else.
             string tagLabel = tagRegistry != null && tagRegistry.FindName(tagId) != null
                 ? "'" + tagRegistry.FindName(tagId) + "'"
                 : "id 0x" + tagId.ToString("X8");
@@ -1467,11 +1272,6 @@ namespace DotsAnimationToolkit.Authoring
                 "when this clip plays on that rig."));
         }
 
-        /// <summary>
-        /// True when <paramref name="rig"/> declares a target row carrying <paramref name="tagId"/>.
-        /// A null rig, a null row, and the reserved id 0 all answer false — the same shape
-        /// <see cref="RigContainsTarget"/> uses for a target's own id.
-        /// </summary>
         private static bool RigContainsTagTarget(RigAsset rig, uint tagId)
         {
             if (rig == null || rig.targets == null || tagId == 0u)
@@ -1507,35 +1307,22 @@ namespace DotsAnimationToolkit.Authoring
                 normalizedTime + ", which is outside [0, 1]."));
         }
 
-        /// <param name="rig">
-        /// The rig of the bind. VAT tracks keep the strict V02 against it rather than T6's lenient
-        /// skip: a VAT texture cannot retarget (Phase F §8), so a VAT track naming a target this rig
-        /// does not declare has no correct behaviour to fall back to.
-        /// </param>
+        // VAT tracks keep the strict V02 check rather than V38's lenient skip: a VAT texture cannot
+        // retarget, so a VAT track naming a target this rig does not declare has nothing to fall back to.
         private static void ValidateVatCoverageInto(
             ClipSetAsset clipSet,
             ClipAsset clip,
             RigAsset rig,
             List<ValidationMessage> messages)
         {
-            // Amendment A36: a VAT source counts as present only when it actually names a source
-            // clip. `vatSource` is a plain [Serializable] class field rather than a
-            // [SerializeReference] one, so Unity cannot represent null for it on disk — every clip
-            // asset that has ever been saved and re-read carries a default-constructed
-            // VatClipSource with a null sourceClip. Testing the field for null therefore reported
-            // "has a VAT source" for every non-VAT clip in the project, failing V07 on any set
-            // without a texture set, which throws out of ClipRegistryBuilder and bakes no registry
-            // at all. An empty source names nothing for VatTextureBaker to sample, so it carries no
-            // VAT intent and must not be treated as one.
+            // vatSource is a plain [Serializable] class field, so Unity cannot represent null for it
+            // on disk — every saved clip carries a default-constructed VatClipSource with a null
+            // sourceClip. Testing the field itself for null would flag every non-VAT clip as having
+            // a VAT source, so an empty sourceClip is what actually means "no VAT intent" here.
             bool hasLegacySource = clip.vatSource != null && clip.vatSource.sourceClip != null;
 
-            // C10: `vatTracks` does NOT repeat the A36 trap. It is a List<VatTrack>, and Unity
-            // round-trips an empty list as an empty list rather than manufacturing a phantom element
-            // the way it does for a lone [Serializable] class field, so a clip that never used this
-            // feature reads back with a genuinely empty list — no null-vs-default disambiguation is
-            // needed here the way it is for vatSource. A row with no sourceClip yet (added in the
-            // inspector but not filled in) still carries no VAT intent, so it is skipped exactly
-            // like an empty vatSource.
+            // vatTracks is a List<VatTrack>, which round-trips a genuinely empty list as empty (no
+            // phantom-element trap like vatSource above), so a row with no sourceClip yet is simply skipped.
             int vatTrackCount = clip.vatTracks == null ? 0 : clip.vatTracks.Count;
             bool hasAnyTrackSource = false;
             for (int trackIndex = 0; trackIndex < vatTrackCount; trackIndex++)
@@ -1603,22 +1390,8 @@ namespace DotsAnimationToolkit.Authoring
             }
         }
 
-        /// <summary>
-        /// True when <paramref name="vatTextures"/> holds a range baked specifically for
-        /// (<paramref name="clipId"/>, <paramref name="targetId"/>) — an exact match, never the
-        /// untargeted-range fallback <see cref="VatTextureSetAsset.TryGetTrackRange"/> performs.
-        /// </summary>
-        /// <remarks>
-        /// Coverage for a <see cref="VatTrack"/> must be judged strictly: if this fell back to the
-        /// untargeted range the way runtime resolution does, a track naming a target that was never
-        /// actually baked would pass validation while silently rendering whatever motion the
-        /// clip-wide <c>vatSource</c> baked instead — the wrong mesh's animation, discovered only by
-        /// looking at the actor rather than at a validation message.
-        /// </remarks>
-        /// <param name="vatTextures">The texture set to search; must not be null.</param>
-        /// <param name="clipId">Stable id of the clip the track belongs to.</param>
-        /// <param name="targetId">Stable id of the target the track names.</param>
-        /// <returns>True when an exact (clip, target) range was baked.</returns>
+        // Exact match only, never the untargeted-range fallback runtime resolution performs: falling
+        // back here would pass a track naming a never-baked target while it silently plays the wrong mesh's motion.
         private static bool HasExactVatTrackRange(VatTextureSetAsset vatTextures, ulong clipId, uint targetId)
         {
             if (vatTextures.clipRanges == null)
@@ -1636,14 +1409,7 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
-        /// <summary>
-        /// True when <paramref name="rig"/> declares a target row carrying
-        /// <paramref name="targetId"/>. A null rig, a null row, and the reserved id 0 all answer
-        /// false.
-        /// </summary>
-        /// <param name="rig">The rig to search.</param>
-        /// <param name="targetId">The raw target stable id to look for.</param>
-        /// <returns>True when the rig defines that target.</returns>
+        /// <summary>True when the rig declares a target carrying this id. A null rig or id 0 answers false.</summary>
         public static bool RigContainsTarget(RigAsset rig, uint targetId)
         {
             if (rig == null || rig.targets == null || targetId == 0u)

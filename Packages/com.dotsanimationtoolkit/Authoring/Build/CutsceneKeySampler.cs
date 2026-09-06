@@ -6,25 +6,17 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Evaluates a <see cref="CutsceneTransformKey"/>/<see cref="CutsceneCameraKey"/>/
-    /// <see cref="CutsceneFacingKey"/> list at a raw timeline second — the one flat-list sampler
-    /// shared by <see cref="CutsceneBlobBuilder"/> (baking boundary-continuity keys, amendment A62
-    /// §3.1/§3.2) and the Scene-view preview (Phase G, G3). Moved here from the Editor assembly so
-    /// the builder can call it too; the Editor assembly already sees <c>Authoring</c> internals.
+    /// Evaluates a cutscene transform/camera/facing key list at a raw timeline second. Outputs raw
+    /// authoring-space values (position, Euler degrees, scale), not <c>Quaternion</c> — the one
+    /// caller that wants a Quaternion converts at its own call site.
     /// </summary>
-    /// <remarks>
-    /// Outputs raw authoring-space values (position, Euler degrees, scale) rather than
-    /// <c>UnityEngine.Quaternion</c> — the builder needs them as-is to write synthetic
-    /// <see cref="CutsceneTransformKey"/>/<see cref="CutsceneCameraKey"/> entries, and the editor
-    /// preview (the only caller that wants a <c>Quaternion</c>) converts at its own call sites.
-    /// </remarks>
     internal static class CutsceneKeySampler
     {
         /// <summary>
         /// Samples a transform key list at <paramref name="timeSeconds"/>. Holds the nearest key
         /// outside the authored range, exactly like a clip's own edge behaviour. Returns false when
         /// the list is null or empty, in which case every out parameter is the identity pose —
-        /// callers must not write it unconditionally (amendment A62 defect 2).
+        /// callers must not write it unconditionally.
         /// </summary>
         public static bool TrySampleTransform(
             List<CutsceneTransformKey> keys, float timeSeconds,
@@ -69,9 +61,9 @@ namespace DotsAnimationToolkit.Authoring
                 linearTime, fromKey.interpolation, fromKey.bezierStartHandle, fromKey.bezierEndHandle);
 
             position = math.lerp(fromKey.position, toKey.position, easedTime);
-            // Per-component Euler lerp, never a quaternion slerp — matching ClipSampler's own
-            // rotation interpolation exactly (its remarks: slerping would take a different path
-            // between the same two keys and quietly disagree with the curve editor).
+            // Per-component Euler lerp, never a quaternion slerp — matching ClipSampler's rotation
+            // interpolation exactly, since slerping would take a different path between the same
+            // two keys and quietly disagree with the curve editor.
             eulerDegrees = math.lerp(fromKey.rotation, toKey.rotation, easedTime);
             scale = math.lerp(fromKey.scale, toKey.scale, easedTime);
             return true;
@@ -130,13 +122,11 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Samples the camera lane the way it plays at runtime (decision G-D7): a cut marker splits
-        /// the lane into independent interpolation windows, so a shot never blends across the cut it
-        /// names as the exception to "one camera just moving around the scene" (spec §2). Windowing
-        /// happens here rather than by pre-slicing the key list once, so the same list serves every
-        /// call regardless of where the playhead currently sits.
+        /// Samples the camera lane the way it plays at runtime: a cut marker splits the lane into
+        /// independent interpolation windows, so a shot never blends across the cut that names it as
+        /// the exception to "one camera just moving around the scene".
         /// </summary>
-        /// <param name="isCut">True when <paramref name="timeSeconds"/> sits inside one frame's width of a cut marker — informational, mirrored by the runtime player's <c>CutsceneCameraPose.isCut</c> (spec §6).</param>
+        /// <param name="isCut">True when <paramref name="timeSeconds"/> sits inside one frame's width of a cut marker.</param>
         public static void SampleCameraWithCuts(
             List<CutsceneCameraKey> keys, List<CutsceneCameraCutMarker> cutMarkers, float timeSeconds,
             out float3 position, out float3 eulerDegrees, out float fieldOfView, out bool isCut)
@@ -194,11 +184,10 @@ namespace DotsAnimationToolkit.Authoring
         }
 
         /// <summary>
-        /// Resolves the facing angle in effect at <paramref name="timeSeconds"/> (spec §2): the
-        /// last override key at or before it, or the direction the root lane is travelling when
-        /// none has fired yet. The list twin of <c>CutsceneBlobSampler.TryResolveFacingAngle</c>,
-        /// down to the return value — false means "no answer at all", never "derived rather than
-        /// authored". Ask <see cref="TryResolveFacingOverride"/> for that distinction.
+        /// Resolves the facing angle in effect at <paramref name="timeSeconds"/>: the last override
+        /// key at or before it, or the direction the root lane is travelling when none has fired yet.
+        /// False means no answer at all, never "derived rather than authored" — ask
+        /// <see cref="TryResolveFacingOverride"/> for that distinction.
         /// </summary>
         public static bool TryResolveFacingAngle(
             List<CutsceneFacingKey> facingKeys, List<CutsceneTransformKey> rootKeys,
@@ -240,8 +229,7 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>
         /// The direction the root lane travels at <paramref name="timeSeconds"/>, by finite
-        /// difference against a hair earlier — the movement vector a live actor would hand
-        /// <c>FacingResolver.FromMovement</c>. Forward-differenced at 0, which has nothing behind it.
+        /// difference against a hair earlier. Forward-differenced at 0, which has nothing behind it.
         /// </summary>
         public static bool TryDeriveFacingFromRootTravel(
             List<CutsceneTransformKey> rootKeys, float timeSeconds, out float angleDegrees)

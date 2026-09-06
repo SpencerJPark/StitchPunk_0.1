@@ -6,31 +6,17 @@ using System.Collections.Generic;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// The holds a cutscene's <em>events</em> imply (amendment A65 §3.1, decision A65-D1): an event
-    /// marked <see cref="CutsceneEventMarker.holdUntilReleased"/> is baked as a hold whose id is the
-    /// event's own registry name, so a dialogue cue is one marker rather than an event plus a hold
-    /// with a hand-matched id.
+    /// The holds a cutscene's events imply: an event marked
+    /// <see cref="CutsceneEventMarker.holdUntilReleased"/> is baked as a hold whose id is the
+    /// event's own registry name, so a dialogue cue is one marker rather than an event plus a
+    /// hand-matched hold id. Shared by <see cref="CutsceneBlobBuilder"/> and the Cutscene Editor so
+    /// both derive the same id.
     /// </summary>
-    /// <remarks>
-    /// Shared by <see cref="CutsceneBlobBuilder"/> and the Cutscene Editor for the same reason
-    /// <see cref="CutsceneMarkMerge"/> is: if the bake and the transport derived the id separately
-    /// they could name the same hold differently, and the editor's Continue would rehearse a release
-    /// the host could never send.
-    /// </remarks>
     internal static class CutsceneDerivedHolds
     {
-        /// <summary>
-        /// The project event vocabulary, supplied by the Editor assembly.
-        /// </summary>
-        /// <remarks>
-        /// <c>VocabularyRegistryProvider</c>, which owns the <c>ProjectSettings/</c> file, is
-        /// editor-only, and this assembly ships to players and may not name that assembly at all —
-        /// not even in a comment, which is what Conformance_C scans. So the registry arrives through
-        /// this seam, the way <c>DirectionSetsPanel.SetContextProvider</c> takes its host context.
-        /// A lazy accessor rather than the registry itself: registration happens at domain load, and
-        /// touching the provider there would read the settings file on every reload whether or not
-        /// anything bakes.
-        /// </remarks>
+        // The registry owner is editor-only and this assembly ships to players, so it arrives
+        // through this seam rather than a direct reference. Lazy, not the registry itself: touching
+        // it at domain load would read the settings file on every reload whether or not anything bakes.
         internal static Func<IVocabularyRegistry> EventNameRegistrySource { get; set; }
 
         /// <summary>One hold derived from a holding event, in raw timeline seconds.</summary>
