@@ -75,7 +75,7 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<PointerUpEvent>(OnPointerUp);
             RegisterCallback<PointerCaptureOutEvent>(_ => EndDrag());
             RegisterCallback<WheelEvent>(OnWheel);
-            RegisterCallback<DetachFromPanelEvent>(_ => ReleaseResources());
+            RegisterCallback<DetachFromPanelEvent>(_ => ReleaseViewportResources());
             RegisterCallback<AttachToPanelEvent>(_ => DestroyLeakedCameras());
         }
 
@@ -213,7 +213,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void ReleaseResources()
+        private void ReleaseViewportResources()
         {
             if (renderTarget != null)
             {

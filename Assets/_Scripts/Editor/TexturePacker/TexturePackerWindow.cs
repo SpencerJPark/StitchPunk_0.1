@@ -60,9 +60,9 @@ public class TexturePackerWindow : EditorWindow
     }
 
     [OnOpenAsset]
-    public static bool OnOpenRecipeAsset(int instanceId, int line)
+    public static bool OnOpenRecipeAsset(EntityId entityId, int line)
     {
-        Object openedAsset = EditorUtility.EntityIdToObject(instanceId);
+        Object openedAsset = EditorUtility.EntityIdToObject(entityId);
         if (openedAsset is TexturePackRecipeSO recipe)
         {
             OpenWith(recipe);

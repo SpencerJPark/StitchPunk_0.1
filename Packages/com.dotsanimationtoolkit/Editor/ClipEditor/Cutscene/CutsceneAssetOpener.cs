@@ -3,6 +3,7 @@
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEditor.Callbacks;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
@@ -11,9 +12,9 @@ namespace DotsAnimationToolkit.Editor
     internal static class CutsceneAssetOpener
     {
         [OnOpenAsset]
-        private static bool OnOpenCutsceneAsset(int instanceId, int line)
+        private static bool OnOpenCutsceneAsset(EntityId entityId, int line)
         {
-            CutsceneAsset openedCutscene = EditorUtility.EntityIdToObject(instanceId) as CutsceneAsset;
+            CutsceneAsset openedCutscene = EditorUtility.EntityIdToObject(entityId) as CutsceneAsset;
             if (openedCutscene == null)
             {
                 return false;

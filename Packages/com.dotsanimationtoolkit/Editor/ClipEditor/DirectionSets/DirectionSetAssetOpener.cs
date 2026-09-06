@@ -3,6 +3,7 @@
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEditor.Callbacks;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
@@ -18,10 +19,10 @@ namespace DotsAnimationToolkit.Editor
     internal static class DirectionSetAssetOpener
     {
         [OnOpenAsset]
-        private static bool OnOpenDirectionSetAsset(int instanceId, int line)
+        private static bool OnOpenDirectionSetAsset(EntityId entityId, int line)
         {
             DirectionSetAsset openedSet =
-                EditorUtility.EntityIdToObject(instanceId) as DirectionSetAsset;
+                EditorUtility.EntityIdToObject(entityId) as DirectionSetAsset;
             if (openedSet == null)
             {
                 return false;

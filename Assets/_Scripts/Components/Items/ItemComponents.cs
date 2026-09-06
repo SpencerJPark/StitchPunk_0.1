@@ -1,6 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.VisualScripting.YamlDotNet.Core.Tokens;
+
 
 public struct UnitEquip : IComponentData // goes on parent entity
 {
