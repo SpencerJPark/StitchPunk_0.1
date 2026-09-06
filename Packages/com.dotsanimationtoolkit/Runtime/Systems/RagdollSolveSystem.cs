@@ -106,7 +106,7 @@ namespace DotsAnimationToolkit
                 if (billboardMemberLookup.HasComponent(rootNode))
                 {
                     BillboardMember member = billboardMemberLookup[rootNode];
-                    BillboardQuery.TryGetFrame(in member, in billboardRootElementLookup, out frameRotation);
+                    BillboardApi.TryGetFrame(in member, in billboardRootElementLookup, out frameRotation);
                 }
             }
             ragdollState.frameRotation = frameRotation;

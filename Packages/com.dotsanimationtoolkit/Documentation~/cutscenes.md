@@ -150,9 +150,9 @@ and bound in the editor reaches the game.
 
 ```csharp
 // Somewhere the host looks a staged cutscene up by its stable id (its asset's StableId):
-if (CutscenePlaybackApi.TryFindStage(entityManager, cutsceneKey, out Entity stageEntity))
+if (CutsceneApi.TryFindStage(entityManager, cutsceneKey, out Entity stageEntity))
 {
-    Entity cutscene = CutscenePlaybackApi.CreatePlayRequestFromStage(entityManager, stageEntity);
+    Entity cutscene = CutsceneApi.CreatePlayRequestFromStage(entityManager, stageEntity);
     // Every staged slot is already bound. Add or overwrite CutsceneActorBinding entries
     // for anything the stage's subscene could not bake — a spawned unit, or a target that
     // lived outside the subscene at bake time.
@@ -171,7 +171,7 @@ props — have no scene object for a stage to bind, so bind them by hand instead
 
 ```csharp
 BlobAssetReference<CutsceneBlob> blob = /* built or cached ahead of time */;
-Entity cutscene = CutscenePlaybackApi.CreatePlayRequest(entityManager, blob, layerIndex: 0);
+Entity cutscene = CutsceneApi.CreatePlayRequest(entityManager, blob, layerIndex: 0);
 
 // Explicit casting, no discovery magic: you resolve every slot to an entity yourself.
 DynamicBuffer<CutsceneActorBinding> bindings = entityManager.GetBuffer<CutsceneActorBinding>(cutscene);
@@ -179,7 +179,7 @@ bindings.Add(new CutsceneActorBinding { slotId = berthaSlotId, actorEntity = ber
 ```
 
 - **Pause / speed** — write `CutsceneControl.paused` / `.speed` directly.
-- **Skip** — `CutscenePlaybackApi.RequestSkip(entityManager, cutscene)`. A
+- **Skip** — `CutsceneApi.RequestSkip(entityManager, cutscene)`. A
   skip jumps straight to the cutscene's final instant and fires every
   remaining event whose `fireOnSkip` is set (on by default) — a skipped
   cutscene leaves the exact same world state as a fully watched one, not
@@ -292,7 +292,7 @@ id you have to keep matching by hand.
   segment that ends at its time. A host that never saw the cue could not release
   the hold it starts.
 - Read the id back with
-  `CutscenePlaybackApi.TryGetCurrentHoldId(entityManager, cutscene, out FixedString64Bytes holdId)`,
+  `CutsceneApi.TryGetCurrentHoldId(entityManager, cutscene, out FixedString64Bytes holdId)`,
   which answers only while the clock is actually paused on a hold.
 - Two holding events at one instant share a hold and both fire. A holding event
   on top of an authored hold marker keeps the authored id, with a warning that

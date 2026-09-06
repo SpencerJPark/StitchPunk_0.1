@@ -36,7 +36,7 @@ namespace DotsAnimationToolkit
     /// </para>
     /// <para>
     /// <strong>LOD arrives here as three separate effects, not one</strong> (§5.10, via
-    /// <see cref="AnimationLodPolicy"/>): it scales the effective sample rate, it snaps crossfade
+    /// <see cref="AnimationLodResolver"/>): it scales the effective sample rate, it snaps crossfade
     /// weights from level 2, and it freezes the pose from level 3 until the actor's clips change.
     /// All three are presentation-only — nothing below touches a timer or an event, so a
     /// distant actor stays frame-accurate to the simulation and merely looks cheaper.
@@ -154,7 +154,7 @@ namespace DotsAnimationToolkit
             }
 
             float requestedRateHz = sampleSettings.rateHz > 0f ? sampleSettings.rateHz : defaultSampleRateHz;
-            float effectiveRateHz = AnimationLodPolicy.EffectiveSampleRateHz(lodLevel, requestedRateHz);
+            float effectiveRateHz = AnimationLodResolver.EffectiveSampleRateHz(lodLevel, requestedRateHz);
             if (!ClipSampler.ShouldSample(
                     previousElapsedTime, currentElapsedTime, effectiveRateHz, sampleSettings.phase01))
             {
@@ -176,13 +176,13 @@ namespace DotsAnimationToolkit
             // The signature is nonetheless recorded at every level so that raising the level does
             // not begin with a spurious extra sample.
             int clipSignature = ComputeClipSignature(in layerArray);
-            if (AnimationLodPolicy.FreezesPose(lodLevel) && clipSignature == sampleState.sampledClipSignature)
+            if (AnimationLodResolver.FreezesPose(lodLevel) && clipSignature == sampleState.sampledClipSignature)
             {
                 return;
             }
             sampleState.sampledClipSignature = clipSignature;
 
-            bool snapBlendWeights = AnimationLodPolicy.SnapsBlendWeights(lodLevel);
+            bool snapBlendWeights = AnimationLodResolver.SnapsBlendWeights(lodLevel);
 
             for (int partRefIndex = 0; partRefIndex < partRefs.Length; partRefIndex++)
             {

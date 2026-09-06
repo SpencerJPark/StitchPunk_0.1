@@ -29,7 +29,7 @@ namespace DotsAnimationToolkit
     /// </para>
     /// </remarks>
     [BurstCompile]
-    public static class BillboardQuery
+    public static class BillboardApi
     {
         /// <summary>
         /// The billboard frame a node inherits, resolved this frame.

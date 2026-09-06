@@ -659,7 +659,7 @@ namespace DotsAnimationToolkit
                     float blendWeight = math.saturate(layer.blendElapsed / layer.blendDuration);
                     if (snapBlendWeights)
                     {
-                        blendWeight = AnimationLodPolicy.SnapBlendWeight(blendWeight);
+                        blendWeight = AnimationLodResolver.SnapBlendWeight(blendWeight);
                     }
                     LerpPose(in previousPose, in currentPose, blendWeight, out pose);
                 }

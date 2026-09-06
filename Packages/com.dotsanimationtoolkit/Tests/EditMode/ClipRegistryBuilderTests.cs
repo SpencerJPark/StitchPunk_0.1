@@ -74,7 +74,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 int resolvedIndex;
                 Assert.IsTrue(
-                    ClipRegistryUtil.TryResolveClip(
+                    ClipRegistryApi.TryResolveClip(
                         ref registry, new ClipId(authoredClipIds[clipIndex]), out resolvedIndex),
                     "Every baked clip must resolve through the section 4.3 lookup contract.");
                 Assert.AreEqual(
@@ -105,7 +105,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             int resolvedTargetIndex;
             Assert.IsTrue(
-                ClipRegistryUtil.ResolveTargetIndex(ref registry, new TargetId(9u), out resolvedTargetIndex),
+                ClipRegistryApi.TryResolveTarget(ref registry, new TargetId(9u), out resolvedTargetIndex),
                 "Every baked target must resolve through the section 4.3 lookup contract.");
             Assert.AreEqual(2, resolvedTargetIndex, "Target resolution must agree with the dense order.");
         }
@@ -515,7 +515,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             int resolvedIndex;
             Assert.IsFalse(
-                ClipRegistryUtil.TryResolveClip(ref registry, new ClipId(0x10UL), out resolvedIndex),
+                ClipRegistryApi.TryResolveClip(ref registry, new ClipId(0x10UL), out resolvedIndex),
                 "Resolving against an empty registry must fail rather than read out of bounds.");
             Assert.AreEqual(-1, resolvedIndex, "A failed resolve reports -1.");
         }

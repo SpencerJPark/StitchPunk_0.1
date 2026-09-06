@@ -160,7 +160,7 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             ClipRegistry clipRegistry = clipRegistryLookup[bakeLink.actorRoot];
-            if (!ClipRegistryUtil.ResolveTargetIndex(
+            if (!ClipRegistryApi.TryResolveTarget(
                     ref clipRegistry.Value.Value,
                     new TargetId(bakeLink.targetId),
                     out int denseTargetIndex))

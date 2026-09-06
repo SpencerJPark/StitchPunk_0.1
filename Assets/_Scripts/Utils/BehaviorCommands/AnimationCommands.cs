@@ -2,7 +2,7 @@ using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Entities;
 
-// PlayAnimation / PlayActionAnimation / StopAnimation — all thin AnimationCommandUtil wrappers,
+// PlayAnimation / PlayActionAnimation / StopAnimation — all thin PlaybackApi wrappers,
 // fire-and-advance. StopAnimation takes its dependencies directly (not BehaviorCommandContext):
 // BehaviorInterruptSystem's interruptionCleanup pass reuses it and doesn't carry the execution
 // job's full lookup set.
@@ -20,7 +20,7 @@ public static class AnimationCommands
             return;
 
         DynamicBuffer<AnimationCommand> playCommands = context.animationCommandLookup[unit];
-        AnimationCommandUtil.Play(
+        PlaybackApi.Play(
             ref playCommands,
             context.animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
             (byte)AnimationToolkitLayer.Action,
@@ -56,7 +56,7 @@ public static class AnimationCommands
         if (!actionAnimation.IsValid) return;
 
         DynamicBuffer<AnimationCommand> playCommands = context.animationCommandLookup[unit];
-        AnimationCommandUtil.Play(
+        PlaybackApi.Play(
             ref playCommands,
             context.animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
             (byte)AnimationToolkitLayer.Action,
@@ -74,7 +74,7 @@ public static class AnimationCommands
             return;
 
         DynamicBuffer<AnimationCommand> stopCommands = animationCommandLookup[unit];
-        AnimationCommandUtil.Stop(
+        PlaybackApi.Stop(
             ref stopCommands,
             animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
             (byte)AnimationToolkitLayer.Action,

@@ -360,13 +360,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             testWorld.GetOrCreateSystemManaged<AnimationToolkitSystemGroup>();
 
-            Assert.IsTrue(ToolkitWorldControl.IsEnabled(testWorld), "Groups start enabled.");
+            Assert.IsTrue(ToolkitWorldApi.IsEnabled(testWorld), "Groups start enabled.");
 
-            Assert.IsTrue(ToolkitWorldControl.SetEnabled(testWorld, false), "SetEnabled should find the group.");
-            Assert.IsFalse(ToolkitWorldControl.IsEnabled(testWorld), "The group should now be disabled.");
+            Assert.IsTrue(ToolkitWorldApi.SetEnabled(testWorld, false), "SetEnabled should find the group.");
+            Assert.IsFalse(ToolkitWorldApi.IsEnabled(testWorld), "The group should now be disabled.");
 
-            Assert.IsTrue(ToolkitWorldControl.SetEnabled(testWorld, true));
-            Assert.IsTrue(ToolkitWorldControl.IsEnabled(testWorld), "The group should be enabled again.");
+            Assert.IsTrue(ToolkitWorldApi.SetEnabled(testWorld, true));
+            Assert.IsTrue(ToolkitWorldApi.IsEnabled(testWorld), "The group should be enabled again.");
         }
 
         /// <summary>
@@ -377,14 +377,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void WorldControl_OnAnUnusableWorld_ReturnsFalseRatherThanThrowing()
         {
-            Assert.DoesNotThrow(() => ToolkitWorldControl.SetEnabled(null, true));
-            Assert.IsFalse(ToolkitWorldControl.SetEnabled(null, true));
-            Assert.IsFalse(ToolkitWorldControl.IsEnabled(null));
+            Assert.DoesNotThrow(() => ToolkitWorldApi.SetEnabled(null, true));
+            Assert.IsFalse(ToolkitWorldApi.SetEnabled(null, true));
+            Assert.IsFalse(ToolkitWorldApi.IsEnabled(null));
 
             World disposedWorld = new World("DisposedForToolkitWorldControlTest");
             disposedWorld.Dispose();
-            Assert.DoesNotThrow(() => ToolkitWorldControl.SetEnabled(disposedWorld, true));
-            Assert.IsFalse(ToolkitWorldControl.SetEnabled(disposedWorld, true));
+            Assert.DoesNotThrow(() => ToolkitWorldApi.SetEnabled(disposedWorld, true));
+            Assert.IsFalse(ToolkitWorldApi.SetEnabled(disposedWorld, true));
         }
 
         /// <summary>
@@ -395,7 +395,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void WorldControl_OnAWorldWithoutTheGroup_ReturnsFalse()
         {
             Assert.IsFalse(
-                ToolkitWorldControl.SetEnabled(testWorld, false),
+                ToolkitWorldApi.SetEnabled(testWorld, false),
                 "No group was created in this world, so there was nothing to set.");
         }
 

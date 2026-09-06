@@ -89,17 +89,17 @@ would fail the bake.
 
 ## Runtime API surface
 
-- **`AnimationCommandUtil`** (Runtime/Api) — the write side: `Play`, `Queue`,
+- **`PlaybackApi`** (Runtime/Api) — the write side: `Play`, `Queue`,
   `Stop`, `SetSpeed`, `SetTime`. Always pairs an `AnimationCommand` buffer
   append with enabling `AnimationCommandPending` — that pairing is why you
   call this instead of writing buffer elements by hand.
-- **`PlaybackQuery`** (Runtime/Api) — the read side: query a layer's current
+- **`PlaybackApi`** (Runtime/Api) — the read side: query a layer's current
   clip, normalized time, and finished state.
 - **`AnimEventOutput` buffer / `AnimEventMask` component** — the two event
   channels: a one-frame pulse carrying a payload, and a sustained "window" bit
   you can test on any frame. `AnimEventMaskKeys.IsOpen(mask, key)` is the
   window query. See [`animation-events.md`](animation-events.md).
-- **`ToolkitWorldControl.SetEnabled(world, enabled)`** — the supported way to
+- **`ToolkitWorldApi.SetEnabled(world, enabled)`** — the supported way to
   turn the whole toolkit on or off in a world (stops every system, timers
   included). To hide actors while keeping timers running, disable the
   `AnimVisible` enableable on them instead — that's a different question (the
@@ -158,7 +158,7 @@ And the two references both of them lean on:
 - [`cutscenes.md`](cutscenes.md) — multi-actor timelines: clip blocks and
   keyframes on one lane per actor, a camera lane, hold points, non-destructive
   Scene-view preview and keying, baking to a `CutsceneBlob`, and the
-  `CutscenePlaybackApi` that plays one at runtime.
+  `CutsceneApi` that plays one at runtime.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.

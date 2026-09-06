@@ -240,3 +240,7 @@ Open `Runtime/Api/PlaybackApi.cs`, `Runtime/Blobs/ClipRegistryBlob.cs`, and `Run
   `StitchPunk.Tests.PlayMode` 7/7. `Conformance_F` reports 3,501 total hits (50 shown, capped).
   `Conformance_G` fails on the nine §2.1 renames only, after the T1 allowlist fix above.
   `Conformance_H` fails on the four of five `Runtime/Api/` classes §2.1 already predicted.
+- 2026-09-06 — T2 drift: the spec's own §2.1 rename `StableIdUtility` → `StableIdMinting` produces a
+  name that fits none of the eight role suffixes either — same shape as the `RagdollSolver` gap
+  above, just discovered one step later because the rename target didn't exist until T2 ran. Added
+  to the T1 allowlist rather than picking a ninth suffix or re-litigating the rename.

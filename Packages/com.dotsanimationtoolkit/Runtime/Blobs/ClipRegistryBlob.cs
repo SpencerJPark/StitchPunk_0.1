@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit
         /// The baked clips, sorted by ascending <see cref="ClipBlob.clipId"/> — the canonical order
         /// of section 4.5.1. A clip's dense index is its position in this array, and because the
         /// array is id-sorted that position is also its position in <see cref="sortedClipIds"/>, so
-        /// the binary search of <c>ClipRegistryUtil.TryResolveClip</c> (section 4.3) yields the
+        /// the binary search of <c>ClipRegistryApi.TryResolveClip</c> (section 4.3) yields the
         /// dense index directly and no id → index indirection array is stored. The dense index is
         /// what every runtime field caches (<see cref="PlaybackLayer.clipIndex"/>,
         /// <see cref="PlaybackLayer.previousClipIndex"/>).

@@ -32,7 +32,7 @@ So the default mode, `Planar2D`, simulates **inside the character's own plane of
   because the frame rotates with it.
 
 This is not an approximation of the billboard; it reads the exact frame `BillboardResolveSystem`
-resolved this frame, through `BillboardQuery`. The ragdoll and the renderer cannot disagree about
+resolved this frame, through `BillboardApi`. The ragdoll and the renderer cannot disagree about
 which way the character is facing, because there is only one answer and both read it.
 
 A rig that declares no billboard root falls back to the world XY plane, which is the right answer for

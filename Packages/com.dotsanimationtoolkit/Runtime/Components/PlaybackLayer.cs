@@ -8,7 +8,7 @@ namespace DotsAnimationToolkit
     /// Per-layer playback state on the actor root (architecture sections 5.2, 5.4). One element
     /// per rig layer; the buffer index is the layer index, and higher indices composite later
     /// (bottom-up composition, section 5.6). Written only by the package's command/time systems;
-    /// games read it through <c>PlaybackQuery</c>.
+    /// games read it through <c>PlaybackApi</c>.
     /// </summary>
     [InternalBufferCapacity(8)]
     public struct PlaybackLayer : IBufferElementData

@@ -6,7 +6,7 @@ using Unity.Collections;
 
 // Decides which clip each layer should be playing and issues AnimationCommands only on change —
 // commands are requests, not state, so re-issuing Play every frame would restart the clip's
-// crossfade/queue machinery for no reason. PlaybackQuery answers "what's actually playing" against
+// crossfade/queue machinery for no reason. PlaybackApi answers "what's actually playing" against
 // the toolkit's own PlaybackLayer buffer instead of tracking a shadow copy here.
 [BurstCompile]
 [UpdateInGroup(typeof(AnimationAssignmentSystemGroup))]
@@ -62,9 +62,9 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         // Base layer always reflects locomotion/stance
         ClipId baseClip = GetBaseAnimation(ref unitBlob, locomotionStance.stance, movement.isMoving, clipFacing);
         if (baseClip.IsValid
-            && !PlaybackQuery.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Base, baseClip))
+            && !PlaybackApi.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Base, baseClip))
         {
-            AnimationCommandUtil.Play(ref commands, commandPendingEnabled,
+            PlaybackApi.Play(ref commands, commandPendingEnabled,
                 (byte)AnimationToolkitLayer.Base, baseClip, loop: LoopMode.Loop);
         }
 
@@ -81,9 +81,9 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
             {
                 ClipId actionClip = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving, clipFacing);
                 if (actionClip.IsValid
-                    && !PlaybackQuery.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Action, actionClip))
+                    && !PlaybackApi.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Action, actionClip))
                 {
-                    AnimationCommandUtil.Play(ref commands, commandPendingEnabled,
+                    PlaybackApi.Play(ref commands, commandPendingEnabled,
                         (byte)AnimationToolkitLayer.Action, actionClip, loop: LoopMode.Once);
                 }
             }

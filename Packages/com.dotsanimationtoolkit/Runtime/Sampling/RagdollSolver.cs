@@ -243,7 +243,7 @@ namespace DotsAnimationToolkit
         /// <summary>
         /// The billboard frame's own +Z, in world space — Planar2D's plane normal (§6.2, §5.4).
         /// </summary>
-        /// <param name="frameRotation">A frame resolved by <c>BillboardQuery.TryGetFrame</c>, or identity for the documented fallback.</param>
+        /// <param name="frameRotation">A frame resolved by <c>BillboardApi.TryGetFrame</c>, or identity for the documented fallback.</param>
         /// <param name="planeNormal">The world-space plane normal.</param>
         [BurstCompile]
         public static void ComputePlaneNormal(in quaternion frameRotation, out float3 planeNormal)
@@ -549,7 +549,7 @@ namespace DotsAnimationToolkit
         /// read, so a 3D ragdoll on a rig with no billboard roots costs nothing extra (§6.3).
         /// </summary>
         /// <remarks>
-        /// Calls <c>BillboardQuery.ToBillboardSpace</c> rather than re-deriving the projection —
+        /// Calls <c>BillboardApi.ToBillboardSpace</c> rather than re-deriving the projection —
         /// §1 names this exact call as the ragdoll's gravity call and asks that facing math never
         /// be recomputed a second way.
         /// </remarks>
@@ -562,7 +562,7 @@ namespace DotsAnimationToolkit
                 return;
             }
 
-            BillboardQuery.ToBillboardSpace(in settings.frameRotation, in scaledGravity, out float3 planarGravity);
+            BillboardApi.ToBillboardSpace(in settings.frameRotation, in scaledGravity, out float3 planarGravity);
             planarGravity.z = 0f;
             gravity = math.mul(settings.frameRotation, planarGravity);
         }

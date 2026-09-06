@@ -12,7 +12,7 @@ namespace DotsAnimationToolkit
     /// one operation that has more than one field to get right: standing up a fresh request with
     /// its internal bookkeeping correctly sized.
     /// </summary>
-    public static class CutscenePlaybackApi
+    public static class CutsceneApi
     {
         /// <summary>
         /// Creates a cutscene play request: <see cref="CutscenePlay"/>, a fresh

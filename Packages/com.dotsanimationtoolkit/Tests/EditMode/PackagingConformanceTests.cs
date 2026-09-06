@@ -399,7 +399,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "BindingReconciler", "ClipEditorDocking", "PrefabAuthoringBridge", "RigStructureEditor",
             "ClipComponentModel", "GizmoDragRouting", "EventLaneAddressing", "PreviewLineMaterial",
             "PreviewScenePicker", "RagdollPreviewProbe", "VatMeshPreparer", "VatTentacleRigBuilder",
-            "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver"
+            "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver", "StableIdMinting"
         };
 
         // (f) No doc-comment essays or spec citations survive in shipped sources (Amendment A69, section 2.3).
@@ -586,11 +586,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.14.0 is Phase G, the Cutscene
-            // Editor: multi-actor timelines, non-destructive Scene-view preview and keying, a camera
-            // lane, baking to a blob, and an ECS runtime player, on top of 0.13.0's rig-centric
-            // binding (Phase F).
-            Assert.AreEqual("0.14.0", manifest.version, "Version tracks the shipped feature set; 0.14.0 is the Cutscene Editor (Phase G).");
+            // -- not drift because someone edited the manifest. 0.15.0 is Amendment A69, the code
+            // style unification: one suffix per static-class role and the breaking renames it forced.
+            Assert.AreEqual("0.15.0", manifest.version, "Version tracks the shipped feature set; 0.15.0 is Amendment A69's breaking renames.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

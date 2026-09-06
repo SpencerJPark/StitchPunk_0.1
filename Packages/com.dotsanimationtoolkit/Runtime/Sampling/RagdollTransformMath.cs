@@ -38,7 +38,7 @@ namespace DotsAnimationToolkit
     /// </para>
     /// </remarks>
     [BurstCompile]
-    internal static class RagdollTransformUtil
+    internal static class RagdollTransformMath
     {
         /// <summary>
         /// The world-space position, rotation and (uniform) scale of <paramref name="node"/>, walked

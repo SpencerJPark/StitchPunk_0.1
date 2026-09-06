@@ -783,7 +783,7 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     continue;
                 }
-                if (!ClipRegistryUtil.TryResolveClip(
+                if (!ClipRegistryApi.TryResolveClip(
                         ref registry.Value,
                         startingLayer.clip.Id,
                         out int clipIndex))
@@ -888,7 +888,7 @@ namespace DotsAnimationToolkit.Authoring
                 // Unknown targets are reported once, by RigTargetBaker, which can name the part and
                 // the rig that does not declare its id (amendment A22); this pass stays silent
                 // about them and simply leaves them out of the rest frame.
-                if (!ClipRegistryUtil.ResolveTargetIndex(
+                if (!ClipRegistryApi.TryResolveTarget(
                         ref registry.Value,
                         new TargetId(part.targetStableId),
                         out int denseTargetIndex))

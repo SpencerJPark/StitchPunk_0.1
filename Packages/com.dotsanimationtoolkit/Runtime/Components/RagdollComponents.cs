@@ -167,7 +167,7 @@ namespace DotsAnimationToolkit
     /// <remarks>
     /// <strong><see cref="frameRotation"/> is re-read every step, not captured once.</strong> An
     /// orbiting camera must carry the plane with it (spec §6.2), so <c>RagdollSolveSystem</c>
-    /// re-resolves the actor's billboard frame — through <c>BillboardQuery.TryGetFrame</c>, never
+    /// re-resolves the actor's billboard frame — through <c>BillboardApi.TryGetFrame</c>, never
     /// recomputed by hand — every step this actor is enabled, and writes the result here purely so
     /// the value used for gravity and the value published for anything else that asks are the same
     /// one. <see cref="planeNormal"/> is cached alongside it because <c>RagdollSpace.Planar2D</c>

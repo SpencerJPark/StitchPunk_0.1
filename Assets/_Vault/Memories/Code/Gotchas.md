@@ -168,7 +168,7 @@ which write `BoundsDirty` in both directions.
 ## A `ComponentLookup` cached before a structural change throws `ObjectDisposedException` after it — silently
 
 A non-Burst `ISystem` that calls a managed API doing structural changes (e.g.
-`CutscenePlaybackApi.CreatePlayRequestFromStage` — `CreateEntity`/`AddComponentData`/`AddBuffer`) and then
+`CutsceneApi.CreatePlayRequestFromStage` — `CreateEntity`/`AddComponentData`/`AddBuffer`) and then
 reuses a `ComponentLookup` obtained *before* that call throws `ObjectDisposedException: ... has been
 invalidated by a structural change` the moment the lookup is touched. No compile error, and the throw
 aborts the rest of `OnUpdate` — including any cleanup after the loop (a `DestroyEntity` call three lines

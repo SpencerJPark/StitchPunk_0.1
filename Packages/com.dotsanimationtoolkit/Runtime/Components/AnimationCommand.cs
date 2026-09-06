@@ -6,7 +6,7 @@ namespace DotsAnimationToolkit
 {
     /// <summary>
     /// One playback request on the actor's command buffer (architecture sections 5.2, 5.4). Games
-    /// never write elements by hand — they call <c>AnimationCommandUtil</c>, which appends the
+    /// never write elements by hand — they call <c>PlaybackApi</c>, which appends the
     /// element and enables <see cref="AnimationCommandPending"/>. <c>CommandApplySystem</c> drains
     /// the buffer each frame.
     /// </summary>

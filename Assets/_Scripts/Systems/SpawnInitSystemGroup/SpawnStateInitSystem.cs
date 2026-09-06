@@ -152,7 +152,7 @@ public partial struct SpawnStateInitSystem : ISystem
                 DynamicBuffer<AnimationCommand> resetCommands = _animationCommandLookup[entity];
                 for (byte layerIndex = 0; layerIndex <= (byte)AnimationToolkitLayer.Mouth; layerIndex++)
                 {
-                    AnimationCommandUtil.Stop(
+                    PlaybackApi.Stop(
                         ref resetCommands,
                         _animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
                         layerIndex,

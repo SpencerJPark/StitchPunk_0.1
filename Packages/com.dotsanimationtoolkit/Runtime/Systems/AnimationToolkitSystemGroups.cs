@@ -15,7 +15,7 @@ namespace DotsAnimationToolkit
     /// and an empty world costs nothing. This is deliberate: requiring a tag component would make the
     /// package's systems refuse to run in any world that had not been taught about it, which is the
     /// coupling the source audit flagged in the host game (its systems require a `GameSceneTag`).
-    /// A host that wants the feature off uses <see cref="ToolkitWorldControl.SetEnabled"/>.
+    /// A host that wants the feature off uses <see cref="ToolkitWorldApi.SetEnabled"/>.
     /// </para>
     /// <para>
     /// <strong>This type declares no <c>UpdateBefore</c>/<c>UpdateAfter</c> edges</strong>, only its

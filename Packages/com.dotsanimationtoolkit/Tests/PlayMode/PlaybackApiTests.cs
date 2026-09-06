@@ -6,7 +6,7 @@ using Unity.Entities;
 namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
-    /// Covers <c>PlaybackQuery</c> — the read side of the section 5.4 API, including amendment
+    /// Covers <c>PlaybackApi</c> — the read side of the section 5.4 API, including amendment
     /// A26's pinned behaviour (build step C4.3).
     /// </summary>
     /// <remarks>
@@ -75,8 +75,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             SeedLayer(WalkClipIndex, WalkClipId, time: 0.5f, loop: LoopMode.Loop, flags: PlaybackFlags.Active);
 
-            Assert.IsTrue(PlaybackQuery.IsPlaying(Layers(), 0, new ClipId(WalkClipId)));
-            Assert.IsFalse(PlaybackQuery.IsPlaying(Layers(), 0, new ClipId(AttackClipId)));
+            Assert.IsTrue(PlaybackApi.IsPlaying(Layers(), 0, new ClipId(WalkClipId)));
+            Assert.IsFalse(PlaybackApi.IsPlaying(Layers(), 0, new ClipId(AttackClipId)));
         }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             SeedLayer(WalkClipIndex, WalkClipId, time: 0.5f, loop: LoopMode.Loop, flags: PlaybackFlags.None);
 
-            Assert.IsFalse(PlaybackQuery.IsPlaying(Layers(), 0, new ClipId(WalkClipId)));
+            Assert.IsFalse(PlaybackApi.IsPlaying(Layers(), 0, new ClipId(WalkClipId)));
         }
 
         /// <summary>
@@ -109,8 +109,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.flags = PlaybackFlags.Active | PlaybackFlags.Blending;
             PlaybackTestActor.SetLayer(testWorld, actor, 0, layer);
 
-            Assert.IsFalse(PlaybackQuery.IsPlaying(Layers(), 0, new ClipId(WalkClipId)));
-            Assert.IsTrue(PlaybackQuery.IsPlaying(Layers(), 0, new ClipId(AttackClipId)));
+            Assert.IsFalse(PlaybackApi.IsPlaying(Layers(), 0, new ClipId(WalkClipId)));
+            Assert.IsTrue(PlaybackApi.IsPlaying(Layers(), 0, new ClipId(AttackClipId)));
         }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void IsPlaying_IsFalseForALayerTheRigDoesNotHave()
         {
-            Assert.IsFalse(PlaybackQuery.IsPlaying(Layers(), 9, new ClipId(WalkClipId)));
+            Assert.IsFalse(PlaybackApi.IsPlaying(Layers(), 9, new ClipId(WalkClipId)));
         }
 
         // -------------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             SeedLayer(WalkClipIndex, WalkClipId, time: 0.5f, loop: LoopMode.Loop, flags: PlaybackFlags.Active);
 
-            Assert.AreEqual(0.25f, PlaybackQuery.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
+            Assert.AreEqual(0.25f, PlaybackApi.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             SeedLayer(WalkClipIndex, WalkClipId, time: 2.4f, loop: LoopMode.Loop, flags: PlaybackFlags.Active);
 
-            Assert.AreEqual(0.2f, PlaybackQuery.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
+            Assert.AreEqual(0.2f, PlaybackApi.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
         }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             Assert.AreEqual(
                 1f,
-                PlaybackQuery.NormalizedTime(Layers(), ref registry.Value, 0),
+                PlaybackApi.NormalizedTime(Layers(), ref registry.Value, 0),
                 1e-5f,
                 "A Once-played clip holds at its end; resolving against the clip default would wrap it.");
         }
@@ -176,7 +176,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             SeedLayer(WalkClipIndex, WalkClipId, time: 1f, loop: LoopMode.Loop, flags: PlaybackFlags.None);
 
-            Assert.AreEqual(0f, PlaybackQuery.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
+            Assert.AreEqual(0f, PlaybackApi.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
         }
 
         /// <summary>
@@ -191,14 +191,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             layer.time = 1f;
             PlaybackTestActor.SetLayer(testWorld, actor, 0, layer);
 
-            Assert.AreEqual(0f, PlaybackQuery.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
+            Assert.AreEqual(0f, PlaybackApi.NormalizedTime(Layers(), ref registry.Value, 0), 1e-5f);
         }
 
         /// <summary>Catches: dropping the layer-index bounds check.</summary>
         [Test]
         public void NormalizedTime_IsZeroForALayerTheRigDoesNotHave()
         {
-            Assert.AreEqual(0f, PlaybackQuery.NormalizedTime(Layers(), ref registry.Value, 9), 1e-5f);
+            Assert.AreEqual(0f, PlaybackApi.NormalizedTime(Layers(), ref registry.Value, 9), 1e-5f);
         }
 
         // -------------------------------------------------------------------------------------
@@ -217,7 +217,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 flags: PlaybackFlags.Finished);
 
             Assert.IsFalse(
-                PlaybackQuery.FinishedThisFrame(Layers(), 0),
+                PlaybackApi.HasFinishedThisFrame(Layers(), 0),
                 "Finished is sticky; only FinishedThisFrame means 'it just happened'.");
 
             SeedLayer(
@@ -227,14 +227,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 loop: LoopMode.Once,
                 flags: PlaybackFlags.Finished | PlaybackFlags.FinishedThisFrame);
 
-            Assert.IsTrue(PlaybackQuery.FinishedThisFrame(Layers(), 0));
+            Assert.IsTrue(PlaybackApi.HasFinishedThisFrame(Layers(), 0));
         }
 
         /// <summary>Catches: dropping the layer-index bounds check.</summary>
         [Test]
         public void FinishedThisFrame_IsFalseForALayerTheRigDoesNotHave()
         {
-            Assert.IsFalse(PlaybackQuery.FinishedThisFrame(Layers(), 9));
+            Assert.IsFalse(PlaybackApi.HasFinishedThisFrame(Layers(), 9));
         }
 
         private DynamicBuffer<PlaybackLayer> Layers()

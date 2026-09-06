@@ -135,7 +135,7 @@ namespace DotsAnimationToolkit
                 SampleSettings sampleSettings = sampleSettingsLookup[actorEntity];
                 byte lodLevel = animLodLookup.HasComponent(actorEntity) ? animLodLookup[actorEntity].level : (byte)0;
                 float requestedRateHz = sampleSettings.rateHz > 0f ? sampleSettings.rateHz : defaultSampleRateHz;
-                float effectiveRateHz = AnimationLodPolicy.EffectiveSampleRateHz(lodLevel, requestedRateHz);
+                float effectiveRateHz = AnimationLodResolver.EffectiveSampleRateHz(lodLevel, requestedRateHz);
                 if (!ClipSampler.ShouldSample(
                         previousElapsedTime, currentElapsedTime, effectiveRateHz, sampleSettings.phase01))
                 {

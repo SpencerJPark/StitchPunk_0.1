@@ -19,7 +19,7 @@ namespace DotsAnimationToolkit
     /// It allocates (<see cref="Guid.NewGuid"/> plus a 16-byte array) and must not be called from
     /// Burst-compiled code.
     /// </remarks>
-    public static class StableIdUtility
+    public static class StableIdMinting
     {
         /// <summary>
         /// Folds a GUID into a 64-bit id by exclusive-oring its high and low 64-bit halves. The

@@ -9,7 +9,7 @@ namespace DotsAnimationToolkit
     /// 32 bits ample; ids are random (truncated folded GUIDs assigned when the target row is
     /// created) and never derived from the target's display name or list position. The value 0 is
     /// reserved and means "none/invalid". Targets are resolved to dense indices at bind/bake time
-    /// only (see <see cref="ClipRegistryUtil.ResolveTargetIndex"/>); per-frame code always uses the
+    /// only (see <see cref="ClipRegistryApi.TryResolveTarget"/>); per-frame code always uses the
     /// cached dense index.
     /// </summary>
     public readonly struct TargetId : IEquatable<TargetId>, IComparable<TargetId>

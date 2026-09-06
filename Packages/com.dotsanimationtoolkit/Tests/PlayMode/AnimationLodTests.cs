@@ -14,7 +14,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The level arithmetic itself lives in <c>AnimationLodPolicy</c> and is covered in EditMode.
+    /// The level arithmetic itself lives in <c>AnimationLodResolver</c> and is covered in EditMode.
     /// These fixtures are about the wiring: that the distance system writes the level at all, that
     /// it stays off unless asked twice, and that each of the three effects — rate scaling, blend
     /// snapping, pose freezing — actually reaches a sampled pose.

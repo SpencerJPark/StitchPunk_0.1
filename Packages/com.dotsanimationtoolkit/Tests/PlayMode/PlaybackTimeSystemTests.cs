@@ -188,7 +188,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         /// <summary>
         /// Catches: clearing <c>FinishedThisFrame</c> only on the active path. The completion that
         /// raises the flag also deactivates the layer, so a clear guarded by "is it active" never
-        /// runs again — the flag latches on and <c>PlaybackQuery.FinishedThisFrame</c> reports a
+        /// runs again — the flag latches on and <c>PlaybackApi.HasFinishedThisFrame</c> reports a
         /// completion that happened minutes ago, every frame, forever.
         /// </summary>
         [Test]

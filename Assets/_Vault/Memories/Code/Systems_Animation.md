@@ -22,7 +22,7 @@ separate, ongoing task — nothing here assumes real assets exist yet.
 - **`AnimationSystemGroup`** (`SystemGroups.cs`): two systems in `AnimationAssignmentSystemGroup`,
   `UnitFacingSystem` then `UnitAnimationAssignmentSystem` (`[UpdateBefore]` edge, in that order —
   facing must resolve before clip selection reads it). Assignment decides which `ClipId` each layer
-  should play from the `UnitLibraryBlob` and issues `AnimationCommandUtil.Play` only on change —
+  should play from the `UnitLibraryBlob` and issues `PlaybackApi.Play` only on change —
   never every frame, since commands are requests, not state. Ordered
   `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so commands issued this frame apply this frame.
 - **Facing** (`DirectionFacing_System.md`, built 2026-08-29): `UnitFacing : IComponentData { Direction
@@ -55,18 +55,18 @@ separate, ongoing task — nothing here assumes real assets exist yet.
   keeps the facing it had. The angle is measured **from +X toward +Z** (0 east, 90 north), so
   `(cos, sin)` lands in facing space directly — it is *not* a `LocalTransform` Y euler, and the two
   are a reflection about 45° (`UnitFacingJob.CutsceneAngleToFacingSpace`, pinned by `FacingSpaceTests`).
-- **The command seam** — every write site issues `AnimationCommandUtil.Play`/`Stop` against
+- **The command seam** — every write site issues `PlaybackApi.Play`/`Stop` against
   `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
   `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem` (`PlayAnimation`/
   `PlayActionAnimation`/`StopAnimation` behavior commands), `PlayerAttackSystem` (swing clip),
   `NarrativeEventManager` (managed, via `EntityManager.GetBuffer<AnimationCommand>` +
   `SetComponentEnabled<AnimationCommandPending>` directly — no lookup available outside a system).
-- **The read seam** — `PlaybackQuery.IsPlaying`/`PlaybackLayer.flags & PlaybackFlags.Active` answer
+- **The read seam** — `PlaybackApi.IsPlaying`/`PlaybackLayer.flags & PlaybackFlags.Active` answer
   "what's actually playing", read against the toolkit's own `PlaybackLayer` buffer. Never track a
   shadow copy of playback state game-side.
 - **`AnimationToolkitLayer`** (`Data/Enums/AnimationToolkitLayer.cs`): the six-layer convention every
   rig in this game declares, in this order — `Base(0) / Action(1) / Override(2) / Face(3) / Eyes(4) /
-  Mouth(5)`. Cast to `byte` at the `AnimationCommandUtil`/`PlaybackQuery` call site. The toolkit does
+  Mouth(5)`. Cast to `byte` at the `PlaybackApi`/`PlaybackApi` call site. The toolkit does
   **not** enforce that layer 3 means "Face" on every rig — it's a project convention every rig must
   follow by hand so a tag-bound `FaceExpressions` clip set's starting-layer references mean the same
   thing across rigs (see the migration spec §4).

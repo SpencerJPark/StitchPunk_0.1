@@ -8,7 +8,7 @@ namespace DotsAnimationToolkit
 {
     /// <summary>
     /// A baked, scene-resident cutscene (amendment A61): the blob and its scene bindings, ready for
-    /// a host to hand to <c>CutscenePlaybackApi.CreatePlayRequestFromStage</c>. One entity per
+    /// a host to hand to <c>CutsceneApi.CreatePlayRequestFromStage</c>. One entity per
     /// <c>CutsceneAsset</c> staged via <c>CutsceneStageAuthoring</c>.
     /// </summary>
     public struct CutsceneStage : IComponentData
@@ -16,7 +16,7 @@ namespace DotsAnimationToolkit
         /// <summary>The baked cutscene, owned by the bake-time <c>BlobAssetStore</c> — never disposed by a reader.</summary>
         public BlobAssetReference<CutsceneBlob> blob;
 
-        /// <summary>The source <c>CutsceneAsset.StableId</c> — how <see cref="CutscenePlaybackApi.TryFindStage"/> finds this stage.</summary>
+        /// <summary>The source <c>CutsceneAsset.StableId</c> — how <see cref="CutsceneApi.TryFindStage"/> finds this stage.</summary>
         public ulong cutsceneKey;
     }
 
@@ -52,7 +52,7 @@ namespace DotsAnimationToolkit
 
     /// <summary>
     /// The live control surface a host writes to steer a running cutscene (Phase G §4, §6): pause,
-    /// speed, and skip. Created at <see cref="CutscenePlaybackApi.CreatePlayRequest"/> and free for
+    /// speed, and skip. Created at <see cref="CutsceneApi.CreatePlayRequest"/> and free for
     /// the host to keep rewriting afterward — there is no second copy of this state anywhere the
     /// player owns.
     /// </summary>

@@ -11,7 +11,7 @@ namespace DotsAnimationToolkit.Authoring
     /// Bakes a <see cref="CutsceneAsset"/> and its scene-bound cast into one <see cref="CutsceneStage"/>
     /// entity (amendment A61): the asset baked to a <see cref="CutsceneBlob"/>, plus a
     /// <see cref="CutsceneStageBinding"/> per bound slot, ready for a host to hand to
-    /// <c>CutscenePlaybackApi.CreatePlayRequestFromStage</c>.
+    /// <c>CutsceneApi.CreatePlayRequestFromStage</c>.
     /// </summary>
     [AddComponentMenu("DOTS Animation Toolkit/Cutscene Stage")]
     [DisallowMultipleComponent]

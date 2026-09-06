@@ -317,7 +317,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         /// <strong>The third frame is the discriminating one.</strong> Dropping back to level 0
         /// mid-blend is the only observation that can distinguish "the weight was snapped for
         /// display" from "the blend was cut short": the first resumes at 0.75, the second is already
-        /// finished and reads 100.5. That is the property <c>AnimationLodPolicy.SnapsBlendWeights</c>
+        /// finished and reads 100.5. That is the property <c>AnimationLodResolver.SnapsBlendWeights</c>
         /// documents in prose — "blend timers keep advancing at every level" — and which nothing
         /// executed until this fixture.
         /// </para>

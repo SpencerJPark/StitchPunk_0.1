@@ -220,7 +220,7 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (stableId == 0UL)
             {
-                stableId = StableIdUtility.NewAssetStableId();
+                stableId = StableIdMinting.NewAssetStableId();
                 hasUnpersistedStableId = true;
             }
         }

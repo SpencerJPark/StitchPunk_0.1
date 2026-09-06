@@ -54,7 +54,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_FirstSortedId_ResolvesToItsBakedPosition()
         {
-            bool resolved = ClipRegistryUtil.TryResolveClip(
+            bool resolved = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(2), out int clipIndex);
             Assert.IsTrue(resolved);
             Assert.AreEqual(
@@ -67,7 +67,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_LastSortedId_Resolves()
         {
-            bool resolved = ClipRegistryUtil.TryResolveClip(
+            bool resolved = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(100), out int clipIndex);
             Assert.IsTrue(resolved);
             Assert.AreEqual(3, clipIndex, "Id 100 is the highest id, so it bakes last.");
@@ -76,12 +76,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_MiddleSortedIds_Resolve()
         {
-            bool resolvedFive = ClipRegistryUtil.TryResolveClip(
+            bool resolvedFive = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(5), out int fiveIndex);
             Assert.IsTrue(resolvedFive);
             Assert.AreEqual(1, fiveIndex);
 
-            bool resolvedNine = ClipRegistryUtil.TryResolveClip(
+            bool resolvedNine = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(9), out int nineIndex);
             Assert.IsTrue(resolvedNine);
             Assert.AreEqual(2, nineIndex);
@@ -90,7 +90,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_UnknownIdBetweenEntries_FailsWithMinusOne()
         {
-            bool resolved = ClipRegistryUtil.TryResolveClip(
+            bool resolved = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(7), out int clipIndex);
             Assert.IsFalse(resolved);
             Assert.AreEqual(-1, clipIndex);
@@ -99,12 +99,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_IdsOutsideTheSortedRange_Fail()
         {
-            bool resolvedBelow = ClipRegistryUtil.TryResolveClip(
+            bool resolvedBelow = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(1), out int belowIndex);
             Assert.IsFalse(resolvedBelow);
             Assert.AreEqual(-1, belowIndex);
 
-            bool resolvedAbove = ClipRegistryUtil.TryResolveClip(
+            bool resolvedAbove = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(200), out int aboveIndex);
             Assert.IsFalse(resolvedAbove);
             Assert.AreEqual(-1, aboveIndex);
@@ -113,7 +113,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_ReservedInvalidId_Fails()
         {
-            bool resolved = ClipRegistryUtil.TryResolveClip(
+            bool resolved = ClipRegistryApi.TryResolveClip(
                 ref registryReference.Value, new ClipId(0), out int clipIndex);
             Assert.IsFalse(resolved);
             Assert.AreEqual(-1, clipIndex);
@@ -122,7 +122,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void TryResolveClip_EmptyRegistry_Fails()
         {
-            bool resolved = ClipRegistryUtil.TryResolveClip(
+            bool resolved = ClipRegistryApi.TryResolveClip(
                 ref emptyRegistryReference.Value, new ClipId(5), out int clipIndex);
             Assert.IsFalse(resolved);
             Assert.AreEqual(-1, clipIndex);
@@ -131,17 +131,17 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ResolveTargetIndex_KnownIds_ReturnTheirSortedPositions()
         {
-            bool resolvedTen = ClipRegistryUtil.ResolveTargetIndex(
+            bool resolvedTen = ClipRegistryApi.TryResolveTarget(
                 ref registryReference.Value, new TargetId(10), out int tenIndex);
             Assert.IsTrue(resolvedTen);
             Assert.AreEqual(0, tenIndex);
 
-            bool resolvedTwenty = ClipRegistryUtil.ResolveTargetIndex(
+            bool resolvedTwenty = ClipRegistryApi.TryResolveTarget(
                 ref registryReference.Value, new TargetId(20), out int twentyIndex);
             Assert.IsTrue(resolvedTwenty);
             Assert.AreEqual(1, twentyIndex);
 
-            bool resolvedThirty = ClipRegistryUtil.ResolveTargetIndex(
+            bool resolvedThirty = ClipRegistryApi.TryResolveTarget(
                 ref registryReference.Value, new TargetId(30), out int thirtyIndex);
             Assert.IsTrue(resolvedThirty);
             Assert.AreEqual(2, thirtyIndex);
@@ -150,7 +150,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ResolveTargetIndex_UnknownId_FailsWithMinusOne()
         {
-            bool resolved = ClipRegistryUtil.ResolveTargetIndex(
+            bool resolved = ClipRegistryApi.TryResolveTarget(
                 ref registryReference.Value, new TargetId(99), out int targetIndex);
             Assert.IsFalse(resolved);
             Assert.AreEqual(-1, targetIndex);
@@ -159,12 +159,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ResolveTargetIndex_ReservedInvalidIdAndEmptyRegistry_Fail()
         {
-            bool resolvedInvalid = ClipRegistryUtil.ResolveTargetIndex(
+            bool resolvedInvalid = ClipRegistryApi.TryResolveTarget(
                 ref registryReference.Value, new TargetId(0), out int invalidIndex);
             Assert.IsFalse(resolvedInvalid);
             Assert.AreEqual(-1, invalidIndex);
 
-            bool resolvedEmpty = ClipRegistryUtil.ResolveTargetIndex(
+            bool resolvedEmpty = ClipRegistryApi.TryResolveTarget(
                 ref emptyRegistryReference.Value, new TargetId(10), out int emptyIndex);
             Assert.IsFalse(resolvedEmpty);
             Assert.AreEqual(-1, emptyIndex);

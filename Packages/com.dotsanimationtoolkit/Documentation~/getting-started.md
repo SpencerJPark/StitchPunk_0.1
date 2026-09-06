@@ -116,7 +116,7 @@ looping `DemoBob` with no code required.
 ## 7. Send an `AnimationCommand`
 
 To drive playback from your own code instead of (or in addition to) the
-seeded starting layer, use `AnimationCommandUtil` — never write
+seeded starting layer, use `PlaybackApi` — never write
 `AnimationCommand` buffer elements by hand, since every request also has to
 enable the `AnimationCommandPending` gate, and the two are easy to forget
 independently:
@@ -136,7 +136,7 @@ public partial struct PlayDemoClipSystem : ISystem
                  SystemAPI.Query<DynamicBuffer<AnimationCommand>,
                                   EnabledRefRW<AnimationCommandPending>>())
         {
-            AnimationCommandUtil.Play(
+            PlaybackApi.Play(
                 ref commands,
                 commandPendingEnabled,
                 layerIndex: 0,
@@ -153,15 +153,15 @@ A few things worth knowing before you write this for real:
 - `myClipId` is a `ClipId`, not a `ClipAsset` reference — resolve it once
   (e.g. via a baked constant, or the editor's "Generate Clip Id Constants"
   action on a `ClipSetAsset`) rather than looking it up by name every frame.
-- `AnimationCommandUtil.Play`'s `blendDuration` parameter defaults to `NaN`,
+- `PlaybackApi.Play`'s `blendDuration` parameter defaults to `NaN`,
   meaning "use the clip's authored default blend"; pass `0f` explicitly for a
   hard cut.
 - To read back what's currently playing (for UI, animation-driven gameplay
-  logic, etc.), use `PlaybackQuery` rather than indexing the `PlaybackLayer`
+  logic, etc.), use `PlaybackApi` rather than indexing the `PlaybackLayer`
   buffer yourself — its fields have state-dependent meanings that
-  `PlaybackQuery`'s methods already account for.
+  `PlaybackApi`'s methods already account for.
 - If you need to stop the whole toolkit for a world (e.g. on scene unload),
-  call `ToolkitWorldControl.SetEnabled(world, false)` rather than disabling
+  call `ToolkitWorldApi.SetEnabled(world, false)` rather than disabling
   actors one at a time.
 
 ## Where to go next

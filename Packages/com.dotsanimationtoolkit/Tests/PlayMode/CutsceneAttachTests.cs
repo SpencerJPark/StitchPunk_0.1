@@ -137,7 +137,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 detachTime: 2f, detachImpulse: new float3(0f, 5f, 0f),
                 propEntity: out propEntity, hostEntity: out hostEntity);
 
-            CutscenePlaybackApi.RequestSkip(testWorld.EntityManager, requestEntity);
+            CutsceneApi.RequestSkip(testWorld.EntityManager, requestEntity);
             Advance(0.1f);
 
             Assert.IsTrue(
@@ -181,7 +181,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 BuildAttachCutsceneBlob(attachTime, socketId, hideWhileAttached, detachTime, detachImpulse);
             cutsceneBlobs.Add(cutsceneBlob);
 
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(entityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(entityManager, cutsceneBlob);
             DynamicBuffer<CutsceneActorBinding> bindings =
                 entityManager.GetBuffer<CutsceneActorBinding>(requestEntity);
             bindings.Add(new CutsceneActorBinding { slotId = PropSlotId, actorEntity = propEntity });

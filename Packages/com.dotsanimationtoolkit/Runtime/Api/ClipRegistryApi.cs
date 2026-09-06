@@ -11,7 +11,7 @@ namespace DotsAnimationToolkit
     /// always use the cached dense indices.
     /// </summary>
     [BurstCompile]
-    public static class ClipRegistryUtil
+    public static class ClipRegistryApi
     {
         /// <summary>
         /// Resolves a <see cref="ClipId"/> to its dense index into
@@ -66,7 +66,7 @@ namespace DotsAnimationToolkit
         /// <param name="targetIndex">The dense target index on success; −1 on failure.</param>
         /// <returns>True when the id resolved; false for an invalid id, an empty registry, or an unknown id.</returns>
         [BurstCompile]
-        public static bool ResolveTargetIndex(ref ClipRegistryBlob registry, TargetId targetId, out int targetIndex)
+        public static bool TryResolveTarget(ref ClipRegistryBlob registry, TargetId targetId, out int targetIndex)
         {
             targetIndex = -1;
             if (!targetId.IsValid)

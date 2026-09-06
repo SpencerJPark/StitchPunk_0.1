@@ -2060,7 +2060,7 @@ namespace DotsAnimationToolkit.Editor
         /// <remarks>
         /// <strong>Reads a transform <see cref="ApplyBillboards"/> just wrote; does not resolve
         /// billboarding a second time.</strong> The runtime's own <c>SolveRagdollJob</c> calls
-        /// <c>BillboardQuery.TryGetFrame</c> against the baked <c>BillboardRootElement</c> buffer
+        /// <c>BillboardApi.TryGetFrame</c> against the baked <c>BillboardRootElement</c> buffer
         /// <c>BillboardResolveSystem</c> filled earlier the same frame — a cache read, not a second
         /// resolve. This is the preview's equivalent: <see cref="ApplyBillboards"/> already ran this
         /// call and already wrote the nearest billboard root's resolved world rotation onto its

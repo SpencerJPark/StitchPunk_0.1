@@ -8,7 +8,7 @@ using Unity.Entities;
 /// <c>floatParam</c> is the speaker's slot index (−1 for nobody).
 ///
 /// The cue's hold is named after the event itself (A65), so the id to release is literally
-/// "Dialogue" — <c>CutscenePlaybackApi.TryGetCurrentHoldId</c> is what confirms the clock is actually
+/// "Dialogue" — <c>CutsceneApi.TryGetCurrentHoldId</c> is what confirms the clock is actually
 /// waiting on it. A cue authored without <c>holdUntilReleased</c> still opens a dialogue; it just
 /// does not stop the cutscene.
 ///
@@ -90,7 +90,7 @@ public partial struct CutsceneDialogueCueSystem : ISystem
 
     private static void ReleaseTheDialogueHold(EntityManager entityManager, Entity playRequestEntity)
     {
-        if (!CutscenePlaybackApi.TryGetCurrentHoldId(entityManager, playRequestEntity, out FixedString64Bytes holdId))
+        if (!CutsceneApi.TryGetCurrentHoldId(entityManager, playRequestEntity, out FixedString64Bytes holdId))
             return;
         if (holdId != new FixedString64Bytes(DialogueHoldId))
             return;

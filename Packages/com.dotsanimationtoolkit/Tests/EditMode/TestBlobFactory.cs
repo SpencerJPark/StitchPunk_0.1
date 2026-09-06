@@ -111,7 +111,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         /// <c>clips</c> array sorted by ascending <c>clipId</c> regardless of the order the specs
         /// were handed in, with <c>sortedClipIds</c> holding those same ids in those same positions.
         /// A clip's dense index is therefore its position in the ascending-id order, which is what
-        /// <c>ClipRegistryUtil.TryResolveClip</c>'s binary search returns.
+        /// <c>ClipRegistryApi.TryResolveClip</c>'s binary search returns.
         /// </summary>
         internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
             ClipSpec[] clipSpecs,

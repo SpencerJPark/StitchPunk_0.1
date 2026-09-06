@@ -9,7 +9,7 @@ using UnityEngine;
 /// Consumes every <see cref="CutsceneRequest"/> signal entity: finds the baked
 /// <c>CutsceneStage</c>, starts the toolkit's playback request, applies binding overrides, and
 /// gates every bound actor off AI/movement (see RULES.md's contract-component convention).
-/// Not [BurstCompile] — CutscenePlaybackApi is a managed EntityManager API and this system makes
+/// Not [BurstCompile] — CutsceneApi is a managed EntityManager API and this system makes
 /// structural changes (CreatePlayRequestFromStage adds components).
 /// </summary>
 [UpdateInGroup(typeof(CutsceneSystemGroup), OrderFirst = true)]
@@ -62,13 +62,13 @@ public partial struct CutsceneStartSystem : ISystem
                 continue;
             }
 
-            if (!CutscenePlaybackApi.TryFindStage(entityManager, request.cutsceneKey, out Entity stageEntity))
+            if (!CutsceneApi.TryFindStage(entityManager, request.cutsceneKey, out Entity stageEntity))
             {
                 Debug.LogWarning($"[CutsceneStartSystem] No CutsceneStage found for key {request.cutsceneKey}.");
                 continue;
             }
 
-            Entity playRequestEntity = CutscenePlaybackApi.CreatePlayRequestFromStage(
+            Entity playRequestEntity = CutsceneApi.CreatePlayRequestFromStage(
                 entityManager, stageEntity, request.layerIndex, request.speed);
 
             ApplyBindingOverrides(entityManager, signalEntity, playRequestEntity);

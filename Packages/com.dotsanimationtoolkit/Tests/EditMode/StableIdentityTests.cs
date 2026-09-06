@@ -101,10 +101,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Guid guid = new Guid(guidBytes);
 
             // Low half 0x8877665544332211 xor high half 0x0807060504030201.
-            Assert.AreEqual(0x8070605040302010UL, StableIdUtility.Fold(guid), "Fold must xor the two halves.");
+            Assert.AreEqual(0x8070605040302010UL, StableIdMinting.Fold(guid), "Fold must xor the two halves.");
             Assert.AreEqual(
-                StableIdUtility.Fold(guid),
-                StableIdUtility.Fold(new Guid(guidBytes)),
+                StableIdMinting.Fold(guid),
+                StableIdMinting.Fold(new Guid(guidBytes)),
                 "Fold must be a pure function of the GUID bytes.");
         }
 
@@ -114,11 +114,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
             HashSet<ulong> assetIds = new HashSet<ulong>();
             for (int drawIndex = 0; drawIndex < 256; drawIndex++)
             {
-                ulong assetId = StableIdUtility.NewAssetStableId();
+                ulong assetId = StableIdMinting.NewAssetStableId();
                 Assert.AreNotEqual(0UL, assetId, "0 is reserved as none/invalid and must never be minted.");
                 assetIds.Add(assetId);
 
-                uint targetId = StableIdUtility.NewTargetStableId();
+                uint targetId = StableIdMinting.NewTargetStableId();
                 Assert.AreNotEqual(0u, targetId, "0 is reserved as none/invalid and must never be minted.");
             }
             Assert.AreEqual(256, assetIds.Count, "256 draws of a 64-bit random id must not repeat.");
@@ -127,8 +127,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void NewClipIdAndNewTargetId_WrapTheGeneratedValues()
         {
-            ClipId clipId = StableIdUtility.NewClipId();
-            TargetId targetId = StableIdUtility.NewTargetId();
+            ClipId clipId = StableIdMinting.NewClipId();
+            TargetId targetId = StableIdMinting.NewTargetId();
 
             Assert.IsTrue(clipId.IsValid, "A freshly minted ClipId must be valid.");
             Assert.IsTrue(targetId.IsValid, "A freshly minted TargetId must be valid.");
@@ -255,10 +255,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 int walkIndex;
                 int runIndex;
                 Assert.IsTrue(
-                    ClipRegistryUtil.TryResolveClip(ref registryScope.Registry.Value, new ClipId(0x2222UL), out walkIndex),
+                    ClipRegistryApi.TryResolveClip(ref registryScope.Registry.Value, new ClipId(0x2222UL), out walkIndex),
                     "The renamed clip must still resolve by its original id.");
                 Assert.IsTrue(
-                    ClipRegistryUtil.TryResolveClip(ref registryScope.Registry.Value, new ClipId(0x4444UL), out runIndex),
+                    ClipRegistryApi.TryResolveClip(ref registryScope.Registry.Value, new ClipId(0x4444UL), out runIndex),
                     "The reordered clip must still resolve by its original id.");
                 Assert.AreEqual(
                     0x2222UL,

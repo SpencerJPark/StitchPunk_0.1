@@ -153,7 +153,7 @@ namespace DotsAnimationToolkit
                         : new PostTransformMatrix { Value = float4x4.identity }
                 };
 
-                RagdollTransformUtil.ComputeWorldTransform(
+                RagdollTransformMath.ComputeWorldTransform(
                     in node, in localTransformLookup, in parentLookup, out LocalTransform nodeWorldTransform);
 
                 // The solver's body frame is the box's own center of mass, not the node's origin
@@ -180,11 +180,11 @@ namespace DotsAnimationToolkit
                 {
                     BillboardMember member = billboardMemberLookup[rootNode];
                     // Failure (no root, or the root was removed since bake) falls back to world
-                    // identity, exactly as BillboardQuery.TryGetFrame documents — not silently: the
+                    // identity, exactly as BillboardApi.TryGetFrame documents — not silently: the
                     // fallback is the same "unmodified orientation" reading BillboardRootElement
                     // itself already uses for a failed resolve, so a ragdoll on a rig with no
                     // billboard root simulates in the world XY plane rather than refusing to run.
-                    BillboardQuery.TryGetFrame(in member, in billboardRootElementLookup, out frameRotation);
+                    BillboardApi.TryGetFrame(in member, in billboardRootElementLookup, out frameRotation);
                 }
             }
             ragdollState.frameRotation = frameRotation;
@@ -194,7 +194,7 @@ namespace DotsAnimationToolkit
             // planeOrigin (§6.2): the actor root's own world position, captured once here and never
             // revisited — see RagdollState.planeOrigin's remarks for why it does not need to track
             // the actor the way frameRotation tracks the camera.
-            RagdollTransformUtil.ComputeWorldTransform(
+            RagdollTransformMath.ComputeWorldTransform(
                 in actorEntity, in localTransformLookup, in parentLookup, out LocalTransform actorWorldTransform);
             ragdollState.planeOrigin = actorWorldTransform.Position;
 

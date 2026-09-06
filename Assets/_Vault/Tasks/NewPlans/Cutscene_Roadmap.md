@@ -94,6 +94,11 @@ Game, global namespace under `Assets/_Scripts/`:
 - `CutsceneRequest` one-frame signal entity; `CutsceneActor : IComponentData, IEnableableComponent` on every unit (baked disabled); `CutsceneCameraBridge` MonoBehaviour; `PlayCutsceneAction : NarrativeActionBase` (G1).
 - `AnimEvents.Dialogue` registry entry (G2).
 
+Amendment A69 (2026-09-06) renamed `CutscenePlaybackApi` → `CutsceneApi` and merged
+`AnimationCommandUtil`/`PlaybackQuery` → `PlaybackApi`; every name above written since is already
+current, but references to the old names elsewhere in this doc's historical sections (§1) describe
+the state at the time they were written and are left as recorded.
+
 ## 6. Acceptance cutscene — "Rendezvous and Depart" (the shape every spec builds toward)
 
 ```

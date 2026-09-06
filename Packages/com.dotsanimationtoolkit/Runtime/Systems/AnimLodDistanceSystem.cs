@@ -81,7 +81,7 @@ namespace DotsAnimationToolkit
         private void Execute(in LocalToWorld localToWorld, ref AnimLod animLod)
         {
             float distanceSq = math.lengthsq(localToWorld.Position - cameraPosition);
-            animLod.level = AnimationLodPolicy.LevelForDistanceSq(distanceSq, in lodDistancesSq);
+            animLod.level = AnimationLodResolver.ResolveLevelForDistanceSq(distanceSq, in lodDistancesSq);
         }
     }
 }

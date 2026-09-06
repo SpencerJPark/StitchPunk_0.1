@@ -8,7 +8,7 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit
 {
     /// <summary>
-    /// Turns the requests a game wrote through <c>AnimationCommandUtil</c> into playback state
+    /// Turns the requests a game wrote through <c>PlaybackApi</c> into playback state
     /// (architecture section 5.4), and opens the frame's event window (amendment A28).
     /// </summary>
     /// <remarks>
@@ -190,7 +190,7 @@ namespace DotsAnimationToolkit
             EnabledRefRW<AnimEventsPending> animEventsPendingEnabled,
             EnabledRefRW<BoundsDirty> boundsDirtyEnabled)
         {
-            if (!ClipRegistryUtil.TryResolveClip(ref registry, command.clip, out int incomingClipIndex))
+            if (!ClipRegistryApi.TryResolveClip(ref registry, command.clip, out int incomingClipIndex))
             {
                 EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command);
                 return;
@@ -280,7 +280,7 @@ namespace DotsAnimationToolkit
             ref DynamicBuffer<AnimEventOutput> animEvents,
             EnabledRefRW<AnimEventsPending> animEventsPendingEnabled)
         {
-            if (!ClipRegistryUtil.TryResolveClip(ref registry, command.clip, out int queuedClipIndex))
+            if (!ClipRegistryApi.TryResolveClip(ref registry, command.clip, out int queuedClipIndex))
             {
                 EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command);
                 return;

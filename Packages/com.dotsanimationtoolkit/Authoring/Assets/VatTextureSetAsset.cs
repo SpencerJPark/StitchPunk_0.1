@@ -211,7 +211,7 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (setKey == 0UL)
             {
-                setKey = StableIdUtility.NewAssetStableId();
+                setKey = StableIdMinting.NewAssetStableId();
                 hasUnpersistedStableId = true;
             }
         }

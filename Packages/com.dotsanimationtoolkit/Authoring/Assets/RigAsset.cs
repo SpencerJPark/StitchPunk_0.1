@@ -162,7 +162,7 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (stableId == 0UL)
             {
-                stableId = StableIdUtility.NewAssetStableId();
+                stableId = StableIdMinting.NewAssetStableId();
                 hasUnpersistedStableId = true;
             }
             // Each list is guarded independently rather than returning early on the first null one.
@@ -180,7 +180,7 @@ namespace DotsAnimationToolkit.Authoring
                     }
                     if (targetDefinition.stableId == 0u)
                     {
-                        targetDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        targetDefinition.stableId = StableIdMinting.NewTargetStableId();
                         hasUnpersistedStableId = true;
                     }
                 }
@@ -200,7 +200,7 @@ namespace DotsAnimationToolkit.Authoring
                     // generator is one fewer thing to keep in step.
                     if (socketDefinition.stableId == 0u)
                     {
-                        socketDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        socketDefinition.stableId = StableIdMinting.NewTargetStableId();
                         hasUnpersistedStableId = true;
                     }
                 }
@@ -219,7 +219,7 @@ namespace DotsAnimationToolkit.Authoring
                     // clip billboard tracks bind to, so it must exist before any clip can key one.
                     if (rootDefinition.stableId == 0u)
                     {
-                        rootDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        rootDefinition.stableId = StableIdMinting.NewTargetStableId();
                         hasUnpersistedStableId = true;
                     }
                 }
@@ -239,7 +239,7 @@ namespace DotsAnimationToolkit.Authoring
                     // must exist before either can address it.
                     if (bodyDefinition.stableId == 0u)
                     {
-                        bodyDefinition.stableId = StableIdUtility.NewTargetStableId();
+                        bodyDefinition.stableId = StableIdMinting.NewTargetStableId();
                         hasUnpersistedStableId = true;
                     }
                 }

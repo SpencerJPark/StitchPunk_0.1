@@ -106,7 +106,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildPropOnlyCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -134,7 +134,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildEmptyRootLaneCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -203,7 +203,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTwoSegmentCutsceneBlob(HoldId);
             cutsceneBlobs.Add(cutsceneBlob);
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -239,7 +239,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         /// The one test in this suite that bakes rather than hand-building its blob: the feature
         /// <em>is</em> the pairing of a bake-time boundary with the runtime's existing hold
         /// mechanics, and a hand-built blob would assert the pairing by writing it out itself. The
-        /// hold id is read back through <see cref="CutscenePlaybackApi.TryGetCurrentHoldId"/> rather
+        /// hold id is read back through <see cref="CutsceneApi.TryGetCurrentHoldId"/> rather
         /// than spelled out, so the fixture does not depend on this project's event vocabulary.
         /// </remarks>
         [Test]
@@ -279,7 +279,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 cutsceneBlobs.Add(cutsceneBlob);
 
                 Entity requestEntity =
-                    CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+                    CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
 
                 Advance(2f);
 
@@ -298,7 +298,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
                 FixedString64Bytes holdId;
                 Assert.IsTrue(
-                    CutscenePlaybackApi.TryGetCurrentHoldId(testWorld.EntityManager, requestEntity, out holdId),
+                    CutsceneApi.TryGetCurrentHoldId(testWorld.EntityManager, requestEntity, out holdId),
                     "the clock stops at the hold the event derived");
 
                 Advance(1f);
@@ -335,7 +335,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildSpeedAndOffsetCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
             Entity requestEntity =
-                CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob, layerIndex: 0);
+                CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob, layerIndex: 0);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -367,7 +367,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {
             Entity actorEntity = CreateBoundActor(out Entity requestEntity);
-            CutscenePlaybackApi.RequestSkip(testWorld.EntityManager, requestEntity);
+            CutsceneApi.RequestSkip(testWorld.EntityManager, requestEntity);
             Advance(0.1f);
 
             CutscenePlaybackState playbackState =
@@ -410,7 +410,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             stageBindings.Add(new CutsceneStageBinding { slotId = SecondSlotId, target = boundEntityB });
 
             Entity requestEntity =
-                CutscenePlaybackApi.CreatePlayRequestFromStage(testWorld.EntityManager, stageEntity);
+                CutsceneApi.CreatePlayRequestFromStage(testWorld.EntityManager, stageEntity);
 
             DynamicBuffer<CutsceneActorBinding> actorBindings =
                 testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity);
@@ -442,7 +442,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 }
                 else
                 {
-                    CutscenePlaybackApi.RequestSkip(runWorld.EntityManager, requestEntity);
+                    CutsceneApi.RequestSkip(runWorld.EntityManager, requestEntity);
                     runWorld.SetTime(new TimeData(0.5d, 0.5f));
                     SystemHandle timelineSystem = runWorld.GetOrCreateSystem<CutsceneTimelineSystem>();
                     timelineSystem.Update(runWorld.Unmanaged);
@@ -480,7 +480,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTestCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
-            requestEntity = CutscenePlaybackApi.CreatePlayRequest(world.EntityManager, cutsceneBlob, layerIndex: 0);
+            requestEntity = CutsceneApi.CreatePlayRequest(world.EntityManager, cutsceneBlob, layerIndex: 0);
             world.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,

@@ -86,7 +86,7 @@ namespace DotsAnimationToolkit
                 // Cleared for every layer, including inactive ones, before anything can set it
                 // again. FinishedThisFrame is a one-frame pulse, and the layer that raised it was
                 // deactivated by the same completion — so leaving the clear inside the active-only
-                // path would latch the flag on forever and make PlaybackQuery.FinishedThisFrame
+                // path would latch the flag on forever and make PlaybackApi.HasFinishedThisFrame
                 // report a completion that happened minutes ago.
                 layer.flags &= ~PlaybackFlags.FinishedThisFrame;
 
@@ -243,7 +243,7 @@ namespace DotsAnimationToolkit
             ref ClipRegistryBlob registry,
             EnabledRefRW<BoundsDirty> boundsDirtyEnabled)
         {
-            if (!ClipRegistryUtil.TryResolveClip(ref registry, layer.queuedClip, out int promotedClipIndex))
+            if (!ClipRegistryApi.TryResolveClip(ref registry, layer.queuedClip, out int promotedClipIndex))
             {
                 layer.flags &= ~(PlaybackFlags.Active | PlaybackFlags.HasQueued);
                 boundsDirtyEnabled.ValueRW = true;

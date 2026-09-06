@@ -30,7 +30,7 @@ namespace DotsAnimationToolkit.Authoring
     /// <strong>The id is minted, not derived from the name.</strong> Hashing the name would make a
     /// rename indistinguishable from a delete-and-recreate — every clip bound to the old name would
     /// silently stop resolving, which is precisely the enum failure mode (§1) this whole feature
-    /// exists to remove. Ids are minted through <see cref="StableIdUtility.NewTargetStableId"/>, the
+    /// exists to remove. Ids are minted through <see cref="StableIdMinting.NewTargetStableId"/>, the
     /// same random-fold generator a rig target's own stable id uses, so a tag id and a target id
     /// share one identity scheme even though they occupy separate namespaces.
     /// </para>
@@ -125,15 +125,15 @@ namespace DotsAnimationToolkit.Authoring
         /// search: a tag id has no maskable-bit constraint, so it is minted the same way a rig
         /// target's own stable id is — a random fold, retried on the vanishingly unlikely event of
         /// a collision with an id this registry already holds. See
-        /// <see cref="StableIdUtility.NewTargetStableId"/>.
+        /// <see cref="StableIdMinting.NewTargetStableId"/>.
         /// </remarks>
         /// <returns>A non-zero id unique within this registry.</returns>
         public uint MintTagId()
         {
-            uint candidateId = StableIdUtility.NewTargetStableId();
+            uint candidateId = StableIdMinting.NewTargetStableId();
             while (ContainsId(candidateId))
             {
-                candidateId = StableIdUtility.NewTargetStableId();
+                candidateId = StableIdMinting.NewTargetStableId();
             }
             return candidateId;
         }

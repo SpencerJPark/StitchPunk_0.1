@@ -206,12 +206,12 @@ namespace DotsAnimationToolkit.Editor
         {
             boundObject = null;
             CutsceneSlotBindingEntry entry =
-                CutsceneSceneBindingUtility.FindBinding(cutscene, currentSceneGuid, slot.SlotId);
+                CutsceneSceneBinding.FindBinding(cutscene, currentSceneGuid, slot.SlotId);
             if (entry == null || string.IsNullOrEmpty(entry.globalObjectId))
             {
                 return BindingState.Unbound;
             }
-            boundObject = CutsceneSceneBindingUtility.ResolveGameObject(entry.globalObjectId);
+            boundObject = CutsceneSceneBinding.ResolveGameObject(entry.globalObjectId);
             return boundObject != null ? BindingState.Bound : BindingState.Broken;
         }
 

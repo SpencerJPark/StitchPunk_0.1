@@ -51,7 +51,7 @@ namespace DotsAnimationToolkit
     /// (<see cref="RagdollBodyParams"/>'s remarks), not the node's local values. This system inverts
     /// <see cref="RagdollBodyParams.boxCenter"/> to recover the node's world position, then converts
     /// world back to local against the node's <em>parent's own current world transform</em> —
-    /// <see cref="RagdollTransformUtil.ComputeParentWorldTransform"/>, the exact inverse of the
+    /// <see cref="RagdollTransformMath.ComputeParentWorldTransform"/>, the exact inverse of the
     /// composition <see cref="RagdollCaptureSystem"/> used to seed world state in the first place.
     /// </para>
     /// <para>
@@ -76,7 +76,7 @@ namespace DotsAnimationToolkit
     /// the spec phrase refers to, and this system does not duplicate that write.
     /// </para>
     /// <para>
-    /// <strong>Known limitation, carried from <see cref="RagdollTransformUtil"/>.</strong> The
+    /// <strong>Known limitation, carried from <see cref="RagdollTransformMath"/>.</strong> The
     /// parent-chain walk does not fold an ancestor's own <c>PostTransformMatrix</c> into the
     /// composition, matching the same simplification <c>BillboardResolveSystem</c>'s walk already
     /// makes. See that type's remarks.
@@ -138,7 +138,7 @@ namespace DotsAnimationToolkit
                     body.state.position - math.mul(body.state.orientation, body.parameters.boxCenter);
                 quaternion nodeWorldRotation = body.state.orientation;
 
-                RagdollTransformUtil.ComputeParentWorldTransform(
+                RagdollTransformMath.ComputeParentWorldTransform(
                     in node, in localTransformLookup, in parentLookup, out LocalTransform parentWorldTransform);
 
                 float parentScale = parentWorldTransform.Scale;

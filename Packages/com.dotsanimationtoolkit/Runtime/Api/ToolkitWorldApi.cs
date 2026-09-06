@@ -23,7 +23,7 @@ namespace DotsAnimationToolkit
     /// from this one.
     /// </para>
     /// </remarks>
-    public static class ToolkitWorldControl
+    public static class ToolkitWorldApi
     {
         /// <summary>
         /// Enables or disables <see cref="AnimationToolkitSystemGroup"/> in

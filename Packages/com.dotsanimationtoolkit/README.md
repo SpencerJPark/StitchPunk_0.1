@@ -51,7 +51,7 @@ entity.
   the runtime actor/part archetype — command buffer, playback layers, event
   output, rest bounds, the lot.
 - **Runtime playback:** a command → layer state machine (`Play`/`Queue`/
-  `Stop`/`SetSpeed`/`SetTime` via `AnimationCommandUtil`) with crossfade,
+  `Stop`/`SetSpeed`/`SetTime` via `PlaybackApi`) with crossfade,
   wrap-correct event emission, per-clip bounds updates, and an opt-in
   distance-based LOD policy.
 - **Two animation techniques, composable per part:** keyed transform tracks

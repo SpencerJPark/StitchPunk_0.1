@@ -27,7 +27,7 @@ namespace DotsAnimationToolkit
     /// </para>
     /// </remarks>
     [BurstCompile]
-    public static class AnimationLodPolicy
+    public static class AnimationLodResolver
     {
         /// <summary>Sample rate LOD 1 imposes on an actor that asked for no cap (rate 0 = every frame).</summary>
         public const float UncappedLevel1RateHz = 30f;
@@ -130,7 +130,7 @@ namespace DotsAnimationToolkit
         /// </param>
         /// <returns>The LOD level, 0–3.</returns>
         [BurstCompile]
-        public static byte LevelForDistanceSq(float distanceSq, in float4 lodDistancesSq)
+        public static byte ResolveLevelForDistanceSq(float distanceSq, in float4 lodDistancesSq)
         {
             if (distanceSq >= lodDistancesSq.z)
             {

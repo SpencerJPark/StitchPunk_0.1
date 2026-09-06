@@ -12,7 +12,7 @@ using Unity.Entities;
 /// </summary>
 public struct CutsceneRequest : IComponentData
 {
-    /// <summary>The <c>CutsceneAsset.StableId</c> of the stage to play — how <c>CutscenePlaybackApi.TryFindStage</c> finds it.</summary>
+    /// <summary>The <c>CutsceneAsset.StableId</c> of the stage to play — how <c>CutsceneApi.TryFindStage</c> finds it.</summary>
     public ulong cutsceneKey;
 
     /// <summary>Which playback layer clip blocks target on every bound actor.</summary>

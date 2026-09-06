@@ -776,7 +776,7 @@ namespace DotsAnimationToolkit.Editor
         /// </para>
         /// <para>
         /// So every field of the new row is written explicitly, including a fresh id from the
-        /// public <c>StableIdUtility</c> the asset itself uses. <c>OnValidate</c> still runs on
+        /// public <c>StableIdMinting</c> the asset itself uses. <c>OnValidate</c> still runs on
         /// apply and still acts as the backstop for rows created any other way; this path simply
         /// never leaves it anything to do.
         /// </para>
@@ -796,7 +796,7 @@ namespace DotsAnimationToolkit.Editor
 
             newSocket.FindPropertyRelative("displayName").stringValue =
                 "Socket " + (newSocketIndex + 1).ToString();
-            newSocket.FindPropertyRelative("stableId").uintValue = StableIdUtility.NewTargetStableId();
+            newSocket.FindPropertyRelative("stableId").uintValue = StableIdMinting.NewTargetStableId();
             newSocket.FindPropertyRelative("mode").enumValueIndex = (int)SocketAttachMode.RigTarget;
             newSocket.FindPropertyRelative("targetId").uintValue = 0u;
             newSocket.FindPropertyRelative("boneName").stringValue = string.Empty;

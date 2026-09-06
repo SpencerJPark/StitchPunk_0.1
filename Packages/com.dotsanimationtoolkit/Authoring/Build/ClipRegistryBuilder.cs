@@ -615,7 +615,7 @@ namespace DotsAnimationToolkit.Authoring
         /// Writes the binary-search key array. <paramref name="canonicalClips"/> is already sorted
         /// ascending by clip id and <see cref="ClipRegistryBlob.clips"/> was filled from it in that
         /// order, so this array is simply those ids in the same positions — which is exactly why
-        /// <c>ClipRegistryUtil.TryResolveClip</c> can return the search position as the dense index
+        /// <c>ClipRegistryApi.TryResolveClip</c> can return the search position as the dense index
         /// (architecture sections 4.2, 4.3).
         /// </summary>
         /// <param name="builder">The blob builder owning the registry under construction.</param>

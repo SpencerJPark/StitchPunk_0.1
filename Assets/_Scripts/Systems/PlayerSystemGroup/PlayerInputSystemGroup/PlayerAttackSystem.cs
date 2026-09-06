@@ -127,7 +127,7 @@ public partial struct PlayerAttackSystem : ISystem
             {
                 DynamicBuffer<AnimationCommand> animationCommands =
                     SystemAPI.GetBuffer<AnimationCommand>(selfEntity);
-                AnimationCommandUtil.Play(
+                PlaybackApi.Play(
                     ref animationCommands,
                     animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(selfEntity),
                     (byte)AnimationToolkitLayer.Action,

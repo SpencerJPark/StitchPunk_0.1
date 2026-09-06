@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// Pins architecture section 5.10's LOD table, which <see cref="AnimationLodPolicy"/> is the
+    /// Pins architecture section 5.10's LOD table, which <see cref="AnimationLodResolver"/> is the
     /// sole expression of (build step C4.8).
     /// </summary>
     /// <remarks>
@@ -26,8 +26,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void LevelZero_LeavesTheRequestedRateAlone()
         {
-            Assert.AreEqual(0f, AnimationLodPolicy.EffectiveSampleRateHz(0, 0f), Tolerance);
-            Assert.AreEqual(24f, AnimationLodPolicy.EffectiveSampleRateHz(0, 24f), Tolerance);
+            Assert.AreEqual(0f, AnimationLodResolver.EffectiveSampleRateHz(0, 0f), Tolerance);
+            Assert.AreEqual(24f, AnimationLodResolver.EffectiveSampleRateHz(0, 24f), Tolerance);
         }
 
         /// <summary>
@@ -37,8 +37,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void LevelsOneAndTwo_HalveAndQuarterAnExplicitRate()
         {
-            Assert.AreEqual(12f, AnimationLodPolicy.EffectiveSampleRateHz(1, 24f), Tolerance, "level 1 halves");
-            Assert.AreEqual(6f, AnimationLodPolicy.EffectiveSampleRateHz(2, 24f), Tolerance, "level 2 quarters");
+            Assert.AreEqual(12f, AnimationLodResolver.EffectiveSampleRateHz(1, 24f), Tolerance, "level 1 halves");
+            Assert.AreEqual(6f, AnimationLodResolver.EffectiveSampleRateHz(2, 24f), Tolerance, "level 2 quarters");
         }
 
         /// <summary>
@@ -51,16 +51,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void AnUncappedActor_GetsAnOutrightCapFromTheLevel()
         {
             Assert.AreEqual(
-                AnimationLodPolicy.UncappedLevel1RateHz,
-                AnimationLodPolicy.EffectiveSampleRateHz(1, 0f),
+                AnimationLodResolver.UncappedLevel1RateHz,
+                AnimationLodResolver.EffectiveSampleRateHz(1, 0f),
                 Tolerance);
             Assert.AreEqual(
-                AnimationLodPolicy.UncappedLevel2RateHz,
-                AnimationLodPolicy.EffectiveSampleRateHz(2, 0f),
+                AnimationLodResolver.UncappedLevel2RateHz,
+                AnimationLodResolver.EffectiveSampleRateHz(2, 0f),
                 Tolerance);
             Assert.Greater(
-                AnimationLodPolicy.UncappedLevel1RateHz,
-                AnimationLodPolicy.UncappedLevel2RateHz,
+                AnimationLodResolver.UncappedLevel1RateHz,
+                AnimationLodResolver.UncappedLevel2RateHz,
                 "The caps must descend with the level, or LOD 2 costs more than LOD 1.");
         }
 
@@ -74,12 +74,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void LevelThree_ReportsTheQuarterRate_NotZero()
         {
             Assert.AreEqual(
-                AnimationLodPolicy.EffectiveSampleRateHz(2, 24f),
-                AnimationLodPolicy.EffectiveSampleRateHz(3, 24f),
+                AnimationLodResolver.EffectiveSampleRateHz(2, 24f),
+                AnimationLodResolver.EffectiveSampleRateHz(3, 24f),
                 Tolerance);
             Assert.AreEqual(
-                AnimationLodPolicy.UncappedLevel2RateHz,
-                AnimationLodPolicy.EffectiveSampleRateHz(3, 0f),
+                AnimationLodResolver.UncappedLevel2RateHz,
+                AnimationLodResolver.EffectiveSampleRateHz(3, 0f),
                 Tolerance,
                 "Freezing is expressed by FreezesPose, never by a rate of zero.");
         }
@@ -92,10 +92,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void BlendSnapping_StartsAtLevelTwo()
         {
-            Assert.IsFalse(AnimationLodPolicy.SnapsBlendWeights(0));
-            Assert.IsFalse(AnimationLodPolicy.SnapsBlendWeights(1));
-            Assert.IsTrue(AnimationLodPolicy.SnapsBlendWeights(2));
-            Assert.IsTrue(AnimationLodPolicy.SnapsBlendWeights(3));
+            Assert.IsFalse(AnimationLodResolver.SnapsBlendWeights(0));
+            Assert.IsFalse(AnimationLodResolver.SnapsBlendWeights(1));
+            Assert.IsTrue(AnimationLodResolver.SnapsBlendWeights(2));
+            Assert.IsTrue(AnimationLodResolver.SnapsBlendWeights(3));
         }
 
         /// <summary>
@@ -106,10 +106,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void PoseFreezing_StartsAtLevelThree()
         {
-            Assert.IsFalse(AnimationLodPolicy.FreezesPose(0));
-            Assert.IsFalse(AnimationLodPolicy.FreezesPose(1));
-            Assert.IsFalse(AnimationLodPolicy.FreezesPose(2));
-            Assert.IsTrue(AnimationLodPolicy.FreezesPose(3));
+            Assert.IsFalse(AnimationLodResolver.FreezesPose(0));
+            Assert.IsFalse(AnimationLodResolver.FreezesPose(1));
+            Assert.IsFalse(AnimationLodResolver.FreezesPose(2));
+            Assert.IsTrue(AnimationLodResolver.FreezesPose(3));
         }
 
         /// <summary>
@@ -121,10 +121,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ASnappedWeight_RoundsToTheNearerEnd()
         {
-            Assert.AreEqual(0f, AnimationLodPolicy.SnapBlendWeight(0f), Tolerance);
-            Assert.AreEqual(0f, AnimationLodPolicy.SnapBlendWeight(0.49f), Tolerance);
-            Assert.AreEqual(1f, AnimationLodPolicy.SnapBlendWeight(0.5f), Tolerance);
-            Assert.AreEqual(1f, AnimationLodPolicy.SnapBlendWeight(1f), Tolerance);
+            Assert.AreEqual(0f, AnimationLodResolver.SnapBlendWeight(0f), Tolerance);
+            Assert.AreEqual(0f, AnimationLodResolver.SnapBlendWeight(0.49f), Tolerance);
+            Assert.AreEqual(1f, AnimationLodResolver.SnapBlendWeight(0.5f), Tolerance);
+            Assert.AreEqual(1f, AnimationLodResolver.SnapBlendWeight(1f), Tolerance);
         }
 
         /// <summary>
@@ -137,13 +137,13 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             float4 thresholds = new float4(100f, 400f, 900f, 0f);
 
-            Assert.AreEqual(0, AnimationLodPolicy.LevelForDistanceSq(0f, in thresholds));
-            Assert.AreEqual(0, AnimationLodPolicy.LevelForDistanceSq(99f, in thresholds));
-            Assert.AreEqual(1, AnimationLodPolicy.LevelForDistanceSq(100f, in thresholds), "inclusive lower edge");
-            Assert.AreEqual(1, AnimationLodPolicy.LevelForDistanceSq(399f, in thresholds));
-            Assert.AreEqual(2, AnimationLodPolicy.LevelForDistanceSq(400f, in thresholds));
-            Assert.AreEqual(3, AnimationLodPolicy.LevelForDistanceSq(900f, in thresholds));
-            Assert.AreEqual(3, AnimationLodPolicy.LevelForDistanceSq(1e9f, in thresholds));
+            Assert.AreEqual(0, AnimationLodResolver.ResolveLevelForDistanceSq(0f, in thresholds));
+            Assert.AreEqual(0, AnimationLodResolver.ResolveLevelForDistanceSq(99f, in thresholds));
+            Assert.AreEqual(1, AnimationLodResolver.ResolveLevelForDistanceSq(100f, in thresholds), "inclusive lower edge");
+            Assert.AreEqual(1, AnimationLodResolver.ResolveLevelForDistanceSq(399f, in thresholds));
+            Assert.AreEqual(2, AnimationLodResolver.ResolveLevelForDistanceSq(400f, in thresholds));
+            Assert.AreEqual(3, AnimationLodResolver.ResolveLevelForDistanceSq(900f, in thresholds));
+            Assert.AreEqual(3, AnimationLodResolver.ResolveLevelForDistanceSq(1e9f, in thresholds));
         }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             Assert.AreEqual(
                 3,
-                AnimationLodPolicy.LevelForDistanceSq(1000f, in mistyped),
+                AnimationLodResolver.ResolveLevelForDistanceSq(1000f, in mistyped),
                 "A distant actor must still reach the cheapest level under a mis-authored set.");
         }
     }

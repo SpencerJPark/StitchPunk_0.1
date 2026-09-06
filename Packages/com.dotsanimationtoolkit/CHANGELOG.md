@@ -10,12 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — breaking (A69)
+
+One suffix per static-class role across the public API, and the doc-comment volume cut from 25%
+of source lines to under 6% (`<remarks>`, `<para>`, `<strong>`, `<em>`, and every architecture
+section/amendment/Phase citation removed from shipped sources). Renames, old → new:
+
+| Old | New |
+|---|---|
+| `AnimationCommandUtil` + `PlaybackQuery` | `PlaybackApi` (merged into one file) |
+| `BillboardQuery` | `BillboardApi` |
+| `ClipRegistryUtil` | `ClipRegistryApi` (`ResolveTargetIndex` → `TryResolveTarget`) |
+| `CutscenePlaybackApi` | `CutsceneApi` |
+| `ToolkitWorldControl` | `ToolkitWorldApi` (moved `Runtime/Systems/` → `Runtime/Api/`) |
+| `StableIdUtility` | `StableIdMinting` |
+| `RagdollTransformUtil` | `RagdollTransformMath` (moved `Runtime/Systems/` → `Runtime/Sampling/`) |
+| `AnimationLodPolicy` | `AnimationLodResolver` (`LevelForDistanceSq` → `ResolveLevelForDistanceSq`) |
+| `CutsceneSceneBindingUtility` (editor) | `CutsceneSceneBinding` |
+
+Also: `PlaybackQuery.FinishedThisFrame` → `PlaybackApi.HasFinishedThisFrame` (a `bool`-returning
+method with no `out` parameter reads as a predicate, not a `Try…`).
+
 ### Added — Cutscene cues, runtime facing, per-block speed (A65)
 
 - **Holding events.** `CutsceneEventMarker.holdUntilReleased` bakes a segment
   boundary whose hold id is the event's own registry name, and buckets the event
   into the segment that *ends* there so the cue fires on the frame the clock
-  stops. `CutscenePlaybackApi.TryGetCurrentHoldId` reads that id back. An
+  stops. `CutsceneApi.TryGetCurrentHoldId` reads that id back. An
   authored hold at the same instant wins, with a warning naming the survivor.
 - **`ICutsceneEventInspectorProvider`**, a host seam for event payload editors:
   a dialogue sequence id can be picked by name instead of typed as an `intParam`.
@@ -114,7 +135,7 @@ no baked entity carried a cutscene's blob into a subscene at all.
   its scene-bound cast into one `CutsceneStage` entity, blob and `CutsceneStageBinding` buffer
   included. An unassigned cutscene, or a binding naming a slot id the asset does not declare, bakes
   to nothing (the latter with one warning) rather than to something broken.
-- `CutscenePlaybackApi.CreatePlayRequestFromStage` and `.TryFindStage`: the read side a host uses to
+- `CutsceneApi.CreatePlayRequestFromStage` and `.TryFindStage`: the read side a host uses to
   find a staged cutscene by its stable id and start it with every staged slot already bound — a
   host may still add or overwrite `CutsceneActorBinding` entries afterward for spawned actors.
 - Cast panel gains a **Stage** status label and a **Sync to Stage** button: writes every currently
@@ -221,7 +242,7 @@ become `AnimationCommand` Play requests (overlap = crossfade, exactly as authore
 transforms and the camera lane write directly, part-track overrides compose as an Override layer on
 `TargetPose` between clip sampling and the transform write, and events emit through the same
 `AnimEventOutput` shape a clip's own events use. Pause, speed, skip, and hold-release are host-driven
-through `CutsceneControl`/`CutsceneHoldRelease`; `CutscenePlaybackApi.CreatePlayRequest` stands up a
+through `CutsceneControl`/`CutsceneHoldRelease`; `CutsceneApi.CreatePlayRequest` stands up a
 request with its internal bookkeeping correctly sized. Skip jumps straight to the final segment's
 final instant and fires every remaining `fireOnSkip` event, so a skipped cutscene leaves the exact
 same world state as a fully played-through one — proved by a PlayMode test comparing both end states

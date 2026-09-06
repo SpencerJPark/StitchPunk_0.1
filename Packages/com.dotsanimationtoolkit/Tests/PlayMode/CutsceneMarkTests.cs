@@ -158,7 +158,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildMarkCutsceneBlob(timeoutSeconds);
             cutsceneBlobs.Add(cutsceneBlob);
 
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(entityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(entityManager, cutsceneBlob);
             DynamicBuffer<CutsceneActorBinding> bindings =
                 entityManager.GetBuffer<CutsceneActorBinding>(requestEntity);
             bindings.Add(new CutsceneActorBinding { slotId = WalkerSlotId, actorEntity = walkerEntity });

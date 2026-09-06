@@ -75,7 +75,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTurningCutsceneBlob(withVariants: false);
             cutsceneBlobs.Add(cutsceneBlob);
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -110,7 +110,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTurningCutsceneBlob(withVariants: true);
             cutsceneBlobs.Add(cutsceneBlob);
-            Entity requestEntity = CutscenePlaybackApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,

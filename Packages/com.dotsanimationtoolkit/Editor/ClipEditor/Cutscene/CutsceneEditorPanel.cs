@@ -1001,7 +1001,7 @@ namespace DotsAnimationToolkit.Editor
                 message = "This cutscene has no scene yet.";
                 action = "Remember Current Scene";
             }
-            else if (CutsceneSceneBindingUtility.CurrentSceneGuid() != cutscene.sceneGuid)
+            else if (CutsceneSceneBinding.CurrentSceneGuid() != cutscene.sceneGuid)
             {
                 message = "This cutscene plays in\n" + cutscene.scenePath + ".";
                 action = "Open Scene";
@@ -1073,7 +1073,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            string currentGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentGuid = CutsceneSceneBinding.CurrentSceneGuid();
 
             if (string.IsNullOrEmpty(cutscene.sceneGuid))
             {
@@ -1111,13 +1111,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 SerializedProperty sceneGuidProperty = serializedObject.FindProperty("sceneGuid");
                 SerializedProperty scenePathProperty = serializedObject.FindProperty("scenePath");
-                sceneGuidProperty.stringValue = CutsceneSceneBindingUtility.CurrentSceneGuid();
-                scenePathProperty.stringValue = CutsceneSceneBindingUtility.CurrentScenePath();
+                sceneGuidProperty.stringValue = CutsceneSceneBinding.CurrentSceneGuid();
+                scenePathProperty.stringValue = CutsceneSceneBinding.CurrentScenePath();
                 serializedObject.ApplyModifiedProperties();
             }
             else
             {
-                CutsceneSceneBindingUtility.TryOpenScene(cutscene.scenePath);
+                CutsceneSceneBinding.TryOpenScene(cutscene.scenePath);
             }
 
             RefreshSceneStatus();
@@ -1163,7 +1163,7 @@ namespace DotsAnimationToolkit.Editor
             markSceneOverlay.SetSource(cutscene, serializedObject);
             bool shouldDraw = cutscene != null
                 && !string.IsNullOrEmpty(cutscene.sceneGuid)
-                && CutsceneSceneBindingUtility.CurrentSceneGuid() == cutscene.sceneGuid;
+                && CutsceneSceneBinding.CurrentSceneGuid() == cutscene.sceneGuid;
             if (shouldDraw)
             {
                 markSceneOverlay.Enable();
@@ -1202,7 +1202,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             bool shouldBeActive = !string.IsNullOrEmpty(cutscene.sceneGuid) && currentSceneGuid == cutscene.sceneGuid;
 
             if (shouldBeActive && !previewController.IsActive)
@@ -1396,7 +1396,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             if (string.IsNullOrEmpty(cutscene.sceneGuid) || currentSceneGuid != cutscene.sceneGuid)
             {
                 return;
@@ -1415,7 +1415,7 @@ namespace DotsAnimationToolkit.Editor
             placed.transform.position = sceneView != null ? sceneView.pivot : Vector3.zero;
             Undo.RegisterCreatedObjectUndo(placed, "Place Cutscene Slot");
 
-            CutsceneSceneBindingUtility.SetBinding(serializedObject, currentSceneGuid, slot.SlotId, placed);
+            CutsceneSceneBinding.SetBinding(serializedObject, currentSceneGuid, slot.SlotId, placed);
             serializedObject.Update();
 
             SetSelectedGameObject(placed);
@@ -1429,7 +1429,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             if (string.IsNullOrEmpty(currentSceneGuid))
             {
                 return;
@@ -1439,7 +1439,7 @@ namespace DotsAnimationToolkit.Editor
             // slot bound mid-preview would otherwise never have any.
             StopPlayback();
             previewController.ExitPreview();
-            CutsceneSceneBindingUtility.SetBinding(
+            CutsceneSceneBinding.SetBinding(
                 serializedObject, currentSceneGuid, cutscene.slots[slotIndex].SlotId, boundObject);
             serializedObject.Update();
             RebuildAll();
@@ -1485,7 +1485,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             int slotIndex = CutsceneCastPanel.FindSlotIndexForSelection(
-                cutscene, CutsceneSceneBindingUtility.CurrentSceneGuid(), Selection.activeGameObject);
+                cutscene, CutsceneSceneBinding.CurrentSceneGuid(), Selection.activeGameObject);
             if (slotIndex < 0 || slotIndex == selectedSlotIndex)
             {
                 return;
@@ -1511,7 +1511,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             castPanel.Rebuild(cutscene, currentSceneGuid, selectedSlotIndex);
             castPanel.SetStageStatus(ComputeStageStatusText(currentSceneGuid));
         }
@@ -1529,7 +1529,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             List<KeyValuePair<uint, GameObject>> resolvedBindings = ResolveBoundSlotsForStage(currentSceneGuid);
 
             GameObject firstBoundObject = null;
@@ -1607,12 +1607,12 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
                 CutsceneSlotBindingEntry entry =
-                    CutsceneSceneBindingUtility.FindBinding(cutscene, currentSceneGuid, slot.SlotId);
+                    CutsceneSceneBinding.FindBinding(cutscene, currentSceneGuid, slot.SlotId);
                 if (entry == null || string.IsNullOrEmpty(entry.globalObjectId))
                 {
                     continue;
                 }
-                GameObject boundObject = CutsceneSceneBindingUtility.ResolveGameObject(entry.globalObjectId);
+                GameObject boundObject = CutsceneSceneBinding.ResolveGameObject(entry.globalObjectId);
                 if (boundObject != null)
                 {
                     resolved.Add(new KeyValuePair<uint, GameObject>(slot.SlotId, boundObject));
@@ -2549,14 +2549,14 @@ namespace DotsAnimationToolkit.Editor
             {
                 return null;
             }
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             if (string.IsNullOrEmpty(cutscene.sceneGuid) || currentSceneGuid != cutscene.sceneGuid)
             {
                 return null;
             }
-            CutsceneSlotBindingEntry entry = CutsceneSceneBindingUtility.FindBinding(
+            CutsceneSlotBindingEntry entry = CutsceneSceneBinding.FindBinding(
                 cutscene, currentSceneGuid, cutscene.slots[slotIndex].SlotId);
-            return entry != null ? CutsceneSceneBindingUtility.ResolveGameObject(entry.globalObjectId) : null;
+            return entry != null ? CutsceneSceneBinding.ResolveGameObject(entry.globalObjectId) : null;
         }
 
         private void InsertHoldDefault(SerializedProperty listProperty, float time)
@@ -2948,7 +2948,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void BuildSceneBindingRow(int slotIndex)
         {
-            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            string currentSceneGuid = CutsceneSceneBinding.CurrentSceneGuid();
             if (string.IsNullOrEmpty(cutscene.sceneGuid) || currentSceneGuid != cutscene.sceneGuid)
             {
                 inspectorScroll.Add(new Label("Open the remembered scene to bind this slot.")
@@ -2958,9 +2958,9 @@ namespace DotsAnimationToolkit.Editor
 
             uint slotId = cutscene.slots[slotIndex].SlotId;
             CutsceneSlotBindingEntry existing =
-                CutsceneSceneBindingUtility.FindBinding(cutscene, currentSceneGuid, slotId);
+                CutsceneSceneBinding.FindBinding(cutscene, currentSceneGuid, slotId);
             GameObject boundObject = existing != null
-                ? CutsceneSceneBindingUtility.ResolveGameObject(existing.globalObjectId)
+                ? CutsceneSceneBinding.ResolveGameObject(existing.globalObjectId)
                 : null;
 
             ObjectField bindField = new ObjectField("Scene Object")
@@ -2972,7 +2972,7 @@ namespace DotsAnimationToolkit.Editor
             bindField.style.marginTop = 8f;
             bindField.RegisterValueChangedCallback(changeEvent =>
             {
-                CutsceneSceneBindingUtility.SetBinding(
+                CutsceneSceneBinding.SetBinding(
                     serializedObject, currentSceneGuid, slotId, changeEvent.newValue as GameObject);
                 serializedObject.Update();
             });

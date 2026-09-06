@@ -170,7 +170,7 @@ public class CinematicCameraAction : NarrativeActionBase
 
 /// <summary>
 /// Plays a baked cutscene (G1). Identity is <see cref="CutsceneAsset.StableId"/> — how
-/// <c>CutscenePlaybackApi.TryFindStage</c> finds the baked <c>CutsceneStage</c> — never the asset
+/// <c>CutsceneApi.TryFindStage</c> finds the baked <c>CutsceneStage</c> — never the asset
 /// reference itself, which lives only in the editor. The group waits for the cutscene to complete
 /// when waitForCompletion is true (see NarrativeEventManager.ExecutePlayCutsceneAsync).
 /// </summary>

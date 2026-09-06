@@ -173,7 +173,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         /// Builds a registry in the canonical layout the baker produces: clips sorted by ascending
         /// id, with <c>sortedClipIds</c> holding those ids in the same positions, so a clip's dense
         /// index is its position in ascending-id order — what
-        /// <see cref="ClipRegistryUtil.TryResolveClip"/> returns.
+        /// <see cref="ClipRegistryApi.TryResolveClip"/> returns.
         /// </summary>
         /// <remarks>The returned reference is caller-owned; the fixture must dispose it.</remarks>
         internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
@@ -503,7 +503,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
         /// <summary>
         /// Appends a command and opens the gate — the same two-step pairing
-        /// <c>AnimationCommandUtil</c> performs, done through the <c>EntityManager</c> because a
+        /// <c>PlaybackApi</c> performs, done through the <c>EntityManager</c> because a
         /// test has no <c>EnabledRefRW</c> to hand it.
         /// </summary>
         internal static void EnqueueCommand(World world, Entity actorEntity, AnimationCommand command)

@@ -144,9 +144,9 @@ Each root publishes its resolved world-space orientation. Anything that needs th
 sense of "up" or "down" should read it rather than recomputing facing:
 
 ```csharp
-if (BillboardQuery.TryGetFrame(member, rootElementLookup, out quaternion frame))
+if (BillboardApi.TryGetFrame(member, rootElementLookup, out quaternion frame))
 {
-    BillboardQuery.ToBillboardSpace(frame, worldGravity, out float3 billboardGravity);
+    BillboardApi.ToBillboardSpace(frame, worldGravity, out float3 billboardGravity);
 }
 ```
 

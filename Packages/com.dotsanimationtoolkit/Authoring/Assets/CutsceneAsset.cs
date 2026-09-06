@@ -89,7 +89,7 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (stableId == 0UL)
             {
-                stableId = StableIdUtility.NewAssetStableId();
+                stableId = StableIdMinting.NewAssetStableId();
                 hasUnpersistedStableId = true;
             }
 
@@ -226,7 +226,7 @@ namespace DotsAnimationToolkit.Authoring
             // Same 32-bit space RigAsset mints target/socket/billboard-root/ragdoll-body ids from
             // (per-owning-asset scope, not project-wide) — one generator, and collisions across the
             // two owners are harmless because a slot id and a target id are never compared.
-            slotId = StableIdUtility.NewTargetStableId();
+            slotId = StableIdMinting.NewTargetStableId();
             return true;
         }
     }

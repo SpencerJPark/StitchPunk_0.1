@@ -10,7 +10,7 @@ namespace DotsAnimationToolkit
     /// never change identity. The value 0 is reserved and means "none/invalid". Commands carry a
     /// <see cref="ClipId"/>; resolution to a dense blob index happens once per Play/Queue command
     /// via binary search over <see cref="ClipRegistryBlob.sortedClipIds"/> (see
-    /// <see cref="ClipRegistryUtil.TryResolveClip"/>).
+    /// <see cref="ClipRegistryApi.TryResolveClip"/>).
     /// </summary>
     public readonly struct ClipId : IEquatable<ClipId>, IComparable<ClipId>
     {

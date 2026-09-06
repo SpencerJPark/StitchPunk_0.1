@@ -14,7 +14,7 @@ namespace DotsAnimationToolkit.Editor
     /// asset itself stores only strings, exactly so this can live outside <c>Authoring/</c>
     /// (Conformance_C) while the editor is the only thing that ever parses them.
     /// </summary>
-    internal static class CutsceneSceneBindingUtility
+    internal static class CutsceneSceneBinding
     {
         /// <summary>The AssetDatabase GUID of the currently active scene, or empty if it has never been saved.</summary>
         public static string CurrentSceneGuid()
@@ -59,7 +59,11 @@ namespace DotsAnimationToolkit.Editor
             }
             for (int bindingIndex = 0; bindingIndex < cutscene.sceneBindings.Count; bindingIndex++)
             {
-                CutsceneSceneBinding binding = cutscene.sceneBindings[bindingIndex];
+                // Fully qualified: this file's own static class now shares the name
+                // DotsAnimationToolkit.Authoring.CutsceneSceneBinding, the data type below, uses
+                // (Amendment A69 rename) — the unqualified name would otherwise resolve to this file's
+                // own type instead.
+                DotsAnimationToolkit.Authoring.CutsceneSceneBinding binding = cutscene.sceneBindings[bindingIndex];
                 if (binding == null || binding.sceneGuid != sceneGuid || binding.slotBindings == null)
                 {
                     continue;
