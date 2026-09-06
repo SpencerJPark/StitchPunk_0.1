@@ -68,7 +68,7 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 ## 5. Build phases
 
 - [x] **Phase 1 — marks (§3.1, 3.2) + `CutsceneMarkIssued` baking.** Test (PlayMode): `MoveToMark_IssuesAPathRequestForUnitsButNotThePlayer` (two entities, one with `Player`; enable marks; update; assert `PathRequest` enabled only on the unit with the mark's position) and `MarkResolved_HaltsPathing`.
-- [ ] **Phase 2 — dialogue cue (§3.3, 3.6) + registry entry.** Test (PlayMode): `DialogueCue_StartsActiveDialogue_AndReleasesTheHoldWhenItEnds` (hand-built request entity with an `AnimEventOutput` Dialogue event and a playback state paused on hold `"Dialogue"`; update; assert `ActiveDialogue` enabled; disable it; update; assert `CutsceneHoldRelease` enabled with the id).
+- [x] **Phase 2 — dialogue cue (§3.3, 3.6) + registry entry.** Test (PlayMode): `DialogueCue_StartsActiveDialogue_AndReleasesTheHoldWhenItEnds` (hand-built request entity with an `AnimEventOutput` Dialogue event and a playback state paused on hold `"Dialogue"`; update; assert `ActiveDialogue` enabled; disable it; update; assert `CutsceneHoldRelease` enabled with the id).
 - [ ] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
 - [ ] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
 - [ ] **Phase 5 — full suites once**, `Contracts.md` rows, `Systems_AI.md`/`Systems_Animation.md` one line each.
@@ -105,3 +105,23 @@ exactly that.
 `ClearResolvedMarkJob` also takes `Movement` as `[WithPresent]`, not enabled-only: a unit that dies
 mid-walk has `Movement` disabled by `DeathSystem`, and an enabled-only query would strand
 `CutsceneMarkIssued` on it forever, swallowing its next order after a pool reclaim.
+
+### Phase 2 — dialogue cue (2026-09-06)
+
+`Assets/Generated/DotsAnimationToolkit/AnimEvents.cs` was regenerated through
+`ConstantsGenerator.BuildVocabularyConstantsSource`/`WriteGeneratedFile` — the exact path the
+Project Settings page uses — rather than hand-edited. `AnimEvents.Dialogue` is `0x13` (19). Two
+asmdefs had to gain a `StitchPunk.Generated` reference to see it: `StitchPunk.Editor` (the provider)
+and `StitchPunk.Tests.PlayMode` (the fixture).
+
+**A detached `VisualElement` dispatches no `ChangeEvent`, so an editor seam probed off-panel looks
+inert.** The first live probe of the provider reported that neither the sequence field nor the
+speaker dropdown wrote anything, which read exactly like a broken binding; the real cause is that
+`SendEvent` needs a panel's dispatcher and the probe built its container standing alone. Re-run with
+the container parented into a live `EditorWindow.rootVisualElement`, every write lands: speaker
+`Player -> 0`, `Bertha -> 1`, `(no speaker) -> -1`, and picking `Dialogue_New` stored its
+`sequenceId` in `intParam` with a rebuild reading both back. Recorded in `Gotchas.md` — any future
+`execute_code` probe of a UI Toolkit field must parent it first or it proves nothing.
+
+Slot labels in the speaker dropdown are made unique (`name (slot N)` on a collision) because the
+chosen label, not `DropdownField.index`, is what resolves back to the stored index.
