@@ -90,6 +90,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement timelineContent;
         private BoxSelectElement boxSelectElement;
         private VisualElement boxSelectLane;
+
+        /// <summary>The lane the press landed in, selected if the gesture stays a click.</summary>
+        private CutsceneItemAddress boxSelectLaneAddress;
         private Vector2 boxSelectOriginInContent;
         private bool isBoxSelectArmed;
         private bool isBoxSelectActive;
@@ -1983,14 +1986,6 @@ namespace DotsAnimationToolkit.Editor
                 RegisterBlockLane(clipLane, slotIndex);
                 clipLane.SetBlocks(blockDisplays,
                     selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.ClipBlock ? selectedItemIndex : -1);
-                // Only the empty-space case: a press on a block already resolved its own selection.
-                clipLane.BlockSelected += index =>
-                {
-                    if (index < 0)
-                    {
-                        SelectSlotHeader(slotIndex);
-                    }
-                };
                 clipLane.BlockChangeCommitted += (index, start, duration) =>
                     CommitClipBlockChange(clipBlocksProperty, index, start, duration);
                 clipLane.EmptySpaceDoubleClicked += time => AddClipBlock(slotIndex, clipBlocksProperty, time);
@@ -2777,7 +2772,7 @@ namespace DotsAnimationToolkit.Editor
         // Box select: a band over the lane stack picks up whatever it crosses.
         // -----------------------------------------------------------------------------------
 
-        private void BeginBoxSelect(PointerDownEvent pointerEvent)
+        private void BeginBoxSelect(CutsceneItemAddress laneAddress, PointerDownEvent pointerEvent)
         {
             VisualElement lane = pointerEvent.currentTarget as VisualElement;
             if (lane == null || timelineContent == null || boxSelectElement == null)
@@ -2785,6 +2780,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            boxSelectLaneAddress = laneAddress;
             boxSelectOriginInContent = lane.ChangeCoordinatesTo(timelineContent, pointerEvent.localPosition);
             boxSelectLane = lane;
             isBoxSelectArmed = true;
@@ -2832,6 +2828,14 @@ namespace DotsAnimationToolkit.Editor
             boxSelectLane = null;
             if (!isBoxSelectActive)
             {
+                // It was a click after all. Only now is it safe to clear the set — doing it on the
+                // press would have emptied the selection a Shift+band was meant to grow.
+                if (!isBoxSelectAdditive)
+                {
+                    SelectItem(
+                        boxSelectLaneAddress.slotIndex, boxSelectLaneAddress.laneKind,
+                        boxSelectLaneAddress.partTrackIndex, -1);
+                }
                 return;
             }
             isBoxSelectActive = false;
@@ -2919,7 +2923,7 @@ namespace DotsAnimationToolkit.Editor
                 new CutsceneItemAddress(slotIndex, laneKind, partTrackIndex, itemIndex), toggles, adds);
             lane.SelectionDragMoved += PreviewSelectionDrag;
             lane.SelectionDragCommitted += CommitSelectionDrag;
-            lane.BackgroundPointerDown += BeginBoxSelect;
+            lane.BackgroundPointerDown += pointerEvent => BeginBoxSelect(laneAddress, pointerEvent);
             registeredLanes.Add(new RegisteredLane { laneAddress = laneAddress, momentLane = lane });
         }
 
@@ -2932,7 +2936,7 @@ namespace DotsAnimationToolkit.Editor
                 new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, -1, itemIndex), toggles, adds);
             lane.SelectionDragMoved += PreviewSelectionDrag;
             lane.SelectionDragCommitted += CommitSelectionDrag;
-            lane.BackgroundPointerDown += BeginBoxSelect;
+            lane.BackgroundPointerDown += pointerEvent => BeginBoxSelect(laneAddress, pointerEvent);
             registeredLanes.Add(new RegisteredLane { laneAddress = laneAddress, blockLane = lane });
         }
 

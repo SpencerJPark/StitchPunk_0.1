@@ -333,8 +333,9 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // Deliberately not raising the empty-space selection here: the panel cannot yet know
+            // whether this press is a click that clears the set or the start of an additive band.
             BackgroundPointerDown?.Invoke(pointerEvent);
-            BlockSelected?.Invoke(-1);
         }
     }
 }
