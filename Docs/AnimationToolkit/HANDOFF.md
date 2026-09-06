@@ -134,8 +134,14 @@ target `3934483903`) now sits on the rig; verified baked, not merely authored �
 `CutsceneG1Checkpoint` minions come out of play mode carrying a `SocketRegistry` with that socket at
 dense target index 15.
 
-**Owed**: the owner's eyes on the checkpoint — open `Assets/Scenes/CutsceneA63Checkpoint.unity` and
-`A63CheckpointCutscene.asset` in the Cutscene Editor and scrub. **Also worth knowing**: detach only
+**Checkpoint passed 2026-09-05** — owner: "the visual is right, so the data side works." They also
+reported inspector fields flashing in and out, which was a real regression and is fixed: rebuilding
+the inspector from a bound field's change event re-binds and re-raises it, 600 rebuilds in a few
+idle seconds. Both `SerializedPropertyChangeEvent` and `ChangeEvent<string>` fire on bind, and a
+re-entrancy guard does not catch it because binding is deferred — the working discriminator is
+`previousValue != newValue` (`CutsceneEditorPanel.ShouldIgnoreBindingEcho`). The same unguarded
+pattern predated A63 on the slot Kind field and now shares the guard. **Owed**: nothing on A63
+beyond a glance at the fixed inspector. **Also worth knowing**: detach only
 leaves a slot "where it was let go" when that slot's root lane is *empty*; any authored root key
 wins back the transform the instant the attachment ends, because key sampling clamps to the last
 key. The checkpoint's Crate is keyless for exactly that reason (spec §7, `Gotchas.md`).

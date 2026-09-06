@@ -414,3 +414,22 @@ now declares one `RigTarget` socket, "RightHand" (id `1287933773`, target `39344
 index 15), and both `CutsceneG1Checkpoint` minions bake it. **`ActorBaker` only adds `SocketRegistry`
 when `SocketRegistryBuilder.HasSockets(rig)`**, so a rig with no socket rows produces an actor that
 silently ignores every `SocketAttachment` pointed at it — there is no warning anywhere.
+
+### Rebuilding a UI Toolkit inspector from a bound field's change event flickers it at frame rate
+Unity's `SerializedDefaultEnumBinding` sends a `ChangeEvent<string>` from `OnFieldAttached`, carrying
+the value it has just bound. A callback that rebuilds the inspector from that event rebuilds,
+re-binds, and is called again — forever. Symptom: fields visibly flashing in and out with no input,
+and every element a fresh instance every frame. Measured 2026-09-05 in the Cutscene Editor's attach
+inspector at **600 `RebuildInspector` calls in a few idle seconds**; the clip-block and
+transform-key inspectors beside it were byte-stable, which is what localised it.
+
+`SerializedPropertyChangeEvent` has the same problem, so swapping between the two events fixes
+nothing — both fire on bind. **A re-entrancy flag around the rebuild is also not enough**: the echo
+arrives *after* `RebuildInspector` returns (measured `rebuilding=False`), because binding is
+deferred to a later panel update. What actually works is comparing the event's `previousValue`
+against its `newValue` and ignoring the ones where nothing changed. `CutsceneEditorPanel.
+ShouldIgnoreBindingEcho` does both, and the equality half is the half that fires.
+
+To tell a flicker like this from a stable panel without watching it: sample the inspector's child
+`GetHashCode()`s from two separate `execute_code` calls seconds apart. Same instances = stable; all
+different = rebuilding every frame.

@@ -175,3 +175,25 @@ public struct CutsceneDetachSignal : IComponentData, IEnableableComponent
 - **T0 verified baked, not merely authored:** both `CutsceneG1Checkpoint` minions come out of play
   mode carrying a `SocketRegistry` whose one socket is id `1287933773` at dense target index 15.
 
+**2026-09-05, after the owner's checkpoint pass.** The owner confirmed the visual — "the visual is
+right, so the data side works" — and reported the inspector's fields "flashing in and out".
+
+- **Cause, measured not guessed:** `BuildAttachMarkerInspector`'s Kind field rebuilt the inspector
+  from a bound field's change event. Unity raises that event when *binding* writes the field, so the
+  rebuild re-bound and re-raised it — 600 `RebuildInspector` calls in a few idle seconds. Localised
+  by sampling inspector element identities across two calls: the attach inspector replaced every
+  element, while the clip-block and transform-key inspectors beside it were byte-identical.
+- **`SerializedPropertyChangeEvent` and `ChangeEvent<string>` both fire on bind**, so the first fix
+  (swapping one for the other, to match `BuildSlotInspector`'s precedent) did not work — re-measured
+  and still churning. The stack trace named `SerializedDefaultEnumBinding.SetBinding →
+  OnFieldAttached → SendEvent`.
+- **A re-entrancy guard alone is also insufficient**: the echo arrives after `RebuildInspector`
+  returns (`rebuilding=False` when measured), because binding is deferred to a later panel update.
+  `ShouldIgnoreBindingEcho` therefore also compares `previousValue` against `newValue`, and that is
+  the half that actually fires.
+- **The same latent bug predates A63** on `BuildSlotInspector`'s slot Kind field, which used the
+  identical unguarded pattern; it now goes through the same guard.
+- **Verified both directions:** idle with an attach marker selected is 0 rebuilds and identical
+  element instances; setting Kind to Detach for real (`previous='Attach' new='Detach'`) rebuilds
+  exactly once and swaps the layout to the Impulse form. Suites re-run: EditMode 715/714 (the same
+  pre-existing `Conformance_A` asmdef drift), PlayMode 253/253.

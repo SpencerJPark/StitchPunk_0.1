@@ -2422,7 +2422,43 @@ namespace DotsAnimationToolkit.Editor
         // Inspector.
         // -----------------------------------------------------------------------------------
 
+        /// <summary>
+        /// True while <see cref="RebuildInspector"/> is building, so a change event raised by
+        /// binding a field cannot start another rebuild. See <see cref="ShouldIgnoreBindingEcho"/>.
+        /// </summary>
+        private bool isRebuildingInspector;
+
+        /// <summary>
+        /// Whether a change event is Unity's binding echoing the value it just bound, rather than a
+        /// human picking something.
+        /// </summary>
+        /// <remarks>
+        /// <c>SerializedDefaultEnumBinding</c> sends a <c>ChangeEvent&lt;string&gt;</c> from
+        /// <c>OnFieldAttached</c> carrying the value it just bound, so a callback that rebuilds the
+        /// inspector from one rebuilds, re-binds and is called again — the inspector flickers at
+        /// frame rate and every field becomes a fresh instance every frame. Measured at 600 rebuilds
+        /// over a few idle seconds before this guard existed.
+        /// </remarks>
+        private bool ShouldIgnoreBindingEcho<TValue>(ChangeEvent<TValue> changeEvent)
+        {
+            return isRebuildingInspector
+                || EqualityComparer<TValue>.Default.Equals(changeEvent.previousValue, changeEvent.newValue);
+        }
+
         private void RebuildInspector()
+        {
+            isRebuildingInspector = true;
+            try
+            {
+                RebuildInspectorContent();
+            }
+            finally
+            {
+                isRebuildingInspector = false;
+            }
+        }
+
+        private void RebuildInspectorContent()
         {
             inspectorScroll.Clear();
 
@@ -2508,7 +2544,14 @@ namespace DotsAnimationToolkit.Editor
 
             PropertyField kindField = new PropertyField(slotProperty.FindPropertyRelative("kind"));
             kindField.Bind(serializedObject);
-            kindField.RegisterCallback<ChangeEvent<string>>(_ => RebuildAll());
+            kindField.RegisterCallback<ChangeEvent<string>>(changeEvent =>
+            {
+                if (ShouldIgnoreBindingEcho(changeEvent))
+                {
+                    return;
+                }
+                RebuildAll();
+            });
             inspectorScroll.Add(kindField);
 
             // Props get one too: a door places exactly the way a character does (A58 §3.3).
@@ -2729,8 +2772,16 @@ namespace DotsAnimationToolkit.Editor
             PropertyField kindField = new PropertyField(markerProperty.FindPropertyRelative("kind"), "Kind");
             kindField.Bind(serializedObject);
             // A full rebuild, not just a repaint: the fields below differ by kind, and the lane's
-            // own marker shape is read off this value too.
-            kindField.RegisterCallback<SerializedPropertyChangeEvent>(_ => RebuildAll());
+            // own marker shape is read off this value too. Guarded, because binding raises this
+            // event too and an unguarded rebuild here flickers the whole inspector.
+            kindField.RegisterCallback<ChangeEvent<string>>(changeEvent =>
+            {
+                if (ShouldIgnoreBindingEcho(changeEvent))
+                {
+                    return;
+                }
+                RebuildAll();
+            });
             inspectorScroll.Add(kindField);
 
             if (marker.kind == CutsceneAttachKind.Detach)
@@ -2794,7 +2845,9 @@ namespace DotsAnimationToolkit.Editor
                 // The socket belongs to the old host's rig; a new host makes it meaningless.
                 markerProperty.FindPropertyRelative("socketId").uintValue = 0u;
                 serializedObject.ApplyModifiedProperties();
-                RebuildAll();
+                // Deferred: RebuildAll destroys this very dropdown, and doing that while it is still
+                // dispatching its own change event leaves the callback running on a dead element.
+                schedule.Execute(RebuildAll);
             });
             inspectorScroll.Add(hostDropdown);
         }
@@ -2838,7 +2891,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 markerProperty.FindPropertyRelative("socketId").uintValue = socketIds[chosenIndex];
                 serializedObject.ApplyModifiedProperties();
-                RebuildAll();
+                schedule.Execute(RebuildAll);
             });
             inspectorScroll.Add(socketDropdown);
 
